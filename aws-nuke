@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# Delete all AWS resources in an account
+#
+set -e
+
+function nuke_ec2 {
+    echo "Deleting all unprotected EC2 instances in region $1..."
+    instances=($(aws ec2 describe-instances --region $1 | jq '.Reservations[].Instances[] | {InstanceId}' | jq --raw-output '.InstanceId'))
+
+    for instance in ${instances[@]}; do
+        #Do not attempt to delete protected instances
+        protected=$(aws ec2 describe-instance-attribute --instance-id $instance \
+        --attribute disableApiTermination --query [DisableApiTermination] \
+        --region $1 | jq '.[] | {Value}' | jq --raw-output '.Value')
+        if [[ "$protected" = false ]] ; then
+            echo "   Deleting $instance"
+            aws ec2 terminate-instances --instance-id ${instance} --region $1 >/dev/null 2>&1
+        fi
+    done
+}
+
+function nuke_ebs {
+    echo "Deleting all unattached EBS volumes in region $1..."
+    volumes=($(aws ec2 describe-volumes --filters Name=status,Values=available --region $1 | jq '.Volumes[] | {VolumeId}' | jq --raw-output '.VolumeId'))
+
+    for volume in ${volumes[@]}; do
+        echo "   Deleting $volume"
+        aws ec2 delete-volume --volume-id ${volume} --region $1 >/dev/null 2>&1
+    done
+}
+
+function nuke_eni {
+    echo "Deleting all unattached ENI in region $1..."
+    enis=($(aws ec2 describe-network-interfaces --filters Name=status,Values=available --region $1 | jq '.NetworkInterfaces[] | {NetworkInterfaceId}' | jq --raw-output '.NetworkInterfaceId'))
+
+    for eni in ${enis[@]}; do
+        echo "   Deleting $eni"
+        aws ec2 delete-network-interface --network-interface-id ${eni} --region $1 >/dev/null 2>&1
+    done
+}
+
+function nuke_security_groups {
+    echo "Deleting all unused Security Groups in region $1"
+    security_groups=($(comm -23 <(aws ec2 describe-security-groups --region $1 --query 'SecurityGroups[*].GroupId' --output text | tr '\t' '\n'| sort) <(aws ec2 describe-instances --region $1 --query 'Reservations[*].Instances[*].SecurityGroups[*].GroupId' --output text | tr '\t' '\n' | sort | uniq)))
+
+    for security_group in ${security_groups[@]}; do
+        echo "   Deleting $security_group"
+        aws ec2 delete-security-group --group-id ${security_group} --region $1 >/dev/null 2>&1 || true
+    done
+}
+
+function nuke_elastic_ips {
+    echo "Deleting all unused Elastic IPs in region $1"
+    eips=($(aws ec2 describe-addresses --region $1 | jq '.Addresses[] | select(has("AssociationId") | not) | {AllocationId}' | jq --raw-output '.AllocationId'))
+    for eip in ${eips[@]}; do
+        echo "   Deleting $eip"
+        aws ec2 release-address --allocation-id ${eip} --region $1 >/dev/null 2>&1 || true
+    done
+}
+
+function nuke_kinesis_streams {
+    echo "Deleting all kinesis in region $1"
+    streams=($(aws kinesis list-streams --region $1 | jq '.StreamNames[]' | jq '.' --raw-output ))
+    for stream in ${streams[@]}; do
+        echo "   Deleting $stream"
+        aws kinesis delete-stream --stream-name ${stream} --region $1 >/dev/null 2>&1 || true
+    done
+}
+
+# Our main function
+function aws_nuke {
+    regions=(us-east-1 us-east-2 us-west-1 us-west-2 ca-central-1 eu-west-1 eu-central-1 eu-west-2 ap-southeast-1 ap-southeast-2 ap-northeast-2 ap-northeast-1 ap-south-1 sa-east-1)
+
+    for region in ${regions[@]}; do
+        nuke_ec2 "$region"
+        nuke_ebs "$region"
+        nuke_eni "$region"
+        nuke_security_groups "$region"
+        nuke_elastic_ips "$region"
+        nuke_kinesis_streams "$region"
+    done
+}
+
+aws_nuke
+
