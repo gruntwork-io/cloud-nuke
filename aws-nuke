@@ -21,12 +21,22 @@ function nuke_ec2 {
 }
 
 function nuke_elbs {
-    echo "Deleting all ELBs in region $1..."
+    echo "Deleting all classic ELBs in region $1..."
     elbs=($(aws elb describe-load-balancers --region $1 | jq '.LoadBalancerDescriptions[] | {LoadBalancerName}' | jq --raw-output '.LoadBalancerName'))
 
     for elb in ${elbs[@]}; do
         echo "   Deleting $elb"
         aws elb delete-load-balancer --load-balancer-name ${elb} --region $1 >/dev/null 2>&1
+    done
+}
+
+function nuke_elbsv2 {
+    echo "Deleting all v2 Load Balancers in region $1..."
+    lbs=($(aws elbv2 describe-load-balancers --region $1 | jq '.LoadBalancers[] | {LoadBalancerArn}' | jq --raw-output '.LoadBalancerArn'))
+
+    for lb in ${lbs[@]}; do
+        echo "   Deleting $lb"
+        aws elbv2 delete-load-balancer --load-balancer-arn ${lb} --region $1 
     done
 }
 
@@ -85,6 +95,7 @@ function aws_nuke {
     for region in ${regions[@]}; do
         nuke_ec2 "$region"
         nuke_elbs "$region"
+        nuke_elbsv2 "$region"
         nuke_ebs "$region"
         nuke_eni "$region"
         nuke_security_groups "$region"
