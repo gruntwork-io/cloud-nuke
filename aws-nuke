@@ -15,7 +15,7 @@ function nuke_ec2 {
         --region $1 | jq '.[] | {Value}' | jq --raw-output '.Value')
         if [[ "$protected" = false ]] ; then
             echo "   Deleting $instance"
-            aws ec2 terminate-instances --instance-id ${instance} --region $1 >/dev/null 2>&1
+            aws ec2 terminate-instances --instance-id ${instance} --region $1 
         fi
     done
 }
@@ -26,7 +26,7 @@ function nuke_elbs {
 
     for elb in ${elbs[@]}; do
         echo "   Deleting $elb"
-        aws elb delete-load-balancer --load-balancer-name ${elb} --region $1 >/dev/null 2>&1
+        aws elb delete-load-balancer --load-balancer-name ${elb} --region $1
     done
 }
 
@@ -46,7 +46,7 @@ function nuke_ebs {
 
     for volume in ${volumes[@]}; do
         echo "   Deleting $volume"
-        aws ec2 delete-volume --volume-id ${volume} --region $1 >/dev/null 2>&1
+        aws ec2 delete-volume --volume-id ${volume} --region $1 
     done
 }
 
@@ -56,7 +56,7 @@ function nuke_eni {
 
     for eni in ${enis[@]}; do
         echo "   Deleting $eni"
-        aws ec2 delete-network-interface --network-interface-id ${eni} --region $1 >/dev/null 2>&1
+        aws ec2 delete-network-interface --network-interface-id ${eni} --region $1 
     done
 }
 
@@ -66,7 +66,7 @@ function nuke_security_groups {
 
     for security_group in ${security_groups[@]}; do
         echo "   Deleting $security_group"
-        aws ec2 delete-security-group --group-id ${security_group} --region $1 >/dev/null 2>&1 || true
+        aws ec2 delete-security-group --group-id ${security_group} --region $1 || true
     done
 }
 
@@ -75,7 +75,7 @@ function nuke_elastic_ips {
     eips=($(aws ec2 describe-addresses --region $1 | jq '.Addresses[] | select(has("AssociationId") | not) | {AllocationId}' | jq --raw-output '.AllocationId'))
     for eip in ${eips[@]}; do
         echo "   Deleting $eip"
-        aws ec2 release-address --allocation-id ${eip} --region $1 >/dev/null 2>&1 || true
+        aws ec2 release-address --allocation-id ${eip} --region $1 || true
     done
 }
 
@@ -84,7 +84,7 @@ function nuke_kinesis_streams {
     streams=($(aws kinesis list-streams --region $1 | jq '.StreamNames[]' | jq '.' --raw-output ))
     for stream in ${streams[@]}; do
         echo "   Deleting $stream"
-        aws kinesis delete-stream --stream-name ${stream} --region $1 >/dev/null 2>&1 || true
+        aws kinesis delete-stream --stream-name ${stream} --region $1 || true
     done
 }
 
