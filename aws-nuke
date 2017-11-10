@@ -20,6 +20,16 @@ function nuke_ec2 {
     done
 }
 
+function nuke_elbs {
+    echo "Deleting all ELBs in region $1..."
+    elbs=($(aws elb describe-load-balancers --region $1 | jq '.LoadBalancerDescriptions[] | {LoadBalancerName}' | jq --raw-output '.LoadBalancerName'))
+
+    for elb in ${elbs[@]}; do
+        echo "   Deleting $elb"
+        aws elb delete-load-balancer --load-balancer-name ${elb} --region $1 >/dev/null 2>&1
+    done
+}
+
 function nuke_ebs {
     echo "Deleting all unattached EBS volumes in region $1..."
     volumes=($(aws ec2 describe-volumes --filters Name=status,Values=available --region $1 | jq '.Volumes[] | {VolumeId}' | jq --raw-output '.VolumeId'))
@@ -74,6 +84,7 @@ function aws_nuke {
 
     for region in ${regions[@]}; do
         nuke_ec2 "$region"
+        nuke_elbs "$region"
         nuke_ebs "$region"
         nuke_eni "$region"
         nuke_security_groups "$region"
