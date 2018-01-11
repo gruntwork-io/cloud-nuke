@@ -4,9 +4,29 @@
 #
 set -e
 
+function set_asgs_num_desired_instances_to_zero {
+    echo "Setting all Auto Scaling Groups' desired capacity to 0 in region $1."
+    asgs=($(aws autoscaling describe-auto-scaling-groups --region $1 | jq '.AutoScalingGroups[] | {AutoScalingGroupName}' | jq --raw-output '.AutoScalingGroupName'))
+
+    for asg in ${asgs[@]}; do
+        echo "   Setting desired capacity to 0 for $asg"
+        aws autoscaling update-auto-scaling-group --auto-scaling-group-name ${asg} --min-size 0 --desired-capacity 0 --region $1
+    done
+}
+
+function delete_asgs {
+    echo "Deleting all Auto Scaling Groups in region $1..."
+    asgs=($(aws autoscaling describe-auto-scaling-groups --region $1 | jq '.AutoScalingGroups[] | {AutoScalingGroupName}' | jq --raw-output '.AutoScalingGroupName'))
+
+    for asg in ${asgs[@]}; do
+        echo "   Deleting $asg"
+        aws autoscaling delete-auto-scaling-group --auto-scaling-group-name ${asg} --region $1
+    done
+}
+
 function nuke_ec2 {
     echo "Deleting all unprotected EC2 instances in region $1..."
-    instances=($(aws ec2 describe-instances --region $1 | jq '.Reservations[].Instances[] | {InstanceId}' | jq --raw-output '.InstanceId'))
+    instances=($(aws ec2 describe-instances --region $1 | jq '.Reservations[].Instances[] | select(.State.Name == "running")' | jq --raw-output '.InstanceId'))
 
     for instance in ${instances[@]}; do
         #Do not attempt to delete protected instances
@@ -93,14 +113,29 @@ function aws_nuke {
     regions=(us-east-1 us-east-2 us-west-1 us-west-2 ca-central-1 eu-west-1 eu-central-1 eu-west-2 ap-southeast-1 ap-southeast-2 ap-northeast-2 ap-northeast-1 ap-south-1 sa-east-1)
 
     for region in ${regions[@]}; do
+        echo
+        echo "Nuking $region..."
+        echo
+        set_asgs_num_desired_instances_to_zero "$region"
         nuke_ec2 "$region"
         nuke_elbs "$region"
         nuke_elbsv2 "$region"
         nuke_ebs "$region"
         nuke_eni "$region"
-        nuke_security_groups "$region"
         nuke_elastic_ips "$region"
         nuke_kinesis_streams "$region"
+
+        # Security Groups don't cost money and must be deleted in a sequence that respects their dependencies. Commented
+        # out until proper order of delete is implemented.
+        #nuke_security_groups "$region"
+    done
+
+    # Deleting ASGs after we nuke everything else is a hacky way to give set_asgs_num_desired_instances_to_zero enough
+    # time to complete its actions. We sleep an additional 10 seconds before proceeding just to be sure.
+    sleep 10
+
+    for region in ${regions[@]}; do
+        delete_asgs "$region"
     done
 }
 
