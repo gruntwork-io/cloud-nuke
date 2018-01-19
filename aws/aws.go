@@ -43,7 +43,7 @@ func NukeAllResources() {
 
 		err := nukeAllEc2Instances(session, ec2InstanceIds)
 		if err != nil {
-			fmt.Println("Could not terminate EC2 instances")
+			fmt.Println("Could not terminate EC2 instances in Region: " + region)
 		}
 	}
 }

@@ -1,12 +1,10 @@
 package commands
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/gruntwork-io/aws-nuke/aws"
+	"github.com/gruntwork-io/gruntwork-cli/shell"
 	"github.com/urfave/cli"
 )
 
@@ -24,20 +22,24 @@ func CreateCli(version string) *cli.App {
 		resources := aws.GetAllResources()
 
 		if len(resources) == 0 {
-			fmt.Println("No resources to nuke, you're all good!")
+			fmt.Println("Nothing to nuke, you're all good!")
 			return nil
 		}
 
-		fmt.Println("The following resources will be deleted: ")
+		fmt.Println("The following resources will be nuked: ")
 		for _, resource := range resources {
 			fmt.Println(*resource)
 		}
 
-		fmt.Print("\nAre you sure you want to nuke all listed resources (Y/N)? ")
+		prompt := "\nAre you sure you want to nuke all listed resources"
+		proceed, err := shell.PromptUserForYesNo(prompt, shell.NewShellOptions())
 
-		input, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-		if strings.ToLower(input) == "y\n" {
-			fmt.Println("Deleting all resources...")
+		if err != nil {
+			return err
+		}
+
+		if proceed {
+			fmt.Println("Nuking all resources...")
 			aws.NukeAllResources()
 		}
 
