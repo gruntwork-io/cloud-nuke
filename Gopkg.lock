@@ -2,16 +2,33 @@
 
 
 [[projects]]
+  name = "github.com/aws/aws-sdk-go"
+  packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","internal/shareddefaults","private/protocol","private/protocol/ec2query","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/xml/xmlutil","service/ec2","service/sts"]
+  revision = "c13a879e75646fe750d21bcb05bf2cabea9791c1"
+  version = "v1.12.65"
+
+[[projects]]
   name = "github.com/go-errors/errors"
   packages = ["."]
   revision = "3afebba5a48dbc89b574d890b6b34d9ee10b4785"
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/go-ini/ini"
+  packages = ["."]
+  revision = "32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a"
+  version = "v1.32.0"
+
+[[projects]]
   name = "github.com/gruntwork-io/gruntwork-cli"
   packages = ["entrypoint","errors","logging"]
   revision = "94044eeeb0a48b5e8dd52190fa0d0daba53e157f"
   version = "v0.1.2"
+
+[[projects]]
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  revision = "0b12d6b5"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -40,6 +57,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fa0d4874bcb0bb063ad9c7a2336772baef803c565cd99419036790054ca4b11e"
+  inputs-digest = "1988cdf755dfdb817899b3e0633d271bdcf4509a1fb2ff9539a77a1ad0da7b22"
   solver-name = "gps-cdcl"
   solver-version = 1
