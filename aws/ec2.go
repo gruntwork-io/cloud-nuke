@@ -6,6 +6,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/aws-nuke/logging"
 )
 
 var ec2Instances = make(map[string][]*string)
@@ -50,8 +51,7 @@ func nukeAllEc2Instances(session *session.Session) error {
 		return nil
 	}
 
-	msg := fmt.Sprintf("Terminating all EC2 instances in region %s...", *session.Config.Region)
-	fmt.Print(msg)
+	logging.Logger.Infof("Terminating all EC2 instances in region %s", *session.Config.Region)
 
 	params := &ec2.TerminateInstancesInput{
 		InstanceIds: instances,
@@ -59,10 +59,10 @@ func nukeAllEc2Instances(session *session.Session) error {
 
 	_, err := svc.TerminateInstances(params)
 	if err != nil {
-		fmt.Println("Failed")
+		logging.Logger.Errorf("[Failed] %s", err)
 		return err
 	}
 
-	fmt.Println("Done")
+	logging.Logger.Infof("[OK] %d instance(s) terminated in %s", len(instances), *session.Config.Region)
 	return nil
 }
