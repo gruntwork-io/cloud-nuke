@@ -11,10 +11,12 @@ import (
 
 var ec2Instances = make(map[string][]*string)
 
+// Build string that'll be shown in resources list
 func buildEntryName(instance ec2.Instance) string {
 	return fmt.Sprintf("ec2-%s-%s", *instance.InstanceId, *instance.InstanceType)
 }
 
+// Returns a formatted string of EC2 instance ids
 func getAllEc2Instances(session *session.Session, region string) ([]string, error) {
 	svc := ec2.New(session)
 
@@ -45,6 +47,7 @@ func getAllEc2Instances(session *session.Session, region string) ([]string, erro
 			})
 
 			protected := *attr.DisableApiTermination.Value
+			// Exclude protected EC2 instances
 			if !protected {
 				ec2Instances[region] = append(ec2Instances[region], &instanceID)
 				entries = append(entries, buildEntryName(*instance))
@@ -55,6 +58,7 @@ func getAllEc2Instances(session *session.Session, region string) ([]string, erro
 	return entries, nil
 }
 
+// Deletes all non protected EC2 instances
 func nukeAllEc2Instances(session *session.Session) error {
 	svc := ec2.New(session)
 	instances := ec2Instances[*session.Config.Region]
