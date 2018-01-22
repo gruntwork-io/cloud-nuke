@@ -11,6 +11,10 @@ import (
 
 var ec2Instances = make(map[string][]*string)
 
+func buildEntryName(instance ec2.Instance) string {
+	return fmt.Sprintf("ec2-%s-%s", *instance.InstanceId, *instance.InstanceType)
+}
+
 func getAllEc2Instances(session *session.Session, region string) ([]string, error) {
 	svc := ec2.New(session)
 
@@ -35,8 +39,7 @@ func getAllEc2Instances(session *session.Session, region string) ([]string, erro
 		for _, instance := range reservation.Instances {
 			instanceID := *instance.InstanceId
 			ec2Instances[region] = append(ec2Instances[region], &instanceID)
-			entry := fmt.Sprintf("ec2-%s-%s", instanceID, *instance.InstanceType)
-			entries = append(entries, entry)
+			entries = append(entries, buildEntryName(*instance))
 		}
 	}
 

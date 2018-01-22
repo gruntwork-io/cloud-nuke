@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -40,9 +39,8 @@ func TestListInstances(t *testing.T) {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
 	}
 
-	assert.Equal(t, 1, len(instanceEntries))
-	entry := fmt.Sprintf("ec2-%s-%s", *instance.InstanceId, *instance.InstanceType)
-	assert.Equal(t, entry, instanceEntries[0])
+	assert.NotEqual(t, 0, len(instanceEntries))
+	assert.Contains(t, instanceEntries, buildEntryName(instance))
 }
 
 func TestNukeInstances(t *testing.T) {
