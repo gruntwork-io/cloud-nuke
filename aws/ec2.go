@@ -38,8 +38,17 @@ func getAllEc2Instances(session *session.Session, region string) ([]string, erro
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
 			instanceID := *instance.InstanceId
-			ec2Instances[region] = append(ec2Instances[region], &instanceID)
-			entries = append(entries, buildEntryName(*instance))
+
+			attr, _ := svc.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
+				Attribute:  awsgo.String("disableApiTermination"),
+				InstanceId: awsgo.String(instanceID),
+			})
+
+			protected := *attr.DisableApiTermination.Value
+			if !protected {
+				ec2Instances[region] = append(ec2Instances[region], &instanceID)
+				entries = append(entries, buildEntryName(*instance))
+			}
 		}
 	}
 
