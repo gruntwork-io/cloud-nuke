@@ -26,9 +26,9 @@ func CreateCli(version string) *cli.App {
 			return nil
 		}
 
-		fmt.Println("The following resources will be nuked: ")
+		fmt.Println("\nThe following resources will be nuked: ")
 		for _, resource := range resources {
-			fmt.Println(*resource)
+			fmt.Println(resource)
 		}
 
 		prompt := "\nAre you sure you want to nuke all listed resources"
@@ -39,7 +39,6 @@ func CreateCli(version string) *cli.App {
 		}
 
 		if proceed {
-			fmt.Println("Nuking all resources...")
 			aws.NukeAllResources()
 		}
 
