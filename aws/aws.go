@@ -2,21 +2,29 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
-var regions []string
+// Returns a list of all AWS regions
+func getAllRegions() []string {
+	resolver := endpoints.DefaultResolver()
+	partitions := resolver.(endpoints.EnumPartitions).Partitions()
+
+	var regions []string
+	for _, p := range partitions {
+		for id := range p.Regions() {
+			regions = append(regions, id)
+		}
+	}
+
+	return regions
+}
 
 // GetAllResources - Lists all aws resources
 func GetAllResources() []string {
-	regions = []string{
-		"us-east-1", "us-east-2", "us-west-1", "us-west-2", "ca-central-1",
-		"eu-west-1", "eu-central-1", "eu-west-2", "ap-southeast-1", "ap-southeast-2",
-		"ap-northeast-2", "ap-northeast-1", "ap-south-1", "sa-east-1",
-	}
-
 	var resources []string
-	for _, region := range regions {
+	for _, region := range getAllRegions() {
 		session, _ := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
 		)
@@ -32,7 +40,7 @@ func GetAllResources() []string {
 
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources() {
-	for _, region := range regions {
+	for _, region := range getAllRegions() {
 		session, _ := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
 		)
