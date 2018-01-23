@@ -4,6 +4,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
 // Returns a list of all AWS regions
@@ -22,29 +23,44 @@ func getAllRegions() []string {
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources() []string {
+func GetAllResources() ([]string, error) {
 	var resources []string
 	for _, region := range getAllRegions() {
-		session, _ := session.NewSession(&awsgo.Config{
+		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
 		)
 
-		instances, err := getAllEc2Instances(session, region)
-		if err == nil {
-			resources = append(resources, instances...)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
 		}
+
+		instances, err := getAllEc2Instances(session, region)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		resources = append(resources, instances...)
 	}
 
-	return resources
+	return resources, nil
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources() {
+func NukeAllResources() error {
 	for _, region := range getAllRegions() {
-		session, _ := session.NewSession(&awsgo.Config{
+		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
 		)
 
-		nukeAllEc2Instances(session)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		err = nukeAllEc2Instances(session)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
 	}
+
+	return nil
 }

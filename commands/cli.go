@@ -26,7 +26,12 @@ func CreateCli(version string) *cli.App {
 func awsNuke(c *cli.Context) error {
 	logging.Logger.Infoln("Retrieving all active AWS resources")
 
-	resources := aws.GetAllResources()
+	resources, err := aws.GetAllResources()
+
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	if len(resources) == 0 {
 		logging.Logger.Infoln("Nothing to nuke, you're all good!")
 		return nil
@@ -41,7 +46,7 @@ func awsNuke(c *cli.Context) error {
 	proceed, err := shell.PromptUserForYesNo(prompt, &shellOptions)
 
 	if err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	if proceed {
