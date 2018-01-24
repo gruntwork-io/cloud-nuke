@@ -38,12 +38,12 @@ func GetAllResources() (map[string]map[string][]*string, error) {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		instancesIds, err := getAllEc2Instances(session, region)
+		instanceIds, err := getAllEc2Instances(session, region)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		resources["ec2"][region] = instancesIds
+		resources["ec2"][region] = instanceIds
 	}
 
 	return resources, nil

@@ -40,7 +40,7 @@ func getAllEc2Instances(session *session.Session, region string) ([]*string, err
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var instancesIds []*string
+	var instanceIds []*string
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
 			instanceID := *instance.InstanceId
@@ -57,19 +57,19 @@ func getAllEc2Instances(session *session.Session, region string) ([]*string, err
 			protected := *attr.DisableApiTermination.Value
 			// Exclude protected EC2 instances
 			if !protected {
-				instancesIds = append(instancesIds, &instanceID)
+				instanceIds = append(instanceIds, &instanceID)
 			}
 		}
 	}
 
-	return instancesIds, nil
+	return instanceIds, nil
 }
 
 // Deletes all non protected EC2 instances
-func nukeAllEc2Instances(session *session.Session, instancesIds []*string) error {
+func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error {
 	svc := ec2.New(session)
 
-	if len(instancesIds) == 0 {
+	if len(instanceIds) == 0 {
 		logging.Logger.Infof("No EC2 instances to nuke in region %s", *session.Config.Region)
 		return nil
 	}
@@ -77,7 +77,7 @@ func nukeAllEc2Instances(session *session.Session, instancesIds []*string) error
 	logging.Logger.Infof("Terminating all EC2 instances in region %s", *session.Config.Region)
 
 	params := &ec2.TerminateInstancesInput{
-		InstanceIds: instancesIds,
+		InstanceIds: instanceIds,
 	}
 
 	_, err := svc.TerminateInstances(params)
@@ -86,6 +86,6 @@ func nukeAllEc2Instances(session *session.Session, instancesIds []*string) error
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infof("[OK] %d instance(s) terminated in %s", len(instancesIds), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d instance(s) terminated in %s", len(instanceIds), *session.Config.Region)
 	return nil
 }
