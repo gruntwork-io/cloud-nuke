@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"strings"
+
 	"github.com/gruntwork-io/aws-nuke/aws"
 	"github.com/gruntwork-io/aws-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -16,7 +18,7 @@ func CreateCli(version string) *cli.App {
 	app.HelpName = app.Name
 	app.Author = "Gruntwork <www.gruntwork.io>"
 	app.Version = version
-	app.Usage = "A CLI tool to cleanup AWS resources. THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
+	app.Usage = "A CLI tool to cleanup AWS resources (EC2). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
 	app.Action = errors.WithPanicHandling(awsNuke)
 
 	return app
@@ -45,15 +47,15 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
-	prompt := "\nAre you sure you want to nuke all listed resources"
+	prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm: "
 	shellOptions := shell.ShellOptions{Logger: logging.Logger}
-	proceed, err := shell.PromptUserForYesNo(prompt, &shellOptions)
+	input, err := shell.PromptUserForInput(prompt, &shellOptions)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	if proceed {
+	if strings.ToLower(input) == "nuke" {
 		aws.NukeAllResources(resources)
 	}
 
