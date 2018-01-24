@@ -29,6 +29,7 @@ func getAllEc2Instances(session *session.Session, region string) ([]*string, err
 				Name: awsgo.String("instance-state-name"),
 				Values: []*string{
 					awsgo.String("running"), awsgo.String("pending"),
+					awsgo.String("stopped"), awsgo.String("stopping"),
 				},
 			},
 		},
