@@ -23,8 +23,12 @@ func getAllRegions() []string {
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources() ([]string, error) {
-	var resources []string
+func GetAllResources() (map[string]map[string][]*string, error) {
+	resources := make(map[string]map[string][]*string)
+
+	// Create maps of supported AWS resources
+	resources["ec2"] = make(map[string][]*string)
+
 	for _, region := range getAllRegions() {
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
@@ -34,19 +38,19 @@ func GetAllResources() ([]string, error) {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		instances, err := getAllEc2Instances(session, region)
+		instancesIds, err := getAllEc2Instances(session, region)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		resources = append(resources, instances...)
+		resources["ec2"][region] = instancesIds
 	}
 
 	return resources, nil
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources() error {
+func NukeAllResources(resourceMaps map[string]map[string][]*string) error {
 	for _, region := range getAllRegions() {
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
@@ -56,7 +60,7 @@ func NukeAllResources() error {
 			return errors.WithStackTrace(err)
 		}
 
-		err = nukeAllEc2Instances(session)
+		err = nukeAllEc2Instances(session, resourceMaps["ec2"][region])
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}

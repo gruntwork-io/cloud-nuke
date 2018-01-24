@@ -10,8 +10,6 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-var ec2Instances = make(map[string][]*string)
-
 // Build string that'll be shown in resources list
 func buildEntryName(instance ec2.Instance) string {
 	return fmt.Sprintf(
@@ -22,7 +20,7 @@ func buildEntryName(instance ec2.Instance) string {
 }
 
 // Returns a formatted string of EC2 instance ids
-func getAllEc2Instances(session *session.Session, region string) ([]string, error) {
+func getAllEc2Instances(session *session.Session, region string) ([]*string, error) {
 	svc := ec2.New(session)
 
 	params := &ec2.DescribeInstancesInput{
@@ -41,7 +39,7 @@ func getAllEc2Instances(session *session.Session, region string) ([]string, erro
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var entries []string
+	var instancesIds []*string
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
 			instanceID := *instance.InstanceId
@@ -58,29 +56,27 @@ func getAllEc2Instances(session *session.Session, region string) ([]string, erro
 			protected := *attr.DisableApiTermination.Value
 			// Exclude protected EC2 instances
 			if !protected {
-				ec2Instances[region] = append(ec2Instances[region], &instanceID)
-				entries = append(entries, buildEntryName(*instance))
+				instancesIds = append(instancesIds, &instanceID)
 			}
 		}
 	}
 
-	return entries, nil
+	return instancesIds, nil
 }
 
 // Deletes all non protected EC2 instances
-func nukeAllEc2Instances(session *session.Session) error {
+func nukeAllEc2Instances(session *session.Session, instancesIds []*string) error {
 	svc := ec2.New(session)
-	instances := ec2Instances[*session.Config.Region]
 
-	if len(instances) == 0 {
-		logging.Logger.Info("No EC2 instances to nuke")
+	if len(instancesIds) == 0 {
+		logging.Logger.Infof("No EC2 instances to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
 	logging.Logger.Infof("Terminating all EC2 instances in region %s", *session.Config.Region)
 
 	params := &ec2.TerminateInstancesInput{
-		InstanceIds: instances,
+		InstanceIds: instancesIds,
 	}
 
 	_, err := svc.TerminateInstances(params)
@@ -89,6 +85,6 @@ func nukeAllEc2Instances(session *session.Session) error {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infof("[OK] %d instance(s) terminated in %s", len(instances), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d instance(s) terminated in %s", len(instancesIds), *session.Config.Region)
 	return nil
 }

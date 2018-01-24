@@ -37,8 +37,12 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	for _, resource := range resources {
-		logging.Logger.Infoln(resource)
+	for resource, resourceMap := range resources {
+		for region, instances := range resourceMap {
+			for _, instance := range instances {
+				logging.Logger.Infof("%s-%s-%s", resource, *instance, region)
+			}
+		}
 	}
 
 	prompt := "\nAre you sure you want to nuke all listed resources"
@@ -50,7 +54,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if proceed {
-		aws.NukeAllResources()
+		aws.NukeAllResources(resources)
 	}
 
 	return nil
