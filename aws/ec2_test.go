@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var uniqueTestID = "aws-nuke-test-" + uniqueID()
-
 // Returns a unique (ish) id we can attach to resources and tfstate files so they don't conflict with each other
 // Uses base 62 to generate a 6 character string that's unlikely to collide with the handful of tests we run in
 // parallel. Based on code here: http://stackoverflow.com/a/9543797/483528
@@ -33,7 +31,7 @@ func uniqueID() string {
 	return out.String()
 }
 
-func createTestEC2Instance(t *testing.T, session *session.Session) ec2.Instance {
+func createTestEC2Instance(t *testing.T, session *session.Session, name string) ec2.Instance {
 	svc := ec2.New(session)
 
 	params := &ec2.RunInstancesInput{
@@ -54,7 +52,7 @@ func createTestEC2Instance(t *testing.T, session *session.Session) ec2.Instance 
 		Tags: []*ec2.Tag{
 			{
 				Key:   awsgo.String("Name"),
-				Value: awsgo.String(uniqueTestID),
+				Value: awsgo.String(name),
 			},
 		},
 	})
@@ -96,7 +94,8 @@ func TestListInstances(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	instance := createTestEC2Instance(t, session)
+	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	instance := createTestEC2Instance(t, session, uniqueTestID)
 	instanceIds, err := getAllEc2Instances(session, "us-west-2")
 
 	if err != nil {
@@ -114,6 +113,9 @@ func TestNukeInstances(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
+
+	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	createTestEC2Instance(t, session, uniqueTestID)
 
 	output, err := ec2.New(session).DescribeInstances(&ec2.DescribeInstancesInput{})
 	if err != nil {
