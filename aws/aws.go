@@ -76,8 +76,7 @@ func NukeAllResources(account *AwsAccountResources) error {
 		}
 
 		instanceIds := awsgo.StringSlice(getResourceIdenfiersForRegion(account, "ec2", region))
-		err = nukeAllEc2Instances(session, instanceIds)
-		if err != nil {
+		if err := nukeAllEc2Instances(session, instanceIds); err != nil {
 			return errors.WithStackTrace(err)
 		}
 	}

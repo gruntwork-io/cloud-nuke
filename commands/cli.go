@@ -3,6 +3,7 @@ package commands
 import (
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/gruntwork-io/aws-nuke/aws"
 	"github.com/gruntwork-io/aws-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -46,6 +47,9 @@ func awsNuke(c *cli.Context) error {
 			}
 		}
 	}
+
+	color := color.New(color.FgHiRed, color.Bold)
+	color.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
 	prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm: "
 	shellOptions := shell.ShellOptions{Logger: logging.Logger}
