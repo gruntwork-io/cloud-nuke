@@ -66,6 +66,27 @@ func createTestEC2Instance(t *testing.T, session *session.Session) ec2.Instance 
 	return *runResult.Instances[0]
 }
 
+func findEC2InstancesByNameTag(output *ec2.DescribeInstancesOutput, name string) []*string {
+	var instanceIds []*string
+	for _, reservation := range output.Reservations {
+		for _, instance := range reservation.Instances {
+			instanceID := *instance.InstanceId
+
+			// Retrive only IDs of instances with the unique test tag
+			for _, tag := range instance.Tags {
+				if *tag.Key == "Name" {
+					if *tag.Value == name {
+						instanceIds = append(instanceIds, &instanceID)
+					}
+				}
+			}
+
+		}
+	}
+
+	return instanceIds
+}
+
 func TestListInstances(t *testing.T) {
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
@@ -99,27 +120,11 @@ func TestNukeInstances(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	var instanceIds []*string
-	for _, reservation := range output.Reservations {
-		for _, instance := range reservation.Instances {
-			instanceID := *instance.InstanceId
-			if err != nil {
-				assert.Fail(t, errors.WithStackTrace(err).Error())
-			}
+	instanceIds := findEC2InstancesByNameTag(output, uniqueTestID)
 
-			// Retrive only IDs of instances with the unique test tag
-			for _, tag := range instance.Tags {
-				if *tag.Key == "Name" {
-					if *tag.Value == uniqueTestID {
-						instanceIds = append(instanceIds, &instanceID)
-					}
-				}
-			}
-
-		}
+	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-
-	nukeAllEc2Instances(session, instanceIds)
 	instances, err := getAllEc2Instances(session, "us-west-2")
 
 	if err != nil {
