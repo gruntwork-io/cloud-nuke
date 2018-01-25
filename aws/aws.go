@@ -22,12 +22,22 @@ func getAllRegions() []string {
 	return regions
 }
 
-// GetAllResources - Lists all aws resources
-func GetAllResources() (map[string]map[string][]*string, error) {
-	resources := make(map[string]map[string][]*string)
+// Returns a list of all resource identifiers in an AWS region from given account resources
+func getResourceIdenfiersForRegion(account *AwsAccountResources, resource string, region string) []string {
+	for _, res := range account.Resources[resource] {
+		if res.RegionName == region {
+			return res.ResourceIdentifiers
+		}
+	}
 
-	// Create maps of supported AWS resources
-	resources["ec2"] = make(map[string][]*string)
+	return make([]string, 0)
+}
+
+// GetAllResources - Lists all aws resources
+func GetAllResources() (*AwsAccountResources, error) {
+	account := AwsAccountResources{
+		Resources: make(map[string][]AwsRegionResources),
+	}
 
 	for _, region := range getAllRegions() {
 		session, err := session.NewSession(&awsgo.Config{
@@ -43,14 +53,19 @@ func GetAllResources() (map[string]map[string][]*string, error) {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		resources["ec2"][region] = instanceIds
+		regionResources := AwsRegionResources{
+			RegionName:          region,
+			ResourceIdentifiers: awsgo.StringValueSlice(instanceIds),
+		}
+
+		account.Resources["ec2"] = append(account.Resources["ec2"], regionResources)
 	}
 
-	return resources, nil
+	return &account, nil
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources(resourceMaps map[string]map[string][]*string) error {
+func NukeAllResources(account *AwsAccountResources) error {
 	for _, region := range getAllRegions() {
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
@@ -60,7 +75,8 @@ func NukeAllResources(resourceMaps map[string]map[string][]*string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		err = nukeAllEc2Instances(session, resourceMaps["ec2"][region])
+		instanceIds := awsgo.StringSlice(getResourceIdenfiersForRegion(account, "ec2", region))
+		err = nukeAllEc2Instances(session, instanceIds)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}

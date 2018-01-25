@@ -28,21 +28,21 @@ func CreateCli(version string) *cli.App {
 func awsNuke(c *cli.Context) error {
 	logging.Logger.Infoln("Retrieving all active AWS resources")
 
-	resources, err := aws.GetAllResources()
+	account, err := aws.GetAllResources()
 
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	if len(resources) == 0 {
+	if len(account.Resources) == 0 {
 		logging.Logger.Infoln("Nothing to nuke, you're all good!")
 		return nil
 	}
 
-	for resource, resourceMap := range resources {
-		for region, instances := range resourceMap {
-			for _, instance := range instances {
-				logging.Logger.Infof("%s-%s-%s", resource, *instance, region)
+	for resource, regionResources := range account.Resources {
+		for _, region := range regionResources {
+			for _, identifier := range region.ResourceIdentifiers {
+				logging.Logger.Infof("%s-%s-%s", resource, identifier, region.RegionName)
 			}
 		}
 	}
@@ -56,7 +56,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if strings.ToLower(input) == "nuke" {
-		aws.NukeAllResources(resources)
+		aws.NukeAllResources(account)
 	}
 
 	return nil
