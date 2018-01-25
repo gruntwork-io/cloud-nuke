@@ -46,6 +46,19 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 		assert.Failf(t, "Could not create test EC2 instance: %s", errors.WithStackTrace(err).Error())
 	}
 
+	err = svc.WaitUntilInstanceExists(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("instance-id"),
+				Values: []*string{runResult.Instances[0].InstanceId},
+			},
+		},
+	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	// Add test tag to the created instance
 	_, err = svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{runResult.Instances[0].InstanceId},
