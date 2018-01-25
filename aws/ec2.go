@@ -1,8 +1,6 @@
 package aws
 
 import (
-	"fmt"
-
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -10,13 +8,31 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-// Build string that'll be shown in resources list
-func buildEntryName(instance ec2.Instance) string {
-	return fmt.Sprintf(
-		"ec2-%s-%s",
-		awsgo.StringValue(instance.InstanceId),
-		awsgo.StringValue(instance.InstanceType),
-	)
+// returns only instance Ids of unprotected ec2 instances
+func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutput) ([]*string, error) {
+	var filteredIds []*string
+	for _, reservation := range output.Reservations {
+		for _, instance := range reservation.Instances {
+			instanceID := *instance.InstanceId
+
+			attr, err := svc.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
+				Attribute:  awsgo.String("disableApiTermination"),
+				InstanceId: awsgo.String(instanceID),
+			})
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			protected := *attr.DisableApiTermination.Value
+			// Exclude protected EC2 instances
+			if !protected {
+				filteredIds = append(filteredIds, &instanceID)
+			}
+		}
+	}
+
+	return filteredIds, nil
 }
 
 // Returns a formatted string of EC2 instance ids
@@ -40,26 +56,9 @@ func getAllEc2Instances(session *session.Session, region string) ([]*string, err
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var instanceIds []*string
-	for _, reservation := range output.Reservations {
-		for _, instance := range reservation.Instances {
-			instanceID := *instance.InstanceId
-
-			attr, err := svc.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
-				Attribute:  awsgo.String("disableApiTermination"),
-				InstanceId: awsgo.String(instanceID),
-			})
-
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-
-			protected := *attr.DisableApiTermination.Value
-			// Exclude protected EC2 instances
-			if !protected {
-				instanceIds = append(instanceIds, &instanceID)
-			}
-		}
+	instanceIds, err := filterOutProtectedInstances(svc, output)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
 	}
 
 	return instanceIds, nil
