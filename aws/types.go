@@ -1,12 +1,23 @@
 package aws
 
-// AwsAccountResources - maps an aws resource to AwsRegionResources
+import (
+	"github.com/aws/aws-sdk-go/aws/session"
+)
+
 type AwsAccountResources struct {
-	Resources map[string][]AwsRegionResources
+	Resources map[string]AwsRegionResource
 }
 
-// AwsRegionResource - maps an aws region to a list of resource identifiers
-type AwsRegionResources struct {
-	RegionName          string
-	ResourceIdentifiers []string // Can be list of ec2 instance ids, elb names etc
+type AwsResources interface {
+	ResourceName() string
+	ResourceIdentifiers() []string
+	Nuke(session *session.Session) error
+}
+
+type AwsRegionResource struct {
+	Resources []AwsResources
+}
+
+type EC2Instances struct {
+	InstanceIds []string
 }

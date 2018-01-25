@@ -40,10 +40,10 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	for resource, regionResources := range account.Resources {
-		for _, region := range regionResources {
-			for _, identifier := range region.ResourceIdentifiers {
-				logging.Logger.Infof("%s-%s-%s", resource, identifier, region.RegionName)
+	for region, resourcesInRegion := range account.Resources {
+		for _, resources := range resourcesInRegion.Resources {
+			for _, identifier := range resources.ResourceIdentifiers() {
+				logging.Logger.Infof("%s-%s-%s", resources.ResourceName(), identifier, region)
 			}
 		}
 	}
