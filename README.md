@@ -5,6 +5,7 @@ This repo contains a CLI tool to delete all AWS resources in an account. aws-nuk
 The currently supported functionality includes:
 
 * Deleting all unprotected EC2 instances in an AWS account
+* Deleting all Auto scaling groups in an AWS account
 
 ### WARNING: THIS TOOL IS HIGHLY DESTRUCTIVE, ALL SUPPORTED RESOURCES WILL BE DELETED. ITS EFFECTS ARE IRREVERSIBLE AND SHOULD NEVER BE USED IN A PRODUCTION ENVIRONMENT
 
