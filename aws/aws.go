@@ -39,6 +39,20 @@ func GetAllResources() (*AwsAccountResources, error) {
 
 		resourcesInRegion := AwsRegionResource{}
 
+		// ASG Names
+		groupNames, err := getAllAutoScalingGroups(session, region)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		asGroups := ASGroups{
+			GroupNames: awsgo.StringValueSlice(groupNames),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, asGroups)
+		// End ASG Names
+
+		// EC2 Instances
 		instanceIds, err := getAllEc2Instances(session, region)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
@@ -49,6 +63,8 @@ func GetAllResources() (*AwsAccountResources, error) {
 		}
 
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Instances)
+		// End EC2 Instances
+
 		account.Resources[region] = resourcesInRegion
 	}
 
