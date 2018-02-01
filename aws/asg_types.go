@@ -6,7 +6,7 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-// ASGroups - represents all ec2 instances
+// ASGroups - represents all auto scaling groups
 type ASGroups struct {
 	GroupNames []string
 }
