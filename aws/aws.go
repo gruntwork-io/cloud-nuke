@@ -65,6 +65,19 @@ func GetAllResources() (*AwsAccountResources, error) {
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancers)
 		// End LoadBalancer Names
 
+		// LoadBalancerV2 Arns
+		elbv2Arns, err := getAllElbv2Instances(session, region)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		loadBalancersV2 := LoadBalancersV2{
+			Arns: awsgo.StringValueSlice(elbv2Arns),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancersV2)
+		// End LoadBalancerV2 Arns
+
 		// EC2 Instances
 		instanceIds, err := getAllEc2Instances(session, region)
 		if err != nil {
