@@ -19,7 +19,7 @@ func CreateCli(version string) *cli.App {
 	app.HelpName = app.Name
 	app.Author = "Gruntwork <www.gruntwork.io>"
 	app.Version = version
-	app.Usage = "A CLI tool to cleanup AWS resources (ASG, EC2). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
+	app.Usage = "A CLI tool to cleanup AWS resources (ASG, ELB, ELBv2, EC2). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
 	app.Action = errors.WithPanicHandling(awsNuke)
 
 	return app
