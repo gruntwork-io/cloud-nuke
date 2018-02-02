@@ -78,19 +78,6 @@ func GetAllResources() (*AwsAccountResources, error) {
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancersV2)
 		// End LoadBalancerV2 Arns
 
-		// EBS Volumes
-		volumeIds, err := getAllEbsVolumes(session, region)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		ebsVolumes := EBSVolumes{
-			VolumeIds: awsgo.StringValueSlice(volumeIds),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
-		// End EBS Volumes
-
 		// EC2 Instances
 		instanceIds, err := getAllEc2Instances(session, region)
 		if err != nil {
@@ -103,6 +90,19 @@ func GetAllResources() (*AwsAccountResources, error) {
 
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Instances)
 		// End EC2 Instances
+
+		// EBS Volumes
+		volumeIds, err := getAllEbsVolumes(session, region)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		ebsVolumes := EBSVolumes{
+			VolumeIds: awsgo.StringValueSlice(volumeIds),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
+		// End EBS Volumes
 
 		account.Resources[region] = resourcesInRegion
 	}
