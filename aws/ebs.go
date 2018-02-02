@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/aws-nuke/logging"
@@ -42,8 +44,11 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 
 		_, err := svc.DeleteVolume(params)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
+			// Ignore not found errors, some volumes are deleted along with EC2 Instances
+			if !strings.Contains(err.Error(), "InvalidVolume.NotFound") {
+				logging.Logger.Errorf("[Failed] %s", err)
+				return errors.WithStackTrace(err)
+			}
 		}
 	}
 
