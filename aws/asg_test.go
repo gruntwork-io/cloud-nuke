@@ -95,14 +95,6 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	err = svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{&groupName},
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
 	groupNames, err := getAllAutoScalingGroups(session, "us-west-2")
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")

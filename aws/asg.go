@@ -48,6 +48,14 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		}
 	}
 
+	err := svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: groupNames,
+	})
+
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	logging.Logger.Infof("[OK] %d Auto Scaling Group(s) deleted in %s", len(groupNames), *session.Config.Region)
 	return nil
 }
