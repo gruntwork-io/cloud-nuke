@@ -100,8 +100,10 @@ func findEC2InstancesByNameTag(output *ec2.DescribeInstancesOutput, name string)
 
 func TestListInstances(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
@@ -110,7 +112,7 @@ func TestListInstances(t *testing.T) {
 
 	uniqueTestID := "aws-nuke-test-" + uniqueID()
 	instance := createTestEC2Instance(t, session, uniqueTestID)
-	instanceIds, err := getAllEc2Instances(session, "us-west-2")
+	instanceIds, err := getAllEc2Instances(session, region)
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
@@ -121,8 +123,10 @@ func TestListInstances(t *testing.T) {
 
 func TestNukeInstances(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
@@ -142,7 +146,7 @@ func TestNukeInstances(t *testing.T) {
 	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	instances, err := getAllEc2Instances(session, "us-west-2")
+	instances, err := getAllEc2Instances(session, region)
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")

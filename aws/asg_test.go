@@ -52,8 +52,10 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 
 func TestListAutoScalingGroups(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
@@ -63,7 +65,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 	groupName := "aws-nuke-test-" + uniqueID()
 	createTestAutoScalingGroup(t, session, groupName)
 
-	groupNames, err := getAllAutoScalingGroups(session, "us-west-2")
+	groupNames, err := getAllAutoScalingGroups(session, region)
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
@@ -73,8 +75,10 @@ func TestListAutoScalingGroups(t *testing.T) {
 
 func TestNukeAutoScalingGroups(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 	svc := autoscaling.New(session)
 
@@ -97,7 +101,7 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupNames, err := getAllAutoScalingGroups(session, "us-west-2")
+	groupNames, err := getAllAutoScalingGroups(session, region)
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}

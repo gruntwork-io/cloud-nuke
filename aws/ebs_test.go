@@ -13,7 +13,7 @@ import (
 func createTestEBSVolume(t *testing.T, session *session.Session, name string) ec2.Volume {
 	svc := ec2.New(session)
 	volume, err := svc.CreateVolume(&ec2.CreateVolumeInput{
-		AvailabilityZone: awsgo.String("us-west-2a"),
+		AvailabilityZone: awsgo.String(awsgo.StringValue(session.Config.Region) + "a"),
 		Size:             awsgo.Int64(8),
 	})
 
@@ -63,8 +63,10 @@ func findEBSVolumesByNameTag(output *ec2.DescribeVolumesOutput, name string) []*
 
 func TestListEBSVolumes(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
@@ -74,7 +76,7 @@ func TestListEBSVolumes(t *testing.T) {
 	uniqueTestID := "aws-nuke-test-" + uniqueID()
 	volume := createTestEBSVolume(t, session, uniqueTestID)
 
-	volumeIds, err := getAllEbsVolumes(session, "us-west-2")
+	volumeIds, err := getAllEbsVolumes(session, region)
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
@@ -84,8 +86,10 @@ func TestListEBSVolumes(t *testing.T) {
 
 func TestNukeEBSVolumes(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
@@ -105,7 +109,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	if err := nukeAllEbsVolumes(session, volumeIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	volumes, err := getAllEbsVolumes(session, "us-west-2")
+	volumes, err := getAllEbsVolumes(session, region)
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")

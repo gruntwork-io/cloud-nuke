@@ -59,8 +59,10 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 
 func TestListELBv2(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
@@ -70,7 +72,7 @@ func TestListELBv2(t *testing.T) {
 	elbName := "aws-nuke-test-" + uniqueID()
 	balancer := createTestELBv2(t, session, elbName)
 
-	arns, err := getAllElbv2Instances(session, "us-west-2")
+	arns, err := getAllElbv2Instances(session, region)
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of v2 ELBs")
 	}
@@ -80,8 +82,10 @@ func TestListELBv2(t *testing.T) {
 
 func TestNukeELBv2(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 	svc := elbv2.New(session)
 
@@ -114,7 +118,7 @@ func TestNukeELBv2(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	arns, err := getAllElbv2Instances(session, "us-west-2")
+	arns, err := getAllElbv2Instances(session, region)
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of v2 ELBs")
 	}

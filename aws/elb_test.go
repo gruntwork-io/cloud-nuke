@@ -15,7 +15,7 @@ func createTestELB(t *testing.T, session *session.Session, name string) {
 
 	param := &elb.CreateLoadBalancerInput{
 		AvailabilityZones: []*string{
-			awsgo.String("us-west-2a"),
+			awsgo.String(awsgo.StringValue(session.Config.Region) + "a"),
 		},
 		LoadBalancerName: awsgo.String(name),
 		Listeners: []*elb.Listener{
@@ -35,8 +35,10 @@ func createTestELB(t *testing.T, session *session.Session, name string) {
 
 func TestListELBs(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
@@ -46,7 +48,7 @@ func TestListELBs(t *testing.T) {
 	elbName := "aws-nuke-test-" + uniqueID()
 	createTestELB(t, session, elbName)
 
-	elbNames, err := getAllElbInstances(session, "us-west-2")
+	elbNames, err := getAllElbInstances(session, region)
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
@@ -56,8 +58,10 @@ func TestListELBs(t *testing.T) {
 
 func TestNukeELBs(t *testing.T) {
 	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 	svc := elb.New(session)
 
@@ -82,7 +86,7 @@ func TestNukeELBs(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	elbNames, err := getAllElbInstances(session, "us-west-2")
+	elbNames, err := getAllElbInstances(session, region)
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of ELBs")
 	}
