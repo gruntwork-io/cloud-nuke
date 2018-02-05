@@ -46,6 +46,14 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 		}
 	}
 
+	err := svc.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{
+		LoadBalancerArns: arns,
+	})
+
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	logging.Logger.Infof("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(arns), *session.Config.Region)
 	return nil
 }
