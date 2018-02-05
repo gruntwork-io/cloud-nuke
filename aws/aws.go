@@ -1,25 +1,43 @@
 package aws
 
 import (
+	"math/rand"
+	"time"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
 // Returns a list of all AWS regions
 func getAllRegions() []string {
+	// chinese and government regions are not accessible with regular accounts
+	reservedRegions := []string{
+		"cn-north-1", "cn-northwest-1", "us-gov-west-1",
+	}
+
 	resolver := endpoints.DefaultResolver()
 	partitions := resolver.(endpoints.EnumPartitions).Partitions()
 
 	var regions []string
 	for _, p := range partitions {
 		for id := range p.Regions() {
-			regions = append(regions, id)
+			if !collections.ListContainsElement(reservedRegions, id) {
+				regions = append(regions, id)
+			}
 		}
 	}
 
 	return regions
+}
+
+func getRandomRegion() string {
+	allRegions := getAllRegions()
+	rand.Seed(time.Now().UnixNano())
+	randIndex := rand.Intn(len(allRegions))
+	return allRegions[randIndex]
 }
 
 // GetAllResources - Lists all aws resources
