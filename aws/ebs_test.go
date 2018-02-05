@@ -62,6 +62,7 @@ func findEBSVolumesByNameTag(output *ec2.DescribeVolumesOutput, name string) []*
 }
 
 func TestListEBSVolumes(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)
@@ -82,6 +83,7 @@ func TestListEBSVolumes(t *testing.T) {
 }
 
 func TestNukeEBSVolumes(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)

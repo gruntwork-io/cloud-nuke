@@ -99,6 +99,7 @@ func findEC2InstancesByNameTag(output *ec2.DescribeInstancesOutput, name string)
 }
 
 func TestListInstances(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)
@@ -119,6 +120,7 @@ func TestListInstances(t *testing.T) {
 }
 
 func TestNukeInstances(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)

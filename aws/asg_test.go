@@ -51,6 +51,7 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 }
 
 func TestListAutoScalingGroups(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)
@@ -71,6 +72,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 }
 
 func TestNukeAutoScalingGroups(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)

@@ -58,6 +58,7 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 }
 
 func TestListELBv2(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)
@@ -78,6 +79,7 @@ func TestListELBv2(t *testing.T) {
 }
 
 func TestNukeELBv2(t *testing.T) {
+	t.Parallel()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String("us-west-2")},
 	)
