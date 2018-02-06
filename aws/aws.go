@@ -41,12 +41,17 @@ func getRandomRegion() string {
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources() (*AwsAccountResources, error) {
+func GetAllResources(excludedRegions []string) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
 
 	for _, region := range getAllRegions() {
+		// Ignore all cli excluded regions
+		if collections.ListContainsElement(excludedRegions, region) {
+			continue
+		}
+
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
 		)

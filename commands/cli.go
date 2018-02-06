@@ -20,6 +20,12 @@ func CreateCli(version string) *cli.App {
 	app.Author = "Gruntwork <www.gruntwork.io>"
 	app.Version = version
 	app.Usage = "A CLI tool to cleanup AWS resources (ASG, ELB, ELBv2, EBS, EC2). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
+	app.Flags = []cli.Flag{
+		cli.StringSliceFlag{
+			Name:  "exclude, e",
+			Usage: "regions to exclude",
+		},
+	}
 	app.Action = errors.WithPanicHandling(awsNuke)
 
 	return app
@@ -29,7 +35,7 @@ func CreateCli(version string) *cli.App {
 func awsNuke(c *cli.Context) error {
 	logging.Logger.Infoln("Retrieving all active AWS resources")
 
-	account, err := aws.GetAllResources()
+	account, err := aws.GetAllResources(c.StringSlice("exclude"))
 
 	if err != nil {
 		return errors.WithStackTrace(err)
