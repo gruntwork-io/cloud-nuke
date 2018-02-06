@@ -31,11 +31,48 @@ func uniqueID() string {
 	return out.String()
 }
 
+func getLinuxAmiIDForRegion(region string) string {
+	switch region {
+	case "us-east-1":
+		return "ami-97785bed"
+	case "us-east-2":
+		return "ami-f63b1193"
+	case "us-west-1":
+		return "ami-824c4ee2"
+	case "us-west-2":
+		return "ami-f2d3638a"
+	case "ca-central-1":
+		return "ami-a954d1cd"
+	case "eu-west-1":
+		return "ami-d834aba1"
+	case "eu-west-2":
+		return "ami-403e2524"
+	case "eu-west-3":
+		return "ami-8ee056f3"
+	case "eu-central-1":
+		return "ami-5652ce39"
+	case "ap-northeast-1":
+		return "ami-ceafcba8"
+	case "ap-northeast-2":
+		return "ami-863090e8"
+	case "ap-south-1":
+		return "ami-531a4c3c"
+	case "ap-southeast-1":
+		return "ami-68097514"
+	case "ap-southeast-2":
+		return "ami-942dd1f6"
+	case "sa-east-1":
+		return "ami-84175ae8"
+	default:
+		return ""
+	}
+}
+
 func createTestEC2Instance(t *testing.T, session *session.Session, name string) ec2.Instance {
 	svc := ec2.New(session)
 
 	params := &ec2.RunInstancesInput{
-		ImageId:      awsgo.String("ami-e7527ed7"),
+		ImageId:      awsgo.String(getLinuxAmiIDForRegion(*session.Config.Region)),
 		InstanceType: awsgo.String("t1.micro"),
 		MinCount:     awsgo.Int64(1),
 		MaxCount:     awsgo.Int64(1),
@@ -43,7 +80,7 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 
 	runResult, err := svc.RunInstances(params)
 	if err != nil {
-		assert.Failf(t, "Could not create test EC2 instance: %s", errors.WithStackTrace(err).Error())
+		assert.Fail(t, "Could not create test EC2 instance")
 	}
 
 	err = svc.WaitUntilInstanceExists(&ec2.DescribeInstancesInput{
