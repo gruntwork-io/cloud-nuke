@@ -11,8 +11,8 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-// Returns a list of all AWS regions
-func getAllRegions() []string {
+// GetAllRegions - Returns a list of all AWS regions
+func GetAllRegions() []string {
 	// chinese and government regions are not accessible with regular accounts
 	reservedRegions := []string{
 		"cn-north-1", "cn-northwest-1", "us-gov-west-1",
@@ -34,19 +34,19 @@ func getAllRegions() []string {
 }
 
 func getRandomRegion() string {
-	allRegions := getAllRegions()
+	allRegions := GetAllRegions()
 	rand.Seed(time.Now().UnixNano())
 	randIndex := rand.Intn(len(allRegions))
 	return allRegions[randIndex]
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(excludedRegions []string) (*AwsAccountResources, error) {
+func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
 
-	for _, region := range getAllRegions() {
+	for _, region := range regions {
 		// Ignore all cli excluded regions
 		if collections.ListContainsElement(excludedRegions, region) {
 			continue
@@ -134,8 +134,8 @@ func GetAllResources(excludedRegions []string) (*AwsAccountResources, error) {
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources(account *AwsAccountResources) error {
-	for _, region := range getAllRegions() {
+func NukeAllResources(account *AwsAccountResources, regions []string) error {
+	for _, region := range regions {
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
 		)

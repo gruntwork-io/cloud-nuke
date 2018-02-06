@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/gruntwork-io/gruntwork-cli/collections"
 
 	"github.com/fatih/color"
 	"github.com/gruntwork-io/aws-nuke/aws"
@@ -33,9 +36,18 @@ func CreateCli(version string) *cli.App {
 
 // Nuke it all!!!
 func awsNuke(c *cli.Context) error {
-	logging.Logger.Infoln("Retrieving all active AWS resources")
+	regions := aws.GetAllRegions()
+	excludedRegions := c.StringSlice("exclude-region")
 
-	account, err := aws.GetAllResources(c.StringSlice("exclude"))
+	for _, excludedRegion := range excludedRegions {
+		if !collections.ListContainsElement(regions, excludedRegion) {
+			fmt.Println(excludedRegion + "is not a valid AWS Region")
+			return InvalidFlagError{}
+		}
+	}
+
+	logging.Logger.Infoln("Retrieving all active AWS resources")
+	account, err := aws.GetAllResources(regions, excludedRegions)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
@@ -66,7 +78,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if strings.ToLower(input) == "nuke" {
-		aws.NukeAllResources(account)
+		aws.NukeAllResources(account, regions)
 	}
 
 	return nil
