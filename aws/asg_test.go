@@ -16,16 +16,6 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 	svc := autoscaling.New(session)
 	instance := createTestEC2Instance(t, session, name)
 
-	// EC2 Instance must be in a running state before ASG can be created
-	err := ec2.New(session).WaitUntilInstanceRunning(&ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			&ec2.Filter{
-				Name:   awsgo.String("instance-id"),
-				Values: []*string{instance.InstanceId},
-			},
-		},
-	})
-
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
