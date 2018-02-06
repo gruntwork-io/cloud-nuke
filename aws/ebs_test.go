@@ -51,7 +51,7 @@ func createTestEBSVolume(t *testing.T, session *session.Session, name string) ec
 func findEBSVolumesByNameTag(output *ec2.DescribeVolumesOutput, name string) []*string {
 	var volumeIds []*string
 	for _, volume := range output.Volumes {
-		// Retrive only IDs of instances with the unique test tag
+		// Retrieve only IDs of instances with the unique test tag
 		for _, tag := range volume.Tags {
 			if awsgo.StringValue(tag.Key) == "Name" && awsgo.StringValue(tag.Value) == name {
 				volumeIds = append(volumeIds, volume.VolumeId)
