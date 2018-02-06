@@ -6,6 +6,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/gruntwork-io/aws-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -45,7 +46,7 @@ func TestListELBs(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	elbName := "aws-nuke-test-" + uniqueID()
+	elbName := "aws-nuke-test-" + util.UniqueID()
 	createTestELB(t, session, elbName)
 
 	elbNames, err := getAllElbInstances(session, region)
@@ -69,7 +70,7 @@ func TestNukeELBs(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	elbName := "aws-nuke-test-" + uniqueID()
+	elbName := "aws-nuke-test-" + util.UniqueID()
 	createTestELB(t, session, elbName)
 
 	_, err = svc.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{

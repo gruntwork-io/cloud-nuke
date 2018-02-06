@@ -6,6 +6,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/aws-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -73,7 +74,7 @@ func TestListEBSVolumes(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	volume := createTestEBSVolume(t, session, uniqueTestID)
 
 	volumeIds, err := getAllEbsVolumes(session, region)
@@ -96,7 +97,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	createTestEC2Instance(t, session, uniqueTestID)
 
 	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{})

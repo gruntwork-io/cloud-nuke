@@ -1,35 +1,15 @@
 package aws
 
 import (
-	"bytes"
-	"math/rand"
 	"testing"
-	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/aws-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
-
-// Returns a unique (ish) id we can attach to resources and tfstate files so they don't conflict with each other
-// Uses base 62 to generate a 6 character string that's unlikely to collide with the handful of tests we run in
-// parallel. Based on code here: http://stackoverflow.com/a/9543797/483528
-func uniqueID() string {
-
-	const BASE_62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	const UNIQUE_ID_LENGTH = 6 // Should be good for 62^6 = 56+ billion combinations
-
-	var out bytes.Buffer
-
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := 0; i < UNIQUE_ID_LENGTH; i++ {
-		out.WriteByte(BASE_62_CHARS[rand.Intn(len(BASE_62_CHARS))])
-	}
-
-	return out.String()
-}
 
 func getLinuxAmiIDForRegion(region string) string {
 	switch region {
@@ -147,7 +127,7 @@ func TestListInstances(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	instance := createTestEC2Instance(t, session, uniqueTestID)
 	instanceIds, err := getAllEc2Instances(session, region)
 
@@ -170,7 +150,7 @@ func TestNukeInstances(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	createTestEC2Instance(t, session, uniqueTestID)
 
 	output, err := ec2.New(session).DescribeInstances(&ec2.DescribeInstancesInput{})

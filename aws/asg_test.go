@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/aws-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -62,7 +63,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupName := "aws-nuke-test-" + uniqueID()
+	groupName := "aws-nuke-test-" + util.UniqueID()
 	createTestAutoScalingGroup(t, session, groupName)
 
 	groupNames, err := getAllAutoScalingGroups(session, region)
@@ -86,7 +87,7 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupName := "aws-nuke-test-" + uniqueID()
+	groupName := "aws-nuke-test-" + util.UniqueID()
 	createTestAutoScalingGroup(t, session, groupName)
 
 	_, err = svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
