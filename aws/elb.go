@@ -44,6 +44,8 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
+
+		logging.Logger.Infof("Deleted ELB: %s", *name)
 	}
 
 	logging.Logger.Infof("[OK] %d Elastic Load Balancer(s) deleted in %s", len(names), *session.Config.Region)

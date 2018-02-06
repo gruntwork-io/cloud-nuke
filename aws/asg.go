@@ -46,6 +46,8 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
+
+		logging.Logger.Infof("Deleted Auto Scaling Group: %s", *groupName)
 	}
 
 	err := svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{

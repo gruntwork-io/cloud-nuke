@@ -6,7 +6,6 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/aws-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
@@ -16,10 +15,6 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 	svc := autoscaling.New(session)
 	instance := createTestEC2Instance(t, session, name)
 
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
 	param := &autoscaling.CreateAutoScalingGroupInput{
 		AutoScalingGroupName: &name,
 		InstanceId:           instance.InstanceId,
@@ -27,7 +22,7 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 		MaxSize:              awsgo.Int64(2),
 	}
 
-	_, err = svc.CreateAutoScalingGroup(param)
+	_, err := svc.CreateAutoScalingGroup(param)
 	if err != nil {
 		assert.Failf(t, "Could not create test ASG: %s", errors.WithStackTrace(err).Error())
 	}

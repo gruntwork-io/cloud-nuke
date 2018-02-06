@@ -44,6 +44,8 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
+
+		logging.Logger.Infof("Deleted ELBv2: %s", *arn)
 	}
 
 	err := svc.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{

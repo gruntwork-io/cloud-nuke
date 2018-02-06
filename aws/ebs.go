@@ -51,6 +51,8 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 			}
 
 			logging.Logger.Infof("EBS volume %s has already been deleted", *volumeID)
+		} else {
+			logging.Logger.Infof("Deleted EBS Volume: %s", *volumeID)
 		}
 	}
 

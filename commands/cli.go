@@ -46,7 +46,7 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
-	logging.Logger.Infoln("Retrieving all active AWS resources")
+	fmt.Println("Retrieving all active AWS resources")
 	account, err := aws.GetAllResources(regions, excludedRegions)
 
 	if err != nil {
@@ -58,10 +58,13 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
+	fmt.Println("The following AWS resources are going to be nuked: ")
+	fmt.Println()
+
 	for region, resourcesInRegion := range account.Resources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {
-				logging.Logger.Infof("%s-%s-%s", resources.ResourceName(), identifier, region)
+				fmt.Printf("* %s-%s-%s\n", resources.ResourceName(), identifier, region)
 			}
 		}
 	}

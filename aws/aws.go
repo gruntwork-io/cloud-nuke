@@ -7,6 +7,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/aws-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
@@ -49,6 +50,7 @@ func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountRes
 	for _, region := range regions {
 		// Ignore all cli excluded regions
 		if collections.ListContainsElement(excludedRegions, region) {
+			logging.Logger.Infoln("Skipping region: " + region)
 			continue
 		}
 
@@ -61,6 +63,9 @@ func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountRes
 		}
 
 		resourcesInRegion := AwsRegionResource{}
+
+		// The order in which resources are nuked is important
+		// because of dependencies between resources
 
 		// ASG Names
 		groupNames, err := getAllAutoScalingGroups(session, region)
