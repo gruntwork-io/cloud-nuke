@@ -22,7 +22,7 @@ func CreateCli(version string) *cli.App {
 	app.Usage = "A CLI tool to cleanup AWS resources (ASG, ELB, ELBv2, EBS, EC2). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
 	app.Flags = []cli.Flag{
 		cli.StringSliceFlag{
-			Name:  "exclude, e",
+			Name:  "exclude-region",
 			Usage: "regions to exclude",
 		},
 	}

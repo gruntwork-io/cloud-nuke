@@ -24,10 +24,10 @@ Simply running `aws-nuke` will start the process of cleaning up your AWS account
 
 ### Excluding Regions
 
-You can use the `--exclude` or `-e` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
+You can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
-aws-nuke --exclude ap-south-1 --exclude ap-south-2
+aws-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
 ```
 
 Happy Nuking!!!
