@@ -79,6 +79,9 @@ func TestListELBv2(t *testing.T) {
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))
+
+	// clean up after this test
+	defer nukeAllElbv2Instances(session, []*string{balancer.LoadBalancerArn})
 }
 
 func TestNukeELBv2(t *testing.T) {

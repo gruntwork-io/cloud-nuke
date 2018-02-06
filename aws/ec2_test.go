@@ -136,6 +136,9 @@ func TestListInstances(t *testing.T) {
 	}
 
 	assert.Contains(t, instanceIds, instance.InstanceId)
+
+	// clean up after this test
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
 }
 
 func TestNukeInstances(t *testing.T) {

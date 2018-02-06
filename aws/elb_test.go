@@ -55,6 +55,9 @@ func TestListELBs(t *testing.T) {
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(elbNames), elbName)
+
+	// clean up after this test
+	defer nukeAllElbInstances(session, []*string{&elbName})
 }
 
 func TestNukeELBs(t *testing.T) {

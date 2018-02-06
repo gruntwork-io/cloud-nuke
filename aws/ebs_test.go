@@ -83,6 +83,9 @@ func TestListEBSVolumes(t *testing.T) {
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
+
+	// clean up after this test
+	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 }
 
 func TestNukeEBSVolumes(t *testing.T) {
