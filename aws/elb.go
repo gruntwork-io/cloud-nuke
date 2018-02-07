@@ -3,6 +3,7 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/gruntwork-io/aws-nuke/logging"
@@ -13,14 +14,18 @@ func waitUntilElbDeleted(svc *elb.ELB, input *elb.DescribeLoadBalancersInput) er
 	for i := 0; i < 30; i++ {
 		_, err := svc.DescribeLoadBalancers(input)
 		if err != nil {
-			// an error is returned when ELB no longer exists
-			return nil
+			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "LoadBalancerNotFound" {
+				return nil
+			}
+
+			return err
 		}
 
 		time.Sleep(1 * time.Second)
+		logging.Logger.Debug("Waiting for ELB to be deleted")
 	}
 
-	panic("ELBs failed to delete")
+	return ElbDeleteError{}
 }
 
 // Returns a formatted string of ELB names

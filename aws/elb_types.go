@@ -29,3 +29,9 @@ func (balancer LoadBalancers) Nuke(session *session.Session) error {
 
 	return nil
 }
+
+type ElbDeleteError struct{}
+
+func (e ElbDeleteError) Error() string {
+	return "ELB was not deleted"
+}
