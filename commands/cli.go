@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/gruntwork-io/gruntwork-cli/collections"
@@ -41,12 +40,12 @@ func awsNuke(c *cli.Context) error {
 
 	for _, excludedRegion := range excludedRegions {
 		if !collections.ListContainsElement(regions, excludedRegion) {
-			fmt.Println(excludedRegion + "is not a valid AWS Region")
+			logging.Logger.Infoln(excludedRegion + "is not a valid AWS Region")
 			return InvalidFlagError{}
 		}
 	}
 
-	fmt.Println("Retrieving all active AWS resources")
+	logging.Logger.Infoln("Retrieving all active AWS resources")
 	account, err := aws.GetAllResources(regions, excludedRegions)
 
 	if err != nil {
@@ -58,13 +57,12 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	fmt.Println("The following AWS resources are going to be nuked: ")
-	fmt.Println()
+	logging.Logger.Infoln("The following AWS resources are going to be nuked: ")
 
 	for region, resourcesInRegion := range account.Resources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {
-				fmt.Printf("* %s-%s-%s\n", resources.ResourceName(), identifier, region)
+				logging.Logger.Infof("* %s-%s-%s\n", resources.ResourceName(), identifier, region)
 			}
 		}
 	}
