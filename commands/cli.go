@@ -40,8 +40,10 @@ func awsNuke(c *cli.Context) error {
 
 	for _, excludedRegion := range excludedRegions {
 		if !collections.ListContainsElement(regions, excludedRegion) {
-			logging.Logger.Infoln(excludedRegion + "is not a valid AWS Region")
-			return InvalidFlagError{}
+			return InvalidFlagError{
+				Name: "exclude-regions",
+				Value: excludedRegion,
+			}
 		}
 	}
 
