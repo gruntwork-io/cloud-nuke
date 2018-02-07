@@ -76,6 +76,8 @@ func TestListEBSVolumes(t *testing.T) {
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	volume := createTestEBSVolume(t, session, uniqueTestID)
+	// clean up after this test
+	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 
 	volumeIds, err := getAllEbsVolumes(session, region)
 	if err != nil {
@@ -83,9 +85,6 @@ func TestListEBSVolumes(t *testing.T) {
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
-
-	// clean up after this test
-	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 }
 
 func TestNukeEBSVolumes(t *testing.T) {

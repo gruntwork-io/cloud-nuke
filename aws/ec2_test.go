@@ -126,6 +126,9 @@ func TestListInstances(t *testing.T) {
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	instance := createTestEC2Instance(t, session, uniqueTestID)
+	// clean up after this test
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
+
 	instanceIds, err := getAllEc2Instances(session, region)
 
 	if err != nil {
@@ -133,9 +136,6 @@ func TestListInstances(t *testing.T) {
 	}
 
 	assert.Contains(t, instanceIds, instance.InstanceId)
-
-	// clean up after this test
-	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
 }
 
 func TestNukeInstances(t *testing.T) {

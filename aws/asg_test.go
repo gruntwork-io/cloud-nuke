@@ -50,6 +50,8 @@ func TestListAutoScalingGroups(t *testing.T) {
 
 	groupName := "aws-nuke-test-" + util.UniqueID()
 	createTestAutoScalingGroup(t, session, groupName)
+	// clean up after this test
+	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
 
 	groupNames, err := getAllAutoScalingGroups(session, region)
 	if err != nil {
@@ -57,9 +59,6 @@ func TestListAutoScalingGroups(t *testing.T) {
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(groupNames), groupName)
-
-	// clean up after this test
-	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
 }
 
 func TestNukeAutoScalingGroups(t *testing.T) {

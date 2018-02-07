@@ -48,6 +48,8 @@ func TestListELBs(t *testing.T) {
 
 	elbName := "aws-nuke-test-" + util.UniqueID()
 	createTestELB(t, session, elbName)
+	// clean up after this test
+	defer nukeAllElbInstances(session, []*string{&elbName})
 
 	elbNames, err := getAllElbInstances(session, region)
 	if err != nil {
@@ -55,9 +57,6 @@ func TestListELBs(t *testing.T) {
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(elbNames), elbName)
-
-	// clean up after this test
-	defer nukeAllElbInstances(session, []*string{&elbName})
 }
 
 func TestNukeELBs(t *testing.T) {
