@@ -6,7 +6,12 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-// Name - the simple name of the aws resource
+// EC2Instances - represents all ec2 instances
+type EC2Instances struct {
+	InstanceIds []string
+}
+
+// ResourceName - the simple name of the aws resource
 func (instance EC2Instances) ResourceName() string {
 	return "ec2"
 }

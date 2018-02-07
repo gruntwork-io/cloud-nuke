@@ -4,6 +4,9 @@ This repo contains a CLI tool to delete all AWS resources in an account. aws-nuk
 
 The currently supported functionality includes:
 
+* Deleting all Auto scaling groups in an AWS account
+* Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
+* Deleting all EBS Volumes in an AWS account
 * Deleting all unprotected EC2 instances in an AWS account
 
 ### WARNING: THIS TOOL IS HIGHLY DESTRUCTIVE, ALL SUPPORTED RESOURCES WILL BE DELETED. ITS EFFECTS ARE IRREVERSIBLE AND SHOULD NEVER BE USED IN A PRODUCTION ENVIRONMENT
@@ -18,6 +21,14 @@ The currently supported functionality includes:
 ## Usage
 
 Simply running `aws-nuke` will start the process of cleaning up your AWS account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
+
+### Excluding Regions
+
+You can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
+
+```shell
+aws-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
+```
 
 Happy Nuking!!!
 

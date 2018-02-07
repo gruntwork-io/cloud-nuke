@@ -3,6 +3,8 @@ package commands
 import (
 	"strings"
 
+	"github.com/gruntwork-io/gruntwork-cli/collections"
+
 	"github.com/fatih/color"
 	"github.com/gruntwork-io/aws-nuke/aws"
 	"github.com/gruntwork-io/aws-nuke/logging"
@@ -19,7 +21,13 @@ func CreateCli(version string) *cli.App {
 	app.HelpName = app.Name
 	app.Author = "Gruntwork <www.gruntwork.io>"
 	app.Version = version
-	app.Usage = "A CLI tool to cleanup AWS resources (EC2). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
+	app.Usage = "A CLI tool to cleanup AWS resources (ASG, ELB, ELBv2, EBS, EC2). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
+	app.Flags = []cli.Flag{
+		cli.StringSliceFlag{
+			Name:  "exclude-region",
+			Usage: "regions to exclude",
+		},
+	}
 	app.Action = errors.WithPanicHandling(awsNuke)
 
 	return app
@@ -27,9 +35,20 @@ func CreateCli(version string) *cli.App {
 
 // Nuke it all!!!
 func awsNuke(c *cli.Context) error {
-	logging.Logger.Infoln("Retrieving all active AWS resources")
+	regions := aws.GetAllRegions()
+	excludedRegions := c.StringSlice("exclude-region")
 
-	account, err := aws.GetAllResources()
+	for _, excludedRegion := range excludedRegions {
+		if !collections.ListContainsElement(regions, excludedRegion) {
+			return InvalidFlagError{
+				Name: "exclude-regions",
+				Value: excludedRegion,
+			}
+		}
+	}
+
+	logging.Logger.Infoln("Retrieving all active AWS resources")
+	account, err := aws.GetAllResources(regions, excludedRegions)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
@@ -40,10 +59,12 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
+	logging.Logger.Infoln("The following AWS resources are going to be nuked: ")
+
 	for region, resourcesInRegion := range account.Resources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {
-				logging.Logger.Infof("%s-%s-%s", resources.ResourceName(), identifier, region)
+				logging.Logger.Infof("* %s-%s-%s\n", resources.ResourceName(), identifier, region)
 			}
 		}
 	}
@@ -60,7 +81,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if strings.ToLower(input) == "nuke" {
-		aws.NukeAllResources(account)
+		aws.NukeAllResources(account, regions)
 	}
 
 	return nil

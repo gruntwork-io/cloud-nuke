@@ -17,7 +17,3 @@ type AwsResources interface {
 type AwsRegionResource struct {
 	Resources []AwsResources
 }
-
-type EC2Instances struct {
-	InstanceIds []string
-}

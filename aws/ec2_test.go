@@ -1,41 +1,41 @@
 package aws
 
 import (
-	"bytes"
-	"math/rand"
 	"testing"
-	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/aws-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
 
-// Returns a unique (ish) id we can attach to resources and tfstate files so they don't conflict with each other
-// Uses base 62 to generate a 6 character string that's unlikely to collide with the handful of tests we run in
-// parallel. Based on code here: http://stackoverflow.com/a/9543797/483528
-func uniqueID() string {
-
-	const BASE_62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	const UNIQUE_ID_LENGTH = 6 // Should be good for 62^6 = 56+ billion combinations
-
-	var out bytes.Buffer
-
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := 0; i < UNIQUE_ID_LENGTH; i++ {
-		out.WriteByte(BASE_62_CHARS[rand.Intn(len(BASE_62_CHARS))])
-	}
-
-	return out.String()
-}
-
 func createTestEC2Instance(t *testing.T, session *session.Session, name string) ec2.Instance {
 	svc := ec2.New(session)
 
+	imagesResult, err := svc.DescribeImages(&ec2.DescribeImagesInput{
+		Owners: []*string{awsgo.String("self"), awsgo.String("amazon")},
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("root-device-type"),
+				Values: []*string{awsgo.String("ebs")},
+			},
+			&ec2.Filter{
+				Name:   awsgo.String("virtualization-type"),
+				Values: []*string{awsgo.String("hvm")},
+			},
+		},
+	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	imageID := *imagesResult.Images[0].ImageId
+
 	params := &ec2.RunInstancesInput{
-		ImageId:      awsgo.String("ami-e7527ed7"),
+		ImageId:      awsgo.String(imageID),
 		InstanceType: awsgo.String("t1.micro"),
 		MinCount:     awsgo.Int64(1),
 		MaxCount:     awsgo.Int64(1),
@@ -43,7 +43,11 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 
 	runResult, err := svc.RunInstances(params)
 	if err != nil {
-		assert.Failf(t, "Could not create test EC2 instance: %s", errors.WithStackTrace(err).Error())
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	if len(runResult.Instances) == 0 {
+		assert.Fail(t, "Could not create test EC2 instance")
 	}
 
 	err = svc.WaitUntilInstanceExists(&ec2.DescribeInstancesInput{
@@ -74,6 +78,20 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 		assert.Failf(t, "Could not tag EC2 instance: %s", errors.WithStackTrace(err).Error())
 	}
 
+	// EC2 Instance must be in a running before this function returns
+	err = svc.WaitUntilInstanceRunning(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("instance-id"),
+				Values: []*string{runResult.Instances[0].InstanceId},
+			},
+		},
+	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	return *runResult.Instances[0]
 }
 
@@ -99,17 +117,23 @@ func findEC2InstancesByNameTag(output *ec2.DescribeInstancesOutput, name string)
 }
 
 func TestListInstances(t *testing.T) {
+	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	instance := createTestEC2Instance(t, session, uniqueTestID)
-	instanceIds, err := getAllEc2Instances(session, "us-west-2")
+	// clean up after this test
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
+
+	instanceIds, err := getAllEc2Instances(session, region)
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
@@ -119,15 +143,18 @@ func TestListInstances(t *testing.T) {
 }
 
 func TestNukeInstances(t *testing.T) {
+	t.Parallel()
+
+	region := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-west-2")},
+		Region: awsgo.String(region)},
 	)
 
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + uniqueID()
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	createTestEC2Instance(t, session, uniqueTestID)
 
 	output, err := ec2.New(session).DescribeInstances(&ec2.DescribeInstancesInput{})
@@ -140,7 +167,7 @@ func TestNukeInstances(t *testing.T) {
 	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	instances, err := getAllEc2Instances(session, "us-west-2")
+	instances, err := getAllEc2Instances(session, region)
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
