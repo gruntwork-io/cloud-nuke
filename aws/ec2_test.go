@@ -42,7 +42,11 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 	}
 
 	runResult, err := svc.RunInstances(params)
-	if err != nil || len(runResult.Instances) == 0 {
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	if len(runResult.Instances) == 0 {
 		assert.Fail(t, "Could not create test EC2 instance")
 	}
 
