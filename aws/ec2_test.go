@@ -32,7 +32,7 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 
 	params := &ec2.RunInstancesInput{
 		ImageId:      awsgo.String(imageID),
-		InstanceType: awsgo.String("t1.micro"),
+		InstanceType: awsgo.String("t2.micro"),
 		MinCount:     awsgo.Int64(1),
 		MaxCount:     awsgo.Int64(1),
 	}
@@ -43,7 +43,7 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 	}
 
 	if len(runResult.Instances) == 0 {
-		assert.Fail(t, "Could not create test EC2 instance")
+		assert.Fail(t, "Could not create test EC2 instance in "+*session.Config.Region)
 	}
 
 	err = svc.WaitUntilInstanceExists(&ec2.DescribeInstancesInput{
