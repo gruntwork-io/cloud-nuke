@@ -37,7 +37,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: /go/src/github.com/gruntwork-io/aws-nuke
-      - run: build-go-binaries --circle-ci-2 --app-name aws-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG -extldflags '-static'"
+      - run: build-go-binaries --circle-ci-2 --app-name aws-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
       - persist_to_workspace:
           root: .
           paths: bin
