@@ -18,12 +18,8 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 		Owners: []*string{awsgo.String("self"), awsgo.String("amazon")},
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
-				Name:   awsgo.String("root-device-type"),
-				Values: []*string{awsgo.String("ebs")},
-			},
-			&ec2.Filter{
-				Name:   awsgo.String("virtualization-type"),
-				Values: []*string{awsgo.String("hvm")},
+				Name:   awsgo.String("name"),
+				Values: []*string{awsgo.String("amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2")},
 			},
 		},
 	})
