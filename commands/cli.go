@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"time"
 	"strings"
 
 	"github.com/gruntwork-io/gruntwork-cli/collections"
@@ -27,6 +28,10 @@ func CreateCli(version string) *cli.App {
 			Name:  "exclude-region",
 			Usage: "regions to exclude",
 		},
+		cli.StringFlag{
+			Name:  "exclude-since",
+			Usage: "timestamp (01-02-06 03:04AM) of resources creation date to exclude from",
+		},
 	}
 	app.Action = errors.WithPanicHandling(awsNuke)
 
@@ -37,6 +42,7 @@ func CreateCli(version string) *cli.App {
 func awsNuke(c *cli.Context) error {
 	regions := aws.GetAllRegions()
 	excludedRegions := c.StringSlice("exclude-region")
+	excludeSince := c.String("exclude-since")
 
 	for _, excludedRegion := range excludedRegions {
 		if !collections.ListContainsElement(regions, excludedRegion) {
@@ -45,6 +51,11 @@ func awsNuke(c *cli.Context) error {
 				Value: excludedRegion,
 			}
 		}
+	}
+
+	_, err := time.Parse("01-02-06 03:04AM", excludeSince)
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
 
 	logging.Logger.Infoln("Retrieving all active AWS resources")
