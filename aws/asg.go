@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"time"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -9,7 +11,7 @@ import (
 )
 
 // Returns a formatted string of ASG Names
-func getAllAutoScalingGroups(session *session.Session, region string) ([]*string, error) {
+func getAllAutoScalingGroups(session *session.Session, region string, excludeSince time.Time) ([]*string, error) {
 	svc := autoscaling.New(session)
 	result, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
@@ -18,7 +20,9 @@ func getAllAutoScalingGroups(session *session.Session, region string) ([]*string
 
 	var groupNames []*string
 	for _, group := range result.AutoScalingGroups {
-		groupNames = append(groupNames, group.AutoScalingGroupName)
+		if excludeSince.Before(*group.CreatedTime) {
+			groupNames = append(groupNames, group.AutoScalingGroupName)
+		}
 	}
 
 	return groupNames, nil

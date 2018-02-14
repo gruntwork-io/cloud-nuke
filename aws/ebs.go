@@ -2,6 +2,7 @@ package aws
 
 import (
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -10,7 +11,7 @@ import (
 )
 
 // Returns a formatted string of EBS volume ids
-func getAllEbsVolumes(session *session.Session, region string) ([]*string, error) {
+func getAllEbsVolumes(session *session.Session, region string, excludeSince time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
 	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
@@ -20,7 +21,9 @@ func getAllEbsVolumes(session *session.Session, region string) ([]*string, error
 
 	var volumeIds []*string
 	for _, volume := range result.Volumes {
-		volumeIds = append(volumeIds, volume.VolumeId)
+		if excludeSince.Before(*volume.CreateTime) {
+			volumeIds = append(volumeIds, volume.VolumeId)
+		}
 	}
 
 	return volumeIds, nil

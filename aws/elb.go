@@ -29,7 +29,7 @@ func waitUntilElbDeleted(svc *elb.ELB, input *elb.DescribeLoadBalancersInput) er
 }
 
 // Returns a formatted string of ELB names
-func getAllElbInstances(session *session.Session, region string) ([]*string, error) {
+func getAllElbInstances(session *session.Session, region string, excludeSince time.Time) ([]*string, error) {
 	svc := elb.New(session)
 	result, err := svc.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{})
 	if err != nil {
@@ -38,7 +38,9 @@ func getAllElbInstances(session *session.Session, region string) ([]*string, err
 
 	var names []*string
 	for _, balancer := range result.LoadBalancerDescriptions {
-		names = append(names, balancer.LoadBalancerName)
+		if excludeSince.Before(*balancer.CreatedTime) {
+			names = append(names, balancer.LoadBalancerName)
+		}
 	}
 
 	return names, nil

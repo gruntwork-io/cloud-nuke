@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"time"
 	"strings"
+	"time"
 
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 
@@ -30,7 +30,7 @@ func CreateCli(version string) *cli.App {
 		},
 		cli.StringFlag{
 			Name:  "exclude-since",
-			Usage: "timestamp (01-02-06 03:04AM) of resources creation date to exclude from",
+			Usage: "timestamp (MM-DD-YY hh:mmAM) of resources creation date to exclude from",
 		},
 	}
 	app.Action = errors.WithPanicHandling(awsNuke)
@@ -42,24 +42,30 @@ func CreateCli(version string) *cli.App {
 func awsNuke(c *cli.Context) error {
 	regions := aws.GetAllRegions()
 	excludedRegions := c.StringSlice("exclude-region")
-	excludeSince := c.String("exclude-since")
 
 	for _, excludedRegion := range excludedRegions {
 		if !collections.ListContainsElement(regions, excludedRegion) {
 			return InvalidFlagError{
-				Name: "exclude-regions",
+				Name:  "exclude-regions",
 				Value: excludedRegion,
 			}
 		}
 	}
 
-	_, err := time.Parse("01-02-06 03:04AM", excludeSince)
-	if err != nil {
-		return errors.WithStackTrace(err)
+	var excludeSince time.Time
+	var err error
+
+	if c.String("exclude-since") != "" {
+		excludeSince, err = time.Parse("01-02-2006 03:04AM", c.String("exclude-since"))
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+	} else {
+		excludeSince = time.Now()
 	}
 
 	logging.Logger.Infoln("Retrieving all active AWS resources")
-	account, err := aws.GetAllResources(regions, excludedRegions)
+	account, err := aws.GetAllResources(regions, excludedRegions, excludeSince)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
