@@ -29,7 +29,7 @@ func CreateCli(version string) *cli.App {
 			Usage: "regions to exclude",
 		},
 		cli.StringFlag{
-			Name:  "exclude-since",
+			Name:  "exclude-after",
 			Usage: "timestamp (MM-DD-YY hh:mmAM) of resources creation date to exclude from",
 		},
 	}
@@ -52,20 +52,20 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
-	var excludeSince time.Time
+	var excludeAfter time.Time
 	var err error
 
-	if c.String("exclude-since") != "" {
-		excludeSince, err = time.Parse("01-02-2006 03:04AM", c.String("exclude-since"))
+	if c.String("exclude-after") != "" {
+		excludeAfter, err = time.Parse("01-02-2006 03:04AM", c.String("exclude-after"))
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 	} else {
-		excludeSince = time.Now()
+		excludeAfter = time.Now()
 	}
 
 	logging.Logger.Infoln("Retrieving all active AWS resources")
-	account, err := aws.GetAllResources(regions, excludedRegions, excludeSince)
+	account, err := aws.GetAllResources(regions, excludedRegions, excludeAfter)
 
 	if err != nil {
 		return errors.WithStackTrace(err)

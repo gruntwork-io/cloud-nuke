@@ -11,7 +11,7 @@ import (
 )
 
 // Returns a formatted string of ASG Names
-func getAllAutoScalingGroups(session *session.Session, region string, excludeSince time.Time) ([]*string, error) {
+func getAllAutoScalingGroups(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := autoscaling.New(session)
 	result, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
@@ -20,7 +20,7 @@ func getAllAutoScalingGroups(session *session.Session, region string, excludeSin
 
 	var groupNames []*string
 	for _, group := range result.AutoScalingGroups {
-		if excludeSince.After(*group.CreatedTime) {
+		if excludeAfter.After(*group.CreatedTime) {
 			groupNames = append(groupNames, group.AutoScalingGroupName)
 		}
 	}

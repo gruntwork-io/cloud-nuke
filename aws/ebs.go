@@ -11,7 +11,7 @@ import (
 )
 
 // Returns a formatted string of EBS volume ids
-func getAllEbsVolumes(session *session.Session, region string, excludeSince time.Time) ([]*string, error) {
+func getAllEbsVolumes(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
 	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
@@ -21,7 +21,7 @@ func getAllEbsVolumes(session *session.Session, region string, excludeSince time
 
 	var volumeIds []*string
 	for _, volume := range result.Volumes {
-		if excludeSince.After(*volume.CreateTime) {
+		if excludeAfter.After(*volume.CreateTime) {
 			volumeIds = append(volumeIds, volume.VolumeId)
 		}
 	}

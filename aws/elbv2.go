@@ -10,7 +10,7 @@ import (
 )
 
 // Returns a formatted string of ELBv2 Arns
-func getAllElbv2Instances(session *session.Session, region string, excludeSince time.Time) ([]*string, error) {
+func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := elbv2.New(session)
 	result, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
@@ -19,7 +19,7 @@ func getAllElbv2Instances(session *session.Session, region string, excludeSince 
 
 	var arns []*string
 	for _, balancer := range result.LoadBalancers {
-		if excludeSince.After(*balancer.CreatedTime) {
+		if excludeAfter.After(*balancer.CreatedTime) {
 			arns = append(arns, balancer.LoadBalancerArn)
 		}
 	}
