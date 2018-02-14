@@ -2,6 +2,7 @@ package aws
 
 import (
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -53,7 +54,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 	// clean up after this test
 	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
 
-	groupNames, err := getAllAutoScalingGroups(session, region)
+	groupNames, err := getAllAutoScalingGroups(session, region, time.Now())
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
@@ -89,7 +90,7 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupNames, err := getAllAutoScalingGroups(session, region)
+	groupNames, err := getAllAutoScalingGroups(session, region, time.Now())
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
