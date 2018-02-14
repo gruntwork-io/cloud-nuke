@@ -52,7 +52,7 @@ func TestListELBs(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElbInstances(session, []*string{&elbName})
 
-	elbNames, err := getAllElbInstances(session, region, time.Now())
+	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
@@ -90,7 +90,7 @@ func TestNukeELBs(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	elbNames, err := getAllElbInstances(session, region, time.Now())
+	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of ELBs")
 	}

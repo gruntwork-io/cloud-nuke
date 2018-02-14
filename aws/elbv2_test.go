@@ -76,7 +76,7 @@ func TestListELBv2(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElbv2Instances(session, []*string{balancer.LoadBalancerArn})
 
-	arns, err := getAllElbv2Instances(session, region, time.Now())
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of v2 ELBs")
 	}
@@ -122,7 +122,7 @@ func TestNukeELBv2(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	arns, err := getAllElbv2Instances(session, region, time.Now())
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of v2 ELBs")
 	}

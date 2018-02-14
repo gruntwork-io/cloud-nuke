@@ -21,7 +21,7 @@ func getAllEbsVolumes(session *session.Session, region string, excludeSince time
 
 	var volumeIds []*string
 	for _, volume := range result.Volumes {
-		if excludeSince.Before(*volume.CreateTime) {
+		if excludeSince.After(*volume.CreateTime) {
 			volumeIds = append(volumeIds, volume.VolumeId)
 		}
 	}

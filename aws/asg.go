@@ -20,7 +20,7 @@ func getAllAutoScalingGroups(session *session.Session, region string, excludeSin
 
 	var groupNames []*string
 	for _, group := range result.AutoScalingGroups {
-		if excludeSince.Before(*group.CreatedTime) {
+		if excludeSince.After(*group.CreatedTime) {
 			groupNames = append(groupNames, group.AutoScalingGroupName)
 		}
 	}

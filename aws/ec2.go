@@ -28,7 +28,7 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 
 			protected := *attr.DisableApiTermination.Value
 			// Exclude protected EC2 instances
-			if !protected && excludeSince.Before(*instance.LaunchTime) {
+			if !protected && excludeSince.After(*instance.LaunchTime) {
 				filteredIds = append(filteredIds, &instanceID)
 			}
 		}

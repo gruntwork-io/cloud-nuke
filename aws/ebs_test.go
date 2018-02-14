@@ -80,7 +80,7 @@ func TestListEBSVolumes(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 
-	volumeIds, err := getAllEbsVolumes(session, region, time.Now())
+	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
@@ -113,7 +113,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	if err := nukeAllEbsVolumes(session, volumeIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	volumes, err := getAllEbsVolumes(session, region, time.Now())
+	volumes, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")

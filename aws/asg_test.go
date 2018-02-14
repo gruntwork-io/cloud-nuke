@@ -54,7 +54,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 	// clean up after this test
 	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
 
-	groupNames, err := getAllAutoScalingGroups(session, region, time.Now())
+	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
@@ -90,7 +90,7 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupNames, err := getAllAutoScalingGroups(session, region, time.Now())
+	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}

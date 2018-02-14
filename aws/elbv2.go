@@ -19,7 +19,7 @@ func getAllElbv2Instances(session *session.Session, region string, excludeSince 
 
 	var arns []*string
 	for _, balancer := range result.LoadBalancers {
-		if excludeSince.Before(*balancer.CreatedTime) {
+		if excludeSince.After(*balancer.CreatedTime) {
 			arns = append(arns, balancer.LoadBalancerArn)
 		}
 	}
