@@ -31,11 +31,21 @@ func CreateCli(version string) *cli.App {
 		cli.StringFlag{
 			Name:  "exclude-after",
 			Usage: "timestamp (MM-DD-YY hh:mmAM) of resources creation date to exclude from",
+			Value: time.Now().Format("01-02-2006 03:04AM"),
 		},
 	}
-	app.Action = errors.WithPanicHandling(awsNuke)
 
+	app.Action = errors.WithPanicHandling(awsNuke)
 	return app
+}
+
+func parseTimeParam(paramValue string) (*time.Time, error) {
+	excludeAfter, err := time.Parse("01-02-2006 03:04AM", paramValue)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	return &excludeAfter, nil
 }
 
 // Nuke it all!!!
@@ -52,20 +62,13 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
-	var excludeAfter time.Time
-	var err error
-
-	if c.String("exclude-after") != "" {
-		excludeAfter, err = time.Parse("01-02-2006 03:04AM", c.String("exclude-after"))
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
-	} else {
-		excludeAfter = time.Now()
+	excludeAfter, err := parseTimeParam(c.String("exclude-after"))
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
 
 	logging.Logger.Infoln("Retrieving all active AWS resources")
-	account, err := aws.GetAllResources(regions, excludedRegions, excludeAfter)
+	account, err := aws.GetAllResources(regions, excludedRegions, *excludeAfter)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
