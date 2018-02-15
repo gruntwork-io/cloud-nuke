@@ -29,9 +29,9 @@ func CreateCli(version string) *cli.App {
 			Usage: "regions to exclude",
 		},
 		cli.StringFlag{
-			Name:  "exclude-after",
-			Usage: "timestamp (MM-DD-YY hh:mmAM) of resources creation date to exclude from",
-			Value: time.Now().Format("01-02-2006 03:04AM"),
+			Name:  "older-than",
+			Usage: "duration of resources' creation date to delete from",
+			Value: "0s",
 		},
 	}
 
@@ -39,12 +39,16 @@ func CreateCli(version string) *cli.App {
 	return app
 }
 
-func parseTimeParam(paramValue string) (*time.Time, error) {
-	excludeAfter, err := time.Parse("01-02-2006 03:04AM", paramValue)
+func parseDurationParam(paramValue string) (*time.Time, error) {
+	duration, err := time.ParseDuration(paramValue)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// make it negative so it goes back in time
+	duration = -1 * duration
+
+	excludeAfter := time.Now().Add(duration)
 	return &excludeAfter, nil
 }
 
@@ -62,7 +66,7 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
-	excludeAfter, err := parseTimeParam(c.String("exclude-after"))
+	excludeAfter, err := parseDurationParam(c.String("older-than"))
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -8,22 +8,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseTime(t *testing.T) {
-	dateString := "01-01-2018 00:00AM"
-	parsedTime, err := parseTimeParam(dateString)
+func TestParseDuration(t *testing.T) {
+	now := time.Now()
+	then, err := parseDurationParam("1h")
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	assert.Equal(t, parsedTime.Month(), time.Month(1))
-	assert.Equal(t, parsedTime.Day(), 1)
-	assert.Equal(t, parsedTime.Year(), 2018)
+	assert.Equal(t, now.Hour()-1, then.Hour())
+	assert.Equal(t, now.Month(), then.Month())
+	assert.Equal(t, now.Day(), then.Day())
+	assert.Equal(t, now.Year(), then.Year())
 }
 
-func TestParseTimeInvalidFormat(t *testing.T) {
-	_, err := parseTimeParam("")
-	assert.Error(t, err)
-
-	_, err = parseTimeParam("01/01/2018")
+func TestParseDurationInvalidFormat(t *testing.T) {
+	_, err := parseDurationParam("")
 	assert.Error(t, err)
 }

@@ -32,10 +32,10 @@ aws-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
 
 ### Excluding Resources by Age
 
-You can use the `--exclude-after` flag to exclude resources created after a certain time, any resources older than that time will be deleted. For example the following command does not nuke resources created after the midnight on 1st Jan, 2017:
+You can use the `--older-than` flag to nuke resources that were created before a certain period, the possible values are all valid values for [ParseDuration](https://golang.org/pkg/time/#ParseDuration) For example the following command nukes resources that are at least one day old:
 
 ```shell
-aws-nuke --exclude-after '01-01-2017 12:00AM'
+aws-nuke --older-than 24h
 ```
 
 Happy Nuking!!!
