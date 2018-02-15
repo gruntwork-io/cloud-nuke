@@ -54,7 +54,14 @@ func TestListAutoScalingGroups(t *testing.T) {
 	// clean up after this test
 	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
 
-	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour))
+	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
+	}
+
+	assert.NotContains(t, awsgo.StringValueSlice(groupNames), groupName)
+
+	groupNames, err = getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}

@@ -52,7 +52,14 @@ func TestListELBs(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElbInstances(session, []*string{&elbName})
 
-	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
+	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
+	}
+
+	assert.NotContains(t, awsgo.StringValueSlice(elbNames), elbName)
+
+	elbNames, err = getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}

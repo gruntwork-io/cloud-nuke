@@ -130,8 +130,14 @@ func TestListInstances(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
 
-	instanceIds, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))
+	instanceIds, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of EC2 Instances")
+	}
 
+	assert.NotContains(t, instanceIds, instance.InstanceId)
+
+	instanceIds, err = getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
 	}

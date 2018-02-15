@@ -80,7 +80,14 @@ func TestListEBSVolumes(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 
-	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
+	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of EBS Volumes")
+	}
+
+	assert.NotContains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
+
+	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
