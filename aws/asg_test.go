@@ -14,7 +14,7 @@ import (
 
 func createTestAutoScalingGroup(t *testing.T, session *session.Session, name string) {
 	svc := autoscaling.New(session)
-	instance := createTestEC2Instance(t, session, name)
+	instance := createTestEC2Instance(t, session, name, false)
 
 	param := &autoscaling.CreateAutoScalingGroupInput{
 		AutoScalingGroupName: &name,

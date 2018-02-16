@@ -108,7 +108,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	createTestEC2Instance(t, session, uniqueTestID)
+	createTestEC2Instance(t, session, uniqueTestID, false)
 
 	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{})
 	if err != nil {
