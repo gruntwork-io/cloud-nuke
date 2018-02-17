@@ -42,7 +42,7 @@ func getRandomRegion() string {
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountResources, error) {
+func GetAllResources(regions []string, excludedRegions []string, excludeAfter time.Time) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
@@ -68,7 +68,7 @@ func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountRes
 		// because of dependencies between resources
 
 		// ASG Names
-		groupNames, err := getAllAutoScalingGroups(session, region)
+		groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -81,7 +81,7 @@ func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountRes
 		// End ASG Names
 
 		// LoadBalancer Names
-		elbNames, err := getAllElbInstances(session, region)
+		elbNames, err := getAllElbInstances(session, region, excludeAfter)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -94,7 +94,7 @@ func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountRes
 		// End LoadBalancer Names
 
 		// LoadBalancerV2 Arns
-		elbv2Arns, err := getAllElbv2Instances(session, region)
+		elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -107,7 +107,7 @@ func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountRes
 		// End LoadBalancerV2 Arns
 
 		// EC2 Instances
-		instanceIds, err := getAllEc2Instances(session, region)
+		instanceIds, err := getAllEc2Instances(session, region, excludeAfter)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -120,7 +120,7 @@ func GetAllResources(regions []string, excludedRegions []string) (*AwsAccountRes
 		// End EC2 Instances
 
 		// EBS Volumes
-		volumeIds, err := getAllEbsVolumes(session, region)
+		volumeIds, err := getAllEbsVolumes(session, region, excludeAfter)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}

@@ -2,6 +2,7 @@ package aws
 
 import (
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -75,7 +76,14 @@ func TestListELBv2(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElbv2Instances(session, []*string{balancer.LoadBalancerArn})
 
-	arns, err := getAllElbv2Instances(session, region)
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of v2 ELBs")
+	}
+
+	assert.NotContains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))
+
+	arns, err = getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of v2 ELBs")
 	}
@@ -121,7 +129,7 @@ func TestNukeELBv2(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	arns, err := getAllElbv2Instances(session, region)
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of v2 ELBs")
 	}

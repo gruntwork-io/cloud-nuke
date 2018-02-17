@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/gruntwork-io/aws-nuke/logging"
@@ -8,7 +10,7 @@ import (
 )
 
 // Returns a formatted string of ELBv2 Arns
-func getAllElbv2Instances(session *session.Session, region string) ([]*string, error) {
+func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := elbv2.New(session)
 	result, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
@@ -17,7 +19,9 @@ func getAllElbv2Instances(session *session.Session, region string) ([]*string, e
 
 	var arns []*string
 	for _, balancer := range result.LoadBalancers {
-		arns = append(arns, balancer.LoadBalancerArn)
+		if excludeAfter.After(*balancer.CreatedTime) {
+			arns = append(arns, balancer.LoadBalancerArn)
+		}
 	}
 
 	return arns, nil

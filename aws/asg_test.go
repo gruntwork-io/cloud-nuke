@@ -2,6 +2,7 @@ package aws
 
 import (
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -13,7 +14,7 @@ import (
 
 func createTestAutoScalingGroup(t *testing.T, session *session.Session, name string) {
 	svc := autoscaling.New(session)
-	instance := createTestEC2Instance(t, session, name)
+	instance := createTestEC2Instance(t, session, name, false)
 
 	param := &autoscaling.CreateAutoScalingGroupInput{
 		AutoScalingGroupName: &name,
@@ -53,7 +54,14 @@ func TestListAutoScalingGroups(t *testing.T) {
 	// clean up after this test
 	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
 
-	groupNames, err := getAllAutoScalingGroups(session, region)
+	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
+	}
+
+	assert.NotContains(t, awsgo.StringValueSlice(groupNames), groupName)
+
+	groupNames, err = getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
@@ -89,7 +97,7 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupNames, err := getAllAutoScalingGroups(session, region)
+	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}

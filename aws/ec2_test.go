@@ -2,6 +2,7 @@ package aws
 
 import (
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createTestEC2Instance(t *testing.T, session *session.Session, name string) ec2.Instance {
+func createTestEC2Instance(t *testing.T, session *session.Session, name string, protected bool) ec2.Instance {
 	svc := ec2.New(session)
 
 	imagesResult, err := svc.DescribeImages(&ec2.DescribeImagesInput{
@@ -31,10 +32,11 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string) 
 	imageID := *imagesResult.Images[0].ImageId
 
 	params := &ec2.RunInstancesInput{
-		ImageId:      awsgo.String(imageID),
-		InstanceType: awsgo.String("t2.micro"),
-		MinCount:     awsgo.Int64(1),
-		MaxCount:     awsgo.Int64(1),
+		ImageId:               awsgo.String(imageID),
+		InstanceType:          awsgo.String("t2.micro"),
+		MinCount:              awsgo.Int64(1),
+		MaxCount:              awsgo.Int64(1),
+		DisableApiTermination: awsgo.Bool(protected),
 	}
 
 	runResult, err := svc.RunInstances(params)
@@ -125,17 +127,26 @@ func TestListInstances(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	instance := createTestEC2Instance(t, session, uniqueTestID)
+	instance := createTestEC2Instance(t, session, uniqueTestID, false)
+	protectedInstance := createTestEC2Instance(t, session, uniqueTestID, true)
 	// clean up after this test
-	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId, protectedInstance.InstanceId})
 
-	instanceIds, err := getAllEc2Instances(session, region)
+	instanceIds, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of EC2 Instances")
+	}
 
+	assert.NotContains(t, instanceIds, instance.InstanceId)
+	assert.NotContains(t, instanceIds, protectedInstance.InstanceId)
+
+	instanceIds, err = getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
 	}
 
 	assert.Contains(t, instanceIds, instance.InstanceId)
+	assert.NotContains(t, instanceIds, protectedInstance.InstanceId)
 }
 
 func TestNukeInstances(t *testing.T) {
@@ -151,7 +162,7 @@ func TestNukeInstances(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	createTestEC2Instance(t, session, uniqueTestID)
+	createTestEC2Instance(t, session, uniqueTestID, false)
 
 	output, err := ec2.New(session).DescribeInstances(&ec2.DescribeInstancesInput{})
 	if err != nil {
@@ -163,7 +174,7 @@ func TestNukeInstances(t *testing.T) {
 	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	instances, err := getAllEc2Instances(session, region)
+	instances, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 
@@ -27,10 +28,28 @@ func CreateCli(version string) *cli.App {
 			Name:  "exclude-region",
 			Usage: "regions to exclude",
 		},
+		cli.StringFlag{
+			Name:  "older-than",
+			Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
+			Value: "0s",
+		},
 	}
-	app.Action = errors.WithPanicHandling(awsNuke)
 
+	app.Action = errors.WithPanicHandling(awsNuke)
 	return app
+}
+
+func parseDurationParam(paramValue string) (*time.Time, error) {
+	duration, err := time.ParseDuration(paramValue)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	// make it negative so it goes back in time
+	duration = -1 * duration
+
+	excludeAfter := time.Now().Add(duration)
+	return &excludeAfter, nil
 }
 
 // Nuke it all!!!
@@ -41,14 +60,19 @@ func awsNuke(c *cli.Context) error {
 	for _, excludedRegion := range excludedRegions {
 		if !collections.ListContainsElement(regions, excludedRegion) {
 			return InvalidFlagError{
-				Name: "exclude-regions",
+				Name:  "exclude-regions",
 				Value: excludedRegion,
 			}
 		}
 	}
 
+	excludeAfter, err := parseDurationParam(c.String("older-than"))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	logging.Logger.Infoln("Retrieving all active AWS resources")
-	account, err := aws.GetAllResources(regions, excludedRegions)
+	account, err := aws.GetAllResources(regions, excludedRegions, *excludeAfter)
 
 	if err != nil {
 		return errors.WithStackTrace(err)

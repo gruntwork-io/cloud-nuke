@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"time"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -9,7 +11,7 @@ import (
 )
 
 // returns only instance Ids of unprotected ec2 instances
-func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutput) ([]*string, error) {
+func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutput, excludeAfter time.Time) ([]*string, error) {
 	var filteredIds []*string
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
@@ -27,7 +29,9 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 			protected := *attr.DisableApiTermination.Value
 			// Exclude protected EC2 instances
 			if !protected {
-				filteredIds = append(filteredIds, &instanceID)
+				if excludeAfter.After(*instance.LaunchTime) {
+					filteredIds = append(filteredIds, &instanceID)
+				}
 			}
 		}
 	}
@@ -36,7 +40,7 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 }
 
 // Returns a formatted string of EC2 instance ids
-func getAllEc2Instances(session *session.Session, region string) ([]*string, error) {
+func getAllEc2Instances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
 	params := &ec2.DescribeInstancesInput{
@@ -56,7 +60,7 @@ func getAllEc2Instances(session *session.Session, region string) ([]*string, err
 		return nil, errors.WithStackTrace(err)
 	}
 
-	instanceIds, err := filterOutProtectedInstances(svc, output)
+	instanceIds, err := filterOutProtectedInstances(svc, output, excludeAfter)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}

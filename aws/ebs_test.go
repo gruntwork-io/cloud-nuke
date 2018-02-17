@@ -2,6 +2,7 @@ package aws
 
 import (
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -79,7 +80,14 @@ func TestListEBSVolumes(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 
-	volumeIds, err := getAllEbsVolumes(session, region)
+	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of EBS Volumes")
+	}
+
+	assert.NotContains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
+
+	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
@@ -100,7 +108,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	createTestEC2Instance(t, session, uniqueTestID)
+	createTestEC2Instance(t, session, uniqueTestID, false)
 
 	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{})
 	if err != nil {
@@ -112,7 +120,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	if err := nukeAllEbsVolumes(session, volumeIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	volumes, err := getAllEbsVolumes(session, region)
+	volumes, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
