@@ -108,7 +108,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	createTestEC2Instance(t, session, uniqueTestID, false)
+	createTestEBSVolume(t, session, uniqueTestID)
 
 	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{})
 	if err != nil {
@@ -123,7 +123,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	volumes, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of EC2 Instances")
+		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
 
 	for _, volumeID := range volumeIds {
