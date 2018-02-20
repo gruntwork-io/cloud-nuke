@@ -1,9 +1,9 @@
 package aws
 
 import (
-	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/aws-nuke/logging"
@@ -47,16 +47,19 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 
 		_, err := svc.DeleteVolume(params)
 		if err != nil {
-			// Ignore not found errors, some volumes are deleted along with EC2 Instances
-			if !strings.Contains(err.Error(), "InvalidVolume.NotFound") {
-				logging.Logger.Errorf("[Failed] %s", err)
-				return errors.WithStackTrace(err)
+			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "VolumeInUse" {
+				logging.Logger.Infof("EBS volume %s is attached to a protected EC2 instance", *volumeID)
+				return nil
+			} else if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidVolume.NotFound" {
+				logging.Logger.Infof("EBS volume %s has already been deleted", *volumeID)
+				return nil
 			}
 
-			logging.Logger.Infof("EBS volume %s has already been deleted", *volumeID)
-		} else {
-			logging.Logger.Infof("Deleted EBS Volume: %s", *volumeID)
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
 		}
+
+		logging.Logger.Infof("Deleted EBS Volume: %s", *volumeID)
 	}
 
 	err := svc.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
