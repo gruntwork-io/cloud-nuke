@@ -42,6 +42,14 @@ jobs:
           root: .
           paths: bin
 
+  run:
+    <<: *defaults
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /go/src/github.com/gruntwork-io/aws-nuke
+      - run: go run main.go
+
   deploy:
     <<: *defaults
     steps:
@@ -70,7 +78,12 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-
+      - run:
+          requires:
+            - test
+          filters:
+            tags:
+              only: /^v.*/
       - deploy:
           requires:
             - build
@@ -93,3 +106,6 @@ workflows:
       - test:
           requires:
             - install_dependencies
+      - run:
+          requires:
+            - test
