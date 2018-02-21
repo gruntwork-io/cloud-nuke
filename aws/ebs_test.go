@@ -150,8 +150,6 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 	volume := createTestEBSVolume(t, session, uniqueTestID)
 	instance := createTestEC2Instance(t, session, uniqueTestID, false)
 
-	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
-
 	// attach volume to protected instance
 	svc.AttachVolume(&ec2.AttachVolumeInput{
 		Device:     awsgo.String("/dev/sdf"),
