@@ -108,7 +108,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	createTestEBSVolume(t, session, uniqueTestID)
+	volume := createTestEBSVolume(t, session, uniqueTestID)
 
 	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{})
 	if err != nil {
@@ -117,16 +117,68 @@ func TestNukeEBSVolumes(t *testing.T) {
 
 	volumeIds := findEBSVolumesByNameTag(output, uniqueTestID)
 
+	assert.Len(t, volumeIds, 1)
+	assert.Equal(t, awsgo.StringValue(volume.VolumeId), awsgo.StringValue(volumeIds[0]))
+
 	if err := nukeAllEbsVolumes(session, volumeIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	volumes, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 
+	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
 
-	for _, volumeID := range volumeIds {
-		assert.NotContains(t, volumes, *volumeID)
+	assert.NotContains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
+}
+
+func TestNukeEBSVolumesInUse(t *testing.T) {
+	t.Parallel()
+
+	region := getRandomRegion()
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
+
+	svc := ec2.New(session)
+
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	volume := createTestEBSVolume(t, session, uniqueTestID)
+	instance := createTestEC2Instance(t, session, uniqueTestID, false)
+
+	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
+
+	// attach volume to protected instance
+	svc.AttachVolume(&ec2.AttachVolumeInput{
+		Device:     awsgo.String("/dev/sdf"),
+		InstanceId: instance.InstanceId,
+		VolumeId:   volume.VolumeId,
+	})
+
+	output, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	volumeIds := findEBSVolumesByNameTag(output, uniqueTestID)
+
+	assert.Len(t, volumeIds, 1)
+	assert.Equal(t, awsgo.StringValue(volume.VolumeId), awsgo.StringValue(volumeIds[0]))
+
+	if err := nukeAllEbsVolumes(session, volumeIds); err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of EBS Volumes")
+	}
+
+	// Volumes should still be in returned slice
+	assert.Contains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
 }
