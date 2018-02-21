@@ -48,7 +48,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: /go/src/github.com/gruntwork-io/aws-nuke
-      - run: go run main.go --older-than 48h --exclude-region us-west-2
+      - run: go run main.go --older-than 48h --exclude-region us-west-2 --force
 
   deploy:
     <<: *defaults

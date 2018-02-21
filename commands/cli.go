@@ -33,6 +33,10 @@ func CreateCli(version string) *cli.App {
 			Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 			Value: "0s",
 		},
+		cli.BoolFlag{
+			Name:  "force",
+			Usage: "Skip nuke confirmation prompt",
+		},
 	}
 
 	app.Action = errors.WithPanicHandling(awsNuke)
@@ -93,19 +97,27 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
-	color := color.New(color.FgHiRed, color.Bold)
-	color.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
+	if !c.Bool("force") {
+		color := color.New(color.FgHiRed, color.Bold)
+		color.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
-	prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm: "
-	shellOptions := shell.ShellOptions{Logger: logging.Logger}
-	input, err := shell.PromptUserForInput(prompt, &shellOptions)
+		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm: "
+		shellOptions := shell.ShellOptions{Logger: logging.Logger}
+		input, err := shell.PromptUserForInput(prompt, &shellOptions)
 
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
 
-	if strings.ToLower(input) == "nuke" {
-		aws.NukeAllResources(account, regions)
+		if strings.ToLower(input) == "nuke" {
+			if err := aws.NukeAllResources(account, regions); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := aws.NukeAllResources(account, regions); err != nil {
+			return err
+		}
 	}
 
 	return nil
