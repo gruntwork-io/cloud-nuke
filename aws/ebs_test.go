@@ -151,7 +151,6 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 	instance := createTestEC2Instance(t, session, uniqueTestID, false)
 
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
-	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
 
 	// attach volume to protected instance
 	svc.AttachVolume(&ec2.AttachVolumeInput{
