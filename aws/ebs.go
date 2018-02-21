@@ -48,7 +48,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		_, err := svc.DeleteVolume(params)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "VolumeInUse" {
-				logging.Logger.Infof("EBS volume %s is attached to a protected EC2 instance", *volumeID)
+				logging.Logger.Infof("EBS volume %s is attached to an active resource", *volumeID)
 				return nil
 			} else if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidVolume.NotFound" {
 				logging.Logger.Infof("EBS volume %s has already been deleted", *volumeID)
