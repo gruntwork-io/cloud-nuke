@@ -35,7 +35,7 @@ func CreateCli(version string) *cli.App {
 		},
 		cli.BoolFlag{
 			Name:  "force",
-			Usage: "Skip nuke confirmation prompt",
+			Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
 		},
 	}
 
@@ -115,6 +115,7 @@ func awsNuke(c *cli.Context) error {
 			}
 		}
 	} else {
+		logging.Logger.Infoln("The --force flag is set, so proceeding without confirmation.")
 		if err := aws.NukeAllResources(account, regions); err != nil {
 			return err
 		}
