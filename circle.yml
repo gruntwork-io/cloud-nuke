@@ -78,9 +78,6 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-      - nuke_phx_devops:
-          requires:
-            - test
       - deploy:
           requires:
             - build
