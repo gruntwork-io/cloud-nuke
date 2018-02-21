@@ -42,6 +42,14 @@ jobs:
           root: .
           paths: bin
 
+  nuke_phx_devops:
+    <<: *defaults
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /go/src/github.com/gruntwork-io/aws-nuke
+      - run: go run main.go --older-than 48h --exclude-region us-west-2 --force
+
   deploy:
     <<: *defaults
     steps:
@@ -70,7 +78,6 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-
       - deploy:
           requires:
             - build
@@ -93,3 +100,6 @@ workflows:
       - test:
           requires:
             - install_dependencies
+      - nuke_phx_devops:
+          requires:
+            - test
