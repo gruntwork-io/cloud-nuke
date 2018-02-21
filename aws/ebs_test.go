@@ -160,6 +160,10 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 		VolumeId:   volume.VolumeId,
 	})
 
+	svc.WaitUntilVolumeInUse(&ec2.DescribeVolumesInput{
+		VolumeIds: []*string{volume.VolumeId},
+	})
+
 	output, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
