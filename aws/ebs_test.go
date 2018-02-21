@@ -148,7 +148,10 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	volume := createTestEBSVolume(t, session, uniqueTestID)
-	instance := createTestEC2Instance(t, session, uniqueTestID, false)
+	instance := createTestEC2Instance(t, session, uniqueTestID, true)
+
+	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
 
 	// attach volume to protected instance
 	svc.AttachVolume(&ec2.AttachVolumeInput{
@@ -178,4 +181,6 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 
 	// Volumes should still be in returned slice
 	assert.Contains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
+	// remove protection so instance can be cleaned up
+	removeEC2InstanceProtection(svc, &instance)
 }
