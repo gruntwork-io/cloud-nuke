@@ -93,14 +93,16 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string, 
 	return *runResult.Instances[0]
 }
 
-func removeEC2InstanceProtection(svc *ec2.EC2, instance *ec2.Instance) {
+func removeEC2InstanceProtection(svc *ec2.EC2, instance *ec2.Instance) error {
 	// make instance unprotected so it can be cleaned up
-	svc.ModifyInstanceAttribute(&ec2.ModifyInstanceAttributeInput{
+	_, err := svc.ModifyInstanceAttribute(&ec2.ModifyInstanceAttributeInput{
 		DisableApiTermination: &ec2.AttributeBooleanValue{
 			Value: awsgo.Bool(false),
 		},
 		InstanceId: instance.InstanceId,
 	})
+
+	return err
 }
 
 func findEC2InstancesByNameTag(output *ec2.DescribeInstancesOutput, name string) []*string {
@@ -158,7 +160,9 @@ func TestListInstances(t *testing.T) {
 	assert.Contains(t, instanceIds, instance.InstanceId)
 	assert.NotContains(t, instanceIds, protectedInstance.InstanceId)
 
-	removeEC2InstanceProtection(ec2.New(session), &protectedInstance)
+	if err = removeEC2InstanceProtection(ec2.New(session), &protectedInstance); err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 }
 
 func TestNukeInstances(t *testing.T) {

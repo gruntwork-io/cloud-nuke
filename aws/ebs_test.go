@@ -186,5 +186,7 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 	// Volumes should still be in returned slice
 	assert.Contains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
 	// remove protection so instance can be cleaned up
-	removeEC2InstanceProtection(svc, &instance)
+	if err = removeEC2InstanceProtection(svc, &instance); err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 }
