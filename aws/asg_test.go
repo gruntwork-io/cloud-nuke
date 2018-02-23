@@ -53,6 +53,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 	createTestAutoScalingGroup(t, session, groupName)
 	// clean up after this test
 	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
+	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, groupName))
 
 	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -84,6 +85,9 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 
 	groupName := "aws-nuke-test-" + util.UniqueID()
 	createTestAutoScalingGroup(t, session, groupName)
+
+	// clean up ec2 instance created by the above call
+	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, groupName))
 
 	_, err = svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{&groupName},

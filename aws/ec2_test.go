@@ -105,7 +105,12 @@ func removeEC2InstanceProtection(svc *ec2.EC2, instance *ec2.Instance) error {
 	return err
 }
 
-func findEC2InstancesByNameTag(output *ec2.DescribeInstancesOutput, name string) []*string {
+func findEC2InstancesByNameTag(t *testing.T, session *session.Session, name string) []*string {
+	output, err := ec2.New(session).DescribeInstances(&ec2.DescribeInstancesInput{})
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	var instanceIds []*string
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
@@ -180,12 +185,7 @@ func TestNukeInstances(t *testing.T) {
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	createTestEC2Instance(t, session, uniqueTestID, false)
 
-	output, err := ec2.New(session).DescribeInstances(&ec2.DescribeInstancesInput{})
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	instanceIds := findEC2InstancesByNameTag(output, uniqueTestID)
+	instanceIds := findEC2InstancesByNameTag(t, session, uniqueTestID)
 
 	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
