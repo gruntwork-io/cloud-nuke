@@ -49,25 +49,25 @@ func TestListAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupName := "aws-nuke-test-" + util.UniqueID()
-	createTestAutoScalingGroup(t, session, groupName)
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	createTestAutoScalingGroup(t, session, uniqueTestID)
 	// clean up after this test
-	defer nukeAllAutoScalingGroups(session, []*string{&groupName})
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, groupName))
+	defer nukeAllAutoScalingGroups(session, []*string{&uniqueTestID})
+	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
 
 	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
 
-	assert.NotContains(t, awsgo.StringValueSlice(groupNames), groupName)
+	assert.NotContains(t, awsgo.StringValueSlice(groupNames), uniqueTestID)
 
 	groupNames, err = getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(groupNames), groupName)
+	assert.Contains(t, awsgo.StringValueSlice(groupNames), uniqueTestID)
 }
 
 func TestNukeAutoScalingGroups(t *testing.T) {
@@ -83,21 +83,21 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	groupName := "aws-nuke-test-" + util.UniqueID()
-	createTestAutoScalingGroup(t, session, groupName)
+	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	createTestAutoScalingGroup(t, session, uniqueTestID)
 
 	// clean up ec2 instance created by the above call
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, groupName))
+	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
 
 	_, err = svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{&groupName},
+		AutoScalingGroupNames: []*string{&uniqueTestID},
 	})
 
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	if err := nukeAllAutoScalingGroups(session, []*string{&groupName}); err != nil {
+	if err := nukeAllAutoScalingGroups(session, []*string{&uniqueTestID}); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
@@ -106,5 +106,5 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 		assert.Fail(t, "Unable to fetch list of Auto Scaling Groups")
 	}
 
-	assert.NotContains(t, awsgo.StringValueSlice(groupNames), groupName)
+	assert.NotContains(t, awsgo.StringValueSlice(groupNames), uniqueTestID)
 }
