@@ -25,20 +25,36 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 		assert.Fail(t, "Needs at least 2 subnets to create ELBv2")
 	}
 
-	subnet1 := *subnetOutput.Subnets[0]
-	subnet2 := *subnetOutput.Subnets[1]
+	var firstSubnet ec2.Subnet
+	var secondSubnet ec2.Subnet
+
+	// ensure we select subnets in different availability zones
+	for _, subnet1 := range subnetOutput.Subnets {
+		for _, subnet2 := range subnetOutput.Subnets {
+			if subnet1.AvailabilityZone != subnet2.AvailabilityZone && subnet1.SubnetId != subnet2.SubnetId {
+				firstSubnet = *subnet1
+				secondSubnet = *subnet2
+				break
+			}
+
+			if subnet1 != nil && subnet2 != nil {
+				break
+			}
+		}
+	}
 
 	param := &elbv2.CreateLoadBalancerInput{
 		Name: awsgo.String(name),
 		Subnets: []*string{
-			subnet1.SubnetId,
-			subnet2.SubnetId,
+			firstSubnet.SubnetId,
+			secondSubnet.SubnetId,
 		},
 	}
 
 	result, err := svc.CreateLoadBalancer(param)
 
 	if err != nil {
+		assert.Fail(t, *firstSubnet.SubnetId+" "+*secondSubnet.SubnetId)
 		assert.Failf(t, "Could not create test ELBv2: %s", errors.WithStackTrace(err).Error())
 	}
 
