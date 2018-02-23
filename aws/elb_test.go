@@ -31,7 +31,7 @@ func createTestELB(t *testing.T, session *session.Session, name string) {
 
 	_, err := svc.CreateLoadBalancer(param)
 	if err != nil {
-		assert.Failf(t, "Could not create test ELB: %s", errors.WithStackTrace(err).Error())
+		assert.Fail(t, "Could not create test ELB: %v", err)
 	}
 }
 
@@ -54,14 +54,14 @@ func TestListELBs(t *testing.T) {
 
 	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of ELBs")
+		assert.Fail(t, "Unable to fetch list of ELBs: %v", err)
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(elbNames), elbName)
 
 	elbNames, err = getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of ELBs")
+		assert.Fail(t, "Unable to fetch list of ELBs: %v", err)
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(elbNames), elbName)
@@ -99,7 +99,7 @@ func TestNukeELBs(t *testing.T) {
 
 	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of ELBs")
+		assert.Fail(t, "Unable to fetch list of ELBs: %v", err)
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(elbNames), elbName)

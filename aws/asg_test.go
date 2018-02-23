@@ -25,7 +25,7 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 
 	_, err := svc.CreateAutoScalingGroup(param)
 	if err != nil {
-		assert.Failf(t, "Could not create test ASG: %s", errors.WithStackTrace(err).Error())
+		assert.Fail(t, "Could not create test ASG: %v", err)
 	}
 
 	err = svc.WaitUntilGroupExists(&autoscaling.DescribeAutoScalingGroupsInput{

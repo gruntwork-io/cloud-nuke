@@ -73,7 +73,7 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string, 
 	})
 
 	if err != nil {
-		assert.Failf(t, "Could not tag EC2 instance: %s", errors.WithStackTrace(err).Error())
+		assert.Fail(t, "Could not tag EC2 instance: %v", err)
 	}
 
 	// EC2 Instance must be in a running before this function returns
