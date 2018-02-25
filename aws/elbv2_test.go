@@ -52,11 +52,11 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 	result, err := svc.CreateLoadBalancer(param)
 
 	if err != nil {
-		assert.Fail(t, "Could not create test ELBv2: %v", err)
+		assert.Failf(t, "Could not create test ELBv2", errors.WithStackTrace(err).Error())
 	}
 
 	if len(result.LoadBalancers) == 0 {
-		assert.Fail(t, "Could not create test ELBv2: %v", err)
+		assert.Failf(t, "Could not create test ELBv2", errors.WithStackTrace(err).Error())
 	}
 
 	balancer := *result.LoadBalancers[0]

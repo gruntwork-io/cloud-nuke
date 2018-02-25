@@ -20,7 +20,7 @@ func createTestEBSVolume(t *testing.T, session *session.Session, name string) ec
 	})
 
 	if err != nil {
-		assert.Fail(t, "Could not create test EBS volume: %v", err)
+		assert.Failf(t, "Could not create test EBS volume", errors.WithStackTrace(err).Error())
 	}
 
 	err = svc.WaitUntilVolumeAvailable(&ec2.DescribeVolumesInput{
@@ -43,7 +43,7 @@ func createTestEBSVolume(t *testing.T, session *session.Session, name string) ec
 	})
 
 	if err != nil {
-		assert.Fail(t, "Could not tag EBS volume: %v", err)
+		assert.Failf(t, "Could not tag EBS volume", errors.WithStackTrace(err).Error())
 	}
 
 	return *volume
