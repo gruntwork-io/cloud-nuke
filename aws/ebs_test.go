@@ -12,10 +12,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createTestEBSVolume(t *testing.T, session *session.Session, name string) ec2.Volume {
+func getAZFromSubnet(t *testing.T, session *session.Session, subnetID *string) string {
+	subnetOutput, err := ec2.New(session).DescribeSubnets(&ec2.DescribeSubnetsInput{
+		SubnetIds: []*string{subnetID},
+	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	return *subnetOutput.Subnets[0].AvailabilityZone
+}
+
+func createTestEBSVolume(t *testing.T, session *session.Session, name string, az string) ec2.Volume {
 	svc := ec2.New(session)
 	volume, err := svc.CreateVolume(&ec2.CreateVolumeInput{
-		AvailabilityZone: awsgo.String(awsgo.StringValue(session.Config.Region) + "a"),
+		AvailabilityZone: awsgo.String(az),
 		Size:             awsgo.Int64(8),
 	})
 
@@ -81,7 +93,8 @@ func TestListEBSVolumes(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	volume := createTestEBSVolume(t, session, uniqueTestID)
+	az := awsgo.StringValue(session.Config.Region) + "a"
+	volume := createTestEBSVolume(t, session, uniqueTestID, az)
 	// clean up after this test
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 
@@ -113,7 +126,8 @@ func TestNukeEBSVolumes(t *testing.T) {
 	}
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	volume := createTestEBSVolume(t, session, uniqueTestID)
+	az := awsgo.StringValue(session.Config.Region) + "a"
+	volume := createTestEBSVolume(t, session, uniqueTestID, az)
 
 	volumeIds := findEBSVolumesByNameTag(t, session, uniqueTestID)
 
@@ -147,8 +161,9 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 	svc := ec2.New(session)
 
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
-	volume := createTestEBSVolume(t, session, uniqueTestID)
 	instance := createTestEC2Instance(t, session, uniqueTestID, true)
+	az := getAZFromSubnet(t, session, instance.SubnetId)
+	volume := createTestEBSVolume(t, session, uniqueTestID, az)
 
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
