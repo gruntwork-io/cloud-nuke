@@ -154,15 +154,23 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
 
 	// attach volume to protected instance
-	svc.AttachVolume(&ec2.AttachVolumeInput{
+	_, err = svc.AttachVolume(&ec2.AttachVolumeInput{
 		Device:     awsgo.String("/dev/sdf"),
 		InstanceId: instance.InstanceId,
 		VolumeId:   volume.VolumeId,
 	})
 
-	svc.WaitUntilVolumeInUse(&ec2.DescribeVolumesInput{
+	if err != nil {
+		assert.Failf(t, "Volume could not be attached", errors.WithStackTrace(err).Error())
+	}
+
+	err = svc.WaitUntilVolumeInUse(&ec2.DescribeVolumesInput{
 		VolumeIds: []*string{volume.VolumeId},
 	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 
 	volumeIds := findEBSVolumesByNameTag(t, session, uniqueTestID)
 
