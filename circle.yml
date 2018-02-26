@@ -29,7 +29,9 @@ jobs:
       - checkout
       - attach_workspace:
           at: /go/src/github.com/gruntwork-io/aws-nuke
-      - run: run-go-tests --circle-ci-2
+      - run:
+          command: run-go-tests --circle-ci-2
+          no_output_timeout: 20m
 
   build:
     <<: *defaults
