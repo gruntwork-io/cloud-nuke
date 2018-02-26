@@ -13,9 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.LoadBalancer {
-	svc := elbv2.New(session)
-
+func getSubnetsInDifferentAZs(t *testing.T, session *session.Session) (*ec2.Subnet, *ec2.Subnet) {
 	subnetOutput, err := ec2.New(session).DescribeSubnets(&ec2.DescribeSubnetsInput{})
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
@@ -25,8 +23,23 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 		assert.Fail(t, "Needs at least 2 subnets to create ELBv2")
 	}
 
-	subnet1 := *subnetOutput.Subnets[0]
-	subnet2 := *subnetOutput.Subnets[1]
+	subnet1 := subnetOutput.Subnets[0]
+
+	for i := 1; i < len(subnetOutput.Subnets); i++ {
+		subnet2 := subnetOutput.Subnets[i]
+		if *subnet1.AvailabilityZone != *subnet2.AvailabilityZone && *subnet1.SubnetId != *subnet2.SubnetId {
+			return subnet1, subnet2
+		}
+	}
+
+	assert.Fail(t, "Unable to find 2 subnets in different Availability Zones")
+	return nil, nil
+}
+
+func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.LoadBalancer {
+	svc := elbv2.New(session)
+
+	subnet1, subnet2 := getSubnetsInDifferentAZs(t, session)
 
 	param := &elbv2.CreateLoadBalancerInput{
 		Name: awsgo.String(name),
@@ -39,11 +52,11 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 	result, err := svc.CreateLoadBalancer(param)
 
 	if err != nil {
-		assert.Failf(t, "Could not create test ELBv2: %s", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not create test ELBv2", errors.WithStackTrace(err).Error())
 	}
 
 	if len(result.LoadBalancers) == 0 {
-		assert.Failf(t, "Could not create test ELBv2: %s", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not create test ELBv2", errors.WithStackTrace(err).Error())
 	}
 
 	balancer := *result.LoadBalancers[0]

@@ -20,7 +20,7 @@ func createTestEBSVolume(t *testing.T, session *session.Session, name string) ec
 	})
 
 	if err != nil {
-		assert.Failf(t, "Could not create test EBS volume: %s", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not create test EBS volume", errors.WithStackTrace(err).Error())
 	}
 
 	err = svc.WaitUntilVolumeAvailable(&ec2.DescribeVolumesInput{
@@ -43,13 +43,18 @@ func createTestEBSVolume(t *testing.T, session *session.Session, name string) ec
 	})
 
 	if err != nil {
-		assert.Failf(t, "Could not tag EBS volume: %s", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not tag EBS volume", errors.WithStackTrace(err).Error())
 	}
 
 	return *volume
 }
 
-func findEBSVolumesByNameTag(output *ec2.DescribeVolumesOutput, name string) []*string {
+func findEBSVolumesByNameTag(t *testing.T, session *session.Session, name string) []*string {
+	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{})
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	var volumeIds []*string
 	for _, volume := range output.Volumes {
 		// Retrieve only IDs of instances with the unique test tag
@@ -110,12 +115,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
 	volume := createTestEBSVolume(t, session, uniqueTestID)
 
-	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{})
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	volumeIds := findEBSVolumesByNameTag(output, uniqueTestID)
+	volumeIds := findEBSVolumesByNameTag(t, session, uniqueTestID)
 
 	assert.Len(t, volumeIds, 1)
 	assert.Equal(t, awsgo.StringValue(volume.VolumeId), awsgo.StringValue(volumeIds[0]))
@@ -164,12 +164,7 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 		VolumeIds: []*string{volume.VolumeId},
 	})
 
-	output, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	volumeIds := findEBSVolumesByNameTag(output, uniqueTestID)
+	volumeIds := findEBSVolumesByNameTag(t, session, uniqueTestID)
 
 	assert.Len(t, volumeIds, 1)
 	assert.Equal(t, awsgo.StringValue(volume.VolumeId), awsgo.StringValue(volumeIds[0]))
