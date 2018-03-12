@@ -27,7 +27,7 @@ func getSubnetsInDifferentAZs(t *testing.T, session *session.Session) (*ec2.Subn
 
 	for i := 1; i < len(subnetOutput.Subnets); i++ {
 		subnet2 := subnetOutput.Subnets[i]
-		if *subnet1.AvailabilityZone != *subnet2.AvailabilityZone && *subnet1.SubnetId != *subnet2.SubnetId {
+		if *subnet1.AvailabilityZone != *subnet2.AvailabilityZone && *subnet1.SubnetId != *subnet2.SubnetId && *subnet1.VpcId == *subnet2.VpcId {
 			return subnet1, subnet2
 		}
 	}
