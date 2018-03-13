@@ -116,9 +116,9 @@ func awsNuke(c *cli.Context) error {
 			}
 		}
 	} else {
-		logging.Logger.Infoln("The --force flag is set, so waiting for 10 seconds before proceeding to nuke everything your account. If you don't want to proceed, hit CTRL+C now!!")
-		for i := 0; i < 10; i++ {
-			fmt.Printf("%d...", i+1)
+		logging.Logger.Infoln("The --force flag is set, so waiting for 10 seconds before proceeding to nuke everything in your account. If you don't want to proceed, hit CTRL+C now!!")
+		for i := 10; i > 0; i-- {
+			fmt.Printf("%d...", i)
 			time.Sleep(1 * time.Second)
 		}
 
