@@ -115,7 +115,8 @@ func awsNuke(c *cli.Context) error {
 			}
 		}
 	} else {
-		logging.Logger.Infoln("The --force flag is set, so proceeding without confirmation.")
+		logging.Logger.Infoln("The --force flag is set, so proceeding after 10 seconds without confirmation.")
+		time.Sleep(10 * time.Second)
 		if err := aws.NukeAllResources(account, regions); err != nil {
 			return err
 		}
