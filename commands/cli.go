@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -115,7 +116,13 @@ func awsNuke(c *cli.Context) error {
 			}
 		}
 	} else {
-		logging.Logger.Infoln("The --force flag is set, so proceeding without confirmation.")
+		logging.Logger.Infoln("The --force flag is set, so waiting for 10 seconds before proceeding to nuke everything in your account. If you don't want to proceed, hit CTRL+C now!!")
+		for i := 10; i > 0; i-- {
+			fmt.Printf("%d...", i)
+			time.Sleep(1 * time.Second)
+		}
+
+		fmt.Println()
 		if err := aws.NukeAllResources(account, regions); err != nil {
 			return err
 		}
