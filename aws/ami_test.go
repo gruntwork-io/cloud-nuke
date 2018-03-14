@@ -25,6 +25,7 @@ func createTestAMI(t *testing.T, session *session.Session, name string) ec2.Imag
 	}
 
 	err = svc.WaitUntilImageAvailable(&ec2.DescribeImagesInput{
+		Owners:   []*string{awsgo.String("self")},
 		ImageIds: []*string{output.ImageId},
 	})
 
