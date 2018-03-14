@@ -6,6 +6,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/aws-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
@@ -28,4 +29,33 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 	}
 
 	return imageIds, nil
+}
+
+// Deletes all AMIs
+func nukeAllAMIs(session *session.Session, imageIds []*string) error {
+	svc := ec2.New(session)
+
+	if len(imageIds) == 0 {
+		logging.Logger.Infof("No AMIs to nuke in region %s", *session.Config.Region)
+		return nil
+	}
+
+	logging.Logger.Infof("Terminating all AMIs in region %s", *session.Config.Region)
+
+	for _, imageID := range imageIds {
+		params := &ec2.DeregisterImageInput{
+			ImageId: imageID,
+		}
+
+		_, err := svc.DeregisterImage(params)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+
+		logging.Logger.Infof("Deleted AMI: %s", *imageID)
+	}
+
+	logging.Logger.Infof("[OK] %d AMI(s) terminated in %s", len(imageIds), *session.Config.Region)
+	return nil
 }
