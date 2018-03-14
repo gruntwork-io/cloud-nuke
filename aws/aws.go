@@ -132,6 +132,19 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
 		// End EBS Volumes
 
+		// AMIs
+		imageIds, err := getAllAMIs(session, region, excludeAfter)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		amis := AMIs{
+			ImageIds: awsgo.StringValueSlice(imageIds),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, amis)
+		// End AMIs
+
 		account.Resources[region] = resourcesInRegion
 	}
 
