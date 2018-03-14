@@ -25,7 +25,15 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 
 	var imageIds []*string
 	for _, image := range output.Images {
-		imageIds = append(imageIds, image.ImageId)
+		layout := "2006-01-02T15:04:05.000Z"
+		createdTime, err := time.Parse(layout, *image.CreationDate)
+		if err != nil {
+			return nil, err
+		}
+
+		if excludeAfter.After(createdTime) {
+			imageIds = append(imageIds, image.ImageId)
+		}
 	}
 
 	return imageIds, nil
