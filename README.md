@@ -9,6 +9,7 @@ The currently supported functionality includes:
 * Deleting all EBS Volumes in an AWS account
 * Deleting all unprotected EC2 instances in an AWS account
 * Deleting all AMIs in an AWS account
+* Deleting all Snapshots in an AWS account
 
 ### WARNING: THIS TOOL IS HIGHLY DESTRUCTIVE, ALL SUPPORTED RESOURCES WILL BE DELETED. ITS EFFECTS ARE IRREVERSIBLE AND SHOULD NEVER BE USED IN A PRODUCTION ENVIRONMENT
 

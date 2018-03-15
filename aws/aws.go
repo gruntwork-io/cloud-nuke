@@ -145,6 +145,19 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, amis)
 		// End AMIs
 
+		// Snapshots
+		snapshotIds, err := getAllSnapshots(session, region, excludeAfter)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		snapshots := Snapshots{
+			SnapshotIds: awsgo.StringValueSlice(snapshotIds),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, snapshots)
+		// End Snapshots
+
 		account.Resources[region] = resourcesInRegion
 	}
 
