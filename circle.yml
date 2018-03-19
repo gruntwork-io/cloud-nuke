@@ -1,5 +1,5 @@
 defaults: &defaults
-  working_directory: /go/src/github.com/gruntwork-io/aws-nuke
+  working_directory: /go/src/github.com/gruntwork-io/cloud-nuke
   docker:
     - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:latest
 
@@ -10,7 +10,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/aws-nuke
+          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - restore_cache:
           keys:
             - dep-{{ checksum "Gopkg.lock" }}
@@ -18,7 +18,7 @@ jobs:
       - save_cache:
           key: dep-{{ checksum "Gopkg.lock" }}
           paths:
-            - /go/src/github.com/gruntwork-io/aws-nuke/vendor
+            - /go/src/github.com/gruntwork-io/cloud-nuke/vendor
       - persist_to_workspace:
           root: .
           paths: vendor
@@ -28,7 +28,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/aws-nuke
+          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
           command: run-go-tests --circle-ci-2
           no_output_timeout: 20m
@@ -38,8 +38,8 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/aws-nuke
-      - run: build-go-binaries --circle-ci-2 --app-name aws-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
+          at: /go/src/github.com/gruntwork-io/cloud-nuke
+      - run: build-go-binaries --circle-ci-2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
       - persist_to_workspace:
           root: .
           paths: bin
@@ -49,7 +49,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/aws-nuke
+          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run: go run main.go --older-than 24h --exclude-region us-west-2 --force
 
   deploy:
@@ -57,7 +57,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/aws-nuke
+          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run: upload-github-release-assets bin/*
 
 workflows:

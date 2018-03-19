@@ -7,7 +7,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/aws-nuke/util"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -56,7 +56,7 @@ func TestListAMIs(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	image := createTestAMI(t, session, uniqueTestID)
 	// clean up after this test
 	defer nukeAllAMIs(session, []*string{image.ImageId})
@@ -90,7 +90,7 @@ func TestNukeAMIs(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	image := createTestAMI(t, session, uniqueTestID)
 
 	// clean up ec2 instance created by the above call

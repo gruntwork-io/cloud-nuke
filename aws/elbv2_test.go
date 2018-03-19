@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
-	"github.com/gruntwork-io/aws-nuke/util"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -84,7 +84,7 @@ func TestListELBv2(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	elbName := "aws-nuke-test-" + util.UniqueID()
+	elbName := "cloud-nuke-test-" + util.UniqueID()
 	balancer := createTestELBv2(t, session, elbName)
 	// clean up after this test
 	defer nukeAllElbv2Instances(session, []*string{balancer.LoadBalancerArn})
@@ -117,7 +117,7 @@ func TestNukeELBv2(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	elbName := "aws-nuke-test-" + util.UniqueID()
+	elbName := "cloud-nuke-test-" + util.UniqueID()
 	balancer := createTestELBv2(t, session, elbName)
 
 	_, err = svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{
