@@ -1,6 +1,6 @@
-# aws-nuke
+# cloud-nuke
 
-This repo contains a CLI tool to delete all AWS resources in an account. aws-nuke was created for situations when you might have an account you use for testing and need to clean up left over resources so AWS doesn't charge you for them. Also great for cleaning out accounts with redundant resources.
+This repo contains a CLI tool to delete all AWS resources in an account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up left over resources so AWS doesn't charge you for them. Also great for cleaning out accounts with redundant resources.
 
 The currently supported functionality includes:
 
@@ -15,21 +15,21 @@ The currently supported functionality includes:
 
 ## Install
 
-1. Download the latest binary for your OS on the [releases page](https://github.com/gruntwork-io/aws-nuke/releases).
-2. Move the binary to a folder on your `PATH`. E.g.: `mv aws-nuke_darwin_amd64 /usr/local/bin/aws-nuke`.
-3. Add execute permissions to the binary. E.g.: `chmod u+x /usr/local/bin/aws-nuke`.
-4. Test it installed correctly: `aws-nuke --help`.
+1. Download the latest binary for your OS on the [releases page](https://github.com/gruntwork-io/cloud-nuke/releases).
+2. Move the binary to a folder on your `PATH`. E.g.: `mv cloud-nuke_darwin_amd64 /usr/local/bin/cloud-nuke`.
+3. Add execute permissions to the binary. E.g.: `chmod u+x /usr/local/bin/cloud-nuke`.
+4. Test it installed correctly: `cloud-nuke --help`.
 
 ## Usage
 
-Simply running `aws-nuke` will start the process of cleaning up your AWS account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
+Simply running `cloud-nuke` will start the process of cleaning up your AWS account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
 
 ### Excluding Regions
 
 You can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
-aws-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
+cloud-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
 ```
 
 ### Excluding Resources by Age
@@ -37,14 +37,14 @@ aws-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
 You can use the `--older-than` flag to only nuke resources that were created before a certain period, the possible values are all valid values for [ParseDuration](https://golang.org/pkg/time/#ParseDuration) For example the following command nukes resources that are at least one day old:
 
 ```shell
-aws-nuke --older-than 24h
+cloud-nuke --older-than 24h
 ```
 
 Happy Nuking!!!
 
 ## Credentials
 
-In order for the `aws-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can used one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can used one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
 
 ## Running Tests
 

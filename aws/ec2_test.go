@@ -7,7 +7,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/aws-nuke/util"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -143,7 +143,7 @@ func TestListInstances(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	instance := createTestEC2Instance(t, session, uniqueTestID, false)
 	protectedInstance := createTestEC2Instance(t, session, uniqueTestID, true)
 	// clean up after this test
@@ -182,7 +182,7 @@ func TestNukeInstances(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	createTestEC2Instance(t, session, uniqueTestID, false)
 
 	instanceIds := findEC2InstancesByNameTag(t, session, uniqueTestID)

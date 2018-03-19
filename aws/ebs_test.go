@@ -7,7 +7,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/aws-nuke/util"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -92,7 +92,7 @@ func TestListEBSVolumes(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	az := awsgo.StringValue(session.Config.Region) + "a"
 	volume := createTestEBSVolume(t, session, uniqueTestID, az)
 	// clean up after this test
@@ -125,7 +125,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	az := awsgo.StringValue(session.Config.Region) + "a"
 	volume := createTestEBSVolume(t, session, uniqueTestID, az)
 
@@ -160,7 +160,7 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 
 	svc := ec2.New(session)
 
-	uniqueTestID := "aws-nuke-test-" + util.UniqueID()
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	instance := createTestEC2Instance(t, session, uniqueTestID, true)
 	az := getAZFromSubnet(t, session, instance.SubnetId)
 	volume := createTestEBSVolume(t, session, uniqueTestID, az)

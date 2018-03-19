@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gruntwork-io/aws-nuke/commands"
+	"github.com/gruntwork-io/cloud-nuke/commands"
 	"github.com/gruntwork-io/gruntwork-cli/entrypoint"
 )
 

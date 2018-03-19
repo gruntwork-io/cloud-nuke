@@ -8,8 +8,8 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 
 	"github.com/fatih/color"
-	"github.com/gruntwork-io/aws-nuke/aws"
-	"github.com/gruntwork-io/aws-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/gruntwork-io/gruntwork-cli/shell"
 	"github.com/urfave/cli"
@@ -19,7 +19,7 @@ import (
 func CreateCli(version string) *cli.App {
 	app := cli.NewApp()
 
-	app.Name = "aws-nuke"
+	app.Name = "cloud-nuke"
 	app.HelpName = app.Name
 	app.Author = "Gruntwork <www.gruntwork.io>"
 	app.Version = version
