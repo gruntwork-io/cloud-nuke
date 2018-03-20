@@ -72,7 +72,7 @@ func cloudNuke(c *cli.Context) error {
 				}
 			case "gcp":
 				return UnsupportedProviderError{
-					Name: "aws",
+					Name: "gcp",
 				}
 			}
 		}
