@@ -23,7 +23,7 @@ func CreateCli(version string) *cli.App {
 	app.HelpName = app.Name
 	app.Author = "Gruntwork <www.gruntwork.io>"
 	app.Version = version
-	app.Usage = "A CLI tool to cleanup AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
+	app.Usage = "A CLI tool to cleanup cloud resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
 	app.Flags = []cli.Flag{
 		cli.StringSliceFlag{
 			Name:  "exclude-region",
@@ -40,7 +40,7 @@ func CreateCli(version string) *cli.App {
 		},
 	}
 
-	app.Action = errors.WithPanicHandling(awsNuke)
+	app.Action = errors.WithPanicHandling(cloudNuke)
 	return app
 }
 
@@ -58,6 +58,31 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 }
 
 // Nuke it all!!!
+func cloudNuke(c *cli.Context) error {
+	if c.NArg() > 0 {
+		providers := []string{"aws", "azure", "gcp"}
+		provider := c.Args().Get(0)
+		if collections.ListContainsElement(providers, provider) {
+			switch provider {
+			case "aws":
+				return awsNuke(c)
+			case "azure":
+				return UnsupportedProviderError{
+					Name: "azure",
+				}
+			case "gcp":
+				return UnsupportedProviderError{
+					Name: "gcp",
+				}
+			}
+		}
+
+		return UnsupportedProviderError{}
+	}
+
+	return cli.ShowAppHelp(c)
+}
+
 func awsNuke(c *cli.Context) error {
 	regions := aws.GetAllRegions()
 	excludedRegions := c.StringSlice("exclude-region")

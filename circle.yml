@@ -50,7 +50,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
-      - run: go run main.go --older-than 24h --exclude-region us-west-2 --force
+      - run: go run main.go aws --older-than 24h --exclude-region us-west-2 --force
 
   deploy:
     <<: *defaults

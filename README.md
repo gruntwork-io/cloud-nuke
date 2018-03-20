@@ -1,8 +1,10 @@
 # cloud-nuke
 
-This repo contains a CLI tool to delete all AWS resources in an account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up left over resources so AWS doesn't charge you for them. Also great for cleaning out accounts with redundant resources.
+This repo contains a CLI tool to delete all cloud (AWS, Azure, GCP) resources in an account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up left over resources so you're not charged for them. Also great for cleaning out accounts with redundant resources.
 
 The currently supported functionality includes:
+
+## AWS
 
 * Deleting all Auto scaling groups in an AWS account
 * Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
@@ -10,6 +12,14 @@ The currently supported functionality includes:
 * Deleting all unprotected EC2 instances in an AWS account
 * Deleting all AMIs in an AWS account
 * Deleting all Snapshots in an AWS account
+
+## Azure
+
+_Coming Soon_
+
+## GCP
+
+_Coming Soon_
 
 ### WARNING: THIS TOOL IS HIGHLY DESTRUCTIVE, ALL SUPPORTED RESOURCES WILL BE DELETED. ITS EFFECTS ARE IRREVERSIBLE AND SHOULD NEVER BE USED IN A PRODUCTION ENVIRONMENT
 
@@ -22,7 +32,7 @@ The currently supported functionality includes:
 
 ## Usage
 
-Simply running `cloud-nuke` will start the process of cleaning up your AWS account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
+Simply running `cloud-nuke <provider>` (e.g. `cloud-nuke aws`) will start the process of cleaning up your cloud account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
 
 ### Excluding Regions
 
@@ -43,6 +53,8 @@ cloud-nuke --older-than 24h
 Happy Nuking!!!
 
 ## Credentials
+
+### AWS
 
 In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can used one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
 
