@@ -76,9 +76,11 @@ func cloudNuke(c *cli.Context) error {
 				}
 			}
 		}
+
+		return UnsupportedProviderError{}
 	}
 
-	return UnsupportedProviderError{}
+	return cli.ShowAppHelp(c)
 }
 
 func awsNuke(c *cli.Context) error {
