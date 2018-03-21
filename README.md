@@ -39,7 +39,7 @@ Simply running `cloud-nuke <provider>` (e.g. `cloud-nuke aws`) will start the pr
 You can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
-cloud-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
+cloud-nuke aws --exclude-region ap-south-1 --exclude-region ap-south-2
 ```
 
 ### Excluding Resources by Age
@@ -47,7 +47,7 @@ cloud-nuke --exclude-region ap-south-1 --exclude-region ap-south-2
 You can use the `--older-than` flag to only nuke resources that were created before a certain period, the possible values are all valid values for [ParseDuration](https://golang.org/pkg/time/#ParseDuration) For example the following command nukes resources that are at least one day old:
 
 ```shell
-cloud-nuke --older-than 24h
+cloud-nuke aws --older-than 24h
 ```
 
 Happy Nuking!!!
