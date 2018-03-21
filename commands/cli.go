@@ -23,24 +23,30 @@ func CreateCli(version string) *cli.App {
 	app.HelpName = app.Name
 	app.Author = "Gruntwork <www.gruntwork.io>"
 	app.Version = version
-	app.Usage = "A CLI tool to cleanup cloud resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
-	app.Flags = []cli.Flag{
-		cli.StringSliceFlag{
-			Name:  "exclude-region",
-			Usage: "regions to exclude",
-		},
-		cli.StringFlag{
-			Name:  "older-than",
-			Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
-			Value: "0s",
-		},
-		cli.BoolFlag{
-			Name:  "force",
-			Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
+	app.Usage = "A CLI tool to cleanup cloud resources (AWS, Azure, GCP). THIS TOOL WILL COMPLETELY REMOVE ALL RESOURCES AND ITS EFFECTS ARE IRREVERSIBLE!!!"
+	app.Commands = []cli.Command{
+		{
+			Name:   "aws",
+			Usage:  "Clean up AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots)",
+			Action: errors.WithPanicHandling(awsNuke),
+			Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:  "exclude-region",
+					Usage: "regions to exclude",
+				},
+				cli.StringFlag{
+					Name:  "older-than",
+					Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
+					Value: "0s",
+				},
+				cli.BoolFlag{
+					Name:  "force",
+					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
+				},
+			},
 		},
 	}
 
-	app.Action = errors.WithPanicHandling(cloudNuke)
 	return app
 }
 
@@ -55,32 +61,6 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 
 	excludeAfter := time.Now().Add(duration)
 	return &excludeAfter, nil
-}
-
-// Nuke it all!!!
-func cloudNuke(c *cli.Context) error {
-	if c.NArg() > 0 {
-		providers := []string{"aws", "azure", "gcp"}
-		provider := c.Args().Get(0)
-		if collections.ListContainsElement(providers, provider) {
-			switch provider {
-			case "aws":
-				return awsNuke(c)
-			case "azure":
-				return UnsupportedProviderError{
-					Name: "azure",
-				}
-			case "gcp":
-				return UnsupportedProviderError{
-					Name: "gcp",
-				}
-			}
-		}
-
-		return UnsupportedProviderError{}
-	}
-
-	return cli.ShowAppHelp(c)
 }
 
 func awsNuke(c *cli.Context) error {
