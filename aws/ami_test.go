@@ -7,10 +7,30 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
+
+func waitUntilImageAvailable(svc *ec2.EC2, input *ec2.DescribeImagesInput) error {
+	for i := 0; i < 50; i++ {
+		output, err := svc.DescribeImages(input)
+		if err != nil {
+			return err
+		}
+
+		if *output.Images[0].State == "available" {
+			return nil
+		}
+
+		time.Sleep(5 * time.Second)
+		logging.Logger.Debug("Waiting for ELB to be available")
+	}
+
+	// return ElbDeleteError{}
+	return nil
+}
 
 func createTestAMI(t *testing.T, session *session.Session, name string) ec2.Image {
 	svc := ec2.New(session)
@@ -24,10 +44,18 @@ func createTestAMI(t *testing.T, session *session.Session, name string) ec2.Imag
 		assert.Failf(t, "Could not create test AMI", errors.WithStackTrace(err).Error())
 	}
 
-	err = svc.WaitUntilImageAvailable(&ec2.DescribeImagesInput{
+	params := &ec2.DescribeImagesInput{
 		Owners:   []*string{awsgo.String("self")},
 		ImageIds: []*string{output.ImageId},
-	})
+	}
+
+	err = svc.WaitUntilImageExists(params)
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	err = waitUntilImageAvailable(svc, params)
 
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
