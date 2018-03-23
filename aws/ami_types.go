@@ -29,3 +29,9 @@ func (image AMIs) Nuke(session *session.Session) error {
 
 	return nil
 }
+
+type ImageAvailableError struct{}
+
+func (e ImageAvailableError) Error() string {
+	return "Image didn't become available within wait attempts"
+}

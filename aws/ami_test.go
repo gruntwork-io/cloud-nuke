@@ -24,12 +24,11 @@ func waitUntilImageAvailable(svc *ec2.EC2, input *ec2.DescribeImagesInput) error
 			return nil
 		}
 
-		time.Sleep(5 * time.Second)
 		logging.Logger.Debug("Waiting for ELB to be available")
+		time.Sleep(5 * time.Second)
 	}
 
-	// return ElbDeleteError{}
-	return nil
+	return ImageAvailableError{}
 }
 
 func createTestAMI(t *testing.T, session *session.Session, name string) ec2.Image {
