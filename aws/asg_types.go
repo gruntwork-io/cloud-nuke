@@ -16,6 +16,10 @@ func (group ASGroups) ResourceName() string {
 	return "asg"
 }
 
+func (group ASGroups) MaxBatchSize() int {
+	return 200
+}
+
 // ResourceIdentifiers - The group names of the auto scaling groups
 func (group ASGroups) ResourceIdentifiers() []string {
 	return group.GroupNames

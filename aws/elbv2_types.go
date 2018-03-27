@@ -16,6 +16,10 @@ func (balancer LoadBalancersV2) ResourceName() string {
 	return "elbv2"
 }
 
+func (balancer LoadBalancersV2) MaxBatchSize() int {
+	return 200
+}
+
 // ResourceIdentifiers - The arns of the load balancers
 func (balancer LoadBalancersV2) ResourceIdentifiers() []string {
 	return balancer.Arns

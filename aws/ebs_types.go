@@ -21,6 +21,10 @@ func (volume EBSVolumes) ResourceIdentifiers() []string {
 	return volume.VolumeIds
 }
 
+func (volume EBSVolumes) MaxBatchSize() int {
+	return 200
+}
+
 // Nuke - nuke 'em all!!!
 func (volume EBSVolumes) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllEbsVolumes(session, awsgo.StringSlice(identifiers)); err != nil {

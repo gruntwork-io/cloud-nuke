@@ -21,6 +21,10 @@ func (snapshot Snapshots) ResourceIdentifiers() []string {
 	return snapshot.SnapshotIds
 }
 
+func (snapshot Snapshots) MaxBatchSize() int {
+	return 200
+}
+
 // Nuke - nuke 'em all!!!
 func (snapshot Snapshots) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllSnapshots(session, awsgo.StringSlice(identifiers)); err != nil {

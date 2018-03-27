@@ -21,6 +21,10 @@ func (balancer LoadBalancers) ResourceIdentifiers() []string {
 	return balancer.Names
 }
 
+func (balancer LoadBalancers) MaxBatchSize() int {
+	return 200
+}
+
 // Nuke - nuke 'em all!!!
 func (balancer LoadBalancers) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllElbInstances(session, awsgo.StringSlice(identifiers)); err != nil {

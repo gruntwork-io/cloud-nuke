@@ -180,6 +180,8 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
+	// Resources more than 500 in number could cause AWS to throttle api calls
+	const MaxRequestSize = 500
 	for _, region := range regions {
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
@@ -191,9 +193,11 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 
 		resourcesInRegion := account.Resources[region]
 		for _, resources := range resourcesInRegion.Resources {
-			if len(resources.ResourceIdentifiers()) >= 500 {
-				logging.Logger.Infoln("Terminating Resources in batches")
-				batches := split(resources.ResourceIdentifiers(), 200)
+			length := len(resources.ResourceIdentifiers())
+			if length >= MaxRequestSize {
+				// Split api calls into batches
+				logging.Logger.Infof("There are more than %d resources to terminate (%d total), so terminating resources in batches", MaxRequestSize, length)
+				batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
 
 				for _, batch := range batches {
 					if err := resources.Nuke(session, batch); err != nil {

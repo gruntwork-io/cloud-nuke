@@ -21,6 +21,10 @@ func (image AMIs) ResourceIdentifiers() []string {
 	return image.ImageIds
 }
 
+func (image AMIs) MaxBatchSize() int {
+	return 200
+}
+
 // Nuke - nuke 'em all!!!
 func (image AMIs) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllAMIs(session, awsgo.StringSlice(identifiers)); err != nil {
