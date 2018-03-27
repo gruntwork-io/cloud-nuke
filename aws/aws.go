@@ -41,6 +41,20 @@ func getRandomRegion() string {
 	return allRegions[randIndex]
 }
 
+func split(identifiers []string, limit int) [][]string {
+	var chunk []string
+	chunks := make([][]string, 0, len(identifiers)/limit+1)
+	for len(identifiers) >= limit {
+		chunk, identifiers = identifiers[:limit], identifiers[limit:]
+		chunks = append(chunks, chunk)
+	}
+	if len(identifiers) > 0 {
+		chunks = append(chunks, identifiers[:len(identifiers)])
+	}
+
+	return chunks
+}
+
 // GetAllResources - Lists all aws resources
 func GetAllResources(regions []string, excludedRegions []string, excludeAfter time.Time) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
@@ -177,8 +191,21 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 
 		resourcesInRegion := account.Resources[region]
 		for _, resources := range resourcesInRegion.Resources {
-			if err := resources.Nuke(session); err != nil {
-				return errors.WithStackTrace(err)
+			if len(resources.ResourceIdentifiers()) >= 500 {
+				logging.Logger.Infoln("Terminating Resources in batches")
+				batches := split(resources.ResourceIdentifiers(), 200)
+
+				for _, batch := range batches {
+					if err := resources.NukeBatch(session, batch); err != nil {
+						return errors.WithStackTrace(err)
+					}
+
+					time.Sleep(10 * time.Second)
+				}
+			} else {
+				if err := resources.Nuke(session); err != nil {
+					return errors.WithStackTrace(err)
+				}
 			}
 		}
 	}
