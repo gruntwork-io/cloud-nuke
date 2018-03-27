@@ -22,15 +22,7 @@ func (snapshot Snapshots) ResourceIdentifiers() []string {
 }
 
 // Nuke - nuke 'em all!!!
-func (snapshot Snapshots) Nuke(session *session.Session) error {
-	if err := nukeAllSnapshots(session, awsgo.StringSlice(snapshot.SnapshotIds)); err != nil {
-		return errors.WithStackTrace(err)
-	}
-	return nil
-}
-
-// NukeBatch - nuke some!!!
-func (snapshot Snapshots) NukeBatch(session *session.Session, identifiers []string) error {
+func (snapshot Snapshots) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllSnapshots(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

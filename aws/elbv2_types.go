@@ -22,16 +22,7 @@ func (balancer LoadBalancersV2) ResourceIdentifiers() []string {
 }
 
 // Nuke - nuke 'em all!!!
-func (balancer LoadBalancersV2) Nuke(session *session.Session) error {
-	if err := nukeAllElbv2Instances(session, awsgo.StringSlice(balancer.Arns)); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-// NukeBatch - nuke some!!!
-func (balancer LoadBalancersV2) NukeBatch(session *session.Session, identifiers []string) error {
+func (balancer LoadBalancersV2) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllElbv2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

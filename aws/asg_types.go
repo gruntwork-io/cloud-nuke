@@ -22,16 +22,7 @@ func (group ASGroups) ResourceIdentifiers() []string {
 }
 
 // Nuke - nuke 'em all!!!
-func (group ASGroups) Nuke(session *session.Session) error {
-	if err := nukeAllAutoScalingGroups(session, awsgo.StringSlice(group.GroupNames)); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-// NukeBatch - nuke some!!!
-func (group ASGroups) NukeBatch(session *session.Session, identifiers []string) error {
+func (group ASGroups) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllAutoScalingGroups(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

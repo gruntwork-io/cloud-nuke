@@ -22,16 +22,7 @@ func (volume EBSVolumes) ResourceIdentifiers() []string {
 }
 
 // Nuke - nuke 'em all!!!
-func (volume EBSVolumes) Nuke(session *session.Session) error {
-	if err := nukeAllEbsVolumes(session, awsgo.StringSlice(volume.VolumeIds)); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-// NukeBatch - nuke some!!!
-func (volume EBSVolumes) NukeBatch(session *session.Session, identifiers []string) error {
+func (volume EBSVolumes) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllEbsVolumes(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

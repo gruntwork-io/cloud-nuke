@@ -196,14 +196,14 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 				batches := split(resources.ResourceIdentifiers(), 200)
 
 				for _, batch := range batches {
-					if err := resources.NukeBatch(session, batch); err != nil {
+					if err := resources.Nuke(session, batch); err != nil {
 						return errors.WithStackTrace(err)
 					}
 
 					time.Sleep(10 * time.Second)
 				}
 			} else {
-				if err := resources.Nuke(session); err != nil {
+				if err := resources.Nuke(session, resources.ResourceIdentifiers()); err != nil {
 					return errors.WithStackTrace(err)
 				}
 			}

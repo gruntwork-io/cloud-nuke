@@ -22,16 +22,7 @@ func (image AMIs) ResourceIdentifiers() []string {
 }
 
 // Nuke - nuke 'em all!!!
-func (image AMIs) Nuke(session *session.Session) error {
-	if err := nukeAllAMIs(session, awsgo.StringSlice(image.ImageIds)); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-// NukeBatch - nuke some!!!
-func (image AMIs) NukeBatch(session *session.Session, identifiers []string) error {
+func (image AMIs) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllAMIs(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

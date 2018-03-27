@@ -22,16 +22,7 @@ func (instance EC2Instances) ResourceIdentifiers() []string {
 }
 
 // Nuke - nuke 'em all!!!
-func (instance EC2Instances) Nuke(session *session.Session) error {
-	if err := nukeAllEc2Instances(session, awsgo.StringSlice(instance.InstanceIds)); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-// NukeBatch - nuke some!!!
-func (instance EC2Instances) NukeBatch(session *session.Session, identifiers []string) error {
+func (instance EC2Instances) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllEc2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
