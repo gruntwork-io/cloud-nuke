@@ -25,7 +25,7 @@ func waitUntilImageAvailable(svc *ec2.EC2, input *ec2.DescribeImagesInput) error
 		}
 
 		logging.Logger.Debug("Waiting for ELB to be available")
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 
 	return ImageAvailableError{}
