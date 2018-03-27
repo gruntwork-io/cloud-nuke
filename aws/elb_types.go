@@ -30,6 +30,15 @@ func (balancer LoadBalancers) Nuke(session *session.Session) error {
 	return nil
 }
 
+// NukeBatch - nuke some!!!
+func (balancer LoadBalancers) NukeBatch(session *session.Session, identifiers []string) error {
+	if err := nukeAllElbInstances(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
 type ElbDeleteError struct{}
 
 func (e ElbDeleteError) Error() string {

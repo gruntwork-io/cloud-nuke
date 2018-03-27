@@ -28,3 +28,12 @@ func (snapshot Snapshots) Nuke(session *session.Session) error {
 	}
 	return nil
 }
+
+// NukeBatch - nuke some!!!
+func (snapshot Snapshots) NukeBatch(session *session.Session, identifiers []string) error {
+	if err := nukeAllSnapshots(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}

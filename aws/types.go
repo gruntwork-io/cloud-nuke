@@ -12,6 +12,7 @@ type AwsResources interface {
 	ResourceName() string
 	ResourceIdentifiers() []string
 	Nuke(session *session.Session) error
+	NukeBatch(session *session.Session, identifiers []string) error
 }
 
 type AwsRegionResource struct {

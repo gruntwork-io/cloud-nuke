@@ -29,3 +29,12 @@ func (volume EBSVolumes) Nuke(session *session.Session) error {
 
 	return nil
 }
+
+// NukeBatch - nuke some!!!
+func (volume EBSVolumes) NukeBatch(session *session.Session, identifiers []string) error {
+	if err := nukeAllEbsVolumes(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}

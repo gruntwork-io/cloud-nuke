@@ -30,6 +30,15 @@ func (image AMIs) Nuke(session *session.Session) error {
 	return nil
 }
 
+// NukeBatch - nuke some!!!
+func (image AMIs) NukeBatch(session *session.Session, identifiers []string) error {
+	if err := nukeAllAMIs(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
 type ImageAvailableError struct{}
 
 func (e ImageAvailableError) Error() string {

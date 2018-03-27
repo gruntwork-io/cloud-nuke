@@ -29,3 +29,12 @@ func (instance EC2Instances) Nuke(session *session.Session) error {
 
 	return nil
 }
+
+// NukeBatch - nuke some!!!
+func (instance EC2Instances) NukeBatch(session *session.Session, identifiers []string) error {
+	if err := nukeAllEc2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
