@@ -208,6 +208,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 					return errors.WithStackTrace(err)
 				}
 
+				logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
 				time.Sleep(10 * time.Second)
 			}
 		}
