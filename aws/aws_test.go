@@ -6,31 +6,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSplitEmpty(t *testing.T) {
-	t.Parallel()
-
-	array := []string{}
-	batches := split(array, 2)
-
-	assert.Len(t, batches, 0)
-}
-
 func TestSplit(t *testing.T) {
 	t.Parallel()
 
-	array := []string{"a", "b", "c", "d"}
-	batches := split(array, 2)
+	testCases := []struct {
+		limit    int
+		array    []string
+		expected [][]string
+	}{
+		{2, []string{"a", "b", "c", "d"}, [][]string{{"a", "b"}, {"c", "d"}}},
+		{3, []string{"a", "b", "c", "d"}, [][]string{{"a", "b", "c"}, {"d"}}},
+		{2, []string{"a", "b", "c"}, [][]string{{"a", "b"}, {"c"}}},
+		{5, []string{"a", "b", "c"}, [][]string{{"a", "b", "c"}}},
+		{-2, []string{"a", "b", "c"}, [][]string{{"a", "b"}, {"c"}}},
+		{0, []string{"a", "b", "c"}, [][]string{{"a", "b", "c"}}},
+	}
 
-	assert.Len(t, batches, 2)
-	assert.Equal(t, "a", batches[0][0])
-}
-
-func TestSplitLarge(t *testing.T) {
-	t.Parallel()
-
-	array := []string{"a", "b", "c", "d"}
-	batches := split(array, 5)
-
-	assert.Len(t, batches, 1)
-	assert.Equal(t, "a", batches[0][0])
+	for _, testCase := range testCases {
+		assert.Equal(t, testCase.expected, split(testCase.array, testCase.limit))
+	}
 }
