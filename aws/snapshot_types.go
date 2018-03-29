@@ -22,6 +22,7 @@ func (snapshot Snapshots) ResourceIdentifiers() []string {
 }
 
 func (snapshot Snapshots) MaxBatchSize() int {
+	// Tentative batch size to ensure AWS doesn't throttle
 	return 200
 }
 

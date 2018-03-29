@@ -22,6 +22,7 @@ func (volume EBSVolumes) ResourceIdentifiers() []string {
 }
 
 func (volume EBSVolumes) MaxBatchSize() int {
+	// Tentative batch size to ensure AWS doesn't throttle
 	return 200
 }
 

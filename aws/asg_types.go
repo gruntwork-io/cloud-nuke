@@ -17,6 +17,7 @@ func (group ASGroups) ResourceName() string {
 }
 
 func (group ASGroups) MaxBatchSize() int {
+	// Tentative batch size to ensure AWS doesn't throttle
 	return 200
 }
 

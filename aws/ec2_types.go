@@ -22,6 +22,7 @@ func (instance EC2Instances) ResourceIdentifiers() []string {
 }
 
 func (instance EC2Instances) MaxBatchSize() int {
+	// Tentative batch size to ensure AWS doesn't throttle
 	return 200
 }
 

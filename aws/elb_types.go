@@ -22,6 +22,7 @@ func (balancer LoadBalancers) ResourceIdentifiers() []string {
 }
 
 func (balancer LoadBalancers) MaxBatchSize() int {
+	// Tentative batch size to ensure AWS doesn't throttle
 	return 200
 }
 
