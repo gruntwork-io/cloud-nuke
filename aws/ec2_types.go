@@ -21,9 +21,14 @@ func (instance EC2Instances) ResourceIdentifiers() []string {
 	return instance.InstanceIds
 }
 
+func (instance EC2Instances) MaxBatchSize() int {
+	// Tentative batch size to ensure AWS doesn't throttle
+	return 200
+}
+
 // Nuke - nuke 'em all!!!
-func (instance EC2Instances) Nuke(session *session.Session) error {
-	if err := nukeAllEc2Instances(session, awsgo.StringSlice(instance.InstanceIds)); err != nil {
+func (instance EC2Instances) Nuke(session *session.Session, identifiers []string) error {
+	if err := nukeAllEc2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

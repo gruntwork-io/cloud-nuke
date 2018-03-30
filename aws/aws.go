@@ -41,6 +41,26 @@ func getRandomRegion() string {
 	return allRegions[randIndex]
 }
 
+func split(identifiers []string, limit int) [][]string {
+	if limit < 0 {
+		limit = -1 * limit
+	} else if limit == 0 {
+		return [][]string{identifiers}
+	}
+
+	var chunk []string
+	chunks := make([][]string, 0, len(identifiers)/limit+1)
+	for len(identifiers) >= limit {
+		chunk, identifiers = identifiers[:limit], identifiers[limit:]
+		chunks = append(chunks, chunk)
+	}
+	if len(identifiers) > 0 {
+		chunks = append(chunks, identifiers[:len(identifiers)])
+	}
+
+	return chunks
+}
+
 // GetAllResources - Lists all aws resources
 func GetAllResources(regions []string, excludedRegions []string, excludeAfter time.Time) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
@@ -177,8 +197,19 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 
 		resourcesInRegion := account.Resources[region]
 		for _, resources := range resourcesInRegion.Resources {
-			if err := resources.Nuke(session); err != nil {
-				return errors.WithStackTrace(err)
+			length := len(resources.ResourceIdentifiers())
+
+			// Split api calls into batches
+			logging.Logger.Infof("Terminating %d resources in batches", length)
+			batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
+
+			for _, batch := range batches {
+				if err := resources.Nuke(session, batch); err != nil {
+					return errors.WithStackTrace(err)
+				}
+
+				logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
+				time.Sleep(10 * time.Second)
 			}
 		}
 	}

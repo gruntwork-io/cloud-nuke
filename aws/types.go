@@ -11,7 +11,8 @@ type AwsAccountResources struct {
 type AwsResources interface {
 	ResourceName() string
 	ResourceIdentifiers() []string
-	Nuke(session *session.Session) error
+	MaxBatchSize() int
+	Nuke(session *session.Session, identifiers []string) error
 }
 
 type AwsRegionResource struct {
