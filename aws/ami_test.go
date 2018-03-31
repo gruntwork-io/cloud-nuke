@@ -14,7 +14,7 @@ import (
 )
 
 func waitUntilImageAvailable(svc *ec2.EC2, input *ec2.DescribeImagesInput) error {
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 70; i++ {
 		output, err := svc.DescribeImages(input)
 		if err != nil {
 			return err
