@@ -2,10 +2,10 @@ package aws
 
 import (
 	"math/rand"
+	"strings"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -207,18 +207,20 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 			for i := 0; i < len(batches); i++ {
 				batch := batches[i]
 				if err := resources.Nuke(session, batch); err != nil {
-					if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "RequestLimitExceeded" {
+					// TODO: Figure out actual error type
+					if strings.Contains(err.Error(), "RequestLimitExceeded") {
 						logging.Logger.Info("Request limit reached. Waiting 1 minute before making new requests")
 						time.Sleep(1 * time.Minute)
-						i--
 						continue
 					}
 
 					return errors.WithStackTrace(err)
 				}
 
-				logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
-				time.Sleep(10 * time.Second)
+				if i != len(batches)-1 {
+					logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
+					time.Sleep(10 * time.Second)
+				}
 			}
 		}
 	}
