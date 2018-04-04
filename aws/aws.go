@@ -207,6 +207,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 			for i := 0; i < len(batches); i++ {
 				batch := batches[i]
 				if err := resources.Nuke(session, batch); err != nil {
+					// TODO: Figure out actual error type
 					if strings.Contains(err.Error(), "RequestLimitExceeded") {
 						logging.Logger.Info("Request limit reached. Waiting 1 minute before making new requests")
 						time.Sleep(1 * time.Minute)
