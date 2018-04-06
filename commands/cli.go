@@ -27,7 +27,7 @@ func CreateCli(version string) *cli.App {
 	app.Commands = []cli.Command{
 		{
 			Name:   "aws",
-			Usage:  "Clean up AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots)",
+			Usage:  "Clean up AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots, ELastic IP)",
 			Action: errors.WithPanicHandling(awsNuke),
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{

@@ -12,6 +12,7 @@ The currently supported functionality includes:
 * Deleting all unprotected EC2 instances in an AWS account
 * Deleting all AMIs in an AWS account
 * Deleting all Snapshots in an AWS account
+* Deleting all Elastic IPs in an AWS account
 
 ## Azure
 
