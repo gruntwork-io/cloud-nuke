@@ -3,11 +3,42 @@ package aws
 import (
 	"time"
 
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
+
+func getOrSetFirstSeenTag(svc *ec2.EC2, address ec2.Address) (time.Time, error) {
+	key := "cloud-nuke-first-seen"
+	layout := "2006-01-02 15:04:05"
+
+	tags := address.Tags
+	for _, tag := range tags {
+		if *tag.Key == key {
+			return time.Parse(layout, *tag.Value)
+		}
+	}
+
+	now := time.Now().UTC()
+
+	_, err := svc.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{address.AllocationId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(key),
+				Value: awsgo.String(now.Format(layout)),
+			},
+		},
+	})
+
+	if err != nil {
+		return now, errors.WithStackTrace(err)
+	}
+
+	return now, nil
+}
 
 // Returns a formatted string of EIP allocation ids
 func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
@@ -20,7 +51,14 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
-		allocationIds = append(allocationIds, address.AllocationId)
+		firstSeenTime, err := getOrSetFirstSeenTag(svc, *address)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		if excludeAfter.After(firstSeenTime) {
+			allocationIds = append(allocationIds, address.AllocationId)
+		}
 	}
 
 	return allocationIds, nil
