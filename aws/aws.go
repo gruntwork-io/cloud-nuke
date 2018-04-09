@@ -153,6 +153,19 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
 		// End EBS Volumes
 
+		// EIP Addresses
+		allocationIds, err := getAllEIPAddresses(session, region, excludeAfter)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		eipAddresses := EIPAddresses{
+			AllocationIds: awsgo.StringValueSlice(allocationIds),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, eipAddresses)
+		// End EIP Addresses
+
 		// AMIs
 		imageIds, err := getAllAMIs(session, region, excludeAfter)
 		if err != nil {
