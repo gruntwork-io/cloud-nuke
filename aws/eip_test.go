@@ -142,7 +142,14 @@ func TestListEIPAddress(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
 
-	allocationIds, err := getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour))
+	allocationIds, err := getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour*-1))
+	if err != nil {
+		assert.Fail(t, "Unable to fetch list of EIP Addresses")
+	}
+
+	assert.NotContains(t, awsgo.StringValueSlice(allocationIds), awsgo.StringValue(address.AllocationId))
+
+	allocationIds, err = getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EIP Addresses")
 	}
