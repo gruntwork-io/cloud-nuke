@@ -53,7 +53,7 @@ func TestSetFirstSeenTag(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
 
-	if err = setFirstSeenTag(svc, address, key, now, layout); err != nil {
+	if err := setFirstSeenTag(svc, address, key, now, layout); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 

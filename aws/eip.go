@@ -34,7 +34,11 @@ func getFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, layout strin
 	for _, tag := range tags {
 		if *tag.Key == key {
 			firstSeenTime, err := time.Parse(layout, *tag.Value)
-			return &firstSeenTime, err
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return &firstSeenTime, nil
 		}
 	}
 
