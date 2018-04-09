@@ -30,6 +30,100 @@ func createTestEIPAddress(t *testing.T, session *session.Session, name string) e
 	return *output.Addresses[0]
 }
 
+func TestSetFirstSeenTag(t *testing.T) {
+	t.Parallel()
+
+	const key = "cloud-nuke-first-seen"
+	const layout = "2006-01-02 15:04:05"
+
+	region := getRandomRegion()
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	svc := ec2.New(session)
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
+	now := time.Now().UTC()
+
+	address := createTestEIPAddress(t, session, uniqueTestID)
+	// clean up after this test
+	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
+
+	if err = setFirstSeenTag(svc, address, key, now, layout); err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	result, err := svc.DescribeTags(&ec2.DescribeTagsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   awsgo.String("resource-id"),
+				Values: []*string{address.AllocationId},
+			},
+		},
+	})
+
+	assert.Len(t, result.Tags, 1)
+	assert.Equal(t, key, *result.Tags[0].Key)
+	assert.Equal(t, now.Format(layout), *result.Tags[0].Value)
+}
+
+func TestGetFirstSeenTag(t *testing.T) {
+	t.Parallel()
+
+	const key = "cloud-nuke-first-seen"
+	const layout = "2006-01-02 15:04:05"
+
+	region := getRandomRegion()
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	svc := ec2.New(session)
+	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
+	now := time.Now().UTC()
+
+	address := createTestEIPAddress(t, session, uniqueTestID)
+	// clean up after this test
+	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
+
+	_, err = svc.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{address.AllocationId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(key),
+				Value: awsgo.String(now.Format(layout)),
+			},
+		},
+	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	result, err := svc.DescribeAddresses(&ec2.DescribeAddressesInput{
+		AllocationIds: []*string{address.AllocationId},
+	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	firstSeenTime, err := getFirstSeenTag(svc, *result.Addresses[0], key, layout)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	assert.Equal(t, now.Format(layout), (*firstSeenTime).Format(layout))
+}
+
 func TestListEIPAddress(t *testing.T) {
 	t.Parallel()
 
