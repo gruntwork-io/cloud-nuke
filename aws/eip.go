@@ -10,39 +10,42 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-func getOrSetFirstSeenTag(svc *ec2.EC2, address ec2.Address) (time.Time, error) {
-	key := "cloud-nuke-first-seen"
-	layout := "2006-01-02 15:04:05"
-
-	tags := address.Tags
-	for _, tag := range tags {
-		if *tag.Key == key {
-			return time.Parse(layout, *tag.Value)
-		}
-	}
-
-	now := time.Now().UTC()
-
+func setFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, value time.Time, layout string) error {
+	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
 	_, err := svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{address.AllocationId},
 		Tags: []*ec2.Tag{
 			{
 				Key:   awsgo.String(key),
-				Value: awsgo.String(now.Format(layout)),
+				Value: awsgo.String(value.Format(layout)),
 			},
 		},
 	})
 
 	if err != nil {
-		return now, errors.WithStackTrace(err)
+		return errors.WithStackTrace(err)
 	}
 
-	return now, nil
+	return nil
+}
+
+func getFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, layout string) (*time.Time, error) {
+	tags := address.Tags
+	for _, tag := range tags {
+		if *tag.Key == key {
+			firstSeenTime, err := time.Parse(layout, *tag.Value)
+			return &firstSeenTime, err
+		}
+	}
+
+	return nil, nil
 }
 
 // Returns a formatted string of EIP allocation ids
 func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
+	const key = "cloud-nuke-first-seen"
+	const layout = "2006-01-02 15:04:05"
 
 	result, err := svc.DescribeAddresses(&ec2.DescribeAddressesInput{})
 	if err != nil {
@@ -51,12 +54,20 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
-		firstSeenTime, err := getOrSetFirstSeenTag(svc, *address)
+		firstSeenTime, err := getFirstSeenTag(svc, *address, key, layout)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		if excludeAfter.After(firstSeenTime) {
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := setFirstSeenTag(svc, *address, key, *firstSeenTime, layout); err != nil {
+				return nil, err
+			}
+		}
+
+		if excludeAfter.After(*firstSeenTime) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
