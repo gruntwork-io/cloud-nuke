@@ -31,7 +31,7 @@ func waitUntilImageAvailable(svc *ec2.EC2, input *ec2.DescribeImagesInput) error
 	return ImageAvailableError{}
 }
 
-func createTestAMI(t *testing.T, session *session.Session, name string) ec2.Image {
+func createTestAMI(t *testing.T, session *session.Session, name string) (*ec2.Image, error) {
 	svc := ec2.New(session)
 	instance := createTestEC2Instance(t, session, name, false)
 	output, err := svc.CreateImage(&ec2.CreateImageInput{
@@ -54,10 +54,12 @@ func createTestAMI(t *testing.T, session *session.Session, name string) ec2.Imag
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	err = waitUntilImageAvailable(svc, params)
+	err = svc.WaitUntilImageAvailable(params)
 
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		// clean this up since we won't use it again
+		defer nukeAllAMIs(session, []*string{output.ImageId})
+		return nil, errors.WithStackTrace(err)
 	}
 
 	images, err := svc.DescribeImages(&ec2.DescribeImagesInput{
@@ -68,7 +70,7 @@ func createTestAMI(t *testing.T, session *session.Session, name string) ec2.Imag
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	return *images.Images[0]
+	return images.Images[0], nil
 }
 
 func TestListAMIs(t *testing.T) {
@@ -84,7 +86,19 @@ func TestListAMIs(t *testing.T) {
 	}
 
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	image := createTestAMI(t, session, uniqueTestID)
+	image, err := createTestAMI(t, session, uniqueTestID)
+	attempts := 0
+
+	for err != nil && attempts <= 10 {
+		// Image didn't become availabe in time, try again
+		image, err = createTestAMI(t, session, uniqueTestID)
+		attempts++
+	}
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	// clean up after this test
 	defer nukeAllAMIs(session, []*string{image.ImageId})
 	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
@@ -118,7 +132,18 @@ func TestNukeAMIs(t *testing.T) {
 	}
 
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	image := createTestAMI(t, session, uniqueTestID)
+	image, err := createTestAMI(t, session, uniqueTestID)
+	attempts := 0
+
+	for err != nil && attempts <= 10 {
+		// Image didn't become availabe in time, try again
+		image, err = createTestAMI(t, session, uniqueTestID)
+		attempts++
+	}
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 
 	// clean up ec2 instance created by the above call
 	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
