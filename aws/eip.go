@@ -4,6 +4,7 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -97,6 +98,12 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 
 		_, err := svc.ReleaseAddress(params)
 		if err != nil {
+			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "AuthFailure" {
+				// TODO: Figure out why we get an AuthFailure
+				logging.Logger.Warnf("EIP %s can't be deleted, it is still attached to an active resource", *allocationID)
+				return nil
+			}
+
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
