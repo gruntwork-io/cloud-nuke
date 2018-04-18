@@ -16,7 +16,7 @@ func (volume EBSVolumes) ResourceName() string {
 	return "ebs"
 }
 
-// ResourceIdentifiers - The instance ids of the ec2 instances
+// ResourceIdentifiers - The volume ids of the ebs volumes
 func (volume EBSVolumes) ResourceIdentifiers() []string {
 	return volume.VolumeIds
 }
