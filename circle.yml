@@ -31,7 +31,7 @@ jobs:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
           command: run-go-tests --circle-ci-2
-          no_output_timeout: 20m
+          no_output_timeout: 25m
 
   build:
     <<: *defaults
