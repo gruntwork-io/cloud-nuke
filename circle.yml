@@ -50,7 +50,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
-      - run: go run main.go aws --older-than 24h --exclude-region us-west-2 --force
+      - run: go run main.go aws --older-than 1h --force
 
   deploy:
     <<: *defaults
@@ -93,7 +93,7 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          cron: "0 0,6,12,18 * * *"
+          cron: "0 0,3,6,9,12,15,18,21 * * *"
           filters:
             branches:
               only: master
