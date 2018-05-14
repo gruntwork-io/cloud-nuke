@@ -52,6 +52,16 @@ jobs:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run: go run main.go aws --older-than 1h --force
 
+  nuke_sandbox:
+    <<: *defaults
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /go/src/github.com/gruntwork-io/cloud-nuke
+      - run: export AWS_ACCESS_KEY_ID=SANDBOX_AWS_ACCESS_KEY_ID
+      - run: export AWS_SECRET_ACCESS_KEY=SANDBOX_AWS_SECRET_ACCESS_KEY
+      - run: go run main.go aws --older-than 24h --force
+
   deploy:
     <<: *defaults
     steps:
@@ -90,7 +100,7 @@ workflows:
               ignore: /.*/
 
 
-  nightly:
+  frequently:
     triggers:
       - schedule:
           cron: "0 0,3,6,9,12,15,18,21 * * *"
@@ -103,5 +113,21 @@ workflows:
           requires:
             - install_dependencies
       - nuke_phx_devops:
+          requires:
+            - test
+
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 6 * * *"
+          filters:
+            branches:
+              only: master
+    jobs:
+      - install_dependencies
+      - test:
+          requires:
+            - install_dependencies
+      - nuke_sandbox:
           requires:
             - test
