@@ -89,10 +89,6 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 		return errors.WithStackTrace(err)
 	}
 
-	for _, instanceID := range instanceIds {
-		logging.Logger.Infof("Terminated EC2 Instance: %s", *instanceID)
-	}
-
 	err = svc.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
@@ -101,6 +97,10 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 			},
 		},
 	})
+
+	for _, instanceID := range instanceIds {
+		logging.Logger.Infof("Terminated EC2 Instance: %s", *instanceID)
+	}
 
 	if err != nil {
 		logging.Logger.Errorf("[Failed] %s", err)
