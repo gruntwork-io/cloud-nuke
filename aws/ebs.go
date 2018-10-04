@@ -61,13 +61,15 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		}
 	}
 
-	err := svc.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
-		VolumeIds: deletedVolumeIDs,
-	})
+	if len(deletedVolumeIDs) > 0 {
+		err := svc.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
+			VolumeIds: deletedVolumeIDs,
+		})
 
-	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
 	}
 
 	logging.Logger.Infof("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), *session.Config.Region)

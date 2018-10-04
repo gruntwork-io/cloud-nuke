@@ -53,13 +53,15 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 		}
 	}
 
-	err := svc.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{
-		LoadBalancerArns: deletedArns,
-	})
+	if len(deletedArns) > 0 {
+		err := svc.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{
+			LoadBalancerArns: deletedArns,
+		})
 
-	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
 	}
 
 	logging.Logger.Infof("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), *session.Config.Region)
