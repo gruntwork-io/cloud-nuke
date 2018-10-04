@@ -60,6 +60,7 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 	})
 
 	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 

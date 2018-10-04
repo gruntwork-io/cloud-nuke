@@ -77,6 +77,7 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 	})
 
 	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 

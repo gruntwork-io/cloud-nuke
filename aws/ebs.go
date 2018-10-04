@@ -66,6 +66,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 	})
 
 	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
