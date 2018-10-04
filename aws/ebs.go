@@ -39,6 +39,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 	}
 
 	logging.Logger.Infof("Deleting all EBS volumes in region %s", *session.Config.Region)
+	var deletedVolumeIDs []*string
 
 	for _, volumeID := range volumeIds {
 		params := &ec2.DeleteVolumeInput{
@@ -49,27 +50,25 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "VolumeInUse" {
 				logging.Logger.Warnf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
-				return nil
 			} else if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidVolume.NotFound" {
 				logging.Logger.Infof("EBS volume %s has already been deleted", *volumeID)
-				return nil
+			} else {
+				logging.Logger.Errorf("[Failed] %s", err)
 			}
-
-			logging.Logger.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
+		} else {
+			deletedVolumeIDs = append(deletedVolumeIDs, volumeID)
+			logging.Logger.Infof("Deleted EBS Volume: %s", *volumeID)
 		}
-
-		logging.Logger.Infof("Deleted EBS Volume: %s", *volumeID)
 	}
 
 	err := svc.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
-		VolumeIds: volumeIds,
+		VolumeIds: deletedVolumeIDs,
 	})
 
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infof("[OK] %d EBS volumes(s) terminated in %s", len(volumeIds), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), *session.Config.Region)
 	return nil
 }

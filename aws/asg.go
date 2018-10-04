@@ -38,6 +38,7 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 	}
 
 	logging.Logger.Infof("Deleting all Auto Scaling Groups in region %s", *session.Config.Region)
+	var deletedGroupNames []*string
 
 	for _, groupName := range groupNames {
 		params := &autoscaling.DeleteAutoScalingGroupInput{
@@ -48,20 +49,20 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		_, err := svc.DeleteAutoScalingGroup(params)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
+		} else {
+			deletedGroupNames = append(deletedGroupNames, groupName)
+			logging.Logger.Infof("Deleted Auto Scaling Group: %s", *groupName)
 		}
-
-		logging.Logger.Infof("Deleted Auto Scaling Group: %s", *groupName)
 	}
 
 	err := svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: groupNames,
+		AutoScalingGroupNames: deletedGroupNames,
 	})
 
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infof("[OK] %d Auto Scaling Group(s) deleted in %s", len(groupNames), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), *session.Config.Region)
 	return nil
 }
