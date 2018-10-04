@@ -42,7 +42,8 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 		return nil
 	}
 
-	logging.Logger.Infof("Terminating all Snapshots in region %s", *session.Config.Region)
+	logging.Logger.Infof("Deleting all Snapshots in region %s", *session.Config.Region)
+	var deletedSnapshotIDs []*string
 
 	for _, snapshotID := range snapshotIds {
 		params := &ec2.DeleteSnapshotInput{
@@ -52,12 +53,12 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 		_, err := svc.DeleteSnapshot(params)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
+		} else {
+			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
+			logging.Logger.Infof("Deleted Snapshot: %s", *snapshotID)
 		}
-
-		logging.Logger.Infof("Deleted Snapshot: %s", *snapshotID)
 	}
 
-	logging.Logger.Infof("[OK] %d Snapshot(s) terminated in %s", len(snapshotIds), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), *session.Config.Region)
 	return nil
 }

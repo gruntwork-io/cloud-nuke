@@ -90,6 +90,7 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 	}
 
 	logging.Logger.Infof("Deleting all Elastic IPs in region %s", *session.Config.Region)
+	var deletedAllocationIDs []*string
 
 	for _, allocationID := range allocationIds {
 		params := &ec2.ReleaseAddressInput{
@@ -101,16 +102,15 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "AuthFailure" {
 				// TODO: Figure out why we get an AuthFailure
 				logging.Logger.Warnf("EIP %s can't be deleted, it is still attached to an active resource", *allocationID)
-				return nil
+			} else {
+				logging.Logger.Errorf("[Failed] %s", err)
 			}
-
-			logging.Logger.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
+		} else {
+			deletedAllocationIDs = append(deletedAllocationIDs, allocationID)
+			logging.Logger.Infof("Deleted Elastic IP: %s", *allocationID)
 		}
-
-		logging.Logger.Infof("Deleted Elastic IP: %s", *allocationID)
 	}
 
-	logging.Logger.Infof("[OK] %d Elastc IP(s) deleted in %s", len(allocationIds), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d Elastc IP(s) deleted in %s", len(deletedAllocationIDs), *session.Config.Region)
 	return nil
 }
