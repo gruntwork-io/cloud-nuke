@@ -101,6 +101,19 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, asGroups)
 		// End ASG Names
 
+		// Launch Configuration Names
+		configNames, err := getAllLaunchConfigurations(session, region, excludeAfter)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		configs := LaunchConfigs{
+			LaunchConfigurationNames: awsgo.StringValueSlice(configNames),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, configs)
+		// End Launch Configuration Names
+
 		// LoadBalancer Names
 		elbNames, err := getAllElbInstances(session, region, excludeAfter)
 		if err != nil {
