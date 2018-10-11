@@ -8,9 +8,15 @@ import (
 )
 
 // getAllEcsClusters - Returns a string of ECS Cluster ARNs, which uniquely identifies the cluster.
-// NOTE: AWS api doesn't provide the necessary information to
-//       implement `excludeAfter` filter at the cluster
-//       level, so we will implement it at the service level.
+// NOTE:
+//   AWS api doesn't provide the necessary information to implement
+//   `excludeAfter` filter at the cluster level, so we will implement it at the
+//   service level. Clusters can't be deleted if they have active services
+//   running on it. In practice this means that clusters that have recently
+//   been used by launching services to it will not be deleted because it will
+//   still have services running on it, since the services will be filtered out
+//   using `excludeAfter`. However, recently created clusters could still be
+//   deleted if it has not been used yet by deploying a service to it.
 func getAllEcsClusters(awsSession *session.Session) ([]*string, error) {
 	svc := ecs.New(awsSession)
 	result, err := svc.ListClusters(&ecs.ListClustersInput{})
