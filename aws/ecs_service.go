@@ -66,6 +66,89 @@ func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, ex
 	return ecsServiceArns, ecsServiceClusterMap, nil
 }
 
+// drainEcsServices - Drain all tasks from all services requested. This will
+// return a list of service ARNs that have been successfully requested to be
+// drained.
+func drainEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsServiceArns []*string) []*string {
+	var requestedDrains []*string
+	for _, ecsServiceArn := range ecsServiceArns {
+		params := &ecs.UpdateServiceInput{
+			Cluster:      awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
+			Service:      ecsServiceArn,
+			DesiredCount: awsgo.Int64(0),
+		}
+		_, err := svc.UpdateService(params)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
+		} else {
+			requestedDrains = append(requestedDrains, ecsServiceArn)
+		}
+	}
+	return requestedDrains
+}
+
+// waitUntilServiceDrained - Waits until all tasks have been drained from the
+// given list of services, by waiting for stability which is defined as
+// desiredCount == runningCount. This will return a list of service ARNs that
+// have successfully been drained.
+func waitUntilServicesDrained(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsServiceArns []*string) []*string {
+	var successfullyDrained []*string
+	for _, ecsServiceArn := range ecsServiceArns {
+		params := &ecs.DescribeServicesInput{
+			Cluster:  awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
+			Services: []*string{ecsServiceArn},
+		}
+		err := svc.WaitUntilServicesStable(params)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
+		} else {
+			logging.Logger.Infof("Drained service: %s", *ecsServiceArn)
+			successfullyDrained = append(successfullyDrained, ecsServiceArn)
+		}
+	}
+	return successfullyDrained
+}
+
+// deleteEcsServices - Deletes all services requested. Returns a list of
+// service ARNs that have been accepted by AWS for deletion.
+func deleteEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsServiceArns []*string) []*string {
+	var requestedDeletes []*string
+	for _, ecsServiceArn := range ecsServiceArns {
+		params := &ecs.DeleteServiceInput{
+			Cluster: awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
+			Service: ecsServiceArn,
+		}
+		_, err := svc.DeleteService(params)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
+		} else {
+			requestedDeletes = append(requestedDeletes, ecsServiceArn)
+		}
+	}
+	return requestedDeletes
+}
+
+// waitUntilServicesDeleted - Waits until the service has been actually deleted
+// from AWS. Returns a list of service ARNs that have been successfully
+// deleted.
+func waitUntilServicesDeleted(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsServiceArns []*string) []*string {
+	var successfullyDeleted []*string
+	for _, ecsServiceArn := range ecsServiceArns {
+		params := &ecs.DescribeServicesInput{
+			Cluster:  awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
+			Services: []*string{ecsServiceArn},
+		}
+		err := svc.WaitUntilServicesInactive(params)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
+		} else {
+			logging.Logger.Infof("Deleted service: %s", *ecsServiceArn)
+			successfullyDeleted = append(successfullyDeleted, ecsServiceArn)
+		}
+	}
+	return successfullyDeleted
+}
+
 // Deletes all provided ECS Services. At a high level this involves two steps:
 // 1.) Drain all tasks from the service so that nothing is
 //     running.
@@ -88,70 +171,13 @@ func nukeAllEcsServices(awsSession *session.Session, ecsServiceClusterMap map[st
 	// Note that we request all the drains at once, and then
 	// wait for them in a separate loop because it will take a
 	// while to drain the services.
-	var requestedDrains []*string
-	for _, ecsServiceArn := range ecsServiceArns {
-		params := &ecs.UpdateServiceInput{
-			Cluster:      awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
-			Service:      ecsServiceArn,
-			DesiredCount: awsgo.Int64(0),
-		}
-		_, err := svc.UpdateService(params)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
-		} else {
-			requestedDrains = append(requestedDrains, ecsServiceArn)
-		}
-	}
+	// Then, we delete the services that have been successfully drained.
+	requestedDrains := drainEcsServices(svc, ecsServiceClusterMap, ecsServiceArns)
+	successfullyDrained := waitUntilServicesDrained(svc, ecsServiceClusterMap, requestedDrains)
+	requestedDeletes := deleteEcsServices(svc, ecsServiceClusterMap, successfullyDrained)
+	successfullyDeleted := waitUntilServicesDeleted(svc, ecsServiceClusterMap, requestedDeletes)
 
-	// Wait until service is fully drained by waiting for
-	// stability, which is defined as desiredCount ==
-	// runningCount
-	var successfullyDrained []*string
-	for _, ecsServiceArn := range requestedDrains {
-		params := &ecs.DescribeServicesInput{
-			Cluster:  awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
-			Services: []*string{ecsServiceArn},
-		}
-		err := svc.WaitUntilServicesStable(params)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
-		} else {
-			logging.Logger.Infof("Drained service: %s", *ecsServiceArn)
-			successfullyDrained = append(successfullyDrained, ecsServiceArn)
-		}
-	}
-
-	// Now delete the services that were successfully drained
-	var requestedDeletes []*string
-	for _, ecsServiceArn := range successfullyDrained {
-		params := &ecs.DeleteServiceInput{
-			Cluster: awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
-			Service: ecsServiceArn,
-		}
-		_, err := svc.DeleteService(params)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
-		} else {
-			requestedDeletes = append(requestedDeletes, ecsServiceArn)
-		}
-	}
-
-	// Wait until services are deleted
-	numNuked := 0
-	for _, ecsServiceArn := range requestedDeletes {
-		params := &ecs.DescribeServicesInput{
-			Cluster:  awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
-			Services: []*string{ecsServiceArn},
-		}
-		err := svc.WaitUntilServicesInactive(params)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
-		} else {
-			logging.Logger.Infof("Deleted service: %s", *ecsServiceArn)
-			numNuked += 1
-		}
-	}
-
+	numNuked := len(successfullyDeleted)
 	logging.Logger.Infof("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
 	return nil
 }
