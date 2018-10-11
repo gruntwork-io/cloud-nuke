@@ -205,6 +205,28 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, snapshots)
 		// End Snapshots
 
+		// ECS resources
+		clusterArns, err := getAllEcsClusters(session)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		// Must delete services before clusters
+		ecsServices := ECSServices{
+			Services:          awsgo.StringValueSlice(serviceArns),
+			ServiceClusterMap: serviceClusterMap,
+		}
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
+		ecsClusters := ECSClusters{
+			Clusters: awsgo.StringValueSlice(clusterArns),
+		}
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsClusters)
+		// End ECS resources
+
 		account.Resources[region] = resourcesInRegion
 	}
 

@@ -14,6 +14,8 @@ The currently supported functionality includes:
 * Deleting all Snapshots in an AWS account
 * Deleting all Elastic IPs in an AWS account
 * Deleting all Launch Configurations in an AWS account
+* Deleting all ECS services in an AWS account
+* Deleting all ECS clusters in an AWS account
 
 ## Azure
 
