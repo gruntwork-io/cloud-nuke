@@ -15,7 +15,15 @@ The currently supported functionality includes:
 * Deleting all Elastic IPs in an AWS account
 * Deleting all Launch Configurations in an AWS account
 * Deleting all ECS services in an AWS account
-* Deleting all ECS clusters in an AWS account
+
+### Caveats
+
+* We currently do not support deleting ECS clusters because AWS
+  does not give us a good way to blacklist clusters off the list (there are not
+  tags and we do not know the creation timestamp). Given the destructive nature
+  of the tool, we have opted not to support deleting ECS clusters at the
+  moment. See https://github.com/gruntwork-io/cloud-nuke/pull/36 for a more
+  detailed discussion.
 
 ## Azure
 

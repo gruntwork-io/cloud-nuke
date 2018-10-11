@@ -215,16 +215,11 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Must delete services before clusters
 		ecsServices := ECSServices{
 			Services:          awsgo.StringValueSlice(serviceArns),
 			ServiceClusterMap: serviceClusterMap,
 		}
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
-		ecsClusters := ECSClusters{
-			Clusters: awsgo.StringValueSlice(clusterArns),
-		}
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsClusters)
 		// End ECS resources
 
 		account.Resources[region] = resourcesInRegion

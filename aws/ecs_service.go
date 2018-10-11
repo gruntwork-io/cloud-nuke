@@ -10,6 +10,17 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
+// getAllEcsClusters - Returns a string of ECS Cluster ARNs, which uniquely identifies the cluster.
+// We need to get all clusters before we can get all services.
+func getAllEcsClusters(awsSession *session.Session) ([]*string, error) {
+	svc := ecs.New(awsSession)
+	result, err := svc.ListClusters(&ecs.ListClustersInput{})
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+	return result.ClusterArns, nil
+}
+
 // filterOutRecentServices - Given a list of services and an excludeAfter
 // timestamp, filter out any services that were created after `excludeAfter`.
 func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []string, excludeAfter time.Time) ([]*string, error) {

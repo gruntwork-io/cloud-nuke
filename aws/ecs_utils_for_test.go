@@ -74,6 +74,16 @@ func createEcsEC2Cluster(t *testing.T, awsSession *session.Session, name string,
 	return cluster, instance
 }
 
+func deleteEcsCluster(awsSession *session.Session, cluster ecs.Cluster) error {
+	svc := ecs.New(awsSession)
+	params := &ecs.DeleteClusterInput{Cluster: cluster.ClusterArn}
+	_, err := svc.DeleteCluster(params)
+	if err != nil {
+		return gruntworkerrors.WithStackTrace(err)
+	}
+	return nil
+}
+
 func createEcsService(t *testing.T, awsSession *session.Session, serviceName string, cluster ecs.Cluster, launchType string, taskDefinition ecs.TaskDefinition) ecs.Service {
 	svc := ecs.New(awsSession)
 	createServiceParams := &ecs.CreateServiceInput{

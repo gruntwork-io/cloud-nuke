@@ -31,7 +31,7 @@ func TestListECSFargateServices(t *testing.T) {
 	taskFamilyName := uniqueTestID + "-task"
 
 	cluster := createEcsFargateCluster(t, awsSession, clusterName)
-	defer nukeAllEcsClusters(awsSession, []*string{cluster.ClusterArn})
+	defer deleteEcsCluster(awsSession, cluster)
 
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "FARGATE")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
@@ -76,7 +76,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 	taskFamilyName := uniqueTestID + "-task"
 
 	cluster := createEcsFargateCluster(t, awsSession, clusterName)
-	defer nukeAllEcsClusters(awsSession, []*string{cluster.ClusterArn})
+	defer deleteEcsCluster(awsSession, cluster)
 
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "FARGATE")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
@@ -133,7 +133,7 @@ func TestListECSEC2Services(t *testing.T) {
 	// Provision a cluster with ec2 container instances, not
 	// forgetting to schedule deletion
 	cluster, instance := createEcsEC2Cluster(t, awsSession, clusterName, instanceProfile)
-	defer nukeAllEcsClusters(awsSession, []*string{cluster.ClusterArn})
+	defer deleteEcsCluster(awsSession, cluster)
 	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
 
 	// Finally, define the task and service
@@ -198,7 +198,7 @@ func TestNukeECSEC2Services(t *testing.T) {
 	// Provision a cluster with ec2 container instances, not
 	// forgetting to schedule deletion
 	cluster, instance := createEcsEC2Cluster(t, awsSession, clusterName, instanceProfile)
-	defer nukeAllEcsClusters(awsSession, []*string{cluster.ClusterArn})
+	defer deleteEcsCluster(awsSession, cluster)
 	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
 
 	// Finally, define the task and service
