@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -8,44 +9,42 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
+	gruntworkerrors "github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
 
-func createTestEC2Instance(t *testing.T, session *session.Session, name string, protected bool) ec2.Instance {
-	svc := ec2.New(session)
-
+// getAMIIdByName - Retrieves an AMI ImageId given the name of the Id. Used for
+// retrieving a standard AMI across AWS regions.
+func getAMIIdByName(svc *ec2.EC2, name string) (string, error) {
 	imagesResult, err := svc.DescribeImages(&ec2.DescribeImagesInput{
 		Owners: []*string{awsgo.String("self"), awsgo.String("amazon")},
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
 				Name:   awsgo.String("name"),
-				Values: []*string{awsgo.String("amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2")},
+				Values: []*string{awsgo.String(name)},
 			},
 		},
 	})
 
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		return "", gruntworkerrors.WithStackTrace(err)
 	}
 
-	imageID := *imagesResult.Images[0].ImageId
+	return *imagesResult.Images[0].ImageId, nil
+}
 
-	params := &ec2.RunInstancesInput{
-		ImageId:               awsgo.String(imageID),
-		InstanceType:          awsgo.String("t2.micro"),
-		MinCount:              awsgo.Int64(1),
-		MaxCount:              awsgo.Int64(1),
-		DisableApiTermination: awsgo.Bool(protected),
-	}
-
+// runAndWaitForInstance - Given a preconstructed ec2.RunInstancesInput object,
+// make the API call to run the instance and then wait for the instance to be
+// up and running before returning.
+func runAndWaitForInstance(svc *ec2.EC2, name string, params *ec2.RunInstancesInput) (ec2.Instance, error) {
 	runResult, err := svc.RunInstances(params)
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		return ec2.Instance{}, gruntworkerrors.WithStackTrace(err)
 	}
 
 	if len(runResult.Instances) == 0 {
-		assert.Fail(t, "Could not create test EC2 instance in "+*session.Config.Region)
+		err := errors.New("Could not create test EC2 instance")
+		return ec2.Instance{}, gruntworkerrors.WithStackTrace(err)
 	}
 
 	err = svc.WaitUntilInstanceExists(&ec2.DescribeInstancesInput{
@@ -58,7 +57,7 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string, 
 	})
 
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		return ec2.Instance{}, gruntworkerrors.WithStackTrace(err)
 	}
 
 	// Add test tag to the created instance
@@ -73,7 +72,7 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string, 
 	})
 
 	if err != nil {
-		assert.Failf(t, "Could not tag EC2 instance", errors.WithStackTrace(err).Error())
+		return ec2.Instance{}, gruntworkerrors.WithStackTrace(err)
 	}
 
 	// EC2 Instance must be in a running before this function returns
@@ -87,10 +86,33 @@ func createTestEC2Instance(t *testing.T, session *session.Session, name string, 
 	})
 
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		return ec2.Instance{}, gruntworkerrors.WithStackTrace(err)
 	}
 
-	return *runResult.Instances[0]
+	return *runResult.Instances[0], nil
+
+}
+
+func createTestEC2Instance(t *testing.T, session *session.Session, name string, protected bool) ec2.Instance {
+	svc := ec2.New(session)
+
+	imageID, err := getAMIIdByName(svc, "amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2")
+	if err != nil {
+		assert.Fail(t, err.Error())
+	}
+
+	params := &ec2.RunInstancesInput{
+		ImageId:               awsgo.String(imageID),
+		InstanceType:          awsgo.String("t2.micro"),
+		MinCount:              awsgo.Int64(1),
+		MaxCount:              awsgo.Int64(1),
+		DisableApiTermination: awsgo.Bool(protected),
+	}
+	instance, err := runAndWaitForInstance(svc, name, params)
+	if err != nil {
+		assert.Fail(t, err.Error())
+	}
+	return instance
 }
 
 func removeEC2InstanceProtection(svc *ec2.EC2, instance *ec2.Instance) error {
@@ -108,7 +130,7 @@ func removeEC2InstanceProtection(svc *ec2.EC2, instance *ec2.Instance) error {
 func findEC2InstancesByNameTag(t *testing.T, session *session.Session, name string) []*string {
 	output, err := ec2.New(session).DescribeInstances(&ec2.DescribeInstancesInput{})
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 
 	var instanceIds []*string
@@ -140,7 +162,7 @@ func TestListInstances(t *testing.T) {
 	)
 
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
@@ -166,7 +188,7 @@ func TestListInstances(t *testing.T) {
 	assert.NotContains(t, instanceIds, protectedInstance.InstanceId)
 
 	if err = removeEC2InstanceProtection(ec2.New(session), &protectedInstance); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 }
 
@@ -179,7 +201,7 @@ func TestNukeInstances(t *testing.T) {
 	)
 
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
@@ -188,7 +210,7 @@ func TestNukeInstances(t *testing.T) {
 	instanceIds := findEC2InstancesByNameTag(t, session, uniqueTestID)
 
 	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 	instances, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))
 
