@@ -19,7 +19,7 @@ The currently supported functionality includes:
 ### Caveats
 
 * We currently do not support deleting ECS clusters because AWS
-  does not give us a good way to blacklist clusters off the list (there are not
+  does not give us a good way to blacklist clusters off the list (there are no
   tags and we do not know the creation timestamp). Given the destructive nature
   of the tool, we have opted not to support deleting ECS clusters at the
   moment. See https://github.com/gruntwork-io/cloud-nuke/pull/36 for a more
