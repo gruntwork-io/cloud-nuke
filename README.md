@@ -15,6 +15,7 @@ The currently supported functionality includes:
 * Deleting all Elastic IPs in an AWS account
 * Deleting all Launch Configurations in an AWS account
 * Deleting all ECS services in an AWS account
+* Deleting all EKS clusters in an AWS account
 
 ### Caveats
 

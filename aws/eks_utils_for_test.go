@@ -2,7 +2,6 @@ package aws
 
 import (
 	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -11,22 +10,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/iam"
 	gruntworkerrors "github.com/gruntwork-io/gruntwork-cli/errors"
+	terraAws "github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // getRandomEksSupportedRegion - Returns a random AWS region that supports EKS.
 // Refer to https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/
-func getRandomEksSupportedRegion() string {
-	supportedRegions := []string{
-		"us-east-1",
-		"us-east-2",
-		"us-west-2",
-		"eu-west-1",
-	}
-	rand.Seed(time.Now().UnixNano())
-	randIndex := rand.Intn(len(supportedRegions))
-	return supportedRegions[randIndex]
+func getRandomEksSupportedRegion(t *testing.T) string {
+	// Approve only regions where EKS and the EKS optimized Linux AMI are available
+	approvedRegions := []string{"us-west-2", "us-east-1", "us-east-2", "eu-west-1"}
+	return terraAws.GetRandomRegion(t, approvedRegions, []string{})
 }
 
 func createEksCluster(
