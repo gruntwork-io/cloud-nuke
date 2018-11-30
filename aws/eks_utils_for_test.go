@@ -73,6 +73,11 @@ func createEksClusterRole(
 	}
 	attachRolePolicy(t, svc, roleName, "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy")
 	attachRolePolicy(t, svc, roleName, "arn:aws:iam::aws:policy/AmazonEKSServicePolicy")
+
+	// IAM resources are slow to propagate, so give it some
+	// time
+	time.Sleep(15 * time.Second)
+
 	return *result.Role
 }
 
