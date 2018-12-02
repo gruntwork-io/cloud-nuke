@@ -47,3 +47,11 @@
 [[constraint]]
   name = "github.com/fatih/color"
   version = "1.5.0"
+
+[[constraint]]
+  branch = "master"
+  name = "google.golang.org/api"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/net"

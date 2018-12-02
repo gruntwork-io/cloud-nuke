@@ -32,7 +32,9 @@ _Coming Soon_
 
 ## GCP
 
-_Coming Soon_
+*GCP support is in the early stages of development and should be considered experimental.*
+
+* Deleting all Compute Engine Instances in a GCP project
 
 ### WARNING: THIS TOOL IS HIGHLY DESTRUCTIVE, ALL SUPPORTED RESOURCES WILL BE DELETED. ITS EFFECTS ARE IRREVERSIBLE AND SHOULD NEVER BE USED IN A PRODUCTION ENVIRONMENT
 
