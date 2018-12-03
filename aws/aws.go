@@ -166,6 +166,32 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
 		// End EBS Volumes
 
+		// EFS Mount Targets
+		//mountTargetIds, err := getAllEfsMountTargets(session, region, excludeAfter)
+		//if err != nil {
+		//	return nil, errors.WithStackTrace(err)
+		//}
+
+		//efsMountTargets := EFSMountTargets{
+		//	MountTargetIds: awsgo.StringValueSlice(mountTargetIds),
+		//}
+
+		//resourcesInRegion.Resources = append(resourcesInRegion.Resources, efsMountTargets)
+		// End EFS Mount Targets
+
+		// EFS File Systems
+		fileSystemIds, err := getAllEfsFileSystems(session, region, excludeAfter)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		efsFileSystems := EFSFileSystems{
+			FileSystemIds: awsgo.StringValueSlice(fileSystemIds),
+		}
+
+		resourcesInRegion.Resources = append(resourcesInRegion.Resources, efsFileSystems)
+		// End EFS File Systems
+
 		// EIP Addresses
 		allocationIds, err := getAllEIPAddresses(session, region, excludeAfter)
 		if err != nil {
