@@ -22,12 +22,14 @@ func waitUntilNatGatewayDeleted(svc *ec2.EC2, input *ec2.DescribeNatGatewaysInpu
 			return err
 		}
 
-		if *result.NatGateways[0].State == "deleted" {
-			return nil
+		if result.NatGateways != nil && len(result.NatGateways) > 0 {
+			if *result.NatGateways[0].State == "deleted" {
+				return nil
+			}
 		}
 
+		logging.Logger.Debug("NAT Gateway still not deleted. Will sleep for 5 seconds and check again")
 		time.Sleep(5 * time.Second)
-		logging.Logger.Debug("Waiting for NAT Gateway to be deleted")
 	}
 
 	return NatGatewayDeleteError{}
