@@ -25,6 +25,8 @@ func resourcesContains(resources []GcpResource, zone string, name string) bool {
 }
 
 // Create a compute instance with the given name and protection status
+// TODO use terratest
+// see: https://github.com/gruntwork-io/terratest/blob/53f629c1d90bd816335ff57f390aa750854b2994/modules/gcp/compute_test.go#L148
 func createTestInstance(ctx *GcpContext, name string, zone string, protected bool) error {
 	machineType := fmt.Sprintf("projects/%s/zones/%s/machineTypes/f1-micro", ctx.Project, zone)
 
@@ -52,6 +54,9 @@ func createTestInstance(ctx *GcpContext, name string, zone string, protected boo
 	return err
 }
 
+// Delete the specified instances
+// TODO use terratest
+// see https://github.com/gruntwork-io/terratest/blob/53f629c1d90bd816335ff57f390aa750854b2994/modules/gcp/compute_test.go#L204
 func cleanupInstances(t *testing.T, ctx *GcpContext, zone string, names []string) {
 	for _, name := range names {
 		call := ctx.Service.Instances.SetDeletionProtection(ctx.Project, zone, name)

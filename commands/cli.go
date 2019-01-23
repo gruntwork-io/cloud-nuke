@@ -116,6 +116,8 @@ func regionIsValid(ctx *gcp.GcpContext, region string) bool {
 }
 
 func gcpNuke(c *cli.Context) error {
+	// TODO accept multiple credentials and nuke resources on all the projects
+	// specified by a command line parameter we have authorization for.
 	ctx, err := gcp.DefaultContext()
 	if err != nil {
 		return errors.WithStackTrace(err)

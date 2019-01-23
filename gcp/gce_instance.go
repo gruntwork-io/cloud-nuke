@@ -37,6 +37,7 @@ func regionFromZone(ctx *GcpContext, zone string) (string, error) {
 func GetAllGceInstances(ctx *GcpContext, excludedRegions []string, excludeAfter time.Time) ([]GcpResource, error) {
 	instances := []GcpResource{}
 
+	// TODO add this functionality to terratest
 	apiInstances, err := ctx.Service.Instances.AggregatedList(ctx.Project).Do()
 	if err != nil {
 		return nil, err
