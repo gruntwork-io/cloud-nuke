@@ -55,3 +55,7 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/net"
+
+[[constraint]]
+  name = "github.com/gruntwork-io/terratest"
+  version = "0.13.22"

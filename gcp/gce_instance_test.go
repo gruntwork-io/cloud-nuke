@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	gruntworkerrors "github.com/gruntwork-io/gruntwork-cli/errors"
+	terratestGcp "github.com/gruntwork-io/terratest/modules/gcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	compute "google.golang.org/api/compute/v1"
@@ -12,14 +13,10 @@ import (
 	"time"
 )
 
-func testZone() string {
-	return "us-central1-c"
-}
-
 // Whether this list of resources contains a resource with the given name
-func resourcesContains(resources []GcpResource, name string) bool {
+func resourcesContains(resources []GcpResource, zone string, name string) bool {
 	for _, resource := range resources {
-		if resource.Name() == name && resource.Zone() == testZone() {
+		if resource.Name() == name && resource.Zone() == zone {
 			return true
 		}
 	}
@@ -28,8 +25,8 @@ func resourcesContains(resources []GcpResource, name string) bool {
 }
 
 // Create a compute instance with the given name and protection status
-func createTestInstance(ctx *GcpContext, name string, protected bool) error {
-	machineType := fmt.Sprintf("projects/%s/zones/%s/machineTypes/f1-micro", ctx.Project, testZone())
+func createTestInstance(ctx *GcpContext, name string, zone string, protected bool) error {
+	machineType := fmt.Sprintf("projects/%s/zones/%s/machineTypes/f1-micro", ctx.Project, zone)
 
 	iface := &compute.NetworkInterface{}
 
@@ -51,13 +48,13 @@ func createTestInstance(ctx *GcpContext, name string, protected bool) error {
 		Disks:              []*compute.AttachedDisk{disk},
 	}
 
-	_, err := ctx.Service.Instances.Insert(ctx.Project, testZone(), instance).Do()
+	_, err := ctx.Service.Instances.Insert(ctx.Project, zone, instance).Do()
 	return err
 }
 
-func cleanupInstances(t *testing.T, ctx *GcpContext, names []string) {
+func cleanupInstances(t *testing.T, ctx *GcpContext, zone string, names []string) {
 	for _, name := range names {
-		call := ctx.Service.Instances.SetDeletionProtection(ctx.Project, testZone(), name)
+		call := ctx.Service.Instances.SetDeletionProtection(ctx.Project, zone, name)
 		call.DeletionProtection(false)
 
 		_, err := call.Do()
@@ -65,7 +62,7 @@ func cleanupInstances(t *testing.T, ctx *GcpContext, names []string) {
 			t.Logf("Warning: could not unset deletion protection on instance: %s %s", name, gruntworkerrors.WithStackTrace(err).Error())
 		}
 
-		_, err = ctx.Service.Instances.Delete(ctx.Project, testZone(), name).Do()
+		_, err = ctx.Service.Instances.Delete(ctx.Project, zone, name).Do()
 		if err != nil {
 			t.Logf("Warning: could not delete instance: %s %s", name, gruntworkerrors.WithStackTrace(err).Error())
 		}
@@ -104,23 +101,25 @@ func TestNukeInstances(t *testing.T) {
 	ctx, err := DefaultContext()
 	require.NoError(t, err)
 
+	zone := terratestGcp.GetRandomZone(t, ctx.Project, nil, nil, nil)
+
 	instanceName := strings.ToLower("cloud-nuke-test-" + util.UniqueID())
 	protectedInstanceName := strings.ToLower("cloud-nuke-test-" + util.UniqueID())
 
-	defer cleanupInstances(t, ctx, []string{instanceName, protectedInstanceName})
+	defer cleanupInstances(t, ctx, zone, []string{instanceName, protectedInstanceName})
 
-	err = createTestInstance(ctx, instanceName, false)
+	err = createTestInstance(ctx, instanceName, zone, false)
 	require.NoError(t, err)
 
-	err = createTestInstance(ctx, protectedInstanceName, true)
+	err = createTestInstance(ctx, protectedInstanceName, zone, true)
 	require.NoError(t, err)
 
 	instances, err := GetAllGceInstances(ctx, []string{}, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 
-	assert.True(t, resourcesContains(instances, instanceName),
+	assert.True(t, resourcesContains(instances, zone, instanceName),
 		"the created instance should show up in the list of instances")
-	assert.False(t, resourcesContains(instances, protectedInstanceName),
+	assert.False(t, resourcesContains(instances, zone, protectedInstanceName),
 		"the protected instance should not show up in the list of instances")
 
 	nukeErrors := ctx.NukeAllResources(instances)
@@ -135,7 +134,7 @@ func TestNukeInstances(t *testing.T) {
 	// is terminating
 	lastStatus := ""
 	for tries := 0; tries < 40; tries++ {
-		instance, err := ctx.Service.Instances.Get(ctx.Project, testZone(), instanceName).Do()
+		instance, err := ctx.Service.Instances.Get(ctx.Project, zone, instanceName).Do()
 		require.NoError(t, err)
 
 		lastStatus = instance.Status
