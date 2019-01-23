@@ -150,9 +150,8 @@ func gcpNuke(c *cli.Context) error {
 	logging.Logger.Infoln("The following GCP resources are going to be nuked: ")
 
 	for _, resource := range resources {
-		logging.Logger.Infof("* %s: %s Region=%s %s=%s",
-			resource.ResourceName(), resource.Name(), resource.Region(),
-			resource.LocationName(), resource.Location())
+		logging.Logger.Infof("* %s: %s Region=%s Zone=%s",
+			resource.Kind(), resource.Name(), resource.Region(), resource.Zone())
 	}
 
 	confirmation, err := promptForConfirmationBeforeNuking(c.Bool("force"))

@@ -98,9 +98,9 @@ func (ctx *GcpContext) NukeAllResources(resources []GcpResource) []error {
 	for i := 0; i < len(resources); i++ {
 		result := <-results
 		if result.Err != nil {
-			logging.Logger.Warnf("Could not delete resource: %s: %s Region=%s %s=%s \n%s",
-				result.Resource.ResourceName(), result.Resource.Name(), result.Resource.Region(),
-				result.Resource.LocationName(), result.Resource.Location(),
+			logging.Logger.Warnf("Could not delete resource: %s: %s Region=%s Zone=%s \n%s",
+				result.Resource.Kind(), result.Resource.Name(), result.Resource.Region(),
+				result.Resource.Zone(),
 				errors.WithStackTrace(result.Err).Error())
 			nukeErrors = append(nukeErrors, result.Err)
 		}

@@ -1,32 +1,29 @@
 package gcp
 
 type GceInstanceResource struct {
-	InstanceName string
-	Zone         string
-	RegionName   string
+	kind   string
+	name   string
+	zone   string
+	region string
 }
 
-func (instance GceInstanceResource) ResourceName() string {
-	return "GCE Instance"
+func (instance GceInstanceResource) Kind() string {
+	return instance.kind
 }
 
 func (instance GceInstanceResource) Name() string {
-	return instance.InstanceName
+	return instance.name
 }
 
-func (instance GceInstanceResource) LocationName() string {
-	return "Zone"
-}
-
-func (instance GceInstanceResource) Location() string {
-	return instance.Zone
+func (instance GceInstanceResource) Zone() string {
+	return instance.zone
 }
 
 func (instance GceInstanceResource) Region() string {
-	return instance.RegionName
+	return instance.region
 }
 
 func (instance GceInstanceResource) Nuke(ctx *GcpContext) error {
-	_, err := ctx.Service.Instances.Delete(ctx.Project, instance.Zone, instance.InstanceName).Do()
+	_, err := ctx.Service.Instances.Delete(ctx.Project, instance.zone, instance.name).Do()
 	return err
 }

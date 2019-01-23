@@ -72,9 +72,10 @@ func GetAllGceInstances(ctx *GcpContext, excludedRegions []string, excludeAfter 
 			}
 
 			instance := GceInstanceResource{
-				InstanceName: apiInstance.Name,
-				Zone:         zone,
-				RegionName:   region,
+				kind:   apiInstance.Kind,
+				name:   apiInstance.Name,
+				zone:   zone,
+				region: region,
 			}
 
 			instances = append(instances, instance)

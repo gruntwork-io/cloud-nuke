@@ -18,7 +18,7 @@ func testZone() string {
 
 func resourcesContains(resources []GcpResource, name string) bool {
 	for _, resource := range resources {
-		if resource.Name() == name && resource.Location() == testZone() {
+		if resource.Name() == name && resource.Zone() == testZone() {
 			return true
 		}
 	}
