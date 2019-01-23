@@ -111,6 +111,10 @@ func promptForConfirmationBeforeNuking(force bool) (bool, error) {
 	}
 }
 
+func regionIsValid(ctx *gcp.GcpContext, region string) bool {
+	return ctx.ContainsRegion(region)
+}
+
 func gcpNuke(c *cli.Context) error {
 	ctx, err := gcp.DefaultContext()
 	if err != nil {
@@ -122,9 +126,9 @@ func gcpNuke(c *cli.Context) error {
 	excludedRegions := c.StringSlice("exclude-region")
 
 	for _, excludedRegion := range excludedRegions {
-		if !ctx.ContainsRegion(excludedRegion) {
+		if !regionIsValid(ctx, excludedRegion) {
 			return InvalidFlagError{
-				Name:  "exclude-regions",
+				Name:  "exclude-region",
 				Value: excludedRegion,
 			}
 		}
