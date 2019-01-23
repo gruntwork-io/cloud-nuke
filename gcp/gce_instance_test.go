@@ -138,7 +138,7 @@ func TestNukeInstances(t *testing.T) {
 	// status doesn't update immediately, so give it a minute or two to show it
 	// is terminating
 	lastStatus := ""
-	for tries := 0; tries < 40; tries++ {
+	for tries := 0; tries < 100; tries++ {
 		instance, err := ctx.Service.Instances.Get(ctx.Project, zone, instanceName).Do()
 		require.NoError(t, err)
 
@@ -152,5 +152,5 @@ func TestNukeInstances(t *testing.T) {
 	}
 
 	require.Equal(t, "TERMINATED", lastStatus,
-		"instance should terminate after it is nuked within two minutes")
+		"instance should terminate after it is nuked within five minutes")
 }
