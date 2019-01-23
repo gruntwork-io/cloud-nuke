@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Given a url for a zone from the api, extract the name of the zone
 func zoneFromUrl(url string) (string, error) {
 	split := strings.Split(url, "/")
 	if len(split) == 0 {
@@ -14,6 +15,7 @@ func zoneFromUrl(url string) (string, error) {
 	return split[len(split)-1], nil
 }
 
+// For a given zone, get the region it is located in
 func regionFromZone(ctx *GcpContext, zone string) (string, error) {
 	for _, region := range ctx.Regions {
 		for _, regionZoneUrl := range region.Zones {
@@ -30,6 +32,8 @@ func regionFromZone(ctx *GcpContext, zone string) (string, error) {
 	return "", errors.New("could not get region for zone: " + zone)
 }
 
+// Get the compute instances for the project of the context as a list of
+// GcpResources for nuking
 func GetAllGceInstances(ctx *GcpContext, excludedRegions []string, excludeAfter time.Time) ([]GcpResource, error) {
 	instances := []GcpResource{}
 

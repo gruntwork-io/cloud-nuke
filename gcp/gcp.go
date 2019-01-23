@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+// The context for a nuke of resources for a single project, including cached
+// API resources and authentication credentials
 type GcpContext struct {
 	Client  *http.Client
 	Service *compute.Service
@@ -18,6 +20,9 @@ type GcpContext struct {
 	Regions []*compute.Region
 }
 
+// Build a GcpContext from the default credentials. Credentials are found from
+// environment variables, the system config path, or a metadata service.
+// For more info see https://godoc.org/golang.org/x/oauth2/google#FindDefaultCredentials
 func DefaultContext() (*GcpContext, error) {
 	creds, err := google.FindDefaultCredentials(oauth2.NoContext, compute.ComputeScope)
 	if err != nil {
@@ -45,6 +50,7 @@ func DefaultContext() (*GcpContext, error) {
 	return context, nil
 }
 
+// Whether this region is contained within the cache of regions for the context
 func (ctx *GcpContext) ContainsRegion(region string) bool {
 	for _, r := range ctx.Regions {
 		if r.Name == region {
@@ -55,6 +61,7 @@ func (ctx *GcpContext) ContainsRegion(region string) bool {
 	return false
 }
 
+// Get all resources for this context as GcpResources for nuking
 func (ctx *GcpContext) GetAllResources(excludedRegions []string, excludeAfter time.Time) ([]GcpResource, error) {
 	resources := []GcpResource{}
 
@@ -68,11 +75,14 @@ func (ctx *GcpContext) GetAllResources(excludedRegions []string, excludeAfter ti
 	return resources, nil
 }
 
+// The result of a nuke operation for a resource. Succeeded if Err is nil.
 type NukeWorkerResult struct {
 	Resource GcpResource
 	Err      error
 }
 
+// A worker function to nuke a resource. Sends the result to the output channel
+// when finished.
 func nukeWorker(ctx *GcpContext, resource GcpResource, output chan<- NukeWorkerResult) {
 	err := resource.Nuke(ctx)
 	result := NukeWorkerResult{
@@ -82,6 +92,8 @@ func nukeWorker(ctx *GcpContext, resource GcpResource, output chan<- NukeWorkerR
 	output <- result
 }
 
+// Nukes all the given resources in batches. Returns a list of errors for
+// unsuccessful nuke operations if any.
 func (ctx *GcpContext) NukeAllResources(resources []GcpResource) []error {
 	nukeErrors := []error{}
 	batchSize := 5
@@ -100,8 +112,7 @@ func (ctx *GcpContext) NukeAllResources(resources []GcpResource) []error {
 		if result.Err != nil {
 			logging.Logger.Warnf("Could not delete resource: %s: %s Region=%s Zone=%s \n%s",
 				result.Resource.Kind(), result.Resource.Name(), result.Resource.Region(),
-				result.Resource.Zone(),
-				errors.WithStackTrace(result.Err).Error())
+				result.Resource.Zone(), errors.WithStackTrace(result.Err).Error())
 			nukeErrors = append(nukeErrors, result.Err)
 		}
 

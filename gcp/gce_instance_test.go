@@ -16,6 +16,7 @@ func testZone() string {
 	return "us-central1-c"
 }
 
+// Whether this list of resources contains a resource with the given name
 func resourcesContains(resources []GcpResource, name string) bool {
 	for _, resource := range resources {
 		if resource.Name() == name && resource.Zone() == testZone() {
@@ -26,6 +27,7 @@ func resourcesContains(resources []GcpResource, name string) bool {
 	return false
 }
 
+// Create a compute instance with the given name and protection status
 func createTestInstance(ctx *GcpContext, name string, protected bool) error {
 	machineType := fmt.Sprintf("projects/%s/zones/%s/machineTypes/f1-micro", ctx.Project, testZone())
 
@@ -70,6 +72,8 @@ func cleanupInstances(t *testing.T, ctx *GcpContext, names []string) {
 	}
 }
 
+// Test that the context correctly chaches regions and can get zone names from
+// zone urls
 func TestRegionZones(t *testing.T) {
 	t.Parallel()
 
@@ -93,6 +97,7 @@ func TestRegionZones(t *testing.T) {
 	}
 }
 
+// Create several instances and test that they can be nuked
 func TestNukeInstances(t *testing.T) {
 	t.Parallel()
 
