@@ -13,9 +13,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/gruntwork-io/gruntwork-cli/collections"
 	gruntworkerrors "github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
+
+// We black list us-east-1e because this zone is frequently out of capacity
+var AvailabilityZoneBlackList = []string{"us-east-1e"}
 
 // getRandomFargateSupportedRegion - Returns a random AWS
 // region that supports Fargate.
@@ -286,7 +290,9 @@ func getVpcConfiguration(awsSession *session.Session) (ecs.AwsVpcConfiguration, 
 	}
 	var subnetIds []*string
 	for _, subnet := range subnets.Subnets {
-		subnetIds = append(subnetIds, subnet.SubnetId)
+		if !collections.ListContainsElement(AvailabilityZoneBlackList, awsgo.StringValue(subnet.AvailabilityZone)) {
+			subnetIds = append(subnetIds, subnet.SubnetId)
+		}
 	}
 	return ecs.AwsVpcConfiguration{Subnets: subnetIds}, nil
 }

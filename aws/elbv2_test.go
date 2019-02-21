@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,11 +19,31 @@ func getSubnetsInDifferentAZs(t *testing.T, session *session.Session) (*ec2.Subn
 	require.NoError(t, err)
 	require.True(t, len(subnetOutput.Subnets) >= 2)
 
-	subnet1 := subnetOutput.Subnets[0]
+	subnet1Idx := -1
+	for idx, subnet := range subnetOutput.Subnets {
+		if !collections.ListContainsElement(AvailabilityZoneBlackList, awsgo.StringValue(subnet.AvailabilityZone)) {
+			subnet1Idx = idx
+			break
+		}
+	}
+	if subnet1Idx == -1 {
+		require.Fail(t, "Unable to find a subnet in an availability zone that is not blacklisted.")
+	}
+	subnet1 := subnetOutput.Subnets[subnet1Idx]
+	az1 := awsgo.StringValue(subnet1.AvailabilityZone)
+	subnet1Id := awsgo.StringValue(subnet1.SubnetId)
+	subnet1VpcId := awsgo.StringValue(subnet1.VpcId)
 
-	for i := 1; i < len(subnetOutput.Subnets); i++ {
+	for i := subnet1Idx + 1; i < len(subnetOutput.Subnets); i++ {
 		subnet2 := subnetOutput.Subnets[i]
-		if *subnet1.AvailabilityZone != *subnet2.AvailabilityZone && *subnet1.SubnetId != *subnet2.SubnetId && *subnet1.VpcId == *subnet2.VpcId {
+		az2 := awsgo.StringValue(subnet2.AvailabilityZone)
+		if collections.ListContainsElement(AvailabilityZoneBlackList, az2) {
+			// Skip because subnet is in a blacklisted AZ
+			continue
+		}
+		subnet2Id := awsgo.StringValue(subnet2.SubnetId)
+		subnet2VpcId := awsgo.StringValue(subnet2.VpcId)
+		if az1 != az2 && subnet1Id != subnet2Id && subnet1VpcId == subnet2VpcId {
 			return subnet1, subnet2
 		}
 	}
