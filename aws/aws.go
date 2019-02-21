@@ -17,7 +17,7 @@ import (
 func GetAllRegions() []string {
 	// chinese and government regions are not accessible with regular accounts
 	reservedRegions := []string{
-		"cn-north-1", "cn-northwest-1", "us-gov-west-1",
+		"cn-north-1", "cn-northwest-1", "us-gov-west-1", "us-gov-east-1",
 	}
 
 	resolver := endpoints.DefaultResolver()
