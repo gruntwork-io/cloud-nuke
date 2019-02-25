@@ -67,3 +67,17 @@ func TestNukeEksClusters(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 }
+
+// Test that eksSupportedRegions allows the EKS regions but not the regions that don't
+func TestEksSupportedRegions(t *testing.T) {
+	unsupportedRegions := []string{
+		"us-west-1",
+		"ca-central-1",
+	}
+	for _, region := range unsupportedRegions {
+		assert.False(t, eksSupportedRegion(region))
+	}
+	for _, region := range eksRegions {
+		assert.True(t, eksSupportedRegion(region))
+	}
+}

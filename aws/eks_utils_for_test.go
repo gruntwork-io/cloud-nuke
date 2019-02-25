@@ -18,9 +18,7 @@ import (
 // getRandomEksSupportedRegion - Returns a random AWS region that supports EKS.
 // Refer to https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/
 func getRandomEksSupportedRegion(t *testing.T) string {
-	// Approve only regions where EKS and the EKS optimized Linux AMI are available
-	approvedRegions := []string{"us-west-2", "us-east-1", "us-east-2", "eu-west-1"}
-	return terraAws.GetRandomRegion(t, approvedRegions, []string{})
+	return terraAws.GetRandomRegion(t, eksRegions, []string{})
 }
 
 func createEksCluster(
