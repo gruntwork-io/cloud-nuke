@@ -223,15 +223,17 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		// End ECS resources
 
 		// EKS resources
-		eksClusterNames, err := getAllEksClusters(session, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
+		if eksSupportedRegion(region) {
+			eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
 
-		eksClusters := EKSClusters{
-			Clusters: awsgo.StringValueSlice(eksClusterNames),
+			eksClusters := EKSClusters{
+				Clusters: awsgo.StringValueSlice(eksClusterNames),
+			}
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
 		}
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
 		// End EKS resources
 
 		account.Resources[region] = resourcesInRegion
