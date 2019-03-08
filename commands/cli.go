@@ -43,6 +43,10 @@ func CreateCli(version string) *cli.App {
 					Name:  "force",
 					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
 				},
+				cli.StringSliceFlag{
+					Name:  "region",
+					Usage: "Specific region to nuke",
+				},
 			},
 		},
 	}
@@ -64,7 +68,21 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 }
 
 func awsNuke(c *cli.Context) error {
+	specificRegion := c.StringSlice("region")
 	regions := aws.GetAllRegions()
+
+	if len(specificRegion) > 0 {
+		// check if the provided region exists
+		for _, specificRegion := range specificRegion {
+			if !collections.ListContainsElement(regions, specificRegion) {
+				return InvalidFlagError{
+					Name: "region",
+					Value: specificRegion,
+				}
+			}
+		}
+		regions = specificRegion
+	}
 	excludedRegions := c.StringSlice("exclude-region")
 
 	for _, excludedRegion := range excludedRegions {
