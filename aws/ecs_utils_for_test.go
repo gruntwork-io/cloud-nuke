@@ -17,6 +17,8 @@ import (
 	gruntworkerrors "github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gruntwork-io/cloud-nuke/logging"
 )
 
 // We black list us-east-1e because this zone is frequently out of capacity
@@ -37,6 +39,8 @@ func getRandomFargateSupportedRegion() string {
 }
 
 func createEcsFargateCluster(t *testing.T, awsSession *session.Session, name string) ecs.Cluster {
+	logging.Logger.Infof("Creating ECS cluster %s in region %s", name, *awsSession.Config.Region)
+
 	svc := ecs.New(awsSession)
 	result, err := svc.CreateCluster(&ecs.CreateClusterInput{ClusterName: awsgo.String(name)})
 	if err != nil {
@@ -294,11 +298,16 @@ func getVpcConfiguration(awsSession *session.Session) (ecs.AwsVpcConfiguration, 
 	}
 	var subnetIds []*string
 	for _, subnet := range subnets.Subnets {
-		if !collections.ListContainsElement(AvailabilityZoneBlackList, awsgo.StringValue(subnet.AvailabilityZone)) {
+		// Only use public subnets for testing simplicity
+		if !collections.ListContainsElement(AvailabilityZoneBlackList, awsgo.StringValue(subnet.AvailabilityZone)) && awsgo.BoolValue(subnet.MapPublicIpOnLaunch) {
 			subnetIds = append(subnetIds, subnet.SubnetId)
 		}
 	}
-	return ecs.AwsVpcConfiguration{Subnets: subnetIds}, nil
+	vpcConfig := ecs.AwsVpcConfiguration{
+		Subnets:        subnetIds,
+		AssignPublicIp: awsgo.String(ecs.AssignPublicIpEnabled),
+	}
+	return vpcConfig, nil
 }
 
 const ECS_ASSUME_ROLE_POLICY = `{
