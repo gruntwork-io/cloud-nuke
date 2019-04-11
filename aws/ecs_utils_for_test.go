@@ -16,6 +16,7 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	gruntworkerrors "github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // We black list us-east-1e because this zone is frequently out of capacity
@@ -108,9 +109,12 @@ func createEcsService(t *testing.T, awsSession *session.Session, serviceName str
 		createServiceParams.SetNetworkConfiguration(networkConfiguration)
 	}
 	result, err := svc.CreateService(createServiceParams)
-	if err != nil {
-		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
+	err = svc.WaitUntilServicesStable(&ecs.DescribeServicesInput{
+		Cluster:  cluster.ClusterArn,
+		Services: []*string{result.Service.ServiceArn},
+	})
+	require.NoError(t, err)
 	return *result.Service
 }
 
