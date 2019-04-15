@@ -15,7 +15,14 @@ import (
 )
 
 func getSubnetsInDifferentAZs(t *testing.T, session *session.Session) (*ec2.Subnet, *ec2.Subnet) {
-	subnetOutput, err := ec2.New(session).DescribeSubnets(&ec2.DescribeSubnetsInput{})
+	subnetOutput, err := ec2.New(session).DescribeSubnets(&ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("default-for-az"),
+				Values: []*string{awsgo.String("true")},
+			},
+		},
+	})
 	require.NoError(t, err)
 	require.True(t, len(subnetOutput.Subnets) >= 2)
 
