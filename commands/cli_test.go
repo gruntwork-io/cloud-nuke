@@ -15,9 +15,17 @@ func TestParseDuration(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	assert.Equal(t, now.Hour()-1, then.Hour())
+	if now.Hour() == 0 {
+		// At midnight, now.Hour returns 0 so we need to handle that specially.
+		assert.Equal(t, 23, then.Hour())
+		// Also, the date changed, so 1 hour ago will be the previous day.
+		assert.Equal(t, now.Day()-1, then.Day())
+	} else {
+		assert.Equal(t, now.Hour()-1, then.Hour())
+		assert.Equal(t, now.Day(), then.Day())
+	}
+
 	assert.Equal(t, now.Month(), then.Month())
-	assert.Equal(t, now.Day(), then.Day())
 	assert.Equal(t, now.Year(), then.Year())
 }
 
