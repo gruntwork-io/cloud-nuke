@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	gruntworkerrors "github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/gruntwork-io/terratest/modules/retry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -114,11 +115,23 @@ func createEcsService(t *testing.T, awsSession *session.Session, serviceName str
 	}
 	result, err := svc.CreateService(createServiceParams)
 	require.NoError(t, err)
-	err = svc.WaitUntilServicesStable(&ecs.DescribeServicesInput{
-		Cluster:  cluster.ClusterArn,
-		Services: []*string{result.Service.ServiceArn},
-	})
-	require.NoError(t, err)
+
+	// Wait for the service to come up before continuing. We try at most two times to wait for the service. Oftentimes
+	// the service wait times out on the first try, but eventually succeeds.
+	retry.DoWithRetry(
+		t,
+		fmt.Sprintf("Waiting for service %s to be stable", awsgo.StringValue(result.Service.ServiceArn)),
+		2,
+		0*time.Second,
+		func() (string, error) {
+			err := svc.WaitUntilServicesStable(&ecs.DescribeServicesInput{
+				Cluster:  cluster.ClusterArn,
+				Services: []*string{result.Service.ServiceArn},
+			})
+			return "", err
+		},
+	)
+
 	return *result.Service
 }
 
