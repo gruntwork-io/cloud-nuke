@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,4 +33,27 @@ func TestParseDuration(t *testing.T) {
 func TestParseDurationInvalidFormat(t *testing.T) {
 	_, err := parseDurationParam("")
 	assert.Error(t, err)
+}
+
+func TestListResourceTypes(t *testing.T) {
+	allAWSResourceTypes := aws.ListResourceTypes()
+	assert.Greater(t, len(allAWSResourceTypes), 0)
+	assert.Contains(t, allAWSResourceTypes, aws.EC2Instances{}.ResourceName())
+}
+
+func TestIsValidResourceType(t *testing.T) {
+	allAWSResourceTypes := aws.ListResourceTypes()
+	ec2ResourceName := aws.EC2Instances{}.ResourceName()
+	assert.Equal(t, aws.IsValidResourceType(ec2ResourceName, allAWSResourceTypes), true)
+	assert.Equal(t, aws.IsValidResourceType("xyz", allAWSResourceTypes), false)
+}
+
+func TestIsNukeable(t *testing.T) {
+	ec2ResourceName := aws.EC2Instances{}.ResourceName()
+	amiResourceName := aws.AMIs{}.ResourceName()
+
+	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{ec2ResourceName}), true)
+	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{"all"}), true)
+	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{}), true)
+	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{amiResourceName}), false)
 }

@@ -34,6 +34,14 @@ func CreateCli(version string) *cli.App {
 					Name:  "exclude-region",
 					Usage: "regions to exclude",
 				},
+				cli.StringSliceFlag{
+					Name:  "resource-type",
+					Usage: "Resource types to nuke",
+				},
+				cli.BoolFlag{
+					Name:  "list-resource-types",
+					Usage: "List available resource types",
+				},
 				cli.StringFlag{
 					Name:  "older-than",
 					Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
@@ -64,6 +72,31 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 }
 
 func awsNuke(c *cli.Context) error {
+	allResourceTypes := aws.ListResourceTypes()
+
+	if c.Bool("list-resource-types") {
+		for _, resourceType := range aws.ListResourceTypes() {
+			fmt.Println(resourceType)
+		}
+		return nil
+	}
+
+	resourceTypes := c.StringSlice("resource-type")
+	var invalidresourceTypes []string
+	for _, resourceType := range resourceTypes {
+		if resourceType == "all" {
+			continue
+		}
+		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
+			invalidresourceTypes = append(invalidresourceTypes, resourceType)
+		}
+	}
+
+	if len(invalidresourceTypes) > 0 {
+		msg := "Try --list-resource-types to get list of valid resource types."
+		return fmt.Errorf("Invalid resourceTypes %s specified: %s", invalidresourceTypes, msg)
+	}
+
 	regions := aws.GetAllRegions()
 	excludedRegions := c.StringSlice("exclude-region")
 
@@ -82,7 +115,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	logging.Logger.Infoln("Retrieving all active AWS resources")
-	account, err := aws.GetAllResources(regions, excludedRegions, *excludeAfter)
+	account, err := aws.GetAllResources(regions, excludedRegions, *excludeAfter, resourceTypes)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
