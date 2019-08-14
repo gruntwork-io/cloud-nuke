@@ -153,19 +153,19 @@ func awsDefaults(c *cli.Context) error {
 		logging.Logger.Infof("Found enabled region %s", region)
 	}
 
-	err = defaultVpcs(c, regions)
+	err = nukeDefaultVpcs(c, regions)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	err = defaultSecurityGroups(c, regions)
+	err = nukeDefaultSecurityGroups(c, regions)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil
 }
 
-func defaultVpcs(c *cli.Context, regions []string) error {
+func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 	logging.Logger.Infof("Discovering default VPCs")
 	vpcPerRegion := aws.NewVpcPerRegion(regions)
 	vpcPerRegion, err := aws.GetDefaultVpcs(vpcPerRegion)
@@ -200,9 +200,9 @@ func defaultVpcs(c *cli.Context, regions []string) error {
 	return nil
 }
 
-func defaultSecurityGroups(c *cli.Context, regions []string) error {
+func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	logging.Logger.Infof("Discovering default security groups")
-	defaultSgs, err := aws.GetSecurityGroups(regions)
+	defaultSgs, err := aws.GetDefaultSecurityGroups(regions)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}

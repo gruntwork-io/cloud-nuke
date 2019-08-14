@@ -154,7 +154,7 @@ func GetDefaultVpcId(vpc Vpc) (string, error) {
 		return awsgo.StringValue(vpcs.Vpcs[0].VpcId), nil
 	} else if len(vpcs.Vpcs) > 1 {
 		// More than one VPC in a region should never happen
-		err = fmt.Errorf("Impossible - more than one VPC found in region %s", vpc.Region)
+		err = fmt.Errorf("Impossible - more than one default VPC found in region %s", vpc.Region)
 		return "", errors.WithStackTrace(err)
 	}
 	// No default VPC
@@ -162,20 +162,18 @@ func GetDefaultVpcId(vpc Vpc) (string, error) {
 }
 
 func GetDefaultVpcs(vpcs []Vpc) ([]Vpc, error) {
-	for i := 0; i < len(vpcs); i++ {
-		vpcId, err := GetDefaultVpcId(vpcs[i])
+	var outVpcs []Vpc
+	for _, vpc := range vpcs {
+		vpcId, err := GetDefaultVpcId(vpc)
 		if err != nil {
-			return []Vpc{Vpc{}}, errors.WithStackTrace(err)
+			return outVpcs, errors.WithStackTrace(err)
 		}
 		if vpcId != "" {
-			vpcs[i].VpcId = vpcId
-		} else {
-			// Ignore regions that don't have a default VPC
-			vpcs = append(vpcs[:i], vpcs[i+1:]...)
-			i--
+			vpc.VpcId = vpcId
+			outVpcs = append(outVpcs, vpc)
 		}
 	}
-	return vpcs, nil
+	return outVpcs, nil
 }
 
 func (v Vpc) nukeInternetGateway() error {
@@ -213,6 +211,8 @@ func (v Vpc) nukeInternetGateway() error {
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
+	} else {
+		logging.Logger.Infof("...no Internet Gateway found")
 	}
 
 	return nil
@@ -241,6 +241,8 @@ func (v Vpc) nukeSubnets() error {
 				return errors.WithStackTrace(err)
 			}
 		}
+	} else {
+		logging.Logger.Infof("...no subnets found")
 	}
 	return nil
 }
@@ -378,7 +380,7 @@ func (v Vpc) nuke() error {
 
 	err = v.nukeVpc()
 	if err != nil {
-		logging.Logger.Infof("Unable to delete VPC %s. Skipping to the next default VPC.", v.VpcId)
+		logging.Logger.Infof("Error deleting VPC %s: %s ", v.VpcId, err)
 		return err
 	}
 	return nil
@@ -403,7 +405,7 @@ type DefaultSecurityGroup struct {
 	svc       ec2iface.EC2API
 }
 
-func DescribeSecurityGroups(svc ec2iface.EC2API) ([]string, error) {
+func DescribeDefaultSecurityGroups(svc ec2iface.EC2API) ([]string, error) {
 	var groupIds []string
 	securityGroups, err := svc.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{})
 	if err != nil {
@@ -417,11 +419,11 @@ func DescribeSecurityGroups(svc ec2iface.EC2API) ([]string, error) {
 	return groupIds, nil
 }
 
-func GetSecurityGroups(regions []string) ([]DefaultSecurityGroup, error) {
+func GetDefaultSecurityGroups(regions []string) ([]DefaultSecurityGroup, error) {
 	var sgs []DefaultSecurityGroup
 	for _, region := range regions {
 		svc := GetEc2ServiceClient(region)
-		groupIds, err := DescribeSecurityGroups(svc)
+		groupIds, err := DescribeDefaultSecurityGroups(svc)
 		if err != nil {
 			return []DefaultSecurityGroup{}, errors.WithStackTrace(err)
 		}
