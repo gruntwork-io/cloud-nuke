@@ -124,6 +124,9 @@ type Vpc struct {
 	svc    ec2iface.EC2API
 }
 
+// NewVpcPerRegion merely assigns a service client and region to a VPC object
+// The CLI calls this, but the tests don't because the tests need to use a
+// mocked service client.
 func NewVpcPerRegion(regions []string) []Vpc {
 	var vpcs []Vpc
 	for _, region := range regions {
@@ -161,6 +164,8 @@ func GetDefaultVpcId(vpc Vpc) (string, error) {
 	return "", nil
 }
 
+// GetDefaultVpcs needs a slice of vpcs that already have service clients and regions
+// assigned, either via NewVpcPerRegion() (as in the CLI) or manually (as in the mock tests)
 func GetDefaultVpcs(vpcs []Vpc) ([]Vpc, error) {
 	var outVpcs []Vpc
 	for _, vpc := range vpcs {
