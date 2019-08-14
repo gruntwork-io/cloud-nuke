@@ -1,7 +1,7 @@
 [![Maintained by Gruntwork.io](https://img.shields.io/badge/maintained%20by-gruntwork.io-%235849a6.svg)](https://gruntwork.io/?ref=repo_cloud_nuke)
 # cloud-nuke
 
-This repo contains a CLI tool to delete all cloud (AWS, Azure, GCP) resources in an account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources.
+This repo contains a CLI tool to delete all resources in an AWS account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
 
 The currently supported functionality includes:
 
@@ -17,6 +17,8 @@ The currently supported functionality includes:
 * Deleting all Launch Configurations in an AWS account
 * Deleting all ECS services in an AWS account
 * Deleting all EKS clusters in an AWS account
+* Deleting all default VPCs in an AWS account
+* Revoking the default rules in the un-deletable default security group of a VPC
 
 ### Caveats
 
@@ -27,15 +29,12 @@ The currently supported functionality includes:
   moment. See https://github.com/gruntwork-io/cloud-nuke/pull/36 for a more
   detailed discussion.
 
-## Azure
 
-_Coming Soon_
+### BEWARE!
 
-## GCP
+When executed as `cloud-nuke aws`, this tool is **HIGHLY DESTRUCTIVE** and deletes all resources! This mode should never be used in a production environment!
 
-_Coming Soon_
-
-### WARNING: THIS TOOL IS HIGHLY DESTRUCTIVE, ALL SUPPORTED RESOURCES WILL BE DELETED. ITS EFFECTS ARE IRREVERSIBLE AND SHOULD NEVER BE USED IN A PRODUCTION ENVIRONMENT
+When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs and the default ingress/egress rule for all default security groups. This should be used in production environments **WITH CAUTION**.
 
 ## Install
 
@@ -46,15 +45,19 @@ _Coming Soon_
 
 ## Usage
 
-Simply running `cloud-nuke <provider>` (e.g. `cloud-nuke aws`) will start the process of cleaning up your cloud account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
+Simply running `cloud-nuke aws` will start the process of cleaning up your cloud account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
+
+In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will removed the default VPCs in each region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note that the default security group itself is unable to be deleted.
 
 ### Excluding Regions
 
-You can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
+When using `cloud-nuke aws`, you can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
 cloud-nuke aws --exclude-region ap-south-1 --exclude-region ap-south-2
 ```
+
+Excluding regions is available only with `cloud-nuke aws`, not with `cloud-nuke defaults-aws`.
 
 ### Excluding Resources by Age
 

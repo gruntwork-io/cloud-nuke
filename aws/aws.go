@@ -1,44 +1,95 @@
 package aws
 
 import (
+	"fmt"
 	"math/rand"
 	"strings"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-// GetAllRegions - Returns a list of all AWS regions
-func GetAllRegions() []string {
-	// chinese and government regions are not accessible with regular accounts
-	reservedRegions := []string{
-		"cn-north-1", "cn-northwest-1", "us-gov-west-1", "us-gov-east-1",
-	}
+// OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
+// Beginning in Spring 2019, AWS requires new regions to be explicitly enabled
+// See https://aws.amazon.com/blogs/security/setting-permissions-to-enable-accounts-for-upcoming-aws-regions/
+var OptInNotRequiredRegions = [...]string{
+	"eu-north-1",
+	"ap-south-1",
+	"eu-west-3",
+	"eu-west-2",
+	"eu-west-1",
+	"ap-northeast-2",
+	"ap-northeast-1",
+	"sa-east-1",
+	"ca-central-1",
+	"ap-southeast-1",
+	"ap-southeast-2",
+	"eu-central-1",
+	"us-east-1",
+	"us-east-2",
+	"us-west-1",
+	"us-west-2",
+}
 
-	resolver := endpoints.DefaultResolver()
-	partitions := resolver.(endpoints.EnumPartitions).Partitions()
+func newSession(region string) *session.Session {
+	return session.Must(
+		session.NewSessionWithOptions(
+			session.Options{
+				SharedConfigState: session.SharedConfigEnable,
+				Config: awsgo.Config{
+					Region: awsgo.String(region),
+				},
+			},
+		),
+	)
+}
 
-	var regions []string
-	for _, p := range partitions {
-		for id := range p.Regions() {
-			if !collections.ListContainsElement(reservedRegions, id) {
-				regions = append(regions, id)
-			}
+// Try a describe regions command with the most likely enabled regions
+func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
+	for i := 0; i < len(OptInNotRequiredRegions); i++ {
+		region := OptInNotRequiredRegions[rand.Intn(len(OptInNotRequiredRegions))]
+		svc := ec2.New(newSession(region))
+		regions, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
+		if err != nil {
+			continue
 		}
+		return regions, nil
+	}
+	return nil, errors.WithStackTrace(fmt.Errorf("could not find any enabled regions"))
+}
+
+// Get all regions that are enabled (DescribeRegions excludes those not enabled by default)
+func GetEnabledRegions() ([]string, error) {
+	var regionNames []string
+
+	// We don't want to depend on a default region being set, so instead we
+	// will choose a region from the list of regions that are enabled by default
+	// and use that to enumerate all enabled regions.
+	// Corner case: user has intentionally disabled one or more regions that are
+	// enabled by default. If that region is chosen, API calls will fail.
+	// Therefore we retry until one of the regions works.
+	regions, err := retryDescribeRegions()
+	if err != nil {
+		return nil, err
 	}
 
-	return regions
+	for _, region := range regions.Regions {
+		regionNames = append(regionNames, awsgo.StringValue(region.RegionName))
+	}
+
+	return regionNames, nil
 }
 
 func getRandomRegion() string {
-	allRegions := GetAllRegions()
+	allRegions, _ := GetEnabledRegions()
 	rand.Seed(time.Now().UnixNano())
 	randIndex := rand.Intn(len(allRegions))
+	logging.Logger.Infof("Random region chosen: %s", allRegions[randIndex])
 	return allRegions[randIndex]
 }
 
