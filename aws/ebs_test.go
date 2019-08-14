@@ -83,7 +83,10 @@ func findEBSVolumesByNameTag(t *testing.T, session *session.Session, name string
 func TestListEBSVolumes(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -116,7 +119,11 @@ func TestListEBSVolumes(t *testing.T) {
 func TestNukeEBSVolumes(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -149,7 +156,11 @@ func TestNukeEBSVolumes(t *testing.T) {
 func TestNukeEBSVolumesInUse(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)

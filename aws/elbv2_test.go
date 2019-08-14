@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/collections"
+	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,7 +90,7 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 func TestListELBv2(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -114,7 +115,11 @@ func TestListELBv2(t *testing.T) {
 func TestNukeELBv2(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)

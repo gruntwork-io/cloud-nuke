@@ -85,12 +85,15 @@ func GetEnabledRegions() ([]string, error) {
 	return regionNames, nil
 }
 
-func getRandomRegion() string {
-	allRegions, _ := GetEnabledRegions()
+func getRandomRegion() (string, error) {
+	allRegions, err := GetEnabledRegions()
+	if err != nil {
+		return "", errors.WithStackTrace(err)
+	}
 	rand.Seed(time.Now().UnixNano())
 	randIndex := rand.Intn(len(allRegions))
 	logging.Logger.Infof("Random region chosen: %s", allRegions[randIndex])
-	return allRegions[randIndex]
+	return allRegions[randIndex], nil
 }
 
 func split(identifiers []string, limit int) [][]string {

@@ -177,7 +177,11 @@ func findEC2InstancesByNameTag(t *testing.T, session *session.Session, name stri
 func TestListInstances(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -216,7 +220,11 @@ func TestListInstances(t *testing.T) {
 func TestNukeInstances(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
