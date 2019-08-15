@@ -13,6 +13,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	ExampleId                   = "a1b2c3d4e5f601345"
+	ExampleIdTwo                = "a1b2c3d4e5f654321"
+	ExampleIdThree              = "a1b2c3d4e5f632154"
+	ExampleVpcId                = "vpc-" + ExampleId
+	ExampleVpcIdTwo             = "vpc-" + ExampleIdTwo
+	ExampleVpcIdThree           = "vpc-" + ExampleIdThree
+	ExampleSubnetId             = "subnet-" + ExampleId
+	ExampleSubnetIdTwo          = "subnet-" + ExampleIdTwo
+	ExampleSubnetIdThree        = "subnet-" + ExampleIdThree
+	ExampleRouteTableId         = "rtb-" + ExampleId
+	ExampleNetworkAclId         = "acl-" + ExampleId
+	ExampleSecurityGroupId      = "sg-" + ExampleId
+	ExampleSecurityGroupIdTwo   = "sg-" + ExampleIdTwo
+	ExampleSecurityGroupIdThree = "sg-" + ExampleIdThree
+	ExampleInternetGatewayId    = "igw-" + ExampleId
+)
+
 // getAMIIdByName - Retrieves an AMI ImageId given the name of the Id. Used for
 // retrieving a standard AMI across AWS regions.
 func getAMIIdByName(svc *ec2.EC2, name string) (string, error) {
@@ -156,7 +174,11 @@ func findEC2InstancesByNameTag(t *testing.T, session *session.Session, name stri
 func TestListInstances(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -195,7 +217,11 @@ func TestListInstances(t *testing.T) {
 func TestNukeInstances(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
