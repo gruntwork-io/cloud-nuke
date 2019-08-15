@@ -37,6 +37,7 @@ func TestParseDurationInvalidFormat(t *testing.T) {
 
 func TestListResourceTypes(t *testing.T) {
 	allAWSResourceTypes := aws.ListResourceTypes()
+	assert.Greater(t, len(allAWSResourceTypes), 0)
 	assert.Contains(t, allAWSResourceTypes, aws.EC2Instances{}.ResourceName())
 }
 
