@@ -40,7 +40,10 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 func TestListAutoScalingGroups(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -73,7 +76,10 @@ func TestListAutoScalingGroups(t *testing.T) {
 func TestNukeAutoScalingGroups(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)

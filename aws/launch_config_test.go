@@ -34,7 +34,11 @@ func createTestLaunchConfiguration(t *testing.T, session *session.Session, name 
 func TestListLaunchConfigurations(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -68,7 +72,11 @@ func TestListLaunchConfigurations(t *testing.T) {
 func TestNukeLaunchConfigurations(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)

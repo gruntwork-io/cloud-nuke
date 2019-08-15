@@ -36,7 +36,11 @@ func TestSetFirstSeenTag(t *testing.T) {
 	const key = "cloud-nuke-first-seen"
 	const layout = "2006-01-02 15:04:05"
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -77,7 +81,11 @@ func TestGetFirstSeenTag(t *testing.T) {
 	const key = "cloud-nuke-first-seen"
 	const layout = "2006-01-02 15:04:05"
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -127,7 +135,11 @@ func TestGetFirstSeenTag(t *testing.T) {
 func TestListEIPAddress(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -160,7 +172,11 @@ func TestListEIPAddress(t *testing.T) {
 func TestNukeEIPAddress(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomRegion()
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
