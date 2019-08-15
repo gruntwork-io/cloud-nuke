@@ -42,7 +42,7 @@
 
 [[constraint]]
   name = "github.com/stretchr/testify"
-  branch = "master"
+  version = "1.4.0"
 
 [[constraint]]
   name = "github.com/fatih/color"
