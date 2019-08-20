@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -117,7 +118,7 @@ func split(identifiers []string, limit int) [][]string {
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(regions []string, excludedRegions []string, excludeAfter time.Time) (*AwsAccountResources, error) {
+func GetAllResources(regions []string, excludedRegions []string, excludeAfter time.Time, resourceTypes []string) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
@@ -128,6 +129,7 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 			logging.Logger.Infoln("Skipping region: " + region)
 			continue
 		}
+		logging.Logger.Infoln("Checking region: " + region)
 
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
@@ -143,157 +145,186 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		// because of dependencies between resources
 
 		// ASG Names
-		groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
+		asGroups := ASGroups{}
+		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
+			groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			asGroups.GroupNames = awsgo.StringValueSlice(groupNames)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, asGroups)
 		}
-
-		asGroups := ASGroups{
-			GroupNames: awsgo.StringValueSlice(groupNames),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, asGroups)
 		// End ASG Names
 
 		// Launch Configuration Names
-		configNames, err := getAllLaunchConfigurations(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
+		configs := LaunchConfigs{}
+		if IsNukeable(configs.ResourceName(), resourceTypes) {
+			configNames, err := getAllLaunchConfigurations(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			configs.LaunchConfigurationNames = awsgo.StringValueSlice(configNames)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, configs)
 		}
-
-		configs := LaunchConfigs{
-			LaunchConfigurationNames: awsgo.StringValueSlice(configNames),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, configs)
 		// End Launch Configuration Names
 
 		// LoadBalancer Names
-		elbNames, err := getAllElbInstances(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
+		loadBalancers := LoadBalancers{}
+		if IsNukeable(loadBalancers.ResourceName(), resourceTypes) {
+			elbNames, err := getAllElbInstances(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			loadBalancers.Names = awsgo.StringValueSlice(elbNames)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancers)
 		}
-
-		loadBalancers := LoadBalancers{
-			Names: awsgo.StringValueSlice(elbNames),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancers)
 		// End LoadBalancer Names
 
 		// LoadBalancerV2 Arns
-		elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		loadBalancersV2 := LoadBalancersV2{
-			Arns: awsgo.StringValueSlice(elbv2Arns),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancersV2)
-		// End LoadBalancerV2 Arns
-
-		// EC2 Instances
-		instanceIds, err := getAllEc2Instances(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		ec2Instances := EC2Instances{
-			InstanceIds: awsgo.StringValueSlice(instanceIds),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Instances)
-		// End EC2 Instances
-
-		// EBS Volumes
-		volumeIds, err := getAllEbsVolumes(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		ebsVolumes := EBSVolumes{
-			VolumeIds: awsgo.StringValueSlice(volumeIds),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
-		// End EBS Volumes
-
-		// EIP Addresses
-		allocationIds, err := getAllEIPAddresses(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		eipAddresses := EIPAddresses{
-			AllocationIds: awsgo.StringValueSlice(allocationIds),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, eipAddresses)
-		// End EIP Addresses
-
-		// AMIs
-		imageIds, err := getAllAMIs(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		amis := AMIs{
-			ImageIds: awsgo.StringValueSlice(imageIds),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, amis)
-		// End AMIs
-
-		// Snapshots
-		snapshotIds, err := getAllSnapshots(session, region, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		snapshots := Snapshots{
-			SnapshotIds: awsgo.StringValueSlice(snapshotIds),
-		}
-
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, snapshots)
-		// End Snapshots
-
-		// ECS resources
-		clusterArns, err := getAllEcsClusters(session)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-		serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		ecsServices := ECSServices{
-			Services:          awsgo.StringValueSlice(serviceArns),
-			ServiceClusterMap: serviceClusterMap,
-		}
-		resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
-		// End ECS resources
-
-		// EKS resources
-		if eksSupportedRegion(region) {
-			eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+		loadBalancersV2 := LoadBalancersV2{}
+		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
+			elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 
-			eksClusters := EKSClusters{
-				Clusters: awsgo.StringValueSlice(eksClusterNames),
+			loadBalancersV2.Arns = awsgo.StringValueSlice(elbv2Arns)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancersV2)
+		}
+		// End LoadBalancerV2 Arns
+
+		// EC2 Instances
+		ec2Instances := EC2Instances{}
+		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
+			instanceIds, err := getAllEc2Instances(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
 			}
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
+			ec2Instances.InstanceIds = awsgo.StringValueSlice(instanceIds)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Instances)
+		}
+		// End EC2 Instances
+
+		// EBS Volumes
+		ebsVolumes := EBSVolumes{}
+		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
+			volumeIds, err := getAllEbsVolumes(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			ebsVolumes.VolumeIds = awsgo.StringValueSlice(volumeIds)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
+		}
+		// End EBS Volumes
+
+		// EIP Addresses
+		eipAddresses := EIPAddresses{}
+		if IsNukeable(eipAddresses.ResourceName(), resourceTypes) {
+			allocationIds, err := getAllEIPAddresses(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			eipAddresses.AllocationIds = awsgo.StringValueSlice(allocationIds)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, eipAddresses)
+		}
+		// End EIP Addresses
+
+		// AMIs
+		amis := AMIs{}
+		if IsNukeable(amis.ResourceName(), resourceTypes) {
+			imageIds, err := getAllAMIs(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			amis.ImageIds = awsgo.StringValueSlice(imageIds)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, amis)
+		}
+		// End AMIs
+
+		// Snapshots
+		snapshots := Snapshots{}
+		if IsNukeable(snapshots.ResourceName(), resourceTypes) {
+			snapshotIds, err := getAllSnapshots(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			snapshots.SnapshotIds = awsgo.StringValueSlice(snapshotIds)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, snapshots)
+		}
+		// End Snapshots
+
+		// ECS resources
+		ecsServices := ECSServices{}
+		if IsNukeable(ecsServices.ResourceName(), resourceTypes) {
+			clusterArns, err := getAllEcsClusters(session)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			ecsServices.Services = awsgo.StringValueSlice(serviceArns)
+			ecsServices.ServiceClusterMap = serviceClusterMap
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
+		}
+		// End ECS resources
+
+		// EKS resources
+		eksClusters := EKSClusters{}
+		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
+			if eksSupportedRegion(region) {
+				eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+				if err != nil {
+					return nil, errors.WithStackTrace(err)
+				}
+
+				eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
+			}
 		}
 		// End EKS resources
 
-		account.Resources[region] = resourcesInRegion
+		if len(resourcesInRegion.Resources) > 0 {
+			account.Resources[region] = resourcesInRegion
+		}
 	}
 
 	return &account, nil
+}
+
+// ListResourceTypes - Returns list of resources which can be passed to --resource-type
+func ListResourceTypes() []string {
+	resourceTypes := []string{
+		ASGroups{}.ResourceName(),
+		LaunchConfigs{}.ResourceName(),
+		LoadBalancers{}.ResourceName(),
+		LoadBalancersV2{}.ResourceName(),
+		EC2Instances{}.ResourceName(),
+		EBSVolumes{}.ResourceName(),
+		EIPAddresses{}.ResourceName(),
+		AMIs{}.ResourceName(),
+		Snapshots{}.ResourceName(),
+		ECSServices{}.ResourceName(),
+		EKSClusters{}.ResourceName(),
+	}
+	sort.Strings(resourceTypes)
+	return resourceTypes
+}
+
+// IsValidResourceType - Checks if a resourceType is valid or not
+func IsValidResourceType(resourceType string, allResourceTypes []string) bool {
+	return collections.ListContainsElement(allResourceTypes, resourceType)
+}
+
+// IsNukeable - Checks if we should nuke a resource or not
+func IsNukeable(resourceType string, resourceTypes []string) bool {
+	if len(resourceTypes) == 0 ||
+		collections.ListContainsElement(resourceTypes, "all") ||
+		collections.ListContainsElement(resourceTypes, resourceType) {
+		return true
+	}
+	return false
 }
 
 // NukeAllResources - Nukes all aws resources

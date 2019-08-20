@@ -67,6 +67,27 @@ You can use the `--older-than` flag to only nuke resources that were created bef
 cloud-nuke aws --older-than 24h
 ```
 
+### List supported resource types
+
+You can use the `--list-resource-types` flag to list resource types whose termination is currently supported:
+
+```shell
+cloud-nuke aws --list-resource-types
+```
+
+### Terminate specific resource types
+
+If you want to target specific resource types (e.g ec2, ami, etc.) instead of all the supported resources you can
+do so by specifying them through the `--resource-type` flag:
+
+```shell
+cloud-nuke aws --resource-type ec2 --resource-type ami
+```
+
+will search and target only `ec2` and `ami` resources. The specified resource type should be a valid resource type
+i.e. it should be present in the `--list-resource-types` output. Using `--resource-type` also speeds up search because
+we are searching only for specific resource types.
+
 Happy Nuking!!!
 
 ## Credentials
