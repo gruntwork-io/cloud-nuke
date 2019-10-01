@@ -5,8 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gruntwork-io/gruntwork-cli/collections"
-
 	"github.com/fatih/color"
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -30,6 +28,10 @@ func CreateCli(version string) *cli.App {
 			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots, Elastic IP).",
 			Action: errors.WithPanicHandling(awsNuke),
 			Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:  "region",
+					Usage: "regions to include",
+				},
 				cli.StringSliceFlag{
 					Name:  "exclude-region",
 					Usage: "regions to exclude",
@@ -111,15 +113,15 @@ func awsNuke(c *cli.Context) error {
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
+
+	selectedRegions := c.StringSlice("region")
 	excludedRegions := c.StringSlice("exclude-region")
 
-	for _, excludedRegion := range excludedRegions {
-		if !collections.ListContainsElement(regions, excludedRegion) {
-			return InvalidFlagError{
-				Name:  "exclude-regions",
-				Value: excludedRegion,
-			}
-		}
+	// targetRegions uses selectedRegions and excludedRegions to create a final
+	// target region slice.
+	targetRegions, err := aws.GetTargetRegions(regions, selectedRegions, excludedRegions)
+	if err != nil {
+		return fmt.Errorf("Failed to select regions: %s", err)
 	}
 
 	excludeAfter, err := parseDurationParam(c.String("older-than"))
@@ -127,8 +129,8 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infoln("Retrieving all active AWS resources")
-	account, err := aws.GetAllResources(regions, excludedRegions, *excludeAfter, resourceTypes)
+	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
