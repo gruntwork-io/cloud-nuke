@@ -268,6 +268,7 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 
 	shellOptions := shell.ShellOptions{Logger: logging.Logger}
 
+	// retry prompt on invalid input so user can avoid rescanning all resources
 	prompts := 0
 	for prompts < maxPrompts {
 		input, err := shell.PromptUserForInput(prompt, &shellOptions)
@@ -278,10 +279,10 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 
 		if strings.ToLower(input) == "nuke" {
 			return true, nil
-		} else {
-			fmt.Printf("Invalid value '%s' was entered.\n", input)
-			prompts++
 		}
+
+		fmt.Printf("Invalid value '%s' was entered.\n", input)
+		prompts++
 	}
 
 	return false, nil
