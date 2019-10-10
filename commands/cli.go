@@ -150,8 +150,8 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm: "
-		proceed, err := confirmationPrompt(prompt)
+		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C): "
+		proceed, err := confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
@@ -217,8 +217,8 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke all default VPCs? Enter 'nuke' to confirm: "
-		proceed, err = confirmationPrompt(prompt)
+		prompt := "\nAre you sure you want to nuke all default VPCs? Enter 'nuke' to confirm (or exit with ^C): "
+		proceed, err = confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
@@ -246,8 +246,8 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm: "
-		proceed, err = confirmationPrompt(prompt)
+		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C): "
+		proceed, err = confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
@@ -262,19 +262,26 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	return nil
 }
 
-func confirmationPrompt(prompt string) (bool, error) {
+func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 	color := color.New(color.FgHiRed, color.Bold)
 	color.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
 	shellOptions := shell.ShellOptions{Logger: logging.Logger}
-	input, err := shell.PromptUserForInput(prompt, &shellOptions)
 
-	if err != nil {
-		return false, errors.WithStackTrace(err)
-	}
+	prompts := 0
+	for prompts < maxPrompts {
+		input, err := shell.PromptUserForInput(prompt, &shellOptions)
 
-	if strings.ToLower(input) == "nuke" {
-		return true, nil
+		if err != nil {
+			return false, errors.WithStackTrace(err)
+		}
+
+		if strings.ToLower(input) == "nuke" {
+			return true, nil
+		} else {
+			fmt.Printf("Invalid value '%s' was entered.\n", input)
+			prompts++
+		}
 	}
 
 	return false, nil
