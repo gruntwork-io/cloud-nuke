@@ -117,19 +117,73 @@ func split(identifiers []string, limit int) [][]string {
 	return chunks
 }
 
+// GetTargetRegions - Used enabled, selected and excluded regions to create a
+// final list of valid regions
+func GetTargetRegions(enabledRegions []string, selectedRegions []string, excludedRegions []string) ([]string, error) {
+	if len(enabledRegions) == 0 {
+		return nil, fmt.Errorf("Cannot have empty enabled regions")
+	}
+
+	// neither selectedRegions nor excludedRegions => select enabledRegions
+	if len(selectedRegions) == 0 && len(excludedRegions) == 0 {
+		return enabledRegions, nil
+	}
+
+	if len(selectedRegions) > 0 && len(excludedRegions) > 0 {
+		return nil, fmt.Errorf("Cannot specify both selected and excluded regions")
+	}
+
+	var invalidRegions []string
+
+	// Validate selectedRegions
+	for _, selectedRegion := range selectedRegions {
+		if !collections.ListContainsElement(enabledRegions, selectedRegion) {
+			invalidRegions = append(invalidRegions, selectedRegion)
+		}
+	}
+	if len(invalidRegions) > 0 {
+		return nil, fmt.Errorf("Invalid values for region: [%s]", invalidRegions)
+	}
+
+	if len(selectedRegions) > 0 {
+		return selectedRegions, nil
+	}
+
+	// Validate excludedRegions
+	for _, excludedRegion := range excludedRegions {
+		if !collections.ListContainsElement(enabledRegions, excludedRegion) {
+			invalidRegions = append(invalidRegions, excludedRegion)
+		}
+	}
+	if len(invalidRegions) > 0 {
+		return nil, fmt.Errorf("Invalid values for exclude-region: [%s]", invalidRegions)
+	}
+
+	// Filter out excludedRegions from enabledRegions
+	var targetRegions []string
+	if len(excludedRegions) > 0 {
+		for _, region := range enabledRegions {
+			if !collections.ListContainsElement(excludedRegions, region) {
+				targetRegions = append(targetRegions, region)
+			}
+		}
+	}
+	if len(targetRegions) == 0 {
+		return nil, fmt.Errorf("Cannot exclude all regions: %s", excludedRegions)
+	}
+	return targetRegions, nil
+}
+
 // GetAllResources - Lists all aws resources
-func GetAllResources(regions []string, excludedRegions []string, excludeAfter time.Time, resourceTypes []string) (*AwsAccountResources, error) {
+func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
 
-	for _, region := range regions {
-		// Ignore all cli excluded regions
-		if collections.ListContainsElement(excludedRegions, region) {
-			logging.Logger.Infoln("Skipping region: " + region)
-			continue
-		}
-		logging.Logger.Infoln("Checking region: " + region)
+	count := 1
+	totalRegions := len(targetRegions)
+	for _, region := range targetRegions {
+		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
@@ -288,6 +342,7 @@ func GetAllResources(regions []string, excludedRegions []string, excludeAfter ti
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
+		count++
 	}
 
 	return &account, nil
