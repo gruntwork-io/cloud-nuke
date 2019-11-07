@@ -47,7 +47,7 @@ When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs a
 
 Simply running `cloud-nuke aws` will start the process of cleaning up your cloud account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
 
-In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will removed the default VPCs in each region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note that the default security group itself is unable to be deleted.
+In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will remove the default VPCs in each region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note that the default security group itself is unable to be deleted.
 
 ### Nuke resources in certain regions
 
@@ -106,7 +106,7 @@ Happy Nuking!!!
 
 ### AWS
 
-In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can used one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can use one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
 
 ## Running Tests
 
