@@ -205,8 +205,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			asGroups.GroupNames = awsgo.StringValueSlice(groupNames)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, asGroups)
+			if len(groupNames) > 0 {
+				asGroups.GroupNames = awsgo.StringValueSlice(groupNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, asGroups)
+			}
 		}
 		// End ASG Names
 
@@ -217,8 +219,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			configs.LaunchConfigurationNames = awsgo.StringValueSlice(configNames)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, configs)
+			if len(configNames) > 0 {
+				configs.LaunchConfigurationNames = awsgo.StringValueSlice(configNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, configs)
+			}
 		}
 		// End Launch Configuration Names
 
@@ -229,8 +233,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			loadBalancers.Names = awsgo.StringValueSlice(elbNames)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancers)
+			if len(elbNames) > 0 {
+				loadBalancers.Names = awsgo.StringValueSlice(elbNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancers)
+			}
 		}
 		// End LoadBalancer Names
 
@@ -241,9 +247,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-
-			loadBalancersV2.Arns = awsgo.StringValueSlice(elbv2Arns)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancersV2)
+			if len(elbv2Arns) > 0 {
+				loadBalancersV2.Arns = awsgo.StringValueSlice(elbv2Arns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancersV2)
+			}
 		}
 		// End LoadBalancerV2 Arns
 
@@ -254,8 +261,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			ec2Instances.InstanceIds = awsgo.StringValueSlice(instanceIds)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Instances)
+			if len(instanceIds) > 0 {
+				ec2Instances.InstanceIds = awsgo.StringValueSlice(instanceIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Instances)
+			}
 		}
 		// End EC2 Instances
 
@@ -266,8 +275,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			ebsVolumes.VolumeIds = awsgo.StringValueSlice(volumeIds)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
+			if len(volumeIds) > 0 {
+				ebsVolumes.VolumeIds = awsgo.StringValueSlice(volumeIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ebsVolumes)
+			}
 		}
 		// End EBS Volumes
 
@@ -278,8 +289,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			eipAddresses.AllocationIds = awsgo.StringValueSlice(allocationIds)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, eipAddresses)
+			if len(allocationIds) > 0 {
+				eipAddresses.AllocationIds = awsgo.StringValueSlice(allocationIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, eipAddresses)
+			}
 		}
 		// End EIP Addresses
 
@@ -290,8 +303,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			amis.ImageIds = awsgo.StringValueSlice(imageIds)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, amis)
+			if len(imageIds) > 0 {
+				amis.ImageIds = awsgo.StringValueSlice(imageIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, amis)
+			}
 		}
 		// End AMIs
 
@@ -302,8 +317,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			snapshots.SnapshotIds = awsgo.StringValueSlice(snapshotIds)
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, snapshots)
+			if len(snapshotIds) > 0 {
+				snapshots.SnapshotIds = awsgo.StringValueSlice(snapshotIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, snapshots)
+			}
 		}
 		// End Snapshots
 
@@ -314,13 +331,15 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
+			if len(clusterArns) > 0 {
+				serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
+				if err != nil {
+					return nil, errors.WithStackTrace(err)
+				}
+				ecsServices.Services = awsgo.StringValueSlice(serviceArns)
+				ecsServices.ServiceClusterMap = serviceClusterMap
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
 			}
-			ecsServices.Services = awsgo.StringValueSlice(serviceArns)
-			ecsServices.ServiceClusterMap = serviceClusterMap
-			resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
 		}
 		// End ECS resources
 
@@ -332,9 +351,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
-
-				eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
-				resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
+				if len(eksClusterNames) > 0 {
+					eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
+					resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
+				}
 			}
 		}
 		// End EKS resources
