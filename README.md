@@ -114,6 +114,82 @@ In order for the `cloud-nuke` CLI tool to access your AWS, you will need to prov
 go test -v ./...
 ```
 
+## Contribution guidelines
+
+Follow these steps to contribute code changes to cloud-nuke.
+
+### Setup the project
+
+cloud-nuke currently does not support Go modules. Doing a ```go get``` does not
+get pinned versions of dependencies. Follow these steps to get cloud-nuke project
+setup in your $GOPATH:
+
+1. Change to $GOPATH/src dir:
+
+    ```shell
+    cd $GOPATH/src
+    ```
+
+2. Create parent dirs:
+
+    ```shell
+    mkdir -p github.com/gruntwork-io/
+    ```
+
+3. Clone the cloud-nuke repo:
+
+    ```shell
+    cd github.com/gruntwork-io
+    git clone https://github.com/gruntwork-io/cloud-nuke
+    ```
+
+4. Vendor the project dependencies:
+
+    ```shell
+    cd cloud-nuke
+    dep ensure -v
+    ```
+
+### Contribute code from your forked repo
+
+Follow these steps to contribute from your forked repo:
+
+1. Change to the cloud-nuke code repo:
+
+    ```shell
+    cd $GOPATH/src/github.com/gruntwork-io/cloud-nuke
+    ```
+
+2. Rename remote origin and add your forked repo as the origin:
+
+    ```shell
+    git remote rename origin upstream
+    git remote add origin https://github.com/your-github-handle/cloud-nuke
+    ```
+
+3. Create a new branch to work on your feature / bug fix:
+
+    ```shell
+    git checkout -t -b cloud-nuke-new-feature-1
+    ```
+
+4. Make and test your changes.
+
+5. Push changes to your branch:
+
+    ```shell
+    git push origin cloud-nuke-new-feature-1
+    ```
+
+6. Merge with upstream to get latest changes before raising PR:
+
+    ```shell
+    git fetch upstream
+    git merge upstream/master
+    ```
+
+7. Raise Pull request.
+
 ## License
 
 This code is released under the MIT License. See [LICENSE.txt](/LICENSE.txt).
