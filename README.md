@@ -100,6 +100,15 @@ will search and target only `ec2` and `ami` resources. The specified resource ty
 i.e. it should be present in the `--list-resource-types` output. Using `--resource-type` also speeds up search because
 we are searching only for specific resource types.
 
+### Dry run mode
+
+If you want to check what resources are going to be targeted without actually terminating them, you can use the
+```--dry-run``` flag
+
+```shell
+cloud-nuke aws --resource-type ec2 --dry-run
+```
+
 Happy Nuking!!!
 
 ## Credentials

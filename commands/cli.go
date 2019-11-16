@@ -50,6 +50,10 @@ func CreateCli(version string) *cli.App {
 					Value: "0s",
 				},
 				cli.BoolFlag{
+					Name:  "dry-run",
+					Usage: "Dry run without taking any action.",
+				},
+				cli.BoolFlag{
 					Name:  "force",
 					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
 				},
@@ -149,6 +153,11 @@ func awsNuke(c *cli.Context) error {
 				logging.Logger.Infof("* %s-%s-%s\n", resources.ResourceName(), identifier, region)
 			}
 		}
+	}
+
+	if c.Bool("dry-run") {
+		logging.Logger.Infoln("Not taking any action as dry-run set to true.")
+		return nil
 	}
 
 	if !c.Bool("force") {
