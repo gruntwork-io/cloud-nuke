@@ -125,8 +125,6 @@ go test -v ./...
 
 ## Contributing
 
-cloud-nuke is an open source project, and contributions from the community are very welcome! Please check out the Contribution Guidelines and Developing Terragrunt for instructions.
-
 cloud-nuke is an open source project, and contributions from the community are very welcome! Please check out the
 [Contribution Guidelines](CONTRIBUTING.md) and [Developing cloud-nuke](#developing-cloud-nuke) for instructions.
 
