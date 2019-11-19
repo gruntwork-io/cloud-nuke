@@ -1,4 +1,5 @@
 [![Maintained by Gruntwork.io](https://img.shields.io/badge/maintained%20by-gruntwork.io-%235849a6.svg)](https://gruntwork.io/?ref=repo_cloud_nuke)
+
 # cloud-nuke
 
 This repo contains a CLI tool to delete all resources in an AWS account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
@@ -7,28 +8,27 @@ The currently supported functionality includes:
 
 ## AWS
 
-* Deleting all Auto scaling groups in an AWS account
-* Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
-* Deleting all EBS Volumes in an AWS account
-* Deleting all unprotected EC2 instances in an AWS account
-* Deleting all AMIs in an AWS account
-* Deleting all Snapshots in an AWS account
-* Deleting all Elastic IPs in an AWS account
-* Deleting all Launch Configurations in an AWS account
-* Deleting all ECS services in an AWS account
-* Deleting all EKS clusters in an AWS account
-* Deleting all default VPCs in an AWS account
-* Revoking the default rules in the un-deletable default security group of a VPC
+- Deleting all Auto scaling groups in an AWS account
+- Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
+- Deleting all EBS Volumes in an AWS account
+- Deleting all unprotected EC2 instances in an AWS account
+- Deleting all AMIs in an AWS account
+- Deleting all Snapshots in an AWS account
+- Deleting all Elastic IPs in an AWS account
+- Deleting all Launch Configurations in an AWS account
+- Deleting all ECS services in an AWS account
+- Deleting all EKS clusters in an AWS account
+- Deleting all default VPCs in an AWS account
+- Revoking the default rules in the un-deletable default security group of a VPC
 
 ### Caveats
 
-* We currently do not support deleting ECS clusters because AWS
+- We currently do not support deleting ECS clusters because AWS
   does not give us a good way to blacklist clusters off the list (there are no
   tags and we do not know the creation timestamp). Given the destructive nature
   of the tool, we have opted not to support deleting ECS clusters at the
   moment. See https://github.com/gruntwork-io/cloud-nuke/pull/36 for a more
   detailed discussion.
-
 
 ### BEWARE!
 
@@ -67,7 +67,7 @@ When using `cloud-nuke aws`, you can use the `--exclude-region` flag to exclude 
 cloud-nuke aws --exclude-region ap-south-1 --exclude-region ap-south-2
 ```
 
-```--region``` and ```--exclude-region``` flags cannot be specified together i.e. they are mutually exclusive.
+`--region` and `--exclude-region` flags cannot be specified together i.e. they are mutually exclusive.
 
 Excluding regions is available only with `cloud-nuke aws`, not with `cloud-nuke defaults-aws`.
 
@@ -103,7 +103,7 @@ we are searching only for specific resource types.
 ### Dry run mode
 
 If you want to check what resources are going to be targeted without actually terminating them, you can use the
-```--dry-run``` flag
+`--dry-run` flag
 
 ```shell
 cloud-nuke aws --resource-type ec2 --dry-run
@@ -122,6 +122,71 @@ In order for the `cloud-nuke` CLI tool to access your AWS, you will need to prov
 ```shell
 go test -v ./...
 ```
+
+## Contributing
+
+cloud-nuke is an open source project, and contributions from the community are very welcome! Please check out the Contribution Guidelines and Developing Terragrunt for instructions.
+
+cloud-nuke is an open source project, and contributions from the community are very welcome! Please check out the
+[Contribution Guidelines](CONTRIBUTING.md) and [Developing cloud-nuke](#developing-cloud-nuke) for instructions.
+
+## Developing cloud-nuke
+
+### Running Locally
+
+To run cloud-nuke locally, use the `go run` command:
+
+```bash
+go run main.go
+```
+
+### Dependencies
+
+- cloud-nuke uses `dep`, a vendor package management tool for golang. See the dep repo for
+  [installation instructions](https://github.com/golang/dep). cloud-nuke currently does not support Go modules.
+
+### Running tests
+
+**Note**: Many of the tests in the `aws` folder run against a real AWS account and will create and destroy actual resources. DO NOT
+hit `CTRL+C` while the tests are running, as this will prevent them from cleaning up properly. We are not responsible for any
+charges you may incur.
+
+Before running the tests, you must configure your [AWS credentials](#credentials).
+
+To run all the tests:
+
+```bash
+go test -v ./...
+```
+
+To run only the tests in a specific package, such as the package `aws`:
+
+```bash
+cd aws
+go test -v
+```
+
+And to run a specific test, such as `TestListAMIs` in package `aws`:
+
+```bash
+cd aws
+go test -v -run TestListAMIs
+```
+
+### Formatting
+
+Every source file in this project should be formatted with `go fmt`.
+
+### Releasing new versions
+
+To release a new version, just go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and
+create a new release. The CircleCI job for this repo has been configured to:
+
+1. Automatically detect new tags.
+1. Build binaries for every OS using that tag as a version number.
+1. Upload the binaries to the release in GitHub.
+
+See `.circleci/config.yml` for details.
 
 ## License
 
