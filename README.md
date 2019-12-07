@@ -57,7 +57,7 @@ When using `cloud-nuke aws`, you can use the `--region` flag to target resources
 cloud-nuke aws --region ap-south-1 --region ap-south-2
 ```
 
-Including regions is available only with `cloud-nuke aws`, not with `cloud-nuke defaults-aws`.
+Including regions is available within both `cloud-nuke aws` and with `cloud-nuke defaults-aws`.
 
 ### Exclude resources in certain regions
 
@@ -69,7 +69,7 @@ cloud-nuke aws --exclude-region ap-south-1 --exclude-region ap-south-2
 
 `--region` and `--exclude-region` flags cannot be specified together i.e. they are mutually exclusive.
 
-Excluding regions is available only with `cloud-nuke aws`, not with `cloud-nuke defaults-aws`.
+Excluding regions is available within both `cloud-nuke aws` and with `cloud-nuke defaults-aws`.
 
 ### Excluding Resources by Age
 
@@ -107,6 +107,14 @@ If you want to check what resources are going to be targeted without actually te
 
 ```shell
 cloud-nuke aws --resource-type ec2 --dry-run
+```
+
+### Nuking only default security group rules
+When deleting defaults with `cloud-nuke defaults-aws`, use the `--sg-only` flag to delete only the default
+security group rules and not the default VPCs.
+
+```shell
+cloud-nuke defaults-aws --sg-only
 ```
 
 Happy Nuking!!!
