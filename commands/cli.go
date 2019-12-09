@@ -60,9 +60,21 @@ func CreateCli(version string) *cli.App {
 			},
 		}, {
 			Name:   "defaults-aws",
-			Usage:  "Nukes unused AWS defaults (VPCs, permissive security group rules) across all regions enabled for this account.",
+			Usage:  "Nukes AWS default VPCs and permissive default security group rules. Optionally include/exclude specified regions, or just nuke security group rules (not default VPCs).",
 			Action: errors.WithPanicHandling(awsDefaults),
 			Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:  "region",
+					Usage: "regions to include",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-region",
+					Usage: "regions to exclude",
+				},
+				cli.BoolFlag{
+					Name:  "sg-only",
+					Usage: "Destroy default security group rules only. Do not destroy default VPCs.",
+				},
 				cli.BoolFlag{
 					Name:  "force",
 					Usage: "Skip confirmation prompt. WARNING: this will automatically delete defaults without any confirmation",
@@ -197,12 +209,26 @@ func awsDefaults(c *cli.Context) error {
 		logging.Logger.Infof("Found enabled region %s", region)
 	}
 
-	err = nukeDefaultVpcs(c, regions)
+	selectedRegions := c.StringSlice("region")
+	excludedRegions := c.StringSlice("exclude-region")
+
+	// targetRegions uses selectedRegions and excludedRegions to create a final
+	// target region slice.
+	targetRegions, err := aws.GetTargetRegions(regions, selectedRegions, excludedRegions)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return fmt.Errorf("Failed to select regions: %s", err)
 	}
 
-	err = nukeDefaultSecurityGroups(c, regions)
+	if c.Bool("sg-only") {
+		logging.Logger.Info("Not removing default VPCs.")
+	} else {
+		err = nukeDefaultVpcs(c, targetRegions)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+	}
+
+	err = nukeDefaultSecurityGroups(c, targetRegions)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -228,7 +254,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke all default VPCs? Enter 'nuke' to confirm (or exit with ^C): "
+		prompt := "\nAre you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C): "
 		proceed, err = confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
