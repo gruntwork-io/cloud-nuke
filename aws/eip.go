@@ -111,6 +111,6 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Elastc IP(s) deleted in %s", len(deletedAllocationIDs), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d Elastic IP(s) deleted in %s", len(deletedAllocationIDs), *session.Config.Region)
 	return nil
 }
