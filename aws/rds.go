@@ -23,7 +23,7 @@ func waitUntilRdsDeleted(svc *rds.RDS, input *rds.DescribeDBInstancesInput) erro
     }
 
     time.Sleep(1 * time.Second)
-    logging.Logger.Debug("Waiting for ELB to be deleted")
+    logging.Logger.Debug("Waiting for RDS to be deleted")
   }
 
   return RdsDeleteError{}

@@ -10,7 +10,7 @@ import (
   "github.com/aws/aws-sdk-go/aws/session"
   "github.com/aws/aws-sdk-go/service/rds"
 
-  // "github.com/gruntwork-io/cloud-nuke/util"
+  "github.com/gruntwork-io/cloud-nuke/util"
   "github.com/gruntwork-io/cloud-nuke/logging"
   "github.com/gruntwork-io/gruntwork-cli/errors"
   "github.com/stretchr/testify/assert"
@@ -24,8 +24,8 @@ func waitUntilRdsCreated(svc *rds.RDS, name *string) error {
   for i := 0; i < 240; i++ {
     instance, err := svc.DescribeDBInstances(input)
     status := instance.DBInstances[0].DBInstanceStatus
-    logging.Logger.Info(*status)
 
+    // If SkiFinalSnapshot = false on delete, should also wait for "backing-up" also to finish
     if *status != "creating" {
       return nil
     }
