@@ -72,7 +72,7 @@ func nukeAllRdsInstances(session *session.Session, names[]*string) error {
       logging.Logger.Errorf("[Failed] %s", err)
     } else {
       deletedNames = append(deletedNames, name)
-      logging.Logger.Infof("Deleted ELB: %s", *name)
+      logging.Logger.Infof("Deleted RDS: %s", *name)
     }
   }
 

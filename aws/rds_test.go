@@ -25,7 +25,7 @@ func waitUntilRdsCreated(svc *rds.RDS, name *string) error {
     instance, err := svc.DescribeDBInstances(input)
     status := instance.DBInstances[0].DBInstanceStatus
 
-    // If SkiFinalSnapshot = false on delete, should also wait for "backing-up" also to finish
+    // If SkipFinalSnapshot = false on delete, should also wait for "backing-up" also to finish
     if *status != "creating" {
       return nil
     }
