@@ -382,6 +382,7 @@ func ListResourceTypes() []string {
 		Snapshots{}.ResourceName(),
 		ECSServices{}.ResourceName(),
 		EKSClusters{}.ResourceName(),
+		DBInstances{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
