@@ -25,7 +25,7 @@ func CreateCli(version string) *cli.App {
 	app.Commands = []cli.Command{
 		{
 			Name:   "aws",
-			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots, Elastic IP).",
+			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots, Elastic IP, RDS).",
 			Action: errors.WithPanicHandling(awsNuke),
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
