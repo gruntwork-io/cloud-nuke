@@ -42,13 +42,13 @@ We also recommend updating the automated tests *before* updating any code (see [
 Development](https://en.wikipedia.org/wiki/Test-driven_development)). That means you add or update a test case, 
 verify that it's failing with a clear error message, and *then* make the code changes to get that test to pass. This 
 ensures the tests stay up to date and verify all the functionality in this Module, including whatever new 
-functionality you're adding in your contribution. Check out [Developing Terragrunt](README.md#developing-terragrunt) 
+functionality you're adding in your contribution. Check out [Developing cloud-nuke](README.md#developing-cloud-nuke) 
 for instructions on running the automated tests. 
 
 ## Update the code
 
 At this point, make your code changes and use your new test case to verify that everything is working. Check out 
-[Developing Terragrunt](README.md#developing-terragrunt) for instructions on how to build and run Terragrunt locally.
+[Developing cloud-nuke](README.md#developing-cloud-nuke) for instructions on how to build and run Terragrunt locally.
  
 ## Create a pull request
 
@@ -62,7 +62,7 @@ to include the following:
    test output so we can verify that everything is working.
 1. Any notes on backwards incompatibility.
 
-## Merge and release   
+## Merge and release
 
 The maintainers for this repo will review your code and provide feedback. If everything looks good, they will merge the
 code and release a new version, which you'll be able to find in the [releases page](../../releases).
