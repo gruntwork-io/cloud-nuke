@@ -48,7 +48,7 @@ for instructions on running the automated tests.
 ## Update the code
 
 At this point, make your code changes and use your new test case to verify that everything is working. Check out 
-[Developing cloud-nuke](README.md#developing-cloud-nuke) for instructions on how to build and run Terragrunt locally.
+[Developing cloud-nuke](README.md#developing-cloud-nuke) for instructions on how to build and run `cloud-nuke` locally.
  
 ## Create a pull request
 

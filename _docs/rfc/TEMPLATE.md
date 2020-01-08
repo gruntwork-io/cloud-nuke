@@ -1,6 +1,6 @@
 # RFC Template
 
-This is a template you can use for proposing new major features to Terragrunt. When creating a new RFC, copy this
+This is a template you can use for proposing new major features to `cloud-nuke`. When creating a new RFC, copy this
 template and fill in each respective section.
 
 **STATUS**: In proposal _(This should be updated when you open a PR for the implementation)_
@@ -8,10 +8,9 @@ template and fill in each respective section.
 
 ## Background
 
-This section should describe why you need this feature in Terragrunt. This should include a description of:
+This section should describe why you need this feature in `cloud-nuke`. This should include a description of:
 
 - The problem you are trying to solve.
-- The reason why Terraform can't solve this problem, or data points that suggest there is a long enough time horizon for
   implementation that it makes sense to workaround it in Terragrunt.
 - Use cases for the problem. Why is it important that we have this feature?
 
@@ -41,4 +40,4 @@ This section should include any links that are helpful for background reading su
 
 - Relevant issues
 - Links to PRs: at a minimum, the initial PR for the RFC, and the implementation PR.
-- Links to Terragrunt releases, if the proposed solution has been implemented.
+- Links to `cloud-nuke` releases, if the proposed solution has been implemented.
