@@ -26,7 +26,7 @@ func waitUntilRdsCreated(svc *rds.RDS, name *string) error {
 		status := instance.DBInstances[0].DBInstanceStatus
 
 		// If SkipFinalSnapshot = false on delete, should also wait for "backing-up" also to finish
-		if *status != "creating" {
+		if awsgo.StringValue(status) != "creating" {
 			return nil
 		}
 
@@ -35,7 +35,7 @@ func waitUntilRdsCreated(svc *rds.RDS, name *string) error {
 		}
 
 		time.Sleep(1 * time.Second)
-		logging.Logger.Debug("Waiting for RDS to be created")
+		logging.Logger.Debug("Waiting for RDS DB Instance to be created")
 	}
 
 	return RdsDeleteError{}
@@ -73,13 +73,13 @@ func TestListRDS(t *testing.T) {
 		Region: awsgo.String(region)},
 	)
 
-	// rdsName := "cloud-nuke-test" + util.UniqueID()
-	// createTestRDSInstance(t, session, rdsName)
+	rdsName := "cloud-nuke-test" + util.UniqueID()
+	createTestRDSInstance(t, session, rdsName)
 
 	eds, err := getAllRdsInstances(session, region, time.Now())
 
 	if err != nil {
-		assert.Failf(t, "Unable to fetch list of RDS", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Unable to fetch list of RDS DB Instances", errors.WithStackTrace(err).Error())
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(eds), strings.ToLower(rdsName))
