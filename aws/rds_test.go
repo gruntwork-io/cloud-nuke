@@ -13,6 +13,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func waitUntilRdsCreated(svc *rds.RDS, name *string) error {
@@ -52,10 +53,7 @@ func createTestRDSInstance(t *testing.T, session *session.Session, name string) 
 	}
 
 	_, err := svc.CreateDBInstance(params)
-
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+	require.NoError(t, err)
 
 	waitUntilRdsCreated(svc, &name)
 }
