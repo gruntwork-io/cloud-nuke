@@ -1,10 +1,9 @@
 package aws
 
 import (
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -64,17 +63,17 @@ func createTestRDSInstance(t *testing.T, session *session.Session, name string) 
 func TestListRDS(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	region := "us-east-1" //, err := getRandomRegion()
+	//if err != nil {
+	//assert.Fail(t, errors.WithStackTrace(err).Error())
+	//}
 
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
 
-	// rdsName := "cloud-nuke-test" + util.UniqueID()
-	// createTestRDSInstance(t, session, rdsName)
+	rdsName := "cloud-nuke-test" + util.UniqueID()
+	createTestRDSInstance(t, session, rdsName)
 
 	eds, err := getAllRdsInstances(session, region, time.Now())
 

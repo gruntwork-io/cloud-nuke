@@ -1,33 +1,16 @@
 package aws
 
 import (
+	"context"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
+	// "github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
-
-func waitUntilRdsDeleted(svc *rds.RDS, input *rds.DescribeDBInstancesInput) error {
-	for i := 0; i < 240; i++ {
-		_, err := svc.DescribeDBInstances(input)
-		if err != nil {
-			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "DBInstanceNotFound" {
-				return nil
-			}
-
-			return err
-		}
-
-		time.Sleep(1 * time.Second)
-		logging.Logger.Debug("Waiting for RDS to be deleted")
-	}
-
-	return RdsDeleteError{}
-}
 
 func getAllRdsInstances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := rds.New(session)
@@ -76,10 +59,14 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 		}
 	}
 
+	timeout := 240 * time.Second
+	ctx := awsgo.BackgroundContext()
+	ctx, _ = context.WithTimeout(ctx, timeout)
+
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			err := waitUntilRdsDeleted(svc, &rds.DescribeDBInstancesInput{
+			err := svc.WaitUntilDBInstanceDeletedWithContext(ctx, &rds.DescribeDBInstancesInput{
 				DBInstanceIdentifier: name,
 			})
 
