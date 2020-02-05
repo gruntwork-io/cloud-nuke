@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"context"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -59,14 +58,10 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 		}
 	}
 
-	timeout := 240 * time.Second
-	ctx := awsgo.BackgroundContext()
-	ctx, _ = context.WithTimeout(ctx, timeout)
-
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			err := svc.WaitUntilDBInstanceDeletedWithContext(ctx, &rds.DescribeDBInstancesInput{
+			err := svc.WaitUntilDBInstanceDeleted(&rds.DescribeDBInstancesInput{
 				DBInstanceIdentifier: name,
 			})
 
