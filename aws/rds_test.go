@@ -73,7 +73,7 @@ func TestListRDS(t *testing.T) {
 	rdsName := "cloud-nuke-test" + util.UniqueID()
 	createTestRDSInstance(t, session, rdsName)
 
-	eds, err := getAllRdsInstances(session, region, time.Now())
+	eds, err := getAllRdsInstances(session, time.Now())
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of RDS DB Instances", errors.WithStackTrace(err).Error())
@@ -83,7 +83,7 @@ func TestListRDS(t *testing.T) {
 
 	nukeAllRdsInstances(session, eds)
 
-	rdsNames, err := getAllRdsInstances(session, region, time.Now().Add(1*time.Hour*-1))
+	rdsNames, err := getAllRdsInstances(session, time.Now().Add(1*time.Hour*-1))
 
 	assert.NotContains(t, awsgo.StringValueSlice(rdsNames), strings.ToLower(rdsName))
 }

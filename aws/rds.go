@@ -11,7 +11,7 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-func getAllRdsInstances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllRdsInstances(session *session.Session, excludeAfter time.Time) ([]*string, error) {
 	svc := rds.New(session)
 
 	result, err := svc.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
@@ -35,7 +35,7 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 	svc := rds.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No RDS DB Instanceto nuke in region %s", *session.Config.Region)
+		logging.Logger.Infof("No RDS DB Instance to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
@@ -51,7 +51,7 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 		_, err := svc.DeleteDBInstance(params)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Logger.Infof("Deleted RDS DB Instance: %s", awsgo.StringValue(name))

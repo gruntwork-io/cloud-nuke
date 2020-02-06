@@ -363,7 +363,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		dbInstances := DBInstances{}
 
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
-			instanceNames, err := getAllRdsInstances(session, region, excludeAfter)
+			instanceNames, err := getAllRdsInstances(session, excludeAfter)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
