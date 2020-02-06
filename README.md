@@ -18,7 +18,7 @@ The currently supported functionality includes:
 - Deleting all Launch Configurations in an AWS account
 - Deleting all ECS services in an AWS account
 - Deleting all EKS clusters in an AWS account
-- Deleting all RDS instances in an AWS account
+- Deleting all RDS DB instances in an AWS account
 - Deleting all default VPCs in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 

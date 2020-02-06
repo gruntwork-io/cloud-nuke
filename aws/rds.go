@@ -23,9 +23,9 @@ func getAllRdsInstances(session *session.Session, region string, excludeAfter ti
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		//if excludeAfter.After(*database.InstanceCreateTime) {
-		names = append(names, database.DBInstanceIdentifier)
-		//}
+		if excludeAfter.After(*database.InstanceCreateTime) {
+		  names = append(names, database.DBInstanceIdentifier)
+		}
 	}
 
 	return names, nil

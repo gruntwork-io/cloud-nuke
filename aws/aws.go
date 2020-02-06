@@ -359,6 +359,23 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EKS resources
 
+		// RDS DB resources
+		dbInstances := DBInstances{}
+
+		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
+			instanceNames, err := getAllRdsInstances(session, region, excludeAfter)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(instanceNames) > 0 {
+				dbInstances.InstanceNames = awsgo.StringValueSlice(instanceNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbInstances)
+			}
+		}
+		// End RDS DB resources
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
