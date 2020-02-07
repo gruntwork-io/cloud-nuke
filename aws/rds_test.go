@@ -61,10 +61,10 @@ func createTestRDSInstance(t *testing.T, session *session.Session, name string) 
 func TestListRDS(t *testing.T) {
 	t.Parallel()
 
-	region := "us-east-1" //, err := getRandomRegion()
-	//if err != nil {
-	//assert.Fail(t, errors.WithStackTrace(err).Error())
-	//}
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
@@ -73,17 +73,17 @@ func TestListRDS(t *testing.T) {
 	rdsName := "cloud-nuke-test" + util.UniqueID()
 	createTestRDSInstance(t, session, rdsName)
 
-	eds, err := getAllRdsInstances(session, time.Now())
+	rds, err := getAllRdsInstances(session, time.Now().Add(1*time.Hour))
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of RDS DB Instances", errors.WithStackTrace(err).Error())
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(eds), strings.ToLower(rdsName))
+	assert.Contains(t, awsgo.StringValueSlice(rds), strings.ToLower(rdsName))
 
-	nukeAllRdsInstances(session, eds)
+	defer nukeAllRdsInstances(session, rds)
 
-	rdsNames, err := getAllRdsInstances(session, time.Now().Add(1*time.Hour*-1))
+	rdsNames, _ := getAllRdsInstances(session, time.Now().Add(1*time.Hour))
 
 	assert.NotContains(t, awsgo.StringValueSlice(rdsNames), strings.ToLower(rdsName))
 }
