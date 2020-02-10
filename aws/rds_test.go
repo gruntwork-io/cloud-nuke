@@ -81,9 +81,11 @@ func TestListRDS(t *testing.T) {
 
 	assert.Contains(t, awsgo.StringValueSlice(rds), strings.ToLower(rdsName))
 
-	nukeAllRdsInstances(session, rds)
+	defer func() {
+		nukeAllRdsInstances(session, rds)
 
-	rdsNames, _ := getAllRdsInstances(session, time.Now().Add(1*time.Hour))
+		rdsNames, _ := getAllRdsInstances(session, time.Now().Add(1*time.Hour))
 
-	assert.NotContains(t, awsgo.StringValueSlice(rdsNames), strings.ToLower(rdsName))
+		assert.NotContains(t, awsgo.StringValueSlice(rdsNames), strings.ToLower(rdsName))
+	}()
 }
