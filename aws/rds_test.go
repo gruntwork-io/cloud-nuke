@@ -16,6 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// There's a built-in function WaitUntilDBInstanceAvailable but
+// the times that it was tested, it wasn't returning anything so we'll leave with the
+// custom one.
 func waitUntilRdsCreated(svc *rds.RDS, name *string) error {
 	input := &rds.DescribeDBInstancesInput{
 		DBInstanceIdentifier: name,
@@ -38,7 +41,7 @@ func waitUntilRdsCreated(svc *rds.RDS, name *string) error {
 		logging.Logger.Debug("Waiting for RDS DB Instance to be created")
 	}
 
-	return RdsDeleteError{}
+	return RdsDeleteError{name: *name}
 }
 
 func createTestRDSInstance(t *testing.T, session *session.Session, name string) {

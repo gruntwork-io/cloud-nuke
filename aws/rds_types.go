@@ -33,8 +33,10 @@ func (instance DBInstances) Nuke(session *session.Session, identifiers []string)
 	return nil
 }
 
-type RdsDeleteError struct{}
+type RdsDeleteError struct{
+	name string
+}
 
 func (e RdsDeleteError) Error() string {
-	return "RDS DB Instance was not deleted"
+	return "RDS DB Instance:" + e.name + "was not deleted"
 }
