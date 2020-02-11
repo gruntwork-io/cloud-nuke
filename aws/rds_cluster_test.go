@@ -26,8 +26,6 @@ func createTestRDSCluster(t *testing.T, session *session.Session, name string) {
 
 	_, err := svc.CreateDBCluster(params)
 	require.NoError(t, err)
-
-	//waitUntilRdsCreated(svc, &name)
 }
 
 func TestNukeRDSCluster(t *testing.T) {
@@ -56,7 +54,7 @@ func TestNukeRDSCluster(t *testing.T) {
 	rds, err := getAllRdsClusters(session, excludeAfter)
 
 	if err != nil {
-		assert.Failf(t, "Unable to fetch list of RDS DB Instances", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Unable to fetch list of RDS DB Clusters", errors.WithStackTrace(err).Error())
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(rds), strings.ToLower(rdsName))
