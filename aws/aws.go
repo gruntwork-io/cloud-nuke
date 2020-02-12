@@ -378,7 +378,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Clusters
 		// These reference the Aurora Clusters, for the use it's the same resource (rds), but AWS
 		// has different abstractions for each.
-		dbClusters := DBInstances{}
+		dbClusters := DBClusters{}
 		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
 			clustersNames, err := getAllRdsClusters(session, excludeAfter)
 
