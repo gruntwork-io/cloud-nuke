@@ -13,7 +13,7 @@ import (
 
 func waitUntilRdsClusterDeleted(svc *rds.RDS, input *rds.DescribeDBClustersInput) error {
 	// wait up to 15 minutes
-	for i := 0; i < 900; i++ {
+	for i := 0; i < 90; i++ {
 		_, err := svc.DescribeDBClusters(input)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBClusterNotFoundFault  {
@@ -23,7 +23,7 @@ func waitUntilRdsClusterDeleted(svc *rds.RDS, input *rds.DescribeDBClustersInput
 			return err
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(10 * time.Second)
 		logging.Logger.Debug("Waiting for RDS Cluster to be deleted")
 	}
 
