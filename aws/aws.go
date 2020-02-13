@@ -359,9 +359,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EKS resources
 
-		// RDS DB resources
+		// RDS DB Instances
 		dbInstances := DBInstances{}
-
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
 			instanceNames, err := getAllRdsInstances(session, excludeAfter)
 
@@ -374,7 +373,25 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbInstances)
 			}
 		}
-		// End RDS DB resources
+		// End RDS DB Instances
+
+		// RDS DB Clusters
+		// These reference the Aurora Clusters, for the use it's the same resource (rds), but AWS
+		// has different abstractions for each.
+		dbClusters := DBClusters{}
+		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
+			clustersNames, err := getAllRdsClusters(session, excludeAfter)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(clustersNames) > 0 {
+				dbClusters.InstanceNames = awsgo.StringValueSlice(clustersNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbClusters)
+			}
+		}
+		// End RDS DB Clusters
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
