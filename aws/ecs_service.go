@@ -14,11 +14,23 @@ import (
 // We need to get all clusters before we can get all services.
 func getAllEcsClusters(awsSession *session.Session) ([]*string, error) {
 	svc := ecs.New(awsSession)
+	clusterArns := []*string{}
 	result, err := svc.ListClusters(&ecs.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
-	return result.ClusterArns, nil
+	clusterArns = append(clusterArns, result.ClusterArns...)
+
+	// Handle pagination: continuously pull the next page if nextToken is set
+	for awsgo.StringValue(result.NextToken) != "" {
+		result, err = svc.ListClusters(&ecs.ListClustersInput{NextToken: result.NextToken})
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		clusterArns = append(clusterArns, result.ClusterArns...)
+	}
+
+	return clusterArns, nil
 }
 
 // filterOutRecentServices - Given a list of services and an excludeAfter

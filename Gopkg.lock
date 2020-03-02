@@ -45,6 +45,7 @@
     "service/autoscaling",
     "service/cloudwatchlogs",
     "service/ec2",
+    "service/ec2/ec2iface",
     "service/ecs",
     "service/eks",
     "service/elb",
@@ -114,6 +115,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "72cd26f257d44c1114970e19afddcd812016007e"
+  version = "v1.4.1"
+
+[[projects]]
+  digest = "1:56cdb7d19da79a1e4343377efdb177893d9553d58ecf1b0cc45a60ac8889d8f5"
+  name = "github.com/golang/mock"
+  packages = ["gomock"]
+  pruneopts = ""
+  revision = "b48cb6623c04dae64c28537143aca42d16561daf"
   version = "v1.4.1"
 
 [[projects]]
@@ -207,15 +216,15 @@
   version = "v1.0.4"
 
 [[projects]]
-  digest = "1:2d0dc026c4aef5e2f3a0e06a4dabe268b840d8f63190cf6894e02134a03f52c5"
+  digest = "1:cc4eb6813da8d08694e557fcafae8fcc24f47f61a0717f952da130ca9a486dfc"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "require",
   ]
   pruneopts = ""
-  revision = "b91bfb9ebec76498946beb6af7c0230c7cc7ba6c"
-  version = "v1.2.0"
+  revision = "3ebf1ddaeb260c4b1ae502a01c7844fa8c1fa0e9"
+  version = "v1.5.1"
 
 [[projects]]
   digest = "1:e85837cb04b78f61688c6eba93ea9d14f60d611e2aaf8319999b1a60d2dafbfa"
@@ -267,21 +276,33 @@
   revision = "b2f4a3cf3c67576a2ee09e1fe62656a5086ce880"
   version = "v1.6.1"
 
+[[projects]]
+  digest = "1:2efc9662a6a1ff28c65c84fc2f9030f13d3afecdb2ecad445f3b0c80e75fc281"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  pruneopts = ""
+  revision = "53403b58ad1b561927d19068c655246f2db79d48"
+  version = "v2.2.8"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/aws/aws-sdk-go/aws",
     "github.com/aws/aws-sdk-go/aws/awserr",
+    "github.com/aws/aws-sdk-go/aws/request",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/autoscaling",
     "github.com/aws/aws-sdk-go/service/ec2",
+    "github.com/aws/aws-sdk-go/service/ec2/ec2iface",
     "github.com/aws/aws-sdk-go/service/ecs",
     "github.com/aws/aws-sdk-go/service/eks",
     "github.com/aws/aws-sdk-go/service/elb",
     "github.com/aws/aws-sdk-go/service/elbv2",
     "github.com/aws/aws-sdk-go/service/iam",
+    "github.com/aws/aws-sdk-go/service/rds",
     "github.com/fatih/color",
+    "github.com/golang/mock/gomock",
     "github.com/gruntwork-io/gruntwork-cli/collections",
     "github.com/gruntwork-io/gruntwork-cli/entrypoint",
     "github.com/gruntwork-io/gruntwork-cli/errors",
