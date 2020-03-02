@@ -2,6 +2,7 @@ package aws
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -48,7 +49,12 @@ func getAMIIdByName(svc *ec2.EC2, name string) (string, error) {
 		return "", gruntworkerrors.WithStackTrace(err)
 	}
 
-	return *imagesResult.Images[0].ImageId, nil
+	if len(imagesResult.Images) == 0 {
+		return "", gruntworkerrors.WithStackTrace(fmt.Errorf("No images found with name %s", name))
+	}
+
+	image := imagesResult.Images[0]
+	return awsgo.StringValue(image.ImageId), nil
 }
 
 // runAndWaitForInstance - Given a preconstructed ec2.RunInstancesInput object,
