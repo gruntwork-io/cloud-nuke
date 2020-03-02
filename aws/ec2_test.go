@@ -120,7 +120,7 @@ func runAndWaitForInstance(svc *ec2.EC2, name string, params *ec2.RunInstancesIn
 func createTestEC2Instance(t *testing.T, session *session.Session, name string, protected bool) ec2.Instance {
 	svc := ec2.New(session)
 
-	imageID, err := getAMIIdByName(svc, "amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2")
+	imageID, err := getAMIIdByName(svc, "amzn-ami-hvm-2018.03.0.20190826-x86_64-gp2")
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
