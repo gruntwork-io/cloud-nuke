@@ -67,7 +67,7 @@ func createEcsEC2Cluster(t *testing.T, awsSession *session.Session, name string,
 	}
 	params := &ec2.RunInstancesInput{
 		ImageId:               awsgo.String(imageID),
-		InstanceType:          awsgo.String("t2.micro"),
+		InstanceType:          awsgo.String("t3.micro"),
 		MinCount:              awsgo.Int64(1),
 		MaxCount:              awsgo.Int64(1),
 		DisableApiTermination: awsgo.Bool(false),
