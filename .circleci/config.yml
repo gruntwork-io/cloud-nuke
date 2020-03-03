@@ -50,7 +50,9 @@ jobs:
       - checkout
       - attach_workspace:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
-      - run: go run main.go aws --older-than 1h --force
+      - run:
+          command: go run main.go aws --older-than 1h --force
+          no_output_timeout: 1h
 
   nuke_sandbox:
     <<: *defaults
@@ -60,6 +62,7 @@ jobs:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
           command: export AWS_ACCESS_KEY_ID=$SANDBOX_AWS_ACCESS_KEY_ID && export AWS_SECRET_ACCESS_KEY=$SANDBOX_AWS_SECRET_ACCESS_KEY && go run main.go aws --older-than 24h --force
+          no_output_timeout: 1h
 
   deploy:
     <<: *defaults

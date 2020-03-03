@@ -2,6 +2,7 @@ package aws
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -48,7 +49,12 @@ func getAMIIdByName(svc *ec2.EC2, name string) (string, error) {
 		return "", gruntworkerrors.WithStackTrace(err)
 	}
 
-	return *imagesResult.Images[0].ImageId, nil
+	if len(imagesResult.Images) == 0 {
+		return "", gruntworkerrors.WithStackTrace(fmt.Errorf("No images found with name %s", name))
+	}
+
+	image := imagesResult.Images[0]
+	return awsgo.StringValue(image.ImageId), nil
 }
 
 // runAndWaitForInstance - Given a preconstructed ec2.RunInstancesInput object,
@@ -114,7 +120,7 @@ func runAndWaitForInstance(svc *ec2.EC2, name string, params *ec2.RunInstancesIn
 func createTestEC2Instance(t *testing.T, session *session.Session, name string, protected bool) ec2.Instance {
 	svc := ec2.New(session)
 
-	imageID, err := getAMIIdByName(svc, "amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2")
+	imageID, err := getAMIIdByName(svc, "amzn-ami-hvm-2018.03.0.20190826-x86_64-gp2")
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
