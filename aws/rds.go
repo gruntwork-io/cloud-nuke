@@ -4,7 +4,6 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	// "github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -23,8 +22,8 @@ func getAllRdsInstances(session *session.Session, excludeAfter time.Time) ([]*st
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		if excludeAfter.After(*database.InstanceCreateTime) {
-		  names = append(names, database.DBInstanceIdentifier)
+		if database.InstanceCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.InstanceCreateTime)) {
+			names = append(names, database.DBInstanceIdentifier)
 		}
 	}
 
