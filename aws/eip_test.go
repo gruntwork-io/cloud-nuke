@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func createTestEIPAddress(t *testing.T, session *session.Session, name string) ec2.Address {
@@ -155,9 +156,7 @@ func TestListEIPAddress(t *testing.T) {
 	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
 
 	allocationIds, err := getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of EIP Addresses")
-	}
+	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(allocationIds), awsgo.StringValue(address.AllocationId))
 
