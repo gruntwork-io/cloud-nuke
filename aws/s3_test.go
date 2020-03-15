@@ -32,6 +32,14 @@ type SetupInfo struct {
 	bucketName string
 }
 
+// TestNukeS3BucketArgs represents arguments for testNukeS3BucketWrapper
+type TestNukeS3BucketArgs struct {
+	isVersioned       bool
+	checkDeleteMarker bool
+	objectCount       int
+	objectBatchsize   int
+}
+
 // genTestsBucketName generates a test bucket name.
 func genTestBucketName() string {
 	// Call UniqueID twice because even if the nth test tries to reuse a name of the first test
@@ -120,7 +128,6 @@ func setupNukeTests(t *testing.T) SetupInfo {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 	s.region = region
-	s.region = "us-east-2"
 
 	s.session, err = session.NewSession(&awsgo.Config{
 		Region: awsgo.String(s.region)},
@@ -227,13 +234,13 @@ func TestNukeEmptyS3Bucket(t *testing.T) {
 	}
 }
 
-func testNukeS3BucketWrapper(t *testing.T, isVersioned bool, objectCount int, objectBatchsize int) {
+func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs) {
 	s := setupNukeTests(t)
 
 	// Create test bucket
 	bucket := TestS3Bucket{
 		name:        s.bucketName,
-		isVersioned: isVersioned,
+		isVersioned: args.isVersioned,
 	}
 	err := bucket.create(s.svc)
 	if err != nil {
@@ -243,13 +250,13 @@ func testNukeS3BucketWrapper(t *testing.T, isVersioned bool, objectCount int, ob
 	defer nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, 1000)
 
 	objectVersions := 1
-	if isVersioned {
+	if args.isVersioned {
 		objectVersions = 3
 	}
 
 	// Add two more versions of the same file
 	for i := 0; i < objectVersions; i++ {
-		for j := 0; j < objectCount; j++ {
+		for j := 0; j < args.objectCount; j++ {
 			fileName := fmt.Sprintf("l1/l2/l3/f%d.txt", j)
 			fileBody := fmt.Sprintf("%d-%d", i, j)
 			err := bucket.addObject(s, fileName, fileBody)
@@ -259,8 +266,22 @@ func testNukeS3BucketWrapper(t *testing.T, isVersioned bool, objectCount int, ob
 		}
 	}
 
+	// Do a simple delete to create DeleteMarker object
+	if args.checkDeleteMarker {
+		targetObject := "l1/l2/l3/f0.txt"
+		logging.Logger.Infof("Bucket: %s - doing simple delete on object: %s", s.bucketName, targetObject)
+
+		_, err = s.svc.DeleteObject(&s3.DeleteObjectInput{
+			Bucket: aws.String(s.bucketName),
+			Key:    aws.String("l1/l2/l3/f0.txt"),
+		})
+		if err != nil {
+			assert.Fail(t, errors.WithStackTrace(err).Error())
+		}
+	}
+
 	// Nuke the test bucket
-	_, err = nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, objectBatchsize)
+	_, err = nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, args.objectBatchsize)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -275,17 +296,47 @@ func testNukeS3BucketWrapper(t *testing.T, isVersioned bool, objectCount int, ob
 }
 
 func TestNukeS3BucketWithoutVersioningAllObjects(t *testing.T) {
-	testNukeS3BucketWrapper(t, false, 10, 1000)
+	// testNukeS3BucketWrapper(t, false, 10, 1000)
+	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
+		isVersioned:       false,
+		checkDeleteMarker: false,
+		objectCount:       10,
+		objectBatchsize:   1000,
+	})
 }
 
 func TestNukeS3BucketWithoutVersioningBatchObjects(t *testing.T) {
-	testNukeS3BucketWrapper(t, false, 10, 2)
+	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
+		isVersioned:       false,
+		checkDeleteMarker: false,
+		objectCount:       10,
+		objectBatchsize:   2,
+	})
 }
 
 func TestNukeS3BucketWithVersioningAllObjects(t *testing.T) {
-	testNukeS3BucketWrapper(t, true, 10, 1000)
+	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
+		isVersioned:       true,
+		checkDeleteMarker: false,
+		objectCount:       10,
+		objectBatchsize:   1000,
+	})
 }
 
 func TestNukeS3BucketWithVersioningBatchObjects(t *testing.T) {
-	testNukeS3BucketWrapper(t, true, 10, 3)
+	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
+		isVersioned:       true,
+		checkDeleteMarker: false,
+		objectCount:       10,
+		objectBatchsize:   3,
+	})
+}
+
+func TestNukeS3BucketWithVersioningDeleteMarker(t *testing.T) {
+	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
+		isVersioned:       true,
+		checkDeleteMarker: true,
+		objectCount:       10,
+		objectBatchsize:   1000,
+	})
 }

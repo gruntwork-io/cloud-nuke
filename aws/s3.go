@@ -52,6 +52,35 @@ func getS3BucketTags(svc *s3.S3, bucketName *string) ([]map[string]string, error
 	return tags, err
 }
 
+// shouldIncludeBucket checks if bucket should be included in the deletion list.
+func shouldIncludeBucket(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, bucketNameSubStr string) (bool, string) {
+	if len(bucketNameSubStr) > 0 {
+		if !strings.Contains(*bucket.Name, bucketNameSubStr) {
+			return false, fmt.Sprintf("failed substring filter - %s", bucketNameSubStr)
+		}
+	}
+
+	if !excludeAfter.After(*bucket.CreationDate) {
+		return false, "matched CreationDate filter"
+	}
+
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	bucketTags, err := getS3BucketTags(svc, bucket.Name)
+	if len(bucketTags) > 0 {
+		for _, tagSet := range bucketTags {
+			if tagSet["Key"] == "cloud-nuke-excluded" && tagSet["Value"] == "true" {
+				return false, "matched tag filter"
+			}
+		}
+	}
+
+	if err != nil {
+		return false, "Failed to get bucket tags"
+	}
+
+	return true, ""
+}
+
 // getAllS3Buckets lists and returns a map of per region AWS S3 buckets which were created before excludeAfter
 func getAllS3Buckets(session *session.Session, excludeAfter time.Time, bucketNameSubStr string) (map[string][]*string, error) {
 	svc := s3.New(session)
@@ -65,30 +94,13 @@ func getAllS3Buckets(session *session.Session, excludeAfter time.Time, bucketNam
 
 	var bucketNamesPerRegion = make(map[string][]*string)
 
-OUTER:
 	for _, bucket := range output.Buckets {
 		logging.Logger.Debugf("Checking - Bucket %s", *bucket.Name)
 
-		if len(bucketNameSubStr) > 0 {
-			if !strings.Contains(*bucket.Name, bucketNameSubStr) {
-				logging.Logger.Debugf("Skipping - Bucket %s - failed substring filter - %s", *bucket.Name, bucketNameSubStr)
-				continue
-			}
-		}
-
-		if !excludeAfter.After(*bucket.CreationDate) {
-			logging.Logger.Debugf("Skipping - Bucket %s - matched CreationDate filter", *bucket.Name)
+		shouldInclude, excludeReason := shouldIncludeBucket(svc, bucket, excludeAfter, bucketNameSubStr)
+		if !shouldInclude {
+			logging.Logger.Debugf("Skipping - Bucket %s - %s", *bucket.Name, excludeReason)
 			continue
-		}
-
-		bucketTags, err := getS3BucketTags(svc, bucket.Name)
-		if len(bucketTags) > 0 {
-			for _, tagSet := range bucketTags {
-				if tagSet["Key"] == "cloud-nuke-excluded" && tagSet["Value"] == "true" {
-					logging.Logger.Infof("Skipping - Bucket %s - matched tag filter", *bucket.Name)
-					continue OUTER
-				}
-			}
 		}
 
 		bucketRegion, err := getS3BucketRegion(svc, bucket.Name)
@@ -107,57 +119,44 @@ OUTER:
 	return bucketNamesPerRegion, nil
 }
 
-func getS3BucketObjectVersions(svc *s3.S3, bucketName *string, objectKey *string) ([]*string, error) {
-	versions := []*string{}
-
-	err := svc.ListObjectVersionsPages(
-		&s3.ListObjectVersionsInput{
-			Bucket: bucketName,
-			Prefix: objectKey,
-		},
-		func(page *s3.ListObjectVersionsOutput, lastPage bool) (shouldContinue bool) {
-			for _, obj := range page.Versions {
-				versions = append(versions, obj.VersionId)
-			}
-			return true
-		},
-	)
-	return versions, err
-}
-
 func getS3BucketObjects(svc *s3.S3, bucketName *string, isVersioned bool) ([]*s3.ObjectIdentifier, error) {
 	identifiers := []*s3.ObjectIdentifier{}
-	hasError := false
 
+	// Handle versioned buckets.
+	if isVersioned {
+		err := svc.ListObjectVersionsPages(
+			&s3.ListObjectVersionsInput{
+				Bucket: bucketName,
+			},
+			func(page *s3.ListObjectVersionsOutput, lastPage bool) (shouldContinue bool) {
+				for _, obj := range page.Versions {
+					logging.Logger.Debugf("Bucket %s object %s version %s", *bucketName, *obj.Key, *obj.VersionId)
+					identifiers = append(identifiers, &s3.ObjectIdentifier{
+						Key:       obj.Key,
+						VersionId: obj.VersionId,
+					})
+				}
+				for _, obj := range page.DeleteMarkers {
+					logging.Logger.Debugf("Bucket %s object %s DeleteMarker %s", *bucketName, *obj.Key, *obj.VersionId)
+					identifiers = append(identifiers, &s3.ObjectIdentifier{
+						Key:       obj.Key,
+						VersionId: obj.VersionId,
+					})
+				}
+				return true
+			},
+		)
+		return identifiers, err
+	}
+
+	// Handle non versioned buckets.
 	err := svc.ListObjectsV2Pages(
 		&s3.ListObjectsV2Input{
-			Bucket:  bucketName,
-			MaxKeys: aws.Int64(3),
+			Bucket: bucketName,
 		},
-
 		func(page *s3.ListObjectsV2Output, lastPage bool) (shouldContinue bool) {
-
 			for _, obj := range page.Contents {
-				if isVersioned {
-					versions, err := getS3BucketObjectVersions(svc, bucketName, obj.Key)
-					if err != nil {
-						logging.Logger.Warnf("Skipping - Bucket %s - object %s - failed to get version", *bucketName, err.Error())
-						hasError = true
-						return false
-					}
-
-					for _, version := range versions {
-						logging.Logger.Debugf("Bucket %s object %s version %s", *bucketName, *obj.Key, *version)
-						identifiers = append(identifiers, &s3.ObjectIdentifier{
-							Key:       obj.Key,
-							VersionId: version,
-						})
-					}
-					continue
-				}
-
 				logging.Logger.Debugf("Bucket %s object %s", *bucketName, *obj.Key)
-
 				identifiers = append(identifiers, &s3.ObjectIdentifier{
 					Key: obj.Key,
 				})
@@ -165,10 +164,6 @@ func getS3BucketObjects(svc *s3.S3, bucketName *string, isVersioned bool) ([]*s3
 			return true
 		},
 	)
-
-	if hasError {
-		return identifiers, fmt.Errorf("Bucket %s - get object versions failed - check logged errors", *bucketName)
-	}
 
 	return identifiers, err
 }
