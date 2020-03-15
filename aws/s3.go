@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -40,6 +41,8 @@ func getS3BucketTags(svc *s3.S3, bucketName *string) ([]map[string]string, error
 
 	tags := []map[string]string{}
 
+	// Please note that svc argument should be created from a session object which is
+	// in the same region as the bucket or GetBucketTagging will fail.
 	result, err := svc.GetBucketTagging(input)
 	if err != nil {
 		return tags, err
@@ -49,21 +52,11 @@ func getS3BucketTags(svc *s3.S3, bucketName *string) ([]map[string]string, error
 		tags = append(tags, map[string]string{"Key": *tagSet.Key, "Value": *tagSet.Value})
 	}
 
-	return tags, err
+	return tags, nil
 }
 
-// shouldIncludeBucket checks if bucket should be included in the deletion list.
-func shouldIncludeBucket(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, bucketNameSubStr string) (bool, string) {
-	if len(bucketNameSubStr) > 0 {
-		if !strings.Contains(*bucket.Name, bucketNameSubStr) {
-			return false, fmt.Sprintf("failed substring filter - %s", bucketNameSubStr)
-		}
-	}
-
-	if !excludeAfter.After(*bucket.CreationDate) {
-		return false, "matched CreationDate filter"
-	}
-
+// hasValidTags checks if bucket tags permit it to be in the deletion list.
+func hasValidTags(svc *s3.S3, bucket *s3.Bucket) (bool, string) {
 	// Exclude deletion of any buckets with cloud-nuke-excluded tags
 	bucketTags, err := getS3BucketTags(svc, bucket.Name)
 	if len(bucketTags) > 0 {
@@ -73,17 +66,15 @@ func shouldIncludeBucket(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, 
 			}
 		}
 	}
-
 	if err != nil {
-		return false, "Failed to get bucket tags"
+		return false, fmt.Sprintf("Failed to get bucket tags - %s", err.Error())
 	}
-
 	return true, ""
 }
 
 // getAllS3Buckets lists and returns a map of per region AWS S3 buckets which were created before excludeAfter
-func getAllS3Buckets(session *session.Session, excludeAfter time.Time, bucketNameSubStr string) (map[string][]*string, error) {
-	svc := s3.New(session)
+func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time, bucketNameSubStr string) (map[string][]*string, error) {
+	svc := s3.New(awsSession)
 
 	input := &s3.ListBucketsInput{}
 
@@ -93,19 +84,44 @@ func getAllS3Buckets(session *session.Session, excludeAfter time.Time, bucketNam
 	}
 
 	var bucketNamesPerRegion = make(map[string][]*string)
+	var regionClients = make(map[string]*s3.S3)
 
 	for _, bucket := range output.Buckets {
 		logging.Logger.Debugf("Checking - Bucket %s", *bucket.Name)
 
-		shouldInclude, excludeReason := shouldIncludeBucket(svc, bucket, excludeAfter, bucketNameSubStr)
-		if !shouldInclude {
-			logging.Logger.Debugf("Skipping - Bucket %s - %s", *bucket.Name, excludeReason)
+		if len(bucketNameSubStr) > 0 {
+			if !strings.Contains(*bucket.Name, bucketNameSubStr) {
+				logging.Logger.Debugf("Skipping - Bucket %s - failed substring filter - %s", *bucket.Name, bucketNameSubStr)
+				continue
+			}
+		}
+
+		if !excludeAfter.After(*bucket.CreationDate) {
+			logging.Logger.Debugf("Skipping - Bucket %s - matched CreationDate filter", *bucket.Name)
 			continue
 		}
 
 		bucketRegion, err := getS3BucketRegion(svc, bucket.Name)
 		if err != nil {
 			logging.Logger.Warnf("Skipping - Bucket %s - Failed to get bucket location.", *bucket.Name)
+			continue
+		}
+
+		// Create session for current bucket region as bucket location's session is required for getting bucket tags.
+		if _, ok := regionClients[bucketRegion]; !ok {
+			logging.Logger.Debugf("Creating session - Bucket %s - region %s", *bucket.Name, bucketRegion)
+			awsSession, err := session.NewSession(&awsgo.Config{
+				Region: awsgo.String(bucketRegion)},
+			)
+			if err != nil {
+				return bucketNamesPerRegion, errors.WithStackTrace(err)
+			}
+			regionClients[bucketRegion] = s3.New(awsSession)
+		}
+
+		validTags, excludeReason := hasValidTags(regionClients[bucketRegion], bucket)
+		if !validTags {
+			logging.Logger.Debugf("Skipping - Bucket %s - %s", *bucket.Name, excludeReason)
 			continue
 		}
 
@@ -252,18 +268,18 @@ func nukeEmptyS3Bucket(svc *s3.S3, bucketName *string, verifyBucketDeletion bool
 }
 
 // nukeAllS3Buckets deletes all S3 buckets passed as input
-func nukeAllS3Buckets(session *session.Session, bucketNames []*string, objectBatchSize int) (delCount int, err error) {
-	svc := s3.New(session)
+func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, objectBatchSize int) (delCount int, err error) {
+	svc := s3.New(awsSession)
 	verifyBucketDeletion := true
 
 	if len(bucketNames) == 0 {
-		logging.Logger.Infof("No S3 Buckets to nuke in region %s", *session.Config.Region)
+		logging.Logger.Infof("No S3 Buckets to nuke in region %s", *awsSession.Config.Region)
 		return 0, nil
 	}
 
 	totalCount := len(bucketNames)
 
-	logging.Logger.Infof("Deleting - %d S3 Buckets in region %s", totalCount, *session.Config.Region)
+	logging.Logger.Infof("Deleting - %d S3 Buckets in region %s", totalCount, *awsSession.Config.Region)
 
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
 

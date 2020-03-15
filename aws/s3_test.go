@@ -27,7 +27,7 @@ type TestS3Bucket struct {
 // SetupInfo has test case setup info.
 type SetupInfo struct {
 	region     string
-	session    *session.Session
+	awsSession *session.Session
 	svc        *s3.S3
 	bucketName string
 }
@@ -105,7 +105,7 @@ func (b TestS3Bucket) addObject(s SetupInfo, fileName string, fileBody string) e
 	logging.Logger.Infof("Bucket: %s - adding object: %s - content: %s", b.name, fileName, fileBody)
 
 	reader := strings.NewReader(fileBody)
-	uploader := s3manager.NewUploader(s.session)
+	uploader := s3manager.NewUploader(s.awsSession)
 
 	_, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(b.name),
@@ -119,6 +119,22 @@ func (b TestS3Bucket) addObject(s SetupInfo, fileName string, fileBody string) e
 	return nil
 }
 
+// createSession creates a new session and returns it.
+func createSession(region string) (*session.Session, error) {
+	if region == "" {
+		var err error
+		region, err = getRandomRegion()
+		if err != nil {
+			return nil, err
+		}
+		logging.Logger.Infof("Creating session in region - %s", region)
+	}
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+	return session, err
+}
+
 // setupNukeTests sets up common operations for nuke S3 tests.
 func setupNukeTests(t *testing.T) SetupInfo {
 	var s SetupInfo
@@ -129,14 +145,12 @@ func setupNukeTests(t *testing.T) SetupInfo {
 	}
 	s.region = region
 
-	s.session, err = session.NewSession(&awsgo.Config{
-		Region: awsgo.String(s.region)},
-	)
+	s.awsSession, err = createSession(region)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	s.svc = s3.New(s.session)
+	s.svc = s3.New(s.awsSession)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -150,10 +164,23 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string) {
 
 	// Even if we nuke the bucket during our test - this will serve as a test to nuke non-existent bucket
 	// + also as our cleanup call
-	defer nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, 1000)
+
+	// Please note that we are passing the same session that was used to create the bucket
+	// This is required so that the defer cleanup call always gets the right bucket region
+	// to delete
+	defer nukeAllS3Buckets(s.awsSession, []*string{aws.String(s.bucketName)}, 1000)
+
+	awsSession, err := createSession("")
+	if err != nil {
+		assert.Failf(t, "Failed to create random session", errors.WithStackTrace(err).Error())
+	}
 
 	// Verify that - before creating bucket - it should not exist
-	bucketNamesPerRegion, err := getAllS3Buckets(s.session, time.Now().Add(1*time.Hour*-1), s.bucketName)
+	//
+	// Please note that we are not reusing s.awsSession and creating a random session in a region other
+	// than the one in which the bucket is created - this is useful to test the sceanrio where the user has
+	// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), s.bucketName)
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	} else {
@@ -172,7 +199,7 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string) {
 		assert.Failf(t, "Failed to create test bucket", errors.WithStackTrace(err).Error())
 	}
 
-	bucketNamesPerRegion, err = getAllS3Buckets(s.session, time.Now().Add(1*time.Hour), s.bucketName)
+	bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), s.bucketName)
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	}
@@ -217,16 +244,25 @@ func TestNukeEmptyS3Bucket(t *testing.T) {
 		assert.Failf(t, "Failed to create test bucket", errors.WithStackTrace(err).Error())
 	}
 
-	defer nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, 1000)
+	// Please note that we are passing the same session that was used to create the bucket
+	// This is required so that the defer cleanup call always gets the right bucket region
+	// to delete
+	defer nukeAllS3Buckets(s.awsSession, []*string{aws.String(s.bucketName)}, 1000)
+
+	// Create separate session object as bucket region may not be equal to session region
+	awsSession, err := createSession("")
+	if err != nil {
+		assert.Failf(t, "Failed to create random session", errors.WithStackTrace(err).Error())
+	}
 
 	// Nuke the test bucket
-	_, err = nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, 1000)
+	_, err = nukeAllS3Buckets(s.awsSession, []*string{aws.String(s.bucketName)}, 1000)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
 	// Verify that - after nuking test bucket - it should not exist
-	bucketNamesPerRegion, err := getAllS3Buckets(s.session, time.Now().Add(1*time.Hour), s.bucketName)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), s.bucketName)
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	} else {
@@ -247,7 +283,12 @@ func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs) {
 		assert.Failf(t, "Failed to create test bucket", errors.WithStackTrace(err).Error())
 	}
 
-	defer nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, 1000)
+	awsSession, err := createSession("")
+	if err != nil {
+		assert.Failf(t, "Failed to create random session", errors.WithStackTrace(err).Error())
+	}
+
+	defer nukeAllS3Buckets(s.awsSession, []*string{aws.String(s.bucketName)}, 1000)
 
 	objectVersions := 1
 	if args.isVersioned {
@@ -281,13 +322,13 @@ func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs) {
 	}
 
 	// Nuke the test bucket
-	_, err = nukeAllS3Buckets(s.session, []*string{aws.String(s.bucketName)}, args.objectBatchsize)
+	_, err = nukeAllS3Buckets(s.awsSession, []*string{aws.String(s.bucketName)}, args.objectBatchsize)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
 	// Verify that - after nuking test bucket - it should not exist
-	bucketNamesPerRegion, err := getAllS3Buckets(s.session, time.Now().Add(1*time.Hour), s.bucketName)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), s.bucketName)
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	} else {
