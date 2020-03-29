@@ -206,8 +206,8 @@ func nukeAllS3BucketObjects(svc *s3.S3, bucketName *string, batchSize int) error
 		return nil
 	}
 
-	if batchSize <= 0 || batchSize > 1000 {
-		batchSize = 1000
+	if batchSize < 1 || batchSize > 1000 {
+		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d ", batchSize, 1, 1000)
 	}
 
 	logging.Logger.Infof("Deleting - Bucket: %s - objects: %d", *bucketName, totalObjects)

@@ -159,7 +159,7 @@ func setupNukeTests(t *testing.T) SetupInfo {
 	return s
 }
 
-func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string) {
+func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, shouldMatch bool) {
 	s := setupNukeTests(t)
 
 	// Even if we nuke the bucket during our test - this will serve as a test to nuke non-existent bucket
@@ -205,33 +205,52 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string) {
 	}
 
 	if len(bucketTags) > 0 {
-		if bucketTags[0]["Key"] == "cloud-nuke-excluded" && bucketTags[0]["Value"] == "true" {
-			assert.NotContains(t, bucketNamesPerRegion[s.region], aws.String(s.bucketName))
-			return
+		for _, tag := range bucketTags {
+			if tag["Key"] == "cloud-nuke-excluded" && tag["Value"] == "true" {
+				assert.NotContains(t, bucketNamesPerRegion[s.region], aws.String(s.bucketName))
+			}
 		}
 	}
-	assert.Contains(t, bucketNamesPerRegion[s.region], aws.String(s.bucketName))
+
+	if shouldMatch {
+		assert.Contains(t, bucketNamesPerRegion[s.region], aws.String(s.bucketName))
+	}
 }
 
-func TestListEmptyS3BucketWithoutFilterTag(t *testing.T) {
+func TestList_EmptyS3Bucket_WithoutFilterTag(t *testing.T) {
 	testListS3BucketsWrapper(t, []map[string]string{
 		{
 			"Key":   "testKey",
 			"Value": "testValue",
 		},
-	})
+	}, true)
 }
 
-func TestListEmptyS3BucketWithFilterTag(t *testing.T) {
+func TestList_EmptyS3Bucket_WithFilterTag(t *testing.T) {
 	testListS3BucketsWrapper(t, []map[string]string{
 		{
 			"Key":   "cloud-nuke-excluded",
 			"Value": "true",
 		},
-	})
+	}, false)
+
+	testListS3BucketsWrapper(t, []map[string]string{
+		{
+			"Key":   "test-key-1",
+			"Value": "test-value-1",
+		},
+		{
+			"Key":   "test-key-2",
+			"Value": "test-value-2",
+		},
+		{
+			"Key":   "cloud-nuke-excluded",
+			"Value": "true",
+		},
+	}, false)
 }
 
-func TestNukeEmptyS3Bucket(t *testing.T) {
+func TestNuke_EmptyS3Bucket(t *testing.T) {
 	s := setupNukeTests(t)
 
 	// Create test bucket
@@ -270,7 +289,7 @@ func TestNukeEmptyS3Bucket(t *testing.T) {
 	}
 }
 
-func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs) {
+func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs, shouldNuke bool) {
 	s := setupNukeTests(t)
 
 	// Create test bucket
@@ -322,9 +341,17 @@ func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs) {
 	}
 
 	// Nuke the test bucket
-	_, err = nukeAllS3Buckets(s.awsSession, []*string{aws.String(s.bucketName)}, args.objectBatchsize)
+	delCount, err := nukeAllS3Buckets(s.awsSession, []*string{aws.String(s.bucketName)}, args.objectBatchsize)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	// If we should not nuke the bucket then deleted bucket count should be 0.
+	if !shouldNuke {
+		if delCount != 0 {
+			assert.Failf(t, "Should not nuke but got delCount > 0", "delCount: %d", delCount)
+		}
+		return
 	}
 
 	// Verify that - after nuking test bucket - it should not exist
@@ -336,48 +363,63 @@ func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs) {
 	}
 }
 
-func TestNukeS3BucketWithoutVersioningAllObjects(t *testing.T) {
-	// testNukeS3BucketWrapper(t, false, 10, 1000)
+func TestNuke_S3Bucket_WithoutVersioning_AllObjects(t *testing.T) {
 	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
 		isVersioned:       false,
 		checkDeleteMarker: false,
 		objectCount:       10,
 		objectBatchsize:   1000,
-	})
+	}, true)
 }
 
-func TestNukeS3BucketWithoutVersioningBatchObjects(t *testing.T) {
+func TestNuke_S3Bucket_WithoutVersioning_BatchObjects(t *testing.T) {
 	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
 		isVersioned:       false,
 		checkDeleteMarker: false,
 		objectCount:       10,
 		objectBatchsize:   2,
-	})
+	}, true)
 }
 
-func TestNukeS3BucketWithVersioningAllObjects(t *testing.T) {
+func TestNuke_S3Bucket_WithoutVersioning_BatchObjects_InvalidBatchSize(t *testing.T) {
+	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
+		isVersioned:       false,
+		checkDeleteMarker: false,
+		objectCount:       2,
+		objectBatchsize:   1001,
+	}, false)
+
+	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
+		isVersioned:       false,
+		checkDeleteMarker: false,
+		objectCount:       2,
+		objectBatchsize:   0,
+	}, false)
+}
+
+func TestNuke_S3Bucket_WithVersioning_AllObjects(t *testing.T) {
 	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
 		isVersioned:       true,
 		checkDeleteMarker: false,
 		objectCount:       10,
 		objectBatchsize:   1000,
-	})
+	}, true)
 }
 
-func TestNukeS3BucketWithVersioningBatchObjects(t *testing.T) {
+func TestNuke_S3Bucket_WithVersioning_BatchObjects(t *testing.T) {
 	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
 		isVersioned:       true,
 		checkDeleteMarker: false,
 		objectCount:       10,
 		objectBatchsize:   3,
-	})
+	}, true)
 }
 
-func TestNukeS3BucketWithVersioningDeleteMarker(t *testing.T) {
+func TestNuke_S3Bucket_WithVersioning_DeleteMarker(t *testing.T) {
 	testNukeS3BucketWrapper(t, &TestNukeS3BucketArgs{
 		isVersioned:       true,
 		checkDeleteMarker: true,
 		objectCount:       10,
 		objectBatchsize:   1000,
-	})
+	}, true)
 }
