@@ -61,7 +61,9 @@ func hasValidTags(svc *s3.S3, bucket *s3.Bucket) (bool, string) {
 	bucketTags, err := getS3BucketTags(svc, bucket.Name)
 	if len(bucketTags) > 0 {
 		for _, tagSet := range bucketTags {
-			if tagSet["Key"] == "cloud-nuke-excluded" && tagSet["Value"] == "true" {
+			key := strings.ToLower(tagSet["Key"])
+			value := strings.ToLower(tagSet["Value"])
+			if key == "cloud-nuke-excluded" && value == "true" {
 				return false, "matched tag filter"
 			}
 		}

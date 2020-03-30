@@ -206,7 +206,9 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, shou
 
 	if len(bucketTags) > 0 {
 		for _, tag := range bucketTags {
-			if tag["Key"] == "cloud-nuke-excluded" && tag["Value"] == "true" {
+			key := strings.ToLower(tag["Key"])
+			value := strings.ToLower(tag["Value"])
+			if key == "cloud-nuke-excluded" && value == "true" {
 				assert.NotContains(t, bucketNamesPerRegion[s.region], aws.String(s.bucketName))
 			}
 		}
@@ -227,6 +229,7 @@ func TestList_EmptyS3Bucket_WithoutFilterTag(t *testing.T) {
 }
 
 func TestList_EmptyS3Bucket_WithFilterTag(t *testing.T) {
+	// Test single filter key
 	testListS3BucketsWrapper(t, []map[string]string{
 		{
 			"Key":   "cloud-nuke-excluded",
@@ -234,6 +237,7 @@ func TestList_EmptyS3Bucket_WithFilterTag(t *testing.T) {
 		},
 	}, false)
 
+	// Test filter key with other keys + validate multi case filter key
 	testListS3BucketsWrapper(t, []map[string]string{
 		{
 			"Key":   "test-key-1",
@@ -244,8 +248,8 @@ func TestList_EmptyS3Bucket_WithFilterTag(t *testing.T) {
 			"Value": "test-value-2",
 		},
 		{
-			"Key":   "cloud-nuke-excluded",
-			"Value": "true",
+			"Key":   "ClouD-NukE-ExcludeD",
+			"Value": "TruE",
 		},
 	}, false)
 }
