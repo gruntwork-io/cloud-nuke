@@ -8,6 +8,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/gruntwork-io/gruntwork-cli/shell"
 	"github.com/urfave/cli"
@@ -30,15 +31,19 @@ func CreateCli(version string) *cli.App {
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
 					Name:  "region",
-					Usage: "regions to include",
+					Usage: "Regions to include. Include multiple times if more than one.",
 				},
 				cli.StringSliceFlag{
 					Name:  "exclude-region",
-					Usage: "regions to exclude",
+					Usage: "Regions to exclude. Include multiple times if more than one.",
 				},
 				cli.StringSliceFlag{
 					Name:  "resource-type",
-					Usage: "Resource types to nuke",
+					Usage: "Resource types to nuke. Include multiple times if more than one.",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-resource-type",
+					Usage: "Resource types to exclude from nuking. Include multiple times if more than one.",
 				},
 				cli.BoolFlag{
 					Name:  "list-resource-types",
@@ -110,7 +115,14 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	resourceTypes := c.StringSlice("resource-type")
-	var invalidresourceTypes []string
+	excludeResourceTypes := c.StringSlice("exclude-resource-type")
+	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
+		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type.")
+	}
+
+	// Var check to make sure only allowed resource types are included in the --resource-type or --exclude-resource-type
+	// args.
+	invalidresourceTypes := []string{}
 	for _, resourceType := range resourceTypes {
 		if resourceType == "all" {
 			continue
@@ -120,9 +132,37 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
+	for _, resourceType := range excludeResourceTypes {
+		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
+			invalidresourceTypes = append(invalidresourceTypes, resourceType)
+		}
+	}
+
 	if len(invalidresourceTypes) > 0 {
 		msg := "Try --list-resource-types to get list of valid resource types."
 		return fmt.Errorf("Invalid resourceTypes %s specified: %s", invalidresourceTypes, msg)
+	}
+
+	// Handle exclude resource types by going through the list of all types and only include those that are not
+	// mentioned in the exclude list.
+	if len(excludeResourceTypes) > 0 {
+		for _, resourceType := range allResourceTypes {
+			if !collections.ListContainsElement(excludeResourceTypes, resourceType) {
+				resourceTypes = append(resourceTypes, resourceType)
+			}
+		}
+	}
+
+	// Log which resource types will be nuked
+	logging.Logger.Info("The following resources types will be nuked:")
+	if len(resourceTypes) > 0 {
+		for _, resourceType := range resourceTypes {
+			logging.Logger.Infof("- %s", resourceType)
+		}
+	} else {
+		for _, resourceType := range allResourceTypes {
+			logging.Logger.Infof("- %s", resourceType)
+		}
 	}
 
 	regions, err := aws.GetEnabledRegions()
