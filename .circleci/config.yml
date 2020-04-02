@@ -52,7 +52,7 @@ jobs:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
           command: |
-            # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types
+            # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in the AWS account we use at Gruntwork for testing (Phx DevOps)
             # (e.g., S3)
             go run main.go aws \
               --older-than 1h \
