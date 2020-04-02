@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -182,6 +183,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 	count := 1
 	totalRegions := len(targetRegions)
+	var resourcesCache = map[string]map[string][]*string{}
+
 	for _, region := range targetRegions {
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
@@ -393,6 +396,46 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End RDS DB Clusters
 
+		// S3 Buckets
+		s3Buckets := S3Buckets{}
+		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
+			var bucketNamesPerRegion map[string][]*string
+
+			// AWS S3 buckets list operation lists all buckets irrespective of regions.
+			// For each bucket we have to make a separate call to find the bucket region.
+			// Hence for x buckets and a total of y target regions - we need to make:
+			// (x + 1) * y calls i.e. 1 call to list all x buckets, x calls to find out
+			// each bucket's region and repeat the process for each of the y regions.
+
+			// getAllS3Buckets returns a map of regions to buckets and we call it only once -
+			// thereby reducing total calls from (x + 1) * y to only (x + 1) for the first region -
+			// followed by a cache lookup for rest of the regions.
+
+			// Cache lookup to check if we already obtained bucket names per region
+			bucketNamesPerRegion, ok := resourcesCache["S3"]
+
+			if !ok {
+				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, "")
+				if err != nil {
+					return nil, errors.WithStackTrace(err)
+				}
+
+				resourcesCache["S3"] = make(map[string][]*string)
+
+				for bucketRegion, bucketName := range bucketNamesPerRegion {
+					resourcesCache["S3"][bucketRegion] = bucketName
+				}
+			}
+
+			bucketNames := bucketNamesPerRegion[region]
+
+			if len(bucketNamesPerRegion[region]) > 0 {
+				s3Buckets.Names = aws.StringValueSlice(bucketNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, s3Buckets)
+			}
+		}
+		// End S3 Buckets
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -417,6 +460,7 @@ func ListResourceTypes() []string {
 		ECSServices{}.ResourceName(),
 		EKSClusters{}.ResourceName(),
 		DBInstances{}.ResourceName(),
+		S3Buckets{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
