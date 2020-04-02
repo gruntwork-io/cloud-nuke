@@ -30,8 +30,8 @@ jobs:
       - attach_workspace:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
-          command: run-go-tests --circle-ci-2
-          no_output_timeout: 25m
+          command: run-go-tests --circle-ci-2 --timeout 45m
+          no_output_timeout: 45m
 
   build:
     <<: *defaults
@@ -52,8 +52,8 @@ jobs:
           at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
           command: |
-            # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in the AWS account we use at Gruntwork for testing (Phx DevOps)
-            # (e.g., S3)
+            # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
+            # the AWS account we use at Gruntwork for testing (Phx DevOps) (e.g., S3)
             go run main.go aws \
               --older-than 1h \
               --force \
@@ -70,6 +70,8 @@ jobs:
           command: |
             export AWS_ACCESS_KEY_ID=$SANDBOX_AWS_ACCESS_KEY_ID
             export AWS_SECRET_ACCESS_KEY=$SANDBOX_AWS_SECRET_ACCESS_KEY
+            # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
+            # the AWS account we use at Gruntwork for testing (Sandbox) (e.g., S3)
             go run main.go aws \
               --older-than 24h \
               --force \

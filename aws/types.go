@@ -4,6 +4,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
+const AwsResourceExclusionTagKey = "cloud-nuke-excluded"
+
 type AwsAccountResources struct {
 	Resources map[string]AwsRegionResource
 }
