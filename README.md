@@ -102,6 +102,19 @@ will search and target only `ec2` and `ami` resources. The specified resource ty
 i.e. it should be present in the `--list-resource-types` output. Using `--resource-type` also speeds up search because
 we are searching only for specific resource types.
 
+### Exclude terminating specific resource types
+
+Just like you can select which resources to terminate using `--resource-type`, you can select which resources to skip using
+`--exclude-resource-type` flag:
+
+```shell
+cloud-nuke aws --exclude-resource-type s3 --exclude-resource-type ec2
+```
+
+This will terminate all resource types other than S3 and EC2.
+
+`--resource-type` and `--exclude-resource-type` flags cannot be specified together i.e. they are mutually exclusive.
+
 ### Dry run mode
 
 If you want to check what resources are going to be targeted without actually terminating them, you can use the
