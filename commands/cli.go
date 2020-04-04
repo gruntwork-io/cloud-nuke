@@ -11,6 +11,7 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/gruntwork-io/gruntwork-cli/shell"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -62,6 +63,12 @@ func CreateCli(version string) *cli.App {
 					Name:  "force",
 					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
 				},
+				cli.StringFlag{
+					Name:   "log-level",
+					Value:  "info",
+					Usage:  "Set log level",
+					EnvVar: "LOG_LEVEL",
+				},
 			},
 		}, {
 			Name:   "defaults-aws",
@@ -105,6 +112,14 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 }
 
 func awsNuke(c *cli.Context) error {
+	logLevel := c.String("log-level")
+
+	parsedLogLevel, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		return fmt.Errorf("Invalid log level - %s - %s", logLevel, err)
+	}
+	logging.Logger.Level = parsedLogLevel
+
 	allResourceTypes := aws.ListResourceTypes()
 
 	if c.Bool("list-resource-types") {
