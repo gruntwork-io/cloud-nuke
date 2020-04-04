@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -56,26 +57,34 @@ func getS3BucketTags(svc *s3.S3, bucketName *string) ([]map[string]string, error
 }
 
 // hasValidTags checks if bucket tags permit it to be in the deletion list.
-func hasValidTags(svc *s3.S3, bucket *s3.Bucket) (bool, string) {
+func hasValidTags(bucketTags []map[string]string) bool {
 	// Exclude deletion of any buckets with cloud-nuke-excluded tags
-	bucketTags, err := getS3BucketTags(svc, bucket.Name)
 	if len(bucketTags) > 0 {
 		for _, tagSet := range bucketTags {
 			key := strings.ToLower(tagSet["Key"])
 			value := strings.ToLower(tagSet["Value"])
 			if key == AwsResourceExclusionTagKey && value == "true" {
-				return false, "matched tag filter"
+				return false
 			}
 		}
 	}
-	if err != nil {
-		return false, fmt.Sprintf("Failed to get bucket tags - %s", err.Error())
-	}
-	return true, ""
+	return true
+}
+
+// S3Bucket - represents S3 bucket
+type S3Bucket struct {
+	Name           *string
+	CreationDate   *time.Time
+	Region         *string
+	Tags           []map[string]string
+	Error          error
+	InTargetRegion bool
 }
 
 // getAllS3Buckets lists and returns a map of per region AWS S3 buckets which were created before excludeAfter
-func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time, bucketNameSubStr string) (map[string][]*string, error) {
+func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
+	targetRegions []string, batchSize int, bucketNameSubStr string) (map[string][]*string, error) {
+
 	svc := s3.New(awsSession)
 
 	input := &s3.ListBucketsInput{}
@@ -88,53 +97,129 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time, bucket
 	var bucketNamesPerRegion = make(map[string][]*string)
 	var regionClients = make(map[string]*s3.S3)
 
-	for _, bucket := range output.Buckets {
-		logging.Logger.Debugf("Checking - Bucket %s", *bucket.Name)
+	for _, region := range targetRegions {
+		logging.Logger.Debugf("S3 - creating session - region %s", region)
+		awsSession, err := session.NewSession(&awsgo.Config{
+			Region: awsgo.String(region)},
+		)
+		if err != nil {
+			return bucketNamesPerRegion, errors.WithStackTrace(err)
+		}
+		regionClients[region] = s3.New(awsSession)
+	}
 
-		if len(bucketNameSubStr) > 0 {
-			if !strings.Contains(*bucket.Name, bucketNameSubStr) {
+	totalBuckets := len(output.Buckets)
+	if totalBuckets == 0 {
+		return bucketNamesPerRegion, nil
+	}
+
+	if batchSize <= 0 {
+		return nil, fmt.Errorf("Invalid batchsize - %d - should be > 0", batchSize)
+	}
+
+	totalBatches := totalBuckets / batchSize
+	if totalBuckets%batchSize != 0 {
+		totalBatches = totalBatches + 1
+	}
+	batchCount := 1
+
+	// Batch the get operation
+	for i := 0; i < totalBuckets; i += batchSize {
+		j := i + batchSize
+		if j > totalBuckets {
+			j = totalBuckets
+		}
+
+		logging.Logger.Infof("Getting - %d-%d buckets of batch %d/%d", i+1, j, batchCount, totalBatches)
+
+		targetBuckets := output.Buckets[i:j]
+
+		var bucketCh = make(chan *S3Bucket, len(targetBuckets))
+		var wg sync.WaitGroup
+
+		for _, bucket := range targetBuckets {
+			if len(bucketNameSubStr) > 0 && !strings.Contains(*bucket.Name, bucketNameSubStr) {
 				logging.Logger.Debugf("Skipping - Bucket %s - failed substring filter - %s", *bucket.Name, bucketNameSubStr)
 				continue
 			}
+
+			wg.Add(1)
+			go func(bucket *s3.Bucket) {
+				defer wg.Done()
+				if err := getBucketInfo(svc, bucket, regionClients, bucketCh); err != nil {
+					logging.Logger.Warnf("Skipping - Bucket %s - Failed to get info - %s", *bucket.Name, err)
+				}
+			}(bucket)
 		}
 
-		if !excludeAfter.After(*bucket.CreationDate) {
-			logging.Logger.Debugf("Skipping - Bucket %s - matched CreationDate filter", *bucket.Name)
-			continue
-		}
+		go func() {
+			wg.Wait()
+			close(bucketCh)
+		}()
 
-		bucketRegion, err := getS3BucketRegion(svc, bucket.Name)
-		if err != nil {
-			logging.Logger.Warnf("Skipping - Bucket %s - Failed to get bucket location.", *bucket.Name)
-			continue
-		}
-
-		// Create session for current bucket region as bucket location's session is required for getting bucket tags.
-		if _, ok := regionClients[bucketRegion]; !ok {
-			logging.Logger.Debugf("Creating session - Bucket %s - region %s", *bucket.Name, bucketRegion)
-			awsSession, err := session.NewSession(&awsgo.Config{
-				Region: awsgo.String(bucketRegion)},
-			)
-			if err != nil {
-				return bucketNamesPerRegion, errors.WithStackTrace(err)
+		for b := range bucketCh {
+			if !b.InTargetRegion {
+				logging.Logger.Debugf("Skipping - Bucket %s - region - %s - not in target regions", *b.Name, *b.Region)
+				continue
 			}
-			regionClients[bucketRegion] = s3.New(awsSession)
+
+			if !excludeAfter.After(*b.CreationDate) {
+				logging.Logger.Debugf("Skipping - Bucket %s - matched CreationDate filter", *b.Name)
+				continue
+			}
+
+			if !hasValidTags(b.Tags) {
+				logging.Logger.Debugf("Skipping - Bucket %s - matched tag filter", *b.Name)
+				continue
+			}
+
+			if _, ok := bucketNamesPerRegion[*b.Region]; !ok {
+				bucketNamesPerRegion[*b.Region] = []*string{}
+			}
+
+			bucketNamesPerRegion[*b.Region] = append(bucketNamesPerRegion[*b.Region], b.Name)
 		}
 
-		validTags, excludeReason := hasValidTags(regionClients[bucketRegion], bucket)
-		if !validTags {
-			logging.Logger.Debugf("Skipping - Bucket %s - %s", *bucket.Name, excludeReason)
-			continue
-		}
-
-		if _, ok := bucketNamesPerRegion[bucketRegion]; !ok {
-			bucketNamesPerRegion[bucketRegion] = []*string{}
-		}
-
-		bucketNamesPerRegion[bucketRegion] = append(bucketNamesPerRegion[bucketRegion], bucket.Name)
+		batchCount++
 	}
 
 	return bucketNamesPerRegion, nil
+}
+
+func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, regionClients map[string]*s3.S3, bucketCh chan<- *S3Bucket) error {
+	var b S3Bucket
+	b.Name = bucket.Name
+	b.CreationDate = bucket.CreationDate
+
+	bucketRegion, err := getS3BucketRegion(svc, b.Name)
+	if err != nil {
+		b.Error = err
+		return err
+	}
+	b.Region = &bucketRegion
+
+	for region := range regionClients {
+		if region == *b.Region {
+			b.InTargetRegion = true
+			break
+		}
+	}
+
+	// Bucket not in any of the target regions - skip checking tags
+	if !b.InTargetRegion {
+		bucketCh <- &b
+		return nil
+	}
+
+	bucketTags, err := getS3BucketTags(regionClients[*b.Region], b.Name)
+	if err != nil {
+		b.Error = err
+		return err
+	}
+	b.Tags = bucketTags
+
+	bucketCh <- &b
+	return nil
 }
 
 func getS3BucketObjects(svc *s3.S3, bucketName *string, isVersioned bool) ([]*s3.ObjectIdentifier, error) {
@@ -209,7 +294,7 @@ func nukeAllS3BucketObjects(svc *s3.S3, bucketName *string, batchSize int) error
 	}
 
 	if batchSize < 1 || batchSize > 1000 {
-		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d ", batchSize, 1, 1000)
+		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d", batchSize, 1, 1000)
 	}
 
 	logging.Logger.Infof("Deleting - Bucket: %s - objects: %d", *bucketName, totalObjects)

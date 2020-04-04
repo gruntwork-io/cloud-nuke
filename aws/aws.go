@@ -415,7 +415,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			bucketNamesPerRegion, ok := resourcesCache["S3"]
 
 			if !ok {
-				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, "")
+				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, targetRegions, s3Buckets.MaxConcurrentGetSize(), "")
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
