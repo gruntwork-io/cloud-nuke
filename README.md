@@ -129,7 +129,13 @@ cloud-nuke aws --resource-type ec2 --dry-run
 You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:
 
 ```shell
-cloud-nuke aws --log-level warn
+cloud-nuke aws --log-level debug
+```
+
+OR
+
+```shell
+LOG_LEVEL=debug cloud-nuke aws
 ```
 
 Default value is - `info`. Acceptable values are `debug, info, warn, error, panic, fatal, trace` as per [logrus log level parser](https://github.com/sirupsen/logrus/blob/master/logrus.go#L25).
