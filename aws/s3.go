@@ -20,7 +20,7 @@ import (
 // getS3BucketRegion returns S3 Bucket region.
 func getS3BucketRegion(svc *s3.S3, bucketName string) (string, error) {
 	input := &s3.GetBucketLocationInput{
-		Bucket: &bucketName,
+		Bucket: aws.String(bucketName),
 	}
 
 	result, err := svc.GetBucketLocation(input)
@@ -39,7 +39,7 @@ func getS3BucketRegion(svc *s3.S3, bucketName string) (string, error) {
 // getS3BucketTags returns S3 Bucket tags.
 func getS3BucketTags(svc *s3.S3, bucketName string) ([]map[string]string, error) {
 	input := &s3.GetBucketTaggingInput{
-		Bucket: &bucketName,
+		Bucket: aws.String(bucketName),
 	}
 
 	tags := []map[string]string{}
@@ -197,7 +197,7 @@ func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfte
 		if _, ok := bucketNamesPerRegion[bucketData.Region]; !ok {
 			bucketNamesPerRegion[bucketData.Region] = []*string{}
 		}
-		bucketNamesPerRegion[bucketData.Region] = append(bucketNamesPerRegion[bucketData.Region], &bucketData.Name)
+		bucketNamesPerRegion[bucketData.Region] = append(bucketNamesPerRegion[bucketData.Region], aws.String(bucketData.Name))
 	}
 	return bucketNamesPerRegion, nil
 }
@@ -205,8 +205,8 @@ func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfte
 // getBucketInfo populates the local S3Bucket struct for the passed AWS bucket
 func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, regionClients map[string]*s3.S3, bucketCh chan<- *S3Bucket) {
 	var bucketData S3Bucket
-	bucketData.Name = *bucket.Name
-	bucketData.CreationDate = *bucket.CreationDate
+	bucketData.Name = aws.StringValue(bucket.Name)
+	bucketData.CreationDate = aws.TimeValue(bucket.CreationDate)
 
 	bucketRegion, err := getS3BucketRegion(svc, bucketData.Name)
 	if err != nil {
