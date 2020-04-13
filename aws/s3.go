@@ -185,6 +185,8 @@ func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfte
 		close(bucketCh)
 	}()
 
+	// Start reading from the channel as soon as the data comes in - so that skip
+	// messages are shown to the user as soon as possible
 	for bucketData := range bucketCh {
 		if bucketData.Error != nil {
 			logging.Logger.Warnf("Skipping - Bucket %s - region - %s - error: %s", bucketData.Name, bucketData.Region, bucketData.Error)
