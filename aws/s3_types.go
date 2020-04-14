@@ -23,6 +23,12 @@ func (bucket S3Buckets) MaxBatchSize() int {
 	return 500
 }
 
+// MaxConcurrentGetSize decides how many S3 buckets to fetch in one call.
+func (bucket S3Buckets) MaxConcurrentGetSize() int {
+	// To speed up bucket fetch part.
+	return 100
+}
+
 // ObjectMaxBatchSize decides how many unique objects of an S3 bucket (object + version = unique object) to delete in one call.
 func (bucket S3Buckets) ObjectMaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle

@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -14,8 +15,23 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMain(m *testing.M) {
+	logLevel := os.Getenv("LOG_LEVEL")
+	if len(logLevel) > 0 {
+		parsedLogLevel, err := logrus.ParseLevel(logLevel)
+		if err != nil {
+			logging.Logger.Errorf("Invalid log level - %s - %s", logLevel, err)
+			os.Exit(1)
+		}
+		logging.Logger.Level = parsedLogLevel
+	}
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
 
 // TestS3Bucket represents a test S3 bucket.
 type TestS3Bucket struct {
@@ -60,21 +76,22 @@ func (b TestS3Bucket) create(svc *s3.S3) error {
 
 	// Add default tag for testing
 	var awsTagSet []*s3.Tag
-	awsTagSet = append(awsTagSet, &s3.Tag{Key: aws.String("cloud-nuke-test"), Value: aws.String("true")})
 
 	for _, tagSet := range b.tags {
 		awsTagSet = append(awsTagSet, &s3.Tag{Key: aws.String(tagSet["Key"]), Value: aws.String(tagSet["Value"])})
 	}
 
-	input := &s3.PutBucketTaggingInput{
-		Bucket: aws.String(b.name),
-		Tagging: &s3.Tagging{
-			TagSet: awsTagSet,
-		},
-	}
-	_, err = svc.PutBucketTagging(input)
-	if err != nil {
-		return err
+	if len(awsTagSet) > 0 {
+		input := &s3.PutBucketTaggingInput{
+			Bucket: aws.String(b.name),
+			Tagging: &s3.Tagging{
+				TagSet: awsTagSet,
+			},
+		}
+		_, err = svc.PutBucketTagging(input)
+		if err != nil {
+			return err
+		}
 	}
 
 	if b.isVersioned {
@@ -159,7 +176,7 @@ func setupNukeTests(t *testing.T) SetupInfo {
 	return s
 }
 
-func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, shouldMatch bool) {
+func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, batchSize int, shouldMatch bool) {
 	s := setupNukeTests(t)
 
 	// Even if we nuke the bucket during our test - this will serve as a test to nuke non-existent bucket
@@ -175,12 +192,21 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, shou
 		assert.Failf(t, "Failed to create random session", errors.WithStackTrace(err).Error())
 	}
 
+	targetRegions := []string{s.region}
+
 	// Verify that - before creating bucket - it should not exist
 	//
 	// Please note that we are not reusing s.awsSession and creating a random session in a region other
 	// than the one in which the bucket is created - this is useful to test the sceanrio where the user has
 	// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
-	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), s.bucketName)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), targetRegions, s.bucketName, batchSize)
+	if batchSize < 0 {
+		if err == nil {
+			assert.Fail(t, "Did not fail for invalid batch size")
+		}
+		return
+	}
+
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	} else {
@@ -191,7 +217,7 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, shou
 	bucket := TestS3Bucket{
 		name: s.bucketName,
 	}
-	if len(bucketTags) > 0 {
+	if bucketTags != nil && len(bucketTags) > 0 {
 		bucket.tags = bucketTags
 	}
 	err = bucket.create(s.svc)
@@ -199,12 +225,12 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, shou
 		assert.Failf(t, "Failed to create test bucket", errors.WithStackTrace(err).Error())
 	}
 
-	bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), s.bucketName)
+	bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), targetRegions, s.bucketName, batchSize)
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	}
 
-	if len(bucketTags) > 0 {
+	if bucketTags != nil && len(bucketTags) > 0 {
 		for _, tag := range bucketTags {
 			key := strings.ToLower(tag["Key"])
 			value := strings.ToLower(tag["Value"])
@@ -219,23 +245,27 @@ func testListS3BucketsWrapper(t *testing.T, bucketTags []map[string]string, shou
 	}
 }
 
+func TestList_EmptyS3Bucket_NoTags(t *testing.T) {
+	testListS3BucketsWrapper(t, []map[string]string{}, 10, true)
+}
+
 func TestList_EmptyS3Bucket_WithoutFilterTag(t *testing.T) {
 	testListS3BucketsWrapper(t, []map[string]string{
 		{
 			"Key":   "testKey",
 			"Value": "testValue",
 		},
-	}, true)
+	}, 10, true)
 }
 
 func TestList_EmptyS3Bucket_WithFilterTag(t *testing.T) {
 	// Test single filter key
 	testListS3BucketsWrapper(t, []map[string]string{
 		{
-			"Key":   "cloud-nuke-excluded",
+			"Key":   AwsResourceExclusionTagKey,
 			"Value": "true",
 		},
-	}, false)
+	}, 10, false)
 
 	// Test filter key with other keys + validate multi case filter key
 	testListS3BucketsWrapper(t, []map[string]string{
@@ -248,10 +278,14 @@ func TestList_EmptyS3Bucket_WithFilterTag(t *testing.T) {
 			"Value": "test-value-2",
 		},
 		{
-			"Key":   "ClouD-NukE-ExcludeD",
+			"Key":   strings.ToTitle(AwsResourceExclusionTagKey),
 			"Value": "TruE",
 		},
-	}, false)
+	}, 10, false)
+}
+
+func TestList_EmptyS3Bucket_InvalidBatchSize(t *testing.T) {
+	testListS3BucketsWrapper(t, nil, -1, false)
 }
 
 func TestNuke_EmptyS3Bucket(t *testing.T) {
@@ -285,7 +319,7 @@ func TestNuke_EmptyS3Bucket(t *testing.T) {
 	}
 
 	// Verify that - after nuking test bucket - it should not exist
-	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), s.bucketName)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{s.region}, s.bucketName, 100)
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	} else {
@@ -359,7 +393,7 @@ func testNukeS3BucketWrapper(t *testing.T, args *TestNukeS3BucketArgs, shouldNuk
 	}
 
 	// Verify that - after nuking test bucket - it should not exist
-	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), s.bucketName)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{s.region}, s.bucketName, 100)
 	if err != nil {
 		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 	} else {
