@@ -176,9 +176,11 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string,
+func GetAllResources(
+	targetRegions []string, excludeAfter time.Time, resourceTypes []string,
 	resourceNamePattern string, excludeResourceNamePattern string,
-	requireResourceTag string, excludeResourceTag string) (*AwsAccountResources, error) {
+	requireResourceTag string, excludeResourceTag string,
+	) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
