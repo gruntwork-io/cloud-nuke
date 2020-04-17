@@ -238,14 +238,14 @@ func getBucketInfo(
 		return
 	}
 	bucketData.Tags = bucketTags
-	if !awsgo.HasValidTags(bucketData.Tags, requireResourceTag, excludeResourceTag) {
+	if !HasValidTags(bucketData.Tags, requireResourceTag, excludeResourceTag) {
 		bucketData.InvalidReason = "Matched tag filter"
 		bucketCh <- &bucketData
 		return
 	}
 
 	// Check if the bucket has valid name
-	if !awsgo.HasValidName(bucketData.Tags, resourceNamePattern, excludeResourceNamePattern) {
+	if !HasValidName(bucketData.Tags, resourceNamePattern, excludeResourceNamePattern) {
 		bucketData.InvalidReason = "Matched name filter"
 		bucketCh <- &bucketData
 		return
