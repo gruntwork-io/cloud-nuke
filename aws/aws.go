@@ -178,7 +178,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 // GetAllResources - Lists all aws resources
 func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string,
 	resourceNamePattern string, excludeResourceNamePattern string,
-	resourceTag string, excludeResourceTag string) (*AwsAccountResources, error) {
+	requireResourceTag string, excludeResourceTag string) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
@@ -209,7 +209,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			groupNames, err := getAllAutoScalingGroups(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -227,7 +227,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			configNames, err := getAllLaunchConfigurations(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -245,7 +245,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			elbNames, err := getAllElbInstances(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -263,7 +263,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			elbv2Arns, err := getAllElbv2Instances(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -281,7 +281,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			instanceIds, err := getAllEc2Instances(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -299,7 +299,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			volumeIds, err := getAllEbsVolumes(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -317,7 +317,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			allocationIds, err := getAllEIPAddresses(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -335,7 +335,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			imageIds, err := getAllAMIs(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -353,7 +353,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			snapshotIds, err := getAllSnapshots(
 				session, region, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -371,7 +371,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			clusterArns, err := getAllEcsClusters(
 				session,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -380,7 +380,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				serviceArns, serviceClusterMap, err := getAllEcsServices(
 					session, clusterArns, excludeAfter,
 					resourceNamePattern, excludeResourceNamePattern,
-					resourceTag, excludeResourceTag
+					requireResourceTag, excludeResourceTag
 				)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
@@ -399,7 +399,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				eksClusterNames, err := getAllEksClusters(
 					session, excludeAfter,
 					resourceNamePattern, excludeResourceNamePattern,
-					resourceTag, excludeResourceTag
+					requireResourceTag, excludeResourceTag
 				)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
@@ -418,7 +418,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			instanceNames, err := getAllRdsInstances(
 				session, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 
 			if err != nil {
@@ -440,7 +440,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			clustersNames, err := getAllRdsClusters(
 				session, excludeAfter,
 				resourceNamePattern, excludeResourceNamePattern,
-				resourceTag, excludeResourceTag
+				requireResourceTag, excludeResourceTag
 			)
 
 			if err != nil {
@@ -476,7 +476,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				bucketNamesPerRegion, err = getAllS3Buckets(
 					session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(),
 					resourceNamePattern, excludeResourceNamePattern,
-					resourceTag, excludeResourceTag
+					requireResourceTag, excludeResourceTag
 				)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
@@ -526,6 +526,69 @@ func ListResourceTypes() []string {
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
+}
+
+// HasValidTags checks if resource tags permit it to be in the deletion list.
+func HasValidTags(
+	resourceTags []map[string]string,
+	requireResourceTag, excludeResourceTag
+	) bool {
+	// In addition to provided tag filters, always exclude objects with `cloud-nuke-excluded` tags
+	if len(requireResourceTag) > 0 {
+		match := false
+		if len(bucketTags) > 0 {
+			// Check required tag
+			for _, tagSet := range bucketTags {
+				key := strings.ToLower(tagSet["Key"])
+				value := strings.ToLower(tagSet["Value"])
+				if key == excludeResourceTag && value == "true" {
+					// TODO: Split tag filter by ":" and check both the value and the tag
+					match := true
+				}
+			}
+		}
+		if !match {
+			return false
+		}
+	}
+	if len(bucketTags) > 0 {
+		// Check tag exclusions
+		for _, tagSet := range bucketTags {
+			key := strings.ToLower(tagSet["Key"])
+			value := strings.ToLower(tagSet["Value"])
+			if key == AwsResourceExclusionTagKey && value == "true" {
+				// Hard-coded exclusion for `cloud-nuke-excluded` tag
+				return false
+			}
+			if excludeResourceTag > 0 {
+				if key == excludeResourceTag && value == "true" {
+					// TODO: Split tag filter by ":" and check both the value and the tag
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// HasValidName checks if resource name patterns permit it to be in the deletion list.
+func HasValidName(
+	resourceName string, resourceNamePattern string, excludeResourceNamePattern string
+	) bool {
+	// Exclude deletion of any buckets with non-matching names
+	if len(resourceNamePattern) > 0 {
+		matched, err := regexp.Match(resourceNamePattern, resourceName)
+		if !matched {
+			return false
+		}
+	}
+	if len(excludeResourceNamePattern) > 0 {
+		matched, err := regexp.Match(ExcludeResourceNamePattern, resourceName)
+		if matched {
+			return false
+		}
+	}
+	return true
 }
 
 // IsValidResourceType - Checks if a resourceType is valid or not
