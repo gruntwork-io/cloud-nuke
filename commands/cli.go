@@ -187,8 +187,6 @@ func awsNuke(c *cli.Context) error {
 
 	// Handle exclude resource types by going through the list of all types and only include those that are not
 	// mentioned in the exclude list.
-	// TODO: Expand this filtering block to also consider:
-	//       name-pattern, exclude-name-pattern, resource-tag, and exclude-resource-tag
 	if len(excludeResourceTypes) > 0 {
 		for _, resourceType := range allResourceTypes {
 			if !collections.ListContainsElement(excludeResourceTypes, resourceType) {
@@ -230,7 +228,11 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes)
+	account, err := aws.GetAllResources(
+		targetRegions, *excludeAfter, resourceTypes,
+		resourceNamePattern, excludeResourceNamePattern,
+		resourceTag, excludeResourceTag
+	)
 
 	if err != nil {
 		return errors.WithStackTrace(err)

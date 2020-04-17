@@ -176,7 +176,9 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string) (*AwsAccountResources, error) {
+func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string,
+	resourceNamePattern string, excludeResourceNamePattern string,
+	resourceTag string, excludeResourceTag string) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
@@ -204,7 +206,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ASG Names
 		asGroups := ASGroups{}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
-			groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter)
+			groupNames, err := getAllAutoScalingGroups(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -218,7 +224,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Launch Configuration Names
 		configs := LaunchConfigs{}
 		if IsNukeable(configs.ResourceName(), resourceTypes) {
-			configNames, err := getAllLaunchConfigurations(session, region, excludeAfter)
+			configNames, err := getAllLaunchConfigurations(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -232,7 +242,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancer Names
 		loadBalancers := LoadBalancers{}
 		if IsNukeable(loadBalancers.ResourceName(), resourceTypes) {
-			elbNames, err := getAllElbInstances(session, region, excludeAfter)
+			elbNames, err := getAllElbInstances(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -246,7 +260,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancerV2 Arns
 		loadBalancersV2 := LoadBalancersV2{}
 		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
-			elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter)
+			elbv2Arns, err := getAllElbv2Instances(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -260,7 +278,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
-			instanceIds, err := getAllEc2Instances(session, region, excludeAfter)
+			instanceIds, err := getAllEc2Instances(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -274,7 +296,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EBS Volumes
 		ebsVolumes := EBSVolumes{}
 		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
-			volumeIds, err := getAllEbsVolumes(session, region, excludeAfter)
+			volumeIds, err := getAllEbsVolumes(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -288,7 +314,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EIP Addresses
 		eipAddresses := EIPAddresses{}
 		if IsNukeable(eipAddresses.ResourceName(), resourceTypes) {
-			allocationIds, err := getAllEIPAddresses(session, region, excludeAfter)
+			allocationIds, err := getAllEIPAddresses(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -302,7 +332,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// AMIs
 		amis := AMIs{}
 		if IsNukeable(amis.ResourceName(), resourceTypes) {
-			imageIds, err := getAllAMIs(session, region, excludeAfter)
+			imageIds, err := getAllAMIs(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -316,7 +350,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Snapshots
 		snapshots := Snapshots{}
 		if IsNukeable(snapshots.ResourceName(), resourceTypes) {
-			snapshotIds, err := getAllSnapshots(session, region, excludeAfter)
+			snapshotIds, err := getAllSnapshots(
+				session, region, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -330,12 +368,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ECS resources
 		ecsServices := ECSServices{}
 		if IsNukeable(ecsServices.ResourceName(), resourceTypes) {
-			clusterArns, err := getAllEcsClusters(session)
+			clusterArns, err := getAllEcsClusters(
+				session,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 			if len(clusterArns) > 0 {
-				serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
+				serviceArns, serviceClusterMap, err := getAllEcsServices(
+					session, clusterArns, excludeAfter,
+					resourceNamePattern, excludeResourceNamePattern,
+					resourceTag, excludeResourceTag
+				)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
@@ -350,7 +396,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		eksClusters := EKSClusters{}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
 			if eksSupportedRegion(region) {
-				eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+				eksClusterNames, err := getAllEksClusters(
+					session, excludeAfter,
+					resourceNamePattern, excludeResourceNamePattern,
+					resourceTag, excludeResourceTag
+				)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
@@ -365,7 +415,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Instances
 		dbInstances := DBInstances{}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
-			instanceNames, err := getAllRdsInstances(session, excludeAfter)
+			instanceNames, err := getAllRdsInstances(
+				session, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -383,7 +437,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// has different abstractions for each.
 		dbClusters := DBClusters{}
 		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
-			clustersNames, err := getAllRdsClusters(session, excludeAfter)
+			clustersNames, err := getAllRdsClusters(
+				session, excludeAfter,
+				resourceNamePattern, excludeResourceNamePattern,
+				resourceTag, excludeResourceTag
+			)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -415,7 +473,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			bucketNamesPerRegion, ok := resourcesCache["S3"]
 
 			if !ok {
-				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize())
+				bucketNamesPerRegion, err = getAllS3Buckets(
+					session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(),
+					resourceNamePattern, excludeResourceNamePattern,
+					resourceTag, excludeResourceTag
+				)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
