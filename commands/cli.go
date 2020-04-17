@@ -46,6 +46,22 @@ func CreateCli(version string) *cli.App {
 					Name:  "exclude-resource-type",
 					Usage: "Resource types to exclude from nuking. Include multiple times if more than one.",
 				},
+				cli.StringSliceFlag{
+					Name:  "resource-name-pattern",
+					Usage: "Regex pattern of resource names to nuke.",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-resource-name-pattern",
+					Usage: "Regex pattern of resource names to exclude from nuking.",
+				},
+				cli.StringSliceFlag{
+					Name:  "resource-tag",
+					Usage: "Resource tag to include in nuking. Resource tags should be provided in the form 'tag_name' or 'tag_name:regex_pattern_match'. If the tag_name is provided alone, the tag value is ignore. The tag_name and the regex pattern should be delimited by a single colon. (The tag_name may not also include a colon.)",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-resource-tag",
+					Usage: "Resource tag to exclude from nuking. Resource tags should be provided in the form 'tag_name' or 'tag_name:regex_pattern_match'. If the tag_name is provided alone, the tag value is ignore. The tag_name and the regex pattern should be delimited by a single colon. (The tag_name may not also include a colon.)",
+				},
 				cli.BoolFlag{
 					Name:  "list-resource-types",
 					Usage: "List available resource types",
@@ -129,10 +145,21 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
+	// Check mutually exclusive filtering options.
 	resourceTypes := c.StringSlice("resource-type")
 	excludeResourceTypes := c.StringSlice("exclude-resource-type")
 	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
 		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type.")
+	}
+	resourceNamePattern := c.StringSlice("resource-name-pattern")
+	excludeResourceNamePattern := c.StringSlice("exclude-resource-name-pattern")
+	if len(resourceNamePattern) > 0 && len(excludeResourceNamePattern) > 0 {
+		return fmt.Errorf("You can not specify both --resource-name-pattern and --exclude-resource-name-pattern.")
+	}
+	resourceTag := c.StringSlice("resource-tag")
+	excludeResourceTag := c.StringSlice("exclude-resource-tag")
+	if len(resourceTag) > 0 && len(excludeResourceTag) > 0 {
+		return fmt.Errorf("You can not specify both --resource-tag and --exclude-resource-tag.")
 	}
 
 	// Var check to make sure only allowed resource types are included in the --resource-type or --exclude-resource-type
@@ -160,6 +187,8 @@ func awsNuke(c *cli.Context) error {
 
 	// Handle exclude resource types by going through the list of all types and only include those that are not
 	// mentioned in the exclude list.
+	// TODO: Expand this filtering block to also consider:
+	//       name-pattern, exclude-name-pattern, resource-tag, and exclude-resource-tag
 	if len(excludeResourceTypes) > 0 {
 		for _, resourceType := range allResourceTypes {
 			if !collections.ListContainsElement(excludeResourceTypes, resourceType) {
