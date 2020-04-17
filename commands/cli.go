@@ -56,11 +56,11 @@ func CreateCli(version string) *cli.App {
 				},
 				cli.StringSliceFlag{
 					Name:  "resource-tag",
-					Usage: "Resource tag to include in nuking. Resource tags should be provided in the form 'tag_name' or 'tag_name:regex_pattern_match'. If the tag_name is provided alone, the tag value is ignore. The tag_name and the regex pattern should be delimited by a single colon. (The tag_name may not also include a colon.)",
+					Usage: "Resource tag to include in nuking. Resource tags should be provided in the form 'tag_name' or 'tag_name:regex_pattern_match'. If the tag_name is provided alone, the tag value is ignored. The tag_name and the regex pattern should be delimited by a single colon. (The tag_name may not also include a colon.)",
 				},
 				cli.StringSliceFlag{
 					Name:  "exclude-resource-tag",
-					Usage: "Resource tag to exclude from nuking. Resource tags should be provided in the form 'tag_name' or 'tag_name:regex_pattern_match'. If the tag_name is provided alone, the tag value is ignore. The tag_name and the regex pattern should be delimited by a single colon. (The tag_name may not also include a colon.)",
+					Usage: "Resource tag to exclude from nuking. Resource tags should be provided in the form 'tag_name' or 'tag_name:regex_pattern_match'. If the tag_name is provided alone, the tag value is ignored. The tag_name and the regex pattern should be delimited by a single colon. (The tag_name may not also include a colon.)",
 				},
 				cli.BoolFlag{
 					Name:  "list-resource-types",
