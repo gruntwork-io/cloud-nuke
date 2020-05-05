@@ -35,8 +35,6 @@ func TestMain(m *testing.M) {
 
 // genTestsBucketName generates a test bucket name.
 func genTestBucketName() string {
-	// Call UniqueID twice because even if the nth test tries to reuse a name of the first test
-	// AWS S3 deletion operation might be in progress after nuking.
 	return strings.ToLower("cloud-nuke-test-" + util.UniqueID() + util.UniqueID())
 }
 
@@ -63,8 +61,8 @@ type AWSParams struct {
 	svc        *s3.S3
 }
 
-// setAWSParams sets up common operations for nuke S3 tests.
-func setAWSParams() (AWSParams, error) {
+// newAWSParams sets up common operations for nuke S3 tests.
+func newAWSParams() (AWSParams, error) {
 	var params AWSParams
 
 	region, err := getRandomRegion()
@@ -176,7 +174,7 @@ type TestListS3BucketArgs struct {
 
 // genTestList3Bucket - generates the test function for TestNukeS3Bucket
 func genTestListS3Bucket(args TestListS3BucketArgs) (func(t *testing.T), error) {
-	awsParams, err := setAWSParams()
+	awsParams, err := newAWSParams()
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup AWS params - %s", err.Error())
@@ -194,6 +192,8 @@ func genTestListS3Bucket(args TestListS3BucketArgs) (func(t *testing.T), error) 
 	targetRegions := []string{awsParams.region}
 
 	return func(t *testing.T) {
+		t.Parallel()
+
 		// Please note that we are passing the same session that was used to create the bucket
 		// This is required so that the defer cleanup call always gets the right bucket region
 		// to delete
@@ -202,14 +202,14 @@ func genTestListS3Bucket(args TestListS3BucketArgs) (func(t *testing.T), error) 
 		// Verify that - before creating bucket - it should not exist
 		//
 		// Please note that we are not reusing awsParams.awsSession and creating a random session in a region other
-		// than the one in which the bucket is created - this is useful to test the sceanrio where the user has
+		// than the one in which the bucket is created - this is useful to test the scenario where the user has
 		// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
 		bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), targetRegions, bucket.name, args.batchSize)
 		if args.shouldError {
 			if err == nil {
 				assert.Fail(t, "Did not fail for invalid batch size")
 			}
-			t.Logf("SUCCESS: Did not list buckets due to invalid batch size - %s", bucket.name)
+			logging.Logger.Debugf("SUCCESS: Did not list buckets due to invalid batch size - %s", bucket.name)
 			return
 		}
 
@@ -236,51 +236,77 @@ func genTestListS3Bucket(args TestListS3BucketArgs) (func(t *testing.T), error) 
 
 		if args.shouldMatch {
 			assert.Contains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
-			t.Logf("SUCCESS: Matched bucket - %s", bucket.name)
+			logging.Logger.Debugf("SUCCESS: Matched bucket - %s", bucket.name)
 		} else {
 			assert.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
-			t.Logf("SUCCESS: Did not match bucket - %s", bucket.name)
+			logging.Logger.Debugf("SUCCESS: Did not match bucket - %s", bucket.name)
 		}
 	}, nil
 }
 
 // TestListS3Bucket tests listing S3 bucket operation
 func TestListS3Bucket(t *testing.T) {
-	type testCaseStruct struct {
+	t.Parallel()
+
+	var testCases = []struct {
 		name string
 		args TestListS3BucketArgs
-	}
-
-	var allTestCases []testCaseStruct
-
-	testCases := []testCaseStruct{
+	}{
 		{
 			"NoTags",
-			TestListS3BucketArgs{bucketTags: []map[string]string{}, batchSize: 10, shouldMatch: true, shouldError: false},
+			TestListS3BucketArgs{
+				bucketTags:  []map[string]string{},
+				batchSize:   10,
+				shouldMatch: true,
+				shouldError: false,
+			},
 		},
 		{
 			"WithoutFilterTag",
-			TestListS3BucketArgs{bucketTags: []map[string]string{{"Key": "testKey", "Value": "testValue"}}, batchSize: 10, shouldMatch: true, shouldError: false},
+			TestListS3BucketArgs{
+				bucketTags: []map[string]string{
+					{"Key": "testKey", "Value": "testValue"},
+				},
+				batchSize:   10,
+				shouldMatch: true,
+				shouldError: false,
+			},
 		},
 		{
 			"WithFilterTag",
-			TestListS3BucketArgs{bucketTags: []map[string]string{{"Key": AwsResourceExclusionTagKey, "Value": "true"}}, batchSize: 10, shouldMatch: false, shouldError: false},
+			TestListS3BucketArgs{
+				bucketTags: []map[string]string{
+					{"Key": AwsResourceExclusionTagKey, "Value": "true"},
+				},
+				batchSize:   10,
+				shouldMatch: false,
+				shouldError: false,
+			},
 		},
 		{
 			"MultiCaseFilterTag",
-			TestListS3BucketArgs{bucketTags: []map[string]string{
-				{"Key": "test-key-1", "Value": "test-value-1"},
-				{"Key": "test-key-2", "Value": "test-value-2"},
-				{"Key": strings.ToTitle(AwsResourceExclusionTagKey), "Value": "TrUe"},
-			}, batchSize: 10, shouldMatch: false, shouldError: false},
+			TestListS3BucketArgs{
+				bucketTags: []map[string]string{
+					{"Key": "test-key-1", "Value": "test-value-1"},
+					{"Key": "test-key-2", "Value": "test-value-2"},
+					{"Key": strings.ToTitle(AwsResourceExclusionTagKey), "Value": "TrUe"},
+				},
+				batchSize:   10,
+				shouldMatch: false,
+				shouldError: false,
+			},
 		},
 		{
 			"InvalidBatchSize",
-			TestListS3BucketArgs{bucketTags: nil, batchSize: -1, shouldMatch: false, shouldError: true},
+			TestListS3BucketArgs{
+				bucketTags:  nil,
+				batchSize:   -1,
+				shouldMatch: false,
+				shouldError: true,
+			},
 		},
 	}
 	for _, tc := range testCases {
-		allTestCases = append(allTestCases, tc)
 		testFunc, err := genTestListS3Bucket(tc.args)
 		if err != nil {
 			assert.Fail(t, errors.WithStackTrace(err).Error())
@@ -300,7 +326,7 @@ type TestNukeS3BucketArgs struct {
 
 // genTestNukeS3Bucket - generates the test function for TestNukeS3Bucket
 func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) {
-	awsParams, err := setAWSParams()
+	awsParams, err := newAWSParams()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup AWS params - %s", err.Error())
 	}
@@ -354,6 +380,7 @@ func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) 
 	}
 
 	return func(t *testing.T) {
+		t.Parallel()
 		defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucket.name)}, 1000)
 
 		// Nuke the test bucket
@@ -367,7 +394,7 @@ func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) 
 			if delCount > 0 {
 				assert.Failf(t, "Should not nuke but got delCount > 0", "delCount: %d", delCount)
 			}
-			t.Logf("SUCCESS: Did not nuke bucket - %s", bucket.name)
+			logging.Logger.Debugf("SUCCESS: Did not nuke bucket - %s", bucket.name)
 			return
 		}
 
@@ -377,13 +404,15 @@ func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) 
 			assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
 		} else {
 			assert.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
-			t.Logf("SUCCESS: Nuked bucket - %s", bucket.name)
+			logging.Logger.Debugf("SUCCESS: Nuked bucket - %s", bucket.name)
 		}
 	}, nil
 }
 
 // TestNukeS3Bucket tests S3 bucket deletion
 func TestNukeS3Bucket(t *testing.T) {
+	t.Parallel()
+
 	type testCaseStruct struct {
 		name string
 		args TestNukeS3BucketArgs
@@ -404,19 +433,43 @@ func TestNukeS3Bucket(t *testing.T) {
 		testCases := []testCaseStruct{
 			{
 				bucketType + "_AllObjects",
-				TestNukeS3BucketArgs{isVersioned: isVersioned, checkDeleteMarker: false, objectCount: 10, objectBatchsize: 1000, shouldNuke: true},
+				TestNukeS3BucketArgs{
+					isVersioned:       isVersioned,
+					checkDeleteMarker: false,
+					objectCount:       10,
+					objectBatchsize:   1000,
+					shouldNuke:        true,
+				},
 			},
 			{
 				bucketType + "_BatchObjects_ValidBatchSize",
-				TestNukeS3BucketArgs{isVersioned: isVersioned, checkDeleteMarker: false, objectCount: 10, objectBatchsize: 5, shouldNuke: true},
+				TestNukeS3BucketArgs{
+					isVersioned:       isVersioned,
+					checkDeleteMarker: false,
+					objectCount:       10,
+					objectBatchsize:   5,
+					shouldNuke:        true,
+				},
 			},
 			{
 				bucketType + "_BatchObjects_InvalidBatchSize_Over",
-				TestNukeS3BucketArgs{isVersioned: isVersioned, checkDeleteMarker: false, objectCount: 2, objectBatchsize: 1001, shouldNuke: false},
+				TestNukeS3BucketArgs{
+					isVersioned:       isVersioned,
+					checkDeleteMarker: false,
+					objectCount:       2,
+					objectBatchsize:   1001,
+					shouldNuke:        false,
+				},
 			},
 			{
 				bucketType + "_BatchObjects_InvalidBatchSize_Under",
-				TestNukeS3BucketArgs{isVersioned: isVersioned, checkDeleteMarker: false, objectCount: 2, objectBatchsize: 0, shouldNuke: false},
+				TestNukeS3BucketArgs{
+					isVersioned:       isVersioned,
+					checkDeleteMarker: false,
+					objectCount:       2,
+					objectBatchsize:   0,
+					shouldNuke:        false,
+				},
 			},
 		}
 		for _, tc := range testCases {
@@ -425,8 +478,14 @@ func TestNukeS3Bucket(t *testing.T) {
 	}
 
 	allTestCases = append(allTestCases, testCaseStruct{
-		"Versioned_DeleteMarker",
-		TestNukeS3BucketArgs{isVersioned: true, checkDeleteMarker: true, objectCount: 10, objectBatchsize: 1000, shouldNuke: true},
+		"Versioning_DeleteMarker",
+		TestNukeS3BucketArgs{
+			isVersioned:       true,
+			checkDeleteMarker: true,
+			objectCount:       10,
+			objectBatchsize:   1000,
+			shouldNuke:        true,
+		},
 	})
 
 	for _, tc := range allTestCases {
