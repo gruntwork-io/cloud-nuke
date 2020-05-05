@@ -425,6 +425,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 				for bucketRegion, bucketName := range bucketNamesPerRegion {
           // TODO: filter bucketName by configObj...
+
 					resourcesCache["S3"][bucketRegion] = bucketName
 				}
 			}

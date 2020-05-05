@@ -1,6 +1,4 @@
-/* check file existence (handle file doesn't exist)
-* parse yaml (standard go yaml parser)
-* validate that yaml conforms to the spec
+/* validate that yaml conforms to the spec
 * Include logging about which buckets we end up nuking
  */
 package config
@@ -22,6 +20,7 @@ type resourceType struct {
 }
 
 func GetConfig() ConfigObj {
+  // TODO: accept filepath here
 	absolutePath, err := filepath.Abs("config/mocks/s3_include_names.yaml")
 	if err != nil {
 		log.Printf("filepath.Abs err   #%v ", err)
