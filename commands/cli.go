@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -69,6 +70,10 @@ func CreateCli(version string) *cli.App {
 					Usage:  "Set log level",
 					EnvVar: "LOG_LEVEL",
 				},
+        cli.StringFlag{
+          Name:   "config",
+          Usage:  "YAML file specifying matching rules.",
+        },
 			},
 		}, {
 			Name:   "defaults-aws",
@@ -119,6 +124,8 @@ func awsNuke(c *cli.Context) error {
 		return fmt.Errorf("Invalid log level - %s - %s", logLevel, err)
 	}
 	logging.Logger.Level = parsedLogLevel
+
+  configObj := config.GetConfig()
 
 	allResourceTypes := aws.ListResourceTypes()
 
@@ -201,7 +208,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes)
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
