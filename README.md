@@ -124,6 +124,39 @@ If you want to check what resources are going to be targeted without actually te
 cloud-nuke aws --resource-type ec2 --dry-run
 ```
 
+### Specify optional config file
+
+For more granularity, you can pass in a config file to specify which resources to terminate using regular expressions.
+
+```shell
+cloud-nuke --config path/to/file.yaml
+```
+
+For example, if you want to terminate S3 buckets whose name matches the given patterns, here's what your config file might look like:
+```yaml
+s3:
+  name_filter:
+    - ^alb-alb-.*-access-logs$
+    - .*-prod-alb-.*
+```
+
+If you want to terminate S3 buckets by region:
+```yaml
+s3:
+  region_filter:
+    - us-east-1
+    - us-west-1
+```
+
+Or specify both name and region if you want that specificity:
+```yaml
+s3:
+  name_filter:
+    - .*-prod-alb-.*
+  region_filter:
+    - us-east-1
+```
+
 ### Log level
 
 You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:
