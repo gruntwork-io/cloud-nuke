@@ -172,12 +172,12 @@ type TestListS3BucketArgs struct {
 	shouldMatch bool
 }
 
-// genTestList3Bucket - generates the test function for TestNukeS3Bucket
-func genTestListS3Bucket(args TestListS3BucketArgs) (func(t *testing.T), error) {
+// testList3Bucket - helper function for TestListS3Bucket
+func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	awsParams, err := newAWSParams()
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to setup AWS params - %s", err.Error())
+		assert.Failf(t, "Failed to setup AWS params", errors.WithStackTrace(err).Error())
 	}
 
 	bucket := TestS3Bucket{
@@ -186,62 +186,58 @@ func genTestListS3Bucket(args TestListS3BucketArgs) (func(t *testing.T), error) 
 
 	awsSession, err := createSession("")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create random session - %s", err.Error())
+		assert.Failf(t, "Failed to create random session ", errors.WithStackTrace(err).Error())
 	}
 
 	targetRegions := []string{awsParams.region}
 
-	return func(t *testing.T) {
-		t.Parallel()
+	// Please note that we are passing the same session that was used to create the bucket
+	// This is required so that the defer cleanup call always gets the right bucket region
+	// to delete
+	defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucket.name)}, 1000)
 
-		// Please note that we are passing the same session that was used to create the bucket
-		// This is required so that the defer cleanup call always gets the right bucket region
-		// to delete
-		defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucket.name)}, 1000)
-
-		// Verify that - before creating bucket - it should not exist
-		//
-		// Please note that we are not reusing awsParams.awsSession and creating a random session in a region other
-		// than the one in which the bucket is created - this is useful to test the scenario where the user has
-		// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
-		bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), targetRegions, bucket.name, args.batchSize)
-		if args.shouldError {
-			if err == nil {
-				assert.Fail(t, "Did not fail for invalid batch size")
-			}
-			logging.Logger.Debugf("SUCCESS: Did not list buckets due to invalid batch size - %s", bucket.name)
-			return
+	// Verify that - before creating bucket - it should not exist
+	//
+	// Please note that we are not reusing awsParams.awsSession and creating a random session in a region other
+	// than the one in which the bucket is created - this is useful to test the scenario where the user has
+	// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), targetRegions, bucket.name, args.batchSize)
+	if args.shouldError {
+		if err == nil {
+			assert.Fail(t, "Did not fail for invalid batch size")
 		}
+		logging.Logger.Debugf("SUCCESS: Did not list buckets due to invalid batch size - %s - %s", bucket.name, err.Error())
+		return
+	}
 
-		if err != nil {
-			assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
-		}
+	if err != nil {
+		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
+	}
 
-		// Validate test bucket does not exist before creation
+	// Validate test bucket does not exist before creation
+	assert.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
+
+	// Create test bucket
+	if args.bucketTags != nil && len(args.bucketTags) > 0 {
+		bucket.tags = args.bucketTags
+	}
+	err = bucket.create(awsParams.svc)
+	if err != nil {
+		assert.Failf(t, "Failed to create test bucket", errors.WithStackTrace(err).Error())
+	}
+
+	bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), targetRegions, bucket.name, args.batchSize)
+	if err != nil {
+		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
+	}
+
+	if args.shouldMatch {
+		assert.Contains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
+		logging.Logger.Debugf("SUCCESS: Matched bucket - %s", bucket.name)
+	} else {
 		assert.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
-
-		// Create test bucket
-		if args.bucketTags != nil && len(args.bucketTags) > 0 {
-			bucket.tags = args.bucketTags
-		}
-		err = bucket.create(awsParams.svc)
-		if err != nil {
-			assert.Failf(t, "Failed to create test bucket", errors.WithStackTrace(err).Error())
-		}
-
-		bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), targetRegions, bucket.name, args.batchSize)
-		if err != nil {
-			assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
-		}
-
-		if args.shouldMatch {
-			assert.Contains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
-			logging.Logger.Debugf("SUCCESS: Matched bucket - %s", bucket.name)
-		} else {
-			assert.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
-			logging.Logger.Debugf("SUCCESS: Did not match bucket - %s", bucket.name)
-		}
-	}, nil
+		logging.Logger.Debugf("SUCCESS: Did not match bucket - %s", bucket.name)
+	}
 }
 
 // TestListS3Bucket tests listing S3 bucket operation
@@ -307,11 +303,13 @@ func TestListS3Bucket(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		testFunc, err := genTestListS3Bucket(tc.args)
-		if err != nil {
-			assert.Fail(t, errors.WithStackTrace(err).Error())
-		}
-		t.Run(tc.name, testFunc)
+		// Capture the range variable as per https://blog.golang.org/subtests
+		// Not doing this will lead to tc being set to the last entry in the testCases
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			testListS3Bucket(t, tc.args)
+		})
 	}
 }
 
@@ -324,11 +322,11 @@ type TestNukeS3BucketArgs struct {
 	shouldNuke        bool
 }
 
-// genTestNukeS3Bucket - generates the test function for TestNukeS3Bucket
-func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) {
+// testNukeS3Bucket - generates the test function for TestNukeS3Bucket
+func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 	awsParams, err := newAWSParams()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to setup AWS params - %s", err.Error())
+		assert.Failf(t, "Failed to setup AWS params - %s", errors.WithStackTrace(err).Error())
 	}
 
 	// Create test bucket
@@ -338,12 +336,12 @@ func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) 
 	}
 	err = bucket.create(awsParams.svc)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create test bucket - %s", err.Error())
+		assert.Failf(t, "Failed to create test bucket - %s", errors.WithStackTrace(err).Error())
 	}
 
 	awsSession, err := createSession("")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create random session - %s", err.Error())
+		assert.Failf(t, "Failed to create random session - %s", errors.WithStackTrace(err).Error())
 	}
 
 	if args.objectCount > 0 {
@@ -359,7 +357,7 @@ func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) 
 				fileBody := fmt.Sprintf("%d-%d", i, j)
 				err := bucket.addObject(awsParams, fileName, fileBody)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to add object to test bucket - %s", err.Error())
+					assert.Failf(t, "Failed to add object to test bucket - %s", errors.WithStackTrace(err).Error())
 				}
 			}
 		}
@@ -374,39 +372,36 @@ func genTestNukeS3Bucket(args TestNukeS3BucketArgs) (func(t *testing.T), error) 
 				Key:    aws.String("l1/l2/l3/f0.txt"),
 			})
 			if err != nil {
-				return nil, fmt.Errorf("Failed to create delete marker - %s", err.Error())
+				assert.Failf(t, "Failed to create delete marker - %s", errors.WithStackTrace(err).Error())
 			}
 		}
 	}
 
-	return func(t *testing.T) {
-		t.Parallel()
-		defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucket.name)}, 1000)
+	defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucket.name)}, 1000)
 
-		// Nuke the test bucket
-		delCount, err := nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucket.name)}, args.objectBatchsize)
-		if err != nil {
-			assert.Fail(t, errors.WithStackTrace(err).Error())
-		}
+	// Nuke the test bucket
+	delCount, err := nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucket.name)}, args.objectBatchsize)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 
-		// If we should not nuke the bucket then deleted bucket count should be 0
-		if !args.shouldNuke {
-			if delCount > 0 {
-				assert.Failf(t, "Should not nuke but got delCount > 0", "delCount: %d", delCount)
-			}
-			logging.Logger.Debugf("SUCCESS: Did not nuke bucket - %s", bucket.name)
-			return
+	// If we should not nuke the bucket then deleted bucket count should be 0
+	if !args.shouldNuke {
+		if delCount > 0 {
+			assert.Failf(t, "Should not nuke but got delCount > 0", "delCount: %d", delCount)
 		}
+		logging.Logger.Debugf("SUCCESS: Did not nuke bucket - %s", bucket.name)
+		return
+	}
 
-		// Verify that - after nuking test bucket - it should not exist
-		bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, bucket.name, 100)
-		if err != nil {
-			assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
-		} else {
-			assert.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
-			logging.Logger.Debugf("SUCCESS: Nuked bucket - %s", bucket.name)
-		}
-	}, nil
+	// Verify that - after nuking test bucket - it should not exist
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, bucket.name, 100)
+	if err != nil {
+		assert.Failf(t, "Failed to list S3 Buckets", errors.WithStackTrace(err).Error())
+	} else {
+		assert.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucket.name))
+		logging.Logger.Debugf("SUCCESS: Nuked bucket - %s", bucket.name)
+	}
 }
 
 // TestNukeS3Bucket tests S3 bucket deletion
@@ -426,10 +421,7 @@ func TestNukeS3Bucket(t *testing.T) {
 	})
 
 	for _, bucketType := range []string{"NoVersioning", "Versioning"} {
-		isVersioned := false
-		if bucketType == "Versioning" {
-			isVersioned = true
-		}
+		isVersioned := bucketType == "Versioning"
 		testCases := []testCaseStruct{
 			{
 				bucketType + "_AllObjects",
@@ -487,12 +479,13 @@ func TestNukeS3Bucket(t *testing.T) {
 			shouldNuke:        true,
 		},
 	})
-
 	for _, tc := range allTestCases {
-		testFunc, err := genTestNukeS3Bucket(tc.args)
-		if err != nil {
-			assert.Fail(t, errors.WithStackTrace(err).Error())
-		}
-		t.Run(tc.name, testFunc)
+		// Capture the range variable as per https://blog.golang.org/subtests
+		// Not doing this will lead to tc being set to the last entry in the testCases
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			testNukeS3Bucket(t, tc.args)
+		})
 	}
 }
