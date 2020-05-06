@@ -129,33 +129,51 @@ cloud-nuke aws --resource-type ec2 --dry-run
 For more granularity, you can pass in a config file to specify which resources to terminate using regular expressions.
 
 ```shell
-cloud-nuke --config path/to/file.yaml
+cloud-nuke aws --config path/to/file.yaml
 ```
 
-For example, if you want to terminate S3 buckets whose name matches the given patterns, here's what your config file might look like:
+Given this config, `cloud-nuke` will only nuke S3 buckets that match one of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but not a bucket named `my-s3-bucket`.
 ```yaml
 s3:
-  name_filter:
-    - ^alb-alb-.*-access-logs$
+  include_names_regex:
+    - ^alb-.*-access-logs$
     - .*-prod-alb-.*
 ```
 
-If you want to terminate S3 buckets by region:
+[[Unimplemented!!]]
+
+Given this config, `cloud-nuke` will nuke all S3 buckets that exist in `us-east-1` and all S3 buckets that exist in `us-west-1`.
 ```yaml
 s3:
-  region_filter:
+  include_regions:
     - us-east-1
     - us-west-1
 ```
 
-Or specify both name and region if you want that specificity:
+[[Unimplemented!!]]
+
+Given this config, `cloud-nuke` will nuke all S3 buckets that match the regular expression but only if they do not also exist in `us-east-1`. So a bucket named `abc-prod-alb-def` located in the `us-west-1` region would be nuked.
 ```yaml
 s3:
-  name_filter:
+  include_names_regex:
     - .*-prod-alb-.*
-  region_filter:
+  exclude_regions:
     - us-east-1
 ```
+
+#### Note: How config file options interact with options passed into the CLI
+
+In general, the options provided in the command line take precedence over those provided in any config file that gets passed in. So, if you provide `--region` in the command line, along with a config file that specifies `regions:` at the top level, it makes sense to assume that the regions passed in via the command line should override the config file regions. It would be as if the config file did not specify any regions. Even if the CLI arg specifies a region that not in the config file, it the config file regions will be ignored.
+
+If you provide a region to exclude or include via the command line, that will also take precedence over any resource-specific regions specified in the config file. So, if you pass in `--exclude-region us-east-1` but the config file specifies
+
+```yaml
+s3:
+  include_regions:
+    - us-east-1
+```
+
+Then, no s3 buckets will be nuked.
 
 ### Log level
 
