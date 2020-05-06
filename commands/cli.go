@@ -125,7 +125,16 @@ func awsNuke(c *cli.Context) error {
 	}
 	logging.Logger.Level = parsedLogLevel
 
-  configObj := config.GetConfig()
+  var configObj config.ConfigObj
+  configFilePath := c.String("config")
+
+  if configFilePath != "" {
+    configObj, err = config.GetConfig(configFilePath)
+
+    if err != nil {
+      return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
+    }
+  }
 
 	allResourceTypes := aws.ListResourceTypes()
 

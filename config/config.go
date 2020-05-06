@@ -4,14 +4,13 @@
 package config
 
 import (
-	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"log"
 	"path/filepath"
+  "regexp"
 )
 
-type ConfigObj struct {
+type RawConfig struct {
   ResourceType resourceType `yaml:"s3"`
 }
 
@@ -19,45 +18,43 @@ type resourceType struct {
   MatchingRule []string `yaml:"include_names_regex"`
 }
 
-func GetConfig() ConfigObj {
-  // TODO: accept filepath here
-	absolutePath, err := filepath.Abs("config/mocks/s3_include_names.yaml")
+type ConfigObj struct {
+  S3FilterRule filterRule `yaml:"s3"`
+}
+
+type filterRule struct {
+  IncludeNamesRE []*regexp.Regexp `yaml:"include_names_regex"`
+}
+
+func GetConfig(filePath string) (ConfigObj, error) {
+  // TODO: IncludeNamesRE might be uninitialized slice
+  var configObj ConfigObj
+
+	absolutePath, err := filepath.Abs(filePath)
 	if err != nil {
-		log.Printf("filepath.Abs err   #%v ", err)
+    return ConfigObj{}, err
 	}
 
 	yamlFile, err := ioutil.ReadFile(absolutePath)
 	if err != nil {
-		log.Printf("yamlFile.Get err   #%v ", err)
+    return ConfigObj{}, err
 	}
 
-	config := ConfigObj{}
+	rawConfig := RawConfig{}
 
-	err = yaml.Unmarshal(yamlFile, &config)
+	err = yaml.Unmarshal(yamlFile, &rawConfig)
 	if err != nil {
-		log.Fatalf("error: %v", err)
+    return ConfigObj{}, err
 	}
-	fmt.Printf("--- unmarshalled:\n%v\n\n", config)
 
-	marshalled, err := yaml.Marshal(&config)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	fmt.Printf("--- marshalled:\n%s\n\n", string(marshalled))
+  for _, pattern := range rawConfig.ResourceType.MatchingRule {
+    re, err := regexp.Compile(pattern)
+    if err != nil {
+      return ConfigObj{}, err
+    }
 
-	return config
+    configObj.S3FilterRule.IncludeNamesRE = append(configObj.S3FilterRule.IncludeNamesRE, re)
+  }
 
-	//   m := make(map[interface{}]interface{})
-	//
-	//   err = yaml.Unmarshal([]byte(data), &m)
-	//   if err != nil {
-	//     log.Fatalf("error: %v", err)
-	//   }
-	//   fmt.Printf("--- m:\n%v\n\n", m)
-	//
-	//   d, err = yaml.Marshal(&m)
-	//   if err != nil {
-	//     log.Fatalf("error: %v", err)
-	//   }
-	//   fmt.Printf("--- m dump:\n%s\n\n", string(d))
+	return configObj, nil
 }

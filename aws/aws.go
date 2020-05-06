@@ -423,16 +423,29 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 				resourcesCache["S3"] = make(map[string][]*string)
 
-				for bucketRegion, bucketName := range bucketNamesPerRegion {
-          // TODO: filter bucketName by configObj...
+				for bucketRegion, bucketNames := range bucketNamesPerRegion {
+          var matchedBuckets []*string
 
-					resourcesCache["S3"][bucketRegion] = bucketName
+          for _, re := range configObj.S3FilterRule.IncludeNamesRE {
+            for _, bucketName := range aws.StringValueSlice(bucketNames) {
+              if re.MatchString(bucketName) {
+                matchedBuckets = append(matchedBuckets, aws.String(bucketName))
+              }
+            }
+          }
+
+          if len(configObj.S3FilterRule.IncludeNamesRE) > 0 {
+            resourcesCache["S3"][bucketRegion] = matchedBuckets
+          } else {
+            resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
+          }
+
 				}
 			}
 
-			bucketNames := bucketNamesPerRegion[region]
+			bucketNames, ok := resourcesCache["S3"][region]
 
-			if len(bucketNamesPerRegion[region]) > 0 {
+			if ok && len(bucketNames) > 0 {
 				s3Buckets.Names = aws.StringValueSlice(bucketNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, s3Buckets)
 			}
