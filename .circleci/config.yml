@@ -1,45 +1,23 @@
 defaults: &defaults
   working_directory: /go/src/github.com/gruntwork-io/cloud-nuke
   docker:
-    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:latest
+    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.13
 
 version: 2
 jobs:
-  install_dependencies:
-    <<: *defaults
-    steps:
-      - checkout
-      - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/cloud-nuke
-      - restore_cache:
-          keys:
-            - dep-{{ checksum "Gopkg.lock" }}
-      - run: dep ensure
-      - save_cache:
-          key: dep-{{ checksum "Gopkg.lock" }}
-          paths:
-            - /go/src/github.com/gruntwork-io/cloud-nuke/vendor
-      - persist_to_workspace:
-          root: .
-          paths: vendor
-
   test:
     <<: *defaults
     steps:
       - checkout
-      - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
-          command: run-go-tests --circle-ci-2 --timeout 45m
+          command: run-go-tests --timeout 45m
           no_output_timeout: 45m
 
   build:
     <<: *defaults
     steps:
       - checkout
-      - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/cloud-nuke
-      - run: build-go-binaries --circle-ci-2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
+      - run: build-go-binaries --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
       - persist_to_workspace:
           root: .
           paths: bin
@@ -48,8 +26,6 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
           command: |
             # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
@@ -64,8 +40,6 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run:
           command: |
             export AWS_ACCESS_KEY_ID=$SANDBOX_AWS_ACCESS_KEY_ID
@@ -82,8 +56,6 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - attach_workspace:
-          at: /go/src/github.com/gruntwork-io/cloud-nuke
       - run: cd bin && sha256sum * > SHA256SUMS
       - run: upload-github-release-assets bin/*
 
@@ -91,13 +63,7 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - install_dependencies:
-          filters:
-            tags:
-              only: /^v.*/
       - test:
-          requires:
-            - install_dependencies
           filters:
             tags:
               only: /^v.*/
@@ -125,10 +91,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - install_dependencies
-      - test:
-          requires:
-            - install_dependencies
+      - test
       - nuke_phx_devops:
           requires:
             - test
@@ -141,10 +104,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - install_dependencies
-      - test:
-          requires:
-            - install_dependencies
+      - test
       - nuke_sandbox:
           requires:
             - test
