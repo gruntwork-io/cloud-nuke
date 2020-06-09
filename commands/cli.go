@@ -70,10 +70,10 @@ func CreateCli(version string) *cli.App {
 					Usage:  "Set log level",
 					EnvVar: "LOG_LEVEL",
 				},
-        cli.StringFlag{
-          Name:   "config",
-          Usage:  "YAML file specifying matching rules.",
-        },
+				cli.StringFlag{
+					Name:  "config",
+					Usage: "YAML file specifying matching rules.",
+				},
 			},
 		}, {
 			Name:   "defaults-aws",
@@ -125,16 +125,16 @@ func awsNuke(c *cli.Context) error {
 	}
 	logging.Logger.Level = parsedLogLevel
 
-  var configObj config.ConfigObj
-  configFilePath := c.String("config")
+	var configObj config.ConfigObj
+	configFilePath := c.String("config")
 
-  if configFilePath != "" {
-    configObj, err = config.GetConfig(configFilePath)
+	if configFilePath != "" {
+		configObj, err = config.GetConfig(configFilePath)
 
-    if err != nil {
-      return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
-    }
-  }
+		if err != nil {
+			return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
+		}
+	}
 
 	allResourceTypes := aws.ListResourceTypes()
 
@@ -185,7 +185,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	// Log which resource types will be nuked
-	logging.Logger.Info("The following resources types will be nuked:")
+	logging.Logger.Info("The following resource types will be nuked:")
 	if len(resourceTypes) > 0 {
 		for _, resourceType := range resourceTypes {
 			logging.Logger.Infof("- %s", resourceType)
@@ -228,14 +228,19 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	logging.Logger.Infoln("The following AWS resources are going to be nuked: ")
-
+	var nukableResources []string
 	for region, resourcesInRegion := range account.Resources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {
-				logging.Logger.Infof("* %s-%s-%s\n", resources.ResourceName(), identifier, region)
+				nukableResources = append(nukableResources, fmt.Sprintf("* %s %s %s\n", resources.ResourceName(), identifier, region))
 			}
 		}
+	}
+
+	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukableResources))
+
+	for _, resource := range nukableResources {
+		logging.Logger.Infoln(resource)
 	}
 
 	if c.Bool("dry-run") {
