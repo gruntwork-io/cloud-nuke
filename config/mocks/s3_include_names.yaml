@@ -1,4 +1,8 @@
 s3:
-  include_names_regex:
-    - ^alb-.*-access-logs$
-    - prod
+  include:
+    names_regex:
+      - ^alb-.*-access-logs$
+      - prod
+  exclude:
+    names_regex:
+      - public
