@@ -426,15 +426,41 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				for bucketRegion, bucketNames := range bucketNamesPerRegion {
 					var matchedBuckets []*string
 
-					for _, re := range configObj.S3.IncludeRule.NamesRE {
-						for _, bucketName := range aws.StringValueSlice(bucketNames) {
-							if re.MatchString(bucketName) {
-								matchedBuckets = append(matchedBuckets, aws.String(bucketName))
+					// Consider each bucket in this region (all regions)
+					for _, bucketName := range aws.StringValueSlice(bucketNames) {
+						excluded := false
+
+						// If there are include rules, match them against this bucket
+						for _, includeNamesRE := range configObj.S3.IncludeRule.NamesRE {
+							if includeNamesRE.MatchString(bucketName) {
+								// Some include rule wants to nuke this bucket
+								for _, excludeNamesRE := range configObj.S3.ExcludeRule.NamesRE {
+									if excludeNamesRE.MatchString(bucketName) {
+										// Some exclude rule wants to keep this bucket
+										excluded = true
+									}
+								}
+
+								// Only nuke the bucket if included and not excluded
+								if !excluded {
+									matchedBuckets = append(matchedBuckets, aws.String(bucketName))
+								}
+							}
+						}
+
+						// If there are only exclude rules, match them against this bucket
+						if len(configObj.S3.IncludeRule.NamesRE) == 0 {
+							for _, excludeNamesRE := range configObj.S3.ExcludeRule.NamesRE {
+								if !excludeNamesRE.MatchString(bucketName) {
+									matchedBuckets = append(matchedBuckets, aws.String(bucketName))
+								}
 							}
 						}
 					}
 
-					if len(configObj.S3.IncludeRule.NamesRE) > 0 {
+					// If we had any filter rules, cache the matched buckets, otherwise cache em all
+					if len(configObj.S3.IncludeRule.NamesRE) > 0 ||
+						len(configObj.S3.ExcludeRule.NamesRE) > 0 {
 						resourcesCache["S3"][bucketRegion] = matchedBuckets
 					} else {
 						resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
