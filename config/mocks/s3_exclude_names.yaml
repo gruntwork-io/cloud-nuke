@@ -1,0 +1,4 @@
+s3:
+  exclude:
+    names_regex:
+      - public
