@@ -66,7 +66,7 @@ func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
 	return nil, errors.WithStackTrace(fmt.Errorf("could not find any enabled regions"))
 }
 
-// Get all regions that are enabled (DescribeRegions excludes those not enabled by default)
+// GetEnabledRegions - Get all regions that are enabled (DescribeRegions excludes those not enabled by default)
 func GetEnabledRegions() ([]string, error) {
 	var regionNames []string
 

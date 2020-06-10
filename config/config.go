@@ -1,5 +1,5 @@
-/* validate that yaml conforms to the spec
-* Include logging about which buckets we end up nuking
+/*Package config - Todos
+ * - validate that yaml conforms to the spec
  */
 package config
 
@@ -10,7 +10,7 @@ import (
 	"regexp"
 )
 
-// Structs unmarshalling the raw config file
+// RawConfig - Struct unmarshalling the raw config file
 type RawConfig struct {
 	S3 resourceType `yaml:"s3"`
 }
@@ -24,22 +24,25 @@ type rawFilterRule struct {
 	NamesRE []string `yaml:"names_regex"`
 }
 
-// Structs defining the config object we pass around
+// ConfigObj - Struct defining the config object we pass around
 type ConfigObj struct {
-	S3 rules `yaml:"s3"`
+	S3 Rules `yaml:"s3"`
 }
 
-type rules struct {
-	IncludeRule filterRule `yaml:"include"`
-	ExcludeRule filterRule `yaml:"exclude"`
+// Rules - defines what to include and exclude
+type Rules struct {
+	IncludeRule FilterRule `yaml:"include"`
+	ExcludeRule FilterRule `yaml:"exclude"`
 }
 
-type filterRule struct {
+// FilterRule - contains regular expressions or plain text patterns
+type FilterRule struct {
 	NamesRE []*regexp.Regexp `yaml:"names_regex"`
 }
 
+// GetConfig - unmarshalls the raw config file
+// and parses it into a config object.
 func GetConfig(filePath string) (ConfigObj, error) {
-	// TODO: NamesRE might be uninitialized slice
 	var configObj ConfigObj
 
 	absolutePath, err := filepath.Abs(filePath)
