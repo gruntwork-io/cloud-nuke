@@ -1,31 +1,48 @@
 package config
 
 import (
-	"os"
+	"gopkg.in/yaml.v2"
 	"reflect"
 	"testing"
 
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func TestMain(m *testing.M) {
-	logLevel := os.Getenv("LOG_LEVEL")
-	if len(logLevel) > 0 {
-		parsedLogLevel, err := logrus.ParseLevel(logLevel)
-		if err != nil {
-			logging.Logger.Errorf("Invalid log level - %s - %s", logLevel, err)
-			os.Exit(1)
-		}
-		logging.Logger.Level = parsedLogLevel
-	}
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
 
 func emptyConfig() Config {
 	return Config{ResourceType{FilterRule{}, FilterRule{}}}
+}
+
+func TestConfig_Garbage(t *testing.T) {
+	configFilePath := "./mocks/garbage.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	if err != nil {
+		require.NoError(t, err)
+	}
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfig_Malformed(t *testing.T) {
+	configFilePath := "./mocks/malformed.yaml"
+	_, err := GetConfig(configFilePath)
+
+	// Expect malformed to throw a yaml TypeError
+	if err != nil {
+		if tErr, ok := err.(*yaml.TypeError); ok {
+			// require this error and return
+			require.Errorf(t, tErr, "Received expected type error - %s", tErr)
+		}
+		require.NoError(t, err, "Expected type error")
+	}
+
+	require.Error(t, err, "Expected type error")
+	return
 }
 
 func TestConfig_Empty(t *testing.T) {
@@ -33,7 +50,7 @@ func TestConfig_Empty(t *testing.T) {
 	configObj, err := GetConfig(configFilePath)
 
 	if err != nil {
-		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
+		require.NoError(t, err)
 	}
 
 	if !reflect.DeepEqual(configObj, emptyConfig()) {
@@ -48,7 +65,7 @@ func TestConfigS3_Empty(t *testing.T) {
 	configObj, err := GetConfig(configFilePath)
 
 	if err != nil {
-		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
+		require.NoError(t, err)
 	}
 
 	if !reflect.DeepEqual(configObj, emptyConfig()) {
@@ -63,7 +80,7 @@ func TestConfigS3_EmptyFilters(t *testing.T) {
 	configObj, err := GetConfig(configFilePath)
 
 	if err != nil {
-		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
+		require.NoError(t, err)
 	}
 
 	if !reflect.DeepEqual(configObj, emptyConfig()) {
@@ -78,7 +95,7 @@ func TestConfigS3_EmptyRules(t *testing.T) {
 	configObj, err := GetConfig(configFilePath)
 
 	if err != nil {
-		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
+		require.NoError(t, err)
 	}
 
 	if !reflect.DeepEqual(configObj, emptyConfig()) {
@@ -93,7 +110,7 @@ func TestConfigS3_IncludeNames(t *testing.T) {
 	configObj, err := GetConfig(configFilePath)
 
 	if err != nil {
-		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
+		require.NoError(t, err)
 	}
 
 	if reflect.DeepEqual(configObj, emptyConfig()) {
@@ -112,7 +129,7 @@ func TestConfigS3_ExcludeNames(t *testing.T) {
 	configObj, err := GetConfig(configFilePath)
 
 	if err != nil {
-		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
+		require.NoError(t, err)
 	}
 
 	if reflect.DeepEqual(configObj, emptyConfig()) {
@@ -131,7 +148,7 @@ func TestConfigS3_FilterNames(t *testing.T) {
 	configObj, err := GetConfig(configFilePath)
 
 	if err != nil {
-		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
+		require.NoError(t, err)
 	}
 
 	if reflect.DeepEqual(configObj, emptyConfig()) {

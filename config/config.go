@@ -1,6 +1,3 @@
-/*Package config - Todos
- * - validate that yaml conforms to the spec
- */
 package config
 
 import (
