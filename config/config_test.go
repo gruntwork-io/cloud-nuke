@@ -24,8 +24,8 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func emptyConfigObj() ConfigObj {
-	return ConfigObj{Rules{FilterRule{}, FilterRule{}}}
+func emptyConfig() Config {
+	return Config{ResourceType{FilterRule{}, FilterRule{}}}
 }
 
 func TestConfig_Empty(t *testing.T) {
@@ -36,8 +36,8 @@ func TestConfig_Empty(t *testing.T) {
 		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
 	}
 
-	if !reflect.DeepEqual(configObj, emptyConfigObj()) {
-		assert.Fail(t, "ConfigObj should be empty, %+v\n", configObj)
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
 	}
 
 	return
@@ -51,8 +51,8 @@ func TestConfigS3_Empty(t *testing.T) {
 		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
 	}
 
-	if !reflect.DeepEqual(configObj, emptyConfigObj()) {
-		assert.Fail(t, "ConfigObj should be empty, %+v\n", configObj.S3)
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.S3)
 	}
 
 	return
@@ -66,8 +66,8 @@ func TestConfigS3_EmptyFilters(t *testing.T) {
 		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
 	}
 
-	if !reflect.DeepEqual(configObj, emptyConfigObj()) {
-		assert.Fail(t, "ConfigObj should be empty, %+v\n", configObj)
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
 	}
 
 	return
@@ -81,8 +81,8 @@ func TestConfigS3_EmptyRules(t *testing.T) {
 		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
 	}
 
-	if !reflect.DeepEqual(configObj, emptyConfigObj()) {
-		assert.Fail(t, "ConfigObj should be empty, %+v\n", configObj)
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
 	}
 
 	return
@@ -96,8 +96,8 @@ func TestConfigS3_IncludeNames(t *testing.T) {
 		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
 	}
 
-	if reflect.DeepEqual(configObj, emptyConfigObj()) {
-		assert.Fail(t, "ConfigObj should not be empty, %+v\n", configObj)
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
 	if len(configObj.S3.IncludeRule.NamesRE) == 0 {
@@ -115,8 +115,8 @@ func TestConfigS3_ExcludeNames(t *testing.T) {
 		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
 	}
 
-	if reflect.DeepEqual(configObj, emptyConfigObj()) {
-		assert.Fail(t, "ConfigObj should not be empty, %+v\n", configObj)
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
 	if len(configObj.S3.ExcludeRule.NamesRE) == 0 {
@@ -134,8 +134,8 @@ func TestConfigS3_FilterNames(t *testing.T) {
 		assert.Failf(t, "Error reading config - %s - %s", configFilePath, err)
 	}
 
-	if reflect.DeepEqual(configObj, emptyConfigObj()) {
-		assert.Fail(t, "ConfigObj should not be empty, %+v\n", configObj)
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
 	if len(configObj.S3.IncludeRule.NamesRE) == 0 ||
