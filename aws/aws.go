@@ -177,7 +177,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string, configObj config.ConfigObj) (*AwsAccountResources, error) {
+func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string, configObj config.Config) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
@@ -424,7 +424,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesCache["S3"] = make(map[string][]*string)
 
 				for bucketRegion, bucketNames := range bucketNamesPerRegion {
-					var matchedBuckets []*string
+					matchedBuckets := make([]*string, 0)
 
 					// Consider each bucket in this region (all regions)
 					for _, bucketName := range aws.StringValueSlice(bucketNames) {

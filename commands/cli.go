@@ -125,7 +125,7 @@ func awsNuke(c *cli.Context) error {
 	}
 	logging.Logger.Level = parsedLogLevel
 
-	var configObj config.ConfigObj
+	var configObj *config.Config
 	configFilePath := c.String("config")
 
 	if configFilePath != "" {
@@ -148,7 +148,7 @@ func awsNuke(c *cli.Context) error {
 	resourceTypes := c.StringSlice("resource-type")
 	excludeResourceTypes := c.StringSlice("exclude-resource-type")
 	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
-		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type.")
+		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type")
 	}
 
 	// Var check to make sure only allowed resource types are included in the --resource-type or --exclude-resource-type
@@ -217,7 +217,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, *configObj)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
@@ -228,7 +228,7 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	var nukableResources []string
+	nukableResources := make([]string, 0)
 	for region, resourcesInRegion := range account.Resources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {

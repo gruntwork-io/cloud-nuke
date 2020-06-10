@@ -42,30 +42,30 @@ type FilterRule struct {
 
 // GetConfig - unmarshall the raw config file
 // and parse it into a config object.
-func GetConfig(filePath string) (Config, error) {
+func GetConfig(filePath string) (*Config, error) {
 	var configObj Config
 
 	absolutePath, err := filepath.Abs(filePath)
 	if err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 
 	yamlFile, err := ioutil.ReadFile(absolutePath)
 	if err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 
 	rawConfig := RawConfig{}
 
 	err = yaml.Unmarshal(yamlFile, &rawConfig)
 	if err != nil {
-		return Config{}, err
+		return &Config{}, err
 	}
 
 	for _, pattern := range rawConfig.S3.IncludeRule.NamesRE {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			return Config{}, err
+			return &Config{}, err
 		}
 
 		configObj.S3.IncludeRule.NamesRE = append(configObj.S3.IncludeRule.NamesRE, re)
@@ -74,11 +74,11 @@ func GetConfig(filePath string) (Config, error) {
 	for _, pattern := range rawConfig.S3.ExcludeRule.NamesRE {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			return Config{}, err
+			return &Config{}, err
 		}
 
 		configObj.S3.ExcludeRule.NamesRE = append(configObj.S3.ExcludeRule.NamesRE, re)
 	}
 
-	return configObj, nil
+	return &configObj, nil
 }
