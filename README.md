@@ -132,7 +132,9 @@ For more granularity, you can pass in a configuration file to specify which reso
 cloud-nuke aws --resource-type s3 --config path/to/file.yaml
 ```
 
-Given this config, `cloud-nuke` will only nuke S3 buckets that match one of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but not a bucket named `my-s3-bucket`.
+Given this command, `cloud-nuke` will nuke _only_ S3 buckets, as specified by the `--resource-type s3` option.
+
+Now given the following config, the s3 buckets that will be nuked are further filtered to only include ones that match any of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but a bucket named `my-s3-bucket` would not.
 ```yaml
 s3:
   include:
@@ -154,13 +156,13 @@ s3:
 
 [[Unimplemented!!]]
 
-Given this config, `cloud-nuke` will nuke all S3 buckets that match the regular expression but only if they do not also exist in `us-east-1`. So a bucket named `abc-prod-alb-def` located in the `us-west-1` region would be nuked.
+Given this config, `cloud-nuke` will nuke all S3 buckets that match the regular expression but only if they do not also exist in `us-east-1`. So a bucket named `abc-prod-alb-def` located in the `ap-northeast-2` region would be nuked.
 ```yaml
 s3:
   include:
     names_regex:
       - .*-prod-alb-.*
-  exclude
+  exclude:
     regions:
       - us-east-1
 ```
@@ -168,6 +170,10 @@ s3:
 #### CLI options override config file options
 
 The options provided in the command line take precedence over those provided in any config file that gets passed in. For example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `ec2:` at the top level but doesn't specify `s3:`. The command line argument filters the resource types to include only s3, so the rules in the config file for `ec2:` are ignored, and ec2 resources are not nuked. All s3 resources would be nuked.
+
+In the same vein, say you do not provide a `--resource-type` option in the command line, but you do pass in a config file that only lists rules for `s3:`, such as `cloud-nuke aws --config path/to/config.yaml`. In this case _all_ resources would be nuked, but among `s3` buckets, only those matching your config file rules would be nuked.
+
+Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will list resources that would undergo nuking and wait for your confirmation before carrying it out.
 
 If you provide a region to include or exclude via the command line, that will also take precedence over any resource-specific regions specified in the config file. So, if you pass in `--exclude-region us-east-1` but the config file specifies the following:
 
