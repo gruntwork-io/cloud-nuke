@@ -26,18 +26,18 @@ type rawFilterRule struct {
 
 // ConfigObj - Struct defining the config object we pass around
 type ConfigObj struct {
-	S3 Rules `yaml:"s3"`
+	S3 Rules
 }
 
 // Rules - defines what to include and exclude
 type Rules struct {
-	IncludeRule FilterRule `yaml:"include"`
-	ExcludeRule FilterRule `yaml:"exclude"`
+	IncludeRule FilterRule
+	ExcludeRule FilterRule
 }
 
 // FilterRule - contains regular expressions or plain text patterns
 type FilterRule struct {
-	NamesRE []*regexp.Regexp `yaml:"names_regex"`
+	NamesRE []*regexp.Regexp
 }
 
 // GetConfig - unmarshalls the raw config file
