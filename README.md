@@ -205,7 +205,7 @@ To find out what we options are supported in the config file today, consult this
 | ... (more to come) | none |
 
 
-*For the s3 resource type*
+_s3 resource type_:
 
 | field       | include | exclude |
 |-------------|---------|---------|
