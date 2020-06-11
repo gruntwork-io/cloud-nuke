@@ -124,7 +124,7 @@ If you want to check what resources are going to be targeted without actually te
 cloud-nuke aws --resource-type ec2 --dry-run
 ```
 
-### Specify optional config file
+### Config file
 
 For more granularity, you can pass in a configuration file to specify which resources to terminate using regular expressions.
 
@@ -143,7 +143,7 @@ s3:
       - .*-prod-alb-.*
 ```
 
-[[Unimplemented!!]]
+<!-- Region support in the file is not supported. May only be supported in command line
 
 Given this config, `cloud-nuke` will nuke all S3 buckets that exist in `us-east-1` and all S3 buckets that exist in `us-west-1`.
 ```yaml
@@ -153,8 +153,6 @@ s3:
       - us-east-1
       - us-west-1
 ```
-
-[[Unimplemented!!]]
 
 Given this config, `cloud-nuke` will nuke all S3 buckets that match the regular expression but only if they do not also exist in `us-east-1`. So a bucket named `abc-prod-alb-def` located in the `ap-northeast-2` region would be nuked.
 ```yaml
@@ -166,6 +164,7 @@ s3:
     regions:
       - us-east-1
 ```
+-->
 
 #### CLI options override config file options
 
@@ -175,16 +174,25 @@ In the same vein, say you do not provide a `--resource-type` option in the comma
 
 Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will list resources that would undergo nuking and wait for your confirmation before carrying it out.
 
-If you provide a region to include or exclude via the command line, that will also take precedence over any resource-specific regions specified in the config file. So, if you pass in `--exclude-region us-east-1` but the config file specifies the following:
+### Config file support table
 
-```yaml
-s3:
-  include:
-    regions:
-      - us-east-1
-```
+To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here:
 
-No s3 buckets will be nuked.
+| resource type | support |
+|---------------|---------|
+| s3            | partial |
+| ec2 instance  | none    |
+| iam role      | none    |
+
+
+*For the s3 resource type*
+
+| field       | include | exclude |
+|-------------|---------|---------|
+| names       | none    | none    |
+| names_regex | ✅      | ✅      |
+| tags        | none    | none    |
+| tags_regex  | none    | none    |
 
 ### Log level
 
