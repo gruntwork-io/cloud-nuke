@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -426,36 +427,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				for bucketRegion, bucketNames := range bucketNamesPerRegion {
 					matchedBuckets := make([]*string, 0)
 
-					// Consider each bucket in this region (all regions)
-					for _, bucketName := range aws.StringValueSlice(bucketNames) {
-						excluded := false
-
-						// If there are include rules, match them against this bucket
-						for _, includeNamesRE := range configObj.S3.IncludeRule.NamesRE {
-							if includeNamesRE.MatchString(bucketName) {
-								// Some include rule wants to nuke this bucket
-								for _, excludeNamesRE := range configObj.S3.ExcludeRule.NamesRE {
-									if excludeNamesRE.MatchString(bucketName) {
-										// Some exclude rule wants to keep this bucket
-										excluded = true
-									}
-								}
-
-								// Only nuke the bucket if included and not excluded
-								if !excluded {
-									matchedBuckets = append(matchedBuckets, aws.String(bucketName))
-								}
-							}
-						}
-
-						// If there are only exclude rules, match them against this bucket
-						if len(configObj.S3.IncludeRule.NamesRE) == 0 {
-							for _, excludeNamesRE := range configObj.S3.ExcludeRule.NamesRE {
-								if !excludeNamesRE.MatchString(bucketName) {
-									matchedBuckets = append(matchedBuckets, aws.String(bucketName))
-								}
-							}
-						}
+					if len(configObj.S3.IncludeRule.NamesRE) > 0 {
+						includedBuckets := includeBucketsByREList(bucketNames, configObj.S3.IncludeRule.NamesRE)
+						matchedBuckets = excludeBucketsByREList(includedBuckets, configObj.S3.ExcludeRule.NamesRE)
+					} else if len(configObj.S3.ExcludeRule.NamesRE) > 0 {
+						matchedBuckets = excludeBucketsByREList(bucketNames, configObj.S3.ExcludeRule.NamesRE)
+					} else {
+						matchedBuckets = bucketNames
 					}
 
 					// If we had any filter rules, cache the matched buckets, otherwise cache em all
@@ -485,6 +463,37 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	}
 
 	return &account, nil
+}
+
+func includeBucketsByREList(bucketNames []*string, namesRE []*regexp.Regexp) []*string {
+	includedBuckets := make([]*string, 0)
+
+	for _, bucketName := range aws.StringValueSlice(bucketNames) {
+		for _, re := range namesRE {
+			if re.MatchString(bucketName) {
+				includedBuckets = append(includedBuckets, aws.String(bucketName))
+			}
+		}
+	}
+	return includedBuckets
+}
+
+func excludeBucketsByREList(bucketNames []*string, namesRE []*regexp.Regexp) []*string {
+	includedBuckets := make([]*string, 0)
+
+	for _, bucketName := range aws.StringValueSlice(bucketNames) {
+		excluded := false
+		for _, re := range namesRE {
+			if re.MatchString(bucketName) {
+				excluded = true
+			}
+		}
+
+		if !excluded {
+			includedBuckets = append(includedBuckets, aws.String(bucketName))
+		}
+	}
+	return includedBuckets
 }
 
 // ListResourceTypes - Returns list of resources which can be passed to --resource-type
