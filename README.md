@@ -146,7 +146,7 @@ s3:
 #### Include and exclude together
 Now consider the following contrived example:
 
-```
+```yaml
 s3:
   include:
     names_regex:
@@ -205,7 +205,7 @@ To find out what we options are supported in the config file today, consult this
 | ... (more to come) | none |
 
 
-_s3 resource type_:
+##### s3 resource type:
 
 | field       | include | exclude |
 |-------------|---------|---------|
