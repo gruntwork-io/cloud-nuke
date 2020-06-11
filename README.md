@@ -206,6 +206,7 @@ To find out what we options are supported in the config file today, consult this
 
 
 ##### s3 resource type:
+_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
 
 | field       | include | exclude |
 |-------------|---------|---------|
