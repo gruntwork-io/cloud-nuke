@@ -143,7 +143,26 @@ s3:
       - .*-prod-alb-.*
 ```
 
-<!-- Region support in the file is not supported. May only be supported in command line
+#### Include and exclude together
+Now consider the following contrived example:
+
+```
+s3:
+  include:
+    names_regex:
+      - ^alb-.*-access-logs$
+      - .*-prod-alb-.*
+  exclude:
+    names_regex:
+      - public
+      - prod
+```
+
+The intention is to delete all the s3 buckets that match the include rules but not the exclude rules. Filtering is commutative, meaning that you should get the same result whether you apply the include filters before or after the exclude filters.
+
+The result of these filters applied in either order will be a set of s3 buckets that match `^alb-.*-access-logs$` as long as they do not also contain `public` or `prod`. The rule to include s3 buckets matching `.*-prod-alb-.*` is negated by the rule to exclude those matching `prod`.
+
+<!-- We might only want to support region and resource-type in the command line, rather than in the config file.
 
 Given this config, `cloud-nuke` will nuke all S3 buckets that exist in `us-east-1` and all S3 buckets that exist in `us-west-1`.
 ```yaml
@@ -174,15 +193,16 @@ In the same vein, say you do not provide a `--resource-type` option in the comma
 
 Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will list resources that would undergo nuking and wait for your confirmation before carrying it out.
 
-### Config file support table
+#### What's supported?
 
-To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here:
+To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
 | resource type | support |
 |---------------|---------|
 | s3            | partial |
 | ec2 instance  | none    |
 | iam role      | none    |
+| ... (more to come) | none |
 
 
 *For the s3 resource type*
