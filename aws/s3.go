@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
@@ -92,7 +94,7 @@ type S3Bucket struct {
 
 // getAllS3Buckets returns a map of per region AWS S3 buckets which were created before excludeAfter
 func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
-	targetRegions []string, bucketNameSubStr string, batchSize int) (map[string][]*string, error) {
+	targetRegions []string, bucketNameSubStr string, batchSize int, configObj config.Config) (map[string][]*string, error) {
 
 	if batchSize <= 0 {
 		return nil, fmt.Errorf("Invalid batchsize - %d - should be > 0", batchSize)
@@ -124,7 +126,7 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 		batchEnd := int(math.Min(float64(batchStart)+float64(batchSize), float64(totalBuckets)))
 		logging.Logger.Infof("Getting - %d-%d buckets of batch %d/%d", batchStart+1, batchEnd, batchCount, totalBatches)
 		targetBuckets := output.Buckets[batchStart:batchEnd]
-		currBucketNamesPerRegion, err := getBucketNamesPerRegion(svc, targetBuckets, excludeAfter, regionClients, bucketNameSubStr)
+		currBucketNamesPerRegion, err := getBucketNamesPerRegion(svc, targetBuckets, excludeAfter, regionClients, bucketNameSubStr, configObj)
 
 		if err != nil {
 			return bucketNamesPerRegion, err
@@ -161,7 +163,7 @@ func getRegionClients(regions []string) (map[string]*s3.S3, error) {
 
 // getBucketNamesPerRegions gets valid bucket names concurrently from list of target buckets
 func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfter time.Time, regionClients map[string]*s3.S3,
-	bucketNameSubStr string) (map[string][]*string, error) {
+	bucketNameSubStr string, configObj config.Config) (map[string][]*string, error) {
 
 	var bucketNamesPerRegion = make(map[string][]*string)
 	var bucketCh = make(chan *S3Bucket, len(targetBuckets))
@@ -176,7 +178,7 @@ func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfte
 		wg.Add(1)
 		go func(bucket *s3.Bucket) {
 			defer wg.Done()
-			getBucketInfo(svc, bucket, excludeAfter, regionClients, bucketCh)
+			getBucketInfo(svc, bucket, excludeAfter, regionClients, bucketCh, configObj)
 		}(bucket)
 	}
 
@@ -205,7 +207,7 @@ func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfte
 }
 
 // getBucketInfo populates the local S3Bucket struct for the passed AWS bucket
-func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, regionClients map[string]*s3.S3, bucketCh chan<- *S3Bucket) {
+func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, regionClients map[string]*s3.S3, bucketCh chan<- *S3Bucket, configObj config.Config) {
 	var bucketData S3Bucket
 	bucketData.Name = aws.StringValue(bucket.Name)
 	bucketData.CreationDate = aws.TimeValue(bucket.CreationDate)
@@ -253,8 +255,52 @@ func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, region
 		return
 	}
 
+	// Check if the bucket matches config file rules
+	if !shouldIncludeBucket(bucketData.Name, configObj.S3.IncludeRule.NamesRE, configObj.S3.ExcludeRule.NamesRE) {
+		bucketData.InvalidReason = "Filtered by config file rules"
+		bucketCh <- &bucketData
+		return
+	}
+
 	bucketData.IsValid = true
 	bucketCh <- &bucketData
+}
+
+func shouldIncludeBucket(bucketName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
+	shouldInclude := false
+
+	if len(includeNamesREList) > 0 {
+		if includeBucketByREList(bucketName, includeNamesREList) {
+			shouldInclude = excludeBucketByREList(bucketName, excludeNamesREList)
+		}
+	} else if len(excludeNamesREList) > 0 {
+		shouldInclude = excludeBucketByREList(bucketName, excludeNamesREList)
+	} else {
+		shouldInclude = true
+	}
+
+	return shouldInclude
+}
+
+func includeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(bucketName) {
+			return true
+		}
+	}
+	return false
+}
+
+func excludeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
+	shouldInclude := true
+
+	for _, re := range reList {
+		if re.MatchString(bucketName) {
+			shouldInclude = false
+		}
+	}
+
+	return shouldInclude
 }
 
 // getS3BucketObjects returns S3 bucket objects struct for a given bucket name

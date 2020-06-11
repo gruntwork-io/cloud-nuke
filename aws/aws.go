@@ -3,7 +3,6 @@ package aws
 import (
 	"fmt"
 	"math/rand"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -417,33 +416,15 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			bucketNamesPerRegion, ok := resourcesCache["S3"]
 
 			if !ok {
-				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize())
+				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(), configObj)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
 
 				resourcesCache["S3"] = make(map[string][]*string)
 
-				for bucketRegion, bucketNames := range bucketNamesPerRegion {
-					matchedBuckets := make([]*string, 0)
-
-					if len(configObj.S3.IncludeRule.NamesRE) > 0 {
-						includedBuckets := includeBucketsByREList(bucketNames, configObj.S3.IncludeRule.NamesRE)
-						matchedBuckets = excludeBucketsByREList(includedBuckets, configObj.S3.ExcludeRule.NamesRE)
-					} else if len(configObj.S3.ExcludeRule.NamesRE) > 0 {
-						matchedBuckets = excludeBucketsByREList(bucketNames, configObj.S3.ExcludeRule.NamesRE)
-					} else {
-						matchedBuckets = bucketNames
-					}
-
-					// If we had any filter rules, cache the matched buckets, otherwise cache em all
-					if len(configObj.S3.IncludeRule.NamesRE) > 0 ||
-						len(configObj.S3.ExcludeRule.NamesRE) > 0 {
-						resourcesCache["S3"][bucketRegion] = matchedBuckets
-					} else {
-						resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
-					}
-
+				for bucketRegion, _ := range bucketNamesPerRegion {
+					resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
 				}
 			}
 
@@ -463,37 +444,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	}
 
 	return &account, nil
-}
-
-func includeBucketsByREList(bucketNames []*string, namesRE []*regexp.Regexp) []*string {
-	includedBuckets := make([]*string, 0)
-
-	for _, bucketName := range aws.StringValueSlice(bucketNames) {
-		for _, re := range namesRE {
-			if re.MatchString(bucketName) {
-				includedBuckets = append(includedBuckets, aws.String(bucketName))
-			}
-		}
-	}
-	return includedBuckets
-}
-
-func excludeBucketsByREList(bucketNames []*string, namesRE []*regexp.Regexp) []*string {
-	includedBuckets := make([]*string, 0)
-
-	for _, bucketName := range aws.StringValueSlice(bucketNames) {
-		excluded := false
-		for _, re := range namesRE {
-			if re.MatchString(bucketName) {
-				excluded = true
-			}
-		}
-
-		if !excluded {
-			includedBuckets = append(includedBuckets, aws.String(bucketName))
-		}
-	}
-	return includedBuckets
 }
 
 // ListResourceTypes - Returns list of resources which can be passed to --resource-type

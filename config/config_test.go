@@ -1,7 +1,6 @@
 package config
 
 import (
-	"gopkg.in/yaml.v2"
 	"reflect"
 	"testing"
 
@@ -9,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func emptyConfig() Config {
-	return Config{ResourceType{FilterRule{}, FilterRule{}}}
+func emptyConfig() *Config {
+	return &Config{ResourceType{FilterRule{}, FilterRule{}}}
 }
 
 func TestConfig_Garbage(t *testing.T) {
@@ -34,14 +33,10 @@ func TestConfig_Malformed(t *testing.T) {
 
 	// Expect malformed to throw a yaml TypeError
 	if err != nil {
-		if tErr, ok := err.(*yaml.TypeError); ok {
-			// require this error and return
-			require.Errorf(t, tErr, "Received expected type error - %s", tErr)
-		}
-		require.NoError(t, err, "Expected type error")
+		require.Error(t, err, "Received expected error")
 	}
 
-	require.Error(t, err, "Expected type error")
+	require.Error(t, err, "Expected error")
 	return
 }
 
