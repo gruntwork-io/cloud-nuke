@@ -270,10 +270,13 @@ func shouldIncludeBucket(bucketName string, includeNamesREList []*regexp.Regexp,
 	shouldInclude := false
 
 	if len(includeNamesREList) > 0 {
+		// If any include rules are specified,
+		// only check to see if an exclude rule matches when an include rule matches the bucket
 		if includeBucketByREList(bucketName, includeNamesREList) {
 			shouldInclude = excludeBucketByREList(bucketName, excludeNamesREList)
 		}
 	} else if len(excludeNamesREList) > 0 {
+		// Only check to see if an exclude rule matches when there are no include rules defined
 		shouldInclude = excludeBucketByREList(bucketName, excludeNamesREList)
 	} else {
 		shouldInclude = true
@@ -292,15 +295,13 @@ func includeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
 }
 
 func excludeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
-	shouldInclude := true
-
 	for _, re := range reList {
 		if re.MatchString(bucketName) {
-			shouldInclude = false
+			return false
 		}
 	}
 
-	return shouldInclude
+	return true
 }
 
 // getS3BucketObjects returns S3 bucket objects struct for a given bucket name

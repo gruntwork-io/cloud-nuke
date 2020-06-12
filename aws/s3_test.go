@@ -477,6 +477,8 @@ func bucketNamesForConfigTests() []string {
 		"prod-alb-public-access-logs-" + S3TestGenBucketName(),
 		"stage-alb-internal-access-logs-" + S3TestGenBucketName(),
 		"stage-alb-public-access-logs-" + S3TestGenBucketName(),
+		"cloud-watch-logs-staging-" + S3TestGenBucketName(),
+		"something-else-logs-staging-" + S3TestGenBucketName(),
 	}
 }
 
