@@ -503,27 +503,29 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 	// Clean up test buckets
 	// defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
 
-	// Define test case
+	// Define test cases
 	type testCaseStruct struct {
 		name string
 		args TestFilterS3BucketArgs
 	}
 
 	includeBuckets := []string{}
-	excludeBuckets := []string{}
-	filterBuckets := []string{}
-	filterBuckets = append(filterBuckets, bucketNames[:3]...)
 	includeBuckets = append(includeBuckets, bucketNames[:4]...)
+
+	excludeBuckets := []string{}
 	excludeBuckets = append(excludeBuckets, bucketNames[:3]...)
 	excludeBuckets = append(excludeBuckets, bucketNames[4])
 	excludeBuckets = append(excludeBuckets, bucketNames[6:]...)
 
+	filterBuckets := []string{}
+	filterBuckets = append(filterBuckets, bucketNames[:3]...)
+
 	testCases := []testCaseStruct{
 		{
-			"IncludeAndExclude",
+			"Include",
 			TestFilterS3BucketArgs{
-				configFilePath: "../config/mocks/s3_filter_names.yaml",
-				matches:        filterBuckets,
+				configFilePath: "../config/mocks/s3_include_names.yaml",
+				matches:        includeBuckets,
 			},
 		},
 		{
@@ -534,10 +536,10 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 			},
 		},
 		{
-			"Include",
+			"IncludeAndExclude",
 			TestFilterS3BucketArgs{
-				configFilePath: "../config/mocks/s3_include_names.yaml",
-				matches:        includeBuckets,
+				configFilePath: "../config/mocks/s3_filter_names.yaml",
+				matches:        filterBuckets,
 			},
 		},
 	}
