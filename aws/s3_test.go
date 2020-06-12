@@ -500,9 +500,6 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 	awsSession, err := S3TestCreateNewAWSSession("")
 	require.NoError(t, err, "Failed to create random session")
 
-	// Clean up test buckets
-	// defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
-
 	// Define test cases
 	type testCaseStruct struct {
 		name string
@@ -549,6 +546,8 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 		// Not doing this will lead to tc being set to the last entry in the testCases
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			// Clean up test buckets
+			defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
 			t.Parallel()
 
 			var configObj *config.Config
