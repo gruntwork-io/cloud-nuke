@@ -126,7 +126,9 @@ cloud-nuke aws --resource-type ec2 --dry-run
 
 ### Config file
 
-For more granularity, such as being able to specify which resources to terminate using regular expressions, you can pass in a configuration file.
+For more granularity, such as being able to specify which resources to terminate using regular expressions or plain text, you can pass in a configuration file.
+
+_Note: Config file support is a new feature and only filtering s3 buckets by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
 
 ```shell
 cloud-nuke aws --resource-type s3 --config path/to/file.yaml

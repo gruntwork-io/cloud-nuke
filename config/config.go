@@ -47,25 +47,25 @@ func GetConfig(filePath string) (*Config, error) {
 
 	absolutePath, err := filepath.Abs(filePath)
 	if err != nil {
-		return &Config{}, err
+		return nil, err
 	}
 
 	yamlFile, err := ioutil.ReadFile(absolutePath)
 	if err != nil {
-		return &Config{}, err
+		return nil, err
 	}
 
 	rawConfig := RawConfig{}
 
 	err = yaml.Unmarshal(yamlFile, &rawConfig)
 	if err != nil {
-		return &Config{}, err
+		return nil, err
 	}
 
 	for _, pattern := range rawConfig.S3.IncludeRule.NamesRE {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			return &Config{}, err
+			return nil, err
 		}
 
 		configObj.S3.IncludeRule.NamesRE = append(configObj.S3.IncludeRule.NamesRE, re)
@@ -74,7 +74,7 @@ func GetConfig(filePath string) (*Config, error) {
 	for _, pattern := range rawConfig.S3.ExcludeRule.NamesRE {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			return &Config{}, err
+			return nil, err
 		}
 
 		configObj.S3.ExcludeRule.NamesRE = append(configObj.S3.ExcludeRule.NamesRE, re)
