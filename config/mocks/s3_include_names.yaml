@@ -2,4 +2,4 @@ s3:
   include:
     names_regex:
       - prod
-      - ^alb-.*-access-logs$
+      - ^alb-.*-access-logs

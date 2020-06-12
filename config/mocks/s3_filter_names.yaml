@@ -1,7 +1,7 @@
 s3:
   include:
     names_regex:
-      - ^alb-.*-access-logs$
+      - ^alb-.*-access-logs
       - prod
   exclude:
     names_regex:
