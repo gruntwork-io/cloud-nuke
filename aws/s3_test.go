@@ -482,10 +482,10 @@ func bucketNamesForConfigTests() []string {
 
 // TestFilterS3Bucket_Config tests listing only S3 buckets that match config file
 func TestFilterS3Bucket_Config(t *testing.T) {
+	// Create test buckets
 	awsParams, err := newS3TestAWSParams()
 	require.NoError(t, err, "Failed to setup AWS params")
 
-	// Create test buckets
 	var bucketTags []map[string]string
 	bucketNames := bucketNamesForConfigTests()
 	for _, bucketName := range bucketNames {
@@ -493,31 +493,26 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 		require.NoErrorf(t, err, "Failed to create test bucket - %s", bucketName)
 	}
 
+	// Clean up test buckets
+	defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
+
+	// Define test case
 	type testCaseStruct struct {
 		name string
 		args TestFilterS3BucketArgs
 	}
 
-	filterMatches := make([]string, len(bucketNames))
-	copy(filterMatches, bucketNames)
-
-	testCase := testCaseStruct{
-		"IncludeAndExclude",
-		TestFilterS3BucketArgs{
-			configFilePath: "../config/mocks/s3_filter_names.yaml",
-			matches:        filterMatches[0:3],
-		},
-	}
+	// We compare with the slice of bucketNames that should match
+	matches := []string{}
+	matches = append(matches, bucketNames[0:3]...)
 
 	var configObj *config.Config
-	configObj, err = config.GetConfig(testCase.args.configFilePath)
+	configObj, err = config.GetConfig("../config/mocks/s3_filter_names.yaml")
 
 	// Verify that only filtered buckets are listed
 	bucketNamesPerRegion, err := getAllS3Buckets(awsParams.awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
-	require.NoError(t, err, "Failed to list S3 Buckets")
-	require.Equal(t, len(testCase.args.matches), len(bucketNamesPerRegion[awsParams.region]))
-	require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), testCase.args.matches)
 
-	// TODO: this is happening too early
-	defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
+	require.NoError(t, err, "Failed to list S3 Buckets")
+	require.Equal(t, len(matches), len(bucketNamesPerRegion[awsParams.region]))
+	require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), matches)
 }
