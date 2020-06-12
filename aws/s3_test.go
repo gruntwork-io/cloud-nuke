@@ -484,6 +484,8 @@ func bucketNamesForConfigTests() []string {
 
 // TestFilterS3Bucket_Config tests listing only S3 buckets that match config file
 func TestFilterS3Bucket_Config(t *testing.T) {
+	t.Parallel()
+
 	// Create test buckets
 	awsParams, err := newS3TestAWSParams()
 	require.NoError(t, err, "Failed to setup AWS params")
@@ -495,8 +497,11 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 		require.NoErrorf(t, err, "Failed to create test bucket - %s", bucketName)
 	}
 
+	awsSession, err := S3TestCreateNewAWSSession("")
+	require.NoError(t, err, "Failed to create random session")
+
 	// Clean up test buckets
-	defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
+	// defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
 
 	// Define test case
 	type testCaseStruct struct {
@@ -504,17 +509,55 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 		args TestFilterS3BucketArgs
 	}
 
-	// We compare with the slice of bucketNames that should match
-	matches := []string{}
-	matches = append(matches, bucketNames[0:3]...)
+	includeBuckets := []string{}
+	excludeBuckets := []string{}
+	filterBuckets := []string{}
+	filterBuckets = append(filterBuckets, bucketNames[:3]...)
+	includeBuckets = append(includeBuckets, bucketNames[:4]...)
+	excludeBuckets = append(excludeBuckets, bucketNames[:3]...)
+	excludeBuckets = append(excludeBuckets, bucketNames[4])
+	excludeBuckets = append(excludeBuckets, bucketNames[6:]...)
 
-	var configObj *config.Config
-	configObj, err = config.GetConfig("../config/mocks/s3_filter_names.yaml")
+	testCases := []testCaseStruct{
+		{
+			"IncludeAndExclude",
+			TestFilterS3BucketArgs{
+				configFilePath: "../config/mocks/s3_filter_names.yaml",
+				matches:        filterBuckets,
+			},
+		},
+		{
+			"Exclude",
+			TestFilterS3BucketArgs{
+				configFilePath: "../config/mocks/s3_exclude_names.yaml",
+				matches:        excludeBuckets,
+			},
+		},
+		{
+			"Include",
+			TestFilterS3BucketArgs{
+				configFilePath: "../config/mocks/s3_include_names.yaml",
+				matches:        includeBuckets,
+			},
+		},
+	}
 
-	// Verify that only filtered buckets are listed
-	bucketNamesPerRegion, err := getAllS3Buckets(awsParams.awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
+	for _, tc := range testCases {
+		// Capture the range variable as per https://blog.golang.org/subtests
+		// Not doing this will lead to tc being set to the last entry in the testCases
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	require.NoError(t, err, "Failed to list S3 Buckets")
-	require.Equal(t, len(matches), len(bucketNamesPerRegion[awsParams.region]))
-	require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), matches)
+			var configObj *config.Config
+			configObj, err = config.GetConfig(tc.args.configFilePath)
+
+			// Verify that only filtered buckets are listed
+			bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
+
+			require.NoError(t, err, "Failed to list S3 Buckets")
+			require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
+			require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), tc.args.matches)
+		})
+	}
 }
