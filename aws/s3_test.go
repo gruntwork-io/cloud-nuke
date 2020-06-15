@@ -63,19 +63,24 @@ type S3TestAWSParams struct {
 }
 
 // newS3TestAWSParams sets up common operations for nuke S3 tests.
-func newS3TestAWSParams() (S3TestAWSParams, error) {
+func newS3TestAWSParams(region string) (S3TestAWSParams, error) {
 	var params S3TestAWSParams
 
-	region, err := getRandomRegion()
-	if err != nil {
-		return params, err
+	if region == "" {
+		var err error
+		region, err = getRandomRegion()
+		if err != nil {
+			return params, err
+		}
 	}
+
 	params.region = region
 
-	params.awsSession, err = S3TestCreateNewAWSSession(region)
+	awsSession, err := S3TestCreateNewAWSSession(params.region)
 	if err != nil {
 		return params, err
 	}
+	params.awsSession = awsSession
 
 	params.svc = s3.New(params.awsSession)
 	if err != nil {
@@ -168,7 +173,7 @@ type TestListS3BucketArgs struct {
 
 // testListS3Bucket - helper function for TestListS3Bucket
 func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
-	awsParams, err := newS3TestAWSParams()
+	awsParams, err := newS3TestAWSParams("")
 	require.NoError(t, err, "Failed to setup AWS params")
 
 	bucketName := S3TestGenBucketName()
@@ -306,7 +311,7 @@ type TestNukeS3BucketArgs struct {
 
 // testNukeS3Bucket - generates the test function for TestNukeS3Bucket
 func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
-	awsParams, err := newS3TestAWSParams()
+	awsParams, err := newS3TestAWSParams("")
 	require.NoError(t, err, "Failed to setup AWS params")
 
 	// Create test bucket
@@ -488,10 +493,22 @@ func bucketNamesForConfigTests() []string {
 func TestFilterS3Bucket_Config(t *testing.T) {
 	t.Parallel()
 
-	// Create test buckets
-	awsParams, err := newS3TestAWSParams()
+	// Create AWS session in ca-central-1
+	awsParams, err := newS3TestAWSParams("ca-central-1")
 	require.NoError(t, err, "Failed to setup AWS params")
 
+	// Nuke all buckets in ca-central-1 first
+	// passing in a config that matches all buckets
+	var configObj *config.Config
+	configObj, err = config.GetConfig("../config/mocks/s3_all.yaml")
+
+	// Verify that only filtered buckets are listed
+	cleanupBuckets, err := getAllS3Buckets(awsParams.awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
+	require.NoError(t, err, "Failed to list S3 Buckets in ca-central-1")
+
+	nukeAllS3Buckets(awsParams.awsSession, cleanupBuckets[awsParams.region], 1000)
+
+	// Create test buckets in ca-central-1
 	var bucketTags []map[string]string
 	bucketNames := bucketNamesForConfigTests()
 	for _, bucketName := range bucketNames {
@@ -499,8 +516,11 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 		require.NoErrorf(t, err, "Failed to create test bucket - %s", bucketName)
 	}
 
+	// Please note that we are not reusing awsParams.awsSession and creating a random session in a region other
+	// than the one in which the bucket is created - this is useful to test the scenario where the user has
+	// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
 	awsSession, err := S3TestCreateNewAWSSession("")
-	require.NoError(t, err, "Failed to create random session")
+	require.NoError(t, err, "Failed to create session in random region")
 
 	// Define test cases
 	type testCaseStruct struct {
@@ -556,13 +576,10 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 				var configObj *config.Config
 				configObj, err = config.GetConfig(tc.args.configFilePath)
 
-				// Verify that only filtered buckets are listed
+				// Verify that only filtered buckets are listed (use random region)
 				bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
 
 				require.NoError(t, err, "Failed to list S3 Buckets")
-				if !assert.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region])) {
-					logging.Logger.Infof("found \n%+v\n", aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]))
-				}
 				require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
 				require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), tc.args.matches)
 			})
