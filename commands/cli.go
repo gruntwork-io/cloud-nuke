@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -69,6 +70,10 @@ func CreateCli(version string) *cli.App {
 					Usage:  "Set log level",
 					EnvVar: "LOG_LEVEL",
 				},
+				cli.StringFlag{
+					Name:  "config",
+					Usage: "YAML file specifying matching rules.",
+				},
 			},
 		}, {
 			Name:   "defaults-aws",
@@ -120,6 +125,18 @@ func awsNuke(c *cli.Context) error {
 	}
 	logging.Logger.Level = parsedLogLevel
 
+	configObj := config.Config{}
+	configFilePath := c.String("config")
+
+	if configFilePath != "" {
+		configObjPtr, err := config.GetConfig(configFilePath)
+
+		if err != nil {
+			return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
+		}
+		configObj = *configObjPtr
+	}
+
 	allResourceTypes := aws.ListResourceTypes()
 
 	if c.Bool("list-resource-types") {
@@ -132,7 +149,7 @@ func awsNuke(c *cli.Context) error {
 	resourceTypes := c.StringSlice("resource-type")
 	excludeResourceTypes := c.StringSlice("exclude-resource-type")
 	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
-		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type.")
+		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type")
 	}
 
 	// Var check to make sure only allowed resource types are included in the --resource-type or --exclude-resource-type
@@ -169,7 +186,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	// Log which resource types will be nuked
-	logging.Logger.Info("The following resources types will be nuked:")
+	logging.Logger.Info("The following resource types will be nuked:")
 	if len(resourceTypes) > 0 {
 		for _, resourceType := range resourceTypes {
 			logging.Logger.Infof("- %s", resourceType)
@@ -201,7 +218,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes)
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
 
 	if err != nil {
 		return errors.WithStackTrace(err)
@@ -212,14 +229,19 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	logging.Logger.Infoln("The following AWS resources are going to be nuked: ")
-
+	nukableResources := make([]string, 0)
 	for region, resourcesInRegion := range account.Resources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {
-				logging.Logger.Infof("* %s-%s-%s\n", resources.ResourceName(), identifier, region)
+				nukableResources = append(nukableResources, fmt.Sprintf("* %s %s %s\n", resources.ResourceName(), identifier, region))
 			}
 		}
+	}
+
+	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukableResources))
+
+	for _, resource := range nukableResources {
+		logging.Logger.Infoln(resource)
 	}
 
 	if c.Bool("dry-run") {

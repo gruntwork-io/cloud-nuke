@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/sirupsen/logrus"
@@ -61,19 +62,24 @@ type S3TestAWSParams struct {
 }
 
 // newS3TestAWSParams sets up common operations for nuke S3 tests.
-func newS3TestAWSParams() (S3TestAWSParams, error) {
+func newS3TestAWSParams(region string) (S3TestAWSParams, error) {
 	var params S3TestAWSParams
 
-	region, err := getRandomRegion()
-	if err != nil {
-		return params, err
+	if region == "" {
+		var err error
+		region, err = getRandomRegion()
+		if err != nil {
+			return params, err
+		}
 	}
+
 	params.region = region
 
-	params.awsSession, err = S3TestCreateNewAWSSession(region)
+	awsSession, err := S3TestCreateNewAWSSession(params.region)
 	if err != nil {
 		return params, err
 	}
+	params.awsSession = awsSession
 
 	params.svc = s3.New(params.awsSession)
 	if err != nil {
@@ -166,7 +172,7 @@ type TestListS3BucketArgs struct {
 
 // testListS3Bucket - helper function for TestListS3Bucket
 func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
-	awsParams, err := newS3TestAWSParams()
+	awsParams, err := newS3TestAWSParams("")
 	require.NoError(t, err, "Failed to setup AWS params")
 
 	bucketName := S3TestGenBucketName()
@@ -186,7 +192,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	// Please note that we are not reusing S3TestAWSParams.awsSession and creating a random session in a region other
 	// than the one in which the bucket is created - this is useful to test the scenario where the user has
 	// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
-	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), targetRegions, bucketName, args.batchSize)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), targetRegions, bucketName, args.batchSize, config.Config{})
 	if args.shouldError {
 		require.Error(t, err, "Did not fail for invalid batch size")
 		logging.Logger.Debugf("SUCCESS: Did not list buckets due to invalid batch size - %s - %s", bucketName, err.Error())
@@ -208,7 +214,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 
 	require.NoError(t, err, "Failed to create test buckets")
 
-	bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), targetRegions, bucketName, args.batchSize)
+	bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), targetRegions, bucketName, args.batchSize, config.Config{})
 	require.NoError(t, err, "Failed to list S3 Buckets")
 
 	if args.shouldMatch {
@@ -293,7 +299,7 @@ func TestListS3Bucket(t *testing.T) {
 	}
 }
 
-// TestNukeS3BucketArgs represents arguments forTestNukeS3Bucket
+// TestNukeS3BucketArgs represents arguments for TestNukeS3Bucket
 type TestNukeS3BucketArgs struct {
 	isVersioned       bool
 	checkDeleteMarker bool
@@ -304,7 +310,7 @@ type TestNukeS3BucketArgs struct {
 
 // testNukeS3Bucket - generates the test function for TestNukeS3Bucket
 func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
-	awsParams, err := newS3TestAWSParams()
+	awsParams, err := newS3TestAWSParams("")
 	require.NoError(t, err, "Failed to setup AWS params")
 
 	// Create test bucket
@@ -361,8 +367,12 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 		return
 	}
 
+	var configObj *config.Config
+	configObj, err = config.GetConfig("../config/mocks/s3_include_names.yaml")
+	require.NoError(t, err)
+
 	// Verify that - after nuking test bucket - it should not exist
-	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, bucketName, 100)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, bucketName, 100, *configObj)
 	require.NoError(t, err, "Failed to list S3 Buckets")
 	require.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucketName))
 	logging.Logger.Debugf("SUCCESS: Nuked bucket - %s", bucketName)
@@ -457,4 +467,121 @@ func TestNukeS3Bucket(t *testing.T) {
 			testNukeS3Bucket(t, tc.args)
 		})
 	}
+}
+
+// TestFilterS3BucketArgs represents arguments for TestFilterS3Bucket_Config
+type TestFilterS3BucketArgs struct {
+	configFilePath string
+	matches        []string
+}
+
+func bucketNamesForConfigTests() []string {
+	return []string{
+		"alb-alb-123456-access-logs-" + S3TestGenBucketName(),
+		"alb-alb-234567-access-logs-" + S3TestGenBucketName(),
+		"tonico-prod-alb-access-logs-" + S3TestGenBucketName(),
+		"prod-alb-public-access-logs-" + S3TestGenBucketName(),
+		"stage-alb-internal-access-logs-" + S3TestGenBucketName(),
+		"stage-alb-public-access-logs-" + S3TestGenBucketName(),
+		"cloud-watch-logs-staging-" + S3TestGenBucketName(),
+		"something-else-logs-staging-" + S3TestGenBucketName(),
+	}
+}
+
+// TestFilterS3Bucket_Config tests listing only S3 buckets that match config file
+func TestFilterS3Bucket_Config(t *testing.T) {
+	t.Parallel()
+
+	// Create AWS session in ca-central-1
+	awsParams, err := newS3TestAWSParams("ca-central-1")
+	require.NoError(t, err, "Failed to setup AWS params")
+
+	// Nuke all buckets in ca-central-1 first
+	// passing in a config that matches all buckets
+	var configObj *config.Config
+	configObj, err = config.GetConfig("../config/mocks/s3_all.yaml")
+
+	// Verify that only filtered buckets are listed
+	cleanupBuckets, err := getAllS3Buckets(awsParams.awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
+	require.NoError(t, err, "Failed to list S3 Buckets in ca-central-1")
+
+	nukeAllS3Buckets(awsParams.awsSession, cleanupBuckets[awsParams.region], 1000)
+
+	// Create test buckets in ca-central-1
+	var bucketTags []map[string]string
+	bucketNames := bucketNamesForConfigTests()
+	for _, bucketName := range bucketNames {
+		err = S3TestCreateBucket(awsParams.svc, bucketName, bucketTags, false)
+		require.NoErrorf(t, err, "Failed to create test bucket - %s", bucketName)
+	}
+
+	// Please note that we are not reusing awsParams.awsSession and creating a random session in a region other
+	// than the one in which the bucket is created - this is useful to test the scenario where the user has
+	// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
+	awsSession, err := S3TestCreateNewAWSSession("")
+	require.NoError(t, err, "Failed to create session in random region")
+
+	// Define test cases
+	type testCaseStruct struct {
+		name string
+		args TestFilterS3BucketArgs
+	}
+
+	includeBuckets := []string{}
+	includeBuckets = append(includeBuckets, bucketNames[:4]...)
+
+	excludeBuckets := []string{}
+	excludeBuckets = append(excludeBuckets, bucketNames[:3]...)
+	excludeBuckets = append(excludeBuckets, bucketNames[4])
+	excludeBuckets = append(excludeBuckets, bucketNames[6:]...)
+
+	filterBuckets := []string{}
+	filterBuckets = append(filterBuckets, bucketNames[:3]...)
+
+	testCases := []testCaseStruct{
+		{
+			"Include",
+			TestFilterS3BucketArgs{
+				configFilePath: "../config/mocks/s3_include_names.yaml",
+				matches:        includeBuckets,
+			},
+		},
+		{
+			"Exclude",
+			TestFilterS3BucketArgs{
+				configFilePath: "../config/mocks/s3_exclude_names.yaml",
+				matches:        excludeBuckets,
+			},
+		},
+		{
+			"IncludeAndExclude",
+			TestFilterS3BucketArgs{
+				configFilePath: "../config/mocks/s3_filter_names.yaml",
+				matches:        filterBuckets,
+			},
+		},
+	}
+
+	// Clean up test buckets
+	defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
+	t.Run("config tests", func(t *testing.T) {
+		for _, tc := range testCases {
+			// Capture the range variable as per https://blog.golang.org/subtests
+			// Not doing this will lead to tc being set to the last entry in the testCases
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				var configObj *config.Config
+				configObj, err = config.GetConfig(tc.args.configFilePath)
+
+				// Verify that only filtered buckets are listed (use random region)
+				bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
+
+				require.NoError(t, err, "Failed to list S3 Buckets")
+				require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
+				require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), tc.args.matches)
+			})
+		}
+	})
 }

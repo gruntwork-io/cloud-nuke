@@ -124,6 +124,99 @@ If you want to check what resources are going to be targeted without actually te
 cloud-nuke aws --resource-type ec2 --dry-run
 ```
 
+### Config file
+
+For more granularity, such as being able to specify which resources to terminate using regular expressions or plain text, you can pass in a configuration file.
+
+_Note: Config file support is a new feature and only filtering s3 buckets by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
+
+```shell
+cloud-nuke aws --resource-type s3 --config path/to/file.yaml
+```
+
+Given this command, `cloud-nuke` will nuke _only_ S3 buckets, as specified by the `--resource-type s3` option.
+
+Now given the following config, the s3 buckets that will be nuked are further filtered to only include ones that match any of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but a bucket named `my-s3-bucket` would not.
+```yaml
+s3:
+  include:
+    names_regex:
+      - ^alb-.*-access-logs$
+      - .*-prod-alb-.*
+```
+
+#### Include and exclude together
+Now consider the following contrived example:
+
+```yaml
+s3:
+  include:
+    names_regex:
+      - ^alb-.*-access-logs$
+      - .*-prod-alb-.*
+  exclude:
+    names_regex:
+      - public
+      - prod
+```
+
+The intention is to delete all the s3 buckets that match the include rules but not the exclude rules. Filtering is commutative, meaning that you should get the same result whether you apply the include filters before or after the exclude filters.
+
+The result of these filters applied in either order will be a set of s3 buckets that match `^alb-.*-access-logs$` as long as they do not also contain `public` or `prod`. The rule to include s3 buckets matching `.*-prod-alb-.*` is negated by the rule to exclude those matching `prod`.
+
+<!-- We might only want to support region and resource-type in the command line, rather than in the config file.
+
+Given this config, `cloud-nuke` will nuke all S3 buckets that exist in `us-east-1` and all S3 buckets that exist in `us-west-1`.
+```yaml
+s3:
+  include:
+    regions:
+      - us-east-1
+      - us-west-1
+```
+
+Given this config, `cloud-nuke` will nuke all S3 buckets that match the regular expression but only if they do not also exist in `us-east-1`. So a bucket named `abc-prod-alb-def` located in the `ap-northeast-2` region would be nuked.
+```yaml
+s3:
+  include:
+    names_regex:
+      - .*-prod-alb-.*
+  exclude:
+    regions:
+      - us-east-1
+```
+-->
+
+#### CLI options override config file options
+
+The options provided in the command line take precedence over those provided in any config file that gets passed in. For example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `ec2:` at the top level but doesn't specify `s3:`. The command line argument filters the resource types to include only s3, so the rules in the config file for `ec2:` are ignored, and ec2 resources are not nuked. All s3 resources would be nuked.
+
+In the same vein, say you do not provide a `--resource-type` option in the command line, but you do pass in a config file that only lists rules for `s3:`, such as `cloud-nuke aws --config path/to/config.yaml`. In this case _all_ resources would be nuked, but among `s3` buckets, only those matching your config file rules would be nuked.
+
+Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will list resources that would undergo nuking and wait for your confirmation before carrying it out.
+
+#### What's supported?
+
+To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
+
+| resource type | support |
+|---------------|---------|
+| s3            | partial |
+| ec2 instance  | none    |
+| iam role      | none    |
+| ... (more to come) | none |
+
+
+##### s3 resource type:
+_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
+
+| field       | include | exclude |
+|-------------|---------|---------|
+| names       | none    | none    |
+| names_regex | ✅      | ✅      |
+| tags        | none    | none    |
+| tags_regex  | none    | none    |
+
 ### Log level
 
 You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:

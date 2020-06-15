@@ -11,6 +11,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/collections"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -65,7 +66,7 @@ func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
 	return nil, errors.WithStackTrace(fmt.Errorf("could not find any enabled regions"))
 }
 
-// Get all regions that are enabled (DescribeRegions excludes those not enabled by default)
+// GetEnabledRegions - Get all regions that are enabled (DescribeRegions excludes those not enabled by default)
 func GetEnabledRegions() ([]string, error) {
 	var regionNames []string
 
@@ -176,7 +177,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string) (*AwsAccountResources, error) {
+func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string, configObj config.Config) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
@@ -415,21 +416,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			bucketNamesPerRegion, ok := resourcesCache["S3"]
 
 			if !ok {
-				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize())
+				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(), configObj)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
 
 				resourcesCache["S3"] = make(map[string][]*string)
 
-				for bucketRegion, bucketName := range bucketNamesPerRegion {
-					resourcesCache["S3"][bucketRegion] = bucketName
+				for bucketRegion, _ := range bucketNamesPerRegion {
+					resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
 				}
 			}
 
-			bucketNames := bucketNamesPerRegion[region]
+			bucketNames, ok := resourcesCache["S3"][region]
 
-			if len(bucketNamesPerRegion[region]) > 0 {
+			if ok && len(bucketNames) > 0 {
 				s3Buckets.Names = aws.StringValueSlice(bucketNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, s3Buckets)
 			}
