@@ -218,7 +218,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, *configObj)
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
 
 	if err != nil {
 		return errors.WithStackTrace(err)

@@ -16,6 +16,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -364,6 +365,7 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 
 	var configObj *config.Config
 	configObj, err = config.GetConfig("../config/mocks/s3_include_names.yaml")
+	require.NoError(t, err)
 
 	// Verify that - after nuking test bucket - it should not exist
 	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, bucketName, 100, *configObj)
@@ -541,24 +543,29 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		// Capture the range variable as per https://blog.golang.org/subtests
-		// Not doing this will lead to tc being set to the last entry in the testCases
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			// Clean up test buckets
-			defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
-			t.Parallel()
+	// Clean up test buckets
+	defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
+	t.Run("config tests", func(t *testing.T) {
+		for _, tc := range testCases {
+			// Capture the range variable as per https://blog.golang.org/subtests
+			// Not doing this will lead to tc being set to the last entry in the testCases
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 
-			var configObj *config.Config
-			configObj, err = config.GetConfig(tc.args.configFilePath)
+				var configObj *config.Config
+				configObj, err = config.GetConfig(tc.args.configFilePath)
 
-			// Verify that only filtered buckets are listed
-			bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
+				// Verify that only filtered buckets are listed
+				bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
 
-			require.NoError(t, err, "Failed to list S3 Buckets")
-			require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
-			require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), tc.args.matches)
-		})
-	}
+				require.NoError(t, err, "Failed to list S3 Buckets")
+				if !assert.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region])) {
+					logging.Logger.Infof("found \n%+v\n", aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]))
+				}
+				require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
+				require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), tc.args.matches)
+			})
+		}
+	})
 }
