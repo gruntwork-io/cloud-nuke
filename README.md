@@ -270,11 +270,6 @@ To run cloud-nuke locally, use the `go run` command:
 go run main.go
 ```
 
-### Dependencies
-
-- cloud-nuke uses `dep`, a vendor package management tool for golang. See the dep repo for
-  [installation instructions](https://github.com/golang/dep). cloud-nuke currently does not support Go modules.
-
 ### Running tests
 
 **Note**: Many of the tests in the `aws` folder run against a real AWS account and will create and destroy actual resources. DO NOT
