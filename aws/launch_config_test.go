@@ -14,14 +14,17 @@ import (
 
 func createTestLaunchConfiguration(t *testing.T, session *session.Session, name string) {
 	svc := autoscaling.New(session)
-	instance := createTestEC2Instance(t, session, name, false)
+	instance, err := CreateTestEC2Instance(session, name, false)
+	if err != nil {
+		assert.Failf(t, "Could not create test EC2 instance", errors.WithStackTrace(err).Error())
+	}
 
 	param := &autoscaling.CreateLaunchConfigurationInput{
 		LaunchConfigurationName: &name,
 		InstanceId:              instance.InstanceId,
 	}
 
-	_, err := svc.CreateLaunchConfiguration(param)
+	_, err = svc.CreateLaunchConfiguration(param)
 	if err != nil {
 		assert.Failf(t, "Could not create test Launch Configuration", errors.WithStackTrace(err).Error())
 	}
@@ -52,7 +55,11 @@ func TestListLaunchConfigurations(t *testing.T) {
 
 	// clean up after this test
 	defer nukeAllLaunchConfigurations(session, []*string{&uniqueTestID})
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
+	instances, err := findEC2InstancesByNameTag(session, uniqueTestID)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+	defer nukeAllEc2Instances(session, instances, true)
 
 	configNames, err := getAllLaunchConfigurations(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -90,7 +97,11 @@ func TestNukeLaunchConfigurations(t *testing.T) {
 	createTestLaunchConfiguration(t, session, uniqueTestID)
 
 	// clean up ec2 instance created by the above call
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
+	instances, err := findEC2InstancesByNameTag(session, uniqueTestID)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+	defer nukeAllEc2Instances(session, instances, true)
 
 	_, err = svc.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{
 		LaunchConfigurationNames: []*string{&uniqueTestID},

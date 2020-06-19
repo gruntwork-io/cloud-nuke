@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -72,7 +73,7 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 }
 
 // Deletes all non protected EC2 instances
-func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error {
+func nukeAllEc2Instances(session *session.Session, instanceIds []*string, waitForTermination bool) error {
 	svc := ec2.New(session)
 
 	if len(instanceIds) == 0 {
@@ -80,7 +81,7 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 		return nil
 	}
 
-	logging.Logger.Infof("Terminating all EC2 instances in region %s", *session.Config.Region)
+	logging.Logger.Infof("Terminating target EC2 instances in region %s - %s", *session.Config.Region, aws.StringValueSlice(instanceIds))
 
 	params := &ec2.TerminateInstancesInput{
 		InstanceIds: instanceIds,
@@ -90,6 +91,11 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 	if err != nil {
 		logging.Logger.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
+	}
+
+	if !waitForTermination {
+		logging.Logger.Infof("[OK] triggered termination of %d instance(s) in %s", len(instanceIds), *session.Config.Region)
+		return nil
 	}
 
 	err = svc.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{

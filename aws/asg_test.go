@@ -14,7 +14,10 @@ import (
 
 func createTestAutoScalingGroup(t *testing.T, session *session.Session, name string) {
 	svc := autoscaling.New(session)
-	instance := createTestEC2Instance(t, session, name, false)
+	instance, err := CreateTestEC2Instance(session, name, false)
+	if err != nil {
+		assert.Failf(t, "Could not create test EC2 instance", errors.WithStackTrace(err).Error())
+	}
 
 	param := &autoscaling.CreateAutoScalingGroupInput{
 		AutoScalingGroupName: &name,
@@ -23,7 +26,7 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 		MaxSize:              awsgo.Int64(2),
 	}
 
-	_, err := svc.CreateAutoScalingGroup(param)
+	_, err = svc.CreateAutoScalingGroup(param)
 	if err != nil {
 		assert.Failf(t, "Could not create test ASG", errors.WithStackTrace(err).Error())
 	}
@@ -56,7 +59,11 @@ func TestListAutoScalingGroups(t *testing.T) {
 	createTestAutoScalingGroup(t, session, uniqueTestID)
 	// clean up after this test
 	defer nukeAllAutoScalingGroups(session, []*string{&uniqueTestID})
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
+	instances, err := findEC2InstancesByNameTag(session, uniqueTestID)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+	defer nukeAllEc2Instances(session, instances, true)
 
 	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -93,7 +100,11 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 	createTestAutoScalingGroup(t, session, uniqueTestID)
 
 	// clean up ec2 instance created by the above call
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
+	instances, err := findEC2InstancesByNameTag(session, uniqueTestID)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+	defer nukeAllEc2Instances(session, instances, false)
 
 	_, err = svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{&uniqueTestID},

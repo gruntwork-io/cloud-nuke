@@ -49,6 +49,7 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 	}
 
 	logging.Logger.Infof("Deleting all AMIs in region %s", *session.Config.Region)
+	deletedImageIds := []*string{}
 
 	for _, imageID := range imageIds {
 		params := &ec2.DeregisterImageInput{
@@ -59,10 +60,11 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
+			deletedImageIds = append(deletedImageIds, imageID)
 			logging.Logger.Infof("Deleted AMI: %s", *imageID)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d AMI(s) terminated in %s", len(imageIds), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d/%d AMI(s) terminated in %s", len(deletedImageIds), len(imageIds), *session.Config.Region)
 	return nil
 }

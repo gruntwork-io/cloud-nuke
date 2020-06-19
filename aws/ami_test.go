@@ -33,7 +33,10 @@ func waitUntilImageAvailable(svc *ec2.EC2, input *ec2.DescribeImagesInput) error
 
 func createTestAMI(t *testing.T, session *session.Session, name string) (*ec2.Image, error) {
 	svc := ec2.New(session)
-	instance := createTestEC2Instance(t, session, name, false)
+	instance, err := CreateTestEC2Instance(session, name, false)
+	if err != nil {
+		assert.Failf(t, "Could not create test EC2 instance", errors.WithStackTrace(err).Error())
+	}
 	output, err := svc.CreateImage(&ec2.CreateImageInput{
 		InstanceId: instance.InstanceId,
 		Name:       awsgo.String(name),
@@ -104,7 +107,11 @@ func TestListAMIs(t *testing.T) {
 
 	// clean up after this test
 	defer nukeAllAMIs(session, []*string{image.ImageId})
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
+	instances, err := findEC2InstancesByNameTag(session, uniqueTestID)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+	defer nukeAllEc2Instances(session, instances, true)
 
 	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -152,7 +159,11 @@ func TestNukeAMIs(t *testing.T) {
 	}
 
 	// clean up ec2 instance created by the above call
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
+	instances, err := findEC2InstancesByNameTag(session, uniqueTestID)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+	defer nukeAllEc2Instances(session, instances, true)
 
 	_, err = svc.DescribeImages(&ec2.DescribeImagesInput{
 		ImageIds: []*string{image.ImageId},

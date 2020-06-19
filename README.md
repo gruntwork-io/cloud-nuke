@@ -217,6 +217,38 @@ _Note: the fields without `_regex` suffixes refer to support for plain-text matc
 | tags        | none    | none    |
 | tags_regex  | none    | none    |
 
+### Ignoring list/nuke errors for certain/all resources
+
+Ideally you should have AWS IAM permissions to list and nuke all target resources. If you do not have permissions to
+nuke resource X, you should exclude it using the `--exclude-resource-type` flag. However, if you don't know which resource
+types you are not permitted to nuke or you have list access for all but nuke access for some, you can ignore their
+errors by specifying the `--ignore-errors` flag:
+
+```shell
+cloud-nuke aws --ignore-errors ec2 --ignore-errors s3
+```
+
+`--ignore-errors` can take any resource type listed out by the `--list-resource-types` flag.
+
+This will ignore any errors encountered while listing/nuking EC2 and S3 resources. For example, if there are 3
+EC2 instances and 2 S3 buckets to nuke and few/all of the EC2 instances and few/all of the S3 bucket deletion fails, cloud-nuke
+will log those errors and proceed with deleting further resources.
+
+Please note that cloud-nuke deletes resource types in a certain order to avoid dependency errors. If there are resources
+that should be deleted before EC2 or S3, and there are errors encountered while listing/nuking those resources, then cloud-nuke
+will error out and fail before reaching to EC2 or S3. For example, cloud-nuke deletes autoscaling groups before EC2 instances
+and if your role does not have permissions to delete autoscaling groups and you added `ec2` to the `--ignore-errors` list but
+not added `asg`, then cloud-nuke will still end up exiting with an error around deleting those autoscaling groups. To avoid
+this and do an actual best effort deletion, do this:
+
+```shell
+cloud-nuke aws --ignore-errors all
+```
+
+This will log errors encountered while listing/nuking all resources and keep on marching ahead to see what it can nuke.
+
+**Note**: You should at least have `ec2:DescribeRegions` permissions as that is required to find out regions to nuke.
+
 ### Log level
 
 You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:

@@ -134,7 +134,7 @@ func TestListECSEC2Services(t *testing.T) {
 	// forgetting to schedule deletion
 	cluster, instance := createEcsEC2Cluster(t, awsSession, clusterName, instanceProfile)
 	defer deleteEcsCluster(awsSession, cluster)
-	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
+	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId}, true)
 
 	// Finally, define the task and service
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")
@@ -199,7 +199,7 @@ func TestNukeECSEC2Services(t *testing.T) {
 	// forgetting to schedule deletion
 	cluster, instance := createEcsEC2Cluster(t, awsSession, clusterName, instanceProfile)
 	defer deleteEcsCluster(awsSession, cluster)
-	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
+	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId}, true)
 
 	// Finally, define the task and service
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")

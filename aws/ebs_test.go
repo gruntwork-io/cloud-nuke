@@ -172,12 +172,15 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 	svc := ec2.New(session)
 
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	instance := createTestEC2Instance(t, session, uniqueTestID, true)
+	instance, err := CreateTestEC2Instance(session, uniqueTestID, true)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 	az := getAZFromSubnet(t, session, instance.SubnetId)
 	volume := createTestEBSVolume(t, session, uniqueTestID, az)
 
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
-	defer nukeAllEc2Instances(session, []*string{instance.InstanceId})
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId}, true)
 
 	// attach volume to protected instance
 	_, err = svc.AttachVolume(&ec2.AttachVolumeInput{

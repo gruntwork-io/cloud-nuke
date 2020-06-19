@@ -51,6 +51,10 @@ func CreateCli(version string) *cli.App {
 					Name:  "list-resource-types",
 					Usage: "List available resource types",
 				},
+				cli.StringSliceFlag{
+					Name:  "ignore-errors",
+					Usage: "Ignore get/nuke errors for these resource types",
+				},
 				cli.StringFlag{
 					Name:  "older-than",
 					Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
@@ -116,6 +120,19 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 	return &excludeAfter, nil
 }
 
+func getInvalidResourceTypes(resourceTypes []string, validResourceTypes []string) []string {
+	invalidResourceTypes := []string{}
+	if len(resourceTypes) == 0 {
+		return invalidResourceTypes
+	}
+	for _, resourceType := range resourceTypes {
+		if !aws.IsValidResourceType(resourceType, validResourceTypes) {
+			invalidResourceTypes = append(invalidResourceTypes, resourceType)
+		}
+	}
+	return invalidResourceTypes
+}
+
 func awsNuke(c *cli.Context) error {
 	logLevel := c.String("log-level")
 
@@ -152,27 +169,25 @@ func awsNuke(c *cli.Context) error {
 		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type")
 	}
 
-	// Var check to make sure only allowed resource types are included in the --resource-type or --exclude-resource-type
-	// args.
-	invalidresourceTypes := []string{}
-	for _, resourceType := range resourceTypes {
-		if resourceType == "all" {
-			continue
-		}
-		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
-			invalidresourceTypes = append(invalidresourceTypes, resourceType)
-		}
+	// Check command line resource type values
+	var invalidResourceTypes []string
+	invalidResourceTypes = getInvalidResourceTypes(resourceTypes, append(allResourceTypes, "all"))
+	if len(invalidResourceTypes) > 0 {
+		msg := "Try --list-resource-types to get list of valid resource types. Use 'all' to target all resource types."
+		return fmt.Errorf("Invalid --resource-type %s specified: %s", invalidResourceTypes, msg)
 	}
 
-	for _, resourceType := range excludeResourceTypes {
-		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
-			invalidresourceTypes = append(invalidresourceTypes, resourceType)
-		}
-	}
-
-	if len(invalidresourceTypes) > 0 {
+	invalidResourceTypes = getInvalidResourceTypes(excludeResourceTypes, allResourceTypes)
+	if len(invalidResourceTypes) > 0 {
 		msg := "Try --list-resource-types to get list of valid resource types."
-		return fmt.Errorf("Invalid resourceTypes %s specified: %s", invalidresourceTypes, msg)
+		return fmt.Errorf("Invalid --exclude-resource-type %s specified: %s", invalidResourceTypes, msg)
+	}
+
+	ignoreErrResourceTypes := c.StringSlice("ignore-errors")
+	invalidResourceTypes = getInvalidResourceTypes(ignoreErrResourceTypes, append(allResourceTypes, "all"))
+	if len(invalidResourceTypes) > 0 {
+		msg := "Try --list-resource-types to get list of valid resource types. Use 'all' to target all resource types."
+		return fmt.Errorf("Invalid --ignore-errors %s specified: %s", invalidResourceTypes, msg)
 	}
 
 	// Handle exclude resource types by going through the list of all types and only include those that are not
@@ -193,6 +208,13 @@ func awsNuke(c *cli.Context) error {
 		}
 	} else {
 		for _, resourceType := range allResourceTypes {
+			logging.Logger.Infof("- %s", resourceType)
+		}
+	}
+
+	if len(ignoreErrResourceTypes) > 0 {
+		logging.Logger.Info("The following resources types errors will be ignored:")
+		for _, resourceType := range ignoreErrResourceTypes {
 			logging.Logger.Infof("- %s", resourceType)
 		}
 	}
@@ -218,7 +240,13 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
+	account, err := aws.GetAllResources(aws.GetAllResourcesArgs{
+		TargetRegions:          targetRegions,
+		ExcludeAfter:           *excludeAfter,
+		NukeResourceTypes:      resourceTypes,
+		IgnoreErrResourceTypes: ignoreErrResourceTypes,
+		ConfigObj:              configObj,
+	})
 
 	if err != nil {
 		return errors.WithStackTrace(err)
@@ -229,18 +257,18 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	nukableResources := make([]string, 0)
+	nukeableResources := make([]string, 0)
 	for region, resourcesInRegion := range account.Resources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {
-				nukableResources = append(nukableResources, fmt.Sprintf("* %s %s %s\n", resources.ResourceName(), identifier, region))
+				nukeableResources = append(nukeableResources, fmt.Sprintf("* %s %s %s\n", resources.ResourceName(), identifier, region))
 			}
 		}
 	}
 
-	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukableResources))
+	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukeableResources))
 
-	for _, resource := range nukableResources {
+	for _, resource := range nukeableResources {
 		logging.Logger.Infoln(resource)
 	}
 
@@ -256,7 +284,12 @@ func awsNuke(c *cli.Context) error {
 			return err
 		}
 		if proceed {
-			if err := aws.NukeAllResources(account, regions); err != nil {
+			err := aws.NukeAllResources(aws.NukeAllResourcesArgs{
+				Account:                account,
+				Regions:                regions,
+				IgnoreErrResourceTypes: ignoreErrResourceTypes,
+			})
+			if err != nil {
 				return err
 			}
 		}
@@ -266,9 +299,13 @@ func awsNuke(c *cli.Context) error {
 			fmt.Printf("%d...", i)
 			time.Sleep(1 * time.Second)
 		}
-
 		fmt.Println()
-		if err := aws.NukeAllResources(account, regions); err != nil {
+		err := aws.NukeAllResources(aws.NukeAllResourcesArgs{
+			Account:                account,
+			Regions:                regions,
+			IgnoreErrResourceTypes: ignoreErrResourceTypes,
+		})
+		if err != nil {
 			return err
 		}
 	}
