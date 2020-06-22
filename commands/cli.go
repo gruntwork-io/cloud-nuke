@@ -186,14 +186,14 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	// Log which resource types will be nuked
-	logging.Logger.Info("The following resource types will be nuked:")
+	logging.Logger.Info(" -> The following resource types will be nuked:")
 	if len(resourceTypes) > 0 {
 		for _, resourceType := range resourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
+			fmt.Println("^ ->",resourceType)
 		}
 	} else {
 		for _, resourceType := range allResourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
+			fmt.Println("* ->",resourceType)
 		}
 	}
 
@@ -217,7 +217,7 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
+	logging.Logger.Infof(" Retrieving active AWS resources in:\n[%s]", strings.Join(targetRegions[:], ", "))
 	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
 
 	if err != nil {
@@ -225,7 +225,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if len(account.Resources) == 0 {
-		logging.Logger.Infoln("Nothing to nuke, you're all good!")
+		fmt.Println("\n Nothing to nuke, you're all good!")
 		return nil
 	}
 
