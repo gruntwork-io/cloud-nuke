@@ -41,8 +41,35 @@ func TestListEcsClusters(t *testing.T) {
 
 // Test that we can filter ECS clusters by 'created_at' tag value.
 func TestFilterEcsClusters(t *testing.T) {
-	// create ECS cluster in a specific region with a tag on creation (very short time frame)
+	// create ECS cluster in a specific region
+	// tag that ECS cluster
+	t.Parallel()
+
+	region := "eu-west-1"
+	awsSession, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region),
+	})
+
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+
+	clusterName := "test-ina-2"
+	cluster := createEcsFargateCluster(t, awsSession, clusterName)
+
+	tagKey := "created_at"
+	tagValue := "now"
+	tag := tagEcsCluster(t, awsSession, cluster.ClusterArn, tagKey, tagValue)
+
+	fmt.Println(tagKey)
+	//defer deleteEcsCluster(awsSession, cluster)
+	//END prepare resources
+
 	// call api to list all clusters
+	clusterArns, err := getAllEcsClusters(awsSession)
+	if err != nil {
+		assert.Failf(t, "Unable to fetch clusters: %s", err.Error())
+	}
 	// filter results - possibly using api
 	// assert that result contains your new cluster only (provided it's the only one created in the short time frame)
 }
