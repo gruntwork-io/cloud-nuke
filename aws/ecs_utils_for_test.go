@@ -51,6 +51,29 @@ func createEcsFargateCluster(t *testing.T, awsSession *session.Session, name str
 	return *result.Cluster
 }
 
+// tagging an ECS cluster with a given tag key-value pair and a cluster ARN
+func tagEcsCluster(t *testing.T, awsSession *session.Session, clusterArn *string, tagKey string, tagValue string) *ecs.TagResourceOutput {
+	logging.Logger.Infof("Tagging ECS cluster %s in region %s", clusterArn, *awsSession.Config.Region)
+
+	svc := ecs.New(awsSession)
+	input := &ecs.TagResourceInput{
+		ResourceArn: clusterArn,
+		Tags: []*ecs.Tag{
+			{
+				Key:   aws.String(tagKey),
+				Value: aws.String(tagValue),
+			},
+		},
+	}
+
+	result, err := svc.TagResource(input)
+	if err != nil {
+		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
+	}
+
+	return result
+}
+
 func createEcsEC2Cluster(t *testing.T, awsSession *session.Session, name string, instanceProfile iam.InstanceProfile) (ecs.Cluster, ec2.Instance) {
 	cluster := createEcsFargateCluster(t, awsSession, name)
 
