@@ -12,14 +12,12 @@ import (
 
 // Test that we can succesfully list ECS clusters by manually creating a cluster and then using the list function to find it.
 func TestListEcsClusters(t *testing.T) {
-	// create ECS cluster in a specific region
 	t.Parallel()
 
 	region := "eu-west-1"
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -27,53 +25,40 @@ func TestListEcsClusters(t *testing.T) {
 	clusterName := "test-ina-2"
 	cluster := createEcsFargateCluster(t, awsSession, clusterName)
 	defer deleteEcsCluster(awsSession, cluster)
-	//END prepare resources
 
-	// call api to list all clusters
 	clusterArns, err := getAllEcsClusters(awsSession)
 	if err != nil {
 		assert.Failf(t, "Unable to fetch clusters: %s", err.Error())
 	}
 
-	// assert that result contains your new cluster
 	assert.Contains(t, clusterArns, cluster.ClusterArn)
 }
 
 // Test that we can filter ECS clusters by 'created_at' tag value.
 func TestTagEcsClusters(t *testing.T) {
-	// create ECS cluster in a specific region
 	t.Parallel()
 
 	region := "eu-west-1"
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
 	clusterName := "test-ina-2"
-	cluster := createEcsFargateCluster(t, awsSession, clusterName)
-
-	// tag that ECS cluster
+	cluster := createEcsFargateCluster(t, awsSession, clusterName) //TODO - also have a separate function to do this so I can test it.
 	tagKey := "created_at"
 	tagValue := "now"
-	tag, err := tagEcsCluster(awsSession, cluster.ClusterArn, tagKey, tagValue)
+	tag, err := tagEcsCluster(awsSession, cluster.ClusterArn, tagKey, tagValue) //should return
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-
 	fmt.Println(tag)
 	//defer deleteEcsCluster(awsSession, cluster)
-	// call api to list all clusters
-	clusterArns, err := getAllEcsClusters(awsSession)
-	if err != nil {
-		assert.Failf(t, "Unable to fetch clusters: %s", err.Error())
-	}
 
-	// need to find in AWS SDK how to get tags for each cluster - possibly use describe
-	assert.Contains(t, clusterArns, cluster.ClusterArn)
+	// assert.Contains(t, clusterArns, cluster.ClusterArn)
+	assert.True(t, tagIsPresent(awsSession, cluster.ClusterArn))
 	// filter results - possibly using api
 	// assert that result contains your new cluster only (provided it's the only one created in the short time frame)
 }
