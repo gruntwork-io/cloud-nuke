@@ -17,6 +17,7 @@ The currently supported functionality includes:
 - Deleting all Elastic IPs in an AWS account
 - Deleting all Launch Configurations in an AWS account
 - Deleting all ECS services in an AWS account
+- Deleting all ECS clusters in an AWS account
 - Deleting all EKS clusters in an AWS account
 - Deleting all RDS DB instances in an AWS account
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
@@ -24,13 +25,25 @@ The currently supported functionality includes:
 - Revoking the default rules in the un-deletable default security group of a VPC
 
 ### Caveats
+- As of 2018-2019 AWS APIs seem to support tagging of ECS clusters, and therefore we've reviewed and re-focused on the support of nuking ECS clusters. 
 
+_Resources: https://aws.amazon.com/about-aws/whats-new/2018/11/amazon-ecs-and-aws-fargate-now-allow-resources-tagging-/_
+
+*DISCLAIMER:* This work is still in progress, however, you can view the advancements and changes as they happen in the open PRs of this repo.
+
+Example usage of this functionality will be as per standard: 
+
+```shell
+cloud-nuke aws --resource-type ecs-cluster --older-than 24h
+```
+
+<s>
 - We currently do not support deleting ECS clusters because AWS
   does not give us a good way to blacklist clusters off the list (there are no
   tags and we do not know the creation timestamp). Given the destructive nature
   of the tool, we have opted not to support deleting ECS clusters at the
   moment. See https://github.com/gruntwork-io/cloud-nuke/pull/36 for a more
-  detailed discussion.
+  detailed discussion. </s>
 
 ### BEWARE!
 
