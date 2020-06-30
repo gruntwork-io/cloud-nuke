@@ -10,10 +10,10 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time) ([]*string, error) {
 	svc := rds.New(session)
 
-	result, err := svc.DescribeDBClusterSnapshots(&rds.DescribeDBSnapshotsInput{})
+	result, err := svc.DescribeDBClusterSnapshots(&rds.DescribeDBClusterSnapshotsInput{})
 
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -21,16 +21,16 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time) ([]*st
 
 	var snapshots []*string
 
-	for _, database := range result.DBSnapshots {
+	for _, database := range result.DBClusterSnapshots {
 		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
-			snapshots = append(snapshots, database.DBSnapshotIdentifier)
+			snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
 		}
 	}
 
 	return snapshots, nil
 }
 
-func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
+func nukeAllRdsClusterSnapshots(session *session.Session, snapshots []*string) error {
 	svc := rds.New(session)
 
 	if len(snapshots) == 0 {
@@ -42,11 +42,11 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 	deletedSnapShots := []*string{}
 
 	for _, snapshot := range snapshots {
-		params := &rds.DeleteDBSnapshotInput{
-			DBSnapshotIdentifier: snapshot,
+		params := &rds.DeleteDBClusterSnapshotInput{
+			DBClusterSnapshotIdentifier: snapshot,
 		}
 
-		_, err := svc.DeleteDBSnapshot(params)
+		_, err := svc.DeleteDBClusterSnapshot(params)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *snapshot, err)
@@ -60,7 +60,7 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 		for _, snapshot := range deletedSnapShots {
 
 			err := svc.WaitUntilDBSnapshotDeleted(&rds.DescribeDBSnapshotsInput{
-				DBSnapshotsIdentifier: snapshot,
+				DBClusterSnapshotsIdentifier: snapshot,
 			})
 
 			if err != nil {
