@@ -13,7 +13,7 @@ import (
 func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time) ([]*string, error) {
 	svc := rds.New(session)
 
-	result, err := svc.DescribeDBClusterSnapshots(&rds.DescribeDBSnapshotsInput{})
+	result, err := svc.DescribeDBSnapshots(&rds.DescribeDBSnapshotsInput{})
 
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -60,7 +60,7 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 		for _, snapshot := range deletedSnapShots {
 
 			err := svc.WaitUntilDBSnapshotDeleted(&rds.DescribeDBSnapshotsInput{
-				DBSnapshotsIdentifier: snapshot,
+				DBSnapshotIdentifier: snapshot,
 			})
 
 			if err != nil {

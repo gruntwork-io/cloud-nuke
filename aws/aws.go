@@ -400,14 +400,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Snapshots
 		dbSnapshots := DBSnapshots{}
 		if IsNukeable(dbSnapshots.ResourceName(), resourceTypes) {
-			dbSnapshots, err := getAllRdsSnapshots(session, excludeAfter)
+			snapShotNames, err := getAllRdsSnapshots(session, excludeAfter)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 
-			if len(Snapshots) > 0 {
-				dbSnapshots.Snapshots = awsgo.StringValueSlice(Snapshots)
+			if len(snapShotNames) > 0 {
+				dbSnapshots.SnapShotNames = awsgo.StringValueSlice(snapShotNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbSnapshots)
 			}
 		}
