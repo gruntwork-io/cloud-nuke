@@ -25,9 +25,9 @@ func (snapshot DBClusterSnapshots) MaxBatchSize() int {
 	return 200
 }
 
-//Nuke/Delete all snapshots
+// Nuke/Delete all snapshots
 func (snapshot DBClusterSnapshots) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllRdsSnapshots(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := nukeAllRdsClusterSnapshots(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
