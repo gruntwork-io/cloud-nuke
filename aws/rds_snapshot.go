@@ -34,11 +34,11 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 	svc := rds.New(session)
 
 	if len(snapshots) == 0 {
-		logging.Logger.Infof("No RDS Snapshot to nuke in region %s", *session.Config.Region)
+		logging.Logger.Infof("No RDS DB Snapshot to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all RDS Snapshots in region %s", *session.Config.Region)
+	logging.Logger.Infof("Deleting all RDS DB Snapshots in region %s", *session.Config.Region)
 	deletedSnapShots := []*string{}
 
 	for _, snapshot := range snapshots {
@@ -52,7 +52,7 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 			logging.Logger.Errorf("[Failed] %s: %s", *snapshot, err)
 		} else {
 			deletedSnapShots = append(deletedSnapShots, snapshot)
-			logging.Logger.Infof("Deleted RDS Snapshot: %s", awsgo.StringValue(snapshot))
+			logging.Logger.Infof("Deleted RDS DB Snapshot: %s", awsgo.StringValue(snapshot))
 		}
 	}
 
@@ -70,8 +70,8 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 		}
 	}
 
-	if deletedSnapShots != snapshots {
-		logging.Logger.Errorf("[Failed] - %d/%d - RDS Snapshot(s) failed deletion in %s", snapshots-deletedSnapShots, snapshots, *session.Config.Region)
+	if len(deletedSnapShots) != len(snapshots) {
+		logging.Logger.Errorf("[Failed] - %d/%d - RDS DB Snapshot(s) failed deletion in %s", len(snapshots)-len(deletedSnapShots), snapshots, *session.Config.Region)
 	}
 
 	logging.Logger.Infof("[OK] %d RDS DB Snapshot(s) deleted in %s", len(deletedSnapShots), *session.Config.Region)
