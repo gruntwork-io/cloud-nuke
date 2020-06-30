@@ -397,6 +397,22 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End RDS DB Clusters
 
+		// RDS Snapshots
+		dbSnapshots := DBSnapshots{}
+		if IsNukeable(dbSnapshots.ResourceName(), resourceTypes) {
+			dbSnapshots, err := getAllRdsSnapshots(session, excludeAfter)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(Snapshots) > 0 {
+				dbSnapshots.Snapshots = awsgo.StringValueSlice(Snapshots)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbSnapshots)
+			}
+		}
+		// End of RDS Snapshots
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
