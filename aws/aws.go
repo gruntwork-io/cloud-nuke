@@ -477,6 +477,7 @@ func ListResourceTypes() []string {
 		ECSServices{}.ResourceName(),
 		EKSClusters{}.ResourceName(),
 		DBInstances{}.ResourceName(),
+		DBSnapshots{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
