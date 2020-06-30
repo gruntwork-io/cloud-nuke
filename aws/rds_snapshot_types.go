@@ -12,7 +12,7 @@ type DBSnapshots struct {
 
 // Name of the AWS resource
 func (snapshot DBSnapshots) ResourceName() string {
-	return "rds"
+	return "rds-snapshots"
 }
 
 // Snapshot names of the RDS Snapshots
@@ -26,7 +26,7 @@ func (snapshot DBSnapshots) MaxBatchSize() int {
 }
 
 //Nuke/Delete all snapshots
-func (snapshot DBSnapshots) Nuke(session *session.Session, snapShotIdentifiers []string) error {
+func (snapshot DBSnapshots) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllRdsSnapshots(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

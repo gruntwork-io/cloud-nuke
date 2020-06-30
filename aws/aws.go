@@ -397,7 +397,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End RDS DB Clusters
 
-		// RDS Snapshots
+		// RDS DB Snapshots
 		dbSnapshots := DBSnapshots{}
 		if IsNukeable(dbSnapshots.ResourceName(), resourceTypes) {
 			dbSnapshots, err := getAllRdsSnapshots(session, excludeAfter)
@@ -411,7 +411,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbSnapshots)
 			}
 		}
-		// End of RDS Snapshots
+		// End of RDS DB Snapshots
 
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
