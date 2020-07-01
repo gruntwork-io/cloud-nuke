@@ -28,15 +28,15 @@ func createTestDBInstance(t *testing.T, session *session.Session, name string) {
 
 	_, err := svc.CreateDBInstance(params)
 	require.NoError(t, err)
-    
+
 	svc.WaitUntilDBInstanceAvailable(&rds.DescribeDBInstancesInput{})
 }
 
-func createTestRDSSnapShot(t *testing.T, session *session.Session, instanceName string, snapShotName string) {
+func createTestRDSSnapshot(t *testing.T, session *session.Session, instanceName string, snapshotName string) {
 	svc := rds.New(session)
 	params := &rds.CreateDBSnapshotInput{
 		DBInstanceIdentifier: awsgo.String(instanceName),
-		DBSnapshotIdentifier: awsgo.String(snapShotName),
+		DBSnapshotIdentifier: awsgo.String(snapshotName),
 	}
 
 	_, err := svc.CreateDBSnapshot(params)
@@ -44,36 +44,36 @@ func createTestRDSSnapShot(t *testing.T, session *session.Session, instanceName 
 
 	svc.WaitUntilDBSnapshotAvailable(&rds.DescribeDBSnapshotsInput{
 		DBInstanceIdentifier: awsgo.String(instanceName),
-		DBSnapshotIdentifier: awsgo.String(snapShotName),
+		DBSnapshotIdentifier: awsgo.String(snapshotName),
 	})
 }
 
-func TestNukeRDSSnapShot(t *testing.T) {
+func TestNukeRDSSnapshot(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
 
 	require.NoError(t, errors.WithStackTrace(err))
-    
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
 
-	snapShotName := "cloud-nuke-test-" + util.UniqueID()
+	snapshotName := "cloud-nuke-test-" + util.UniqueID()
 	instanceName := "cloud-nuke-test-" + util.UniqueID()
 	excludeAfter := time.Now().Add(1 * time.Hour)
-	
+
 	createTestRDSInstance(t, session, instanceName)
 	instanceNames, err := getAllRdsInstances(session, excludeAfter)
 	instanceIdentifier := awsgo.StringValueSlice(instanceNames)[0]
-	createTestRDSSnapShot(t, session, instanceIdentifier, snapShotName)
+	createTestRDSSnapshot(t, session, instanceIdentifier, snapshotName)
 
 	defer func() {
-		nukeAllRdsSnapshots(session, []*string{&snapShotName})
+		nukeAllRdsSnapshots(session, []*string{&snapshotName})
 
-		snapShotNames, _ := getAllRdsSnapshots(session, excludeAfter)
+		snapshotNames, _ := getAllRdsSnapshots(session, excludeAfter)
 
-		assert.NotContains(t, awsgo.StringValueSlice(snapShotNames), strings.ToLower(snapShotName))
+		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
 	}()
 
 	snapShots, err := getAllRdsSnapshots(session, excludeAfter)
@@ -82,6 +82,6 @@ func TestNukeRDSSnapShot(t *testing.T) {
 		assert.Failf(t, "Unable to fetch list of RDS DB snapshots", errors.WithStackTrace(err).Error())
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapShotName))
+	assert.Contains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapshotName))
 
 }

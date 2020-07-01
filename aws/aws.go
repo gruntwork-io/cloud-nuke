@@ -407,11 +407,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 
 			if len(snapShotNames) > 0 {
-				dbSnapshots.SnapShotNames = awsgo.StringValueSlice(snapShotNames)
+				dbSnapshots.SnapshotNames = awsgo.StringValueSlice(snapShotNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbSnapshots)
 			}
 		}
-        // End of RDS DB Snapshots
+		// End of RDS DB Snapshots
 
 		// RDS Aurora DB Cluster Snapshots
 		dbClusterSnapshots := DBSnapshots{}
@@ -423,7 +423,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 
 			if len(snapShotClusterNames) > 0 {
-				dbClusterSnapshots.SnapShotNames = awsgo.StringValueSlice(snapShotClusterNames)
+				dbClusterSnapshots.SnapshotNames = awsgo.StringValueSlice(snapShotClusterNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbClusterSnapshots)
 			}
 		}

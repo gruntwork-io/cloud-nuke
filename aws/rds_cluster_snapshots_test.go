@@ -16,12 +16,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Custom waiter function waitUntilRdsClusterAvailable uses the Amazon RDS API operation DescribeDBClustersInput
+// to wait for a condition to be met before returning.
+// If the condition is not met within the max attempt window, an error will be returned.
 func waitUntilRdsClusterAvailable(svc *rds.RDS, name *string) error {
 	input := &rds.DescribeDBClustersInput{
 		DBClusterIdentifier: name,
 	}
 
-	logging.Logger.Info("Waiting for RDS DB Cluster to be created...")
 	for i := 0; i < 90; i++ {
 		_, err := svc.DescribeDBClusters(input)
 		if err != nil {
@@ -29,17 +31,19 @@ func waitUntilRdsClusterAvailable(svc *rds.RDS, name *string) error {
 		}
 
 		time.Sleep(1 * time.Second)
+		logging.Logger.Debug("Waiting for RDS DB Cluster to be created")
 	}
 
 	return RdsClusterAvailableError{name: *name}
 }
 
+// Built-in waiter function WaitUntilDBClusterSnapshotAvailable not working at the moment.
+// Created a custom one
 func waitUntilRdsClusterSnapshotAvailable(svc *rds.RDS, clusterName *string, snapshotName *string) error {
 	input := &rds.DescribeDBClusterSnapshotsInput{
-		DBClusterIdentifier: clusterName,
+		DBClusterIdentifier:         clusterName,
 		DBClusterSnapshotIdentifier: snapshotName,
 	}
-    logging.Logger.Info("Waiting for RDS DB Cluster Snapshot to be created...")
 	for i := 0; i < 90; i++ {
 		_, err := svc.DescribeDBClusterSnapshots(input)
 		if err != nil {
@@ -47,6 +51,7 @@ func waitUntilRdsClusterSnapshotAvailable(svc *rds.RDS, clusterName *string, sna
 		}
 
 		time.Sleep(1 * time.Second)
+		logging.Logger.Debug("Waiting for RDS DB Cluster Snapshot to be created")
 	}
 
 	return RdsClusterSnapshotAvailableError{clusterName: *clusterName, snapshotName: *snapshotName}
@@ -67,7 +72,7 @@ func createTestDBCluster(t *testing.T, session *session.Session, name string) {
 
 }
 
-func createTestRDSClusterSnapShot(t *testing.T, session *session.Session, clusterName string, snapshotName string) {
+func createTestRDSClusterSnapshot(t *testing.T, session *session.Session, clusterName string, snapshotName string) {
 	svc := rds.New(session)
 	params := &rds.CreateDBClusterSnapshotInput{
 		DBClusterIdentifier:         awsgo.String(clusterName),
@@ -76,11 +81,11 @@ func createTestRDSClusterSnapShot(t *testing.T, session *session.Session, cluste
 
 	_, err := svc.CreateDBClusterSnapshot(params)
 	require.NoError(t, errors.WithStackTrace(err))
-    waitUntilRdsClusterSnapshotAvailable(svc, &clusterName, &snapshotName)
+	waitUntilRdsClusterSnapshotAvailable(svc, &clusterName, &snapshotName)
 
 }
 
-func TestNukeRDSClusterSnapShot(t *testing.T) {
+func TestNukeRDSClusterSnapshot(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -91,21 +96,21 @@ func TestNukeRDSClusterSnapShot(t *testing.T) {
 		Region: awsgo.String(region)},
 	)
 
-	snapShotName := "cloud-nuke-test-" + util.UniqueID()
+	snapshotName := "cloud-nuke-test-" + util.UniqueID()
 	clusterName := "cloud-nuke-test-" + util.UniqueID()
 	excludeAfter := time.Now().Add(1 * time.Hour)
 
 	createTestDBCluster(t, session, clusterName)
 	clusterNames, err := getAllRdsClusters(session, excludeAfter)
 	clusterIdentifier := awsgo.StringValueSlice(clusterNames)[0]
-	createTestRDSClusterSnapShot(t, session, clusterIdentifier, snapShotName)
+	createTestRDSClusterSnapshot(t, session, clusterIdentifier, snapshotName)
 
 	defer func() {
-		nukeAllRdsClusterSnapshots(session, []*string{&snapShotName})
+		nukeAllRdsClusterSnapshots(session, []*string{&snapshotName})
 
-		snapShotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter)
+		snapshotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter)
 
-		assert.NotContains(t, awsgo.StringValueSlice(snapShotNames), strings.ToLower(snapShotName))
+		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
 	}()
 
 	snapShots, err := getAllRdsClusterSnapshots(session, excludeAfter)
@@ -114,6 +119,6 @@ func TestNukeRDSClusterSnapShot(t *testing.T) {
 		assert.Failf(t, "Unable to fetch list of RDS DB Cluster snapshots", errors.WithStackTrace(err).Error())
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapShotName))
+	assert.Contains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapshotName))
 
 }
