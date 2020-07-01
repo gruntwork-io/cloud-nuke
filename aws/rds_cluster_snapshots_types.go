@@ -33,3 +33,30 @@ func (snapshot DBClusterSnapshots) Nuke(session *session.Session, identifiers []
 
 	return nil
 }
+
+type RdsClusterSnapshotDeleteError struct{
+	name string
+}
+
+func (e RdsClusterSnapshotDeleteError) Error() string {
+	return "RDS DB Cluster Snapshot:" + e.name + "was not deleted"
+}
+
+
+type RdsClusterSnapshotAvailableError struct{
+	clusterName string
+	snapshotName string
+
+}
+
+func (e RdsClusterSnapshotAvailableError) Error() string {
+	return "RDS DB Cluster Snapshot" + e.snapshotName + "not currently in available or failed state"
+}
+
+type RdsClusterAvailableError struct{
+	name string
+}
+
+func (e RdsClusterAvailableError) Error() string {
+	return "RDS DB Cluster " + e.name + "not in available state"
+}

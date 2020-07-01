@@ -23,7 +23,7 @@ func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time)
 	var snapshots []*string
 
 	for _, database := range result.DBClusterSnapshots {
-		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
+		if database.ClusterCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.ClusterCreateTime)) {
 			snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
 		}
 	}
@@ -35,7 +35,7 @@ func waitUntilRdsClusterSnapshotDeleted(svc *rds.RDS, input *rds.DescribeDBClust
 	for i := 0; i < 90; i++ {
 		_, err := svc.DescribeDBClusterSnapshots(input)
 		if err != nil {
-			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBClusterNotFoundFault  {
+			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBClusterSnapshotNotFoundFault  {
 				return nil
 			}
 
@@ -46,7 +46,7 @@ func waitUntilRdsClusterSnapshotDeleted(svc *rds.RDS, input *rds.DescribeDBClust
 		logging.Logger.Debug("Waiting for RDS DB Cluster snapshot to be deleted...")
 	}
 
-	return RdsDeleteError{name: *input.DBClusterSnapshotIdentifier}
+	return RdsClusterSnapshotDeleteError{name: *input.DBClusterSnapshotIdentifier}
 }
 
 func nukeAllRdsClusterSnapshots(session *session.Session, snapshots []*string) error {
