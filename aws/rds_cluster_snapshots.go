@@ -1,8 +1,9 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -10,6 +11,26 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
+
+// Built-in waiter function WaitUntilDBClusterSnapshotDeleted not working as expected.
+// Created a custom one
+func waitUntilRdsClusterSnapshotDeleted(svc *rds.RDS, input *rds.DescribeDBClusterSnapshotsInput) error {
+	for i := 0; i < 90; i++ {
+		_, err := svc.DescribeDBClusterSnapshots(input)
+		if err != nil {
+			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBClusterSnapshotNotFoundFault {
+				return nil
+			}
+
+			return err
+		}
+
+		time.Sleep(10 * time.Second)
+		logging.Logger.Debug("Waiting for RDS DB Cluster snapshot to be deleted...")
+	}
+
+	return RdsClusterSnapshotDeleteError{name: *input.DBClusterSnapshotIdentifier}
+}
 
 func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time) ([]*string, error) {
 	svc := rds.New(session)
@@ -31,26 +52,6 @@ func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time)
 	return snapshots, nil
 }
 
-// Built-in waiter function WaitUntilDBClusterSnapshotDeleted not working at the moment.
-// Created a custom one
-func waitUntilRdsClusterSnapshotDeleted(svc *rds.RDS, input *rds.DescribeDBClusterSnapshotsInput) error {
-	for i := 0; i < 90; i++ {
-		_, err := svc.DescribeDBClusterSnapshots(input)
-		if err != nil {
-			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBClusterSnapshotNotFoundFault {
-				return nil
-			}
-
-			return err
-		}
-
-		time.Sleep(10 * time.Second)
-		logging.Logger.Debug("Waiting for RDS DB Cluster snapshot to be deleted...")
-	}
-
-	return RdsClusterSnapshotDeleteError{name: *input.DBClusterSnapshotIdentifier}
-}
-
 func nukeAllRdsClusterSnapshots(session *session.Session, snapshots []*string) error {
 	svc := rds.New(session)
 
@@ -63,11 +64,11 @@ func nukeAllRdsClusterSnapshots(session *session.Session, snapshots []*string) e
 	deletedSnapshots := []*string{}
 
 	for _, snapshot := range snapshots {
-		params := &rds.DeleteDBClusterSnapshotInput{
+		input := &rds.DeleteDBClusterSnapshotInput{
 			DBClusterSnapshotIdentifier: snapshot,
 		}
 
-		_, err := svc.DeleteDBClusterSnapshot(params)
+		_, err := svc.DeleteDBClusterSnapshot(input)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *snapshot, err)

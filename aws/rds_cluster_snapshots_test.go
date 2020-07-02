@@ -37,7 +37,7 @@ func waitUntilRdsClusterAvailable(svc *rds.RDS, name *string) error {
 	return RdsClusterAvailableError{name: *name}
 }
 
-// Built-in waiter function WaitUntilDBClusterSnapshotAvailable not working at the moment.
+// Built-in waiter function WaitUntilDBClusterSnapshotAvailable not working as expected.
 // Created a custom one
 func waitUntilRdsClusterSnapshotAvailable(svc *rds.RDS, clusterName *string, snapshotName *string) error {
 	input := &rds.DescribeDBClusterSnapshotsInput{
@@ -59,14 +59,14 @@ func waitUntilRdsClusterSnapshotAvailable(svc *rds.RDS, clusterName *string, sna
 
 func createTestDBCluster(t *testing.T, session *session.Session, name string) {
 	svc := rds.New(session)
-	params := &rds.CreateDBClusterInput{
+	input := &rds.CreateDBClusterInput{
 		DBClusterIdentifier: awsgo.String(name),
 		Engine:              awsgo.String("aurora-mysql"),
 		MasterUsername:      awsgo.String("gruntwork"),
 		MasterUserPassword:  awsgo.String("password"),
 	}
 
-	_, err := svc.CreateDBCluster(params)
+	_, err := svc.CreateDBCluster(input)
 	require.NoError(t, err)
 	waitUntilRdsClusterAvailable(svc, &name)
 
@@ -74,12 +74,12 @@ func createTestDBCluster(t *testing.T, session *session.Session, name string) {
 
 func createTestRDSClusterSnapshot(t *testing.T, session *session.Session, clusterName string, snapshotName string) {
 	svc := rds.New(session)
-	params := &rds.CreateDBClusterSnapshotInput{
+	input := &rds.CreateDBClusterSnapshotInput{
 		DBClusterIdentifier:         awsgo.String(clusterName),
 		DBClusterSnapshotIdentifier: awsgo.String(snapshotName),
 	}
 
-	_, err := svc.CreateDBClusterSnapshot(params)
+	_, err := svc.CreateDBClusterSnapshot(input)
 	require.NoError(t, errors.WithStackTrace(err))
 	waitUntilRdsClusterSnapshotAvailable(svc, &clusterName, &snapshotName)
 
@@ -111,6 +111,9 @@ func TestNukeRDSClusterSnapshot(t *testing.T) {
 		snapshotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter)
 
 		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
+
+		//clean up DB Cluster created with createTestDBCluster
+		nukeAllRdsClusters(session, []*string{&clusterName})
 	}()
 
 	snapShots, err := getAllRdsClusterSnapshots(session, excludeAfter)

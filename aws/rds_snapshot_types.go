@@ -12,7 +12,7 @@ type DBSnapshots struct {
 
 // Name of the AWS resource
 func (snapshot DBSnapshots) ResourceName() string {
-	return "rds-snapshots"
+	return "RdsSnapshots"
 }
 
 // Names of the RDS DB Snapshots

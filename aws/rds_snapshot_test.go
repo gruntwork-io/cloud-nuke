@@ -17,7 +17,7 @@ import (
 
 func createTestDBInstance(t *testing.T, session *session.Session, name string) {
 	svc := rds.New(session)
-	params := &rds.CreateDBInstanceInput{
+	input := &rds.CreateDBInstanceInput{
 		AllocatedStorage:     awsgo.Int64(5),
 		DBInstanceClass:      awsgo.String("db.m5.large"),
 		DBInstanceIdentifier: awsgo.String(name),
@@ -26,7 +26,7 @@ func createTestDBInstance(t *testing.T, session *session.Session, name string) {
 		MasterUserPassword:   awsgo.String("password"),
 	}
 
-	_, err := svc.CreateDBInstance(params)
+	_, err := svc.CreateDBInstance(input)
 	require.NoError(t, err)
 
 	svc.WaitUntilDBInstanceAvailable(&rds.DescribeDBInstancesInput{})
@@ -34,12 +34,12 @@ func createTestDBInstance(t *testing.T, session *session.Session, name string) {
 
 func createTestRDSSnapshot(t *testing.T, session *session.Session, instanceName string, snapshotName string) {
 	svc := rds.New(session)
-	params := &rds.CreateDBSnapshotInput{
+	input := &rds.CreateDBSnapshotInput{
 		DBInstanceIdentifier: awsgo.String(instanceName),
 		DBSnapshotIdentifier: awsgo.String(snapshotName),
 	}
 
-	_, err := svc.CreateDBSnapshot(params)
+	_, err := svc.CreateDBSnapshot(input)
 	require.NoError(t, errors.WithStackTrace(err))
 
 	svc.WaitUntilDBSnapshotAvailable(&rds.DescribeDBSnapshotsInput{
@@ -63,7 +63,7 @@ func TestNukeRDSSnapshot(t *testing.T) {
 	instanceName := "cloud-nuke-test-" + util.UniqueID()
 	excludeAfter := time.Now().Add(1 * time.Hour)
 
-	createTestRDSInstance(t, session, instanceName)
+	createTestDBInstance(t, session, instanceName)
 	instanceNames, err := getAllRdsInstances(session, excludeAfter)
 	instanceIdentifier := awsgo.StringValueSlice(instanceNames)[0]
 	createTestRDSSnapshot(t, session, instanceIdentifier, snapshotName)
@@ -74,6 +74,7 @@ func TestNukeRDSSnapshot(t *testing.T) {
 		snapshotNames, _ := getAllRdsSnapshots(session, excludeAfter)
 
 		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
+
 	}()
 
 	snapShots, err := getAllRdsSnapshots(session, excludeAfter)

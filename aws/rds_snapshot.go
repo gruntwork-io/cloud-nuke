@@ -42,11 +42,11 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 	deletedSnapshots := []*string{}
 
 	for _, snapshot := range snapshots {
-		params := &rds.DeleteDBSnapshotInput{
+		input := &rds.DeleteDBSnapshotInput{
 			DBSnapshotIdentifier: snapshot,
 		}
 
-		_, err := svc.DeleteDBSnapshot(params)
+		_, err := svc.DeleteDBSnapshot(input)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *snapshot, err)
