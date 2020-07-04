@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -8,6 +9,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
@@ -32,7 +34,7 @@ func waitUntilRdsClusterSnapshotDeleted(svc *rds.RDS, input *rds.DescribeDBClust
 	return RdsClusterSnapshotDeleteError{name: *input.DBClusterSnapshotIdentifier}
 }
 
-func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := rds.New(session)
 
 	result, err := svc.DescribeDBClusterSnapshots(&rds.DescribeDBClusterSnapshotsInput{})
@@ -44,12 +46,53 @@ func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time)
 	var snapshots []*string
 
 	for _, database := range result.DBClusterSnapshots {
-		if database.ClusterCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.ClusterCreateTime)) {
-			snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
+		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
+			if shouldIncludeClusterSnapshot(*database.DBClusterSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
+				snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
+			}
 		}
 	}
 
 	return snapshots, nil
+}
+
+func shouldIncludeClusterSnapshot(snapshotName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
+	shouldInclude := false
+
+	if len(includeNamesREList) > 0 {
+		// If any include rules are defined
+		// And the include rule matches the snapshot, check to see if an exclude rule matches
+		if includeClusterSnapshotByREList(snapshotName, includeNamesREList) {
+			shouldInclude = excludeClusterSnapshotByREList(snapshotName, excludeNamesREList)
+		}
+	} else if len(excludeNamesREList) > 0 {
+		// If there are no include rules defined, check to see if an exclude rule matches
+		shouldInclude = excludeClusterSnapshotByREList(snapshotName, excludeNamesREList)
+	} else {
+		// Otherwise
+		shouldInclude = true
+	}
+
+	return shouldInclude
+}
+
+func includeClusterSnapshotByREList(snapshotName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(snapshotName) {
+			return true
+		}
+	}
+	return false
+}
+
+func excludeClusterSnapshotByREList(snapshotName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(snapshotName) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func nukeAllRdsClusterSnapshots(session *session.Session, snapshots []*string) error {

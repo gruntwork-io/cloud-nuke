@@ -1,0 +1,4 @@
+rdsSnapshots:
+  exclude:
+    names_regex:
+      - .*-nuke-.*

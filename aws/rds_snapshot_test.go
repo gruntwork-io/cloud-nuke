@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
@@ -68,16 +69,19 @@ func TestNukeRDSSnapshot(t *testing.T) {
 	instanceIdentifier := awsgo.StringValueSlice(instanceNames)[0]
 	createTestRDSSnapshot(t, session, instanceIdentifier, snapshotName)
 
+	var configObj *config.Config
+	configObj, err = config.GetConfig("../config/mocks/rdsSnapshots_include_names.yaml")
+
 	defer func() {
 		nukeAllRdsSnapshots(session, []*string{&snapshotName})
 
-		snapshotNames, _ := getAllRdsSnapshots(session, excludeAfter)
+		snapshotNames, _ := getAllRdsSnapshots(session, excludeAfter, *configObj)
 
 		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
 
 	}()
 
-	snapShots, err := getAllRdsSnapshots(session, excludeAfter)
+	snapShots, err := getAllRdsSnapshots(session, excludeAfter, *configObj)
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of RDS DB snapshots", errors.WithStackTrace(err).Error())

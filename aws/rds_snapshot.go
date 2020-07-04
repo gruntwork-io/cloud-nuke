@@ -1,16 +1,18 @@
 package aws
 
 import (
+	"regexp"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := rds.New(session)
 
 	result, err := svc.DescribeDBSnapshots(&rds.DescribeDBSnapshotsInput{})
@@ -23,11 +25,52 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time) ([]*st
 
 	for _, database := range result.DBSnapshots {
 		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
-			snapshots = append(snapshots, database.DBSnapshotIdentifier)
+			if shouldIncludeSnapshot(*database.DBSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
+				snapshots = append(snapshots, database.DBSnapshotIdentifier)
+			}
 		}
 	}
 
 	return snapshots, nil
+}
+
+func shouldIncludeSnapshot(snapshotName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
+	shouldInclude := false
+
+	if len(includeNamesREList) > 0 {
+		// If any include rules are defined
+		// And the include rule matches the snapshot, check to see if an exclude rule matches
+		if includeSnapshotByREList(snapshotName, includeNamesREList) {
+			shouldInclude = excludeSnapshotByREList(snapshotName, excludeNamesREList)
+		}
+	} else if len(excludeNamesREList) > 0 {
+		// If there are no include rules defined, check to see if an exclude rule matches
+		shouldInclude = excludeSnapshotByREList(snapshotName, excludeNamesREList)
+	} else {
+		// Ohterwise
+		shouldInclude = true
+	}
+
+	return shouldInclude
+}
+
+func includeSnapshotByREList(snapshotName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(snapshotName) {
+			return true
+		}
+	}
+	return false
+}
+
+func excludeSnapshotByREList(snapshotName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(snapshotName) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {

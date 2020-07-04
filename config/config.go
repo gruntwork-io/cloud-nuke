@@ -10,6 +10,7 @@ import (
 // RawConfig - used to unmarshall the raw config file
 type RawConfig struct {
 	S3 rawResourceType `yaml:"s3"`
+	RDSSnapshots rawResourceType `yaml:"rdsSnapshots"`
 }
 
 type rawResourceType struct {
@@ -25,6 +26,7 @@ type rawFilterRule struct {
 // that is a parsed version of RawConfig
 type Config struct {
 	S3 ResourceType
+	RDSSnapshots ResourceType
 }
 
 // ResourceType - the include and exclude
@@ -78,6 +80,25 @@ func GetConfig(filePath string) (*Config, error) {
 		}
 
 		configObj.S3.ExcludeRule.NamesRE = append(configObj.S3.ExcludeRule.NamesRE, re)
+	}
+	
+	//RDS Snapshots
+	for _, pattern := range rawConfig.RDSSnapshots.IncludeRule.NamesRE {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		configObj.RDSSnapshots.IncludeRule.NamesRE = append(configObj.RDSSnapshots.IncludeRule.NamesRE, re)
+	}
+
+	for _, pattern := range rawConfig.RDSSnapshots.ExcludeRule.NamesRE {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		configObj.RDSSnapshots.ExcludeRule.NamesRE = append(configObj.RDSSnapshots.ExcludeRule.NamesRE, re)
 	}
 
 	return &configObj, nil

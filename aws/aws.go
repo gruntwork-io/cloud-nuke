@@ -400,7 +400,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Snapshots
 		dbSnapshots := DBSnapshots{}
 		if IsNukeable(dbSnapshots.ResourceName(), resourceTypes) {
-			snapShotNames, err := getAllRdsSnapshots(session, excludeAfter)
+			snapShotNames, err := getAllRdsSnapshots(session, excludeAfter, configObj)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -416,7 +416,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS Aurora DB Cluster Snapshots
 		dbClusterSnapshots := DBSnapshots{}
 		if IsNukeable(dbClusterSnapshots.ResourceName(), resourceTypes) {
-			snapShotClusterNames, err := getAllRdsClusterSnapshots(session, excludeAfter)
+			snapShotClusterNames, err := getAllRdsClusterSnapshots(session, excludeAfter, configObj)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)

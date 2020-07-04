@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -105,10 +106,13 @@ func TestNukeRDSClusterSnapshot(t *testing.T) {
 	clusterIdentifier := awsgo.StringValueSlice(clusterNames)[0]
 	createTestRDSClusterSnapshot(t, session, clusterIdentifier, snapshotName)
 
+	var configObj *config.Config
+	configObj, err = config.GetConfig("../config/mocks/rdsSnapshots_include_names.yaml")
+
 	defer func() {
 		nukeAllRdsClusterSnapshots(session, []*string{&snapshotName})
 
-		snapshotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter)
+		snapshotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
 
 		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
 
@@ -116,7 +120,7 @@ func TestNukeRDSClusterSnapshot(t *testing.T) {
 		nukeAllRdsClusters(session, []*string{&clusterName})
 	}()
 
-	snapShots, err := getAllRdsClusterSnapshots(session, excludeAfter)
+	snapShots, err := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of RDS DB Cluster snapshots", errors.WithStackTrace(err).Error())
