@@ -47,7 +47,7 @@ func shouldIncludeSnapshot(snapshotName string, includeNamesREList []*regexp.Reg
 		// If there are no include rules defined, check to see if an exclude rule matches
 		shouldInclude = excludeSnapshotByREList(snapshotName, excludeNamesREList)
 	} else {
-		// Ohterwise
+		//Otherwise
 		shouldInclude = true
 	}
 
@@ -114,7 +114,7 @@ func nukeAllRdsSnapshots(session *session.Session, snapshots []*string) error {
 	}
 
 	if len(deletedSnapshots) != len(snapshots) {
-		logging.Logger.Errorf("[Failed] - %d/%d - RDS DB Snapshot(s) failed deletion in %s", len(snapshots)-len(deletedSnapshots), snapshots, *session.Config.Region)
+		logging.Logger.Errorf("[Failed] - %d/%d - RDS DB Snapshot(s) failed deletion in %s", len(snapshots)-len(deletedSnapshots), len(snapshots), *session.Config.Region)
 	}
 
 	logging.Logger.Infof("[OK] %d RDS DB Snapshot(s) deleted in %s", len(deletedSnapshots), *session.Config.Region)

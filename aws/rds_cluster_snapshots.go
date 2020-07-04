@@ -136,7 +136,7 @@ func nukeAllRdsClusterSnapshots(session *session.Session, snapshots []*string) e
 	}
 
 	if len(deletedSnapshots) != len(snapshots) {
-		logging.Logger.Errorf("[Failed] - %d/%d - RDS DB Cluster Snapshot(s) failed deletion in %s", len(snapshots)-len(deletedSnapshots), snapshots, *session.Config.Region)
+		logging.Logger.Errorf("[Failed] - %d/%d - RDS DB Cluster Snapshot(s) failed deletion in %s", len(snapshots)-len(deletedSnapshots), len(snapshots), *session.Config.Region)
 	}
 
 	logging.Logger.Infof("[OK] %d RDS DB Cluster Snapshot(s) deleted in %s", len(deletedSnapshots), *session.Config.Region)

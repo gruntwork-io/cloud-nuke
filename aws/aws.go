@@ -414,7 +414,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End of RDS DB Snapshots
 
 		// RDS Aurora DB Cluster Snapshots
-		dbClusterSnapshots := DBSnapshots{}
+		dbClusterSnapshots := DBClusterSnapshots{}
 		if IsNukeable(dbClusterSnapshots.ResourceName(), resourceTypes) {
 			snapShotClusterNames, err := getAllRdsClusterSnapshots(session, excludeAfter, configObj)
 

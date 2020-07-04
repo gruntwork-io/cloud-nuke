@@ -7,7 +7,7 @@ import (
 )
 
 type DBClusterSnapshots struct {
-	Snapshots []string
+	SnapshotNames []string
 }
 
 // Name of the AWS resource
@@ -17,7 +17,7 @@ func (snapshot DBClusterSnapshots) ResourceName() string {
 
 // Names of the RDS DB Cluster Snapshots
 func (snapshot DBClusterSnapshots) ResourceIdentifiers() []string {
-	return snapshot.Snapshots
+	return snapshot.SnapshotNames
 }
 
 // MaxBatchSize decides how many cluster snapshots to delete in one call.
