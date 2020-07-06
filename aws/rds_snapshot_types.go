@@ -33,3 +33,20 @@ func (snapshot DBSnapshots) Nuke(session *session.Session, identifiers []string)
 
 	return nil
 }
+
+type RdsInstanceSnapshotAvailableError struct {
+	instanceName string
+	snapshotName string
+}
+
+func (e RdsInstanceSnapshotAvailableError) Error() string {
+	return "RDS DB Instance Snapshot" + e.snapshotName + "not currently in available or failed state"
+}
+
+type RdsInstanceAvailableError struct {
+	name string
+}
+
+func (e RdsInstanceAvailableError) Error() string {
+	return "RDS DB Instance " + e.name + "not in available state"
+}

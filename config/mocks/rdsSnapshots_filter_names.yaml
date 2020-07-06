@@ -1,4 +1,7 @@
 rdsSnapshots:
+  include:
+    names_regex:
+      - .*-nuke-.*
   exclude:
     names_regex:
       - .*cloud-exclude-snapshot-.*
