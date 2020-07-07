@@ -20,6 +20,7 @@ type rawResourceType struct {
 
 type rawFilterRule struct {
 	NamesRE []string `yaml:"names_regex"`
+	TagNamesRE []string `yaml:"tags_regex"`
 }
 
 // Config - the config object we pass around
@@ -40,6 +41,7 @@ type ResourceType struct {
 // used to match against a resource type's properties
 type FilterRule struct {
 	NamesRE []*regexp.Regexp
+	TagNamesRE []*regexp.Regexp
 }
 
 // GetConfig - unmarshall the raw config file
@@ -99,6 +101,24 @@ func GetConfig(filePath string) (*Config, error) {
 		}
 
 		configObj.RDSSnapshots.ExcludeRule.NamesRE = append(configObj.RDSSnapshots.ExcludeRule.NamesRE, re)
+	}
+
+	for _, pattern := range rawConfig.RDSSnapshots.IncludeRule.TagNamesRE {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		configObj.RDSSnapshots.IncludeRule.TagNamesRE = append(configObj.RDSSnapshots.IncludeRule.TagNamesRE, re)
+	}
+
+	for _, pattern := range rawConfig.RDSSnapshots.ExcludeRule.TagNamesRE {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		configObj.RDSSnapshots.ExcludeRule.TagNamesRE = append(configObj.RDSSnapshots.ExcludeRule.TagNamesRE, re)
 	}
 
 	return &configObj, nil

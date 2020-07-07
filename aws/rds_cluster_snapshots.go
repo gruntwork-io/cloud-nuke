@@ -34,6 +34,7 @@ func waitUntilRdsClusterSnapshotDeleted(svc *rds.RDS, input *rds.DescribeDBClust
 	return RdsClusterSnapshotDeleteError{name: *input.DBClusterSnapshotIdentifier}
 }
 
+// Get all DB Cluster snapshots
 func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := rds.New(session)
 
@@ -46,9 +47,27 @@ func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time,
 	var snapshots []*string
 
 	for _, database := range result.DBClusterSnapshots {
+		
+		// List all DB Cluster Snapshot tags
+		tagsResult, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
+			ResourceName: database.DBClusterSnapshotArn,
+		})
+
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
 		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
-			if shouldIncludeClusterSnapshot(*database.DBClusterSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
-				snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
+			if shouldIncludeClusterSnapshotByName(*database.DBClusterSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
+				if len(tagsResult.TagList) > 0 {
+					for _, tag := range tagsResult.TagList {
+						if shouldIncludeClusterSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
+							snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
+						}
+					}
+				} else {
+					snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
+				}
 			}
 		}
 	}
@@ -56,18 +75,19 @@ func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time,
 	return snapshots, nil
 }
 
-func shouldIncludeClusterSnapshot(snapshotName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
+// Filter DB Cluster snapshot by names_regex in config file
+func shouldIncludeClusterSnapshotByName(snapshotName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
 	shouldInclude := false
 
 	if len(includeNamesREList) > 0 {
 		// If any include rules are defined
-		// And the include rule matches the snapshot, check to see if an exclude rule matches
-		if includeClusterSnapshotByREList(snapshotName, includeNamesREList) {
-			shouldInclude = excludeClusterSnapshotByREList(snapshotName, excludeNamesREList)
+		// and the include rule matches the snapshot, check to see if an exclude rule matches
+		if includeClusterSnapshotByNamesREList(snapshotName, includeNamesREList) {
+			shouldInclude = excludeClusterSnapshotByNamesREList(snapshotName, excludeNamesREList)
 		}
 	} else if len(excludeNamesREList) > 0 {
 		// If there are no include rules defined, check to see if an exclude rule matches
-		shouldInclude = excludeClusterSnapshotByREList(snapshotName, excludeNamesREList)
+		shouldInclude = excludeClusterSnapshotByNamesREList(snapshotName, excludeNamesREList)
 	} else {
 		// Otherwise
 		shouldInclude = true
@@ -76,7 +96,8 @@ func shouldIncludeClusterSnapshot(snapshotName string, includeNamesREList []*reg
 	return shouldInclude
 }
 
-func includeClusterSnapshotByREList(snapshotName string, reList []*regexp.Regexp) bool {
+// Include filtered DB Cluster snapshot
+func includeClusterSnapshotByNamesREList(snapshotName string, reList []*regexp.Regexp) bool {
 	for _, re := range reList {
 		if re.MatchString(snapshotName) {
 			return true
@@ -85,16 +106,58 @@ func includeClusterSnapshotByREList(snapshotName string, reList []*regexp.Regexp
 	return false
 }
 
-func excludeClusterSnapshotByREList(snapshotName string, reList []*regexp.Regexp) bool {
+// Exclude filtered DB Cluster snapshot
+func excludeClusterSnapshotByNamesREList(snapshotName string, reList []*regexp.Regexp) bool {
 	for _, re := range reList {
 		if re.MatchString(snapshotName) {
 			return false
 		}
 	}
-
 	return true
 }
 
+// Filter DB Cluster snapshot by tags_regex in config file
+func shouldIncludeClusterSnapshotByTag(tagName string, includeTagNamesREList []*regexp.Regexp, excludeTagNamesREList []*regexp.Regexp) bool {
+	shouldInclude := false
+
+	if len(includeTagNamesREList) > 0 {
+		// If any include rules are defined
+		// and the include rule matches the snapshot tag, check to see if an exclude rule matches
+		if includeClusterSnapshotByTagsREList(tagName, includeTagNamesREList) {
+			shouldInclude = excludeClusterSnapshotByTagsREList(tagName, excludeTagNamesREList)
+		}
+	} else if len(excludeTagNamesREList) > 0 {
+		// If there are no include rules defined, check to see if an exclude rule matches
+		shouldInclude = excludeClusterSnapshotByTagsREList(tagName, excludeTagNamesREList)
+	} else {
+		// Otherwise
+		shouldInclude = true
+	}
+
+	return shouldInclude
+}
+
+// Include filtered DB Cluster
+func includeClusterSnapshotByTagsREList(tagName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(tagName) {
+			return true
+		}
+	}
+	return false
+}
+
+// Exclude filtered DB Cluster
+func excludeClusterSnapshotByTagsREList(tagName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(tagName) {
+			return false
+		}
+	}
+	return true
+}
+
+// Nuke-Delete all DB Cluster snapshots
 func nukeAllRdsClusterSnapshots(session *session.Session, snapshots []*string) error {
 	svc := rds.New(session)
 
