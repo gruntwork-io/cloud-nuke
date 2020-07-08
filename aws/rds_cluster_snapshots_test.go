@@ -18,7 +18,7 @@ import (
 )
 
 // Custom waiter function waitUntilRdsClusterAvailable uses the Amazon RDS API operation DescribeDBClustersInput
-// to wait for a condition to be met before returning.
+// to wait for the cluster to be available before returning.
 // If the condition is not met within the max attempt window, an error will be returned.
 func waitUntilRdsClusterAvailable(svc *rds.RDS, name *string) error {
 	input := &rds.DescribeDBClustersInput{
@@ -59,7 +59,7 @@ func waitUntilRdsClusterSnapshotAvailable(svc *rds.RDS, clusterName *string, sna
 }
 
 // createTestDBCluster generates a test DB Cluster since snapshots can only be created
-// from existing DB Clusters
+// from an existing DB Cluster
 func createTestDBCluster(t *testing.T, session *session.Session, name string) {
 	svc := rds.New(session)
 	input := &rds.CreateDBClusterInput{
@@ -87,106 +87,30 @@ func createTestRDSClusterSnapshot(t *testing.T, session *session.Session, cluste
 	require.NoError(t, errors.WithStackTrace(err))
 	waitUntilRdsClusterSnapshotAvailable(svc, &clusterName, &snapshotName)
 
-}
+	result, err := svc.DescribeDBClusterSnapshots(&rds.DescribeDBClusterSnapshotsInput{
+		DBClusterSnapshotIdentifier: &snapshotName,
+	})
 
-// TestNukeIncludedNameRDSClusterSnapshot tests for nuking included names regex in config file
-func TestNukeIncludedNameRDSClusterSnapshot(t *testing.T) {
-	t.Parallel()
-
-	region, err := getRandomRegion()
-
-	require.NoError(t, errors.WithStackTrace(err))
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	// Snapshot to nuke
-	snapshotName := "cloud-nuke-test-" + util.UniqueID()
-	clusterName := "cloud-nuke-test-" + util.UniqueID()
-	excludeAfter := time.Now().Add(1 * time.Hour)
-
-	createTestDBCluster(t, session, clusterName)
-	clusterNames, err := getAllRdsClusters(session, excludeAfter)
-	clusterIdentifier := awsgo.StringValueSlice(clusterNames)[0]
-	createTestRDSClusterSnapshot(t, session, clusterIdentifier, snapshotName)
-
-	var configObj *config.Config
-	configObj, err = config.GetConfig("../config/mocks/rdsSnapshots_include_names.yaml")
-
-	defer func() {
-		nukeAllRdsClusterSnapshots(session, []*string{&snapshotName})
-
-		snapshotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
-
-		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
-
-		//Clean up DB Cluster created with createTestDBCluster
-		nukeAllRdsClusters(session, []*string{&clusterName})
-	}()
-
-	snapShots, err := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
-
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of RDS DB Cluster snapshots", errors.WithStackTrace(err).Error())
+	// Generate a tag
+	var tags = []*rds.Tag{
+		{
+			Key:   awsgo.String("snapshot-tag1-key"),
+			Value: awsgo.String("snapshot-tag1-value"),
+		},
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapshotName))
-
-}
-
-// TestExcludedNameRDSClusterSnapshot tests for excluding snapshots in config file when nuking
-func TestExcludedNameRDSClusterSnapshot(t *testing.T) {
-	t.Parallel()
-
-	region, err := getRandomRegion()
-
-	require.NoError(t, errors.WithStackTrace(err))
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	// Snapshot to nuke
-	snapshotName := "cloud-nuke-test-" + util.UniqueID()
-	clusterName := "cloud-nuke-test-" + util.UniqueID()
-	excludeAfter := time.Now().Add(1 * time.Hour)
-
-	createTestDBCluster(t, session, clusterName)
-	clusterNames, err := getAllRdsClusters(session, excludeAfter)
-	clusterIdentifier := awsgo.StringValueSlice(clusterNames)[0]
-	createTestRDSClusterSnapshot(t, session, clusterIdentifier, snapshotName)
-
-	// Snapshot to exclude when nuking
-	snapshotExcludedName := "cloud-exclude-snapshot-" + util.UniqueID()
-	createTestRDSClusterSnapshot(t, session, clusterIdentifier, snapshotExcludedName)
-
-	var configObj *config.Config
-	configObj, err = config.GetConfig("../config/mocks/rdsSnapshots_exclude_names.yaml")
-
-	defer func() {
-		nukeAllRdsClusterSnapshots(session, []*string{&snapshotName})
-
-		snapshotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
-
-		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
-
-		//Clean up DB Cluster created with createTestDBCluster
-		nukeAllRdsClusters(session, []*string{&clusterName})
-	}()
-
-	snapShots, err := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
-
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of RDS DB Cluster snapshots", errors.WithStackTrace(err).Error())
+	// Tag a DB Cluster snapshot resource
+	for _, database := range result.DBClusterSnapshots {
+		arn := database.DBClusterSnapshotArn
+		svc.AddTagsToResource(&rds.AddTagsToResourceInput{
+			ResourceName: awsgo.String(*arn),
+			Tags:         tags,
+		})
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapshotName))
-	assert.NotContains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapshotExcludedName))
-
 }
 
-// TestFilterRDSClusterSnapshot tests for filtering included and exclude snapshots in config file when nuking
+// TestFilterRDSClusterSnapshot tests for filtering cluster snapshots basing on matching include and exclude rules in the config file.
 func TestFilterRDSClusterSnapshot(t *testing.T) {
 	t.Parallel()
 
@@ -198,19 +122,20 @@ func TestFilterRDSClusterSnapshot(t *testing.T) {
 		Region: awsgo.String(region)},
 	)
 
-	// Snapshot to nuke
-	snapshotName := "cloud-nuke-test-" + util.UniqueID()
-	clusterName := "cloud-nuke-test-" + util.UniqueID()
-	excludeAfter := time.Now().Add(1 * time.Hour)
-
+	// Create a test DB Cluster and use the dbClusterIdentifier to generate snapshots
+	clusterName := "cloud-nuke-test-cluster" + util.UniqueID()
 	createTestDBCluster(t, session, clusterName)
+	excludeAfter := time.Now().Add(1 * time.Hour)
 	clusterNames, err := getAllRdsClusters(session, excludeAfter)
-	clusterIdentifier := awsgo.StringValueSlice(clusterNames)[0]
-	createTestRDSClusterSnapshot(t, session, clusterIdentifier, snapshotName)
+	dbClusterIdentifier := awsgo.StringValueSlice(clusterNames)[0]
 
-	// Snapshot to exclude when nuking
-	snapshotExcludedName := "cloud-exclude-snapshot-" + util.UniqueID()
-	createTestRDSClusterSnapshot(t, session, clusterIdentifier, snapshotExcludedName)
+	// Create a test snapshot to nuke based on matching rules in the config file.
+	snapshotName := "cloud-nuke-test-include-snapshot-" + util.UniqueID()
+	createTestRDSClusterSnapshot(t, session, dbClusterIdentifier, snapshotName)
+
+	// Create a test snapshot to exclude when nuking
+	snapshotExcludedName := "cloud-nuke-test-exclude-snapshot-" + util.UniqueID()
+	createTestRDSClusterSnapshot(t, session, dbClusterIdentifier, snapshotExcludedName)
 
 	var configObj *config.Config
 	configObj, err = config.GetConfig("../config/mocks/rdsSnapshots_filter_names.yaml")
@@ -225,10 +150,9 @@ func TestFilterRDSClusterSnapshot(t *testing.T) {
 
 		snapshotNames, _ := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
 
+		// Verify that the snapshot has been nuked
 		assert.NotContains(t, awsgo.StringValueSlice(snapshotNames), strings.ToLower(snapshotName))
 
-		//Clean up DB Cluster created with createTestDBCluster
-		nukeAllRdsClusters(session, []*string{&clusterName})
 	}()
 
 	snapShots, err := getAllRdsClusterSnapshots(session, excludeAfter, *configObj)
@@ -238,6 +162,8 @@ func TestFilterRDSClusterSnapshot(t *testing.T) {
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapshotName))
+
+	// Verify that the snapshot has been excluded
 	assert.NotContains(t, awsgo.StringValueSlice(snapShots), strings.ToLower(snapshotExcludedName))
 
 }

@@ -25,7 +25,7 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time, config
 	var snapshots []*string
 
 	for _, database := range result.DBSnapshots {
-		
+
 		// List all DB Instance Snapshot tags
 		tagsResult, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
 			ResourceName: database.DBSnapshotArn,
@@ -38,15 +38,15 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time, config
 		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
 			if shouldIncludeSnapshotByName(*database.DBSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
 				if len(tagsResult.TagList) > 0 {
-                    for _, tag := range tagsResult.TagList {
+					for _, tag := range tagsResult.TagList {
 						if shouldIncludeSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
 							snapshots = append(snapshots, database.DBSnapshotIdentifier)
 						}
 					}
 				} else {
-                    snapshots = append(snapshots, database.DBSnapshotIdentifier)
+					snapshots = append(snapshots, database.DBSnapshotIdentifier)
 				}
-			} 
+			}
 		}
 	}
 

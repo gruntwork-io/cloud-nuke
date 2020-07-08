@@ -1,7 +1,7 @@
 rdsSnapshots:
   include:
     names_regex:
-      - .*-tag1.*
+      - .*-include-.*
     tags_regex:
       - .*-tag1-.*
   exclude:

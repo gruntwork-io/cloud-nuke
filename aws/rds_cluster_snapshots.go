@@ -47,7 +47,7 @@ func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time,
 	var snapshots []*string
 
 	for _, database := range result.DBClusterSnapshots {
-		
+
 		// List all DB Cluster Snapshot tags
 		tagsResult, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
 			ResourceName: database.DBClusterSnapshotArn,

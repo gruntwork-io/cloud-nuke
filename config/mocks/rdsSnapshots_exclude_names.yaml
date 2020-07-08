@@ -1,4 +1,0 @@
-rdsSnapshots:
-  exclude:
-    names_regex:
-      - .*cloud-exclude-snapshot-.*
