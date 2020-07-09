@@ -205,6 +205,7 @@ To find out what we options are supported in the config file today, consult this
 | s3            | partial |
 | ec2 instance  | none    |
 | iam role      | none    |
+| rds snapshots | partial |
 | ... (more to come) | none |
 
 
@@ -217,6 +218,16 @@ _Note: the fields without `_regex` suffixes refer to support for plain-text matc
 | names_regex | ✅      | ✅      |
 | tags        | none    | none    |
 | tags_regex  | none    | none    |
+
+##### RDS snapshots resource type:
+_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
+
+| field       | include | exclude |
+|-------------|---------|---------|
+| names       | none    | none    |
+| names_regex | ✅      | ✅      |
+| tags        | none    | none    |
+| tags_regex  | ✅      | ✅      |
 
 ### Log level
 

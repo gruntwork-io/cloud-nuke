@@ -96,7 +96,7 @@ func shouldIncludeClusterSnapshotByName(snapshotName string, includeNamesREList 
 	return shouldInclude
 }
 
-// Include filtered DB Cluster snapshot
+// Include filtered DB Cluster snapshot if name matches
 func includeClusterSnapshotByNamesREList(snapshotName string, reList []*regexp.Regexp) bool {
 	for _, re := range reList {
 		if re.MatchString(snapshotName) {
@@ -106,7 +106,7 @@ func includeClusterSnapshotByNamesREList(snapshotName string, reList []*regexp.R
 	return false
 }
 
-// Exclude filtered DB Cluster snapshot
+// Exclude filtered DB Cluster snapshot if name matches
 func excludeClusterSnapshotByNamesREList(snapshotName string, reList []*regexp.Regexp) bool {
 	for _, re := range reList {
 		if re.MatchString(snapshotName) {
@@ -137,7 +137,7 @@ func shouldIncludeClusterSnapshotByTag(tagName string, includeTagNamesREList []*
 	return shouldInclude
 }
 
-// Include filtered DB Cluster
+// Include filtered DB Cluster if tag matches
 func includeClusterSnapshotByTagsREList(tagName string, reList []*regexp.Regexp) bool {
 	for _, re := range reList {
 		if re.MatchString(tagName) {
@@ -147,7 +147,7 @@ func includeClusterSnapshotByTagsREList(tagName string, reList []*regexp.Regexp)
 	return false
 }
 
-// Exclude filtered DB Cluster
+// Exclude filtered DB Cluster if tag matches
 func excludeClusterSnapshotByTagsREList(tagName string, reList []*regexp.Regexp) bool {
 	for _, re := range reList {
 		if re.MatchString(tagName) {
