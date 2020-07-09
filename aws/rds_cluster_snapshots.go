@@ -46,27 +46,33 @@ func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time,
 
 	var snapshots []*string
 
-	for _, database := range result.DBClusterSnapshots {
+	for _, snapshot := range result.DBClusterSnapshots {
 
 		// List all DB Cluster Snapshot tags
 		tagsResult, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
-			ResourceName: database.DBClusterSnapshotArn,
+			ResourceName: snapshot.DBClusterSnapshotArn,
 		})
 
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
-			if shouldIncludeClusterSnapshotByName(*database.DBClusterSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
-				if len(tagsResult.TagList) > 0 {
-					for _, tag := range tagsResult.TagList {
-						if shouldIncludeClusterSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
-							snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
+		// Automated DB snapshots can only be deleted by deleting the DB instance or
+		// changing the backup retention period for the DB instance to 0.
+		// This edge case can't be handled since all DB instance related automated snapshots will be deleted.
+		// Refer to https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_DeleteSnapshot.html
+		if *snapshot.SnapshotType != "automated" {
+			if snapshot.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(snapshot.SnapshotCreateTime)) {
+				if shouldIncludeClusterSnapshotByName(*snapshot.DBClusterSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
+					if len(tagsResult.TagList) > 0 {
+						for _, tag := range tagsResult.TagList {
+							if shouldIncludeClusterSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
+								snapshots = append(snapshots, snapshot.DBClusterSnapshotIdentifier)
+							}
 						}
+					} else {
+						snapshots = append(snapshots, snapshot.DBClusterSnapshotIdentifier)
 					}
-				} else {
-					snapshots = append(snapshots, database.DBClusterSnapshotIdentifier)
 				}
 			}
 		}

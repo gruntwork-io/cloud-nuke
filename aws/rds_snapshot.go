@@ -24,27 +24,33 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time, config
 
 	var snapshots []*string
 
-	for _, database := range result.DBSnapshots {
+	for _, snapshot := range result.DBSnapshots {
 
 		// List all DB Instance Snapshot tags
 		tagsResult, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
-			ResourceName: database.DBSnapshotArn,
+			ResourceName: snapshot.DBSnapshotArn,
 		})
 
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		if database.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.SnapshotCreateTime)) {
-			if shouldIncludeSnapshotByName(*database.DBSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
-				if len(tagsResult.TagList) > 0 {
-					for _, tag := range tagsResult.TagList {
-						if shouldIncludeSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
-							snapshots = append(snapshots, database.DBSnapshotIdentifier)
+		// Automated DB snapshots can only be deleted by deleting the DB instance or
+		// changing the backup retention period for the DB instance to 0.
+		// This edge case can't be handled since all DB instance related automated snapshots will be deleted.
+		// Refer to https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_DeleteSnapshot.html
+		if *snapshot.SnapshotType != "automated" {
+			if snapshot.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(snapshot.SnapshotCreateTime)) {
+				if shouldIncludeSnapshotByName(*snapshot.DBSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
+					if len(tagsResult.TagList) > 0 {
+						for _, tag := range tagsResult.TagList {
+							if shouldIncludeSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
+								snapshots = append(snapshots, snapshot.DBSnapshotIdentifier)
+							}
 						}
+					} else {
+						snapshots = append(snapshots, snapshot.DBSnapshotIdentifier)
 					}
-				} else {
-					snapshots = append(snapshots, database.DBSnapshotIdentifier)
 				}
 			}
 		}
