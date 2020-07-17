@@ -216,6 +216,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End ASG Names
 
+		// IAM Users
+		iamUsers := IamUsers{}
+		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
+			userNames, err := getAllIAMUsers(session, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(userNames) > 0 {
+				iamUsers.userNames = awsgo.StringValueSlice(userNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, iamUsers)
+			}
+		}
+		// End IAM Users
+		
 		// Launch Configuration Names
 		configs := LaunchConfigs{}
 		if IsNukeable(configs.ResourceName(), resourceTypes) {
@@ -450,6 +464,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 func ListResourceTypes() []string {
 	resourceTypes := []string{
 		ASGroups{}.ResourceName(),
+		IamUsers{}.ResourceName(),
 		LaunchConfigs{}.ResourceName(),
 		LoadBalancers{}.ResourceName(),
 		LoadBalancersV2{}.ResourceName(),
