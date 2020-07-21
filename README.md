@@ -45,6 +45,8 @@ When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs a
 3. Add execute permissions to the binary. E.g.: `chmod u+x /usr/local/bin/cloud-nuke`.
 4. Test it installed correctly: `cloud-nuke --help`.
 
+As an alternative, you can install it using [Homebrew](https://brew.sh/): `brew install cloud-nuke`
+
 ## Usage
 
 Simply running `cloud-nuke aws` will start the process of cleaning up your cloud account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
