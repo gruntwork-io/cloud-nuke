@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"fmt"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -39,7 +41,7 @@ type RdsClusterSnapshotDeleteError struct {
 }
 
 func (e RdsClusterSnapshotDeleteError) Error() string {
-	return "RDS DB Cluster Snapshot:" + e.name + "was not deleted"
+	return fmt.Sprintf("RDS DB Cluster Snapshot %s was not deleted", e.name)
 }
 
 type RdsClusterSnapshotAvailableError struct {
@@ -48,7 +50,7 @@ type RdsClusterSnapshotAvailableError struct {
 }
 
 func (e RdsClusterSnapshotAvailableError) Error() string {
-	return "RDS DB Cluster Snapshot" + e.snapshotName + "not currently in available or failed state"
+	return fmt.Sprintf("RDS DB Cluster Snapshot %s not currently in available or failed state", e.snapshotName)
 }
 
 type RdsClusterAvailableError struct {
@@ -56,5 +58,5 @@ type RdsClusterAvailableError struct {
 }
 
 func (e RdsClusterAvailableError) Error() string {
-	return "RDS DB Cluster " + e.name + "not in available state"
+	return fmt.Sprintf("RDS DB Cluster  %s not in available state", e.name)
 }

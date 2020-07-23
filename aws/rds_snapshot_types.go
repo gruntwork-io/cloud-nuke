@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"fmt"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -40,7 +42,7 @@ type RdsInstanceSnapshotAvailableError struct {
 }
 
 func (e RdsInstanceSnapshotAvailableError) Error() string {
-	return "RDS DB Instance Snapshot" + e.snapshotName + "not currently in available or failed state"
+	return fmt.Sprintf("RDS DB Instance Snapshot %s not currently in available or failed state", e.snapshotName)
 }
 
 type RdsInstanceAvailableError struct {
@@ -48,5 +50,5 @@ type RdsInstanceAvailableError struct {
 }
 
 func (e RdsInstanceAvailableError) Error() string {
-	return "RDS DB Instance " + e.name + "not in available state"
+	return fmt.Sprintf("RDS DB Instance %s not in available state", e.name)
 }
