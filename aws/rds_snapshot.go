@@ -39,7 +39,7 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time, config
 		// changing the backup retention period for the DB instance to 0.
 		// This edge case can't be handled since all DB instance related automated snapshots will be deleted.
 		// Refer to https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_DeleteSnapshot.html
-		if *snapshot.SnapshotType != "automated" {
+		if awsgo.StringValue(snapshot.SnapshotType) != "automated" {
 			if snapshot.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(snapshot.SnapshotCreateTime)) {
 				if shouldIncludeSnapshotByName(*snapshot.DBSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
 					if len(tagsResult.TagList) > 0 {
