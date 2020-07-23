@@ -45,7 +45,7 @@ func waitUntilRdsClusterSnapshotAvailable(svc *rds.RDS, clusterName *string, sna
 		DBClusterIdentifier:         clusterName,
 		DBClusterSnapshotIdentifier: snapshotName,
 	}
-	for i := 0; i < 90; i++ {
+	for i := 0; i < 240; i++ {
 		_, err := svc.DescribeDBClusterSnapshots(input)
 		if err != nil {
 			return err
@@ -70,9 +70,31 @@ func createTestDBCluster(t *testing.T, session *session.Session, name string) {
 	}
 
 	_, err := svc.CreateDBCluster(input)
-	require.NoError(t, err)
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 	waitUntilRdsClusterAvailable(svc, &name)
+}
 
+// Tag a DB Cluster snapshot
+func tagTestRDSClusterSnapshot(t *testing.T, session *session.Session, arn *string) {
+	// Generate a tag
+	svc := rds.New(session)
+	var tags = []*rds.Tag{
+		{
+			Key:   awsgo.String("snapshot-tag1-key"),
+			Value: awsgo.String("snapshot-tag1-value"),
+		},
+	}
+
+	_, err := svc.AddTagsToResource(&rds.AddTagsToResourceInput{
+		ResourceName: awsgo.String(*arn),
+		Tags:         tags,
+	})
+
+	if err != nil {
+		assert.Failf(t, "Unable to tag RDS DB Cluster Snapshot", errors.WithStackTrace(err).Error())
+	}
 }
 
 // createTestRDSClusterSnapshot generates a test DB Snapshot
@@ -91,21 +113,13 @@ func createTestRDSClusterSnapshot(t *testing.T, session *session.Session, cluste
 		DBClusterSnapshotIdentifier: &snapshotName,
 	})
 
-	// Generate a tag
-	var tags = []*rds.Tag{
-		{
-			Key:   awsgo.String("snapshot-tag1-key"),
-			Value: awsgo.String("snapshot-tag1-value"),
-		},
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	// Tag a DB Cluster snapshot resource
-	for _, database := range result.DBClusterSnapshots {
-		arn := database.DBClusterSnapshotArn
-		svc.AddTagsToResource(&rds.AddTagsToResourceInput{
-			ResourceName: awsgo.String(*arn),
-			Tags:         tags,
-		})
+	for _, snapshot := range result.DBClusterSnapshots {
+		arn := snapshot.DBClusterSnapshotArn
+		tagTestRDSClusterSnapshot(t, session, arn)
 	}
 
 }
@@ -127,7 +141,17 @@ func TestFilterRDSClusterSnapshot(t *testing.T) {
 	createTestDBCluster(t, session, clusterName)
 	excludeAfter := time.Now().Add(1 * time.Hour)
 	clusterNames, err := getAllRdsClusters(session, excludeAfter)
+	if err != nil {
+		assert.Failf(t, "Unable to fetch list of RDS DB Clusters", errors.WithStackTrace(err).Error())
+	}
+
+	if len(clusterNames) > 0 {
+		logging.Logger.Debug("List of RDS DB clusters is empty")
+	}
 	dbClusterIdentifier := awsgo.StringValueSlice(clusterNames)[0]
+
+	// Clean up after this test
+	defer nukeAllRdsClusters(session, []*string{&clusterName})
 
 	// Create a test snapshot to nuke based on matching rules in the config file.
 	snapshotName := "cloud-nuke-test-include-snapshot-" + util.UniqueID()

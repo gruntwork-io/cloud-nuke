@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/rds"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func createTestDBInstance(t *testing.T, session *session.Session, name string) {
 	svc := rds.New(session)
 	input := &rds.CreateDBInstanceInput{
 		AllocatedStorage:     awsgo.Int64(5),
-		DBInstanceClass:      awsgo.String("db.m5.large"),
+		DBInstanceClass:      awsgo.String("db.t2.micro"),
 		DBInstanceIdentifier: awsgo.String(name),
 		Engine:               awsgo.String("postgres"),
 		MasterUsername:       awsgo.String("gruntwork"),
@@ -35,6 +36,27 @@ func createTestDBInstance(t *testing.T, session *session.Session, name string) {
 	svc.WaitUntilDBInstanceAvailable(&rds.DescribeDBInstancesInput{
 		DBInstanceIdentifier: &name,
 	})
+}
+
+// Tag a DB Instance snapshot
+func tagTestRDSInstanceSnapshot(t *testing.T, session *session.Session, arn *string) {
+	// Generate a tag
+	svc := rds.New(session)
+	var tags = []*rds.Tag{
+		{
+			Key:   awsgo.String("snapshot-tag1-key"),
+			Value: awsgo.String("snapshot-tag1-value"),
+		},
+	}
+
+	_, err := svc.AddTagsToResource(&rds.AddTagsToResourceInput{
+		ResourceName: awsgo.String(*arn),
+		Tags:         tags,
+	})
+
+	if err != nil {
+		assert.Failf(t, "Unable to tag RDS DB Snapshot", errors.WithStackTrace(err).Error())
+	}
 }
 
 //createTestRDSSnapshot generates a test DB Instance Snapshot
@@ -57,21 +79,13 @@ func createTestRDSSnapshot(t *testing.T, session *session.Session, instanceName 
 		DBSnapshotIdentifier: &snapshotName,
 	})
 
-	// Generate a tag
-	var tags = []*rds.Tag{
-		{
-			Key:   awsgo.String("snapshot-tag1-key"),
-			Value: awsgo.String("snapshot-tag1-value"),
-		},
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	// Tag the DB snapshot resource
-	for _, database := range result.DBSnapshots {
-		arn := database.DBSnapshotArn
-		svc.AddTagsToResource(&rds.AddTagsToResourceInput{
-			ResourceName: awsgo.String(*arn),
-			Tags:         tags,
-		})
+	for _, snapshot := range result.DBSnapshots {
+		arn := snapshot.DBSnapshotArn
+		tagTestRDSInstanceSnapshot(t, session, arn)
 	}
 }
 
@@ -92,7 +106,18 @@ func TestFilterRDSSnapshot(t *testing.T) {
 	excludeAfter := time.Now().Add(1 * time.Hour)
 	createTestDBInstance(t, session, instanceName)
 	instanceNames, err := getAllRdsInstances(session, excludeAfter)
+
+	if err != nil {
+		assert.Failf(t, "Unable to fetch list of RDS DB Instances", errors.WithStackTrace(err).Error())
+	}
+
+	if len(instanceNames) > 0 {
+		logging.Logger.Debug("List of RDS DB instances is empty")
+	}
 	dbInstanceIdentifier := awsgo.StringValueSlice(instanceNames)[0]
+
+	// Clean up after this test
+	defer nukeAllRdsInstances(session, []*string{&instanceName})
 
 	// Create a test snapshot to nuke based on matching rules in the config file.
 	snapshotName := "cloud-nuke-test-include-snapshot-" + util.UniqueID()
