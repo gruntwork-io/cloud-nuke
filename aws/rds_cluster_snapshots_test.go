@@ -25,7 +25,7 @@ func waitUntilRdsClusterAvailable(svc *rds.RDS, name *string) error {
 		DBClusterIdentifier: name,
 	}
 
-	for i := 0; i < 90; i++ {
+	for i := 0; i < 240; i++ {
 		_, err := svc.DescribeDBClusters(input)
 		if err != nil {
 			return err
