@@ -49,11 +49,11 @@ When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs a
 
 ### Install via package manager
 
-Note that all the different package managers are third party. The third party Terragrunt packages may not be updated with the latest version, but are often close. Please check your version against the latest available on the [releases page](https://github.com/gruntwork-io/cloud-nuke/releases). If you want the latest version, the recommended installation option is to [download from the releases page](https://github.com/gruntwork-io/cloud-nuke/releases).
+Note that package managers are third party. The third party cloud-nuke packages may not be updated with the latest version, but are often close. Please check your version against the latest available on the [releases page](https://github.com/gruntwork-io/cloud-nuke/releases). If you want the latest version, the recommended installation option is to [download from the releases page](https://github.com/gruntwork-io/cloud-nuke/releases).
 
 - **macOS:** You can install cloud-nuke using [Homebrew](https://brew.sh/): `brew install cloud-nuke`. 
 
-- **Linux:** Most Linux users can use [Homebrew](https://docs.brew.sh/Homebrew-on-Linux): `brew install terragrunt`.
+- **Linux:** Most Linux users can use [Homebrew](https://docs.brew.sh/Homebrew-on-Linux): `brew install cloud-nuke`.
 
 ## Usage
 
