@@ -73,7 +73,7 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 }
 
 // Deletes all non protected EC2 instances
-func nukeAllEc2Instances(session *session.Session, instanceIds []*string, waitForTermination bool) error {
+func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(instanceIds) == 0 {
@@ -91,11 +91,6 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string, waitFo
 	if err != nil {
 		logging.Logger.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
-	}
-
-	if !waitForTermination {
-		logging.Logger.Infof("[OK] triggered termination of %d instance(s) in %s", len(instanceIds), *session.Config.Region)
-		return nil
 	}
 
 	err = svc.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{

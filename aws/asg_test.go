@@ -63,7 +63,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	defer nukeAllEc2Instances(session, instances, true)
+	defer nukeAllEc2Instances(session, instances)
 
 	groupNames, err := getAllAutoScalingGroups(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -104,7 +104,7 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	defer nukeAllEc2Instances(session, instances, false)
+	defer nukeAllEc2Instances(session, instances)
 
 	_, err = svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{&uniqueTestID},

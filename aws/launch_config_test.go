@@ -59,7 +59,7 @@ func TestListLaunchConfigurations(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	defer nukeAllEc2Instances(session, instances, true)
+	defer nukeAllEc2Instances(session, instances)
 
 	configNames, err := getAllLaunchConfigurations(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -101,7 +101,7 @@ func TestNukeLaunchConfigurations(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	defer nukeAllEc2Instances(session, instances, true)
+	defer nukeAllEc2Instances(session, instances)
 
 	_, err = svc.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{
 		LaunchConfigurationNames: []*string{&uniqueTestID},

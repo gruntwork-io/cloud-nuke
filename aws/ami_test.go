@@ -111,7 +111,7 @@ func TestListAMIs(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	defer nukeAllEc2Instances(session, instances, true)
+	defer nukeAllEc2Instances(session, instances)
 
 	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -163,7 +163,7 @@ func TestNukeAMIs(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	defer nukeAllEc2Instances(session, instances, true)
+	defer nukeAllEc2Instances(session, instances)
 
 	_, err = svc.DescribeImages(&ec2.DescribeImagesInput{
 		ImageIds: []*string{image.ImageId},

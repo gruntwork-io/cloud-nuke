@@ -39,7 +39,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 
 	bucketName := S3GenBucketName()
 
-	targetRegions := []string{awsParams.Region}
+	targetRegions := []string{*awsParams.AWSSession.Config.Region}
 
 	// Please note that we are passing the same session that was used to create the bucket
 	// This is required so that the defer cleanup call always gets the right bucket region
@@ -61,7 +61,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	require.NoError(t, err, "Failed to list S3 Buckets")
 
 	// Validate test bucket does not exist before creation
-	require.NotContains(t, bucketNamesPerRegion[awsParams.Region], aws.String(bucketName))
+	require.NotContains(t, bucketNamesPerRegion[*awsParams.AWSSession.Config.Region], aws.String(bucketName))
 
 	// Create test bucket
 	var bucketTags []map[string]string
@@ -78,10 +78,10 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	require.NoError(t, err, "Failed to list S3 Buckets")
 
 	if args.shouldMatch {
-		require.Contains(t, bucketNamesPerRegion[awsParams.Region], aws.String(bucketName))
+		require.Contains(t, bucketNamesPerRegion[*awsParams.AWSSession.Config.Region], aws.String(bucketName))
 		logging.Logger.Debugf("SUCCESS: Matched bucket - %s", bucketName)
 	} else {
-		require.NotContains(t, bucketNamesPerRegion[awsParams.Region], aws.String(bucketName))
+		require.NotContains(t, bucketNamesPerRegion[*awsParams.AWSSession.Config.Region], aws.String(bucketName))
 		logging.Logger.Debugf("SUCCESS: Did not match bucket - %s", bucketName)
 	}
 }
@@ -230,9 +230,9 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 	require.NoError(t, err)
 
 	// Verify that - after nuking test bucket - it should not exist
-	bucketNamesPerRegion, err := getAllS3Buckets(awsParams.AWSSession, time.Now().Add(1*time.Hour), []string{awsParams.Region}, bucketName, 100, *configObj)
+	bucketNamesPerRegion, err := getAllS3Buckets(awsParams.AWSSession, time.Now().Add(1*time.Hour), []string{*awsParams.AWSSession.Config.Region}, bucketName, 100, *configObj)
 	require.NoError(t, err, "Failed to list S3 Buckets")
-	require.NotContains(t, bucketNamesPerRegion[awsParams.Region], aws.String(bucketName))
+	require.NotContains(t, bucketNamesPerRegion[*awsParams.AWSSession.Config.Region], aws.String(bucketName))
 	logging.Logger.Debugf("SUCCESS: Nuked bucket - %s", bucketName)
 }
 
@@ -360,10 +360,10 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 	configObj, err = config.GetConfig("../config/mocks/s3_all.yaml")
 
 	// Verify that only filtered buckets are listed
-	cleanupBuckets, err := getAllS3Buckets(awsParams.AWSSession, time.Now().Add(1*time.Hour), []string{awsParams.Region}, "", 100, *configObj)
+	cleanupBuckets, err := getAllS3Buckets(awsParams.AWSSession, time.Now().Add(1*time.Hour), []string{*awsParams.AWSSession.Config.Region}, "", 100, *configObj)
 	require.NoError(t, err, "Failed to list S3 Buckets in ca-central-1")
 
-	nukeAllS3Buckets(awsParams.AWSSession, cleanupBuckets[awsParams.Region], 1000)
+	nukeAllS3Buckets(awsParams.AWSSession, cleanupBuckets[*awsParams.AWSSession.Config.Region], 1000)
 
 	// Create test buckets in ca-central-1
 	var bucketTags []map[string]string
@@ -435,11 +435,14 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 				configObj, err = config.GetConfig(tc.args.configFilePath)
 
 				// Verify that only filtered buckets are listed (use random region)
-				bucketNamesPerRegion, err := getAllS3Buckets(awsParamsRand.AWSSession, time.Now().Add(1*time.Hour), []string{awsParamsRand.Region}, "", 100, *configObj)
+				bucketNamesPerRegion, err := getAllS3Buckets(
+					awsParamsRand.AWSSession,
+					time.Now().Add(1*time.Hour), []string{*awsParams.AWSSession.Config.Region}, "", 100, *configObj,
+				)
 
 				require.NoError(t, err, "Failed to list S3 Buckets")
-				require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParamsRand.Region]))
-				require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParamsRand.Region]), tc.args.matches)
+				require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[*awsParamsRand.AWSSession.Config.Region]))
+				require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[*awsParamsRand.AWSSession.Config.Region]), tc.args.matches)
 			})
 		}
 	})

@@ -56,7 +56,7 @@ func TestListInstances(t *testing.T) {
 		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 	// clean up after this test
-	defer nukeAllEc2Instances(session, []*string{instance.InstanceId, protectedInstance.InstanceId}, true)
+	defer nukeAllEc2Instances(session, []*string{instance.InstanceId, protectedInstance.InstanceId})
 
 	instanceIds, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
@@ -106,7 +106,7 @@ func TestNukeInstances(t *testing.T) {
 		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 
-	if err := nukeAllEc2Instances(session, instanceIds, true); err != nil {
+	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
 		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
 	instances, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))

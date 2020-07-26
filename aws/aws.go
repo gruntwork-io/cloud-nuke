@@ -43,29 +43,25 @@ var OptInNotRequiredRegions = [...]string{
 
 // CloudNukeAWSParams holds params for creating a new AWS session
 type CloudNukeAWSParams struct {
-	Region     string
 	AWSSession *session.Session
 }
 
 // NewCloudNukeAWSParams - creates CloudNukeAWSParams type
-func NewCloudNukeAWSParams(region string) (CloudNukeAWSParams, error) {
+func NewCloudNukeAWSParams(region string) (*CloudNukeAWSParams, error) {
 	var awsParams CloudNukeAWSParams
 	if region == "" {
 		var err error
 		region, err = getRandomRegion()
 		if err != nil {
-			return awsParams, err
+			return nil, err
 		}
-		awsParams.Region = region
 		logging.Logger.Debugf("Creating session in region - %s", region)
-	} else {
-		awsParams.Region = region
 	}
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
 	awsParams.AWSSession = session
-	return awsParams, err
+	return &awsParams, err
 }
 
 // SetEnvLogLevel - sets log level from environment
@@ -92,6 +88,22 @@ func newSession(region string) *session.Session {
 			},
 		),
 	)
+}
+
+// getOrCreateSessionForRegion - returns existing session or updates map with new session and returns new session
+func getOrCreateSessionForRegion(region string, regionSessionMap map[string]*session.Session) (*session.Session, error) {
+	sess, ok := regionSessionMap[region]
+	if !ok {
+		var err error
+		sess, err = session.NewSession(&awsgo.Config{
+			Region: awsgo.String(region)},
+		)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		regionSessionMap[region] = sess
+	}
+	return sess, nil
 }
 
 // Try a describe regions command with the most likely enabled regions
@@ -247,15 +259,9 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 	for _, region := range targetRegions {
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
-		sess, ok := regionSessionMap[region]
-		if !ok {
-			var err error
-			sess, err = session.NewSession(&awsgo.Config{
-				Region: awsgo.String(region)},
-			)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
+		sess, err := getOrCreateSessionForRegion(region, regionSessionMap)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
 		}
 
 		resourcesInRegion := AwsRegionResource{}
@@ -268,7 +274,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(asGroups.ResourceName(), nukeResourceTypes) {
 			groupNames, err := getAllAutoScalingGroups(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(asGroups.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(asGroups.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", asGroups.ResourceName(), err)
@@ -286,7 +292,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(configs.ResourceName(), nukeResourceTypes) {
 			configNames, err := getAllLaunchConfigurations(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(configs.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(configs.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", configs.ResourceName(), err)
@@ -304,7 +310,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(loadBalancers.ResourceName(), nukeResourceTypes) {
 			elbNames, err := getAllElbInstances(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(loadBalancers.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(loadBalancers.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", loadBalancers.ResourceName(), err)
@@ -322,7 +328,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(loadBalancersV2.ResourceName(), nukeResourceTypes) {
 			elbv2Arns, err := getAllElbv2Instances(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(loadBalancersV2.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(loadBalancersV2.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", loadBalancersV2.ResourceName(), err)
@@ -340,7 +346,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(ec2Instances.ResourceName(), nukeResourceTypes) {
 			instanceIds, err := getAllEc2Instances(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(ec2Instances.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(ec2Instances.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", ec2Instances.ResourceName(), err)
@@ -358,7 +364,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(ebsVolumes.ResourceName(), nukeResourceTypes) {
 			volumeIds, err := getAllEbsVolumes(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(ebsVolumes.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(ebsVolumes.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", ebsVolumes.ResourceName(), err)
@@ -376,7 +382,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(eipAddresses.ResourceName(), nukeResourceTypes) {
 			allocationIds, err := getAllEIPAddresses(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(eipAddresses.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(eipAddresses.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", eipAddresses.ResourceName(), err)
@@ -394,7 +400,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(amis.ResourceName(), nukeResourceTypes) {
 			imageIds, err := getAllAMIs(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(amis.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(amis.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", amis.ResourceName(), err)
@@ -412,7 +418,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(snapshots.ResourceName(), nukeResourceTypes) {
 			snapshotIds, err := getAllSnapshots(sess, region, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(snapshots.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(snapshots.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", snapshots.ResourceName(), err)
@@ -430,7 +436,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(ecsServices.ResourceName(), nukeResourceTypes) {
 			clusterArns, err := getAllEcsClusters(sess)
 			if err != nil {
-				if !IsErrIgnorable(ecsServices.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(ecsServices.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", ecsServices.ResourceName(), err)
@@ -454,7 +460,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 			if eksSupportedRegion(region) {
 				eksClusterNames, err := getAllEksClusters(sess, excludeAfter)
 				if err != nil {
-					if !IsErrIgnorable(eksClusters.ResourceName(), ignoreErrResourceTypes) {
+					if !CanIgnoreErrorForResourceType(eksClusters.ResourceName(), ignoreErrResourceTypes) {
 						return nil, errors.WithStackTrace(err)
 					}
 					logging.Logger.Warnf("Ignoring get resources error - %s - %s", eksClusters.ResourceName(), err)
@@ -473,7 +479,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(dbInstances.ResourceName(), nukeResourceTypes) {
 			instanceNames, err := getAllRdsInstances(sess, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(dbInstances.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(dbInstances.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", dbInstances.ResourceName(), err)
@@ -493,7 +499,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 		if IsNukeable(dbClusters.ResourceName(), nukeResourceTypes) {
 			clustersNames, err := getAllRdsClusters(sess, excludeAfter)
 			if err != nil {
-				if !IsErrIgnorable(dbClusters.ResourceName(), ignoreErrResourceTypes) {
+				if !CanIgnoreErrorForResourceType(dbClusters.ResourceName(), ignoreErrResourceTypes) {
 					return nil, errors.WithStackTrace(err)
 				}
 				logging.Logger.Warnf("Ignoring get resources error - %s - %s", dbClusters.ResourceName(), err)
@@ -528,7 +534,7 @@ func GetAllResources(args GetAllResourcesArgs) (*AwsAccountResources, error) {
 				var err error
 				bucketNamesPerRegion, err = getAllS3Buckets(sess, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(), args.ConfigObj)
 				if err != nil {
-					if !IsErrIgnorable(s3Buckets.ResourceName(), ignoreErrResourceTypes) {
+					if !CanIgnoreErrorForResourceType(s3Buckets.ResourceName(), ignoreErrResourceTypes) {
 						return nil, errors.WithStackTrace(err)
 					}
 					logging.Logger.Warnf("Ignoring get resources error - %s - %s", s3Buckets.ResourceName(), err)
@@ -585,6 +591,17 @@ func IsValidResourceType(resourceType string, allResourceTypes []string) bool {
 	return collections.ListContainsElement(allResourceTypes, resourceType)
 }
 
+// ValidateResourceTypes - checks a list of resourceTypes and finds invalid entries
+func ValidateResourceTypes(resourceTypes []string, allResourceTypes []string) []string {
+	invalidResourceTypes := []string{}
+	for _, resourceType := range resourceTypes {
+		if !IsValidResourceType(resourceType, allResourceTypes) {
+			invalidResourceTypes = append(invalidResourceTypes, resourceType)
+		}
+	}
+	return invalidResourceTypes
+}
+
 // IsNukeable - Checks if we should nuke a resource or not
 func IsNukeable(resourceType string, resourceTypes []string) bool {
 	if len(resourceTypes) == 0 ||
@@ -595,9 +612,9 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-// IsErrIgnorable - Checks if we should ignore errors for resource type or not
-func IsErrIgnorable(resourceType string, resourceTypes []string) bool {
-	return collections.ListContainsElement(resourceTypes, "all") || collections.ListContainsElement(resourceTypes, resourceType)
+// CanIgnoreErrorForResourceType - Checks if we should ignore errors for resource type or not
+func CanIgnoreErrorForResourceType(resourceType string, ignoreErrResourceTypes []string) bool {
+	return collections.ListContainsElement(ignoreErrResourceTypes, "all") || collections.ListContainsElement(ignoreErrResourceTypes, resourceType)
 }
 
 // NukeAllResourcesArgs encapsulates arguments for NukeAllResources
@@ -616,15 +633,9 @@ func NukeAllResources(args NukeAllResourcesArgs) error {
 	regionSessionMap := args.RegionSessionMap
 
 	for _, region := range regions {
-		sess, ok := regionSessionMap[region]
-		if !ok {
-			var err error
-			sess, err = session.NewSession(&awsgo.Config{
-				Region: awsgo.String(region)},
-			)
-			if err != nil {
-				return errors.WithStackTrace(err)
-			}
+		sess, err := getOrCreateSessionForRegion(region, regionSessionMap)
+		if err != nil {
+			return errors.WithStackTrace(err)
 		}
 
 		resourcesInRegion := account.Resources[region]
@@ -644,7 +655,7 @@ func NukeAllResources(args NukeAllResourcesArgs) error {
 						time.Sleep(1 * time.Minute)
 						continue
 					}
-					if IsErrIgnorable(resources.ResourceName(), ignoreErrResourceTypes) {
+					if CanIgnoreErrorForResourceType(resources.ResourceName(), ignoreErrResourceTypes) {
 						logging.Logger.Warnf("Ignoring nuke resources error - %s - %s", resources.ResourceName(), err)
 						continue
 					}

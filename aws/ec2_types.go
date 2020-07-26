@@ -28,7 +28,7 @@ func (instance EC2Instances) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (instance EC2Instances) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllEc2Instances(session, awsgo.StringSlice(identifiers), true); err != nil {
+	if err := nukeAllEc2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

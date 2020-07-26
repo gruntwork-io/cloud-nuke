@@ -14,6 +14,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	NoPermsPolicyDocument = `{
+		"Version": "2012-10-17",
+		"Statement": {
+			"Effect": "Allow",
+			"Action": "ec2:DescribeRegions",
+			"Resource": "*"
+		}
+	}`
+	ROPermsPolicyDocument = `{
+		"Version": "2012-10-17",
+		"Statement": {
+			"Effect": "Allow",
+			"Action": [
+				"ec2:Describe*",
+				"s3:List*",
+				"s3:Get*"
+			],
+			"Resource": "*"
+		}
+	}`
+	EC2ROS3RWPermsPolicyDocument = `{
+		"Version": "2012-10-17",
+		"Statement": {
+			"Effect": "Allow",
+			"Action": [
+				"ec2:Describe*",
+				"s3:*"
+			],
+			"Resource": "*"
+		}
+	}`
+)
+
 // createIAMRoleArgs bundles up aws.CreateIAMRole args
 type createIAMRoleArgs struct {
 	awsSession               *session.Session
@@ -126,7 +160,8 @@ func createTestResources(awsSession *session.Session, args []createTestResources
 	return resourceTypeIdentifierMap, nil
 }
 
-func buildNukeAllResourcesArgs(awsSession *session.Session, resourceTypeIdentifierMap map[string]string, targetRegion string, ignoreErrResourceTypes []string) aws.NukeAllResourcesArgs {
+func buildNukeAllResourcesArgs(awsSession *session.Session, resourceTypeIdentifierMap map[string]string, ignoreErrResourceTypes []string) aws.NukeAllResourcesArgs {
+	targetRegion := *awsSession.Config.Region
 	nukeAccount := aws.AwsAccountResources{
 		Resources: make(map[string]aws.AwsRegionResource),
 	}
@@ -181,7 +216,9 @@ func testNukeAllResources(t *testing.T, awsParams aws.CloudNukeAWSParams, assume
 	// Ensure test bucket + test EC2 instance gets deleted at the end of the test
 	// Add defer before checking error to handle the case where partial resources get
 	// created and must be destroyed
-	defer aws.NukeAllResources(buildNukeAllResourcesArgs(awsParams.AWSSession, resourceTypeIdentifierMap, awsParams.Region, args.ignoreErrResourceTypes))
+	defer aws.NukeAllResources(
+		buildNukeAllResourcesArgs(awsParams.AWSSession, resourceTypeIdentifierMap, args.ignoreErrResourceTypes),
+	)
 
 	require.NoError(t, err, "Failed to create test resources")
 
@@ -194,7 +231,7 @@ func testNukeAllResources(t *testing.T, awsParams aws.CloudNukeAWSParams, assume
 	if assumeRoleArn == "" {
 		roleSession = awsParams.AWSSession
 	} else {
-		roleSession, err = aws.AssumeIAMRole(assumeRoleArn, awsParams.Region)
+		roleSession, err = aws.AssumeIAMRole(assumeRoleArn, *awsParams.AWSSession.Config.Region)
 		require.NoErrorf(t, err, "Failed to assume role - %s - %s", assumeRoleArn, err)
 	}
 
@@ -204,11 +241,11 @@ func testNukeAllResources(t *testing.T, awsParams aws.CloudNukeAWSParams, assume
 	// Do assumed role get for existing resources of type EC2 and S3
 	account, err := aws.GetAllResources(
 		aws.GetAllResourcesArgs{
-			TargetRegions:          []string{awsParams.Region},
+			TargetRegions:          []string{*awsParams.AWSSession.Config.Region},
 			ExcludeAfter:           *excludeAfter,
 			NukeResourceTypes:      resourceTypes,
 			IgnoreErrResourceTypes: args.ignoreErrResourceTypes,
-			RegionSessionMap:       map[string]*session.Session{awsParams.Region: roleSession},
+			RegionSessionMap:       map[string]*session.Session{*awsParams.AWSSession.Config.Region: roleSession},
 		},
 	)
 	// Validate that get call should fail if specified
@@ -221,23 +258,18 @@ func testNukeAllResources(t *testing.T, awsParams aws.CloudNukeAWSParams, assume
 	logging.Logger.Debug("Expected: GetAllResources passed")
 
 	// Validate that get call should return the right resource types
-	if collections.ListContains(args.getResourcesOutputTypes, "ec2") {
-		require.Truef(
-			t, resourceExists(awsParams.Region, "ec2", resourceTypeIdentifierMap["ec2"], account),
-			"Failed to find test EC2 instance - name - %s - instanceID - %s", ec2InstanceName, resourceTypeIdentifierMap["ec2"],
-		)
-		logging.Logger.Debug("Expected: Post get check: ec2 exists")
-	}
-	if collections.ListContains(args.getResourcesOutputTypes, "s3") {
-		require.Truef(
-			t, resourceExists(awsParams.Region, "s3", bucketName, account),
-			"Failed to find test S3 bucket - %s", bucketName,
-		)
-		logging.Logger.Debug("Expected: Post get check: s3 exists")
+	for _, resourceType := range resourceTypes {
+		if collections.ListContains(args.getResourcesOutputTypes, resourceType) {
+			require.Truef(
+				t, resourceExists(*awsParams.AWSSession.Config.Region, resourceType, resourceTypeIdentifierMap[resourceType], account),
+				"Failed to find test %s - %s", resourceType, resourceTypeIdentifierMap[resourceType],
+			)
+			logging.Logger.Debugf("Expected: Post get check: %s exists", resourceType)
+		}
 	}
 
 	// Do assumed role nuke for target test resources
-	err = aws.NukeAllResources(buildNukeAllResourcesArgs(roleSession, resourceTypeIdentifierMap, awsParams.Region, args.ignoreErrResourceTypes))
+	err = aws.NukeAllResources(buildNukeAllResourcesArgs(roleSession, resourceTypeIdentifierMap, args.ignoreErrResourceTypes))
 
 	// Validate that nuke call should fail if specified
 	if args.nukeResourcesShouldFail {
@@ -251,41 +283,34 @@ func testNukeAllResources(t *testing.T, awsParams aws.CloudNukeAWSParams, assume
 	// Post deletion - get existing resources of type EC2 and S3
 	account, err = aws.GetAllResources(
 		aws.GetAllResourcesArgs{
-			TargetRegions:          []string{awsParams.Region},
+			TargetRegions:          []string{*awsParams.AWSSession.Config.Region},
 			ExcludeAfter:           *excludeAfter,
 			NukeResourceTypes:      resourceTypes,
 			IgnoreErrResourceTypes: args.ignoreErrResourceTypes,
-			RegionSessionMap:       map[string]*session.Session{awsParams.Region: awsParams.AWSSession},
+			RegionSessionMap:       map[string]*session.Session{*awsParams.AWSSession.Config.Region: awsParams.AWSSession},
 		},
 	)
 	require.NoError(t, err, "Failed to get test resources")
 	logging.Logger.Debug("Expected: GetAllResources passed")
 
 	// Validate post nuke resources
-	ec2Exists := resourceExists(awsParams.Region, "ec2", resourceTypeIdentifierMap["ec2"], account)
-	s3Exists := resourceExists(awsParams.Region, "s3", resourceTypeIdentifierMap["s3"], account)
-
-	if collections.ListContains(args.postNukeResources, "ec2") {
-		require.Truef(
-			t, ec2Exists,
-			"Test EC2 instance deleted when it should not have - name - %s - instanceID - %s",
-			ec2InstanceName, resourceTypeIdentifierMap["ec2"],
+	for _, resourceType := range resourceTypes {
+		existStatus := resourceExists(
+			*awsParams.AWSSession.Config.Region, resourceType, resourceTypeIdentifierMap[resourceType], account,
 		)
-		logging.Logger.Debug("Expected: Post nuke check - ec2 exists")
-	} else {
-		require.Falsef(
-			t, ec2Exists,
-			"Test EC2 instance not deleted - name - %s - instanceId - %s",
-			ec2InstanceName, resourceTypeIdentifierMap["ec2"],
-		)
-		logging.Logger.Debug("Expected: Post nuke check - ec2 deleted")
-	}
-	if collections.ListContains(args.postNukeResources, "s3") {
-		require.Truef(t, s3Exists, "Test S3 bucket deleted when it should not have - %s", bucketName)
-		logging.Logger.Debug("Expected: Post nuke check - s3 exists")
-	} else {
-		require.Falsef(t, s3Exists, "Test S3 bucket not deleted - %s", bucketName)
-		logging.Logger.Debug("Expected: Post nuke check - s3 deleted")
+		if collections.ListContains(args.postNukeResources, resourceType) {
+			require.Truef(
+				t, existStatus,
+				"Test %s deleted when it should not have - %s", resourceType, resourceTypeIdentifierMap[resourceType],
+			)
+			logging.Logger.Debugf("Expected: Post nuke check - %s exists", resourceType)
+		} else {
+			require.Falsef(
+				t, existStatus,
+				"Test %s not deleted - %s", resourceType, resourceTypeIdentifierMap[resourceType],
+			)
+			logging.Logger.Debugf("Expected: Post nuke check - %s deleted", resourceType)
+		}
 	}
 }
 
@@ -300,45 +325,9 @@ type testNukeAllResourcesArgs struct {
 	postNukeResources       []string         // what resourcetypes from test resources should exist after NukeAllResources
 }
 
-// getIAMRolePolicyMamp maps a role type to a corresponding policy
-func getTestRolePolicyMap() map[string]string {
-	return map[string]string{
-		"NoPerms": aws.TrimPolicyDocument(`{
-			"Version": "2012-10-17",
-			"Statement": {
-				"Effect": "Allow",
-				"Action": "ec2:DescribeRegions",
-				"Resource": "*"
-			}
-		}`),
-		"ROPerms": aws.TrimPolicyDocument(`{
-			"Version": "2012-10-17",
-			"Statement": {
-				"Effect": "Allow",
-				"Action": [
-					"ec2:Describe*",
-					"s3:List*",
-					"s3:Get*"
-				],
-				"Resource": "*"
-			}
-		}`),
-		"EC2ROS3RWPerms": aws.TrimPolicyDocument(`{
-			"Version": "2012-10-17",
-			"Statement": {
-				"Effect": "Allow",
-				"Action": [
-					"ec2:Describe*",
-					"s3:*"
-				],
-				"Resource": "*"
-			}
-		}`),
-	}
-}
-
-// TestNukeAllResourcesNoPerms tests deletion of test S3 and EC2 instance with an assumed
-// role which does not have S3/EC2 read/write permissions
+// TestNukeAllResourcesNoPerms tests deletion of test S3 and EC2 instance with
+// various IAM permissions: no access, read-only access, read/write access for some
+// but read-only for others, full read/write access.
 func TestNukeAllResources(t *testing.T) {
 	t.Parallel()
 	// Create a top level AWS session object which will be used to create/destroy roles
@@ -346,7 +335,6 @@ func TestNukeAllResources(t *testing.T) {
 	// for eu-west-3 and some other regions are around - 8 - which allow only 4 instances to be created
 	awsParams, err := aws.NewCloudNukeAWSParams("us-east-1")
 	require.NoError(t, err, "Failed to setup AWS params")
-	testRolePolicyMap := getTestRolePolicyMap()
 
 	// Static assume role policy document which will allow the current identity to assume
 	// test roles
@@ -397,7 +385,7 @@ func TestNukeAllResources(t *testing.T) {
 			createIAMRolePolicyArgs{
 				roleName:       "cloud-nuke-test-1-noperms",
 				policyName:     "cloud-nuke-test-1-noperms-policy",
-				policyDocument: testRolePolicyMap["NoPerms"],
+				policyDocument: aws.TrimPolicyDocument(NoPermsPolicyDocument),
 			},
 			testNukeAllResourcesArgs{
 				getResourcesShouldFail:  true,
@@ -414,7 +402,7 @@ func TestNukeAllResources(t *testing.T) {
 			createIAMRolePolicyArgs{
 				roleName:       "cloud-nuke-test-2-noperms",
 				policyName:     "cloud-nuke-test-2-noperms-policy",
-				policyDocument: testRolePolicyMap["NoPerms"],
+				policyDocument: aws.TrimPolicyDocument(NoPermsPolicyDocument),
 			},
 			testNukeAllResourcesArgs{
 				ignoreErrResourceTypes:  []string{"ec2", "s3"},
@@ -434,7 +422,7 @@ func TestNukeAllResources(t *testing.T) {
 			createIAMRolePolicyArgs{
 				roleName:       "cloud-nuke-test-3-noperms",
 				policyName:     "cloud-nuke-test-3-noperms-policy",
-				policyDocument: testRolePolicyMap["NoPerms"],
+				policyDocument: aws.TrimPolicyDocument(NoPermsPolicyDocument),
 			},
 			testNukeAllResourcesArgs{
 				ignoreErrResourceTypes: []string{"s3"},
@@ -454,7 +442,7 @@ func TestNukeAllResources(t *testing.T) {
 			createIAMRolePolicyArgs{
 				roleName:       "cloud-nuke-test-4-roperms",
 				policyName:     "cloud-nuke-test-4-roperms-policy",
-				policyDocument: testRolePolicyMap["ROPerms"],
+				policyDocument: aws.TrimPolicyDocument(ROPermsPolicyDocument),
 			},
 			testNukeAllResourcesArgs{
 				getResourcesShouldFail:  false,
@@ -473,7 +461,7 @@ func TestNukeAllResources(t *testing.T) {
 			createIAMRolePolicyArgs{
 				roleName:       "cloud-nuke-test-5-roperms",
 				policyName:     "cloud-nuke-test-5-roperms-policy",
-				policyDocument: testRolePolicyMap["ROPerms"],
+				policyDocument: aws.TrimPolicyDocument(ROPermsPolicyDocument),
 			},
 			testNukeAllResourcesArgs{
 				ignoreErrResourceTypes:  []string{"ec2", "s3"},
@@ -493,7 +481,7 @@ func TestNukeAllResources(t *testing.T) {
 			createIAMRolePolicyArgs{
 				roleName:       "cloud-nuke-test-6-ec2ros3rwperms",
 				policyName:     "cloud-nuke-test-6-ec2ros3rwperms-policy",
-				policyDocument: testRolePolicyMap["EC2ROS3RWPerms"],
+				policyDocument: aws.TrimPolicyDocument(EC2ROS3RWPermsPolicyDocument),
 			},
 			testNukeAllResourcesArgs{
 				getResourcesShouldFail:  false,
@@ -512,7 +500,7 @@ func TestNukeAllResources(t *testing.T) {
 			createIAMRolePolicyArgs{
 				roleName:       "cloud-nuke-test-7-ec2ros3rwperms",
 				policyName:     "cloud-nuke-test-7-ec2ros3rwperms-policy",
-				policyDocument: testRolePolicyMap["EC2ROS3RWPerms"],
+				policyDocument: aws.TrimPolicyDocument(EC2ROS3RWPermsPolicyDocument),
 			},
 			testNukeAllResourcesArgs{
 				ignoreErrResourceTypes:  []string{"ec2", "s3"},
@@ -523,19 +511,33 @@ func TestNukeAllResources(t *testing.T) {
 			},
 		},
 	}
+
+	// Need to have unique role and policy names - in case two commits trigger same
+	// test case
+	uniqueSuffix := util.UniqueID()
+
 	for _, tc := range testCases {
 		// Capture the range variable as per https://blog.golang.org/subtests
 		// Not doing this will lead to tc being set to the last entry in the testCases
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
+			// Skip adding suffix for test case where roleName == "" i.e. when we need to check
+			// behaviour without creating role and policy
+			if tc.createIAMRoleArgs.roleName != "" && tc.createIAMRolePolicyArgs.roleName != "" {
+				tc.createIAMRoleArgs.roleName += "-" + uniqueSuffix
+				tc.createIAMRolePolicyArgs.roleName += "-" + uniqueSuffix
+				tc.createIAMRolePolicyArgs.policyName += "-" + uniqueSuffix
+			}
+
 			roleArn, err := createTestRole(awsParams.AWSSession, tc.createIAMRoleArgs, tc.createIAMRolePolicyArgs)
 			require.NoErrorf(t, err, "Failed to setup test role - %s", err)
 			if roleArn != "" {
 				logging.Logger.Debugf("Created test role - %s", roleArn)
 			}
 
-			testNukeAllResources(t, awsParams, roleArn, tc.args)
+			testNukeAllResources(t, *awsParams, roleArn, tc.args)
 
 			err = deleteTestRole(awsParams.AWSSession, tc.createIAMRoleArgs, tc.createIAMRolePolicyArgs)
 			require.NoErrorf(t, err, "Failed to teardown test role - %s", err)

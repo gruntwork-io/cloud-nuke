@@ -16,6 +16,9 @@ import (
 	"github.com/urfave/cli"
 )
 
+// CatchAllResourceType is used to specify all resource types
+const CatchAllResourceType = "all"
+
 // CreateCli - Create the CLI app with all commands, flags, and usage text configured.
 func CreateCli(version string) *cli.App {
 	app := cli.NewApp()
@@ -120,19 +123,6 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 	return &excludeAfter, nil
 }
 
-func getInvalidResourceTypes(resourceTypes []string, validResourceTypes []string) []string {
-	invalidResourceTypes := []string{}
-	if len(resourceTypes) == 0 {
-		return invalidResourceTypes
-	}
-	for _, resourceType := range resourceTypes {
-		if !aws.IsValidResourceType(resourceType, validResourceTypes) {
-			invalidResourceTypes = append(invalidResourceTypes, resourceType)
-		}
-	}
-	return invalidResourceTypes
-}
-
 func awsNuke(c *cli.Context) error {
 	logLevel := c.String("log-level")
 
@@ -171,20 +161,20 @@ func awsNuke(c *cli.Context) error {
 
 	// Check command line resource type values
 	var invalidResourceTypes []string
-	invalidResourceTypes = getInvalidResourceTypes(resourceTypes, append(allResourceTypes, "all"))
+	invalidResourceTypes = aws.ValidateResourceTypes(resourceTypes, append(allResourceTypes, CatchAllResourceType))
 	if len(invalidResourceTypes) > 0 {
 		msg := "Try --list-resource-types to get list of valid resource types. Use 'all' to target all resource types."
 		return fmt.Errorf("Invalid --resource-type %s specified: %s", invalidResourceTypes, msg)
 	}
 
-	invalidResourceTypes = getInvalidResourceTypes(excludeResourceTypes, allResourceTypes)
+	invalidResourceTypes = aws.ValidateResourceTypes(excludeResourceTypes, allResourceTypes)
 	if len(invalidResourceTypes) > 0 {
 		msg := "Try --list-resource-types to get list of valid resource types."
 		return fmt.Errorf("Invalid --exclude-resource-type %s specified: %s", invalidResourceTypes, msg)
 	}
 
 	ignoreErrResourceTypes := c.StringSlice("ignore-errors")
-	invalidResourceTypes = getInvalidResourceTypes(ignoreErrResourceTypes, append(allResourceTypes, "all"))
+	invalidResourceTypes = aws.ValidateResourceTypes(ignoreErrResourceTypes, append(allResourceTypes, CatchAllResourceType))
 	if len(invalidResourceTypes) > 0 {
 		msg := "Try --list-resource-types to get list of valid resource types. Use 'all' to target all resource types."
 		return fmt.Errorf("Invalid --ignore-errors %s specified: %s", invalidResourceTypes, msg)

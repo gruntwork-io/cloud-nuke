@@ -60,15 +60,11 @@ func S3CreateBucket(svc *s3.S3, bucketName string, tags []map[string]string, isV
 		}
 	}
 
-	err = svc.WaitUntilBucketExists(
+	return svc.WaitUntilBucketExists(
 		&s3.HeadBucketInput{
 			Bucket: aws.String(bucketName),
 		},
 	)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // S3BucketAddObject adds an object ot an S3 bucket.
