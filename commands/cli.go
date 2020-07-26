@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/fatih/color"
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -236,6 +237,7 @@ func awsNuke(c *cli.Context) error {
 		NukeResourceTypes:      resourceTypes,
 		IgnoreErrResourceTypes: ignoreErrResourceTypes,
 		ConfigObj:              configObj,
+		RegionSessionMap:       map[string]*session.Session{},
 	})
 
 	if err != nil {
@@ -278,6 +280,7 @@ func awsNuke(c *cli.Context) error {
 				Account:                account,
 				Regions:                regions,
 				IgnoreErrResourceTypes: ignoreErrResourceTypes,
+				RegionSessionMap:       map[string]*session.Session{},
 			})
 			if err != nil {
 				return err
