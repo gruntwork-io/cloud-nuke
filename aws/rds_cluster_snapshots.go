@@ -88,18 +88,18 @@ func shouldIncludeClusterSnapshotByName(snapshotName string, includeNamesREList 
 	if len(includeNamesREList) > 0 {
 		if matchesAnyRegex(snapshotName, includeNamesREList) {
 			if !matchesAnyRegex(snapshotName, excludeNamesREList) {
-				return true
+				return true;
 			}
 		}
 		// If there are no include rules defined, check to see if an exclude rule matches
 	} else if len(excludeNamesREList) > 0 && matchesAnyRegex(snapshotName, excludeNamesREList) {
-		return false
+		return false;
 	} else {
 		// Otherwise
-		return true
+		return true;
 	}
 
-	return false
+	return false;
 }
 
 // Filter DB Cluster snapshot by tags_regex in config file
@@ -109,18 +109,18 @@ func shouldIncludeClusterSnapshotByTag(tagName string, includeTagNamesREList []*
 	if len(includeTagNamesREList) > 0 {
 		if matchesAnyRegex(tagName, includeTagNamesREList) {
 			if !matchesAnyRegex(tagName, excludeTagNamesREList) {
-				return true
+				return true;
 			}
 		}
 		// If there are no include rules defined, check to see if an exclude rule matches
 	} else if len(excludeTagNamesREList) > 0 && matchesAnyRegex(tagName, excludeTagNamesREList) {
-		return false
+		return false;
 	} else {
 		// Otherwise
-		return true
+		return true;
 	}
 
-	return false
+	return false;
 }
 
 // Nuke-Delete all DB Cluster snapshots
