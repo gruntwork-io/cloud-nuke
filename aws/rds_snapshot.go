@@ -59,86 +59,54 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time, config
 	return snapshots, nil
 }
 
-// Filter DB Instance snapshot by names_regex in config file
-func shouldIncludeSnapshotByName(snapshotName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
-	shouldInclude := false
-
-	if len(includeNamesREList) > 0 {
-		// If any include rules are defined
-		// and the include rule matches the snapshot, check to see if an exclude rule matches
-		if includeSnapshotByNamesREList(snapshotName, includeNamesREList) {
-			shouldInclude = excludeSnapshotByNamesREList(snapshotName, excludeNamesREList)
-		}
-	} else if len(excludeNamesREList) > 0 {
-		// If there are no include rules defined, check to see if an exclude rule matches
-		shouldInclude = excludeSnapshotByNamesREList(snapshotName, excludeNamesREList)
-	} else {
-		// Otherwise
-		shouldInclude = true
-	}
-
-	return shouldInclude
-}
-
-// Include filtered DB Instance snapshot
-func includeSnapshotByNamesREList(snapshotName string, reList []*regexp.Regexp) bool {
+// Match against any regex in config file
+func matchesAnyRegex(name string, reList []*regexp.Regexp) bool {
 	for _, re := range reList {
-		if re.MatchString(snapshotName) {
+		if re.MatchString(name) {
 			return true
 		}
 	}
 	return false
 }
 
-// Exclude filtered DB Instance snapshot
-func excludeSnapshotByNamesREList(snapshotName string, reList []*regexp.Regexp) bool {
-	for _, re := range reList {
-		if re.MatchString(snapshotName) {
-			return false
+// Filter DB Instance snapshot by names_regex in config file
+func shouldIncludeSnapshotByName(snapshotName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
+	// If any include rules are defined
+	// and the include rule matches the snapshot name, check to see if an exclude rule matches
+	if len(includeNamesREList) > 0 {
+		if matchesAnyRegex(snapshotName, includeNamesREList) {
+			if !matchesAnyRegex(snapshotName, excludeNamesREList) {
+				return true
+			}
 		}
+		// If there are no include rules defined, check to see if an exclude rule matches
+	} else if len(excludeNamesREList) > 0 && matchesAnyRegex(snapshotName, excludeNamesREList) {
+		return false
+	} else {
+		// Otherwise
+		return true
 	}
-	return true
+	return false
 }
 
 // Filter DB Instance snapshot by tags_regex in config file
 func shouldIncludeSnapshotByTag(tagName string, includeTagNamesREList []*regexp.Regexp, excludeTagNamesREList []*regexp.Regexp) bool {
-	shouldInclude := false
-
+	// If any include rules are defined
+	// and the include rule matches the snapshot tag, check to see if an exclude rule matches
 	if len(includeTagNamesREList) > 0 {
-		// If any include rules are defined
-		// and the include rule matches the snapshot tag, check to see if an exclude rule matches
-		if includeSnapshotByTagsREList(tagName, includeTagNamesREList) {
-			shouldInclude = excludeSnapshotByTagsREList(tagName, excludeTagNamesREList)
+		if matchesAnyRegex(tagName, includeTagNamesREList) {
+			if !matchesAnyRegex(tagName, excludeTagNamesREList) {
+				return true
+			}
 		}
-	} else if len(excludeTagNamesREList) > 0 {
 		// If there are no include rules defined, check to see if an exclude rule matches
-		shouldInclude = excludeSnapshotByTagsREList(tagName, excludeTagNamesREList)
+	} else if len(excludeTagNamesREList) > 0 && matchesAnyRegex(tagName, excludeTagNamesREList) {
+		return false
 	} else {
 		// Otherwise
-		shouldInclude = true
-	}
-
-	return shouldInclude
-}
-
-// Include filtered DB Instance
-func includeSnapshotByTagsREList(tagName string, reList []*regexp.Regexp) bool {
-	for _, re := range reList {
-		if re.MatchString(tagName) {
-			return true
-		}
+		return true
 	}
 	return false
-}
-
-// Exclude filtered DB Instance
-func excludeSnapshotByTagsREList(tagName string, reList []*regexp.Regexp) bool {
-	for _, re := range reList {
-		if re.MatchString(tagName) {
-			return false
-		}
-	}
-	return true
 }
 
 // Nuke-Delete all DB Instance snapshots
