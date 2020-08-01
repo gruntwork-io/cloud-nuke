@@ -38,15 +38,21 @@ func waitUntilRdsClusterSnapshotDeleted(svc *rds.RDS, input *rds.DescribeDBClust
 func getAllRdsClusterSnapshots(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := rds.New(session)
 
-	result, err := svc.DescribeDBClusterSnapshots(&rds.DescribeDBClusterSnapshotsInput{})
+	var results []*rds.DBClusterSnapshot
 
+	// Paginated API. Fetch all pages
+	err := svc.DescribeDBClusterSnapshotsPages(&rds.DescribeDBClusterSnapshotsInput{},
+		func(page *rds.DescribeDBClusterSnapshotsOutput, lastPage bool) bool {
+			results = append(results, page.DBClusterSnapshots...)
+			return !lastPage
+		})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var snapshots []*string
 
-	for _, snapshot := range result.DBClusterSnapshots {
+	for _, snapshot := range results {
 
 		// List all DB Cluster Snapshot tags
 		tagsResult, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
