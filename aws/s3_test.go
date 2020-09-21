@@ -188,7 +188,11 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	// to delete
 	defer func() {
 		_, err := nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
-		assert.NoError(t, err)
+		if args.shouldError {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
 	}()
 
 	// Verify that - before creating bucket - it should not exist
