@@ -495,9 +495,22 @@ func nukeEmptyS3Bucket(svc *s3.S3, bucketName *string, verifyBucketDeletion bool
 		return err
 	}
 
-	err = svc.WaitUntilBucketNotExists(&s3.HeadBucketInput{
-		Bucket: bucketName,
-	})
+	// The wait routine will try for up to 100 seconds, but that is not long enough for all circumstances of S3. As
+	// such, we retry this routine up to 3 times for a total of 300 seconds.
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		logging.Logger.Infof("Waiting until bucket (%s) deletion is propagated (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
+		err = svc.WaitUntilBucketNotExists(&s3.HeadBucketInput{
+			Bucket: bucketName,
+		})
+		// Exit early if no error
+		if err == nil {
+			logging.Logger.Info("Successfully detected bucket deletion.")
+			return nil
+		}
+		logging.Logger.Warnf("Error waiting for bucket (%s) deletion propagation (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
+		logging.Logger.Warnf("Underlying error was: %s", err)
+	}
 	return err
 }
 
