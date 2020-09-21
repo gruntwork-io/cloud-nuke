@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
-
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/gruntwork-io/gruntwork-cli/errors"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // getS3BucketRegion returns S3 Bucket region.
@@ -150,8 +150,8 @@ func getRegionClients(regions []string) (map[string]*s3.S3, error) {
 	var regionClients = make(map[string]*s3.S3)
 	for _, region := range regions {
 		logging.Logger.Debugf("S3 - creating session - region %s", region)
-		awsSession, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(region)},
+		awsSession, err := session.NewSession(&aws.Config{
+			Region: aws.String(region)},
 		)
 		if err != nil {
 			return regionClients, err
@@ -304,35 +304,54 @@ func excludeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
 	return true
 }
 
-// getS3BucketObjects returns S3 bucket objects struct for a given bucket name
-func getS3BucketObjects(svc *s3.S3, bucketName *string, isVersioned bool) ([]*s3.ObjectIdentifier, error) {
-	identifiers := []*s3.ObjectIdentifier{}
+// emptyBucket will empty the given S3 bucket by deleting all the objects that are in the bucket. For versioned buckets,
+// this includes all the versions and deletion markers in the bucket.
+// NOTE: In the progress logs, we deliberately do not report how many pages or objects are left. This is because aws
+// does not provide any API for getting the object count, and the only way to do that is to iterate through all the
+// objects. For memory and time efficiency, we opted to delete the objects as we retrieve each page, which means we
+// don't know how many is left until we complete all the operations.
+func emptyBucket(svc *s3.S3, bucketName *string, isVersioned bool, batchSize int) error {
+	// Since the error may happen in the inner function handler for the pager, we need a function scoped variable that
+	// the inner function can set when there is an error.
+	var errOut error
+	errOut = nil
+	pageId := 1
 
 	// Handle versioned buckets.
 	if isVersioned {
 		err := svc.ListObjectVersionsPages(
 			&s3.ListObjectVersionsInput{
-				Bucket: bucketName,
+				Bucket:  bucketName,
+				MaxKeys: aws.Int64(int64(batchSize)),
 			},
 			func(page *s3.ListObjectVersionsOutput, lastPage bool) (shouldContinue bool) {
-				for _, obj := range page.Versions {
-					logging.Logger.Debugf("Bucket %s object %s version %s", *bucketName, *obj.Key, *obj.VersionId)
-					identifiers = append(identifiers, &s3.ObjectIdentifier{
-						Key:       obj.Key,
-						VersionId: obj.VersionId,
-					})
+				logging.Logger.Debugf("Deleting object page %d (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+				if err := deleteObjectVersions(svc, bucketName, page.Versions); err != nil {
+					logging.Logger.Errorf("Error deleting objects for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+					errOut = err
+					return false
 				}
-				for _, obj := range page.DeleteMarkers {
-					logging.Logger.Debugf("Bucket %s object %s DeleteMarker %s", *bucketName, *obj.Key, *obj.VersionId)
-					identifiers = append(identifiers, &s3.ObjectIdentifier{
-						Key:       obj.Key,
-						VersionId: obj.VersionId,
-					})
+				logging.Logger.Infof("[OK] - deleted object page %d (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+
+				logging.Logger.Debugf("Deleting object page %d (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+				if err := deleteDeletionMarkers(svc, bucketName, page.DeleteMarkers); err != nil {
+					logging.Logger.Errorf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+					errOut = err
+					return false
 				}
+				logging.Logger.Infof("[OK] - deleted object page %d (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+
+				pageId++
 				return true
 			},
 		)
-		return identifiers, err
+		if err != nil {
+			return err
+		}
+		if errOut != nil {
+			return errOut
+		}
+		return nil
 	}
 
 	// Handle non versioned buckets.
@@ -341,17 +360,102 @@ func getS3BucketObjects(svc *s3.S3, bucketName *string, isVersioned bool) ([]*s3
 			Bucket: bucketName,
 		},
 		func(page *s3.ListObjectsV2Output, lastPage bool) (shouldContinue bool) {
-			for _, obj := range page.Contents {
-				logging.Logger.Debugf("Bucket %s object %s", *bucketName, *obj.Key)
-				identifiers = append(identifiers, &s3.ObjectIdentifier{
-					Key: obj.Key,
-				})
+			logging.Logger.Debugf("Deleting object page %d (%d objects) from bucket %s", pageId, len(page.Contents), aws.StringValue(bucketName))
+			if err := deleteObjects(svc, bucketName, page.Contents); err != nil {
+				logging.Logger.Errorf("Error deleting objects for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+				errOut = err
+				return false
 			}
+			logging.Logger.Debugf("[OK] - deleted object page %d (%d objects) from bucket %s", pageId, len(page.Contents), aws.StringValue(bucketName))
+
+			pageId++
 			return true
 		},
 	)
+	if err != nil {
+		return err
+	}
+	if errOut != nil {
+		return errOut
+	}
+	return nil
+}
 
-	return identifiers, err
+// deleteObjects will delete the provided objects (unversioned) from the specified bucket.
+func deleteObjects(svc *s3.S3, bucketName *string, objects []*s3.Object) error {
+	if len(objects) == 0 {
+		logging.Logger.Debugf("No objects returned in page")
+		return nil
+	}
+
+	objectIdentifiers := []*s3.ObjectIdentifier{}
+	for _, obj := range objects {
+		objectIdentifiers = append(objectIdentifiers, &s3.ObjectIdentifier{
+			Key: obj.Key,
+		})
+	}
+	_, err := svc.DeleteObjects(
+		&s3.DeleteObjectsInput{
+			Bucket: bucketName,
+			Delete: &s3.Delete{
+				Objects: objectIdentifiers,
+				Quiet:   aws.Bool(false),
+			},
+		},
+	)
+	return err
+}
+
+// deleteObjectVersions will delete the provided object versions from the specified bucket.
+func deleteObjectVersions(svc *s3.S3, bucketName *string, objectVersions []*s3.ObjectVersion) error {
+	if len(objectVersions) == 0 {
+		logging.Logger.Debugf("No object versions returned in page")
+		return nil
+	}
+
+	objectIdentifiers := []*s3.ObjectIdentifier{}
+	for _, obj := range objectVersions {
+		objectIdentifiers = append(objectIdentifiers, &s3.ObjectIdentifier{
+			Key:       obj.Key,
+			VersionId: obj.VersionId,
+		})
+	}
+	_, err := svc.DeleteObjects(
+		&s3.DeleteObjectsInput{
+			Bucket: bucketName,
+			Delete: &s3.Delete{
+				Objects: objectIdentifiers,
+				Quiet:   aws.Bool(false),
+			},
+		},
+	)
+	return err
+}
+
+// deleteDeletionMarkers will delete the provided deletion markers from the specified bucket.
+func deleteDeletionMarkers(svc *s3.S3, bucketName *string, objectDelMarkers []*s3.DeleteMarkerEntry) error {
+	if len(objectDelMarkers) == 0 {
+		logging.Logger.Debugf("No deletion markers returned in page")
+		return nil
+	}
+
+	objectIdentifiers := []*s3.ObjectIdentifier{}
+	for _, obj := range objectDelMarkers {
+		objectIdentifiers = append(objectIdentifiers, &s3.ObjectIdentifier{
+			Key:       obj.Key,
+			VersionId: obj.VersionId,
+		})
+	}
+	_, err := svc.DeleteObjects(
+		&s3.DeleteObjectsInput{
+			Bucket: bucketName,
+			Delete: &s3.Delete{
+				Objects: objectIdentifiers,
+				Quiet:   aws.Bool(false),
+			},
+		},
+	)
+	return err
 }
 
 // nukeAllS3BucketObjects batch deletes all objects in an S3 bucket
@@ -365,58 +469,15 @@ func nukeAllS3BucketObjects(svc *s3.S3, bucketName *string, batchSize int) error
 
 	isVersioned := versioningResult.Status != nil && *versioningResult.Status == "Enabled"
 
-	objects, err := getS3BucketObjects(svc, bucketName, isVersioned)
-	if err != nil {
-		return err
-	}
-
-	totalObjects := len(objects)
-
-	if totalObjects == 0 {
-		logging.Logger.Infof("Bucket: %s - empty - skipping object deletion", *bucketName)
-		return nil
-	}
-
 	if batchSize < 1 || batchSize > 1000 {
 		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d", batchSize, 1, 1000)
 	}
 
-	logging.Logger.Infof("Deleting - Bucket: %s - objects: %d", *bucketName, totalObjects)
-
-	totalBatches := totalObjects / batchSize
-	if totalObjects%batchSize != 0 {
-		totalBatches = totalBatches + 1
+	logging.Logger.Infof("Emptying bucket %s", aws.StringValue(bucketName))
+	if err := emptyBucket(svc, bucketName, isVersioned, batchSize); err != nil {
+		return err
 	}
-	batchCount := 1
-
-	// Batch the delete operation
-	for i := 0; i < len(objects); i += batchSize {
-		j := i + batchSize
-		if j > len(objects) {
-			j = len(objects)
-		}
-
-		logging.Logger.Debugf("Deleting - %d-%d objects of batch %d/%d - Bucket: %s", i+1, j, batchCount, totalBatches, *bucketName)
-
-		delObjects := objects[i:j]
-		_, err = svc.DeleteObjects(
-			&s3.DeleteObjectsInput{
-				Bucket: bucketName,
-				Delete: &s3.Delete{
-					Objects: delObjects,
-					Quiet:   aws.Bool(false),
-				},
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		logging.Logger.Infof("[OK] - %d-%d objects of batch %d/%d - Bucket: %s - deleted", i+1, j, batchCount, totalBatches, *bucketName)
-
-		batchCount++
-	}
-
+	logging.Logger.Infof("[OK] - successfully emptied bucket %s", aws.StringValue(bucketName))
 	return nil
 }
 
@@ -453,6 +514,7 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 
 	logging.Logger.Infof("Deleting - %d S3 Buckets in region %s", totalCount, *awsSession.Config.Region)
 
+	multiErr := &util.MultiErr{}
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
 
 		bucketName := bucketNames[bucketIndex]
@@ -461,12 +523,14 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		err = nukeAllS3BucketObjects(svc, bucketName, objectBatchSize)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			multiErr.Add(err)
 			continue
 		}
 
 		err = nukeEmptyS3Bucket(svc, bucketName, verifyBucketDeletion)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			multiErr.Add(err)
 			continue
 		}
 
@@ -474,5 +538,9 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		delCount++
 	}
 
-	return delCount, nil
+	if multiErr.IsEmpty() {
+		return delCount, nil
+	} else {
+		return delCount, multiErr
+	}
 }
