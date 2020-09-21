@@ -357,7 +357,8 @@ func emptyBucket(svc *s3.S3, bucketName *string, isVersioned bool, batchSize int
 	// Handle non versioned buckets.
 	err := svc.ListObjectsV2Pages(
 		&s3.ListObjectsV2Input{
-			Bucket: bucketName,
+			Bucket:  bucketName,
+			MaxKeys: aws.Int64(int64(batchSize)),
 		},
 		func(page *s3.ListObjectsV2Output, lastPage bool) (shouldContinue bool) {
 			logging.Logger.Debugf("Deleting object page %d (%d objects) from bucket %s", pageId, len(page.Contents), aws.StringValue(bucketName))

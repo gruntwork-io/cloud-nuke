@@ -426,7 +426,7 @@ func TestNukeS3Bucket(t *testing.T) {
 				TestNukeS3BucketArgs{
 					isVersioned:       isVersioned,
 					checkDeleteMarker: false,
-					objectCount:       10,
+					objectCount:       30,
 					objectBatchsize:   5,
 					shouldNuke:        true,
 					shouldError:       false,
