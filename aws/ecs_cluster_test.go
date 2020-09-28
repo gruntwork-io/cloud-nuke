@@ -11,7 +11,7 @@ import (
 )
 
 // Test that we can succesfully list ECS clusters by manually creating a cluster and then using the list function to find it.
-func TestListEcsClusters(t *testing.T) {
+func TestCanCreateAndListEcsCluster(t *testing.T) {
 	t.Parallel()
 
 	region := "eu-west-1"
@@ -22,7 +22,7 @@ func TestListEcsClusters(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	clusterName := "test-ina-2"
+	clusterName := "test-ina-sep-1"
 	cluster := createEcsFargateCluster(t, awsSession, clusterName)
 	defer deleteEcsCluster(awsSession, cluster)
 
@@ -35,7 +35,7 @@ func TestListEcsClusters(t *testing.T) {
 }
 
 // Test that we can filter ECS clusters by 'created_at' tag value.
-func TestTagEcsClusters(t *testing.T) {
+func TestCanCreateWithTagAndFilterEcsClustersByTag(t *testing.T) {
 	t.Parallel()
 
 	region := "eu-west-1"
@@ -46,19 +46,22 @@ func TestTagEcsClusters(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	clusterName := "test-ina-2"
+	clusterName := "test-ina-sep-2-with-tag"
 	cluster := createEcsFargateCluster(t, awsSession, clusterName) //TODO - also have a separate function to do this so I can test it.
 	tagKey := "created_at"
-	tagValue := "now"
+	tagValue := "now-inastime"
 	tag, err := tagEcsCluster(awsSession, cluster.ClusterArn, tagKey, tagValue) //should return
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 	fmt.Println(tag)
-	//defer deleteEcsCluster(awsSession, cluster)
+	// TO UNCOMMENT defer deleteEcsCluster(awsSession, cluster)
 
-	// assert.Contains(t, clusterArns, cluster.ClusterArn)
+	// OLD - assert.Contains(t, clusterArns, cluster.ClusterArn)
+
+	// assert that cluster was created with tags
 	assert.True(t, tagIsPresent(awsSession, cluster.ClusterArn))
+	clusterArns, err := getAllEcsClusters(awsSession)
 	// filter results - possibly using api
 	// assert that result contains your new cluster only (provided it's the only one created in the short time frame)
 }
