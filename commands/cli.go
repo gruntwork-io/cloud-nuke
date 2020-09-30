@@ -253,15 +253,15 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
+	options := aws.NukeOptions{
+		Regions:      regions,
+		IgnoreErrors: c.Bool("ignore-errors"),
+	}
 	if !c.Bool("force") {
 		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C): "
 		proceed, err := confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
-		}
-		options := aws.NukeOptions{
-			Regions:      regions,
-			IgnoreErrors: c.Bool("ignore-errors"),
 		}
 		if proceed {
 			if err := aws.NukeAllResources(account, options); err != nil {
