@@ -309,7 +309,7 @@ func excludeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
 // NOTE: In the progress logs, we deliberately do not report how many pages or objects are left. This is because aws
 // does not provide any API for getting the object count, and the only way to do that is to iterate through all the
 // objects. For memory and time efficiency, we opted to delete the objects as we retrieve each page, which means we
-// don't know how many is left until we complete all the operations.
+// don't know how many are left until we complete all the operations.
 func emptyBucket(svc *s3.S3, bucketName *string, isVersioned bool, batchSize int) error {
 	// Since the error may happen in the inner function handler for the pager, we need a function scoped variable that
 	// the inner function can set when there is an error.
@@ -325,21 +325,21 @@ func emptyBucket(svc *s3.S3, bucketName *string, isVersioned bool, batchSize int
 				MaxKeys: aws.Int64(int64(batchSize)),
 			},
 			func(page *s3.ListObjectVersionsOutput, lastPage bool) (shouldContinue bool) {
-				logging.Logger.Debugf("Deleting object page %d (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+				logging.Logger.Debugf("Deleting page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
 				if err := deleteObjectVersions(svc, bucketName, page.Versions); err != nil {
-					logging.Logger.Errorf("Error deleting objects for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+					logging.Logger.Errorf("Error deleting objects versions for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
 					errOut = err
 					return false
 				}
-				logging.Logger.Infof("[OK] - deleted object page %d (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+				logging.Logger.Infof("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
 
-				logging.Logger.Debugf("Deleting object page %d (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+				logging.Logger.Debugf("Deleting page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
 				if err := deleteDeletionMarkers(svc, bucketName, page.DeleteMarkers); err != nil {
 					logging.Logger.Errorf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
 					errOut = err
 					return false
 				}
-				logging.Logger.Infof("[OK] - deleted object page %d (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+				logging.Logger.Infof("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
 
 				pageId++
 				return true
@@ -468,7 +468,7 @@ func nukeAllS3BucketObjects(svc *s3.S3, bucketName *string, batchSize int) error
 		return err
 	}
 
-	isVersioned := versioningResult.Status != nil && *versioningResult.Status == "Enabled"
+	isVersioned := aws.StringValue(versioningResult.Status) == "Enabled"
 
 	if batchSize < 1 || batchSize > 1000 {
 		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d", batchSize, 1, 1000)
