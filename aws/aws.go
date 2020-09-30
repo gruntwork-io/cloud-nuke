@@ -17,6 +17,16 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
+// Options for configuring the nuking operation.
+type NukeOptions struct {
+	// What regions to nuke resources in.
+	Regions []string
+
+	// Whether or not to ignore errors during processing. When true, cloud-nuke will continue to process additional
+	// resources even if any of them fail with an error.
+	IgnoreErrors bool
+}
+
 // OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
 // Beginning in Spring 2019, AWS requires new regions to be explicitly enabled
 // See https://aws.amazon.com/blogs/security/setting-permissions-to-enable-accounts-for-upcoming-aws-regions/
@@ -483,13 +493,19 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources(account *AwsAccountResources, regions []string) error {
-	for _, region := range regions {
+func NukeAllResources(account *AwsAccountResources, options NukeOptions) error {
+	allErrors := &RegionResourceErrors{}
+	for _, region := range options.Regions {
 		session, err := session.NewSession(&awsgo.Config{
 			Region: awsgo.String(region)},
 		)
 
 		if err != nil {
+			if options.IgnoreErrors {
+				logging.Logger.Warnf("Encountered error nuking region %s, but --ignore-errors flag is passed in so continuing.", region)
+				allErrors.Add(RegionResourceInfo{region: region, resource: allResources}, err)
+				continue
+			}
 			return errors.WithStackTrace(err)
 		}
 
@@ -511,6 +527,11 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 						continue
 					}
 
+					if options.IgnoreErrors {
+						logging.Logger.Warnf("Encountered error nuking resource type %s in region %s, but --ignore-errors flag is passed in so continuing.", resources.ResourceName(), region)
+						allErrors.Add(RegionResourceInfo{region: region, resource: resources.ResourceName()}, err)
+						continue
+					}
 					return errors.WithStackTrace(err)
 				}
 
@@ -522,5 +543,44 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		}
 	}
 
-	return nil
+	if allErrors.IsEmpty() {
+		return nil
+	} else {
+		return allErrors
+	}
+}
+
+// RegionResourceErrors aggregates all errors for a given region and resource, and aggregates them so that it can be
+// reported at once at the end.
+type RegionResourceErrors struct {
+	allErrors map[RegionResourceInfo]error
+}
+
+type RegionResourceInfo struct {
+	region   string
+	resource string
+}
+
+const allResources = "all"
+
+func (err *RegionResourceErrors) IsEmpty() bool {
+	return len(err.allErrors) == 0
+}
+
+func (err *RegionResourceErrors) Add(key RegionResourceInfo, newErr error) {
+	if err.allErrors == nil {
+		err.allErrors = map[RegionResourceInfo]error{}
+	}
+	err.allErrors[key] = newErr
+}
+
+func (err *RegionResourceErrors) Error() string {
+	out := []string{}
+	for regionResource, childErr := range err.allErrors {
+		out = append(
+			out,
+			fmt.Sprintf("Error for region %s, %s resource: %s", regionResource.region, regionResource.resource, errors.PrintErrorWithStackTrace(childErr)),
+		)
+	}
+	return fmt.Sprintf("Encountered multiple errors:\n%s", strings.Join(out, "\n"))
 }
