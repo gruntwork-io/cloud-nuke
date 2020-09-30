@@ -22,7 +22,7 @@ func TestCanCreateAndListEcsCluster(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	clusterName := "test-ina-sep-1"
+	clusterName := "test-ina-1"
 	cluster := createEcsFargateCluster(t, awsSession, clusterName)
 	defer deleteEcsCluster(awsSession, cluster)
 
@@ -46,18 +46,33 @@ func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	clusterName := "test-ina"
-	cluster := createEcsFargateCluster(t, awsSession, clusterName)
-	defer deleteEcsCluster(awsSession, cluster)
+	// create a cluster without tag
+	cluster1 := createEcsFargateCluster(t, awsSession, "test-ina-2-1")
+	cluster2 := createEcsFargateCluster(t, awsSession, "test-ina-2-2")
+	defer deleteEcsCluster(awsSession, cluster1)
+	defer deleteEcsCluster(awsSession, cluster2)
 
+	// get cluster
 	clusterArns, err := getAllEcsClusters(awsSession)
 	if err != nil {
 		assert.Failf(t, "Unable to fetch clusters: %s", err.Error())
 	}
 
-	assert.Contains(t, clusterArns, cluster.ClusterArn)
-	// create a cluster without tag
-	// get cluster
+	//for every cluster that's been found
+	for _, clusterArn := range clusterArns {
+		tagEcsCluster(awsSession, clusterArn, "myTag", "ina")
+
+		if err != nil {
+			//logging.Logger.Errorf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
+		} else {
+			//requestedDeletes = append(requestedDeletes, ecsServiceArn)
+		}
+	}
+
+	assert.True(t, tagIsPresent(awsSession, cluster1.ClusterArn), "hey ina 1")
+	assert.True(t, tagIsPresent(awsSession, cluster2.ClusterArn), "hey ina 2")
+
+	//assert.Contains(t, clusterArns, cluster.ClusterArn)
 	// tag with "first_seen" : "current timestamp"
 	// get cluster by tag
 	// assert pass

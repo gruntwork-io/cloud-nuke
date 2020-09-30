@@ -50,7 +50,6 @@ func nukeEcsClusterByTag(awsSession *session.Session, ecsClusterArns []*string) 
 	return nil
 }
 
-// check if tag is present or not
 func tagIsPresent(awsSession *session.Session, clusterArn *string) bool {
 	svc := ecs.New(awsSession)
 	input := &ecs.ListTagsForResourceInput{
