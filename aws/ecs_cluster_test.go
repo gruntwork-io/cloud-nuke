@@ -34,6 +34,27 @@ func TestCanCreateAndListEcsCluster(t *testing.T) {
 	assert.Contains(t, clusterArns, cluster.ClusterArn)
 }
 
+// Test we can create a cluster, tag it, and then find the cluster
+func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
+	// create a cluster without tag
+	// get cluster
+	// tag with "first_seen" : "current timestamp"
+	// get cluster by tag
+	// assert pass
+}
+
+// Test we can create a tag and set it to ECS clusters without 'created_at' tags
+func TestWontTagEcsClusterWithTag(t *testing.T) {
+	// create a cluster with tag
+	// get cluster
+	// try tag with "first_seen" : "current timestamp"
+	// assert fail
+}
+
+// Test we can get all ECS clusters younger than < X time based on tags
+
+// Test we can nuke all ECS clusters younger than < X time
+
 // Test that we can filter ECS clusters by 'created_at' tag value.
 func TestCanCreateWithTagAndFilterEcsClustersByTag(t *testing.T) {
 	t.Parallel()
@@ -61,7 +82,7 @@ func TestCanCreateWithTagAndFilterEcsClustersByTag(t *testing.T) {
 
 	// assert that cluster was created with tags
 	assert.True(t, tagIsPresent(awsSession, cluster.ClusterArn))
-	clusterArns, err := getAllEcsClusters(awsSession)
+	//clusterArns, err := getAllEcsClusters(awsSession)
 	// filter results - possibly using api
 	// assert that result contains your new cluster only (provided it's the only one created in the short time frame)
 }
