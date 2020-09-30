@@ -314,7 +314,6 @@ func emptyBucket(svc *s3.S3, bucketName *string, isVersioned bool, batchSize int
 	// Since the error may happen in the inner function handler for the pager, we need a function scoped variable that
 	// the inner function can set when there is an error.
 	var errOut error
-	errOut = nil
 	pageId := 1
 
 	// Handle versioned buckets.
