@@ -6,8 +6,9 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test that we can succesfully list ECS clusters by manually creating a cluster and then using the list function to find it.
@@ -20,7 +21,7 @@ func TestCanCreateAndListEcsCluster(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	clusterName := fmt.Sprintf("test-ecs-cluster-%s", util.UniqueId())
+	clusterName := fmt.Sprintf("test-ecs-cluster-%s", util.UniqueID())
 	cluster := createEcsFargateCluster(t, awsSession, clusterName)
 	defer deleteEcsCluster(awsSession, cluster)
 
@@ -30,8 +31,8 @@ func TestCanCreateAndListEcsCluster(t *testing.T) {
 	assert.Contains(t, clusterArns, cluster.ClusterArn)
 }
 
-// Test we can create a cluster, tag it, and then find the cluster
-func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
+// Test we can create a cluster, tag it, and then find the tag
+func TestCanTagEcsClusters(t *testing.T) {
 	t.Parallel()
 
 	region := "eu-west-1"
@@ -41,10 +42,8 @@ func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
 	require.NoError(t, err)
 
 	// create a cluster without tag
-	cluster1 := createEcsFargateCluster(t, awsSession, "test-ina-3-1")
-	cluster2 := createEcsFargateCluster(t, awsSession, "test-ina-3-2")
-	defer deleteEcsCluster(awsSession, cluster1)
-	defer deleteEcsCluster(awsSession, cluster2)
+	cluster := createEcsFargateCluster(t, awsSession, util.UniqueID())
+	defer deleteEcsCluster(awsSession, cluster)
 
 	// get cluster
 	clusterArns, err := getAllEcsClusters(awsSession)
@@ -52,21 +51,11 @@ func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
 
 	//tag with first_seen tag
 	for _, clusterArn := range clusterArns {
-		tagEcsCluster(awsSession, clusterArn, "first_seen", "ina")
+		tagEcsCluster(awsSession, clusterArn, "first_seen", "today")
+		//todo handle errors
 	}
 
-	//check they've got tags as expected - only checks the keys, not the values
-	assert.Equal(t, *getClusterTag(awsSession, cluster1.ClusterArn, "first_seen"), "first_seen")
-	assert.Equal(t, *getClusterTag(awsSession, cluster2.ClusterArn, "first_seen"), "first_seen")
-	//todo - finish test off to complete functionality
-}
-
-// Test we can create a tag and set it to ECS clusters without 'created_at' tags
-func TestWontTagEcsClusterWithTag(t *testing.T) {
-	// create a cluster with tag
-	// get cluster
-	// try tag with "first_seen" : "current timestamp"
-	// assert fail
+	assert.Equal(t, *getClusterTag(awsSession, cluster.ClusterArn, "first_seen"), "first_seen")
 }
 
 // Test we can get all ECS clusters younger than < X time based on tags
