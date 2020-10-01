@@ -47,8 +47,8 @@ func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
 	}
 
 	// create a cluster without tag
-	cluster1 := createEcsFargateCluster(t, awsSession, "test-ina-2-1")
-	cluster2 := createEcsFargateCluster(t, awsSession, "test-ina-2-2")
+	cluster1 := createEcsFargateCluster(t, awsSession, "test-ina-3-1")
+	cluster2 := createEcsFargateCluster(t, awsSession, "test-ina-3-2")
 	defer deleteEcsCluster(awsSession, cluster1)
 	defer deleteEcsCluster(awsSession, cluster2)
 
@@ -58,24 +58,15 @@ func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
 		assert.Failf(t, "Unable to fetch clusters: %s", err.Error())
 	}
 
-	//for every cluster that's been found
+	//tag with first_seen tag
 	for _, clusterArn := range clusterArns {
-		tagEcsCluster(awsSession, clusterArn, "myTag", "ina")
-
-		if err != nil {
-			//logging.Logger.Errorf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
-		} else {
-			//requestedDeletes = append(requestedDeletes, ecsServiceArn)
-		}
+		tagEcsCluster(awsSession, clusterArn, "first_seen", "ina")
 	}
 
-	assert.True(t, tagIsPresent(awsSession, cluster1.ClusterArn), "hey ina 1")
-	assert.True(t, tagIsPresent(awsSession, cluster2.ClusterArn), "hey ina 2")
-
-	//assert.Contains(t, clusterArns, cluster.ClusterArn)
-	// tag with "first_seen" : "current timestamp"
-	// get cluster by tag
-	// assert pass
+	//check they've got tags as expected - only checks the keys, not the values
+	assert.Equal(t, *getClusterTag(awsSession, cluster1.ClusterArn, "first_seen"), "first_seen")
+	assert.Equal(t, *getClusterTag(awsSession, cluster2.ClusterArn, "first_seen"), "first_seen")
+	//todo - finish test off to complete functionality
 }
 
 // Test we can create a tag and set it to ECS clusters without 'created_at' tags
@@ -132,7 +123,7 @@ func TestCanCreateWithTagAndFilterEcsClustersByTag(t *testing.T) {
 	// OLD - assert.Contains(t, clusterArns, cluster.ClusterArn)
 
 	// assert that cluster was created with tags
-	assert.True(t, tagIsPresent(awsSession, cluster.ClusterArn))
+	// assert.True(t, tagIsPresent(awsSession, cluster.ClusterArn))
 	//clusterArns, err := getAllEcsClusters(awsSession)
 	// filter results - possibly using api
 	// assert that result contains your new cluster only (provided it's the only one created in the short time frame)
