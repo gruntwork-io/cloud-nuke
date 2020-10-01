@@ -46,23 +46,39 @@ func getAllRdsSnapshots(session *session.Session, excludeAfter time.Time, config
 		// This edge case can't be handled since all DB instance related automated snapshots will be deleted.
 		// Refer to https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_DeleteSnapshot.html
 		if awsgo.StringValue(snapshot.SnapshotType) != "automated" {
-			if snapshot.SnapshotCreateTime != nil && excludeAfter.After(awsgo.TimeValue(snapshot.SnapshotCreateTime)) {
-				if shouldIncludeSnapshotByName(*snapshot.DBSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE) {
-					if len(tagsResult.TagList) > 0 {
-						for _, tag := range tagsResult.TagList {
-							if shouldIncludeSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
-								snapshots = append(snapshots, snapshot.DBSnapshotIdentifier)
-							}
-						}
-					} else {
-						snapshots = append(snapshots, snapshot.DBSnapshotIdentifier)
-					}
-				}
-			}
+			filterSnapshots(session, excludeAfter, configObj, snapshot, snapshots, tagsResult)
 		}
 	}
 
 	return snapshots, nil
+}
+
+func filterSnapshots(session *session.Session, excludeAfter time.Time, configObj config.Config, snapshot *rds.DBSnapshot, snapshots []*string, tagsResult *rds.ListTagsForResourceOutput) []*string {
+	var IncludeSnapshotByName bool
+	IncludeSnapshotByName = shouldIncludeSnapshotByName(*snapshot.DBSnapshotIdentifier, configObj.RDSSnapshots.IncludeRule.NamesRE, configObj.RDSSnapshots.ExcludeRule.NamesRE)
+
+	// Check the snapshot creation time
+	if snapshot.SnapshotCreateTime == nil || !excludeAfter.After(awsgo.TimeValue(snapshot.SnapshotCreateTime)) {
+		return nil
+	}
+
+	// Check snapshot name against config file rules
+	if !IncludeSnapshotByName {
+		return nil
+	}
+
+	// Check snapshot tags against config file rules
+	if IncludeSnapshotByName && len(tagsResult.TagList) > 0 {
+		for _, tag := range tagsResult.TagList {
+			if shouldIncludeSnapshotByTag(*tag.Key, configObj.RDSSnapshots.IncludeRule.TagNamesRE, configObj.RDSSnapshots.ExcludeRule.TagNamesRE) {
+				snapshots = append(snapshots, snapshot.DBSnapshotIdentifier)
+				return snapshots
+			}
+			return nil
+		}
+	}
+	snapshots = append(snapshots, snapshot.DBSnapshotIdentifier)
+	return snapshots
 }
 
 // Match against any regex in config file
