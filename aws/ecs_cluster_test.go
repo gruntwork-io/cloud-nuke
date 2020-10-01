@@ -18,18 +18,14 @@ func TestCanCreateAndListEcsCluster(t *testing.T) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 
-	clusterName := "test-ina-1"
+	clusterName := fmt.Sprintf("test-ecs-cluster-%s", util.UniqueId())
 	cluster := createEcsFargateCluster(t, awsSession, clusterName)
 	defer deleteEcsCluster(awsSession, cluster)
 
 	clusterArns, err := getAllEcsClusters(awsSession)
-	if err != nil {
-		assert.Failf(t, "Unable to fetch clusters: %s", err.Error())
-	}
+	require.NoError(t, err)
 
 	assert.Contains(t, clusterArns, cluster.ClusterArn)
 }
@@ -42,9 +38,7 @@ func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 
 	// create a cluster without tag
 	cluster1 := createEcsFargateCluster(t, awsSession, "test-ina-3-1")
@@ -54,9 +48,7 @@ func TestCanTagEcsClusterAndFilterByTag(t *testing.T) {
 
 	// get cluster
 	clusterArns, err := getAllEcsClusters(awsSession)
-	if err != nil {
-		assert.Failf(t, "Unable to fetch clusters: %s", err.Error())
-	}
+	require.NoError(t, err)
 
 	//tag with first_seen tag
 	for _, clusterArn := range clusterArns {
@@ -105,18 +97,14 @@ func TestCanCreateWithTagAndFilterEcsClustersByTag(t *testing.T) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 
 	clusterName := "test-ina-sep-2-with-tag"
 	cluster := createEcsFargateCluster(t, awsSession, clusterName) //TODO - also have a separate function to do this so I can test it.
 	tagKey := "created_at"
 	tagValue := "now-inastime"
 	tag, err := tagEcsCluster(awsSession, cluster.ClusterArn, tagKey, tagValue) //should return
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 	fmt.Println(tag)
 	// TO UNCOMMENT defer deleteEcsCluster(awsSession, cluster)
 

@@ -11,7 +11,7 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-// tagging an ECS cluster with a given tag key-value pair and a cluster ARN
+// Tag an ECS cluster identified by the given cluster ARN with a tag that has the given key and value
 func tagEcsCluster(awsSession *session.Session, clusterArn *string, tagKey string, tagValue string) (*ecs.TagResourceOutput, error) {
 	svc := ecs.New(awsSession)
 	input := &ecs.TagResourceInput{
@@ -55,7 +55,10 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, t ti
 		firstSeen := getClusterTag(awsSession, clusterArn, "first_seen")
 
 		if firstSeen == nil {
-			tagEcsCluster(awsSession, clusterArn, "first_seen", "tomorrow")
+			_, err := tagEcsCluster(awsSession, clusterArn, "first_seen", "tomorrow")
+			if err != nil {
+			    return nil, err
+			}
 		}
 	}
 	return nil, nil
@@ -95,7 +98,7 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 	}
 
 	for _, tag := range clusterTags.Tags {
-		if *tag.Key == tagKey {
+		if aws.StringValue(tag.Key) == tagKey {
 			//TODO turn from string into a timestamp
 			return tag.Key
 		}
