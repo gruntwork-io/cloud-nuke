@@ -14,7 +14,7 @@ type DBClusterSnapshots struct {
 
 // Name of the AWS resource
 func (snapshot DBClusterSnapshots) ResourceName() string {
-	return "rdssnapshots"
+	return "snapshots"
 }
 
 // Names of the RDS DB Cluster Snapshots
