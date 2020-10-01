@@ -16,6 +16,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -185,7 +186,14 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	// Please note that we are passing the same session that was used to create the bucket
 	// This is required so that the defer cleanup call always gets the right bucket region
 	// to delete
-	defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
+	defer func() {
+		_, err := nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
+		if args.shouldError {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
+	}()
 
 	// Verify that - before creating bucket - it should not exist
 	//
@@ -194,7 +202,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	// AWS_DEFAULT_REGION set to region x but the bucket is in region y.
 	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour*-1), targetRegions, bucketName, args.batchSize, config.Config{})
 	if args.shouldError {
-		require.Error(t, err, "Did not fail for invalid batch size")
+		require.Error(t, err)
 		logging.Logger.Debugf("SUCCESS: Did not list buckets due to invalid batch size - %s - %s", bucketName, err.Error())
 		return
 	}
@@ -306,6 +314,7 @@ type TestNukeS3BucketArgs struct {
 	objectCount       int
 	objectBatchsize   int
 	shouldNuke        bool
+	shouldError       bool
 }
 
 // testNukeS3Bucket - generates the test function for TestNukeS3Bucket
@@ -352,11 +361,13 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 		}
 	}
 
-	defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
-
 	// Nuke the test bucket
 	delCount, err := nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, args.objectBatchsize)
-	require.NoError(t, err, "Failed to nuke s3 buckets")
+	if args.shouldError {
+		require.Error(t, err)
+	} else {
+		require.NoError(t, err)
+	}
 
 	// If we should not nuke the bucket then deleted bucket count should be 0
 	if !args.shouldNuke {
@@ -398,8 +409,9 @@ func TestNukeS3Bucket(t *testing.T) {
 					isVersioned:       isVersioned,
 					checkDeleteMarker: false,
 					objectCount:       0,
-					objectBatchsize:   0,
+					objectBatchsize:   1,
 					shouldNuke:        true,
+					shouldError:       false,
 				},
 			},
 			{
@@ -410,6 +422,7 @@ func TestNukeS3Bucket(t *testing.T) {
 					objectCount:       10,
 					objectBatchsize:   1000,
 					shouldNuke:        true,
+					shouldError:       false,
 				},
 			},
 			{
@@ -417,9 +430,10 @@ func TestNukeS3Bucket(t *testing.T) {
 				TestNukeS3BucketArgs{
 					isVersioned:       isVersioned,
 					checkDeleteMarker: false,
-					objectCount:       10,
+					objectCount:       30,
 					objectBatchsize:   5,
 					shouldNuke:        true,
+					shouldError:       false,
 				},
 			},
 			{
@@ -430,6 +444,7 @@ func TestNukeS3Bucket(t *testing.T) {
 					objectCount:       2,
 					objectBatchsize:   1001,
 					shouldNuke:        false,
+					shouldError:       true,
 				},
 			},
 			{
@@ -440,6 +455,7 @@ func TestNukeS3Bucket(t *testing.T) {
 					objectCount:       2,
 					objectBatchsize:   0,
 					shouldNuke:        false,
+					shouldError:       true,
 				},
 			},
 		}
@@ -505,7 +521,8 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 	cleanupBuckets, err := getAllS3Buckets(awsParams.awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
 	require.NoError(t, err, "Failed to list S3 Buckets in ca-central-1")
 
-	nukeAllS3Buckets(awsParams.awsSession, cleanupBuckets[awsParams.region], 1000)
+	_, err = nukeAllS3Buckets(awsParams.awsSession, cleanupBuckets[awsParams.region], 1000)
+	require.NoError(t, err)
 
 	// Create test buckets in ca-central-1
 	var bucketTags []map[string]string
@@ -563,7 +580,10 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 	}
 
 	// Clean up test buckets
-	defer nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
+	defer func() {
+		_, err := nukeAllS3Buckets(awsParams.awsSession, aws.StringSlice(bucketNames), 1000)
+		assert.NoError(t, err)
+	}()
 	t.Run("config tests", func(t *testing.T) {
 		for _, tc := range testCases {
 			// Capture the range variable as per https://blog.golang.org/subtests
