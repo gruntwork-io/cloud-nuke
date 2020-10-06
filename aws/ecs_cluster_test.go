@@ -14,25 +14,6 @@ import (
 const tagKey = "first_seen"
 const region = "eu-west-1"
 
-// Test that we can succesfully list ECS clusters by manually creating a cluster and then using the list function to find it.
-func TestCanCreateAndListEcsCluster(t *testing.T) {
-	t.Parallel()
-
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
-
-	clusterName := fmt.Sprintf("test-ecs-cluster-%s", util.UniqueID())
-	cluster := createEcsFargateCluster(t, awsSession, clusterName)
-	defer deleteEcsCluster(awsSession, cluster)
-
-	clusterArns, err := getAllEcsClusters(awsSession)
-	require.NoError(t, err)
-
-	assert.Contains(t, clusterArns, cluster.ClusterArn)
-}
-
 // Test we can create a cluster, tag it, and then find the tag
 func TestCanTagEcsClusters(t *testing.T) {
 	t.Parallel()
