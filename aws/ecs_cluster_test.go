@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -10,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const tagKey = "first_seen"
 
 // Test that we can succesfully list ECS clusters by manually creating a cluster and then using the list function to find it.
 func TestCanCreateAndListEcsCluster(t *testing.T) {
@@ -41,21 +44,37 @@ func TestCanTagEcsClusters(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// create a cluster without tag
 	cluster := createEcsFargateCluster(t, awsSession, util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster)
 
-	// get cluster
-	clusterArns, err := getAllEcsClusters(awsSession)
+	tagValue := time.Now().UTC().Format(time.RFC3339)
+
+	tagEcsCluster(awsSession, cluster.ClusterArn, "first_seen", tagValue)
 	require.NoError(t, err)
 
-	//tag with first_seen tag
-	for _, clusterArn := range clusterArns {
-		tagEcsCluster(awsSession, clusterArn, "first_seen", "today")
-		//todo handle errors
-	}
+	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, "first_seen")
+	require.NoError(t, err)
 
-	assert.Equal(t, *getClusterTag(awsSession, cluster.ClusterArn, "first_seen"), "first_seen")
+	assert.Equal(t, returnedTag.Format(time.RFC3339), tagValue)
+}
+
+// Test that we can filter ECS clusters by 'created_at' tag value.
+func TestCanFilterOlderEcsClusters(t *testing.T) {
+	t.Parallel()
+
+	region := "eu-west-1"
+	awsSession, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region),
+	})
+	require.NoError(t, err)
+
+	clusterName := util.UniqueID()
+	cluster := createEcsFargateCluster(t, awsSession, clusterName)
+	defer deleteEcsCluster(awsSession, cluster)
+
+	tagEcsCluster(awsSession, cluster.ClusterArn, tagKey, time.Now().UTC().String())
+	require.NoError(t, err)
+
 }
 
 // Test we can get all ECS clusters younger than < X time based on tags
@@ -76,32 +95,4 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	// nuke selected clusters
 	// assert 2 clusters nuked
 	// assert 1 cluster still left
-}
-
-// Test that we can filter ECS clusters by 'created_at' tag value.
-func TestCanCreateWithTagAndFilterEcsClustersByTag(t *testing.T) {
-	t.Parallel()
-
-	region := "eu-west-1"
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
-
-	clusterName := "test-ina-sep-2-with-tag"
-	cluster := createEcsFargateCluster(t, awsSession, clusterName) //TODO - also have a separate function to do this so I can test it.
-	tagKey := "created_at"
-	tagValue := "now-inastime"
-	tag, err := tagEcsCluster(awsSession, cluster.ClusterArn, tagKey, tagValue) //should return
-	require.NoError(t, err)
-	fmt.Println(tag)
-	// TO UNCOMMENT defer deleteEcsCluster(awsSession, cluster)
-
-	// OLD - assert.Contains(t, clusterArns, cluster.ClusterArn)
-
-	// assert that cluster was created with tags
-	// assert.True(t, tagIsPresent(awsSession, cluster.ClusterArn))
-	//clusterArns, err := getAllEcsClusters(awsSession)
-	// filter results - possibly using api
-	// assert that result contains your new cluster only (provided it's the only one created in the short time frame)
 }

@@ -24,7 +24,6 @@ func tagEcsCluster(awsSession *session.Session, clusterArn *string, tagKey strin
 		},
 	}
 
-	//not interested in the output for now
 	_, err := svc.TagResource(input)
 	if err != nil {
 		return errors.WithStackTrace(err)
@@ -45,27 +44,21 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, time
 
 	var filteredEcsClusters []*string
 	for _, clusterArn := range clusterArns {
-		// if firstSeenTag is present
-		// check if cluster is older than t
-		// then include in filteredEcsClusters
-		//	else
-		// set first seen tag to time now
 
 		firstSeenTime, err := getClusterTag(awsSession, clusterArn, "first_seen")
 		if err != nil {
-			logging.Logger.Errorf("Error getting the `first_seen` ECS cluster") //todo - add specific cluster Arn
+			logging.Logger.Errorf("Error getting the `first_seen` ECS cluster")
 			return nil, err
 		}
 
-		if firstSeenTime == nil {
+		if firstSeenTime.IsZero() {
 			err := tagEcsCluster(awsSession, clusterArn, "first_seen", time.Now().UTC().String())
 			if err != nil {
-				logging.Logger.Errorf("Error tagigng the ECS cluster") //todo - add specific cluster Arn
+				logging.Logger.Errorf("Error tagigng the ECS cluster")
 				return nil, err
 			}
 		}
 
-		// todo - filter based on "older than"
 		if firstSeenTime.After(timeMargin) {
 			filteredEcsClusters = append(filteredEcsClusters, clusterArn)
 		}
@@ -95,7 +88,9 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, time
 // 	return error
 // }(
 
-func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey string) (*time.Time, error) {
+func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey string) (time.Time, error) {
+	var firstSeenTime time.Time
+
 	svc := ecs.New(awsSession)
 	input := &ecs.ListTagsForResourceInput{
 		ResourceArn: clusterArn,
@@ -104,22 +99,20 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 	clusterTags, err := svc.ListTagsForResource(input)
 	if err != nil {
 		logging.Logger.Errorf("Error getting the tags")
-		return nil, nil
+		return firstSeenTime, nil
 	}
-
-	// const key = "cloud-nuke-first-seen"
-	const layout = "2006-01-02 15:04:05"
-	var firstSeenTime *time.Time
 
 	for _, tag := range clusterTags.Tags {
 		if aws.StringValue(tag.Key) == tagKey {
-			firstSeenTime, err := time.Parse(layout, *tag.Value)
+
+			firstSeenTime, err := time.Parse(time.RFC3339, *tag.Value)
 			if err != nil {
-				logging.Logger.Errorf("Error tagigng the ECS cluster") //todo - add specific cluster Arn
-				return nil, errors.WithStackTrace(err)
+				logging.Logger.Errorf("Error while tagging the ECS cluster")
+				return firstSeenTime, errors.WithStackTrace(err)
 			}
+
 			return firstSeenTime, nil
 		}
 	}
-	return nil, nil
+	return firstSeenTime, nil
 }
