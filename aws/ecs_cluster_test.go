@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -71,17 +70,13 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	defer deleteEcsCluster(awsSession, cluster1)
 	cluster2 := createEcsFargateCluster(t, awsSession, util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster2)
-	cluster3 := createEcsFargateCluster(t, awsSession, util.UniqueID())
-	defer deleteEcsCluster(awsSession, cluster3)
 
 	now := time.Now().UTC()
 	var fourtyEightHoursOldTagValue = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
-	var nowTagValue = now.Format(time.RFC3339)
-	var twentyFiveHoursOldTagValue = now.Add(time.Hour * time.Duration(-25)).Format(time.RFC3339)
+	var twentyThreeHoursOldTagValue = now.Add(time.Hour * time.Duration(-23)).Format(time.RFC3339)
 
 	tagEcsCluster(awsSession, cluster1.ClusterArn, tagKey, fourtyEightHoursOldTagValue)
-	tagEcsCluster(awsSession, cluster2.ClusterArn, tagKey, nowTagValue)
-	tagEcsCluster(awsSession, cluster3.ClusterArn, tagKey, twentyFiveHoursOldTagValue)
+	tagEcsCluster(awsSession, cluster2.ClusterArn, tagKey, twentyThreeHoursOldTagValue)
 	require.NoError(t, err)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
