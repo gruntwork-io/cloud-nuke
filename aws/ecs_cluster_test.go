@@ -67,7 +67,7 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	assert.Equal(t, 1, len(filteredClusterArns))
 }
 
-// Test we can nuke all ECS clusters younger than < X time
+// Test we can nuke all ECS clusters older than 24hrs
 func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	t.Parallel()
 
@@ -84,13 +84,13 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	defer deleteEcsCluster(awsSession, cluster3)
 
 	now := time.Now().UTC()
-	var fourtyEightHoursOldTagValue = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
-	var nowTagValue = now.Format(time.RFC3339)
-	var twentyFiveHoursOldTagValue = now.Add(time.Hour * time.Duration(-25)).Format(time.RFC3339)
+	var oldClusterTagValue1 = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
+	var youngClusterTagValue = now.Format(time.RFC3339)
+	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-25)).Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster1.ClusterArn, tagKey, fourtyEightHoursOldTagValue)
-	tagEcsCluster(awsSession, cluster2.ClusterArn, tagKey, nowTagValue)
-	tagEcsCluster(awsSession, cluster3.ClusterArn, tagKey, twentyFiveHoursOldTagValue)
+	tagEcsCluster(awsSession, cluster1.ClusterArn, tagKey, oldClusterTagValue1)
+	tagEcsCluster(awsSession, cluster2.ClusterArn, tagKey, youngClusterTagValue)
+	tagEcsCluster(awsSession, cluster3.ClusterArn, tagKey, oldClusterTagValue2)
 	require.NoError(t, err)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
