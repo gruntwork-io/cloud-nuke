@@ -47,14 +47,14 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, time
 
 		firstSeenTime, err := getClusterTag(awsSession, clusterArn, "first_seen")
 		if err != nil {
-			logging.Logger.Errorf("Error getting the `first_seen` ECS cluster")
+			logging.Logger.Errorf("Error getting the `first_seen` tag for ECS cluster with ARN %s", *clusterArn)
 			return nil, err
 		}
 
 		if firstSeenTime.IsZero() {
 			err := tagEcsCluster(awsSession, clusterArn, "first_seen", time.Now().UTC().String())
 			if err != nil {
-				logging.Logger.Errorf("Error tagigng the ECS cluster")
+				logging.Logger.Errorf("Error tagigng the ECS cluster with ARN %s", *clusterArn)
 				return nil, err
 			}
 		}
@@ -81,7 +81,7 @@ func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) ([]*
 		_, err := svc.DeleteCluster(params)
 
 		if err != nil {
-			logging.Logger.Errorf("Error, failed to delete cluster")
+			logging.Logger.Errorf("Error, failed to delete cluster with ARN %s", *clusterArn)
 			failedEcsClusters = append(failedEcsClusters, clusterArn)
 		} else {
 			logging.Logger.Infof("Success, deleted cluster: %s", *clusterArn)
@@ -102,7 +102,7 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 
 	clusterTags, err := svc.ListTagsForResource(input)
 	if err != nil {
-		logging.Logger.Errorf("Error getting the tags")
+		logging.Logger.Errorf("Error getting the tags for ECS cluster with ARN %s", *clusterArn)
 		return firstSeenTime, nil
 	}
 
@@ -111,7 +111,7 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 
 			firstSeenTime, err := time.Parse(time.RFC3339, *tag.Value)
 			if err != nil {
-				logging.Logger.Errorf("Error while tagging the ECS cluster")
+				logging.Logger.Errorf("Error tagging the ECS cluster with ARN %s", *clusterArn)
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 
