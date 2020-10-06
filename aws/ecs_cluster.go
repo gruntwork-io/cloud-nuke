@@ -59,7 +59,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, time
 			}
 		}
 
-		if firstSeenTime.After(timeMargin) {
+		if firstSeenTime.Before(timeMargin) {
 			filteredEcsClusters = append(filteredEcsClusters, clusterArn)
 		}
 	}
@@ -67,26 +67,30 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, time
 	return filteredEcsClusters, nil
 }
 
-// func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) error {
-// 	svc := ecs.New(awsSession)
-// 	for _, clusterArn := range ecsClusterArns {
+func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) ([]*string, []*string) {
+	svc := ecs.New(awsSession)
 
-// 		if tag is present then delete
-// 		if tagIsPresent(awsSession, clusterArn) == true {
-// 			params := &ecs.DeleteClusterInput{Cluster: clusterArn}
-// 			_, err := svc.DeleteCluster(params)
-// 			if err != nil {
-// 				logging.Logger.Errorf("Error, failed to delete cluster")
-// 			} else {
-// 				logging.Logger.Infof("Success, deleted cluster: %s", *clusterArn)
-// 			}
-// 		}
-// 		if tag is not present set the "first_seen" tag
-// 	}
+	var nukedEcsClusters []*string
+	var failedEcsClusters []*string
 
-// 	//to do - return a list of the deleted clusters (name)
-// 	return error
-// }(
+	for _, clusterArn := range ecsClusterArns {
+		params := &ecs.DeleteClusterInput{
+			Cluster: clusterArn,
+		}
+
+		_, err := svc.DeleteCluster(params)
+
+		if err != nil {
+			logging.Logger.Errorf("Error, failed to delete cluster")
+			failedEcsClusters = append(failedEcsClusters, clusterArn)
+		} else {
+			logging.Logger.Infof("Success, deleted cluster: %s", *clusterArn)
+			nukedEcsClusters = append(nukedEcsClusters, clusterArn)
+		}
+	}
+
+	return nukedEcsClusters, failedEcsClusters
+}
 
 func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey string) (time.Time, error) {
 	var firstSeenTime time.Time
