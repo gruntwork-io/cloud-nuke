@@ -47,14 +47,14 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 	var filteredEcsClusters []*string
 	for _, clusterArn := range clusterArns {
 
-		firstSeenTime, err := getClusterTag(awsSession, clusterArn, "first_seen")
+		firstSeenTime, err := getClusterTag(awsSession, clusterArn, firstSeenTagKey)
 		if err != nil {
 			logging.Logger.Errorf("Error getting the `first_seen` tag for ECS cluster with ARN %s", *clusterArn)
 			return nil, err
 		}
 
 		if firstSeenTime.IsZero() {
-			err := tagEcsCluster(awsSession, clusterArn, "first_seen", time.Now().UTC().String())
+			err := tagEcsCluster(awsSession, clusterArn, firstSeenTagKey, time.Now().UTC().String())
 			if err != nil {
 				logging.Logger.Errorf("Error tagigng the ECS cluster with ARN %s", *clusterArn)
 				return nil, err
@@ -97,7 +97,7 @@ func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) erro
 	}
 
 	numNuked := len(nukedEcsClusters)
-	logging.Logger.Infof("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
+	logging.Logger.Infof("[OK] %d of %d ECS cluster(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
 
 	return nil
 }

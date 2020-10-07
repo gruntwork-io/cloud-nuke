@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const tagKey = "first_seen"
 const region = "eu-west-1"
 
 // Test we can create a cluster, tag it, and then find the tag
@@ -28,10 +27,10 @@ func TestCanTagEcsClusters(t *testing.T) {
 
 	tagValue := time.Now().UTC().Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster.ClusterArn, tagKey, tagValue)
+	tagEcsCluster(awsSession, cluster.ClusterArn, firstSeenTagKey, tagValue)
 	require.NoError(t, err)
 
-	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, tagKey)
+	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, firstSeenTagKey)
 	require.NoError(t, err)
 
 	assert.Equal(t, returnedTag.Format(time.RFC3339), tagValue)
@@ -41,7 +40,6 @@ func TestCanTagEcsClusters(t *testing.T) {
 func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	t.Parallel()
 
-	region := "eu-west-1"
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -56,8 +54,8 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	var olderClusterTagValue = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
 	var youngerClusterTagValue = now.Add(time.Hour * time.Duration(-23)).Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster1.ClusterArn, tagKey, olderClusterTagValue)
-	tagEcsCluster(awsSession, cluster2.ClusterArn, tagKey, youngerClusterTagValue)
+	tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, olderClusterTagValue)
+	tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngerClusterTagValue)
 	require.NoError(t, err)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
@@ -88,9 +86,9 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	var youngClusterTagValue = now.Format(time.RFC3339)
 	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-27)).Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster1.ClusterArn, tagKey, oldClusterTagValue1)
-	tagEcsCluster(awsSession, cluster2.ClusterArn, tagKey, youngClusterTagValue)
-	tagEcsCluster(awsSession, cluster3.ClusterArn, tagKey, oldClusterTagValue2)
+	tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, oldClusterTagValue1)
+	tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngClusterTagValue)
+	tagEcsCluster(awsSession, cluster3.ClusterArn, firstSeenTagKey, oldClusterTagValue2)
 	require.NoError(t, err)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
