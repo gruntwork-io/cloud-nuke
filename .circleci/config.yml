@@ -55,8 +55,7 @@ jobs:
   deploy:
     <<: *defaults
     steps:
-      - attach_workspace:
-          at: .
+      - checkout
       - run: cd bin && sha256sum * > SHA256SUMS
       - run: upload-github-release-assets bin/*
 
