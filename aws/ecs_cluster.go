@@ -11,6 +11,8 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
+const firstSeenTagKey = "cloud-nuke-first-seen"
+
 // Tag an ECS cluster identified by the given cluster ARN with a tag that has the given key and value
 func tagEcsCluster(awsSession *session.Session, clusterArn *string, tagKey string, tagValue string) error {
 	svc := ecs.New(awsSession)
@@ -31,7 +33,7 @@ func tagEcsCluster(awsSession *session.Session, clusterArn *string, tagKey strin
 	return nil
 }
 
-func getAllEcsClustersOlderThan(awsSession *session.Session, region string, timeMargin time.Time) ([]*string, error) {
+func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -59,7 +61,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, time
 			}
 		}
 
-		if firstSeenTime.Before(timeMargin) {
+		if excludeAfter.After(firstSeenTime) {
 			filteredEcsClusters = append(filteredEcsClusters, clusterArn)
 		}
 	}

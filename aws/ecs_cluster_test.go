@@ -86,7 +86,7 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	now := time.Now().UTC()
 	var oldClusterTagValue1 = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
 	var youngClusterTagValue = now.Format(time.RFC3339)
-	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-25)).Format(time.RFC3339)
+	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-27)).Format(time.RFC3339)
 
 	tagEcsCluster(awsSession, cluster1.ClusterArn, tagKey, oldClusterTagValue1)
 	tagEcsCluster(awsSession, cluster2.ClusterArn, tagKey, youngClusterTagValue)
