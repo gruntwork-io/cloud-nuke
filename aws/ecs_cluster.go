@@ -67,29 +67,37 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, time
 	return filteredEcsClusters, nil
 }
 
-func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) ([]*string, []*string) {
+func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) error {
 	svc := ecs.New(awsSession)
 
-	var nukedEcsClusters []*string
-	var failedEcsClusters []*string
+	numNuking := len(ecsClusterArns)
 
+	if numNuking == 0 {
+		logging.Logger.Infof("No ECS clusters to nuke in region %s", *awsSession.Config.Region)
+		return nil
+	}
+
+	logging.Logger.Infof("Deleting %d ECS clusters in region %s", numNuking, *awsSession.Config.Region)
+
+	var nukedEcsClusters []*string
 	for _, clusterArn := range ecsClusterArns {
 		params := &ecs.DeleteClusterInput{
 			Cluster: clusterArn,
 		}
-
 		_, err := svc.DeleteCluster(params)
 
 		if err != nil {
 			logging.Logger.Errorf("Error, failed to delete cluster with ARN %s", *clusterArn)
-			failedEcsClusters = append(failedEcsClusters, clusterArn)
 		} else {
 			logging.Logger.Infof("Success, deleted cluster: %s", *clusterArn)
 			nukedEcsClusters = append(nukedEcsClusters, clusterArn)
 		}
 	}
 
-	return nukedEcsClusters, failedEcsClusters
+	numNuked := len(nukedEcsClusters)
+	logging.Logger.Infof("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
+
+	return nil
 }
 
 func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey string) (time.Time, error) {
