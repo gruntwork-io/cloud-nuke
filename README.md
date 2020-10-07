@@ -34,7 +34,7 @@ _Resources: https://aws.amazon.com/about-aws/whats-new/2018/11/amazon-ecs-and-aw
 Example usage of this functionality will be as per standard: 
 
 ```shell
-cloud-nuke aws --resource-type ecs-cluster --older-than 24h
+cloud-nuke aws --resource-type ecscluster --older-than 24h
 ```
 
 <s>
