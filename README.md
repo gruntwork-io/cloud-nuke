@@ -29,21 +29,11 @@ The currently supported functionality includes:
 
 _Resources: https://aws.amazon.com/about-aws/whats-new/2018/11/amazon-ecs-and-aws-fargate-now-allow-resources-tagging-/_
 
-*DISCLAIMER:* This work is still in progress, however, you can view the advancements and changes as they happen in the open PRs of this repo.
-
 Example usage of this functionality will be as per standard: 
 
 ```shell
 cloud-nuke aws --resource-type ecscluster --older-than 24h
 ```
-
-<s>
-- We currently do not support deleting ECS clusters because AWS
-  does not give us a good way to blacklist clusters off the list (there are no
-  tags and we do not know the creation timestamp). Given the destructive nature
-  of the tool, we have opted not to support deleting ECS clusters at the
-  moment. See https://github.com/gruntwork-io/cloud-nuke/pull/36 for a more
-  detailed discussion. </s>
 
 ### BEWARE!
 
