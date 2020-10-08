@@ -54,9 +54,10 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	var olderClusterTagValue = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
 	var youngerClusterTagValue = now.Add(time.Hour * time.Duration(-23)).Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, olderClusterTagValue)
-	tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngerClusterTagValue)
-	require.NoError(t, err)
+	err1 := tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, olderClusterTagValue)
+	require.NoError(t, err1)
+	err2 := tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngerClusterTagValue)
+	require.NoError(t, err2)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
 	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, region, last24Hours)
