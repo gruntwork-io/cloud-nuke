@@ -27,8 +27,8 @@ func TestCanTagEcsClusters(t *testing.T) {
 
 	tagValue := time.Now().UTC().Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster.ClusterArn, firstSeenTagKey, tagValue)
-	require.NoError(t, err)
+	tagErr := tagEcsCluster(awsSession, cluster.ClusterArn, firstSeenTagKey, tagValue)
+	require.NoError(t, tagErr)
 
 	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, firstSeenTagKey)
 	require.NoError(t, err)
