@@ -28,6 +28,7 @@ func tagEcsCluster(awsSession *session.Session, clusterArn *string, tagKey strin
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
+
 	return nil
 }
 
@@ -39,7 +40,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 	clusterArns, err := getAllEcsClusters(awsSession)
 	if err != nil {
 		logging.Logger.Errorf("Error getting all ECS clusters")
-		return nil, err
+		return nil, errors.WithStackTrace(err)
 	}
 
 	var filteredEcsClusters []*string
@@ -48,7 +49,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 		firstSeenTime, err := getClusterTag(awsSession, clusterArn, firstSeenTagKey)
 		if err != nil {
 			logging.Logger.Errorf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		if firstSeenTime.IsZero() {
@@ -85,13 +86,13 @@ func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) erro
 			Cluster: clusterArn,
 		}
 		_, err := svc.DeleteCluster(params)
-
 		if err != nil {
 			logging.Logger.Errorf("Error, failed to delete cluster with ARN %s", aws.StringValue(clusterArn))
-		} else {
-			logging.Logger.Infof("Success, deleted cluster: %s", aws.StringValue(clusterArn))
-			nukedEcsClusters = append(nukedEcsClusters, clusterArn)
+			return errors.WithStackTrace(err)
 		}
+
+		logging.Logger.Infof("Success, deleted cluster: %s", aws.StringValue(clusterArn))
+		nukedEcsClusters = append(nukedEcsClusters, clusterArn)
 	}
 
 	numNuked := len(nukedEcsClusters)
@@ -111,7 +112,7 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 	clusterTags, err := svc.ListTagsForResource(input)
 	if err != nil {
 		logging.Logger.Errorf("Error getting the tags for ECS cluster with ARN %s", aws.StringValue(clusterArn))
-		return firstSeenTime, nil
+		return firstSeenTime, errors.WithStackTrace(err)
 	}
 
 	for _, tag := range clusterTags.Tags {
