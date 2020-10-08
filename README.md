@@ -24,17 +24,6 @@ The currently supported functionality includes:
 - Deleting all default VPCs in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 
-### Caveats
-- As of 2018-2019 AWS APIs seem to support tagging of ECS clusters, and therefore we've reviewed and re-focused on the support of nuking ECS clusters. 
-
-_Resources: https://aws.amazon.com/about-aws/whats-new/2018/11/amazon-ecs-and-aws-fargate-now-allow-resources-tagging-/_
-
-Example usage of this functionality will be as per standard: 
-
-```shell
-cloud-nuke aws --resource-type ecscluster --older-than 24h
-```
-
 ### BEWARE!
 
 When executed as `cloud-nuke aws`, this tool is **HIGHLY DESTRUCTIVE** and deletes all resources! This mode should never be used in a production environment!
