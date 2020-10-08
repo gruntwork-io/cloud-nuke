@@ -27,8 +27,8 @@ func TestCanTagEcsClusters(t *testing.T) {
 
 	tagValue := time.Now().UTC().Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster.ClusterArn, firstSeenTagKey, tagValue)
-	require.NoError(t, err)
+	tagErr := tagEcsCluster(awsSession, cluster.ClusterArn, firstSeenTagKey, tagValue)
+	require.NoError(t, tagErr)
 
 	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, firstSeenTagKey)
 	require.NoError(t, err)
@@ -54,9 +54,10 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	var olderClusterTagValue = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
 	var youngerClusterTagValue = now.Add(time.Hour * time.Duration(-23)).Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, olderClusterTagValue)
-	tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngerClusterTagValue)
-	require.NoError(t, err)
+	err1 := tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, olderClusterTagValue)
+	require.NoError(t, err1)
+	err2 := tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngerClusterTagValue)
+	require.NoError(t, err2)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
 	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, region, last24Hours)
@@ -86,10 +87,12 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	var youngClusterTagValue = now.Format(time.RFC3339)
 	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-27)).Format(time.RFC3339)
 
-	tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, oldClusterTagValue1)
-	tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngClusterTagValue)
-	tagEcsCluster(awsSession, cluster3.ClusterArn, firstSeenTagKey, oldClusterTagValue2)
-	require.NoError(t, err)
+	err1 := tagEcsCluster(awsSession, cluster1.ClusterArn, firstSeenTagKey, oldClusterTagValue1)
+	require.NoError(t, err1)	
+	err2 := tagEcsCluster(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngClusterTagValue)
+	require.NoError(t, err2)	
+	err3 := tagEcsCluster(awsSession, cluster3.ClusterArn, firstSeenTagKey, oldClusterTagValue2)
+	require.NoError(t, err3)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
 	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, region, last24Hours)
