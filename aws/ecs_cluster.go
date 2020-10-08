@@ -11,8 +11,6 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-const firstSeenTagKey = "cloud-nuke-first-seen"
-
 // Tag an ECS cluster identified by the given cluster ARN with a tag that has the given key and value
 func tagEcsCluster(awsSession *session.Session, clusterArn *string, tagKey string, tagValue string) error {
 	svc := ecs.New(awsSession)
