@@ -120,7 +120,7 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 
 			firstSeenTime, err := time.Parse(time.RFC3339, aws.StringValue(tag.Value))
 			if err != nil {
-				logging.Logger.Errorf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag  into a `RFC3339` Time format for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 
