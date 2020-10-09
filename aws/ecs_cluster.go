@@ -11,30 +11,6 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-// Tag an ECS cluster identified by the given cluster ARN when it's first seen by cloud-nuke
-func tagEcsClusterWhenFirstSeen(awsSession *session.Session, clusterArn *string, timestamp time.Time) error {
-	svc := ecs.New(awsSession)
-
-	firstSeenTime := formatTimestampTag(timestamp)
-
-	input := &ecs.TagResourceInput{
-		ResourceArn: clusterArn,
-		Tags: []*ecs.Tag{
-			{
-				Key:   aws.String(firstSeenTagKey),
-				Value: aws.String(firstSeenTime),
-			},
-		},
-	}
-
-	_, err := svc.TagResource(input)
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
 func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
@@ -49,7 +25,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 	var filteredEcsClusters []*string
 	for _, clusterArn := range clusterArns {
 
-		firstSeenTime, err := getClusterTag(awsSession, clusterArn, firstSeenTagKey)
+		firstSeenTime, err := getFirstSeenEcsClusterTag(awsSession, clusterArn)
 		if err != nil {
 			logging.Logger.Errorf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 			return nil, errors.WithStackTrace(err)
@@ -104,7 +80,32 @@ func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) erro
 	return nil
 }
 
-func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey string) (time.Time, error) {
+// Tag an ECS cluster identified by the given cluster ARN when it's first seen by cloud-nuke
+func tagEcsClusterWhenFirstSeen(awsSession *session.Session, clusterArn *string, timestamp time.Time) error {
+	svc := ecs.New(awsSession)
+
+	firstSeenTime := formatTimestampTag(timestamp)
+
+	input := &ecs.TagResourceInput{
+		ResourceArn: clusterArn,
+		Tags: []*ecs.Tag{
+			{
+				Key:   aws.String(firstSeenTagKey),
+				Value: aws.String(firstSeenTime),
+			},
+		},
+	}
+
+	_, err := svc.TagResource(input)
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+// Get the `cloud-nuke-first-seen` tag value for a given ECS cluster
+func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) (time.Time, error) {
 	var firstSeenTime time.Time
 
 	svc := ecs.New(awsSession)
@@ -119,9 +120,10 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 	}
 
 	for _, tag := range clusterTags.Tags {
-		if aws.StringValue(tag.Key) == tagKey {
+		if aws.StringValue(tag.Key) == firstSeenTagKey {
 
 			firstSeenTime, err := parseTimestampTag(aws.StringValue(tag.Value))
+
 			if err != nil {
 				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag  into a `RFC3339` Time format for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)

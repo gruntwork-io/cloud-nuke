@@ -30,7 +30,7 @@ func TestCanTagEcsClusters(t *testing.T) {
 	tagErr := tagEcsClusterWhenFirstSeen(awsSession, cluster.ClusterArn, tagValue)
 	require.NoError(t, tagErr)
 
-	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, firstSeenTagKey)
+	returnedTag, err := getFirstSeenEcsClusterTag(awsSession, cluster.ClusterArn)
 	require.NoError(t, err)
 
 	parsedTagValue, parseErr1 := parseTimestampTag(formatTimestampTag(tagValue))
@@ -39,6 +39,7 @@ func TestCanTagEcsClusters(t *testing.T) {
 	parsedReturnValue, parseErr2 := parseTimestampTag(formatTimestampTag(returnedTag))
 	require.NoError(t, parseErr2)
 
+	//compare that the tags' Time values after formatting are equal
 	assert.Equal(t, parsedTagValue, parsedReturnValue)
 }
 
