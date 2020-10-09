@@ -25,7 +25,7 @@ func TestCanTagEcsClusters(t *testing.T) {
 	cluster := createEcsFargateCluster(t, awsSession, util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster)
 
-	tagValue := formatTimestampTag(time.Now().UTC())
+	tagValue := time.Now().UTC()
 
 	tagErr := tagEcsClusterWhenFirstSeen(awsSession, cluster.ClusterArn, tagValue)
 	require.NoError(t, tagErr)
@@ -33,10 +33,13 @@ func TestCanTagEcsClusters(t *testing.T) {
 	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, firstSeenTagKey)
 	require.NoError(t, err)
 
-	parsedOriginalTagValue, parseErr := parseTimestampTag(tagValue)
-	require.NoError(t, parseErr)
+	parsedTagValue, parseErr1 := parseTimestampTag(formatTimestampTag(tagValue))
+	require.NoError(t, parseErr1)
 
-	assert.Equal(t, parsedOriginalTagValue, returnedTag)
+	parsedReturnValue, parseErr2 := parseTimestampTag(formatTimestampTag(returnedTag))
+	require.NoError(t, parseErr2)
+
+	assert.Equal(t, parsedTagValue, parsedReturnValue)
 }
 
 // Test we can get all ECS clusters younger than < X time based on tags
@@ -54,8 +57,8 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	defer deleteEcsCluster(awsSession, cluster2)
 
 	now := time.Now().UTC()
-	var olderClusterTagValue = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
-	var youngerClusterTagValue = now.Add(time.Hour * time.Duration(-23)).Format(time.RFC3339)
+	var olderClusterTagValue = now.Add(time.Hour * time.Duration(-48))
+	var youngerClusterTagValue = now.Add(time.Hour * time.Duration(-23))
 
 	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, olderClusterTagValue)
 	require.NoError(t, err1)
@@ -86,9 +89,9 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	defer deleteEcsCluster(awsSession, cluster3)
 
 	now := time.Now().UTC()
-	var oldClusterTagValue1 = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
-	var youngClusterTagValue = now.Format(time.RFC3339)
-	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-27)).Format(time.RFC3339)
+	var oldClusterTagValue1 = now.Add(time.Hour * time.Duration(-48))
+	var youngClusterTagValue = now
+	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-27))
 
 	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, oldClusterTagValue1)
 	require.NoError(t, err1)
