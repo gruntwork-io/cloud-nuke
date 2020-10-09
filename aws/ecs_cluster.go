@@ -12,13 +12,13 @@ import (
 )
 
 // Tag an ECS cluster identified by the given cluster ARN when it's first seen by cloud-nuke
-func tagEcsClusterWhenFirstSeen(awsSession *session.Session, clusterArn *string, tagKey string, tagValue string) error {
+func tagEcsClusterWhenFirstSeen(awsSession *session.Session, clusterArn *string, tagValue string) error {
 	svc := ecs.New(awsSession)
 	input := &ecs.TagResourceInput{
 		ResourceArn: clusterArn,
 		Tags: []*ecs.Tag{
 			{
-				Key:   aws.String(tagKey),
+				Key:   aws.String(firstSeenTagKey),
 				Value: aws.String(tagValue),
 			},
 		},
@@ -53,7 +53,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 		}
 
 		if firstSeenTime.IsZero() {
-			err := tagEcsClusterWhenFirstSeen(awsSession, clusterArn, firstSeenTagKey, time.Now().UTC().Format(time.RFC3339))
+			err := tagEcsClusterWhenFirstSeen(awsSession, clusterArn, time.Now().UTC().Format(time.RFC3339))
 			if err != nil {
 				logging.Logger.Errorf("Error tagigng the ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return nil, errors.WithStackTrace(err)

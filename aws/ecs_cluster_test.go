@@ -27,7 +27,7 @@ func TestCanTagEcsClusters(t *testing.T) {
 
 	tagValue := time.Now().UTC().Format(time.RFC3339)
 
-	tagErr := tagEcsClusterWhenFirstSeen(awsSession, cluster.ClusterArn, firstSeenTagKey, tagValue)
+	tagErr := tagEcsClusterWhenFirstSeen(awsSession, cluster.ClusterArn, tagValue)
 	require.NoError(t, tagErr)
 
 	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, firstSeenTagKey)
@@ -54,9 +54,9 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	var olderClusterTagValue = now.Add(time.Hour * time.Duration(-48)).Format(time.RFC3339)
 	var youngerClusterTagValue = now.Add(time.Hour * time.Duration(-23)).Format(time.RFC3339)
 
-	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, firstSeenTagKey, olderClusterTagValue)
+	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, olderClusterTagValue)
 	require.NoError(t, err1)
-	err2 := tagEcsClusterWhenFirstSeen(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngerClusterTagValue)
+	err2 := tagEcsClusterWhenFirstSeen(awsSession, cluster2.ClusterArn, youngerClusterTagValue)
 	require.NoError(t, err2)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
@@ -87,11 +87,11 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	var youngClusterTagValue = now.Format(time.RFC3339)
 	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-27)).Format(time.RFC3339)
 
-	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, firstSeenTagKey, oldClusterTagValue1)
+	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, oldClusterTagValue1)
 	require.NoError(t, err1)
-	err2 := tagEcsClusterWhenFirstSeen(awsSession, cluster2.ClusterArn, firstSeenTagKey, youngClusterTagValue)
+	err2 := tagEcsClusterWhenFirstSeen(awsSession, cluster2.ClusterArn, youngClusterTagValue)
 	require.NoError(t, err2)
-	err3 := tagEcsClusterWhenFirstSeen(awsSession, cluster3.ClusterArn, firstSeenTagKey, oldClusterTagValue2)
+	err3 := tagEcsClusterWhenFirstSeen(awsSession, cluster3.ClusterArn, oldClusterTagValue2)
 	require.NoError(t, err3)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
