@@ -43,7 +43,6 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 			}
 		}
 	}
-
 	return filteredEcsClusters, nil
 }
 
@@ -125,7 +124,7 @@ func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) 
 			firstSeenTime, err := parseTimestampTag(aws.StringValue(tag.Value))
 
 			if err != nil {
-				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag  into a `RFC3339` Time format for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 
