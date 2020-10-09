@@ -53,7 +53,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 		}
 
 		if firstSeenTime.IsZero() {
-			err := tagEcsClusterWhenFirstSeen(awsSession, clusterArn, firstSeenTagKey, time.Now().UTC().Format(time.RFC3339))
+			err := tagEcsClusterWhenFirstSeen(awsSession, clusterArn, firstSeenTagKey, createUTCTimestampTag())
 			if err != nil {
 				logging.Logger.Errorf("Error tagigng the ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return nil, errors.WithStackTrace(err)
@@ -64,7 +64,6 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 			}
 		}
 	}
-
 	return filteredEcsClusters, nil
 }
 
@@ -118,9 +117,9 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 	for _, tag := range clusterTags.Tags {
 		if aws.StringValue(tag.Key) == tagKey {
 
-			firstSeenTime, err := time.Parse(time.RFC3339, aws.StringValue(tag.Value))
+			firstSeenTime, err := parseTimestampTag(aws.StringValue(tag.Value))
 			if err != nil {
-				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag  into a `RFC3339` Time format for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 
@@ -128,4 +127,19 @@ func getClusterTag(awsSession *session.Session, clusterArn *string, tagKey strin
 		}
 	}
 	return firstSeenTime, nil
+}
+
+func parseTimestampTag(tagValue string) (time.Time, error) {
+	timestamp, err := time.Parse(time.RFC3339, tagValue)
+
+	if err != nil {
+		logging.Logger.Errorf("Error parsing the tag tag  into a `RFC3339` Time format")
+		return timestamp, errors.WithStackTrace(err)
+	}
+
+	return timestamp, nil
+}
+
+func createUTCTimestampTag() string {
+	return time.Now().UTC().Format(time.RFC3339)
 }
