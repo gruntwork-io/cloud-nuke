@@ -25,7 +25,7 @@ func TestCanTagEcsClusters(t *testing.T) {
 	cluster := createEcsFargateCluster(t, awsSession, util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster)
 
-	tagValue := time.Now().UTC().Format(time.RFC3339)
+	tagValue := formatTimestampTag(time.Now().UTC())
 
 	tagErr := tagEcsClusterWhenFirstSeen(awsSession, cluster.ClusterArn, tagValue)
 	require.NoError(t, tagErr)
@@ -33,7 +33,10 @@ func TestCanTagEcsClusters(t *testing.T) {
 	returnedTag, err := getClusterTag(awsSession, cluster.ClusterArn, firstSeenTagKey)
 	require.NoError(t, err)
 
-	assert.Equal(t, returnedTag.Format(time.RFC3339), tagValue)
+	parsedOriginalTagValue, parseErr := parseTimestampTag(tagValue)
+	require.NoError(t, parseErr)
+
+	assert.Equal(t, parsedOriginalTagValue, returnedTag)
 }
 
 // Test we can get all ECS clusters younger than < X time based on tags
