@@ -34,13 +34,11 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 		if firstSeenTime.IsZero() {
 			err := tagEcsClusterWhenFirstSeen(awsSession, clusterArn, time.Now().UTC())
 			if err != nil {
-				logging.Logger.Errorf("Error tagigng the ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Logger.Errorf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return nil, errors.WithStackTrace(err)
 			}
-		} else {
-			if excludeAfter.After(firstSeenTime) {
-				filteredEcsClusters = append(filteredEcsClusters, clusterArn)
-			}
+		} else if excludeAfter.After(firstSeenTime) {
+			filteredEcsClusters = append(filteredEcsClusters, clusterArn)
 		}
 	}
 	return filteredEcsClusters, nil
