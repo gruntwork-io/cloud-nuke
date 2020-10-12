@@ -105,10 +105,11 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, region, last24Hours)
 	require.NoError(t, err)
 
-	nukeEcsClusters(awsSession, filteredClusterArns)
-	require.NoError(t, err)
+	nukeErr := nukeEcsClusters(awsSession, filteredClusterArns)
+	require.NoError(t, nukeErr)
 
 	allLeftClusterArns, err := getAllEcsClusters(awsSession)
 	require.NoError(t, err)
+
 	assert.Equal(t, 1, len(allLeftClusterArns))
 }
