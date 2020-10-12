@@ -70,7 +70,7 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, region, last24Hours)
 	require.NoError(t, err)
 
-	assert.Equal(t, 1, len(filteredClusterArns))
+	assert.Contains(t, awsgo.StringValueSlice(filteredClusterArns), awsgo.StringValue(cluster1.ClusterArn))
 }
 
 // Test we can nuke all ECS clusters older than 24hrs
@@ -111,5 +111,6 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	allLeftClusterArns, err := getAllEcsClusters(awsSession)
 	require.NoError(t, err)
 
-	assert.Equal(t, 1, len(allLeftClusterArns))
+	assert.Contains(t, awsgo.StringValueSlice(allLeftClusterArns), awsgo.StringValue(cluster2.ClusterArn))
 }
+
