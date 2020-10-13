@@ -49,7 +49,6 @@ func getFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, layout strin
 // Returns a formatted string of EIP allocation ids
 func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
-	const key = "cloud-nuke-first-seen"
 	const layout = "2006-01-02 15:04:05"
 
 	result, err := svc.DescribeAddresses(&ec2.DescribeAddressesInput{})
@@ -59,7 +58,7 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
-		firstSeenTime, err := getFirstSeenTag(svc, *address, key, layout)
+		firstSeenTime, err := getFirstSeenTag(svc, *address, firstSeenTagKey, layout)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -67,7 +66,7 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 		if firstSeenTime == nil {
 			now := time.Now().UTC()
 			firstSeenTime = &now
-			if err := setFirstSeenTag(svc, *address, key, *firstSeenTime, layout); err != nil {
+			if err := setFirstSeenTag(svc, *address, firstSeenTagKey, *firstSeenTime, layout); err != nil {
 				return nil, err
 			}
 		}

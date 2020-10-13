@@ -17,20 +17,12 @@ The currently supported functionality includes:
 - Deleting all Elastic IPs in an AWS account
 - Deleting all Launch Configurations in an AWS account
 - Deleting all ECS services in an AWS account
+- Deleting all ECS clusters in an AWS account
 - Deleting all EKS clusters in an AWS account
 - Deleting all RDS DB instances in an AWS account
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
-
-### Caveats
-
-- We currently do not support deleting ECS clusters because AWS
-  does not give us a good way to blacklist clusters off the list (there are no
-  tags and we do not know the creation timestamp). Given the destructive nature
-  of the tool, we have opted not to support deleting ECS clusters at the
-  moment. See https://github.com/gruntwork-io/cloud-nuke/pull/36 for a more
-  detailed discussion.
 
 ### BEWARE!
 

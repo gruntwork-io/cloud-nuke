@@ -345,6 +345,18 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
 			}
 		}
+
+		ecsClusters := ECSClusters{}
+		if IsNukeable(ecsClusters.ResourceName(), resourceTypes) {
+			ecsClusterArns, err := getAllEcsClustersOlderThan(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(ecsClusterArns) > 0 {
+				ecsClusters.ClusterArns = awsgo.StringValueSlice(ecsClusterArns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsClusters)
+			}
+		}
 		// End ECS resources
 
 		// EKS resources
@@ -458,6 +470,7 @@ func ListResourceTypes() []string {
 		EIPAddresses{}.ResourceName(),
 		AMIs{}.ResourceName(),
 		Snapshots{}.ResourceName(),
+		ECSClusters{}.ResourceName(),
 		ECSServices{}.ResourceName(),
 		EKSClusters{}.ResourceName(),
 		DBInstances{}.ResourceName(),

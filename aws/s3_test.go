@@ -506,6 +506,7 @@ func bucketNamesForConfigTests() []string {
 
 // TestFilterS3Bucket_Config tests listing only S3 buckets that match config file
 func TestFilterS3Bucket_Config(t *testing.T) {
+	t.Skip("This test is disabled, as it's failing inconsistently due to the count of S3 buckets in the same region. See open github issue #142 for more details.")
 	t.Parallel()
 
 	// Create AWS session in ca-central-1
