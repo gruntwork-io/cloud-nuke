@@ -360,6 +360,7 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 			require.NoError(t, err, "Failed to create delete marker")
 		}
 	}
+	defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
 
 	// Nuke the test bucket
 	delCount, err := nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, args.objectBatchsize)
