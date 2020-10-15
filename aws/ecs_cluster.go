@@ -67,7 +67,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 
 	clusterArns, err := getAllActiveEcsClusterArns(awsSession)
 	if err != nil {
-		logging.Logger.Errorf("Error getting all ECS clusters with `ACTIVE` status")
+		logging.Logger.Errorf("Error getting all ECS clusters with `ACTIVE` or `PROVISIONING` status")
 		return nil, errors.WithStackTrace(err)
 	}
 
