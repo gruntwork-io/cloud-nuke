@@ -14,7 +14,6 @@ import (
 // Used in this context to determine if the ECS Cluster is ready to be used & tagged
 // For more details on other valid status values: https://docs.aws.amazon.com/sdk-for-go/api/service/ecs/#Cluster
 const activeEcsClusterStatus string = "ACTIVE"
-const provisioningEcsClusterStatus = "PROVISIONING"
 
 // Filter all active ecs clusters
 func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) {
@@ -35,7 +34,7 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 
 		describedClusters, describeErr := svc.DescribeClusters(input)
 		if describeErr != nil {
-			logging.Logger.Errorf("Error describing all ECS clusters")
+			logging.Logger.Errorf("Error describing ECS clusters")
 			return nil, errors.WithStackTrace(describeErr)
 		}
 
@@ -44,15 +43,13 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 
 	var filteredEcsClusterArns []*string
 
-	// Filter out invalid state ECS Clusters (will return only `ACTIVE` state clusters)
+	// Filter and return only `ACTIVE` state ECS Clusters.
 	// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
 	// Therefore to tag a cluster, that cluster must be in the `ACTIVE` state.
 	for _, cluster := range result {
-		logging.Logger.Infof("Status for ECS CLuster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
+		logging.Logger.Debugf("Status for ECS Cluster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
 
-		if aws.StringValue(cluster.Status) == activeEcsClusterStatus ||
-			aws.StringValue(cluster.Status) == provisioningEcsClusterStatus {
-
+		if aws.StringValue(cluster.Status) == activeEcsClusterStatus {
 			filteredEcsClusterArns = append(filteredEcsClusterArns, cluster.ClusterArn)
 		}
 	}
@@ -67,7 +64,7 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 
 	clusterArns, err := getAllActiveEcsClusterArns(awsSession)
 	if err != nil {
-		logging.Logger.Errorf("Error getting all ECS clusters with `ACTIVE` or `PROVISIONING` status")
+		logging.Logger.Errorf("Error getting all ECS clusters with `ACTIVE` status")
 		return nil, errors.WithStackTrace(err)
 	}
 
