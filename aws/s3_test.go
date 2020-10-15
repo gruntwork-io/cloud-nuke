@@ -361,6 +361,12 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 		}
 	}
 
+	// Don't remove this.
+	// It ensures that all S3 buckets created as part of this test will be nuked after the test has run.
+	// This is necessary, as some test cases are expected to fail & test that the buckets with invalid args are not nuked.
+	// For more details, look at Github issue-140: https://github.com/gruntwork-io/cloud-nuke/issues/140
+	defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
+
 	// Nuke the test bucket
 	delCount, err := nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, args.objectBatchsize)
 	if args.shouldError {
