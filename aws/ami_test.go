@@ -121,7 +121,7 @@ func TestListAMIs(t *testing.T) {
 	assert.Contains(t, awsgo.StringValueSlice(amis), *image.ImageId)
 }
 
-func TestNukeAMIs(t *testing.T) {
+func g(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
