@@ -76,6 +76,7 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 // Test we can nuke all ECS clusters older than 24hrs
 func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	t.Parallel()
+	t.Skip("Skipping temporarily - will be fixed as part of issue-145")
 
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
