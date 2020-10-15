@@ -14,7 +14,8 @@ import (
 // Test we can create a cluster, tag it, and then find the tag
 func TestCanTagEcsClusters(t *testing.T) {
 	t.Parallel()
-	region, err := getRandomRegion()
+	region, regionErr := getRandomRegion()
+	require.NoError(t, regionErr)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
@@ -45,7 +46,8 @@ func TestCanTagEcsClusters(t *testing.T) {
 // Test we can get all ECS clusters younger than < X time based on tags
 func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	t.Parallel()
-	region, err := getRandomRegion()
+	region, regionErr := getRandomRegion()
+	require.NoError(t, regionErr)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
@@ -76,7 +78,8 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 // Test we can nuke all ECS clusters older than 24hrs
 func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	t.Parallel()
-	region, err := getRandomRegion()
+	region, regionErr := getRandomRegion()
+	require.NoError(t, regionErr)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
