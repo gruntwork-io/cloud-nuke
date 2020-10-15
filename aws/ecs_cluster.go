@@ -16,7 +16,7 @@ import (
 const activeEcsClusterStatus string = "ACTIVE"
 const provisioningEcsClusterStatus = "PROVISIONING"
 
-// filter out all active ecs clusters
+// Filter all active ecs clusters
 func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) {
 	svc := ecs.New(awsSession)
 
