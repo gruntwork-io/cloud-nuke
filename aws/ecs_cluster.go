@@ -11,14 +11,61 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
+// Used in this context to determine if the ECS Cluster is ready to be used & tagged
+// For more details on other valid status values: https://docs.aws.amazon.com/sdk-for-go/api/service/ecs/#Cluster
+const activeEcsClusterStatus string = "ACTIVE"
+
+// Used in this context to limit the amount of clustes passed as input to the DescribeClusters function call
+// For more details on this, please read here: https://docs.aws.amazon.com/cli/latest/reference/ecs/describe-clusters.html#options
+const describeClustersRequestBatchSize = 100
+
+// Filter all active ecs clusters
+func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) {
+	svc := ecs.New(awsSession)
+
+	allClusters, err := getAllEcsClusters(awsSession)
+	if err != nil {
+		logging.Logger.Errorf("Error getting all ECS clusters")
+		return nil, errors.WithStackTrace(err)
+	}
+
+	var filteredEcsClusterArns []*string
+
+	batches := split(aws.StringValueSlice(allClusters), describeClustersRequestBatchSize)
+	for _, batch := range batches {
+		input := &ecs.DescribeClustersInput{
+			Clusters: awsgo.StringSlice(batch),
+		}
+
+		describedClusters, describeErr := svc.DescribeClusters(input)
+		if describeErr != nil {
+			logging.Logger.Errorf("Error describing ECS clusters from input %s: ", input)
+			return nil, errors.WithStackTrace(describeErr)
+		}
+
+		// Filter out invalid state ECS Clusters (will return only `ACTIVE` state clusters)
+		// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
+		// Therefore to tag a cluster, that cluster must be in the `ACTIVE` state.
+		for _, cluster := range describedClusters.Clusters {
+			logging.Logger.Debugf("Status for ECS Cluster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
+
+			if aws.StringValue(cluster.Status) == activeEcsClusterStatus {
+				filteredEcsClusterArns = append(filteredEcsClusterArns, cluster.ClusterArn)
+			}
+		}
+	}
+
+	return filteredEcsClusterArns, nil
+}
+
 func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
 
-	clusterArns, err := getAllEcsClusters(awsSession)
+	clusterArns, err := getAllActiveEcsClusterArns(awsSession)
 	if err != nil {
-		logging.Logger.Errorf("Error getting all ECS clusters")
+		logging.Logger.Errorf("Error getting all ECS clusters with `ACTIVE` status")
 		return nil, errors.WithStackTrace(err)
 	}
 
