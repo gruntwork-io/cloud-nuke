@@ -25,20 +25,10 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var result []*ecs.Cluster
-
-	for _, cluster := range allClusters {
-		input := &ecs.DescribeClustersInput{
-			Clusters: []*string{cluster},
-		}
-
-		describedClusters, describeErr := svc.DescribeClusters(input)
-		if describeErr != nil {
-			logging.Logger.Errorf("Error describing ECS clusters")
-			return nil, errors.WithStackTrace(describeErr)
-		}
-
-		result = append(result, describedClusters.Clusters...)
+	described, describeErr := describeEcsClusters(svc, allClusters)
+	if describeErr != nil {
+		logging.Logger.Errorf("Error describing ECS clusters")
+		return nil, errors.WithStackTrace(describeErr)
 	}
 
 	var filteredEcsClusterArns []*string
@@ -46,7 +36,7 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 	// Filter and return only `ACTIVE` state ECS Clusters.
 	// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
 	// Therefore to tag a cluster, that cluster must be in the `ACTIVE` state.
-	for _, cluster := range result {
+	for _, cluster := range described {
 		logging.Logger.Debugf("Status for ECS Cluster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
 
 		if aws.StringValue(cluster.Status) == activeEcsClusterStatus {
@@ -56,6 +46,29 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 
 	return filteredEcsClusterArns, nil
 }
+
+func describeEcsClusters(svc *ecs.ECS, allClusters []*string) ([]*ecs.Cluster, error) {
+	var result []*ecs.Cluster
+	batches := split(aws.StringValueSlice(allClusters), 10)
+
+	for _, batch := range batches {
+		input := &ecs.DescribeClustersInput{
+			Clusters: awsgo.StringSlice(batch),
+		}
+
+		describedClusters, describeErr := svc.DescribeClusters(input)
+		if describeErr != nil {
+			logging.Logger.Errorf("Error describing ECS clusters from input %s: ", input)
+			return nil, errors.WithStackTrace(describeErr)
+		}
+
+		result = append(result, describedClusters.Clusters...)
+	}
+
+	return result, nil
+}
+
+
 
 func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	awsSession, err := session.NewSession(&awsgo.Config{
