@@ -15,6 +15,10 @@ import (
 // For more details on other valid status values: https://docs.aws.amazon.com/sdk-for-go/api/service/ecs/#Cluster
 const activeEcsClusterStatus string = "ACTIVE"
 
+// Used in this context to limit the amount of clustes passed as input to the DescribeClusters function call
+// For more details on this, please read here: https://docs.aws.amazon.com/cli/latest/reference/ecs/describe-clusters.html#options
+const describeClustersRequestBatchSize = 100
+
 // Filter all active ecs clusters
 func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) {
 	svc := ecs.New(awsSession)
@@ -27,7 +31,7 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 
 	var filteredEcsClusterArns []*string
 
-	batches := split(aws.StringValueSlice(allClusters), 10)
+	batches := split(aws.StringValueSlice(allClusters), describeClustersRequestBatchSize)
 	for _, batch := range batches {
 		input := &ecs.DescribeClustersInput{
 			Clusters: awsgo.StringSlice(batch),
@@ -39,6 +43,9 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 			return nil, errors.WithStackTrace(describeErr)
 		}
 
+		// Filter out invalid state ECS Clusters (will return only `ACTIVE` state clusters)
+		// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
+		// Therefore to tag a cluster, that cluster must be in the `ACTIVE` state.
 		for _, cluster := range describedClusters.Clusters {
 			logging.Logger.Debugf("Status for ECS Cluster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
 
