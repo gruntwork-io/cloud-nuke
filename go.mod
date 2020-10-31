@@ -1,6 +1,6 @@
 module github.com/gruntwork-io/cloud-nuke
 
-go 1.13
+go 1.15
 
 require (
 	github.com/aws/aws-sdk-go v1.22.3
