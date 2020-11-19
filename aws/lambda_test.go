@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Move this into the utils package
 func createZipFile(filename string, file string) error {
 	err := ioutil.WriteFile(file, []byte("package test"), 0755)
 
@@ -44,6 +45,7 @@ func createZipFile(filename string, file string) error {
 	return nil
 }
 
+// TODO: Move this into the utils package
 func removeFile(zipFileName string) error {
 	err := os.Remove(zipFileName)
 	if err != nil {
@@ -52,6 +54,7 @@ func removeFile(zipFileName string) error {
 	return nil
 }
 
+// TODO: Move this into the utils package
 func addFileToZip(zipWriter *zip.Writer, filename string) error {
 	fileToZip, err := os.Open(filename)
 	defer fileToZip.Close()
