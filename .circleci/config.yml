@@ -2,7 +2,6 @@ defaults: &defaults
   working_directory: /go/src/github.com/gruntwork-io/cloud-nuke
   docker:
     - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.13
-
 version: 2
 jobs:
   test:
@@ -12,7 +11,6 @@ jobs:
       - run:
           command: run-go-tests --timeout 45m
           no_output_timeout: 45m
-
   build:
     <<: *defaults
     steps:
@@ -21,7 +19,6 @@ jobs:
       - persist_to_workspace:
           root: .
           paths: bin
-
   nuke_phx_devops:
     <<: *defaults
     steps:
@@ -35,7 +32,6 @@ jobs:
               --force \
               --exclude-resource-type s3
           no_output_timeout: 1h
-
   nuke_sandbox:
     <<: *defaults
     steps:
@@ -51,7 +47,6 @@ jobs:
               --force \
               --exclude-resource-type s3
           no_output_timeout: 1h
-
   deploy:
     <<: *defaults
     steps:
@@ -59,7 +54,6 @@ jobs:
           at: .
       - run: cd bin && sha256sum * > SHA256SUMS
       - run: upload-github-release-assets bin/*
-
 workflows:
   version: 2
   build-and-test:
@@ -68,12 +62,16 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+          context:
+            - Gruntwork Admin
       - build:
           requires:
             - test
           filters:
             tags:
               only: /^v.*/
+          context:
+            - Gruntwork Admin
       - deploy:
           requires:
             - build
@@ -82,8 +80,8 @@ workflows:
               only: /^v.*/
             branches:
               ignore: /.*/
-
-
+          context:
+            - Gruntwork Admin
   frequently:
     triggers:
       - schedule:
@@ -92,11 +90,14 @@ workflows:
             branches:
               only: master
     jobs:
-      - test
+      - test:
+          context:
+            - Gruntwork Admin
       - nuke_phx_devops:
           requires:
             - test
-
+          context:
+            - Gruntwork Admin
   nightly:
     triggers:
       - schedule:
@@ -105,7 +106,11 @@ workflows:
             branches:
               only: master
     jobs:
-      - test
+      - test:
+          context:
+            - Gruntwork Admin
       - nuke_sandbox:
           requires:
             - test
+          context:
+            - Gruntwork Admin
