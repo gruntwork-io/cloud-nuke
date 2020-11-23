@@ -409,6 +409,22 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End RDS DB Clusters
 
+		// Lambda Functions
+		lambdaFunctions := LambdaFunctions{}
+		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
+			lambdaFunctionNames, err := getAllLambdaFunctions(session, excludeAfter)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(lambdaFunctionNames) > 0 {
+				lambdaFunctions.LambdaFunctionNames = awsgo.StringValueSlice(lambdaFunctionNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, lambdaFunctions)
+			}
+		}
+		// End Lambda Functions
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -474,6 +490,7 @@ func ListResourceTypes() []string {
 		ECSServices{}.ResourceName(),
 		EKSClusters{}.ResourceName(),
 		DBInstances{}.ResourceName(),
+		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
