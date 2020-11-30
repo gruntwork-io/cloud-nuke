@@ -96,8 +96,6 @@ workflows:
       - nuke_phx_devops:
           requires:
             - test
-          context:
-            - Gruntwork Admin
   nightly:
     triggers:
       - schedule:
@@ -112,5 +110,3 @@ workflows:
       - nuke_sandbox:
           requires:
             - test
-          context:
-            - Gruntwork Admin
