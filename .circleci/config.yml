@@ -90,9 +90,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - test:
-          context:
-            - Gruntwork Admin
+      - test
       - nuke_phx_devops:
           requires:
             - test
@@ -104,9 +102,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - test:
-          context:
-            - Gruntwork Admin
+      - test
       - nuke_sandbox:
           requires:
             - test
