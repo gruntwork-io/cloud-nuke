@@ -3,6 +3,7 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
@@ -25,4 +26,34 @@ func getAllIamUsers(session *session.Session, region string) ([]*string, error) 
 	}
 
 	return userNames, nil
+}
+
+// Delete all IAM Users
+func nukeAllIamUsers(session *session.Session, userNames []*string) error {
+	if len(userNames) == 0 {
+		logging.Logger.Info("No IAM Users to nuke")
+		return nil
+	}
+
+	logging.Logger.Info("Deleting all IAM Users")
+
+	deletedUsers := 0
+	svc := iam.New(session)
+
+	for _, userName := range userNames {
+		input := &iam.DeleteUserInput{
+			UserName: userName,
+		}
+
+		_, err := svc.DeleteUser(input)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+		} else {
+			deletedUsers++
+			logging.Logger.Infof("Deleted IAM User: %s", *userName)
+		}
+	}
+
+	logging.Logger.Infof("[OK] %d IAM User(s) terminated", deletedUsers)
+	return nil
 }

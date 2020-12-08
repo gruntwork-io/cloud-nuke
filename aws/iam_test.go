@@ -69,9 +69,29 @@ func TestCreateIamUser(t *testing.T) {
 	assert.NotContains(t, awsgo.StringValueSlice(userNames), name)
 
 	err = createTestUser(t, session, name)
+	defer nukeAllIamUsers(session, []*string{&name})
 	require.NoError(t, err)
 
 	userNames, err = getAllIamUsers(session, region)
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(userNames), name)
+}
+
+func TestNukeIamUsers(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+	require.NoError(t, err)
+
+	name := "cloud-nuke-test-" + util.UniqueID()
+	err = createTestUser(t, session, name)
+	require.NoError(t, err)
+
+	err = nukeAllIamUsers(session, []*string{&name})
+	require.NoError(t, err)
 }
