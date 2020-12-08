@@ -24,9 +24,7 @@ func TestListIamUsers(t *testing.T) {
 	// TODO: Implement exclusion by time filter
 	// userNames, err := getAllIamUsers(session, region, time.Now().Add(1*time.Hour*-1))
 	userNames, err := getAllIamUsers(session, region)
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of IAM users")
-	}
+	require.NoError(t, err)
 
 	// TODO: Remove this, just for temporary visual confirmation
 	for _, name := range userNames {
