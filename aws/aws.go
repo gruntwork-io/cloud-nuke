@@ -472,6 +472,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End S3 Buckets
 
+		// IAM Users
+		iamUsers := IAMUsers{}
+		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
+			userNames, err := getAllIamUsers(session, region)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(userNames) > 0 {
+				iamUsers.UserNames = awsgo.StringValueSlice(userNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, iamUsers)
+			}
+		}
+		// End IAM Users
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -499,6 +513,7 @@ func ListResourceTypes() []string {
 		DBInstances{}.ResourceName(),
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
+		IAMUsers{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
