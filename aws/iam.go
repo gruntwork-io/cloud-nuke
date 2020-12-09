@@ -28,6 +28,10 @@ func getAllIamUsers(session *session.Session, region string) ([]*string, error) 
 	return userNames, nil
 }
 
+// TODO: This is only deleting the user but no associated resources
+// According to https://docs.aws.amazon.com/sdk-for-go/api/service/iam/#IAM.DeleteUser
+// "you must delete the items attached to the user manually, or the deletion fails"
+
 // Delete all IAM Users
 func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 	if len(userNames) == 0 {
