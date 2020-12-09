@@ -9,6 +9,7 @@ import (
 
 // List all IAM users in the AWS account and returns a slice of the UserNames
 // TODO: Implement exclusion by time filter
+// TODO: AWS IAM is global, specifying a region doesn't make sense and creates duplicated output
 func getAllIamUsers(session *session.Session, region string) ([]*string, error) {
 	svc := iam.New(session)
 	input := &iam.ListUsersInput{}
