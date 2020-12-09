@@ -506,6 +506,7 @@ func ListResourceTypes() []string {
 		DBInstances{}.ResourceName(),
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
+		IAMUsers{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
