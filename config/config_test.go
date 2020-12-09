@@ -9,7 +9,10 @@ import (
 )
 
 func emptyConfig() *Config {
-	return &Config{ResourceType{FilterRule{}, FilterRule{}}}
+	return &Config{
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+	}
 }
 
 func TestConfig_Garbage(t *testing.T) {
@@ -46,6 +49,8 @@ func TestConfig_Empty(t *testing.T) {
 
 	return
 }
+
+// S3 Tests
 
 func TestConfigS3_Empty(t *testing.T) {
 	configFilePath := "./mocks/s3_empty.yaml"
@@ -133,6 +138,99 @@ func TestConfigS3_FilterNames(t *testing.T) {
 	if len(configObj.S3.IncludeRule.NamesRE) == 0 ||
 		len(configObj.S3.ExcludeRule.NamesRE) == 0 {
 		assert.Fail(t, "ConfigObj should contain S3 names regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// IAM Users Tests
+
+func TestConfigIAM_Users_Empty(t *testing.T) {
+	configFilePath := "./mocks/iam_users_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.IAMUsers)
+	}
+
+	return
+}
+
+func TestConfigIAM_Users_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/iam_users_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigIAM_Users_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/iam_users_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigIAM_Users_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/iam_users_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.IAMUsers.IncludeRule.NamesRE) == 0 {
+		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigIAM_Users_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/iam_users_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.IAMUsers.ExcludeRule.NamesRE) == 0 {
+		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigIAM_Users_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/iam_users_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.IAMUsers.IncludeRule.NamesRE) == 0 ||
+		len(configObj.IAMUsers.ExcludeRule.NamesRE) == 0 {
+		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
 	}
 
 	return

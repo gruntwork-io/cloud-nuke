@@ -475,7 +475,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// IAM Users
 		iamUsers := IAMUsers{}
 		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
-			userNames, err := getAllIamUsers(session, region)
+			userNames, err := getAllIamUsers(session, region, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

@@ -7,8 +7,8 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ func TestListIamUsers(t *testing.T) {
 
 	// TODO: Implement exclusion by time filter
 	// userNames, err := getAllIamUsers(session, region, time.Now().Add(1*time.Hour*-1))
-	userNames, err := getAllIamUsers(session, region)
+	userNames, err := getAllIamUsers(session, region, config.Config{})
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, userNames)
@@ -39,9 +39,7 @@ func createTestUser(t *testing.T, session *session.Session, name string) error {
 	}
 
 	_, err := svc.CreateUser(input)
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
+	require.NoError(t, err)
 
 	return nil
 }
@@ -58,7 +56,7 @@ func TestCreateIamUser(t *testing.T) {
 	require.NoError(t, err)
 
 	name := "cloud-nuke-test-" + util.UniqueID()
-	userNames, err := getAllIamUsers(session, region)
+	userNames, err := getAllIamUsers(session, region, config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(userNames), name)
 
@@ -66,7 +64,7 @@ func TestCreateIamUser(t *testing.T) {
 	defer nukeAllIamUsers(session, []*string{&name})
 	require.NoError(t, err)
 
-	userNames, err = getAllIamUsers(session, region)
+	userNames, err = getAllIamUsers(session, region, config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(userNames), name)
 }

@@ -3,6 +3,7 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
@@ -10,7 +11,7 @@ import (
 // List all IAM users in the AWS account and returns a slice of the UserNames
 // TODO: Implement exclusion by time filter
 // TODO: AWS IAM is global, specifying a region doesn't make sense and creates duplicated output
-func getAllIamUsers(session *session.Session, region string) ([]*string, error) {
+func getAllIamUsers(session *session.Session, region string, configObj config.Config) ([]*string, error) {
 	svc := iam.New(session)
 	input := &iam.ListUsersInput{}
 
@@ -23,7 +24,9 @@ func getAllIamUsers(session *session.Session, region string) ([]*string, error) 
 	}
 
 	for _, user := range output.Users {
-		userNames = append(userNames, user.UserName)
+		if config.ShouldInclude(*user.UserName, configObj.IAMUsers.IncludeRule.NamesRE, configObj.IAMUsers.ExcludeRule.NamesRE) {
+			userNames = append(userNames, user.UserName)
+		}
 	}
 
 	return userNames, nil
