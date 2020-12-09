@@ -45,7 +45,7 @@ When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs a
 
 Note that package managers are third party. The third party cloud-nuke packages may not be updated with the latest version, but are often close. Please check your version against the latest available on the [releases page](https://github.com/gruntwork-io/cloud-nuke/releases). If you want the latest version, the recommended installation option is to [download from the releases page](https://github.com/gruntwork-io/cloud-nuke/releases).
 
-- **macOS:** You can install cloud-nuke using [Homebrew](https://brew.sh/): `brew install cloud-nuke`. 
+- **macOS:** You can install cloud-nuke using [Homebrew](https://brew.sh/): `brew install cloud-nuke`.
 
 - **Linux:** Most Linux users can use [Homebrew](https://docs.brew.sh/Homebrew-on-Linux): `brew install cloud-nuke`.
 
@@ -132,7 +132,9 @@ cloud-nuke aws --resource-type ec2 --dry-run
 
 For more granularity, such as being able to specify which resources to terminate using regular expressions or plain text, you can pass in a configuration file.
 
-_Note: Config file support is a new feature and only filtering s3 buckets by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
+_Note: Config file support is a new feature and only filtering s3 buckets and IAM Users by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
+
+#### S3 Buckets
 
 ```shell
 cloud-nuke aws --resource-type s3 --config path/to/file.yaml
@@ -190,6 +192,44 @@ s3:
       - us-east-1
 ```
 -->
+
+#### IAM Users
+
+```shell
+cloud-nuke aws --resource-type iam --config path/to/file.yaml
+```
+
+Given this command, `cloud-nuke` will nuke _only_ IAM Users, as specified by the `--resource-type iam` option.
+
+Now given the following config, the IAM Users that will be nuked are further filtered to only include ones that match any of the provided regular expressions. So a user named `some-nice-user-name` would be deleted, but a user named `intersting-user-name` would not.
+
+```yaml
+IAMUsers:
+  include:
+    names_regex:
+      - ^some-.*-user-name$
+      - .*-cool-name-.*
+```
+
+#### Include and exclude together
+
+Now consider the following contrived example:
+
+```yaml
+IAMUsers:
+  include:
+    names_regex:
+      - ^some-.*-user-name$
+      - .*-cool-name-.*
+  exclude:
+    names_regex:
+      - myself
+      - my-cool-name-friend
+```
+
+The intention is to delete all the IAM Users that match the include rules but not the exclude rules. Filtering is commutative, meaning that you should get the same result whether you apply the include filters before or after the exclude filters.
+
+The result of these filters applied in either order will be a set of IAM Users that match `^some-.*-user-name$` as long as they do not also contain `myself` or `myfriend`. The rule to include IAM Users matching `.*-cool-name-.*` is negated by the rule to exclude those matching `my-cool-name-friend`.
 
 #### CLI options override config file options
 

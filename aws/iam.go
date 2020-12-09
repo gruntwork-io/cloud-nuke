@@ -1,16 +1,57 @@
 package aws
 
 import (
+	"regexp"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
+func includeUserByREList(userName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(userName) {
+			return true
+		}
+	}
+	return false
+}
+
+func excludeUserByREList(userName string, reList []*regexp.Regexp) bool {
+	for _, re := range reList {
+		if re.MatchString(userName) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func shouldIncludeUser(userName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
+	shouldInclude := false
+
+	if len(includeNamesREList) > 0 {
+		// If any include rules are specified,
+		// only check to see if an exclude rule matches when an include rule matches the user
+		if includeUserByREList(userName, includeNamesREList) {
+			shouldInclude = excludeUserByREList(userName, excludeNamesREList)
+		}
+	} else if len(excludeNamesREList) > 0 {
+		// Only check to see if an exclude rule matches when there are no include rules defined
+		shouldInclude = excludeUserByREList(userName, excludeNamesREList)
+	} else {
+		shouldInclude = true
+	}
+
+	return shouldInclude
+}
+
 // List all IAM users in the AWS account and returns a slice of the UserNames
 // TODO: Implement exclusion by time filter
 // TODO: AWS IAM is global, specifying a region doesn't make sense and creates duplicated output
-func getAllIamUsers(session *session.Session, region string) ([]*string, error) {
+func getAllIamUsers(session *session.Session, region string, configObj config.Config) ([]*string, error) {
 	svc := iam.New(session)
 	input := &iam.ListUsersInput{}
 
@@ -23,7 +64,9 @@ func getAllIamUsers(session *session.Session, region string) ([]*string, error) 
 	}
 
 	for _, user := range output.Users {
-		userNames = append(userNames, user.UserName)
+		if shouldIncludeUser(*user.UserName, configObj.IAMUsers.IncludeRule.NamesRE, configObj.IAMUsers.ExcludeRule.NamesRE) {
+			userNames = append(userNames, user.UserName)
+		}
 	}
 
 	return userNames, nil
