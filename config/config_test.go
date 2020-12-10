@@ -143,6 +143,7 @@ func TestConfigS3_IncludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
+	//TODO: Use assert.Greater to handle this comparison instead
 	if len(configObj.S3.IncludeRule.NamesRE) == 0 {
 		assert.Fail(t, "ConfigObj should contain S3 names regexes, %+v\n", configObj)
 	}
@@ -160,6 +161,7 @@ func TestConfigIamRole_IncludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
+	//TODO: Use assert.Greater to handle this comparison instead
 	if len(configObj.IamRole.IncludeRule.NamesRE) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM Role names regexes, %+v\n", configObj)
 	}
@@ -177,6 +179,7 @@ func TestConfigS3_ExcludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
+	//TODO: Use assert.Greater to handle this comparison instead
 	if len(configObj.S3.ExcludeRule.NamesRE) == 0 {
 		assert.Fail(t, "ConfigObj should contain S3 names regexes, %+v\n", configObj)
 	}
@@ -194,6 +197,7 @@ func TestConfigIamRole_ExcludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
+	//TODO: Use assert.Greater to handle this comparison instead
 	if len(configObj.IamRole.ExcludeRule.NamesRE) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM Role names regexes, %+v\n", configObj)
 	}
@@ -211,6 +215,7 @@ func TestConfigS3_FilterNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
+	//TODO: Use assert.Greater to handle this comparisons instead
 	if len(configObj.S3.IncludeRule.NamesRE) == 0 ||
 		len(configObj.S3.ExcludeRule.NamesRE) == 0 {
 		assert.Fail(t, "ConfigObj should contain S3 names regexes, %+v\n", configObj)
@@ -229,6 +234,7 @@ func TestConfigIamRole_FilterNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
+	//TODO: Use assert.Greater to handle this comparisons instead
 	if len(configObj.IamRole.IncludeRule.NamesRE) == 0 ||
 		len(configObj.IamRole.ExcludeRule.NamesRE) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM Role names regexes, %+v\n", configObj)
@@ -247,6 +253,7 @@ func TestConfig_MixedConfig(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
+	//TODO: Use assert.Greater to handle this comparisons instead
 	if len(configObj.S3.IncludeRule.NamesRE) == 0 ||
 		len(configObj.S3.ExcludeRule.NamesRE) == 0 ||
 		len(configObj.IamRole.IncludeRule.NamesRE) == 0 ||
