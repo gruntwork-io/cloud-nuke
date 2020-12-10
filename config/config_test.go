@@ -9,7 +9,7 @@ import (
 )
 
 func emptyConfig() *Config {
-	return &Config{ResourceType{FilterRule{}, FilterRule{}}}
+	return &Config{ResourceType{FilterRule{}, FilterRule{}}, ResourceType{FilterRule{}, FilterRule{}}}
 }
 
 func TestConfig_Garbage(t *testing.T) {
