@@ -242,7 +242,7 @@ Note that if S3 resource filters are not present in config file, cloud-nuke will
 cloud-nuke aws --resource-type iam-role --config path/to/config.yaml
 ```
 
-Similar to previous example, `cloud-nuke` used along with `--resource-type iam-role` option will result in nuking IAM roles. Given a `--config` option, any include/exclude filters for IAM roles will be used to perform the deletion. Filters for S3 will be ignored(?). Any unsupported resources will be ignored, and if IAM role resource filters are not present in config file, cloud-nuke will delete all IAM roles.
+Similar to the previous example, `cloud-nuke` used along with `--resource-type iam-role` option will result in nuking IAM roles. Given a `--config` option, any include/exclude filters for IAM roles will be used to perform the deletion. Just like with the S3 example, filters for the unselected resource type (S3) will be ignored, and any unsupported resources will be ignored, and if there are no filters, all IAM roles will be deleted.
 
 ```shell
 cloud-nuke aws --resource-type s3 --resource-type iam-role --config path/to/config.yaml
