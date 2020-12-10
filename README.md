@@ -234,7 +234,9 @@ Running this command will result in the nuking of _ALL_ resources, using config 
 cloud-nuke aws --resource-type s3 --config path/to/config.yaml
 ```
 
-Here `cloud-nuke` used along with `--resource-type s3` option will result in nuking S3 buckets. Given a `--config` option, any include/exclude filters for S3 will be used to perform the deletion. Filters for IAM Role will be ignored(?). Any unsupported resources will be ignored, and if S3 resource filters are not present in config file, cloud-nuke will delete all S3 buckets. 
+Here `cloud-nuke` used along with `--resource-type s3` option will result in nuking S3 buckets. Given a `--config` option, any include/exclude filters for S3 will be used to perform the deletion. Filters for IAM Role will be ignored and any unsupported resources will also be ignored.
+
+Note that if S3 resource filters are not present in config file, cloud-nuke will delete all S3 buckets. 
 
 ```shell
 cloud-nuke aws --resource-type iam-role --config path/to/config.yaml
