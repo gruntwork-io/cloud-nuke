@@ -7,7 +7,7 @@ import (
 const AwsResourceExclusionTagKey = "cloud-nuke-excluded"
 
 type AwsAccountResources struct {
-	Resources          map[string]AwsRegionResource
+	RegionResources    map[string]AwsRegionResource
 	NonRegionResources []AwsResources
 }
 

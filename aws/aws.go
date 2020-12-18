@@ -179,7 +179,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 // GetAllResources - Lists all aws resources
 func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string, configObj config.Config) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
-		Resources:          make(map[string]AwsRegionResource),
+		RegionResources:    make(map[string]AwsRegionResource),
 		NonRegionResources: []AwsResources{},
 	}
 
@@ -467,7 +467,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End S3 Buckets
 
 		if len(resourcesInRegion.Resources) > 0 {
-			account.Resources[region] = resourcesInRegion
+			account.RegionResources[region] = resourcesInRegion
 		}
 		regionNumber++
 	}
@@ -548,7 +548,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		resourcesInRegion := account.Resources[region]
+		resourcesInRegion := account.RegionResources[region]
 		for _, resources := range resourcesInRegion.Resources {
 			length := len(resources.ResourceIdentifiers())
 

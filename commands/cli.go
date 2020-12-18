@@ -224,13 +224,13 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	if len(account.Resources) == 0 && len(account.NonRegionResources) == 0 {
+	if len(account.RegionResources) == 0 && len(account.NonRegionResources) == 0 {
 		logging.Logger.Infoln("Nothing to nuke, you're all good!")
 		return nil
 	}
 
 	nukableResources := make([]string, 0)
-	for region, resourcesInRegion := range account.Resources {
+	for region, resourcesInRegion := range account.RegionResources {
 		for _, resources := range resourcesInRegion.Resources {
 			for _, identifier := range resources.ResourceIdentifiers() {
 				nukableResources = append(nukableResources, fmt.Sprintf("* %s %s %s\n", resources.ResourceName(), identifier, region))
