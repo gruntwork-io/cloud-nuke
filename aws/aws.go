@@ -554,7 +554,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 
 			// Split api calls into batches
 			batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
-			logging.Logger.Infof("Terminating %d resources in %d batches", length, batches)
+			logging.Logger.Infof("Terminating %d resources in %d batches", length, len(batches))
 
 			for i := 0; i < len(batches); i++ {
 				batch := batches[i]
