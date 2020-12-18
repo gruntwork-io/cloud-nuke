@@ -224,7 +224,7 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	if len(account.Resources) == 0 {
+	if len(account.Resources) == 0 && len(account.NonRegionResources) == 0 {
 		logging.Logger.Infoln("Nothing to nuke, you're all good!")
 		return nil
 	}
@@ -237,12 +237,19 @@ func awsNuke(c *cli.Context) error {
 			}
 		}
 	}
+	for _, resources := range account.NonRegionResources {
+		for _, identifier := range resources.ResourceIdentifiers() {
+			nukableResources = append(nukableResources, fmt.Sprintf("* %s %s\n", resources.ResourceName(), identifier))
+		}
+	}
 
 	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukableResources))
 
 	for _, resource := range nukableResources {
 		logging.Logger.Infoln(resource)
 	}
+
+	logging.Logger.Infof("The preceding %d AWS resources will be nuked.", len(nukableResources))
 
 	if c.Bool("dry-run") {
 		logging.Logger.Infoln("Not taking any action as dry-run set to true.")
@@ -256,7 +263,7 @@ func awsNuke(c *cli.Context) error {
 			return err
 		}
 		if proceed {
-			if err := aws.NukeAllResources(account, regions); err != nil {
+			if err := aws.NukeAllResources(account, targetRegions); err != nil {
 				return err
 			}
 		}
@@ -268,7 +275,7 @@ func awsNuke(c *cli.Context) error {
 		}
 
 		fmt.Println()
-		if err := aws.NukeAllResources(account, regions); err != nil {
+		if err := aws.NukeAllResources(account, targetRegions); err != nil {
 			return err
 		}
 	}

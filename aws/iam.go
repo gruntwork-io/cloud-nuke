@@ -82,11 +82,11 @@ func nukeAllIAMRoles(session *session.Session, names []*string) error {
 	svc := iam.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No IAM Roles to nuke in region %s", *session.Config.Region)
+		logging.Logger.Info("No IAM Roles to nuke.")
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all IAM Roles in region %s", *session.Config.Region)
+	logging.Logger.Info("Deleting all IAM Roles.")
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -115,7 +115,7 @@ func nukeAllIAMRoles(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d IAM Role(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Infof("[OK] %d IAM Role(s) deleted.", len(deletedNames))
 	return nil
 }
 
