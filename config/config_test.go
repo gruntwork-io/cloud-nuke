@@ -166,3 +166,26 @@ func TestConfigIAMRole_FilterNames(t *testing.T) {
 
 	return
 }
+
+// Test that two or more resource configs together work
+func TestConfigMultiple_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/multiple_resources_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.IAMRole.IncludeRule.NamesRE) == 0 ||
+		len(configObj.IAMRole.ExcludeRule.NamesRE) == 0 {
+		assert.Fail(t, "ConfigObj should contain IAMRole names regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// TODO: Once there is support for the below:
+// TODO: Test filtering another property.
+// TODO: Test filtering both names and another property.
