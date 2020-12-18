@@ -375,6 +375,22 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EKS resources
 
+		// IAM Roles
+		iamRoles := IAMRoles{}
+		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
+			iamRoleNames, err := getAllIAMRoles(session, excludeAfter, configObj)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(iamRoleNames) > 0 {
+				iamRoles.RoleNames = awsgo.StringValueSlice(iamRoleNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, iamRoles)
+			}
+		}
+		// End IAM Roles
+
 		// RDS DB Instances
 		dbInstances := DBInstances{}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
@@ -492,6 +508,7 @@ func ListResourceTypes() []string {
 		DBInstances{}.ResourceName(),
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
+		IAMRoles{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

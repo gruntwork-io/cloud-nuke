@@ -1,0 +1,5 @@
+iamRole:
+  include:
+    names_regex:
+      - ^cloud-nuke-
+      - test
