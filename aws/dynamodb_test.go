@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func createTestDynamoTables(t *testing.T, session *session.Session) error {
+func CreateTestDynamoTables(t *testing.T, session *session.Session) error {
 	svc := dynamodb.New(session)
 	tablestocreate := []string{"Table1", "Table2"}
 	for _, table := range tablestocreate {
@@ -19,13 +19,13 @@ func createTestDynamoTables(t *testing.T, session *session.Session) error {
 			assert.Fail(t, errors.WithStackTrace(err).Error())
 		}
 	}
-	
+
 	return nil
 }
 
-
-func nukeAllDynamoDBTablesTest(t *testing.T, session *session.Session) error {
+func NukeAllDynamoDBTablesTest(t *testing.T, session *session.Session) error {
 	tables, err := getAllDynamoTables(session)
+	t.Log(&tables)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -36,5 +36,3 @@ func nukeAllDynamoDBTablesTest(t *testing.T, session *session.Session) error {
 	}
 	return nil
 }
-
-

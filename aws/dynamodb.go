@@ -5,19 +5,16 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
-
-
-
 func getAllDynamoTables(session *session.Session) ([]*string, error) {
-	var DynamoTableNames []*string
+	var TableNames []*string
 	svc := dynamodb.New(session)
-	input := &dynamodb.ListTablesInput{}
 
 	for {
-		result, err := svc.ListTables(input)
+		result, err := svc.ListTables(&dynamodb.ListTablesInput{})
 		if err != nil {
 			//
 			if aerr, ok := err.(awserr.Error); ok {
@@ -27,14 +24,14 @@ func getAllDynamoTables(session *session.Session) ([]*string, error) {
 				default:
 					return nil, errors.WithStackTrace(aerr)
 				}
-				} else {
+			} else {
 				return nil, errors.WithStackTrace(aerr)
 			}
 		}
 		for _, table := range result.TableNames {
-			DynamoTableNames = append(DynamoTableNames, table)
+			TableNames = append(TableNames, table)
 		}
-		return DynamoTableNames, nil
+		return TableNames, nil
 
 	}
 
@@ -42,7 +39,14 @@ func getAllDynamoTables(session *session.Session) ([]*string, error) {
 
 func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 	svc := dynamodb.New(session)
+	if len(tables) == 0 {
+		logging.Logger.Infof("No EBS volumes to nuke in region %s", *session.Config.Region)
+		return nil
+	}
+
+	logging.Logger.Infof("Deleting all EBS volumes in region %s", *session.Config.Region)
 	for _, table := range tables {
+
 		input := &dynamodb.DeleteTableInput{
 			TableName: aws.String(*table),
 		}
@@ -52,17 +56,16 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Error() {
 				case dynamodb.ErrCodeInternalServerError:
-					return  errors.WithStackTrace(aerr)
+					return errors.WithStackTrace(aerr)
 				default:
-					return  errors.WithStackTrace(aerr)
+					return errors.WithStackTrace(aerr)
 				}
 			} else {
-				return  errors.WithStackTrace(aerr)
+				return errors.WithStackTrace(aerr)
 			}
 		}
 
 	}
 	return nil
-
 
 }
