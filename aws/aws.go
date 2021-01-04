@@ -492,6 +492,7 @@ func ListResourceTypes() []string {
 		DBInstances{}.ResourceName(),
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
+		DynamoDB{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
