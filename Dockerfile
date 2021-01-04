@@ -14,7 +14,7 @@ FROM golang:1.15-alpine as builder
 WORKDIR /wrk
 COPY . . 
 
-#You can overrride by setting the CIRCLE_TAG environment variable, 0.0.0 is just a, so you'll notice if you fot
+#You can overrride by setting the CIRCLE_TAG environment variable. 0.0.0 is just a default, so you'll notice if you forget
 ARG VERSION=0.0.0
 RUN go build -o dest/cloud-nuke -ldflags="-X main.VERSION=$CIRCLE_TAG"
 

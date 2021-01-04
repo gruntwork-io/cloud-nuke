@@ -301,6 +301,10 @@ cd aws
 go test -v -run TestListAMIs
 ```
 
+### Building and running in Docker
+
+In order to build and run as a docker container, have a look at the instructions at the top of the Dockerfile in this repository.
+
 ### Formatting
 
 Every source file in this project should be formatted with `go fmt`.
