@@ -23,7 +23,6 @@ github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c h1:jWtZjFEUE/Bz0IeIhqC
 github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/gruntwork-io/gruntwork-cli v0.1.2 h1:lUaJdPTRJ0HGELW8a3r2QJnHA+Dak+PkvOP+T8ykXF4=
 github.com/gruntwork-io/gruntwork-cli v0.1.2/go.mod h1:IBX21bESC1/LGoV7jhXKUnTQTZgQ6dYRsoj/VqxUSZQ=
-github.com/gruntwork-io/gruntwork-cli v0.7.0 h1:YgSAmfCj9c61H+zuvHwKfYUwlMhu5arnQQLM4RH+CYs=
 github.com/gruntwork-io/terratest v0.13.19 h1:nlNPSztAyIa67C0yEiotzPv+T4X1TQib/25qGzJjFgA=
 github.com/gruntwork-io/terratest v0.13.19/go.mod h1:NjUn6YXA5Skxt8Rs20t3isYx5Rl+EgvGB8/+RRXddqk=
 github.com/hpcloud/tail v1.0.0 h1:nfCOvKYfkgYP8hkirhJocXT2+zOD8yUNjXaWfTlyFKI=
