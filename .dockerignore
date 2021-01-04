@@ -6,3 +6,4 @@ cloud-nuke
 _docs
 *.txt
 *.md
+*.sh
