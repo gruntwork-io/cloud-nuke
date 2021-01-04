@@ -438,6 +438,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, DynamoDB)
 			}
 		}
+		// End Dynamo DB tables
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
