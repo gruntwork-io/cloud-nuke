@@ -24,7 +24,7 @@ FROM alpine:3 as runner
 
 #Set working directory
 WORKDIR /wrk
-#Create non-root user, to make the containersafer to run
+#Create non-root user, to make the container safer to run
 RUN addgroup -S app && adduser -S -G app app
 #Own the working folder
 RUN chown app:app . 
