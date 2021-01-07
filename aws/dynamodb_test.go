@@ -15,9 +15,7 @@ func CreateTestDynamoTables(t *testing.T, session *session.Session) error {
 	for _, table := range tablestocreate {
 		input := &dynamodb.CreateTableInput{TableName: aws.String(table)}
 		_, err := svc.CreateTable(input)
-		if err != nil {
-			assert.Fail(t, errors.WithStackTrace(err).Error())
-		}
+		require.NoError(t, err)
 	}
 
 	return nil
