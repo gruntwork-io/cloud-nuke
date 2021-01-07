@@ -22,10 +22,9 @@ func CreateTestDynamoTables(t *testing.T, session *session.Session) error {
 
 func NukeAllDynamoDBTablesTest(t *testing.T, session *session.Session) error {
 	tables, err := getAllDynamoTables(session)
-	t.Log(&tables)
 	require.NoError(t, err)
 
-	error := nukeAllDynamoDBTables(session, tables)
-	require.NoError(t, error)
+	nukeErr := nukeAllDynamoDBTables(session, tables)
+	require.NoError(t, nukeErr)
 	return nil
 }
