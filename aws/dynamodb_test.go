@@ -27,8 +27,6 @@ func NukeAllDynamoDBTablesTest(t *testing.T, session *session.Session) error {
 	require.NoError(t, err)
 
 	error := nukeAllDynamoDBTables(session, tables)
-	if error != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, error)
 	return nil
 }
