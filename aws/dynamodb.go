@@ -7,9 +7,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"time"
 )
 
-func getAllDynamoTables(session *session.Session) ([]*string, error) {
+func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*string, error) {
 	var tableNames []*string
 	svc := dynamodb.New(session)
 
@@ -27,13 +28,16 @@ func getAllDynamoTables(session *session.Session) ([]*string, error) {
 			}
 		}
 		for _, table := range result.TableNames {
-			tableNames = append(tableNames, table)
+				tableNames = append(tableNames, table)
+
 		}
 		return tableNames, nil
 
 	}
 
 }
+
+
 
 func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 	svc := dynamodb.New(session)
