@@ -1,12 +1,4 @@
-# To build this locally, just update the CIRCLE_TAG environment value and run this command: 
-#    export CIRCLE_TAG=1.0.0 && DOCKER_BUILDKIT=1 docker build --compress --build-arg "VERSION=$CIRCLE_TAG" --tag "gruntwork-io/cloud-nuke:$CIRCLE_TAG" --tag "gruntwork-io/cloud-nuke:latest" .
-# To run this: 
-#    docker run -it --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN gruntwork-io/cloud-nuke
-# Linted with https://github.com/hadolint/hadolint:
-#    docker run --rm -i hadolint/hadolint < Dockerfile
-# And linted with https://github.com/replicatedhq/dockerfilelint
-#    docker run --rm -v "$PWD/Dockerfile:/Dockerfile" replicated/dockerfilelint /Dockerfile
-
+# Check the README.md for build and run instructions
 
 ####### Builder ########
 FROM golang:1.15-alpine as builder
