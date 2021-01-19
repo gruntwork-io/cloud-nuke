@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,7 +18,6 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // getS3BucketRegion returns S3 Bucket region.
@@ -527,7 +528,7 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 
 	logging.Logger.Infof("Deleting - %d S3 Buckets in region %s", totalCount, *awsSession.Config.Region)
 
-	multiErr := &util.MultiErr{}
+	multiErr := new(multierror.Error)
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
 
 		bucketName := bucketNames[bucketIndex]
@@ -536,14 +537,14 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		err = nukeAllS3BucketObjects(svc, bucketName, objectBatchSize)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
-			multiErr.Add(err)
+			multierror.Append(multiErr, err)
 			continue
 		}
 
 		err = nukeEmptyS3Bucket(svc, bucketName, verifyBucketDeletion)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
-			multiErr.Add(err)
+			multierror.Append(multiErr, err)
 			continue
 		}
 
@@ -551,9 +552,5 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		delCount++
 	}
 
-	if multiErr.IsEmpty() {
-		return delCount, nil
-	} else {
-		return delCount, multiErr
-	}
+	return delCount, multiErr.ErrorOrNil()
 }

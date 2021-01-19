@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c // indirect
 	github.com/gruntwork-io/gruntwork-cli v0.1.2
 	github.com/gruntwork-io/terratest v0.13.19
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.3 // indirect
 	github.com/onsi/ginkgo v1.11.0 // indirect
