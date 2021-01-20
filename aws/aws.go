@@ -258,6 +258,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End LoadBalancerV2 Arns
 
+		// TransitGatewayVpcAttachment
+		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
+		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) {
+			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(transitGatewayVpcAttachmentIds) > 0 {
+				transitGatewayVpcAttachments.Ids = awsgo.StringValueSlice(transitGatewayVpcAttachmentIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGatewayVpcAttachments)
+			}
+		}
+		// End TransitGatewayVpcAttachment
+
 		// TransitGatewayRouteTable
 		transitGatewayRouteTables := TransitGatewaysRouteTables{}
 		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) {
@@ -509,6 +523,7 @@ func ListResourceTypes() []string {
 		LaunchConfigs{}.ResourceName(),
 		LoadBalancers{}.ResourceName(),
 		LoadBalancersV2{}.ResourceName(),
+		TransitGatewaysVpcAttachment{}.ResourceName(),
 		TransitGatewaysRouteTables{}.ResourceName(),
 		TransitGateways{}.ResourceName(),
 		EC2Instances{}.ResourceName(),
