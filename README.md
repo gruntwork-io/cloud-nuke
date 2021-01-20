@@ -10,6 +10,7 @@ The currently supported functionality includes:
 
 - Deleting all Auto scaling groups in an AWS account
 - Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
+- Deleting all Transit Gateways in an AWS account
 - Deleting all EBS Volumes in an AWS account
 - Deleting all unprotected EC2 instances in an AWS account
 - Deleting all AMIs in an AWS account
