@@ -20,7 +20,7 @@ import (
 // OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
 // Beginning in Spring 2019, AWS requires new regions to be explicitly enabled
 // See https://aws.amazon.com/blogs/security/setting-permissions-to-enable-accounts-for-upcoming-aws-regions/
-var OptInNotRequiredRegions = [...]string{
+var OptInNotRequiredRegions = []string{
 	"eu-north-1",
 	"ap-south-1",
 	"eu-west-3",
@@ -39,6 +39,13 @@ var OptInNotRequiredRegions = [...]string{
 	"us-west-2",
 }
 
+// GovCloudRegions contains all of the U.S. GovCloud regions. In accounts with GovCloud enabled, these are the
+// only available regions.
+var GovCloudRegions = []string{
+	"us-gov-east-1",
+	"us-gov-west-1",
+}
+
 func newSession(region string) *session.Session {
 	return session.Must(
 		session.NewSessionWithOptions(
@@ -54,8 +61,8 @@ func newSession(region string) *session.Session {
 
 // Try a describe regions command with the most likely enabled regions
 func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
-	for i := 0; i < len(OptInNotRequiredRegions); i++ {
-		region := OptInNotRequiredRegions[rand.Intn(len(OptInNotRequiredRegions))]
+	regionsToTry := append(OptInNotRequiredRegions, GovCloudRegions...)
+	for _, region := range regionsToTry {
 		svc := ec2.New(newSession(region))
 		regions, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
 		if err != nil {
