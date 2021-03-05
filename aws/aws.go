@@ -46,6 +46,10 @@ var GovCloudRegions = []string{
 	"us-gov-west-1",
 }
 
+const (
+	GlobalRegion string = "global"
+)
+
 func newSession(region string) *session.Session {
 	return session.Must(
 		session.NewSessionWithOptions(
@@ -194,6 +198,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	var resourcesCache = map[string]map[string][]*string{}
 
 	for _, region := range targetRegions {
+		// The "global" region case is dealt outside this loop
+		if region == GlobalRegion {
+			continue
+		}
+
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
 		session, err := session.NewSession(&awsgo.Config{
@@ -472,24 +481,48 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End S3 Buckets
 
-		// IAM Users
-		iamUsers := IAMUsers{}
-		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
-			userNames, err := getAllIamUsers(session, region, configObj)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-			if len(userNames) > 0 {
-				iamUsers.UserNames = awsgo.StringValueSlice(userNames)
-				resourcesInRegion.Resources = append(resourcesInRegion.Resources, iamUsers)
-			}
-		}
-		// End IAM Users
-
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
 		count++
+	}
+
+	// Global Resources - These resources are global and do not belong to a specific region
+
+	logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
+
+	// As there is no actual region named global we have to pick a random one just to create the session
+	randomRegion, err := getRandomRegion()
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(randomRegion)},
+	)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	globalResources := AwsRegionResource{}
+
+	// IAM Users
+	iamUsers := IAMUsers{}
+	if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
+		userNames, err := getAllIamUsers(session, configObj)
+
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		if len(userNames) > 0 {
+			iamUsers.UserNames = awsgo.StringValueSlice(userNames)
+			globalResources.Resources = append(globalResources.Resources, iamUsers)
+		}
+	}
+	// End IAM Users
+
+	if len(globalResources.Resources) > 0 {
+		account.Resources[GlobalRegion] = globalResources
 	}
 
 	return &account, nil
@@ -534,43 +567,66 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) error {
+	resourcesInRegion := account.Resources[region]
+
+	for _, resources := range resourcesInRegion.Resources {
+		length := len(resources.ResourceIdentifiers())
+
+		// Split api calls into batches
+		logging.Logger.Infof("Terminating %d resources in batches", length)
+		batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
+
+		for i := 0; i < len(batches); i++ {
+			batch := batches[i]
+			if err := resources.Nuke(session, batch); err != nil {
+				// TODO: Figure out actual error type
+				if strings.Contains(err.Error(), "RequestLimitExceeded") {
+					logging.Logger.Info("Request limit reached. Waiting 1 minute before making new requests")
+					time.Sleep(1 * time.Minute)
+					continue
+				}
+
+				return errors.WithStackTrace(err)
+			}
+
+			if i != len(batches)-1 {
+				logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
+				time.Sleep(10 * time.Second)
+			}
+		}
+	}
+
+	return nil
+}
+
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	for _, region := range regions {
+		// region that will be used to create a session
+		sessionRegion := region
+		var err error
+
+		// As there is no actual region named global we have to pick a random one just to create the session
+		if region == GlobalRegion {
+			sessionRegion, err = getRandomRegion()
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+		}
+
 		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(region)},
+			Region: awsgo.String(sessionRegion)},
 		)
 
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 
-		resourcesInRegion := account.Resources[region]
-		for _, resources := range resourcesInRegion.Resources {
-			length := len(resources.ResourceIdentifiers())
+		err = nukeAllResourcesInRegion(account, region, session)
 
-			// Split api calls into batches
-			logging.Logger.Infof("Terminating %d resources in batches", length)
-			batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
-
-			for i := 0; i < len(batches); i++ {
-				batch := batches[i]
-				if err := resources.Nuke(session, batch); err != nil {
-					// TODO: Figure out actual error type
-					if strings.Contains(err.Error(), "RequestLimitExceeded") {
-						logging.Logger.Info("Request limit reached. Waiting 1 minute before making new requests")
-						time.Sleep(1 * time.Minute)
-						continue
-					}
-
-					return errors.WithStackTrace(err)
-				}
-
-				if i != len(batches)-1 {
-					logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
-					time.Sleep(10 * time.Second)
-				}
-			}
+		if err != nil {
+			return errors.WithStackTrace(err)
 		}
 	}
 

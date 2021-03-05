@@ -202,6 +202,9 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
+	// global is a fake region, used to represent global resources
+	regions = append(regions, aws.GlobalRegion)
+
 	selectedRegions := c.StringSlice("region")
 	excludedRegions := c.StringSlice("exclude-region")
 

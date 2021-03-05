@@ -25,8 +25,8 @@ func TestListIamUsers(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO: Implement exclusion by time filter
-	// userNames, err := getAllIamUsers(session, region, time.Now().Add(1*time.Hour*-1))
-	userNames, err := getAllIamUsers(session, region, config.Config{})
+	// userNames, err := getAllIamUsers(session, time.Now().Add(1*time.Hour*-1))
+	userNames, err := getAllIamUsers(session, config.Config{})
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, userNames)
@@ -56,7 +56,7 @@ func TestCreateIamUser(t *testing.T) {
 	require.NoError(t, err)
 
 	name := "cloud-nuke-test-" + util.UniqueID()
-	userNames, err := getAllIamUsers(session, region, config.Config{})
+	userNames, err := getAllIamUsers(session, config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(userNames), name)
 
@@ -64,7 +64,7 @@ func TestCreateIamUser(t *testing.T) {
 	defer nukeAllIamUsers(session, []*string{&name})
 	require.NoError(t, err)
 
-	userNames, err = getAllIamUsers(session, region, config.Config{})
+	userNames, err = getAllIamUsers(session, config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(userNames), name)
 }
