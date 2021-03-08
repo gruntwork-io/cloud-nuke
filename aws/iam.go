@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -9,8 +11,7 @@ import (
 )
 
 // List all IAM users in the AWS account and returns a slice of the UserNames
-// TODO: Implement exclusion by time filter
-func getAllIamUsers(session *session.Session, configObj config.Config) ([]*string, error) {
+func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := iam.New(session)
 	input := &iam.ListUsersInput{}
 
@@ -23,7 +24,7 @@ func getAllIamUsers(session *session.Session, configObj config.Config) ([]*strin
 	}
 
 	for _, user := range output.Users {
-		if config.ShouldInclude(*user.UserName, configObj.IAMUsers.IncludeRule.NamesRE, configObj.IAMUsers.ExcludeRule.NamesRE) {
+		if config.ShouldInclude(*user.UserName, configObj.IAMUsers.IncludeRule.NamesRE, configObj.IAMUsers.ExcludeRule.NamesRE) && excludeAfter.After(*user.CreateDate) {
 			userNames = append(userNames, user.UserName)
 		}
 	}

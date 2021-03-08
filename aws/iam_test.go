@@ -2,6 +2,7 @@ package aws
 
 import (
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -24,9 +25,7 @@ func TestListIamUsers(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// TODO: Implement exclusion by time filter
-	// userNames, err := getAllIamUsers(session, time.Now().Add(1*time.Hour*-1))
-	userNames, err := getAllIamUsers(session, config.Config{})
+	userNames, err := getAllIamUsers(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, userNames)
@@ -56,7 +55,7 @@ func TestCreateIamUser(t *testing.T) {
 	require.NoError(t, err)
 
 	name := "cloud-nuke-test-" + util.UniqueID()
-	userNames, err := getAllIamUsers(session, config.Config{})
+	userNames, err := getAllIamUsers(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(userNames), name)
 
@@ -64,7 +63,7 @@ func TestCreateIamUser(t *testing.T) {
 	defer nukeAllIamUsers(session, []*string{&name})
 	require.NoError(t, err)
 
-	userNames, err = getAllIamUsers(session, config.Config{})
+	userNames, err = getAllIamUsers(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(userNames), name)
 }
@@ -86,4 +85,37 @@ func TestNukeIamUsers(t *testing.T) {
 
 	err = nukeAllIamUsers(session, []*string{&name})
 	require.NoError(t, err)
+}
+
+func TestTimeFilterExclusionNewlyCreatedIamUser(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+	require.NoError(t, err)
+
+	// Assert user didn't exist
+	name := "cloud-nuke-test-" + util.UniqueID()
+	userNames, err := getAllIamUsers(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(userNames), name)
+
+	// Creates a user
+	err = createTestUser(t, session, name)
+	defer nukeAllIamUsers(session, []*string{&name})
+
+	// Assert user is created
+	userNames, err = getAllIamUsers(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(userNames), name)
+
+	// Assert user doesn't appear when we look at users older than 1 Hour
+	olderThan := time.Now().Add(-1 * time.Hour)
+	userNames, err = getAllIamUsers(session, olderThan, config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(userNames), name)
 }
