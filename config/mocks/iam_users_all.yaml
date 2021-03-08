@@ -1,4 +1,0 @@
-IAMUsers:
-  include:
-    names_regex:
-      - .*

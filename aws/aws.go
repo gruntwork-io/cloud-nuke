@@ -198,7 +198,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	var resourcesCache = map[string]map[string][]*string{}
 
 	for _, region := range targetRegions {
-		// The "global" region case is dealt outside this loop
+		// The "global" region case is handled outside this loop
 		if region == GlobalRegion {
 			continue
 		}

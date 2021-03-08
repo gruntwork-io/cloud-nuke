@@ -27,8 +27,8 @@ func (u IAMUsers) MaxBatchSize() int {
 }
 
 // Nuke - nuke 'em all!!!
-func (u IAMUsers) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllIamUsers(session, awsgo.StringSlice(identifiers)); err != nil {
+func (u IAMUsers) Nuke(session *session.Session, users []string) error {
+	if err := nukeAllIamUsers(session, awsgo.StringSlice(users)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
