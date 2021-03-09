@@ -490,37 +490,39 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	}
 
 	// Global Resources - These resources are global and do not belong to a specific region
+	// Only process them if the global region was not explicitly excluded
+	if collections.ListContainsElement(targetRegions, GlobalRegion) {
+		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
 
-	logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
-
-	// As there is no actual region named global we have to pick a valid one just to create the session
-	sessionRegion := defaultRegion
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(sessionRegion)},
-	)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	globalResources := AwsRegionResource{}
-
-	// IAM Users
-	iamUsers := IAMUsers{}
-	if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
-		userNames, err := getAllIamUsers(session, excludeAfter, configObj)
-
+		// As there is no actual region named global we have to pick a valid one just to create the session
+		sessionRegion := defaultRegion
+		session, err := session.NewSession(&awsgo.Config{
+			Region: awsgo.String(sessionRegion)},
+		)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
-		if len(userNames) > 0 {
-			iamUsers.UserNames = awsgo.StringValueSlice(userNames)
-			globalResources.Resources = append(globalResources.Resources, iamUsers)
-		}
-	}
-	// End IAM Users
 
-	if len(globalResources.Resources) > 0 {
-		account.Resources[GlobalRegion] = globalResources
+		globalResources := AwsRegionResource{}
+
+		// IAM Users
+		iamUsers := IAMUsers{}
+		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
+			userNames, err := getAllIamUsers(session, excludeAfter, configObj)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(userNames) > 0 {
+				iamUsers.UserNames = awsgo.StringValueSlice(userNames)
+				globalResources.Resources = append(globalResources.Resources, iamUsers)
+			}
+		}
+		// End IAM Users
+
+		if len(globalResources.Resources) > 0 {
+			account.Resources[GlobalRegion] = globalResources
+		}
 	}
 
 	return &account, nil
