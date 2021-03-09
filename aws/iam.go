@@ -3,6 +3,7 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -24,7 +25,7 @@ func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj 
 	}
 
 	for _, user := range output.Users {
-		if config.ShouldInclude(*user.UserName, configObj.IAMUsers.IncludeRule.NamesRE, configObj.IAMUsers.ExcludeRule.NamesRE) && excludeAfter.After(*user.CreateDate) {
+		if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRE, configObj.IAMUsers.ExcludeRule.NamesRE) && excludeAfter.After(*user.CreateDate) {
 			userNames = append(userNames, user.UserName)
 		}
 	}
