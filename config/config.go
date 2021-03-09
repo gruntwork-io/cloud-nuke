@@ -20,7 +20,7 @@ type ResourceType struct {
 }
 
 type FilterRule struct {
-	NamesRE []Expression `yaml:"names_regex"`
+	NamesRegExp []Expression `yaml:"names_regex"`
 }
 
 type Expression struct {

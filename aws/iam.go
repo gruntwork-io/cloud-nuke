@@ -25,7 +25,7 @@ func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj 
 	}
 
 	for _, user := range output.Users {
-		if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRE, configObj.IAMUsers.ExcludeRule.NamesRE) && excludeAfter.After(*user.CreateDate) {
+		if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRegExp, configObj.IAMUsers.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) {
 			userNames = append(userNames, user.UserName)
 		}
 	}

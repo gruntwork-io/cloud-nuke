@@ -101,7 +101,7 @@ func TestConfigS3_IncludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.S3.IncludeRule.NamesRE) == 0 {
+	if len(configObj.S3.IncludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain S3 names regexes, %+v\n", configObj)
 	}
 
@@ -118,7 +118,7 @@ func TestConfigS3_ExcludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.S3.ExcludeRule.NamesRE) == 0 {
+	if len(configObj.S3.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain S3 names regexes, %+v\n", configObj)
 	}
 
@@ -135,8 +135,8 @@ func TestConfigS3_FilterNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.S3.IncludeRule.NamesRE) == 0 ||
-		len(configObj.S3.ExcludeRule.NamesRE) == 0 {
+	if len(configObj.S3.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.S3.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain S3 names regexes, %+v\n", configObj)
 	}
 
@@ -194,7 +194,7 @@ func TestConfigIAM_Users_IncludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.IAMUsers.IncludeRule.NamesRE) == 0 {
+	if len(configObj.IAMUsers.IncludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
 	}
 
@@ -211,7 +211,7 @@ func TestConfigIAM_Users_ExcludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.IAMUsers.ExcludeRule.NamesRE) == 0 {
+	if len(configObj.IAMUsers.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
 	}
 
@@ -228,8 +228,8 @@ func TestConfigIAM_Users_FilterNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.IAMUsers.IncludeRule.NamesRE) == 0 ||
-		len(configObj.IAMUsers.ExcludeRule.NamesRE) == 0 {
+	if len(configObj.IAMUsers.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.IAMUsers.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
 	}
 

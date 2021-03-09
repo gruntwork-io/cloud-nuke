@@ -256,7 +256,7 @@ func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, region
 	}
 
 	// Check if the bucket matches config file rules
-	if !config.ShouldInclude(bucketData.Name, configObj.S3.IncludeRule.NamesRE, configObj.S3.ExcludeRule.NamesRE) {
+	if !config.ShouldInclude(bucketData.Name, configObj.S3.IncludeRule.NamesRegExp, configObj.S3.ExcludeRule.NamesRegExp) {
 		bucketData.InvalidReason = "Filtered by config file rules"
 		bucketCh <- &bucketData
 		return
