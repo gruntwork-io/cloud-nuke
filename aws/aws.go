@@ -48,6 +48,8 @@ var GovCloudRegions = []string{
 
 const (
 	GlobalRegion string = "global"
+	// us-east-1 is the region that is available in every account
+	defaultRegion string = "us-east-1"
 )
 
 func newSession(region string) *session.Session {
@@ -491,14 +493,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 	logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
 
-	// As there is no actual region named global we have to pick a random one just to create the session
-	randomRegion, err := getRandomRegion()
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
+	// As there is no actual region named global we have to pick a valid one just to create the session
+	sessionRegion := defaultRegion
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(randomRegion)},
+		Region: awsgo.String(sessionRegion)},
 	)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -607,12 +605,9 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		sessionRegion := region
 		var err error
 
-		// As there is no actual region named global we have to pick a random one just to create the session
+		// As there is no actual region named global we have to pick a valid one just to create the session
 		if region == GlobalRegion {
-			sessionRegion, err = getRandomRegion()
-			if err != nil {
-				return errors.WithStackTrace(err)
-			}
+			sessionRegion = defaultRegion
 		}
 
 		session, err := session.NewSession(&awsgo.Config{
