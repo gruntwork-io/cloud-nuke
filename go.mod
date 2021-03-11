@@ -17,10 +17,11 @@ require (
 	github.com/mattn/go-isatty v0.0.3 // indirect
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gomega v1.8.1 // indirect
-	github.com/pquerna/otp v1.2.0 // indirect
+	github.com/pquerna/otp v1.3.0 // indirect
 	github.com/sirupsen/logrus v1.0.4
 	github.com/stretchr/testify v1.4.0
 	github.com/urfave/cli v1.20.0
+	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5 // indirect
 	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80 // indirect
 	google.golang.org/appengine v1.6.1 // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect

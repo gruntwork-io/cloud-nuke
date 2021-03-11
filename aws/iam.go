@@ -4,11 +4,13 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/hashicorp/go-multierror"
 )
 
 // List all IAM users in the AWS account and returns a slice of the UserNames
@@ -33,9 +35,279 @@ func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj 
 	return userNames, nil
 }
 
-// TODO: This is only deleting the user but no associated resources
-// According to https://docs.aws.amazon.com/sdk-for-go/api/service/iam/#IAM.DeleteUser
-// "you must delete the items attached to the user manually, or the deletion fails"
+func detachUserPolicies(svc *iam.IAM, userName *string) error {
+	policiesOutput, err := svc.ListAttachedUserPolicies(&iam.ListAttachedUserPoliciesInput{
+		UserName: userName,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
+		arn := attachedPolicy.PolicyArn
+		_, err = svc.DetachUserPolicy(&iam.DetachUserPolicyInput{
+			PolicyArn: arn,
+			UserName:  userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+		logging.Logger.Infof("Detached Policy %s from User %s", aws.StringValue(arn), aws.StringValue(userName))
+	}
+
+	return nil
+}
+
+func deleteInlineUserPolicies(svc *iam.IAM, userName *string) error {
+	policyOutput, err := svc.ListUserPolicies(&iam.ListUserPoliciesInput{
+		UserName: userName,
+	})
+	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
+		return errors.WithStackTrace(err)
+	}
+
+	for _, policyName := range policyOutput.PolicyNames {
+		_, err := svc.DeleteUserPolicy(&iam.DeleteUserPolicyInput{
+			PolicyName: policyName,
+			UserName:   userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+		logging.Logger.Infof("Deleted Inline Policy %s from User %s", aws.StringValue(policyName), aws.StringValue(userName))
+	}
+
+	return nil
+}
+
+func removeUserFromGroups(svc *iam.IAM, userName *string) error {
+	groupsOutput, err := svc.ListGroupsForUser(&iam.ListGroupsForUserInput{
+		UserName: userName,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	for _, group := range groupsOutput.Groups {
+		_, err := svc.RemoveUserFromGroup(&iam.RemoveUserFromGroupInput{
+			GroupName: group.GroupName,
+			UserName:  userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+		logging.Logger.Infof("Removed user %s from group %s", aws.StringValue(userName), aws.StringValue(group.GroupName))
+	}
+
+	return nil
+}
+
+func deleteLoginProfile(svc *iam.IAM, userName *string) error {
+	var lastError error
+	maxAttempts := 10
+
+	for maxAttempts > 0 {
+		// Delete Login Profile attached to the user
+		_, err := svc.DeleteLoginProfile(&iam.DeleteLoginProfileInput{
+			UserName: userName,
+		})
+		if err != nil {
+			// Storing the last error that happened in case it goes beyond maxAttempts,
+			// so we can return the error that caused the deletion to fail
+			lastError = err
+
+			if aerr, ok := err.(awserr.Error); ok {
+				switch aerr.Code() {
+				case iam.ErrCodeNoSuchEntityException:
+					// This is expected if the user doesn't have a Login Profile
+					// (automated users created via API calls withouth further
+					// configuration)
+					return nil
+				case iam.ErrCodeEntityTemporarilyUnmodifiableException:
+					// The request was rejected because it referenced an entity that is
+					// temporarily unmodifiable. We have to try again.
+					logging.Logger.Infof("Login Profile for user %s cannot be deleted now, will try again...", aws.StringValue(userName))
+					maxAttempts--
+					time.Sleep(2 * time.Second)
+				default:
+					return errors.WithStackTrace(err)
+				}
+			}
+		}
+	}
+
+	return lastError
+}
+
+func deleteAccessKeys(svc *iam.IAM, userName *string) error {
+	output, err := svc.ListAccessKeys(&iam.ListAccessKeysInput{
+		UserName: userName,
+	})
+	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
+		return errors.WithStackTrace(err)
+	}
+
+	for _, md := range output.AccessKeyMetadata {
+		accessKeyId := md.AccessKeyId
+		_, err := svc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
+			AccessKeyId: accessKeyId,
+			UserName:    userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+
+		logging.Logger.Infof("Deleted Access Key %s from user %s", aws.StringValue(accessKeyId), aws.StringValue(userName))
+	}
+
+	return nil
+}
+
+func deleteSigningCertificate(svc *iam.IAM, userName *string) error {
+	output, err := svc.ListSigningCertificates(&iam.ListSigningCertificatesInput{
+		UserName: userName,
+	})
+	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
+		return errors.WithStackTrace(err)
+	}
+
+	for _, cert := range output.Certificates {
+		certificateId := cert.CertificateId
+		_, err := svc.DeleteSigningCertificate(&iam.DeleteSigningCertificateInput{
+			CertificateId: certificateId,
+			UserName:      userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+
+		logging.Logger.Infof("Deleted Signing Certificate ID %s from user %s", aws.StringValue(certificateId), aws.StringValue(userName))
+	}
+
+	return nil
+}
+
+func deleteSSHPublicKeys(svc *iam.IAM, userName *string) error {
+	output, err := svc.ListSSHPublicKeys(&iam.ListSSHPublicKeysInput{
+		UserName: userName,
+	})
+	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
+		return errors.WithStackTrace(err)
+	}
+
+	for _, key := range output.SSHPublicKeys {
+		keyId := key.SSHPublicKeyId
+		_, err := svc.DeleteSSHPublicKey(&iam.DeleteSSHPublicKeyInput{
+			SSHPublicKeyId: keyId,
+			UserName:       userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+
+		logging.Logger.Infof("Deleted SSH Public Key with ID %s from user %s", aws.StringValue(keyId), aws.StringValue(userName))
+	}
+
+	return nil
+}
+
+func deleteServiceSpecificCredentials(svc *iam.IAM, userName *string) error {
+	services := []string{
+		"cassandra.amazonaws.com",
+		"codecommit.amazonaws.com",
+	}
+	for _, service := range services {
+		output, err := svc.ListServiceSpecificCredentials(&iam.ListServiceSpecificCredentialsInput{
+			ServiceName: aws.String(service),
+			UserName:    userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+
+		for _, metadata := range output.ServiceSpecificCredentials {
+			serviceSpecificCredentialId := metadata.ServiceSpecificCredentialId
+
+			_, err := svc.DeleteServiceSpecificCredential(&iam.DeleteServiceSpecificCredentialInput{
+				ServiceSpecificCredentialId: serviceSpecificCredentialId,
+				UserName:                    userName,
+			})
+			if err != nil {
+				logging.Logger.Errorf("[Failed] %s", err)
+				return errors.WithStackTrace(err)
+			}
+
+			logging.Logger.Infof("Deleted Service Specific Credential with ID %s of service %s from user %s", aws.StringValue(serviceSpecificCredentialId), service, aws.StringValue(userName))
+		}
+	}
+
+	return nil
+}
+
+func deleteMFADevices(svc *iam.IAM, userName *string) error {
+	output, err := svc.ListMFADevices(&iam.ListMFADevicesInput{
+		UserName: userName,
+	})
+	if err != nil {
+		logging.Logger.Errorf("[Failed] %s", err)
+		return errors.WithStackTrace(err)
+	}
+
+	// First we need to deactivate the devices
+	for _, device := range output.MFADevices {
+		serialNumber := device.SerialNumber
+
+		_, err := svc.DeactivateMFADevice(&iam.DeactivateMFADeviceInput{
+			SerialNumber: serialNumber,
+			UserName:     userName,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+
+		logging.Logger.Infof("Deactivated Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
+	}
+
+	// After their deactivation we can delete them
+	for _, device := range output.MFADevices {
+		serialNumber := device.SerialNumber
+
+		_, err := svc.DeleteVirtualMFADevice(&iam.DeleteVirtualMFADeviceInput{
+			SerialNumber: serialNumber,
+		})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
+		}
+
+		logging.Logger.Infof("Deleted Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
+	}
+
+	return nil
+}
+
+func deleteUser(svc *iam.IAM, userName *string) error {
+	_, err := svc.DeleteUser(&iam.DeleteUserInput{
+		UserName: userName,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
 
 // Delete all IAM Users
 func nukeAllIamUsers(session *session.Session, userNames []*string) error {
@@ -49,14 +321,91 @@ func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 	deletedUsers := 0
 	svc := iam.New(session)
 
+	multiErr := new(multierror.Error)
 	for _, userName := range userNames {
-		input := &iam.DeleteUserInput{
-			UserName: userName,
-		}
+		var err error
 
-		_, err := svc.DeleteUser(input)
+		// TODO: Add CLI option to delete the Policy as policies exist independently of the user
+		// Detach User Policies
+		err = detachUserPolicies(svc, userName)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete inline user policies
+		err = deleteInlineUserPolicies(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// TODO: Add CLI option to delete groups as groups exist independently of the user
+		// Remove user from groups
+		err = removeUserFromGroups(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete Login Profile
+		err = deleteLoginProfile(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete Access Keys
+		err = deleteAccessKeys(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete Signing Certificate
+		err = deleteSigningCertificate(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete Public SSH Key
+		err = deleteSSHPublicKeys(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete Service Specific Credentials (codecommit and Amazon Keyspaces)
+		err = deleteServiceSpecificCredentials(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete MFA Devices
+		err = deleteMFADevices(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		// Delete the user
+		// NOTE: The actual user deletion should always be the last step.
+		// This way we can guarantee that it will fail if we forgot to delete/detach an item
+		err = deleteUser(svc, userName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] %s", err)
+			multierror.Append(multiErr, err)
 		} else {
 			deletedUsers++
 			logging.Logger.Infof("Deleted IAM User: %s", *userName)
@@ -64,5 +413,5 @@ func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 	}
 
 	logging.Logger.Infof("[OK] %d IAM User(s) terminated", deletedUsers)
-	return nil
+	return multiErr.ErrorOrNil()
 }
