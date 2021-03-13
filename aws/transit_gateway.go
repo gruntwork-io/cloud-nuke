@@ -11,6 +11,11 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
+func sleepWithMessage(duration time.Duration, whySleepMessage string) {
+	logging.Logger.Infof("Sleeping %v: %s", duration, whySleepMessage)
+	time.Sleep(duration)
+}
+
 // Returns a formatted string of TransitGateway IDs
 func getAllTransitGatewayInstances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
@@ -163,9 +168,10 @@ func nukeAllTransitGatewayVpcAttachments(session *session.Session, ids []*string
 		}
 	}
 
-	//TransitGatewayAttachment takes some time to be available and there isn't Waiters available yet
-	//To avoid test errors, I'm introducing a sleep call
-	time.Sleep(180 * time.Second)
+	sleepMessage = "TransitGateway Vpc Attachments takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepFor = 180 * time.Second
+	sleepWithMessage(sleepFor, sleepMessage)
+
 	logging.Logger.Infof(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), *session.Config.Region)
 	return nil
 }

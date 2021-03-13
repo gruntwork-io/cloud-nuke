@@ -129,13 +129,13 @@ func createTestTransitGatewayRouteTable(t *testing.T, session *session.Session, 
 
 	result, err := svc.CreateTransitGatewayRouteTable(param)
 	require.NoError(t, err)
-	require.True(t, len(aws.StringValue(result.TransitGatewayRouteTable.TransitGatewayRouteTableId)) > 0, "Could not create test TransitGatewayRouteTable")
+	require.True(t, len(aws.StringValue(result.TransitGatewayRouteTable.TransitGatewayRouteTableId)) > 0, "Could not create test TransitGateway Route Table")
 
-	//TransitGateway takes some time to be available and there isn't Waiters available yet
-	//To avoid test errors, I'm introducing a sleep call
-	time.Sleep(180 * time.Second)
-	tgwRouteTable := *result.TransitGatewayRouteTable
-	return tgwRouteTable
+	sleepMessage = "TransitGateway Route Tables takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepFor = 180 * time.Second
+	sleepWithMessage(sleepFor, sleepMessage)
+
+	return *result.TransitGatewayRouteTable
 }
 
 func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
@@ -251,13 +251,13 @@ func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Sessio
 
 	result, err := svc.CreateTransitGatewayVpcAttachment(param)
 	require.NoError(t, err)
-	require.True(t, len(aws.StringValue(result.TransitGatewayVpcAttachment.TransitGatewayAttachmentId)) > 0, "Could not create test Transitgateway Attachment")
+	require.True(t, len(aws.StringValue(result.TransitGatewayVpcAttachment.TransitGatewayAttachmentId)) > 0, "Could not create test Transitgateway Vpc Attachment")
 
-	//TransitGateway takes some time to be available and there isn't Waiters available yet
-	//To avoid test errors, I'm introducing a sleep call
-	time.Sleep(180 * time.Second)
-	tgwAttachment := *result.TransitGatewayVpcAttachment
-	return tgwAttachment
+	sleepMessage = "TransitGateway Vpc Attachment takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepFor = 180 * time.Second
+	sleepWithMessage(sleepFor, sleepMessage)
+
+	return *result.TransitGatewayVpcAttachment
 }
 
 func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
