@@ -11,6 +11,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
@@ -131,8 +132,8 @@ func createTestTransitGatewayRouteTable(t *testing.T, session *session.Session, 
 	require.NoError(t, err)
 	require.True(t, len(aws.StringValue(result.TransitGatewayRouteTable.TransitGatewayRouteTableId)) > 0, "Could not create test TransitGateway Route Table")
 
-	sleepMessage = "TransitGateway Route Tables takes some time to create, and since there is no waiter available, we sleep instead."
-	sleepFor = 180 * time.Second
+	sleepMessage := "TransitGateway Route Tables takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 
 	return *result.TransitGatewayRouteTable
@@ -223,7 +224,7 @@ func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Sessio
 
 	vpcs, err := svc.DescribeVpcs(input)
 	if err != nil {
-		logging.Logger.Logf(t, "TransitGatewayVpcAttachment test depends on default VPC availability")
+		logging.Logger.Error(t, "TransitGatewayVpcAttachment test depends on default VPC availability")
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 	assert.NoError(t, err)
@@ -253,8 +254,8 @@ func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Sessio
 	require.NoError(t, err)
 	require.True(t, len(aws.StringValue(result.TransitGatewayVpcAttachment.TransitGatewayAttachmentId)) > 0, "Could not create test Transitgateway Vpc Attachment")
 
-	sleepMessage = "TransitGateway Vpc Attachment takes some time to create, and since there is no waiter available, we sleep instead."
-	sleepFor = 180 * time.Second
+	sleepMessage := "TransitGateway Vpc Attachment takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 
 	return *result.TransitGatewayVpcAttachment

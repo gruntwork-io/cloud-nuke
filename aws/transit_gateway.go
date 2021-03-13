@@ -168,8 +168,8 @@ func nukeAllTransitGatewayVpcAttachments(session *session.Session, ids []*string
 		}
 	}
 
-	sleepMessage = "TransitGateway Vpc Attachments takes some time to create, and since there is no waiter available, we sleep instead."
-	sleepFor = 180 * time.Second
+	sleepMessage := "TransitGateway Vpc Attachments takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 
 	logging.Logger.Infof(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), *session.Config.Region)
