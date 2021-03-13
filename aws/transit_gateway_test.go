@@ -52,7 +52,7 @@ func TestGetAllTransitGatewayInstances(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	tgwName := "clud-nuke-test-" + util.UniqueID()
+	tgwName := "cloud-nuke-test-" + util.UniqueID()
 	tgw := createTestTransitGateway(t, session, tgwName)
 
 	defer nukeAllTransitGatewayInstances(session, []*string{tgw.TransitGatewayId})
@@ -140,7 +140,7 @@ func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	tgwRouteTableName := "clud-nuke-test-" + util.UniqueID()
+	tgwRouteTableName := "cloud-nuke-test-" + util.UniqueID()
 	tgwRouteTable := createTestTransitGatewayRouteTable(t, session, tgwRouteTableName)
 
 	defer nukeAllTransitGatewayRouteTables(session, []*string{tgwRouteTable.TransitGatewayRouteTableId})
@@ -170,7 +170,7 @@ func TestNukeTransitGatewayRouteTable(t *testing.T) {
 
 	svc := ec2.New(session)
 
-	tgwRouteTableName := "clud-nuke-test-" + util.UniqueID()
+	tgwRouteTableName := "cloud-nuke-test-" + util.UniqueID()
 	tgwRouteTable := createTestTransitGatewayRouteTable(t, session, tgwRouteTableName)
 	defer nukeAllTransitGatewayInstances(session, []*string{tgwRouteTable.TransitGatewayId})
 
@@ -245,7 +245,7 @@ func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	tgwName := "clud-nuke-test-" + util.UniqueID()
+	tgwName := "cloud-nuke-test-" + util.UniqueID()
 	tgwAttachment := createTestTransitGatewayVpcAttachment(t, session, tgwName)
 
 	ids, err := getAllTransitGatewayVpcAttachments(session, region, time.Now().Add(1*time.Hour*-1))
