@@ -309,6 +309,34 @@ func deleteUser(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
+// Nuke a single user
+func nukeUser(svc *iam.IAM, userName *string) error {
+	// Functions used to really nuke an IAM User as a user can have many attached
+	// items we need delete/detach them before actually deleting it.
+	// NOTE: The actual user deletion should always be the last one. This way we
+	// can guarantee that it will fail if we forgot to delete/detach an item.
+	functions := []func(svc *iam.IAM, userName *string) error{
+		detachUserPolicies, // TODO: Add CLI option to delete the Policy as policies exist independently of the user
+		deleteInlineUserPolicies,
+		removeUserFromGroups, // TODO: Add CLI option to delete groups as groups exist independently of the user
+		deleteLoginProfile,
+		deleteAccessKeys,
+		deleteSigningCertificate,
+		deleteSSHPublicKeys,
+		deleteServiceSpecificCredentials,
+		deleteMFADevices,
+		deleteUser,
+	}
+
+	for _, fn := range functions {
+		if err := fn(svc, userName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Delete all IAM Users
 func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 	if len(userNames) == 0 {
@@ -320,89 +348,10 @@ func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 
 	deletedUsers := 0
 	svc := iam.New(session)
-
 	multiErr := new(multierror.Error)
+
 	for _, userName := range userNames {
-		var err error
-
-		// TODO: Add CLI option to delete the Policy as policies exist independently of the user
-		// Detach User Policies
-		err = detachUserPolicies(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete inline user policies
-		err = deleteInlineUserPolicies(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// TODO: Add CLI option to delete groups as groups exist independently of the user
-		// Remove user from groups
-		err = removeUserFromGroups(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete Login Profile
-		err = deleteLoginProfile(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete Access Keys
-		err = deleteAccessKeys(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete Signing Certificate
-		err = deleteSigningCertificate(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete Public SSH Key
-		err = deleteSSHPublicKeys(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete Service Specific Credentials (codecommit and Amazon Keyspaces)
-		err = deleteServiceSpecificCredentials(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete MFA Devices
-		err = deleteMFADevices(svc, userName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-			continue
-		}
-
-		// Delete the user
-		// NOTE: The actual user deletion should always be the last step.
-		// This way we can guarantee that it will fail if we forgot to delete/detach an item
-		err = deleteUser(svc, userName)
+		err := nukeUser(svc, userName)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			multierror.Append(multiErr, err)
