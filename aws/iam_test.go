@@ -425,7 +425,7 @@ func deleteUserExtraResources(infos *userInfos, session *session.Session) error 
 }
 
 // Validate that a user, with all the required and optional, items can be deleted
-func TestDeleteFullUser(t *testing.T) {
+func TestDeleteFullIamUser(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()

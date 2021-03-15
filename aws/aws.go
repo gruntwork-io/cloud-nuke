@@ -605,7 +605,6 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	for _, region := range regions {
 		// region that will be used to create a session
 		sessionRegion := region
-		var err error
 
 		// As there is no actual region named global we have to pick a valid one just to create the session
 		if region == GlobalRegion {
