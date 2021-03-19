@@ -58,6 +58,8 @@ func TestGetAllTransitGatewayInstances(t *testing.T) {
 	tgwName := "cloud-nuke-test-" + util.UniqueID()
 	tgw := createTestTransitGateway(t, session, tgwName)
 
+	defer nukeAllTransitGatewayInstances(session, []*string{tgw.TransitGatewayId})
+
 	ids, err := getAllTransitGatewayInstances(session, region, time.Now().Add(1*time.Hour*-1))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgw.TransitGatewayId))
@@ -65,9 +67,6 @@ func TestGetAllTransitGatewayInstances(t *testing.T) {
 	ids, err = getAllTransitGatewayInstances(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgw.TransitGatewayId))
-
-	err = nukeAllTransitGatewayInstances(session, []*string{tgw.TransitGatewayId})
-	require.NoError(t, err)
 }
 
 func TestNukeTransitGateway(t *testing.T) {
@@ -150,6 +149,9 @@ func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
 	tgwRouteTableName := "cloud-nuke-test-" + util.UniqueID()
 	tgwRouteTable := createTestTransitGatewayRouteTable(t, session, tgwRouteTableName)
 
+	defer nukeAllTransitGatewayRouteTables(session, []*string{tgwRouteTable.TransitGatewayRouteTableId})
+	defer nukeAllTransitGatewayInstances(session, []*string{tgwRouteTable.TransitGatewayId})
+
 	ids, err := getAllTransitGatewayRouteTables(session, region, time.Now().Add(1*time.Hour*-1))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwRouteTable.TransitGatewayRouteTableId))
@@ -157,12 +159,6 @@ func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
 	ids, err = getAllTransitGatewayRouteTables(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwRouteTable.TransitGatewayRouteTableId))
-
-	err = nukeAllTransitGatewayRouteTables(session, []*string{tgwRouteTable.TransitGatewayRouteTableId})
-	require.NoError(t, err)
-
-	err = nukeAllTransitGatewayInstances(session, []*string{tgwRouteTable.TransitGatewayId})
-	require.NoError(t, err)
 }
 
 func TestNukeTransitGatewayRouteTable(t *testing.T) {
@@ -180,6 +176,7 @@ func TestNukeTransitGatewayRouteTable(t *testing.T) {
 
 	tgwRouteTableName := "cloud-nuke-test-" + util.UniqueID()
 	tgwRouteTable := createTestTransitGatewayRouteTable(t, session, tgwRouteTableName)
+	defer nukeAllTransitGatewayInstances(session, []*string{tgwRouteTable.TransitGatewayId})
 
 	_, err = svc.DescribeTransitGatewayRouteTables(&ec2.DescribeTransitGatewayRouteTablesInput{
 		TransitGatewayRouteTableIds: []*string{
@@ -194,9 +191,6 @@ func TestNukeTransitGatewayRouteTable(t *testing.T) {
 	ids, err := getAllTransitGatewayRouteTables(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwRouteTable.TransitGatewayRouteTableId))
-
-	err = nukeAllTransitGatewayInstances(session, []*string{tgwRouteTable.TransitGatewayId})
-	require.NoError(t, err)
 }
 
 func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Session, name string) ec2.TransitGatewayVpcAttachment {
@@ -266,6 +260,9 @@ func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
 	tgwName := "cloud-nuke-test-" + util.UniqueID()
 	tgwAttachment := createTestTransitGatewayVpcAttachment(t, session, tgwName)
 
+	defer nukeAllTransitGatewayVpcAttachments(session, []*string{tgwAttachment.TransitGatewayAttachmentId})
+	defer nukeAllTransitGatewayInstances(session, []*string{tgwAttachment.TransitGatewayId})
+
 	ids, err := getAllTransitGatewayVpcAttachments(session, region, time.Now().Add(1*time.Hour*-1))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwAttachment.TransitGatewayAttachmentId))
@@ -273,12 +270,6 @@ func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
 	ids, err = getAllTransitGatewayVpcAttachments(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwAttachment.TransitGatewayAttachmentId))
-
-	err = nukeAllTransitGatewayVpcAttachments(session, []*string{tgwAttachment.TransitGatewayAttachmentId})
-	assert.NoError(t, err)
-
-	err = nukeAllTransitGatewayInstances(session, []*string{tgwAttachment.TransitGatewayId})
-	assert.NoError(t, err)
 }
 
 func TestNukeTransitGatewayVpcAttachment(t *testing.T) {
@@ -305,6 +296,7 @@ func TestNukeTransitGatewayVpcAttachment(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	defer nukeAllTransitGatewayInstances(session, []*string{tgwVpcAttachment.TransitGatewayId})
 
 	err = nukeAllTransitGatewayVpcAttachments(session, []*string{tgwVpcAttachment.TransitGatewayAttachmentId})
 	require.NoError(t, err)
@@ -312,7 +304,4 @@ func TestNukeTransitGatewayVpcAttachment(t *testing.T) {
 	ids, err := getAllTransitGatewayVpcAttachments(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), aws.StringValue(tgwVpcAttachment.TransitGatewayAttachmentId))
-
-	err = nukeAllTransitGatewayInstances(session, []*string{tgwVpcAttachment.TransitGatewayId})
-	require.NoError(t, err)
 }
