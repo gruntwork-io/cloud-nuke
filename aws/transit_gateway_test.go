@@ -68,7 +68,7 @@ func TestGetAllTransitGatewayInstances(t *testing.T) {
 	ids, err = getAllTransitGatewayInstances(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgw.TransitGatewayId))
-	
+
 	err = nukeAllTransitGatewayInstances(session, []*string{tgw.TransitGatewayId})
 	require.NoError(t, err)
 }
@@ -159,7 +159,7 @@ func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
 	ids, err := getAllTransitGatewayRouteTables(session, region, time.Now().Add(1*time.Hour*-1))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwRouteTable.TransitGatewayRouteTableId))
-	
+
 	ids, err = getAllTransitGatewayRouteTables(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwRouteTable.TransitGatewayRouteTableId))
@@ -189,21 +189,21 @@ func TestNukeTransitGatewayRouteTable(t *testing.T) {
 
 	tgwRouteTableName := "cloud-nuke-test-" + util.UniqueID()
 	tgwRouteTable := createTestTransitGatewayRouteTable(t, session, tgwRouteTableName)
-	
+
 	_, err = svc.DescribeTransitGatewayRouteTables(&ec2.DescribeTransitGatewayRouteTablesInput{
 		TransitGatewayRouteTableIds: []*string{
 			tgwRouteTable.TransitGatewayRouteTableId,
 		},
 	})
 	require.NoError(t, err)
-	
+
 	err = nukeAllTransitGatewayRouteTables(session, []*string{tgwRouteTable.TransitGatewayRouteTableId})
 	require.NoError(t, err)
-	
+
 	ids, err := getAllTransitGatewayRouteTables(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), awsgo.StringValue(tgwRouteTable.TransitGatewayRouteTableId))
-	
+
 	err = nukeAllTransitGatewayInstances(session, []*string{tgwRouteTable.TransitGatewayId})
 	require.NoError(t, err)
 }
@@ -265,6 +265,7 @@ func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
+
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -312,10 +313,10 @@ func TestNukeTransitGatewayVpcAttachment(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	
+
 	err = nukeAllTransitGatewayVpcAttachments(session, []*string{tgwVpcAttachment.TransitGatewayAttachmentId})
 	require.NoError(t, err)
-	
+
 	ids, err := getAllTransitGatewayVpcAttachments(session, region, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(ids), aws.StringValue(tgwVpcAttachment.TransitGatewayAttachmentId))
