@@ -256,6 +256,7 @@ func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
+	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
