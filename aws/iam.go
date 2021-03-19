@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -9,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -107,40 +109,37 @@ func removeUserFromGroups(svc *iam.IAM, userName *string) error {
 }
 
 func deleteLoginProfile(svc *iam.IAM, userName *string) error {
-	var lastError error
-	maxAttempts := 10
-
-	for maxAttempts > 0 {
-		// Delete Login Profile attached to the user
-		_, err := svc.DeleteLoginProfile(&iam.DeleteLoginProfileInput{
-			UserName: userName,
-		})
-		if err != nil {
-			// Storing the last error that happened in case it goes beyond maxAttempts,
-			// so we can return the error that caused the deletion to fail
-			lastError = err
-
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case iam.ErrCodeNoSuchEntityException:
-					// This is expected if the user doesn't have a Login Profile
-					// (automated users created via API calls withouth further
-					// configuration)
-					return nil
-				case iam.ErrCodeEntityTemporarilyUnmodifiableException:
-					// The request was rejected because it referenced an entity that is
-					// temporarily unmodifiable. We have to try again.
-					logging.Logger.Infof("Login Profile for user %s cannot be deleted now, will try again...", aws.StringValue(userName))
-					maxAttempts--
-					time.Sleep(2 * time.Second)
-				default:
-					return errors.WithStackTrace(err)
+	return retry.DoWithRetry(
+		logging.Logger,
+		"Delete Login Profile",
+		10,
+		2*time.Second,
+		func() error {
+			// Delete Login Profile attached to the user
+			_, err := svc.DeleteLoginProfile(&iam.DeleteLoginProfileInput{
+				UserName: userName,
+			})
+			if err != nil {
+				if aerr, ok := err.(awserr.Error); ok {
+					switch aerr.Code() {
+					case iam.ErrCodeNoSuchEntityException:
+						// This is expected if the user doesn't have a Login Profile
+						// (automated users created via API calls withouth further
+						// configuration)
+						return nil
+					case iam.ErrCodeEntityTemporarilyUnmodifiableException:
+						// The request was rejected because it referenced an entity that is
+						// temporarily unmodifiable. We have to try again.
+						return fmt.Errorf("Login Profile for user %s cannot be deleted now", aws.StringValue(userName))
+					default:
+						return retry.FatalError{Underlying: err}
+					}
 				}
 			}
-		}
-	}
 
-	return lastError
+			logging.Logger.Infof("Deleted Login Profile from user %s", aws.StringValue(userName))
+			return nil
+		})
 }
 
 func deleteAccessKeys(svc *iam.IAM, userName *string) error {
