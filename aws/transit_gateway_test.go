@@ -48,9 +48,6 @@ func TestGetAllTransitGatewayInstances(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
@@ -143,9 +140,6 @@ func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
@@ -175,9 +169,6 @@ func TestNukeTransitGatewayRouteTable(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
