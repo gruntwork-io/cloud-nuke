@@ -11,7 +11,6 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
@@ -208,11 +207,9 @@ func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Sessio
 	}
 
 	vpcs, err := svc.DescribeVpcs(input)
-	if err != nil {
-		logging.Logger.Error(t, "TransitGatewayVpcAttachment test depends on default VPC availability")
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
 	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.Len(t, vpcs.Vpcs, 1)
 
 	vpc := vpcs.Vpcs[0]
 

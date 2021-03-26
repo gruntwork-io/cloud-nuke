@@ -18,7 +18,7 @@ func (tgw TransitGatewaysVpcAttachment) ResourceName() string {
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
 func (tgw TransitGatewaysVpcAttachment) MaxBatchSize() int {
-	return 200
+	return maxBatchSize
 }
 
 // ResourceIdentifiers - The Ids of the transit gateways
@@ -47,7 +47,7 @@ func (tgw TransitGatewaysRouteTables) ResourceName() string {
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
 func (tgw TransitGatewaysRouteTables) MaxBatchSize() int {
-	return 200
+	return maxBatchSize
 }
 
 // ResourceIdentifiers - The arns of the transit gateways route tables
@@ -76,7 +76,7 @@ func (tgw TransitGateways) ResourceName() string {
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
 func (tgw TransitGateways) MaxBatchSize() int {
-	return 200
+	return maxBatchSize
 }
 
 // ResourceIdentifiers - The Ids of the transit gateways
