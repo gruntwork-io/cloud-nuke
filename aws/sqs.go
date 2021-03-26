@@ -24,7 +24,7 @@ func getAllSqsQueue(session *session.Session, region string, excludeAfter time.T
 	for _, queue := range result.QueueUrls {
 		param := &sqs.GetQueueAttributesInput{
 			QueueUrl:       queue,
-			AttributeNames: awsgo.StringSlice([]string{"All"}),
+			AttributeNames: awsgo.StringSlice([]string{"CreatedTimestamp"}),
 		}
 		queueAttributes, err := svc.GetQueueAttributes(param)
 		if err != nil {
@@ -40,7 +40,6 @@ func getAllSqsQueue(session *session.Session, region string, excludeAfter time.T
 
 		// Compare time as int64
 		if excludeAfter.Unix() > createdAtInt {
-			//if excludeAfter.After(createdAtTime) {
 			urls = append(urls, queue)
 		}
 	}
