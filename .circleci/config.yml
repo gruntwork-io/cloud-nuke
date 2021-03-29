@@ -92,9 +92,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - nuke_phx_devops:
-          requires:
-            - test
+      - nuke_phx_devops
   nightly:
     triggers:
       - schedule:
@@ -103,6 +101,4 @@ workflows:
             branches:
               only: master
     jobs:
-      - nuke_sandbox:
-          requires:
-            - test
+      - nuke_sandbox
