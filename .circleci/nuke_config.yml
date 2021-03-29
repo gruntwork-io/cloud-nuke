@@ -1,0 +1,14 @@
+s3:
+  include:
+    names_regex:
+      - "^cloudfront-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^gruntwork-terratest-[a-zA-Z0-9]{6}$"
+      - "^gw-cis-aws-config-all-regions-[a-zA-Z0-9]{6}-.*"
+      - "^gruntwork-test-[a-zA-Z0-9]{6}-config-test$"
+      - "^houston-static-[a-zA-Z0-9]{12}.*"
+      - "^cloud-nuke-test-[a-zA-Z0-9]{12}.*"
+      - "^cloud-nuke-test-[a-zA-Z0-9]{6}-bucket$"
+      - "^alb-alb-[a-zA-Z0-9]{6}-access-logs$"
+      - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
+      - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
+      - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
