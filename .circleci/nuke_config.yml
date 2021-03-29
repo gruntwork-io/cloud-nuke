@@ -1,3 +1,5 @@
+# This is a config file specifically for Gruntwork sandbox accounts to only clean up S3 buckets that we know for sure
+# are used for testing.
 s3:
   include:
     names_regex:
