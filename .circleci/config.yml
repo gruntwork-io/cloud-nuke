@@ -30,7 +30,8 @@ jobs:
             go run main.go aws \
               --older-than 1h \
               --force \
-              --exclude-resource-type s3
+              --config ./.circleci/nuke_config.yml \
+              --exclude-resource-type iam
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -45,7 +46,8 @@ jobs:
             go run main.go aws \
               --older-than 24h \
               --force \
-              --exclude-resource-type s3
+              --config ./.circleci/nuke_config.yml \
+              --exclude-resource-type iam
           no_output_timeout: 1h
   deploy:
     <<: *defaults
@@ -90,10 +92,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - test
-      - nuke_phx_devops:
-          requires:
-            - test
+      - nuke_phx_devops
   nightly:
     triggers:
       - schedule:
@@ -102,7 +101,4 @@ workflows:
             branches:
               only: master
     jobs:
-      - test
-      - nuke_sandbox:
-          requires:
-            - test
+      - nuke_sandbox

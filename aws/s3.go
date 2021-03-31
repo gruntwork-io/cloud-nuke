@@ -3,10 +3,11 @@ package aws
 import (
 	"fmt"
 	"math"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // getS3BucketRegion returns S3 Bucket region.
@@ -256,7 +256,7 @@ func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, region
 	}
 
 	// Check if the bucket matches config file rules
-	if !shouldIncludeBucket(bucketData.Name, configObj.S3.IncludeRule.NamesRE, configObj.S3.ExcludeRule.NamesRE) {
+	if !config.ShouldInclude(bucketData.Name, configObj.S3.IncludeRule.NamesRegExp, configObj.S3.ExcludeRule.NamesRegExp) {
 		bucketData.InvalidReason = "Filtered by config file rules"
 		bucketCh <- &bucketData
 		return
@@ -264,44 +264,6 @@ func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, region
 
 	bucketData.IsValid = true
 	bucketCh <- &bucketData
-}
-
-func shouldIncludeBucket(bucketName string, includeNamesREList []*regexp.Regexp, excludeNamesREList []*regexp.Regexp) bool {
-	shouldInclude := false
-
-	if len(includeNamesREList) > 0 {
-		// If any include rules are specified,
-		// only check to see if an exclude rule matches when an include rule matches the bucket
-		if includeBucketByREList(bucketName, includeNamesREList) {
-			shouldInclude = excludeBucketByREList(bucketName, excludeNamesREList)
-		}
-	} else if len(excludeNamesREList) > 0 {
-		// Only check to see if an exclude rule matches when there are no include rules defined
-		shouldInclude = excludeBucketByREList(bucketName, excludeNamesREList)
-	} else {
-		shouldInclude = true
-	}
-
-	return shouldInclude
-}
-
-func includeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
-	for _, re := range reList {
-		if re.MatchString(bucketName) {
-			return true
-		}
-	}
-	return false
-}
-
-func excludeBucketByREList(bucketName string, reList []*regexp.Regexp) bool {
-	for _, re := range reList {
-		if re.MatchString(bucketName) {
-			return false
-		}
-	}
-
-	return true
 }
 
 // emptyBucket will empty the given S3 bucket by deleting all the objects that are in the bucket. For versioned buckets,
@@ -527,7 +489,7 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 
 	logging.Logger.Infof("Deleting - %d S3 Buckets in region %s", totalCount, *awsSession.Config.Region)
 
-	multiErr := &util.MultiErr{}
+	multiErr := new(multierror.Error)
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
 
 		bucketName := bucketNames[bucketIndex]
@@ -536,14 +498,14 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		err = nukeAllS3BucketObjects(svc, bucketName, objectBatchSize)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
-			multiErr.Add(err)
+			multierror.Append(multiErr, err)
 			continue
 		}
 
 		err = nukeEmptyS3Bucket(svc, bucketName, verifyBucketDeletion)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
-			multiErr.Add(err)
+			multierror.Append(multiErr, err)
 			continue
 		}
 
@@ -551,9 +513,5 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		delCount++
 	}
 
-	if multiErr.IsEmpty() {
-		return delCount, nil
-	} else {
-		return delCount, multiErr
-	}
+	return delCount, multiErr.ErrorOrNil()
 }

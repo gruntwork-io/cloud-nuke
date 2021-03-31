@@ -4,7 +4,7 @@
 // may be using the same AWS account at the same time. Deleting the default VPCs would break things.
 // Therefore, the default VPC/SG nuke testing is mocked as unit tests.
 // To generate the EC2API mock, install https://github.com/golang/mock, then use the following:
-// mockgen -source vendor/github.com/aws/aws-sdk-go/service/ec2/ec2iface/interface.go -destination aws/mocks/gomock-EC2API.go
+// mockgen -source vendor/github.com/aws/aws-sdk-go/service/ec2/ec2iface/interface.go -destination aws/mocks/EC2API.go
 
 package aws
 
@@ -14,7 +14,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/golang/mock/gomock"
-	"github.com/gruntwork-io/cloud-nuke/aws/mocks"
+	mock_ec2iface "github.com/gruntwork-io/cloud-nuke/aws/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
