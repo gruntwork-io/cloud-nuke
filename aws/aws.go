@@ -276,6 +276,48 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End LoadBalancerV2 Arns
 
+		// TransitGatewayVpcAttachment
+		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
+		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) {
+			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(transitGatewayVpcAttachmentIds) > 0 {
+				transitGatewayVpcAttachments.Ids = awsgo.StringValueSlice(transitGatewayVpcAttachmentIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGatewayVpcAttachments)
+			}
+		}
+		// End TransitGatewayVpcAttachment
+
+		// TransitGatewayRouteTable
+		transitGatewayRouteTables := TransitGatewaysRouteTables{}
+		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) {
+			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(transitGatewayRouteTableIds) > 0 {
+				transitGatewayRouteTables.Ids = awsgo.StringValueSlice(transitGatewayRouteTableIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGatewayRouteTables)
+			}
+		}
+		// End TransitGatewayRouteTable
+
+		// TransitGateway
+		transitGateways := TransitGateways{}
+		if IsNukeable(transitGateways.ResourceName(), resourceTypes) {
+			transitGatewayIds, err := getAllTransitGatewayInstances(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(transitGatewayIds) > 0 {
+				transitGateways.Ids = awsgo.StringValueSlice(transitGatewayIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGateways)
+			}
+		}
+		// End TransitGateway
+
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
@@ -535,6 +577,9 @@ func ListResourceTypes() []string {
 		LaunchConfigs{}.ResourceName(),
 		LoadBalancers{}.ResourceName(),
 		LoadBalancersV2{}.ResourceName(),
+		TransitGatewaysVpcAttachment{}.ResourceName(),
+		TransitGatewaysRouteTables{}.ResourceName(),
+		TransitGateways{}.ResourceName(),
 		EC2Instances{}.ResourceName(),
 		EBSVolumes{}.ResourceName(),
 		EIPAddresses{}.ResourceName(),

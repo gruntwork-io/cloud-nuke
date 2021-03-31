@@ -232,7 +232,8 @@ github.com/grpc-ecosystem/grpc-gateway v1.9.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t
 github.com/gruntwork-io/go-commons v0.8.2 h1:2jrQH6ou6GxShXpNmxhVuVktp5E2so115nSESbbDOj0=
 github.com/gruntwork-io/go-commons v0.8.2/go.mod h1:aH1kYhkEgb7+RRMDVVKFXBBX0KfECzEhp1UYmU12oO4=
 github.com/gruntwork-io/gruntwork-cli v0.7.0 h1:YgSAmfCj9c61H+zuvHwKfYUwlMhu5arnQQLM4RH+CYs=
-github.com/gruntwork-io/gruntwork-cli v0.7.0/go.mod h1:jp6Z7NcLF2avpY8v71fBx6hds9eOFPELSuD/VPv7w00=
+github.com/gruntwork-io/gruntwork-cli v0.7.1 h1:F/GEuj3NiBY+qV+1RvFW7J7CN+8bzXvaYGRCCw7Hq7Y=
+github.com/hpcloud/tail v1.0.0 h1:nfCOvKYfkgYP8hkirhJocXT2+zOD8yUNjXaWfTlyFKI=
 github.com/gruntwork-io/kubergrunt v0.6.10/go.mod h1:AjSwJPP107t8pihDgJCWCG/RG92Q1oiRXL/OdR6OiaQ=
 github.com/gruntwork-io/terratest v0.30.0/go.mod h1:7dNmTD2zDKUEVqfmvcUU5c9mZi+986mcXNzhzqPYPg8=
 github.com/gruntwork-io/terratest v0.32.9 h1:ciWWJxISk06LAYImn6h1Vvir8hUz13VtwT2//fYCDcA=
