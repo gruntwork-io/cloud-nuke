@@ -88,11 +88,14 @@ func TestNukeSqsQueue(t *testing.T) {
 	queueUrl := createTestQueue(t, session, queueName)
 	oneHourFromNow := time.Now().Add(1 * time.Hour)
 
+	urls, err := getAllSqsQueue(session, region, oneHourFromNow)
+	require.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queueUrl))
+
 	err = nukeAllSqsQueues(session, []*string{queueUrl})
 	require.NoError(t, err)
 
-	urls, err := getAllSqsQueue(session, region, oneHourFromNow)
+	urls, err = getAllSqsQueue(session, region, oneHourFromNow)
 	require.NoError(t, err)
-
 	assert.NotContains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queueUrl))
 }
