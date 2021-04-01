@@ -41,27 +41,36 @@ func TestListSqsQueue(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	queueName := "cloud-nuke-test-" + util.UniqueID()
-	queueUrl := createTestQueue(t, session, queueName)
-	require.NoError(t, err)
+	// create a 20 test queues, to validate pagination
+	queueList := []*string{}
+	for n := 0; n < 20; n++ {
+		queueName := "cloud-nuke-test-" + util.UniqueID()
+		queueUrl := createTestQueue(t, session, queueName)
+		require.NoError(t, err)
+
+		queueList = append(queueList, queueUrl)
+	}
 
 	// clean up after this test
-	defer nukeAllSqsQueues(session, []*string{queueUrl})
+	defer nukeAllSqsQueues(session, queueList)
 
 	// timestamps to tests
-
 	oneHourAgo := time.Now().Add(1 * time.Hour * -1)
 	oneHourFromNow := time.Now().Add(1 * time.Hour)
 
 	urls, err := getAllSqsQueue(session, region, oneHourAgo)
 	require.NoError(t, err)
 
-	assert.NotContains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queueUrl))
+	for _, queue := range queueList {
+		assert.NotContains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queue))
+	}
 
 	urls, err = getAllSqsQueue(session, region, oneHourFromNow)
 	require.NoError(t, err)
 
-	assert.Contains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queueUrl))
+	for _, queue := range queueList {
+		assert.Contains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queue))
+	}
 }
 
 func TestNukeSqsQueue(t *testing.T) {
@@ -82,7 +91,7 @@ func TestNukeSqsQueue(t *testing.T) {
 	err = nukeAllSqsQueues(session, []*string{queueUrl})
 	require.NoError(t, err)
 
-	urls, err := getAllSqsQueue(session, region, time.Now().Add(1*time.Hour))
+	urls, err := getAllSqsQueue(session, region, oneHourFromNow)
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queueUrl))

@@ -14,14 +14,24 @@ import (
 // Returns a formatted string of SQS Queue URLs
 func getAllSqsQueue(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := sqs.New(session)
-	result, err := svc.ListQueues(&sqs.ListQueuesInput{})
+
+	result := []*string{}
+	paginator := func(output *sqs.ListQueuesOutput, lastPage bool) bool {
+		result = append(result, output.QueueUrls...)
+		return !lastPage
+	}
+
+	param := &sqs.ListQueuesInput{
+		MaxResults: awsgo.Int64(10),
+	}
+	err := svc.ListQueuesPages(param, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var urls []*string
 
-	for _, queue := range result.QueueUrls {
+	for _, queue := range result {
 		param := &sqs.GetQueueAttributesInput{
 			QueueUrl:       queue,
 			AttributeNames: awsgo.StringSlice([]string{"CreatedTimestamp"}),
