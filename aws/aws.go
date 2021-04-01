@@ -278,7 +278,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// TransitGatewayVpcAttachment
 		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
-		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) {
+		transitGatewayIsAvailable, err := tgIsAvailableInRegion(session, region)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
 			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(session, region, excludeAfter)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -292,7 +296,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// TransitGatewayRouteTable
 		transitGatewayRouteTables := TransitGatewaysRouteTables{}
-		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) {
+		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
 			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(session, region, excludeAfter)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -306,7 +310,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// TransitGateway
 		transitGateways := TransitGateways{}
-		if IsNukeable(transitGateways.ResourceName(), resourceTypes) {
+		if IsNukeable(transitGateways.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
 			transitGatewayIds, err := getAllTransitGatewayInstances(session, region, excludeAfter)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
