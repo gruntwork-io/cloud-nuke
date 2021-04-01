@@ -20,7 +20,7 @@ import (
 // OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
 // Beginning in Spring 2019, AWS requires new regions to be explicitly enabled
 // See https://aws.amazon.com/blogs/security/setting-permissions-to-enable-accounts-for-upcoming-aws-regions/
-var OptInNotRequiredRegions = [...]string{
+var OptInNotRequiredRegions = []string{
 	"eu-north-1",
 	"ap-south-1",
 	"eu-west-3",
@@ -39,6 +39,19 @@ var OptInNotRequiredRegions = [...]string{
 	"us-west-2",
 }
 
+// GovCloudRegions contains all of the U.S. GovCloud regions. In accounts with GovCloud enabled, these are the
+// only available regions.
+var GovCloudRegions = []string{
+	"us-gov-east-1",
+	"us-gov-west-1",
+}
+
+const (
+	GlobalRegion string = "global"
+	// us-east-1 is the region that is available in every account
+	defaultRegion string = "us-east-1"
+)
+
 func newSession(region string) *session.Session {
 	return session.Must(
 		session.NewSessionWithOptions(
@@ -54,8 +67,8 @@ func newSession(region string) *session.Session {
 
 // Try a describe regions command with the most likely enabled regions
 func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
-	for i := 0; i < len(OptInNotRequiredRegions); i++ {
-		region := OptInNotRequiredRegions[rand.Intn(len(OptInNotRequiredRegions))]
+	regionsToTry := append(OptInNotRequiredRegions, GovCloudRegions...)
+	for _, region := range regionsToTry {
 		svc := ec2.New(newSession(region))
 		regions, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
 		if err != nil {
@@ -187,6 +200,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	var resourcesCache = map[string]map[string][]*string{}
 
 	for _, region := range targetRegions {
+		// The "global" region case is handled outside this loop
+		if region == GlobalRegion {
+			continue
+		}
+
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
 		session, err := session.NewSession(&awsgo.Config{
@@ -271,6 +289,48 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End SQS Queue
+
+		// TransitGatewayVpcAttachment
+		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
+		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) {
+			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(transitGatewayVpcAttachmentIds) > 0 {
+				transitGatewayVpcAttachments.Ids = awsgo.StringValueSlice(transitGatewayVpcAttachmentIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGatewayVpcAttachments)
+			}
+		}
+		// End TransitGatewayVpcAttachment
+
+		// TransitGatewayRouteTable
+		transitGatewayRouteTables := TransitGatewaysRouteTables{}
+		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) {
+			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(transitGatewayRouteTableIds) > 0 {
+				transitGatewayRouteTables.Ids = awsgo.StringValueSlice(transitGatewayRouteTableIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGatewayRouteTables)
+			}
+		}
+		// End TransitGatewayRouteTable
+
+		// TransitGateway
+		transitGateways := TransitGateways{}
+		if IsNukeable(transitGateways.ResourceName(), resourceTypes) {
+			transitGatewayIds, err := getAllTransitGatewayInstances(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(transitGatewayIds) > 0 {
+				transitGateways.Ids = awsgo.StringValueSlice(transitGatewayIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGateways)
+			}
+		}
+		// End TransitGateway
 
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
@@ -485,6 +545,42 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		count++
 	}
 
+	// Global Resources - These resources are global and do not belong to a specific region
+	// Only process them if the global region was not explicitly excluded
+	if collections.ListContainsElement(targetRegions, GlobalRegion) {
+		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
+
+		// As there is no actual region named global we have to pick a valid one just to create the session
+		sessionRegion := defaultRegion
+		session, err := session.NewSession(&awsgo.Config{
+			Region: awsgo.String(sessionRegion)},
+		)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		globalResources := AwsRegionResource{}
+
+		// IAM Users
+		iamUsers := IAMUsers{}
+		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
+			userNames, err := getAllIamUsers(session, excludeAfter, configObj)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(userNames) > 0 {
+				iamUsers.UserNames = awsgo.StringValueSlice(userNames)
+				globalResources.Resources = append(globalResources.Resources, iamUsers)
+			}
+		}
+		// End IAM Users
+
+		if len(globalResources.Resources) > 0 {
+			account.Resources[GlobalRegion] = globalResources
+		}
+	}
+
 	return &account, nil
 }
 
@@ -496,6 +592,9 @@ func ListResourceTypes() []string {
 		LoadBalancers{}.ResourceName(),
 		LoadBalancersV2{}.ResourceName(),
 		SqsQueue{}.ResourceName(),
+		TransitGatewaysVpcAttachment{}.ResourceName(),
+		TransitGatewaysRouteTables{}.ResourceName(),
+		TransitGateways{}.ResourceName(),
 		EC2Instances{}.ResourceName(),
 		EBSVolumes{}.ResourceName(),
 		EIPAddresses{}.ResourceName(),
@@ -507,6 +606,7 @@ func ListResourceTypes() []string {
 		DBInstances{}.ResourceName(),
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
+		IAMUsers{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
@@ -527,43 +627,62 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) error {
+	resourcesInRegion := account.Resources[region]
+
+	for _, resources := range resourcesInRegion.Resources {
+		length := len(resources.ResourceIdentifiers())
+
+		// Split api calls into batches
+		logging.Logger.Infof("Terminating %d resources in batches", length)
+		batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
+
+		for i := 0; i < len(batches); i++ {
+			batch := batches[i]
+			if err := resources.Nuke(session, batch); err != nil {
+				// TODO: Figure out actual error type
+				if strings.Contains(err.Error(), "RequestLimitExceeded") {
+					logging.Logger.Info("Request limit reached. Waiting 1 minute before making new requests")
+					time.Sleep(1 * time.Minute)
+					continue
+				}
+
+				return errors.WithStackTrace(err)
+			}
+
+			if i != len(batches)-1 {
+				logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
+				time.Sleep(10 * time.Second)
+			}
+		}
+	}
+
+	return nil
+}
+
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	for _, region := range regions {
+		// region that will be used to create a session
+		sessionRegion := region
+
+		// As there is no actual region named global we have to pick a valid one just to create the session
+		if region == GlobalRegion {
+			sessionRegion = defaultRegion
+		}
+
 		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(region)},
+			Region: awsgo.String(sessionRegion)},
 		)
 
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 
-		resourcesInRegion := account.Resources[region]
-		for _, resources := range resourcesInRegion.Resources {
-			length := len(resources.ResourceIdentifiers())
+		err = nukeAllResourcesInRegion(account, region, session)
 
-			// Split api calls into batches
-			logging.Logger.Infof("Terminating %d resources in batches", length)
-			batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
-
-			for i := 0; i < len(batches); i++ {
-				batch := batches[i]
-				if err := resources.Nuke(session, batch); err != nil {
-					// TODO: Figure out actual error type
-					if strings.Contains(err.Error(), "RequestLimitExceeded") {
-						logging.Logger.Info("Request limit reached. Waiting 1 minute before making new requests")
-						time.Sleep(1 * time.Minute)
-						continue
-					}
-
-					return errors.WithStackTrace(err)
-				}
-
-				if i != len(batches)-1 {
-					logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
-					time.Sleep(10 * time.Second)
-				}
-			}
+		if err != nil {
+			return errors.WithStackTrace(err)
 		}
 	}
 
