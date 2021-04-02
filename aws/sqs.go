@@ -85,9 +85,5 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 
 	logging.Logger.Infof("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), *session.Config.Region)
 
-	sleepMessage := "SQS Queue deletion takes up to 60 seconds, and since there is no waiter available, we sleep instead."
-	sleepFor := 60 * time.Second
-	sleepWithMessage(sleepFor, sleepMessage)
-
 	return nil
 }

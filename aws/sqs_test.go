@@ -95,7 +95,17 @@ func TestNukeSqsQueue(t *testing.T) {
 	err = nukeAllSqsQueues(session, []*string{queueUrl})
 	require.NoError(t, err)
 
-	urls, err = getAllSqsQueue(session, region, oneHourFromNow)
+	// SQS Queue deletion takes up to 60 seconds to be finished. See https://docs.aws.amazon.com/sdk-for-go/api/service/sqs/#SQS.DeleteQueue
+	for retry := 0; retry <= 6; retry++ {
+		urls, err = getAllSqsQueue(session, region, oneHourFromNow)
+		if err == nil {
+			break
+		}
+
+		sleepMessage := "SQS Queue still available. Waiting 10 seconds to check again."
+		sleepFor := 10 * time.Second
+		sleepWithMessage(sleepFor, sleepMessage)
+	}
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(urls), awsgo.StringValue(queueUrl))
 }
