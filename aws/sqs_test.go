@@ -41,7 +41,7 @@ func TestListSqsQueue(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// create a 20 test queues, to validate pagination
+	// create 20 test queues, to validate pagination
 	queueList := []*string{}
 	for n := 0; n < 20; n++ {
 		queueName := "cloud-nuke-test-" + util.UniqueID()
@@ -54,7 +54,7 @@ func TestListSqsQueue(t *testing.T) {
 	// clean up after this test
 	defer nukeAllSqsQueues(session, queueList)
 
-	// timestamps to tests
+	// timestamps to test
 	oneHourAgo := time.Now().Add(1 * time.Hour * -1)
 	oneHourFromNow := time.Now().Add(1 * time.Hour)
 
