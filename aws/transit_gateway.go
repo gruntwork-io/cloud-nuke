@@ -184,7 +184,7 @@ func tgIsAvailableInRegion(session *session.Session, region string) (bool, error
 		if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidAction" {
 			return false, nil
 		} else {
-			return nil, errors.WithStackTrace(err)
+			return false, errors.WithStackTrace(err)
 		}
 	}
 	return true, nil
