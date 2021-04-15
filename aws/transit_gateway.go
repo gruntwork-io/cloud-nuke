@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -174,4 +175,17 @@ func nukeAllTransitGatewayVpcAttachments(session *session.Session, ids []*string
 
 	logging.Logger.Infof(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), *session.Config.Region)
 	return nil
+}
+
+func tgIsAvailableInRegion(session *session.Session, region string) (bool, error) {
+	svc := ec2.New(session)
+	_, err := svc.DescribeTransitGateways(&ec2.DescribeTransitGatewaysInput{})
+	if err != nil {
+		if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidAction" {
+			return false, nil
+		} else {
+			return false, errors.WithStackTrace(err)
+		}
+	}
+	return true, nil
 }
