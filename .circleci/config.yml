@@ -72,8 +72,6 @@ workflows:
           context:
             - Gruntwork Admin
       - build:
-          requires:
-            - test
           filters:
             tags:
               only: /^v.*/
