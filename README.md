@@ -10,6 +10,7 @@ The currently supported functionality includes:
 
 - Deleting all Auto scaling groups in an AWS account
 - Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
+- Deleting all Transit Gateways in an AWS account
 - Deleting all EBS Volumes in an AWS account
 - Deleting all unprotected EC2 instances in an AWS account
 - Deleting all AMIs in an AWS account
@@ -23,6 +24,7 @@ The currently supported functionality includes:
 - Deleting all Lambda Functions in an AWS account
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
+- Deleting all IAM users in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 - Deleting all DynamoDB tables in an AWS account
 
@@ -45,7 +47,7 @@ When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs a
 
 Note that package managers are third party. The third party cloud-nuke packages may not be updated with the latest version, but are often close. Please check your version against the latest available on the [releases page](https://github.com/gruntwork-io/cloud-nuke/releases). If you want the latest version, the recommended installation option is to [download from the releases page](https://github.com/gruntwork-io/cloud-nuke/releases).
 
-- **macOS:** You can install cloud-nuke using [Homebrew](https://brew.sh/): `brew install cloud-nuke`. 
+- **macOS:** You can install cloud-nuke using [Homebrew](https://brew.sh/): `brew install cloud-nuke`.
 
 - **Linux:** Most Linux users can use [Homebrew](https://docs.brew.sh/Homebrew-on-Linux): `brew install cloud-nuke`.
 
@@ -132,7 +134,9 @@ cloud-nuke aws --resource-type ec2 --dry-run
 
 For more granularity, such as being able to specify which resources to terminate using regular expressions or plain text, you can pass in a configuration file.
 
-_Note: Config file support is a new feature and only filtering s3 buckets by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
+_Note: Config file support is a new feature and only filtering s3 buckets and IAM Users by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
+
+#### S3 Buckets
 
 ```shell
 cloud-nuke aws --resource-type s3 --config path/to/file.yaml
@@ -150,6 +154,7 @@ s3:
 ```
 
 #### Include and exclude together
+
 Now consider the following contrived example:
 
 ```yaml
@@ -190,6 +195,26 @@ s3:
       - us-east-1
 ```
 -->
+
+#### IAM Users
+
+```shell
+cloud-nuke aws --resource-type iam --config path/to/file.yaml
+```
+
+Given this command, `cloud-nuke` will nuke _only_ IAM Users, as specified by the `--resource-type iam` option.
+
+The config file parameters are identical to the ones of `s3` with the only difference being the key name: `IAMUsers`.
+
+As an example, in the following config file, a user named `some-nice-user-name` would be deleted but a user named `interesting-user-name` would not.
+
+```yaml
+IAMUsers:
+  include:
+    names_regex:
+      - ^some-.*-user-name$
+      - .*-cool-name-.*
+```
 
 #### CLI options override config file options
 

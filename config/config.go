@@ -1,47 +1,51 @@
 package config
 
 import (
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+
+	"gopkg.in/yaml.v2"
 )
 
-// RawConfig - used to unmarshall the raw config file
-type RawConfig struct {
-	S3 rawResourceType `yaml:"s3"`
-}
-
-type rawResourceType struct {
-	IncludeRule rawFilterRule `yaml:"include"`
-	ExcludeRule rawFilterRule `yaml:"exclude"`
-}
-
-type rawFilterRule struct {
-	NamesRE []string `yaml:"names_regex"`
-}
-
 // Config - the config object we pass around
-// that is a parsed version of RawConfig
 type Config struct {
-	S3 ResourceType
+	S3       ResourceType `yaml:"s3"`
+	IAMUsers ResourceType `yaml:"IAMUsers"`
 }
 
-// ResourceType - the include and exclude
-// rules for a resource type
 type ResourceType struct {
-	IncludeRule FilterRule
-	ExcludeRule FilterRule
+	IncludeRule FilterRule `yaml:"include"`
+	ExcludeRule FilterRule `yaml:"exclude"`
 }
 
-// FilterRule - contains regular expressions or plain text patterns
-// used to match against a resource type's properties
 type FilterRule struct {
-	NamesRE []*regexp.Regexp
+	NamesRegExp []Expression `yaml:"names_regex"`
 }
 
-// GetConfig - unmarshall the raw config file
-// and parse it into a config object.
+type Expression struct {
+	RE regexp.Regexp
+}
+
+// UnmarshalText - Internally used by yaml.Unmarshal to unmarshall an Expression field
+func (expression *Expression) UnmarshalText(data []byte) error {
+	var pattern string
+
+	if err := yaml.Unmarshal(data, &pattern); err != nil {
+		return err
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
+	}
+
+	expression.RE = *re
+
+	return nil
+}
+
+// GetConfig - Unmarshall the config file and parse it into a config object.
 func GetConfig(filePath string) (*Config, error) {
 	var configObj Config
 
@@ -55,30 +59,44 @@ func GetConfig(filePath string) (*Config, error) {
 		return nil, err
 	}
 
-	rawConfig := RawConfig{}
-
-	err = yaml.Unmarshal(yamlFile, &rawConfig)
+	err = yaml.Unmarshal(yamlFile, &configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, pattern := range rawConfig.S3.IncludeRule.NamesRE {
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return nil, err
-		}
-
-		configObj.S3.IncludeRule.NamesRE = append(configObj.S3.IncludeRule.NamesRE, re)
-	}
-
-	for _, pattern := range rawConfig.S3.ExcludeRule.NamesRE {
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return nil, err
-		}
-
-		configObj.S3.ExcludeRule.NamesRE = append(configObj.S3.ExcludeRule.NamesRE, re)
-	}
-
 	return &configObj, nil
+}
+
+func matches(name string, regexps []Expression) bool {
+	for _, re := range regexps {
+		if re.RE.MatchString(name) {
+			return true
+		}
+	}
+	return false
+}
+
+// ShouldInclude - Checks if a name should be included according to the inclusion and exclusion rules
+func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression) bool {
+	shouldInclude := false
+
+	if len(includeREs) > 0 {
+		// If any include rules are specified,
+		// only check to see if an exclude rule matches when an include rule matches the user
+		if matches(name, includeREs) {
+			shouldInclude = true
+			if matches(name, excludeREs) {
+				shouldInclude = false
+			}
+		}
+	} else if len(excludeREs) > 0 {
+		// Only check to see if an exclude rule matches when there are no include rules defined
+		if matches(name, excludeREs) {
+			shouldInclude = false
+		}
+	} else {
+		shouldInclude = true
+	}
+
+	return shouldInclude
 }

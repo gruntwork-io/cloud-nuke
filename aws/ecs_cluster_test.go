@@ -21,7 +21,7 @@ func TestCanTagEcsClusters(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cluster := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-" + util.UniqueID())
+	cluster := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster)
 
 	tagValue := time.Now().UTC()
@@ -83,11 +83,11 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cluster1 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-" + util.UniqueID())
+	cluster1 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster1)
-	cluster2 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-" + util.UniqueID())
+	cluster2 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster2)
-	cluster3 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-" + util.UniqueID())
+	cluster3 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster3)
 
 	now := time.Now().UTC()
@@ -114,4 +114,3 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 
 	assert.Contains(t, awsgo.StringValueSlice(allLeftClusterArns), awsgo.StringValue(cluster2.ClusterArn))
 }
-

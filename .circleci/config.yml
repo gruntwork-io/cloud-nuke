@@ -1,7 +1,6 @@
 defaults: &defaults
-  working_directory: /go/src/github.com/gruntwork-io/cloud-nuke
   docker:
-    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.13
+    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.16-go111module
 version: 2
 jobs:
   test:
@@ -30,7 +29,11 @@ jobs:
             go run main.go aws \
               --older-than 1h \
               --force \
-              --exclude-resource-type s3
+              --config ./.circleci/nuke_config.yml \
+              --exclude-resource-type iam \
+              --exclude-resource-type transit-gateway \
+              --exclude-resource-type transit-gateway-attachment \
+              --exclude-resource-type transit-gateway-route-table
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -45,7 +48,11 @@ jobs:
             go run main.go aws \
               --older-than 24h \
               --force \
-              --exclude-resource-type s3
+              --config ./.circleci/nuke_config.yml \
+              --exclude-resource-type iam \
+              --exclude-resource-type transit-gateway \
+              --exclude-resource-type transit-gateway-attachment \
+              --exclude-resource-type transit-gateway-route-table
           no_output_timeout: 1h
   deploy:
     <<: *defaults
@@ -65,8 +72,6 @@ workflows:
           context:
             - Gruntwork Admin
       - build:
-          requires:
-            - test
           filters:
             tags:
               only: /^v.*/
@@ -90,10 +95,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - test
-      - nuke_phx_devops:
-          requires:
-            - test
+      - nuke_phx_devops
   nightly:
     triggers:
       - schedule:
@@ -102,7 +104,4 @@ workflows:
             branches:
               only: master
     jobs:
-      - test
-      - nuke_sandbox:
-          requires:
-            - test
+      - nuke_sandbox
