@@ -22,6 +22,7 @@ The currently supported functionality includes:
 - Deleting all EKS clusters in an AWS account
 - Deleting all RDS DB instances in an AWS account
 - Deleting all Lambda Functions in an AWS account
+- Deleting all SQS queues in an AWS account
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
 - Deleting all IAM users in an AWS account

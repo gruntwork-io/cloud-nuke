@@ -276,6 +276,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End LoadBalancerV2 Arns
 
+		// SQS Queues
+		sqsQueue := SqsQueue{}
+		if IsNukeable(sqsQueue.ResourceName(), resourceTypes) {
+			queueUrls, err := getAllSqsQueue(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(queueUrls) > 0 {
+				sqsQueue.QueueUrls = awsgo.StringValueSlice(queueUrls)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, sqsQueue)
+			}
+		}
+		// End SQS Queue
+
 		// TransitGatewayVpcAttachment
 		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
 		transitGatewayIsAvailable, err := tgIsAvailableInRegion(session, region)
@@ -581,6 +595,7 @@ func ListResourceTypes() []string {
 		LaunchConfigs{}.ResourceName(),
 		LoadBalancers{}.ResourceName(),
 		LoadBalancersV2{}.ResourceName(),
+		SqsQueue{}.ResourceName(),
 		TransitGatewaysVpcAttachment{}.ResourceName(),
 		TransitGatewaysRouteTables{}.ResourceName(),
 		TransitGateways{}.ResourceName(),
