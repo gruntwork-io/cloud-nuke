@@ -146,7 +146,7 @@ The following resources support the Config file:
     - Config key: `IAMUsers`
 - Secrets Manager Secrets
     - Resource type: `secretsmanager`
-    - Config key: `SecretsManagerSecrets`
+    - Config key: `SecretsManager`
 
 
 #### Example

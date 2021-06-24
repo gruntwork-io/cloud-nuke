@@ -14,3 +14,11 @@ s3:
       - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
       - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
       - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
+
+SecretsManager:
+  include:
+    names_regex:
+      - "^test-name-[a-zA-Z0-9]{6}$"
+      - "^GruntworkSampleAppFrontendCA[a-zA-Z0-9]{6}$"
+      - "^GruntworkSampleAppBackendCA[a-zA-Z0-9]{6}$"
+      - "^RDSDBConfig[a-zA-Z0-9]{6}$"
