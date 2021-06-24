@@ -22,3 +22,5 @@ SecretsManager:
       - "^GruntworkSampleAppFrontendCA[a-zA-Z0-9]{6}$"
       - "^GruntworkSampleAppBackendCA[a-zA-Z0-9]{6}$"
       - "^RDSDBConfig[a-zA-Z0-9]{6}$"
+      - "ECRDeployRunnerTestSSHKey-[a-zA-Z0-9]{6}$"
+      - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
