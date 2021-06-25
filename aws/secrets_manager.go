@@ -11,7 +11,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 func getAllSecretsManagerSecrets(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
