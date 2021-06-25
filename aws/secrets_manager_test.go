@@ -67,6 +67,8 @@ func TestTimeFilterExclusionNewlyCreatedSecret(t *testing.T) {
 }
 
 func TestNukeSecretOne(t *testing.T) {
+	t.Parallel()
+
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
@@ -89,6 +91,8 @@ func TestNukeSecretOne(t *testing.T) {
 }
 
 func TestNukeSecretMoreThanOne(t *testing.T) {
+	t.Parallel()
+
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
