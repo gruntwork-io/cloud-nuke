@@ -26,6 +26,8 @@ The currently supported functionality includes:
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
 - Deleting all IAM users in an AWS account
+- Deleting all Secrets Manager Secrets in an AWS account
+- Deleting all NAT Gateways in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 
 ### BEWARE!

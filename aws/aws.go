@@ -336,6 +336,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End TransitGateway
 
+		// NATGateway
+		natGateways := NatGateways{}
+		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
+			ngwIDs, err := getAllNatGateways(session, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(ngwIDs) > 0 {
+				natGateways.NatGatewayIDs = awsgo.StringValueSlice(ngwIDs)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, natGateways)
+			}
+		}
+		// End NATGateway
+
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
@@ -627,6 +641,7 @@ func ListResourceTypes() []string {
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
+		NatGateways{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
