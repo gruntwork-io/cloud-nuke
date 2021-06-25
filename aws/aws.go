@@ -503,6 +503,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Lambda Functions
 
+		// Secrets Manager Secrets
+		secretsManagerSecrets := SecretsManagerSecrets{}
+		if IsNukeable(secretsManagerSecrets.ResourceName(), resourceTypes) {
+			secrets, err := getAllSecretsManagerSecrets(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(secrets) > 0 {
+				secretsManagerSecrets.SecretIDs = awsgo.StringValueSlice(secrets)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, secretsManagerSecrets)
+			}
+		}
+		// End Secrets Manager Secrets
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -611,6 +626,7 @@ func ListResourceTypes() []string {
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
+		SecretsManagerSecrets{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

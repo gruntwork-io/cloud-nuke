@@ -134,9 +134,22 @@ cloud-nuke aws --resource-type ec2 --dry-run
 
 For more granularity, such as being able to specify which resources to terminate using regular expressions or plain text, you can pass in a configuration file.
 
-_Note: Config file support is a new feature and only filtering s3 buckets and IAM Users by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
+_Note: Config file support is a new feature and only filtering a handful of resources by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
 
-#### S3 Buckets
+The following resources support the Config file:
+
+- S3 Buckets
+    - Resource type: `s3`
+    - Config key: `s3`
+- IAM Users
+    - Resource type: `iam`
+    - Config key: `IAMUsers`
+- Secrets Manager Secrets
+    - Resource type: `secretsmanager`
+    - Config key: `SecretsManager`
+
+
+#### Example
 
 ```shell
 cloud-nuke aws --resource-type s3 --config path/to/file.yaml
@@ -151,6 +164,16 @@ s3:
     names_regex:
       - ^alb-.*-access-logs$
       - .*-prod-alb-.*
+```
+
+Similarly, you can adjust the config to delete only IAM users of a particular name by using the `IAMUsers` key. For
+example, in the following config, only IAM users that have the prefix `my-test-user-` in their username will be deleted.
+
+```
+IAMUsers:
+  include:
+    names_regex:
+      - ^my-test-user-.*
 ```
 
 #### Include and exclude together
@@ -196,25 +219,6 @@ s3:
 ```
 -->
 
-#### IAM Users
-
-```shell
-cloud-nuke aws --resource-type iam --config path/to/file.yaml
-```
-
-Given this command, `cloud-nuke` will nuke _only_ IAM Users, as specified by the `--resource-type iam` option.
-
-The config file parameters are identical to the ones of `s3` with the only difference being the key name: `IAMUsers`.
-
-As an example, in the following config file, a user named `some-nice-user-name` would be deleted but a user named `interesting-user-name` would not.
-
-```yaml
-IAMUsers:
-  include:
-    names_regex:
-      - ^some-.*-user-name$
-      - .*-cool-name-.*
-```
 
 #### CLI options override config file options
 
@@ -228,11 +232,13 @@ Be careful when nuking and append the `--dry-run` option if you're unsure. Even 
 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
-| resource type | support |
-|---------------|---------|
-| s3            | partial |
-| ec2 instance  | none    |
-| iam role      | none    |
+| resource type  | support |
+|----------------|---------|
+| s3             | partial |
+| iam            | partial |
+| secretsmanager | partial |
+| ec2 instance   | none    |
+| iam role       | none    |
 | ... (more to come) | none |
 
 
@@ -245,6 +251,27 @@ _Note: the fields without `_regex` suffixes refer to support for plain-text matc
 | names_regex | ✅      | ✅      |
 | tags        | none    | none    |
 | tags_regex  | none    | none    |
+
+##### iam resource type:
+_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
+
+| field       | include | exclude |
+|-------------|---------|---------|
+| names       | none    | none    |
+| names_regex | ✅      | ✅      |
+| tags        | none    | none    |
+| tags_regex  | none    | none    |
+
+##### secretsmanager resource type:
+_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
+
+| field       | include | exclude |
+|-------------|---------|---------|
+| names       | none    | none    |
+| names_regex | ✅      | ✅      |
+| tags        | none    | none    |
+| tags_regex  | none    | none    |
+
 
 ### Log level
 

@@ -10,8 +10,9 @@ import (
 
 // Config - the config object we pass around
 type Config struct {
-	S3       ResourceType `yaml:"s3"`
-	IAMUsers ResourceType `yaml:"IAMUsers"`
+	S3                    ResourceType `yaml:"s3"`
+	IAMUsers              ResourceType `yaml:"IAMUsers"`
+	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
 }
 
 type ResourceType struct {
