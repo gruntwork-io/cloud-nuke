@@ -30,10 +30,7 @@ jobs:
               --older-than 1h \
               --force \
               --config ./.circleci/nuke_config.yml \
-              --exclude-resource-type iam \
-              --exclude-resource-type transit-gateway \
-              --exclude-resource-type transit-gateway-attachment \
-              --exclude-resource-type transit-gateway-route-table
+              --exclude-resource-type iam
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -49,10 +46,7 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
-              --exclude-resource-type iam \
-              --exclude-resource-type transit-gateway \
-              --exclude-resource-type transit-gateway-attachment \
-              --exclude-resource-type transit-gateway-route-table
+              --exclude-resource-type iam
           no_output_timeout: 1h
   deploy:
     <<: *defaults
