@@ -12,10 +12,11 @@ import (
 	"github.com/gruntwork-io/go-commons/retry"
 	multierror "github.com/hashicorp/go-multierror"
 
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 )
 
-func getAllNatGateways(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllNatGateways(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 
 	allNatGateways := []*string{}
@@ -24,7 +25,7 @@ func getAllNatGateways(session *session.Session, excludeAfter time.Time) ([]*str
 		input,
 		func(page *ec2.DescribeNatGatewaysOutput, lastPage bool) bool {
 			for _, ngw := range page.NatGateways {
-				if shouldIncludeNatGateway(ngw, excludeAfter) {
+				if shouldIncludeNatGateway(ngw, excludeAfter, configObj) {
 					allNatGateways = append(allNatGateways, ngw.NatGatewayId)
 				}
 			}
@@ -34,7 +35,7 @@ func getAllNatGateways(session *session.Session, excludeAfter time.Time) ([]*str
 	return allNatGateways, errors.WithStackTrace(err)
 }
 
-func shouldIncludeNatGateway(ngw *ec2.NatGateway, excludeAfter time.Time) bool {
+func shouldIncludeNatGateway(ngw *ec2.NatGateway, excludeAfter time.Time, configObj config.Config) bool {
 	if ngw == nil {
 		return false
 	}
@@ -42,7 +43,21 @@ func shouldIncludeNatGateway(ngw *ec2.NatGateway, excludeAfter time.Time) bool {
 	if ngw.CreateTime != nil && excludeAfter.Before(*ngw.CreateTime) {
 		return false
 	}
-	return true
+
+	return config.ShouldInclude(
+		getNatGatewayName(ngw),
+		configObj.NatGateway.IncludeRule.NamesRegExp,
+		configObj.NatGateway.ExcludeRule.NamesRegExp,
+	)
+}
+
+func getNatGatewayName(ngw *ec2.NatGateway) string {
+	for _, tag := range ngw.Tags {
+		if aws.StringValue(tag.Key) == "Name" {
+			return aws.StringValue(tag.Value)
+		}
+	}
+	return ""
 }
 
 func nukeAllNatGateways(session *session.Session, identifiers []*string) error {

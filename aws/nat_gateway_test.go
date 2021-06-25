@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	terraws "github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func TestListNatGateways(t *testing.T) {
 	ngwID := createNatGateway(t, svc, region)
 	defer deleteNatGateway(t, svc, ngwID, true)
 
-	natGatewayIDs, err := getAllNatGateways(session, time.Now())
+	natGatewayIDs, err := getAllNatGateways(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(natGatewayIDs), aws.StringValue(ngwID))
 }
@@ -45,13 +46,13 @@ func TestTimeFilterExclusionNewlyCreatedNatGateway(t *testing.T) {
 	defer deleteNatGateway(t, svc, ngwID, true)
 
 	// Assert NGW is picked up without filters
-	natGatewayIDsNewer, err := getAllNatGateways(session, time.Now())
+	natGatewayIDsNewer, err := getAllNatGateways(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(natGatewayIDsNewer), aws.StringValue(ngwID))
 
 	// Assert user doesn't appear when we look at users older than 1 Hour
 	olderThan := time.Now().Add(-1 * time.Hour)
-	natGatewayIDsOlder, err := getAllNatGateways(session, olderThan)
+	natGatewayIDsOlder, err := getAllNatGateways(session, olderThan, config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(natGatewayIDsOlder), aws.StringValue(ngwID))
 }

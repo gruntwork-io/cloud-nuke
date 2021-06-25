@@ -24,3 +24,13 @@ SecretsManager:
       - "^RDSDBConfig[a-zA-Z0-9]{6}$"
       - "ECRDeployRunnerTestSSHKey-[a-zA-Z0-9]{6}$"
       - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
+
+NatGateway:
+  # There is a bug in the cloud-nuke config where exclude does not work by itself, so we add a null include rule that
+  # includes everything.
+  include:
+    names_regex:
+      - ".*"
+  exclude:
+    names_regex:
+      - "^ecs-deploy-runner-v2-nat-gateway-0$"

@@ -339,7 +339,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// NATGateway
 		natGateways := NatGateways{}
 		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
-			ngwIDs, err := getAllNatGateways(session, excludeAfter)
+			ngwIDs, err := getAllNatGateways(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
