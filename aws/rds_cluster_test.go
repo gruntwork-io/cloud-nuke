@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -16,6 +17,8 @@ import (
 )
 
 func createTestRDSCluster(t *testing.T, session *session.Session, name string) {
+	t.Logf("Creating RDS Cluster in region %s", aws.StringValue(session.Config.Region))
+
 	svc := rds.New(session)
 	params := &rds.CreateDBClusterInput{
 		DBClusterIdentifier: awsgo.String(name),
