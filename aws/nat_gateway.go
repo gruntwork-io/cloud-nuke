@@ -70,6 +70,15 @@ func nukeAllNatGateways(session *session.Session, identifiers []*string) error {
 		return nil
 	}
 
+	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
+	// based on NatGateways.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
+	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
+	// because many APIs in AWS have a limit of 100 requests per second.
+	if len(identifiers) > 100 {
+		logging.Logger.Errorf("Nuking too many NAT gateways at once (100): halting to avoid hitting AWS API rate limiting")
+		return TooManyNatErr{}
+	}
+
 	// There is no bulk delete nat gateway API, so we delete the batch of nat gateways concurrently using go routines.
 	logging.Logger.Infof("Deleting Nat Gateways in region %s", region)
 	wg := new(sync.WaitGroup)
@@ -124,7 +133,8 @@ func nukeAllNatGateways(session *session.Session, identifiers []*string) error {
 // querying for the statuses of all the NAT gateways, and checking if AWS knows about them (if not, the NAT gateway was
 // deleted and rolled off AWS DB) or if the status was updated to deleted.
 func areAllNatGatewaysDeleted(svc *ec2.EC2, identifiers []*string) (bool, error) {
-	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function.
+	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
+	// based on NatGateways.MaxBatchSize.
 	resp, err := svc.DescribeNatGateways(&ec2.DescribeNatGatewaysInput{NatGatewayIds: identifiers})
 	if err != nil {
 		return false, err
@@ -153,4 +163,12 @@ func deleteNatGatewayAsync(wg *sync.WaitGroup, errChan chan error, svc *ec2.EC2,
 	input := &ec2.DeleteNatGatewayInput{NatGatewayId: ngwID}
 	_, err := svc.DeleteNatGateway(input)
 	errChan <- err
+}
+
+// Custom errors
+
+type TooManyNatErr struct{}
+
+func (err TooManyNatErr) Error() string {
+	return "Too many NAT Gateways requested at once."
 }
