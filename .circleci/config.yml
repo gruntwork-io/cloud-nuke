@@ -8,8 +8,19 @@ jobs:
     steps:
       - checkout
       - run:
-          command: run-go-tests --timeout 45m
+          command: |
+            mkdir -p /tmp/logs
+            run-go-tests --timeout 45m | tee /tmp/logs/all.log
           no_output_timeout: 45m
+      - run:
+          name: parse test output
+          command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
+          when: always
+      - store_artifacts:
+          path: /tmp/logs
+      - store_test_results:
+          path: /tmp/logs
+
   build:
     <<: *defaults
     steps:

@@ -26,6 +26,8 @@ The currently supported functionality includes:
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
 - Deleting all IAM users in an AWS account
+- Deleting all Secrets Manager Secrets in an AWS account
+- Deleting all NAT Gateways in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 
 ### BEWARE!
@@ -147,6 +149,9 @@ The following resources support the Config file:
 - Secrets Manager Secrets
     - Resource type: `secretsmanager`
     - Config key: `SecretsManager`
+- NAT Gateways
+    - Resource type: `nat-gateway`
+    - Config key: `NATGateway`
 
 
 #### Example
@@ -232,45 +237,16 @@ Be careful when nuking and append the `--dry-run` option if you're unsure. Even 
 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
-| resource type  | support |
-|----------------|---------|
-| s3             | partial |
-| iam            | partial |
-| secretsmanager | partial |
-| ec2 instance   | none    |
-| iam role       | none    |
-| ... (more to come) | none |
+| resource type      | names | names_regex | tags | tags_regex |
+|--------------------|-------|-------------|------|------------|
+| s3                 | none  | ✅          | none | none       |
+| iam                | none  | ✅          | none | none       |
+| secretsmanager     | none  | ✅          | none | none       |
+| nat-gateway        | none  | ✅          | none | none       |
+| ec2 instance       | none  | none        | none | none       |
+| iam role           | none  | none        | none | none       |
+| ... (more to come) | none  | none        | none | none       |
 
-
-##### s3 resource type:
-_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
-
-| field       | include | exclude |
-|-------------|---------|---------|
-| names       | none    | none    |
-| names_regex | ✅      | ✅      |
-| tags        | none    | none    |
-| tags_regex  | none    | none    |
-
-##### iam resource type:
-_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
-
-| field       | include | exclude |
-|-------------|---------|---------|
-| names       | none    | none    |
-| names_regex | ✅      | ✅      |
-| tags        | none    | none    |
-| tags_regex  | none    | none    |
-
-##### secretsmanager resource type:
-_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
-
-| field       | include | exclude |
-|-------------|---------|---------|
-| names       | none    | none    |
-| names_regex | ✅      | ✅      |
-| tags        | none    | none    |
-| tags_regex  | none    | none    |
 
 
 ### Log level

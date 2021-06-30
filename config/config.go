@@ -13,6 +13,7 @@ type Config struct {
 	S3                    ResourceType `yaml:"s3"`
 	IAMUsers              ResourceType `yaml:"IAMUsers"`
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
+	NatGateway            ResourceType `yaml:"NatGateway"`
 }
 
 type ResourceType struct {
