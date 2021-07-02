@@ -91,9 +91,7 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 	createTestDynamoTables(t)
 
 	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		require.Error(t, err)
-		}
+	require.NoError(t, err)
 		// Dynamo needs a wait of about 2 seconds to create the tables before delete
 		time.Sleep(2 * time.Second)
 	nukeErr := nukeAllDynamoDBTables(awsSession, tables)
