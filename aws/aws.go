@@ -443,7 +443,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				return nil, errors.WithStackTrace(err)
 			}
 			if len(detectors) > 0 {
-				gdInstances.DetectorIds = awsgo.StringValueSlice(detectors)
+				gdInstances.DetectorIds = detectors
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, gdInstances)
 			}
 		}
