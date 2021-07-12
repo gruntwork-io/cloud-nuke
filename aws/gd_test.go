@@ -7,8 +7,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/guardduty"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // createTestGuardDuty creates a GuardDuty detector
@@ -18,9 +17,7 @@ func createTestGuardDuty(t *testing.T, session *session.Session) string {
 	detector, err := svc.CreateDetector(&guardduty.CreateDetectorInput{
 		Enable: awsgo.Bool(true),
 	})
-	if err != nil {
-		assert.Failf(t, "Could not create test GuardDuty instance", errors.WithStackTrace(err).Error())
-	}
+	require.NoErrorf(t, err, "Could not create test GuardDuty instance")
 
 	return *detector.DetectorId
 }
@@ -29,36 +26,32 @@ func TestNukeAllGuardDutyDetectors(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 
 	sess, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 
 	detectorID := createTestGuardDuty(t, sess)
-	defer func(session *session.Session, detectors []*string) {
+	defer func(session *session.Session, detectors []string) {
 		err := nukeAllGuardDutyDetectors(session, detectors)
-		if err != nil {
-			assert.Fail(t, errors.WithStackTrace(err).Error())
-		}
-	}(sess, []*string{&detectorID})
+		require.NoError(t, err)
+
+		// make sure all GuardDuty instances were actually deleted
+		detectors, err = getAllGuardDutyDetectors(sess, time.Now().Add(1*time.Hour))
+		require.NoErrorf(t, err, "Unable to list GuardDuty detector in region")
+
+		require.Truef(t, len(detectors) == 0, "GuardDuty detectors still found after cleanup")
+	}(sess, []string{detectorID})
 
 	detectors, err := getAllGuardDutyDetectors(sess, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		assert.Fail(t, "Unable to list GuardDuty detector in region")
-	}
+	require.NoErrorf(t, err, "Unable to list GuardDuty detector in region")
 
-	assert.NotContains(t, awsgo.StringValueSlice(detectors), detectorID)
+	require.NotContains(t, detectors, detectorID)
 
 	detectors, err = getAllGuardDutyDetectors(sess, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to list GuardDuty detector in region")
-	}
+	require.NoErrorf(t, err, "Unable to list GuardDuty detector in region")
 
-	assert.Contains(t, awsgo.StringValueSlice(detectors), detectorID)
+	require.Contains(t, detectors, detectorID)
 }

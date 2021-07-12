@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -28,7 +27,7 @@ func (g GuardDutyInstances) MaxBatchSize() int {
 
 // Nuke - nuke 'em all, "it's the only way to be sure"
 func (g GuardDutyInstances) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllGuardDutyDetectors(session, aws.StringSlice(identifiers)); err != nil {
+	if err := nukeAllGuardDutyDetectors(session, identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
