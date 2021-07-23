@@ -20,8 +20,9 @@ import (
 func TestListAccessAnalyzers(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	// We hard code the region here to avoid the tests colliding with each other, since we can only have one account
+	// analyzer per region (but we can have multiple org analyzers).
+	region := "us-west-1"
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
@@ -38,8 +39,9 @@ func TestListAccessAnalyzers(t *testing.T) {
 func TestTimeFilterExclusionNewlyCreatedAccessAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	// We hard code the region here to avoid the tests colliding with each other, since we can only have one account
+	// analyzer per region (but we can have multiple org analyzers).
+	region := "us-west-2"
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
@@ -63,8 +65,9 @@ func TestTimeFilterExclusionNewlyCreatedAccessAnalyzer(t *testing.T) {
 func TestNukeAccessAnalyzerOne(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	// We hard code the region here to avoid the tests colliding with each other, since we can only have one account
+	// analyzer per region (but we can have multiple org analyzers).
+	region := "eu-west-1"
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
@@ -82,33 +85,6 @@ func TestNukeAccessAnalyzerOne(t *testing.T) {
 
 	// Make sure the Access Analyzer is deleted.
 	assertAccessAnalyzersDeleted(t, svc, identifiers)
-}
-
-func TestNukeAccessAnalyzerMoreThanOne(t *testing.T) {
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := accessanalyzer.New(session)
-
-	analyzerNames := []*string{}
-	for i := 0; i < 3; i++ {
-		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		analyzerName := createAccessAnalyzer(t, svc)
-		defer deleteAccessAnalyzer(t, svc, analyzerName, false)
-		analyzerNames = append(analyzerNames, analyzerName)
-	}
-
-	require.NoError(
-		t,
-		nukeAllAccessAnalyzers(session, analyzerNames),
-	)
-
-	// Make sure the Access Analyzers are deleted.
-	assertAccessAnalyzersDeleted(t, svc, analyzerNames)
 }
 
 // Helper functions for driving the Access Analyzer tests
