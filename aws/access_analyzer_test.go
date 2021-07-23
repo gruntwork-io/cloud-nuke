@@ -128,7 +128,7 @@ func createAccessAnalyzer(t *testing.T, svc *accessanalyzer.AccessAnalyzer) *str
 	// AccessAnalyzer API operates on the name, so we need to extract out the name part of the ARN.
 	arn, err := arn.Parse(aws.StringValue(resp.Arn))
 	require.NoError(t, err)
-	return arn.Resource
+	return aws.String(arn.Resource)
 }
 
 // deleteAccessAnalyzer is a function to delete the given NAT gateway.
