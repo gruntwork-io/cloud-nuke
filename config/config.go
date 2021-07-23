@@ -14,6 +14,7 @@ type Config struct {
 	IAMUsers              ResourceType `yaml:"IAMUsers"`
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
 	NatGateway            ResourceType `yaml:"NatGateway"`
+	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
 }
 
 type ResourceType struct {

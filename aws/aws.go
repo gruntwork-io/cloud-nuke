@@ -532,6 +532,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Secrets Manager Secrets
 
+		// AccessAnalyzer
+		accessAnalyzer := AccessAnalyzer{}
+		if IsNukeable(accessAnalyzer.ResourceName(), resourceTypes) {
+			analyzerNames, err := getAllAccessAnalyzers(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(analyzerNames) > 0 {
+				accessAnalyzer.AnalyzerNames = awsgo.StringValueSlice(analyzerNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, accessAnalyzer)
+			}
+		}
+		// End AccessAnalyzer
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -642,6 +656,7 @@ func ListResourceTypes() []string {
 		IAMUsers{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
+		AccessAnalyzer{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
