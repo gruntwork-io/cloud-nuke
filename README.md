@@ -28,6 +28,7 @@ The currently supported functionality includes:
 - Deleting all IAM users in an AWS account
 - Deleting all Secrets Manager Secrets in an AWS account
 - Deleting all NAT Gateways in an AWS account
+- Deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 
 ### BEWARE!
@@ -152,6 +153,9 @@ The following resources support the Config file:
 - NAT Gateways
     - Resource type: `nat-gateway`
     - Config key: `NATGateway`
+- IAM Access Analyzers
+    - Resource type: `accessanalyzer`
+    - Config key: `AccessAnalyzer`
 
 
 #### Example
@@ -243,6 +247,7 @@ To find out what we options are supported in the config file today, consult this
 | iam                | none  | ✅          | none | none       |
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
+| accessanalyzer     | none  | ✅          | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
 | ... (more to come) | none  | none        | none | none       |
