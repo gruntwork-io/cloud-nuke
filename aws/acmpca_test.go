@@ -1,9 +1,13 @@
 package aws
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/go-commons/retry"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -55,6 +59,31 @@ func createTestACMPCA(t *testing.T, session *session.Session, name string) *stri
 	if err != nil {
 		assert.Failf(t, "Could not create ACMPCA", errors.WithStackTrace(err).Error())
 	}
+
+	// Wait for the ACMPCA to be ready (i.e. not CREATING).
+	// Ready does not mean "ACTIVE".
+	if err := retry.DoWithRetry(
+		logging.Logger,
+		fmt.Sprintf("Waiting for ACMPCA %s to be stable", awsgo.StringValue(ca.CertificateAuthorityArn)),
+		10,
+		1*time.Second,
+		func() error {
+			details, detailsErr := svc.DescribeCertificateAuthority(&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: ca.CertificateAuthorityArn})
+			if detailsErr != nil {
+				return detailsErr
+			}
+			if details.CertificateAuthority == nil {
+				return fmt.Errorf("no CA instance found")
+			}
+			if awsgo.StringValue(details.CertificateAuthority.Status) != acmpca.CertificateAuthorityStatusPendingCertificate {
+				return fmt.Errorf("CA not ready, status %s", awsgo.StringValue(details.CertificateAuthority.Status))
+			}
+			return nil
+		},
+	); err != nil {
+		assert.Failf(t, "WARNING: ACMPCA is in some unfinished state. Delete manually inside the test-runner.", errors.WithStackTrace(err).Error())
+	}
+
 	return ca.CertificateAuthorityArn
 }
 
