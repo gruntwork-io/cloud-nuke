@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -95,15 +96,39 @@ func nukeAllACMPCA(session *session.Session, arns []*string) error {
 func deleteACMPCAASync(wg *sync.WaitGroup, errChan chan error, svc *acmpca.ACMPCA, arn *string, region string) {
 	defer wg.Done()
 
-	logging.Logger.Infof("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, region)
-	if _, updateStatusErr := svc.UpdateCertificateAuthority(&acmpca.UpdateCertificateAuthorityInput{
-		CertificateAuthorityArn: arn,
-		Status:                  aws.String(acmpca.CertificateAuthorityStatusDisabled),
-	}); updateStatusErr != nil {
-		errChan <- updateStatusErr
+	logging.Logger.Infof("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, region)
+	details, detailsErr := svc.DescribeCertificateAuthority(&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
+	if detailsErr != nil {
+		errChan <- detailsErr
 		return
 	}
-	logging.Logger.Infof("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, region)
+	if details.CertificateAuthority == nil {
+		errChan <- fmt.Errorf("could not find CA %s", aws.StringValue(arn))
+		return
+	}
+	if details.CertificateAuthority.Status == nil {
+		errChan <- fmt.Errorf("could not fetch status for CA %s", aws.StringValue(arn))
+		return
+	}
+
+	// find out, whether we have to disable the CA first, prior to deletion.
+	statusSafe := aws.StringValue(details.CertificateAuthority.Status)
+	shouldUpdateStatus := statusSafe != acmpca.CertificateAuthorityStatusCreating &&
+		statusSafe != acmpca.CertificateAuthorityStatusPendingCertificate &&
+		statusSafe != acmpca.CertificateAuthorityStatusDisabled &&
+		statusSafe != acmpca.CertificateAuthorityStatusDeleted
+
+	if shouldUpdateStatus {
+		logging.Logger.Infof("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, region)
+		if _, updateStatusErr := svc.UpdateCertificateAuthority(&acmpca.UpdateCertificateAuthorityInput{
+			CertificateAuthorityArn: arn,
+			Status:                  aws.String(acmpca.CertificateAuthorityStatusDisabled),
+		}); updateStatusErr != nil {
+			errChan <- updateStatusErr
+			return
+		}
+		logging.Logger.Infof("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, region)
+	}
 
 	if _, deleteErr := svc.DeleteCertificateAuthority(&acmpca.DeleteCertificateAuthorityInput{
 		CertificateAuthorityArn: arn,
@@ -115,5 +140,6 @@ func deleteACMPCAASync(wg *sync.WaitGroup, errChan chan error, svc *acmpca.ACMPC
 		errChan <- deleteErr
 		return
 	}
-	logging.Logger.Infof("Deleted ACMPCA: %s", *arn)
+	logging.Logger.Infof("Deleted ACMPCA: %s successfully", *arn)
+	errChan <- nil
 }
