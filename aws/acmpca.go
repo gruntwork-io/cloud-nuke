@@ -35,10 +35,9 @@ func shouldIncludeACMPCA(ca *acmpca.CertificateAuthority, excludeAfter time.Time
 		return false
 	}
 
-	// one can only delete CAs if they are 'ACTIVE' or 'DISABLED'
 	statusSafe := aws.StringValue(ca.Status)
-	isCandidateForDeletion := statusSafe == acmpca.CertificateAuthorityStatusActive || statusSafe == acmpca.CertificateAuthorityStatusDisabled
-	if !isCandidateForDeletion {
+	isAlreadyDeleted := statusSafe == acmpca.CertificateAuthorityStatusDeleted
+	if isAlreadyDeleted {
 		return false
 	}
 
