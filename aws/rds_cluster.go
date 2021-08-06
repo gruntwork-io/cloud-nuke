@@ -1,10 +1,10 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
