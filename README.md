@@ -157,9 +157,6 @@ The following resources support the Config file:
 - IAM Access Analyzers
     - Resource type: `accessanalyzer`
     - Config key: `AccessAnalyzer`
-- ACM Private CAs
-    - Resource type: `acmpca`
-    - Config key: `ACMPCA`
 
 
 #### Example
@@ -252,7 +249,7 @@ To find out what we options are supported in the config file today, consult this
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
 | accessanalyzer     | none  | ✅          | none | none       |
-| acmpca             | none  | ✅          | none | none       |
+| acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
 | ... (more to come) | none  | none        | none | none       |

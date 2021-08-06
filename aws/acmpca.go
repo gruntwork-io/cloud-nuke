@@ -15,12 +15,12 @@ import (
 )
 
 // getAllACMPCA returns a list of all arns of ACMPCA, which can be deleted.
-func getAllACMPCA(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllACMPCA(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := acmpca.New(session)
 	var arns []*string
 	if paginationErr := svc.ListCertificateAuthoritiesPages(&acmpca.ListCertificateAuthoritiesInput{}, func(p *acmpca.ListCertificateAuthoritiesOutput, lastPage bool) bool {
 		for _, ca := range p.CertificateAuthorities {
-			if shouldIncludeACMPCA(ca, excludeAfter, configObj) {
+			if shouldIncludeACMPCA(ca, excludeAfter) {
 				arns = append(arns, ca.Arn)
 			}
 		}
@@ -31,7 +31,7 @@ func getAllACMPCA(session *session.Session, region string, excludeAfter time.Tim
 	return arns, nil
 }
 
-func shouldIncludeACMPCA(ca *acmpca.CertificateAuthority, excludeAfter time.Time, configObj config.Config) bool {
+func shouldIncludeACMPCA(ca *acmpca.CertificateAuthority, excludeAfter time.Time) bool {
 	if ca == nil {
 		return false
 	}
@@ -56,8 +56,8 @@ func shouldIncludeACMPCA(ca *acmpca.CertificateAuthority, excludeAfter time.Time
 
 	return config.ShouldInclude(
 		aws.StringValue(ca.Arn),
-		configObj.ACMPCA.IncludeRule.NamesRegExp,
-		configObj.ACMPCA.ExcludeRule.NamesRegExp,
+		nil,
+		nil,
 	)
 }
 
