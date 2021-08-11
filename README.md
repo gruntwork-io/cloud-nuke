@@ -178,7 +178,7 @@ s3:
 Similarly, you can adjust the config to delete only IAM users of a particular name by using the `IAMUsers` key. For
 example, in the following config, only IAM users that have the prefix `my-test-user-` in their username will be deleted.
 
-```
+```yaml
 IAMUsers:
   include:
     names_regex:
