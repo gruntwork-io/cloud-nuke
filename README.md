@@ -8,6 +8,7 @@ The currently supported functionality includes:
 
 ## AWS
 
+- Deleting all ACM Private CA in an AWS account
 - Deleting all Auto scaling groups in an AWS account
 - Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
 - Deleting all Transit Gateways in an AWS account
@@ -248,6 +249,7 @@ To find out what we options are supported in the config file today, consult this
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
 | accessanalyzer     | none  | ✅          | none | none       |
+| acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
 | ... (more to come) | none  | none        | none | none       |
@@ -333,6 +335,13 @@ And to run a specific test, such as `TestListAMIs` in package `aws`:
 ```bash
 cd aws
 go test -v -run TestListAMIs
+```
+
+Use env-vars to opt-in to special tests, which are expensive to run:
+
+```bash
+# Run acmpca tests
+TEST_ACMPCA_EXPENSIVE_ENABLE=1 go test -v ./...
 ```
 
 ### Formatting
