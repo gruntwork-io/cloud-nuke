@@ -71,12 +71,25 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 			}
 		}
 
-		if excludeAfter.After(*firstSeenTime) {
+		if excludeAfter.After(*firstSeenTime) && !hasEIPExcludeTag(address) {
+			allocationIds = append(allocationIds, address.AllocationId)
+		} else if !hasEIPExcludeTag(address) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
 
 	return allocationIds, nil
+}
+
+// hasEIPExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasEIPExcludeTag(address *ec2.Address) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tag := range address.Tags {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 // Deletes all EIP allocation ids
