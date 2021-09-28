@@ -32,7 +32,9 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 			protected := *attr.DisableApiTermination.Value
 			// Exclude protected EC2 instances
 			if !protected {
-				if excludeAfter.After(*instance.LaunchTime) {
+				if excludeAfter.After(*instance.LaunchTime) && !hasEC2ExcludeTag(instance) {
+					filteredIds = append(filteredIds, &instanceID)
+				} else if !hasEC2ExcludeTag(instance) {
 					filteredIds = append(filteredIds, &instanceID)
 				}
 			}
@@ -69,6 +71,17 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 	}
 
 	return instanceIds, nil
+}
+
+// hasEC2ExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasEC2ExcludeTag(instance *ec2.Instance) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tag := range instance.Tags {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 // Deletes all non protected EC2 instances
