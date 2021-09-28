@@ -21,12 +21,25 @@ func getAllEbsVolumes(session *session.Session, region string, excludeAfter time
 
 	var volumeIds []*string
 	for _, volume := range result.Volumes {
-		if excludeAfter.After(*volume.CreateTime) {
+		if excludeAfter.After(*volume.CreateTime) && !hasEBSExcludeTag(volume) {
+			volumeIds = append(volumeIds, volume.VolumeId)
+		} else if !hasEBSExcludeTag(volume) {
 			volumeIds = append(volumeIds, volume.VolumeId)
 		}
 	}
 
 	return volumeIds, nil
+}
+
+// hasEBSExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasEBSExcludeTag(volume *ec2.Volume) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tag := range volume.Tags {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 // Deletes all EBS Volumes
