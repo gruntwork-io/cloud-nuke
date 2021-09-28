@@ -29,12 +29,25 @@ func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj 
 	}
 
 	for _, user := range output.Users {
-		if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRegExp, configObj.IAMUsers.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) {
+		if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRegExp, configObj.IAMUsers.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) && !hasIAMExcludeTag(user) {
+			userNames = append(userNames, user.UserName)
+		} else if !hasIAMExcludeTag(user) {
 			userNames = append(userNames, user.UserName)
 		}
 	}
 
 	return userNames, nil
+}
+
+// hasIAMExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasIAMExcludeTag(user *iam.User) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tag := range user.Tags {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 func detachUserPolicies(svc *iam.IAM, userName *string) error {
