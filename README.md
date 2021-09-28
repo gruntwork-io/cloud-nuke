@@ -9,26 +9,26 @@ The currently supported functionality includes:
 ## AWS
 
 - Deleting all ACM Private CA in an AWS account
-- Deleting all Auto scaling groups in an AWS account
-- Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
+- Deleting all Auto scaling groups in an AWS account - except for scaling groups tagged with Key=cloud-nuke-excluded Value=true
+- Deleting all Elastic Load Balancers (Classic and V2) in an AWS account - except for balancers tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all Transit Gateways in an AWS account
-- Deleting all EBS Volumes in an AWS account
-- Deleting all unprotected EC2 instances in an AWS account
+- Deleting all EBS Volumes in an AWS account - except for volumes tagged with Key=cloud-nuke-excluded Value=true
+- Deleting all unprotected EC2 instances in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all AMIs in an AWS account
-- Deleting all Snapshots in an AWS account
-- Deleting all Elastic IPs in an AWS account
+- Deleting all Snapshots in an AWS account - except for snapshots tagged with Key=cloud-nuke-excluded Value=true
+- Deleting all Elastic IPs in an AWS account - except for IPs tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all Launch Configurations in an AWS account
 - Deleting all ECS services in an AWS account
 - Deleting all ECS clusters in an AWS account
-- Deleting all EKS clusters in an AWS account
-- Deleting all RDS DB instances in an AWS account
+- Deleting all EKS clusters in an AWS account - except for clusters tagged with Key=cloud-nuke-excluded Value=true
+- Deleting all RDS DB instances in an AWS account - except for instances tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all Lambda Functions in an AWS account
 - Deleting all SQS queues in an AWS account
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
-- Deleting all IAM users in an AWS account
+- Deleting all IAM users in an AWS account - except for users tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all Secrets Manager Secrets in an AWS account
-- Deleting all NAT Gateways in an AWS account
+- Deleting all NAT Gateways in an AWS account - except for gateways tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 
