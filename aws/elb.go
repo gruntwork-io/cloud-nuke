@@ -3,6 +3,7 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
@@ -38,12 +39,36 @@ func getAllElbInstances(session *session.Session, region string, excludeAfter ti
 
 	var names []*string
 	for _, balancer := range result.LoadBalancerDescriptions {
-		if excludeAfter.After(*balancer.CreatedTime) {
+		input := &elb.DescribeTagsInput{
+			LoadBalancerNames: []*string{
+				aws.String(*balancer.LoadBalancerName),
+			},
+		}
+		tagOutput, err := svc.DescribeTags(input)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		if excludeAfter.After(*balancer.CreatedTime) && !hasELBExcludeTag(tagOutput) {
+			names = append(names, balancer.LoadBalancerName)
+		} else if !hasELBExcludeTag(tagOutput) {
 			names = append(names, balancer.LoadBalancerName)
 		}
 	}
 
 	return names, nil
+}
+
+// hasELBExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasELBExcludeTag(tagOutput *elb.DescribeTagsOutput) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tagDescription := range tagOutput.TagDescriptions {
+		for _, tag := range tagDescription.Tags {
+			if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Deletes all Elastic Load Balancers
