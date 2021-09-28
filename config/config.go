@@ -84,17 +84,14 @@ func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression
 	// If no rules are defined, should always include
 	if len(includeREs) == 0 && len(excludeREs) == 0 {
 		return true
-		// If a rule that exclude matches, should not include
+	// If a rule that exclude matches, should not include
 	} else if matches(name, excludeREs) {
 		return false
-		// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
+	// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
 	} else if len(includeREs) == 0 {
 		return true
-		// Given there is a 'include' list, and 'name' is there, should include
-	} else if matches(name, includeREs) {
-		return true
-		// If it's not in the 'include' list, should not include
+	// Given there is a 'include' list, and 'name' is there, should include
 	} else {
-		return false
+		return matches(name, includeREs)
 	}
 }
