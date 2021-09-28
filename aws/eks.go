@@ -40,11 +40,41 @@ func getAllEksClusters(awsSession *session.Session, excludeAfter time.Time) ([]*
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
-	filteredClusters, err := filterOutRecentEksClusters(svc, result.Clusters, excludeAfter)
+	excludedWithTagClusters, err := filterOutTaggedClusters(svc, result.Clusters)
+	filteredClusters, err := filterOutRecentEksClusters(svc, excludedWithTagClusters, excludeAfter)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 	return filteredClusters, nil
+}
+
+// filterOutTaggedClusters removes clusters that have the tag set from the list of clusters to delete.
+func filterOutTaggedClusters(svc *eks.EKS, clusterNames []*string) ([]*string, error) {
+	var filteredEksClusterNames []*string
+	for _, clusterName := range clusterNames {
+		describeResult, err := svc.DescribeCluster(&eks.DescribeClusterInput{
+			Name: clusterName,
+		})
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		cluster := describeResult.Cluster
+		if !hasClusterExcludeTag(cluster) {
+			filteredEksClusterNames = append(filteredEksClusterNames, cluster.Name)
+		}
+	}
+	return filteredEksClusterNames, nil
+}
+
+// hasClusterExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasClusterExcludeTag(cluster *eks.Cluster) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for k, v := range cluster.Tags {
+		if k == AwsResourceExclusionTagKey && *v == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 // filterOutRecentEksClusters will take in the list of clusters and filter out any clusters that were created after
