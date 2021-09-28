@@ -20,12 +20,25 @@ func getAllAutoScalingGroups(session *session.Session, region string, excludeAft
 
 	var groupNames []*string
 	for _, group := range result.AutoScalingGroups {
-		if excludeAfter.After(*group.CreatedTime) {
+		if excludeAfter.After(*group.CreatedTime) && !hasASGExcludeTag(group) {
+			groupNames = append(groupNames, group.AutoScalingGroupName)
+		} else if !hasASGExcludeTag(group) {
 			groupNames = append(groupNames, group.AutoScalingGroupName)
 		}
 	}
 
 	return groupNames, nil
+}
+
+// hasASGExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasASGExcludeTag(group *autoscaling.Group) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tag := range group.Tags {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 // Deletes all Auto Scaling Groups
