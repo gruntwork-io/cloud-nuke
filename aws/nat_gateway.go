@@ -44,11 +44,26 @@ func shouldIncludeNatGateway(ngw *ec2.NatGateway, excludeAfter time.Time, config
 		return false
 	}
 
+	if hasNGWExcludeTag(ngw) {
+		return false
+	}
+
 	return config.ShouldInclude(
 		getNatGatewayName(ngw),
 		configObj.NatGateway.IncludeRule.NamesRegExp,
 		configObj.NatGateway.ExcludeRule.NamesRegExp,
 	)
+}
+
+// hasNGWExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasNGWExcludeTag(ngw *ec2.NatGateway) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tag := range ngw.Tags {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 func getNatGatewayName(ngw *ec2.NatGateway) string {
