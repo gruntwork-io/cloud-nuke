@@ -42,12 +42,25 @@ func getAllRdsClusters(session *session.Session, excludeAfter time.Time) ([]*str
 	var names []*string
 
 	for _, database := range result.DBClusters {
-		if excludeAfter.After(*database.ClusterCreateTime) {
+		if excludeAfter.After(*database.ClusterCreateTime) && !hasRDSClusterExcludeTag(database) {
+			names = append(names, database.DBClusterIdentifier)
+		} else if !hasRDSClusterExcludeTag(database) {
 			names = append(names, database.DBClusterIdentifier)
 		}
 	}
 
 	return names, nil
+}
+
+// hasRDSClusterExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasRDSClusterExcludeTag(database *rds.DBCluster) bool {
+	// Exclude deletion of any RDS cluster (Aurora) with cloud-nuke-excluded tags
+	for _, tag := range database.TagList {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 func nukeAllRdsClusters(session *session.Session, names []*string) error {
