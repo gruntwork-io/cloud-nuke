@@ -22,12 +22,25 @@ func getAllRdsInstances(session *session.Session, excludeAfter time.Time) ([]*st
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		if database.InstanceCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.InstanceCreateTime)) {
+		if database.InstanceCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.InstanceCreateTime)) && !hasRDSExcludeTag(database) {
+			names = append(names, database.DBInstanceIdentifier)
+		} else if !hasRDSExcludeTag(database) {
 			names = append(names, database.DBInstanceIdentifier)
 		}
 	}
 
 	return names, nil
+}
+
+// hasRDSExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasRDSExcludeTag(database *rds.DBInstance) bool {
+	// Exclude deletion of any RDS with cloud-nuke-excluded tags
+	for _, tag := range database.TagList {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 func nukeAllRdsInstances(session *session.Session, names []*string) error {
