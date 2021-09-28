@@ -25,12 +25,25 @@ func getAllSnapshots(session *session.Session, region string, excludeAfter time.
 
 	var snapshotIds []*string
 	for _, snapshot := range output.Snapshots {
-		if excludeAfter.After(*snapshot.StartTime) {
+		if excludeAfter.After(*snapshot.StartTime) && !hasEBSSnapExcludeTag(snapshot) {
+			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
+		} else if !hasEBSSnapExcludeTag(snapshot) {
 			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
 		}
 	}
 
 	return snapshotIds, nil
+}
+
+// hasEBSSnapExcludeTag checks whether the exlude tag is set for a resource to skip deleting it.
+func hasEBSSnapExcludeTag(snapshot *ec2.Snapshot) bool {
+	// Exclude deletion of any buckets with cloud-nuke-excluded tags
+	for _, tag := range snapshot.Tags {
+		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 // Deletes all Snapshots
