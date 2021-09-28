@@ -353,6 +353,7 @@ func TestShouldInclude_ExcludeWhenMatches(t *testing.T) {
 	assert.True(t, ShouldInclude("tf-state-bucket", includeREs, excludeREs),
 		"Should include when doesn't matches from the 'exclude' list")
 }
+
 func TestShouldInclude_IncludeWhenMatches(t *testing.T) {
 	include, err := regexp.Compile(`.*openvpn.*`)
 	require.NoError(t, err)
@@ -364,4 +365,21 @@ func TestShouldInclude_IncludeWhenMatches(t *testing.T) {
 		"Should include when matches the 'include' list")
 	assert.False(t, ShouldInclude("test-vpc-123", includeREs, excludeREs),
 		"Should not include when doesn't matches the 'include' list")
+}
+
+func TestShouldInclude_WhenMatchesIncludeAndExclude(t *testing.T) {
+	include, err := regexp.Compile(`test.*`)
+	require.NoError(t, err)
+	includeREs := []Expression { { RE: *include } }
+
+	exclude, err := regexp.Compile(`.*openvpn.*`)
+	require.NoError(t, err)
+	excludeREs := []Expression { { RE: *exclude } }
+
+	assert.True(t, ShouldInclude("test-eks-cluster-123", includeREs, excludeREs),
+		"Should include when matches the 'include' list but not matches the 'exclude' list")
+	assert.False(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
+		"Should not include when matches 'exclude' list")
+	assert.False(t, ShouldInclude("terraform-tf-state", includeREs, excludeREs),
+		"Should not include when doesn't matches 'include' list")
 }
