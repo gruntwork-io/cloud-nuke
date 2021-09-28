@@ -26,6 +26,7 @@ var OptInNotRequiredRegions = []string{
 	"eu-west-3",
 	"eu-west-2",
 	"eu-west-1",
+	"ap-northeast-3",
 	"ap-northeast-2",
 	"ap-northeast-1",
 	"sa-east-1",
