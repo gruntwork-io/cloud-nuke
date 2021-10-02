@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/gruntwork-io/cloud-nuke/commands"
-	"github.com/gruntwork-io/gruntwork-cli/entrypoint"
+	"github.com/gruntwork-io/go-commons/entrypoint"
 )
 
 // VERSION - Set at build time

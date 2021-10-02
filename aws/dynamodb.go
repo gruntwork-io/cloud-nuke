@@ -27,6 +27,7 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*st
 				}
 			}
 		}
+
 		for _, table := range result.TableNames {
 				tableNames = append(tableNames, table)
 

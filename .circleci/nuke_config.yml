@@ -14,3 +14,26 @@ s3:
       - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
       - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
       - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
+
+SecretsManager:
+  include:
+    names_regex:
+      - "^test-name-[a-zA-Z0-9]{6}$"
+      - "^GruntworkSampleAppFrontendCA[a-zA-Z0-9]{6}$"
+      - "^GruntworkSampleAppBackendCA[a-zA-Z0-9]{6}$"
+      - "^RDSDBConfig[a-zA-Z0-9]{6}$"
+      - "ECRDeployRunnerTestSSHKey-[a-zA-Z0-9]{6}$"
+      - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
+
+NatGateway:
+  # There is a bug in the cloud-nuke config where exclude does not work by itself, so we add a null include rule that
+  # includes everything.
+  # See https://github.com/gruntwork-io/cloud-nuke/issues/198 for more info.
+  include:
+    names_regex:
+      - ".*"
+  exclude:
+    names_regex:
+      # We have an active ECS Deploy Runner running in the sandbox environment for sales demos, and this NAT gateway is
+      # critical for that.
+      - "^ecs-deploy-runner-v2-nat-gateway-0$"

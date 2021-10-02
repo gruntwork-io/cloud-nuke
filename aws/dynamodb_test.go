@@ -4,65 +4,73 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
-	"github.com/gruntwork-io/terratest/modules/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"log"
 	"testing"
 	"time"
 )
 
 
-func createTestDynamoTables(t *testing.T)   {
+func createTestDynamoTables(t *testing.T, tableName string) {
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-	tables := 0
-	var tablesToCreate []string
-	// Creates 20 tables to simulate a smaller environment. We can make this dynamic if needed.
-	for tables <= 20 {
-
-		tablesToCreate = append(tablesToCreate, "dynamo-nuke-test-" + random.UniqueId() )
-		tables +=1
-
-	}
-
 
 	svc := dynamodb.New(awsSession)
 
-	for num, table := range tablesToCreate {
-		input := &dynamodb.CreateTableInput{
-			TableName: &table,
-			AttributeDefinitions: []*dynamodb.AttributeDefinition{
-				{
-					AttributeName: aws.String("Nuke" + string(rune(num))),
-					AttributeType: aws.String("S"),
-				},
-				{
-					AttributeName: aws.String("TypeofNuke" + string(rune(num))),
-					AttributeType: aws.String("S"),
-				},
+	input := &dynamodb.CreateTableInput{
+		TableName: &tableName,
+		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("Nuke" + string(rune(1))),
+				AttributeType: aws.String("S"),
 			},
-			KeySchema: []*dynamodb.KeySchemaElement{
-				{
-					AttributeName: aws.String("Nuke" + string(rune(num)) ),
-					KeyType:       aws.String("HASH"),
-				},
-				{
-					AttributeName: aws.String("TypeofNuke" + string(rune(num))),
-					KeyType:       aws.String("RANGE"),
-				},
+			{
+				AttributeName: aws.String("TypeofNuke" + string(rune(1))),
+				AttributeType: aws.String("S"),
 			},
-			ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-				ReadCapacityUnits:  aws.Int64(1),
-				WriteCapacityUnits: aws.Int64(1),
+		},
+		KeySchema: []*dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("Nuke" + string(rune(1))),
+				KeyType:       aws.String("HASH"),
 			},
-
-		}
-		_, err := svc.CreateTable(input)
-		time.Sleep(2 * time.Second)
-		require.NoError(t, err)
+			{
+				AttributeName: aws.String("TypeofNuke" + string(rune(1))),
+				KeyType:       aws.String("RANGE"),
+			},
+		},
+		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(1),
+			WriteCapacityUnits: aws.Int64(1),
+		},
 	}
+	_, err := svc.CreateTable(input)
+	time.Sleep(2 * time.Second)
+	require.NoError(t, err)
+
+}
+
+func getTableStatus(TableName string) *string {
+	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	svc := dynamodb.New(awsSession)
+
+	tableInput := &dynamodb.DescribeTableInput{TableName: &TableName}
+
+	result, err := svc.DescribeTable(tableInput)
+	if err != nil {
+		log.Fatalf("There was an error describing tables %v", err )
+	}
+
+	return result.Table.TableStatus
+
+
 
 }
 
@@ -72,7 +80,7 @@ func TestGetTables(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
-	
+
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: &region,
 	})
@@ -88,12 +96,32 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
-	createTestDynamoTables(t)
+	tableName :=  "cloud-nuke-test-" + util.UniqueID()
 
-	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1))
-	require.NoError(t, err)
-		// Dynamo needs a wait of about 2 seconds to create the tables before delete
-		time.Sleep(2 * time.Second)
-	nukeErr := nukeAllDynamoDBTables(awsSession, tables)
+
+	createTestDynamoTables(t, tableName)
+	COUNTER := 0
+	for COUNTER <= 1 {
+		tableStatus := getTableStatus(tableName)
+		if *tableStatus == "ACTIVE" {
+			COUNTER ++
+		} else {
+			COUNTER = 0
+		}
+
+	}
+
+
+	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	require.NoError(t, nukeErr)
+
+	tables, err  := getAllDynamoTables(awsSession, time.Now().Add(5*time.Minute*-1))
+	if err != nil {
+		log.Fatalf("There was an error getting tables: %v", err)
+	}
+
+	for _, table := range tables {
+		println(*table)
+
+	}
 }

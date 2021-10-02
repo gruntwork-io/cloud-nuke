@@ -8,8 +8,19 @@ jobs:
     steps:
       - checkout
       - run:
-          command: run-go-tests --timeout 45m
+          command: |
+            mkdir -p /tmp/logs
+            run-go-tests --timeout 45m | tee /tmp/logs/all.log
           no_output_timeout: 45m
+      - run:
+          name: parse test output
+          command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
+          when: always
+      - store_artifacts:
+          path: /tmp/logs
+      - store_test_results:
+          path: /tmp/logs
+
   build:
     <<: *defaults
     steps:
@@ -30,10 +41,7 @@ jobs:
               --older-than 1h \
               --force \
               --config ./.circleci/nuke_config.yml \
-              --exclude-resource-type iam \
-              --exclude-resource-type transit-gateway \
-              --exclude-resource-type transit-gateway-attachment \
-              --exclude-resource-type transit-gateway-route-table
+              --exclude-resource-type iam
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -49,10 +57,7 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
-              --exclude-resource-type iam \
-              --exclude-resource-type transit-gateway \
-              --exclude-resource-type transit-gateway-attachment \
-              --exclude-resource-type transit-gateway-route-table
+              --exclude-resource-type iam
           no_output_timeout: 1h
   deploy:
     <<: *defaults

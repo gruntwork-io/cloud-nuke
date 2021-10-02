@@ -13,8 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/gruntwork-cli/collections"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/gruntwork-io/go-commons/collections"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
@@ -26,6 +26,7 @@ var OptInNotRequiredRegions = []string{
 	"eu-west-3",
 	"eu-west-2",
 	"eu-west-1",
+	"ap-northeast-3",
 	"ap-northeast-2",
 	"ap-northeast-1",
 	"sa-east-1",
@@ -220,6 +221,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// The order in which resources are nuked is important
 		// because of dependencies between resources
 
+		// ACMPCA arns
+		acmpca := ACMPCA{}
+		if IsNukeable(acmpca.ResourceName(), resourceTypes) {
+			arns, err := getAllACMPCA(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(arns) > 0 {
+				acmpca.ARNs = awsgo.StringValueSlice(arns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, acmpca)
+			}
+		}
+		// End ACMPCA arns
+
 		// ASG Names
 		asGroups := ASGroups{}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
@@ -276,6 +291,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End LoadBalancerV2 Arns
 
+		// SQS Queues
+		sqsQueue := SqsQueue{}
+		if IsNukeable(sqsQueue.ResourceName(), resourceTypes) {
+			queueUrls, err := getAllSqsQueue(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(queueUrls) > 0 {
+				sqsQueue.QueueUrls = awsgo.StringValueSlice(queueUrls)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, sqsQueue)
+			}
+		}
+		// End SQS Queue
+
 		// TransitGatewayVpcAttachment
 		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
 		transitGatewayIsAvailable, err := tgIsAvailableInRegion(session, region)
@@ -321,6 +350,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End TransitGateway
+
+		// NATGateway
+		natGateways := NatGateways{}
+		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
+			ngwIDs, err := getAllNatGateways(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(ngwIDs) > 0 {
+				natGateways.NatGatewayIDs = awsgo.StringValueSlice(ngwIDs)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, natGateways)
+			}
+		}
+		// End NATGateway
 
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
@@ -488,21 +531,36 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End Lambda Functions
-		// Dynamo DB tables
-		DynamoDB := DynamoDB{}
-		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
-			tablenames, err := getAllDynamoTables(session, excludeAfter)
 
+		// Secrets Manager Secrets
+		secretsManagerSecrets := SecretsManagerSecrets{}
+		if IsNukeable(secretsManagerSecrets.ResourceName(), resourceTypes) {
+			secrets, err := getAllSecretsManagerSecrets(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 
-			if len(tablenames) > 0 {
-				DynamoDB.DynamoTableNames = awsgo.StringValueSlice(tablenames)
-				resourcesInRegion.Resources = append(resourcesInRegion.Resources, DynamoDB)
+			if len(secrets) > 0 {
+				secretsManagerSecrets.SecretIDs = awsgo.StringValueSlice(secrets)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, secretsManagerSecrets)
 			}
 		}
-		// End Dynamo DB tables
+		// End Secrets Manager Secrets
+
+		// AccessAnalyzer
+		accessAnalyzer := AccessAnalyzer{}
+		if IsNukeable(accessAnalyzer.ResourceName(), resourceTypes) {
+			analyzerNames, err := getAllAccessAnalyzers(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(analyzerNames) > 0 {
+				accessAnalyzer.AnalyzerNames = awsgo.StringValueSlice(analyzerNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, accessAnalyzer)
+			}
+		}
+		// End AccessAnalyzer
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -542,6 +600,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End S3 Buckets
+
+		DynamoDB := DynamoDB{}
+		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
+			tablenames, err := getAllDynamoTables(session, excludeAfter)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(tablenames) > 0 {
+				DynamoDB.DynamoTableNames = awsgo.StringValueSlice(tablenames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, DynamoDB)
+			}
+		}
+		// End Dynamo DB tables
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
@@ -591,10 +664,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 // ListResourceTypes - Returns list of resources which can be passed to --resource-type
 func ListResourceTypes() []string {
 	resourceTypes := []string{
+		ACMPCA{}.ResourceName(),
 		ASGroups{}.ResourceName(),
 		LaunchConfigs{}.ResourceName(),
 		LoadBalancers{}.ResourceName(),
 		LoadBalancersV2{}.ResourceName(),
+		SqsQueue{}.ResourceName(),
 		TransitGatewaysVpcAttachment{}.ResourceName(),
 		TransitGatewaysRouteTables{}.ResourceName(),
 		TransitGateways{}.ResourceName(),
@@ -609,8 +684,10 @@ func ListResourceTypes() []string {
 		DBInstances{}.ResourceName(),
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
-		DynamoDB{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
+		SecretsManagerSecrets{}.ResourceName(),
+		NatGateways{}.ResourceName(),
+		AccessAnalyzer{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

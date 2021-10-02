@@ -2,6 +2,7 @@ package config
 
 import (
 	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,9 @@ import (
 
 func emptyConfig() *Config {
 	return &Config{
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 	}
@@ -234,4 +238,148 @@ func TestConfigIAM_Users_FilterNames(t *testing.T) {
 	}
 
 	return
+}
+
+// Secrets Manager Tests
+
+func TestConfigSecretsManager_Empty(t *testing.T) {
+	configFilePath := "./mocks/secrets_manager_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.SecretsManagerSecrets)
+	}
+
+	return
+}
+
+func TestConfigSecretsManager_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/secrets_manager_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSecretsManager_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/secrets_manager_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSecretsManager_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/secrets_manager_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.SecretsManagerSecrets.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain secrets regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSecretsManager_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/secrets_manager_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.SecretsManagerSecrets.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain secrets regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSecretsManager_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/secrets_manager_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.SecretsManagerSecrets.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.SecretsManagerSecrets.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain secrets regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestShouldInclude_AllowWhenEmpty(t *testing.T) {
+	var includeREs []Expression
+	var excludeREs []Expression
+
+	assert.True(t, ShouldInclude("test-open-vpn", includeREs, excludeREs),
+		"Should include when both lists are empty")
+}
+
+func TestShouldInclude_ExcludeWhenMatches(t *testing.T) {
+	var includeREs []Expression
+
+	exclude, err := regexp.Compile(`test.*`)
+	require.NoError(t, err)
+	excludeREs := []Expression { { RE: *exclude } }
+
+	assert.False(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
+		"Should not include when matches from the 'exclude' list")
+	assert.True(t, ShouldInclude("tf-state-bucket", includeREs, excludeREs),
+		"Should include when doesn't matches from the 'exclude' list")
+}
+
+func TestShouldInclude_IncludeWhenMatches(t *testing.T) {
+	include, err := regexp.Compile(`.*openvpn.*`)
+	require.NoError(t, err)
+	includeREs := []Expression { { RE: *include } }
+
+	var excludeREs []Expression
+
+	assert.True(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
+		"Should include when matches the 'include' list")
+	assert.False(t, ShouldInclude("test-vpc-123", includeREs, excludeREs),
+		"Should not include when doesn't matches the 'include' list")
+}
+
+func TestShouldInclude_WhenMatchesIncludeAndExclude(t *testing.T) {
+	include, err := regexp.Compile(`test.*`)
+	require.NoError(t, err)
+	includeREs := []Expression { { RE: *include } }
+
+	exclude, err := regexp.Compile(`.*openvpn.*`)
+	require.NoError(t, err)
+	excludeREs := []Expression { { RE: *exclude } }
+
+	assert.True(t, ShouldInclude("test-eks-cluster-123", includeREs, excludeREs),
+		"Should include when matches the 'include' list but not matches the 'exclude' list")
+	assert.False(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
+		"Should not include when matches 'exclude' list")
+	assert.False(t, ShouldInclude("terraform-tf-state", includeREs, excludeREs),
+		"Should not include when doesn't matches 'include' list")
 }
