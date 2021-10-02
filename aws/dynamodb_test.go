@@ -13,14 +13,13 @@ import (
 	"time"
 )
 
-
 func createTestDynamoTables(t *testing.T, tableName string) {
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
 	svc := dynamodb.New(awsSession)
-
+	// THE INFORMATION TO CREATE THE TABLE
 	input := &dynamodb.CreateTableInput{
 		TableName: &tableName,
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
@@ -48,8 +47,8 @@ func createTestDynamoTables(t *testing.T, tableName string) {
 			WriteCapacityUnits: aws.Int64(1),
 		},
 	}
+	// CREATING THE TABLE FROM THE INPUT
 	_, err := svc.CreateTable(input)
-	time.Sleep(2 * time.Second)
 	require.NoError(t, err)
 
 }
@@ -65,12 +64,10 @@ func getTableStatus(TableName string) *string {
 
 	result, err := svc.DescribeTable(tableInput)
 	if err != nil {
-		log.Fatalf("There was an error describing tables %v", err )
+		log.Fatalf("There was an error describing tables %v", err)
 	}
 
 	return result.Table.TableStatus
-
-
 
 }
 
@@ -96,26 +93,24 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
-	tableName :=  "cloud-nuke-test-" + util.UniqueID()
-
+	tableName := "cloud-nuke-test-" + util.UniqueID()
 
 	createTestDynamoTables(t, tableName)
 	COUNTER := 0
 	for COUNTER <= 1 {
 		tableStatus := getTableStatus(tableName)
 		if *tableStatus == "ACTIVE" {
-			COUNTER ++
+			COUNTER++
 		} else {
 			COUNTER = 0
 		}
 
 	}
 
-
 	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	require.NoError(t, nukeErr)
 
-	tables, err  := getAllDynamoTables(awsSession, time.Now().Add(5*time.Minute*-1))
+	tables, err := getAllDynamoTables(awsSession, time.Now().Add(5*time.Minute*-1))
 	if err != nil {
 		log.Fatalf("There was an error getting tables: %v", err)
 	}

@@ -29,7 +29,7 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*st
 		}
 
 		for _, table := range result.TableNames {
-				tableNames = append(tableNames, table)
+			tableNames = append(tableNames, table)
 
 		}
 		return tableNames, nil
@@ -37,8 +37,6 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*st
 	}
 
 }
-
-
 
 func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 	svc := dynamodb.New(session)
