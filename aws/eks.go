@@ -96,6 +96,49 @@ func filterOutRecentEksClusters(svc *eks.EKS, clusterNames []*string, excludeAft
 	return filteredEksClusterNames, nil
 }
 
+type ClusterNodegroup struct {
+	ClusterName   *string
+	NodegroupName *string
+}
+
+// deleteEksClusterNodeGroups deletes all node gorups in clusters requested. Returns a list of node group names that
+// have been accepted by AWS for deletion.
+func deleteEksClusterNodeGroups(svc *eks.EKS, eksClusterNames []*string) []*ClusterNodegroup {
+	var requestedDeletes []*ClusterNodegroup
+	for _, eksClusterName := range eksClusterNames {
+		result, err := svc.ListNodegroups(&eks.ListNodegroupsInput{ClusterName: eksClusterName})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed listing node groups for EKS cluster %s: %s", *eksClusterName, err)
+			continue
+		}
+
+		for _, nodegroupName := range result.Nodegroups {
+			_, err = svc.DeleteNodegroup(&eks.DeleteNodegroupInput{ClusterName: eksClusterName, NodegroupName: nodegroupName})
+			if err != nil {
+				logging.Logger.Errorf("[Failed] Failed deleting EKS node group %s in cluster %s: %s", *nodegroupName, *eksClusterName, err)
+			} else {
+				requestedDeletes = append(requestedDeletes, &ClusterNodegroup{eksClusterName, nodegroupName})
+			}
+		}
+	}
+	return requestedDeletes
+}
+
+// waitUntilEksClusterNodeGroupsDeleted waits until the EKS cluster node groups have been actually deleted from AWS.
+// Returns a list of EKS cluster node groups that have been successfully deleted.
+func waitUntilEksClusterNodeGroupsDeleted(svc *eks.EKS, clusterNodegroups []*ClusterNodegroup) []*ClusterNodegroup {
+	var successfullyDeleted []*ClusterNodegroup
+	for _, cn := range clusterNodegroups {
+		err := svc.WaitUntilNodegroupDeleted(&eks.DescribeNodegroupInput{ClusterName: cn.ClusterName, NodegroupName: cn.NodegroupName})
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed waiting EKS node group %s in cluster %s: %s", *cn.NodegroupName, *cn.ClusterName, err)
+		} else {
+			successfullyDeleted = append(successfullyDeleted, cn)
+		}
+	}
+	return successfullyDeleted
+}
+
 // deleteEksClusters deletes all clusters requested. Returns a list of cluster names that have been accepted by AWS
 // for deletion.
 func deleteEksClusters(svc *eks.EKS, eksClusterNames []*string) []*string {
@@ -138,6 +181,11 @@ func nukeAllEksClusters(awsSession *session.Session, eksClusterNames []*string) 
 	}
 
 	logging.Logger.Infof("Deleting %d EKS clusters in region %s", numNuking, *awsSession.Config.Region)
+
+	deleteNodeGroupRequests := deleteEksClusterNodeGroups(svc, eksClusterNames)
+	deletedNodeGroups := waitUntilEksClusterNodeGroupsDeleted(svc, deleteNodeGroupRequests)
+	logging.Logger.Infof("[OK] %d of %d EKS cluster node group(s) deleted in %s",
+		len(deletedNodeGroups), len(deleteNodeGroupRequests), *awsSession.Config.Region)
 
 	requestedDeletes := deleteEksClusters(svc, eksClusterNames)
 	successfullyDeleted := waitUntilEksClustersDeleted(svc, requestedDeletes)
