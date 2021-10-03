@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"log"
 	"time"
 )
 
@@ -29,8 +30,20 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*st
 		}
 
 		for _, table := range result.TableNames {
-			tableNames = append(tableNames, table)
 
+			rsDesc, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
+			if err != nil {
+				log.Fatalf("There was an error describing table: %v\n", err)
+			}
+			// This is used in case of a nil so null pointers don't occur
+			if rsDesc.Table.CreationDateTime == nil {
+				break
+			}
+			if excludeAfter.After(*rsDesc.Table.CreationDateTime) {
+
+				tableNames = append(tableNames, table)
+
+			}
 		}
 		return tableNames, nil
 

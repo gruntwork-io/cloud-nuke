@@ -71,7 +71,7 @@ func getTableStatus(TableName string) *string {
 
 }
 
-func TestGetTables(t *testing.T) {
+func TestGetTablesDynamo(t *testing.T) {
 	t.Parallel()
 	region, err := getRandomRegion()
 	if err != nil {
@@ -88,21 +88,23 @@ func TestGetTables(t *testing.T) {
 }
 
 func TestNukeAllDynamoDBTables(t *testing.T) {
+
 	t.Parallel()
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
 	tableName := "cloud-nuke-test-" + util.UniqueID()
-
+	defer nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	createTestDynamoTables(t, tableName)
 	COUNTER := 0
 	for COUNTER <= 1 {
 		tableStatus := getTableStatus(tableName)
 		if *tableStatus == "ACTIVE" {
-			COUNTER++
+			COUNTER += 1
+			log.Printf("Created a table: %v\n", tableName)
 		} else {
-			COUNTER = 0
+			log.Printf("Table no ready yet: %v", tableName)
 		}
 
 	}
@@ -110,13 +112,15 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	require.NoError(t, nukeErr)
 
-	tables, err := getAllDynamoTables(awsSession, time.Now().Add(5*time.Minute*-1))
+	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
-		log.Fatalf("There was an error getting tables: %v", err)
+		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
 	for _, table := range tables {
-		println(*table)
+		if tableName == *table {
+			assert.Fail(t, errors.WithStackTrace(err).Error())
+		}
 
 	}
 }
