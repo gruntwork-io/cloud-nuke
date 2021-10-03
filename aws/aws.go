@@ -688,6 +688,7 @@ func ListResourceTypes() []string {
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
+		DynamoDB{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
