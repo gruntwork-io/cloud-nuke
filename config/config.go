@@ -79,27 +79,19 @@ func matches(name string, regexps []Expression) bool {
 	return false
 }
 
-// ShouldInclude - Checks if a name should be included according to the inclusion and exclusion rules
+// ShouldInclude - Checks if a resource's name should be included according to the inclusion and exclusion rules
 func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression) bool {
-	shouldInclude := false
-
-	if len(includeREs) > 0 {
-		// If any include rules are specified,
-		// only check to see if an exclude rule matches when an include rule matches the user
-		if matches(name, includeREs) {
-			shouldInclude = true
-			if matches(name, excludeREs) {
-				shouldInclude = false
-			}
-		}
-	} else if len(excludeREs) > 0 {
-		// Only check to see if an exclude rule matches when there are no include rules defined
-		if matches(name, excludeREs) {
-			shouldInclude = false
-		}
+	// If no rules are defined, should always include
+	if len(includeREs) == 0 && len(excludeREs) == 0 {
+		return true
+	// If a rule that exclude matches, should not include
+	} else if matches(name, excludeREs) {
+		return false
+	// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
+	} else if len(includeREs) == 0 {
+		return true
+	// Given there is a 'include' list, and 'name' is there, should include
 	} else {
-		shouldInclude = true
+		return matches(name, includeREs)
 	}
-
-	return shouldInclude
 }
