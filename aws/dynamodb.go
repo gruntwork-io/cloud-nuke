@@ -19,10 +19,8 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*st
 	// Run count is used for pagination if the list tables exceeds max value
 	// Tells loop to rerun
 	var runCount = 1
-	// We need an int64 vs of limit to feed to aws api
-	var limit = int64(maxBatchSizeDynamo)
 	for runCount > 0 {
-		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: &limit})
+		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(maxBatchSizeDynamo)})
 		if err != nil {
 			//
 			if aerr, ok := err.(awserr.Error); ok {

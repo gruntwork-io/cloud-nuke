@@ -18,7 +18,7 @@ func (tables DynamoDB) ResourceIdentifiers() []string {
 	return tables.DynamoTableNames
 }
 
-func (table DynamoDB) MaxBatchSize() int {
+func (tables DynamoDB) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 100
 }
