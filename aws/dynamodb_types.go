@@ -20,7 +20,7 @@ func (tables DynamoDB) ResourceIdentifiers() []string {
 
 func (table DynamoDB) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
-	return 50
+	return 100
 }
 
 // Nuke - nuke all Dynamo DB Tables

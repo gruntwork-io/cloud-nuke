@@ -74,16 +74,12 @@ func getTableStatus(TableName string) *string {
 func TestGetTablesDynamo(t *testing.T) {
 	t.Parallel()
 	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: &region,
 	})
-	if err != nil {
-		require.Error(t, err)
-	}
+	require.NoError(t, err)
 	getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1))
 }
 
@@ -113,9 +109,7 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 	require.NoError(t, nukeErr)
 
 	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
 
 	for _, table := range tables {
 		if tableName == *table {

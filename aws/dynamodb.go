@@ -11,12 +11,18 @@ import (
 	"time"
 )
 
+const maxBatchSizeDynamo = 100
+
 func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*string, error) {
 	var tableNames []*string
 	svc := dynamodb.New(session)
-
-	for {
-		result, err := svc.ListTables(&dynamodb.ListTablesInput{})
+	// Run count is used for pagination if the list tables exceeds max value
+	// Tells loop to rerun
+	var runCount = 1
+	// We need an int64 vs of limit to feed to aws api
+	var limit = int64(maxBatchSizeDynamo)
+	for runCount > 0 {
+		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: &limit})
 		if err != nil {
 			//
 			if aerr, ok := err.(awserr.Error); ok {
@@ -29,25 +35,36 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*st
 			}
 		}
 
-		for _, table := range result.TableNames {
+		tableLen := len(result.TableNames)
+		// Check table length if it matches the max value add 1 to rerun
+		if tableLen == maxBatchSizeDynamo {
+			// Tell the user that this will be run twice due to max tables detected
+			logging.Logger.Infof("The tables detected exceed the 100. Running more than once")
+			// Adds one to the count as it will = 2 runs at least until this loops again to check if it's another max.
+			runCount += 1
+		} else {
+			for _, table := range result.TableNames {
 
-			rsDesc, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
-			if err != nil {
-				log.Fatalf("There was an error describing table: %v\n", err)
-			}
-			// This is used in case of a nil so null pointers don't occur
-			if rsDesc.Table.CreationDateTime == nil {
-				break
-			}
-			if excludeAfter.After(*rsDesc.Table.CreationDateTime) {
+				rsDesc, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
+				if err != nil {
+					log.Fatalf("There was an error describing table: %v\n", err)
+				}
+				// This is used in case of a nil so null pointers don't occur
+				if rsDesc.Table.CreationDateTime == nil {
+					break
+				}
+				if excludeAfter.After(*rsDesc.Table.CreationDateTime) {
 
-				tableNames = append(tableNames, table)
+					tableNames = append(tableNames, table)
 
+				}
 			}
+			// Remove 1 from the counter if it's one run the loop will end as runCount will = 0
+			runCount -= 1
 		}
-		return tableNames, nil
-
 	}
+
+	return tableNames, nil
 
 }
 
@@ -66,7 +83,6 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 		}
 		_, err := svc.DeleteTable(input)
 		if err != nil {
-			//
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Error() {
 				case dynamodb.ErrCodeInternalServerError:
