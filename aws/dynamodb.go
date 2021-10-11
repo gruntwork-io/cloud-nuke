@@ -57,12 +57,8 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 		tableNames = nil
 		// Remove 1 from the counter if it's one run the loop will end as runCount will = 0
 		runCount -= 1
-
 	}
-
-
 	return tableNames, nil
-
 }
 
 func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
