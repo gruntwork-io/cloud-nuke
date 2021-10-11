@@ -100,11 +100,9 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 			COUNTER += 1
 			log.Printf("Created a table: %v\n", tableName)
 		} else {
-			log.Printf("Table no ready yet: %v", tableName)
+			log.Printf("Table not ready yet: %v", tableName)
 		}
-
 	}
-
 	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	require.NoError(t, nukeErr)
 
@@ -115,6 +113,5 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 		if tableName == *table {
 			assert.Fail(t, errors.WithStackTrace(err).Error())
 		}
-
 	}
 }

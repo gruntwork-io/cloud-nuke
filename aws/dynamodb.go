@@ -20,7 +20,6 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 	for runCount > 0 {
 		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
 		if err != nil {
-			//
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Error() {
 				case dynamodb.ErrCodeInternalServerError:
@@ -41,15 +40,15 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 		}
 		for _, table := range result.TableNames {
 
-			rsDesc, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
+			responseDescription, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
 			if err != nil {
 				log.Fatalf("There was an error describing table: %v\n", err)
 			}
 			// This is used in case of a nil so null pointers don't occur
-			if rsDesc.Table.CreationDateTime == nil {
+			if responseDescription.Table.CreationDateTime == nil {
 				break
 			}
-			if excludeAfter.After(*rsDesc.Table.CreationDateTime) {
+			if excludeAfter.After(*responseDescription.Table.CreationDateTime) {
 
 				tableNames = append(tableNames, table)
 
@@ -90,8 +89,6 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 				}
 			}
 		}
-
 	}
 	return nil
-
 }
