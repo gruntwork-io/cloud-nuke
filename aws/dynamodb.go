@@ -53,10 +53,11 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 				tableNames = append(tableNames, table)
 			}
 		}
-		// Remove 1 from the counter if it's one run the loop will end as runCount will = 0
-		runCount -= 1
 		// Empty the slice for reuse.
 		tableNames = nil
+		// Remove 1 from the counter if it's one run the loop will end as runCount will = 0
+		runCount -= 1
+
 	}
 
 
