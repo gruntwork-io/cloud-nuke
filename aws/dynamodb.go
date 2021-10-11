@@ -16,8 +16,8 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 	svc := dynamodb.New(session)
 	// Run count is used for pagination if the list tables exceeds max value
 	// Tells loop to rerun
-	var runCount = 1
-	for runCount > 0 {
+	var PaginationRunCount = 1
+	for PaginationRunCount > 0 {
 		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
@@ -36,7 +36,7 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 			// Tell the user that this will be run twice due to max tables detected
 			logging.Logger.Infof("The tables detected exceed the 100. Running more than once")
 			// Adds one to the count as it will = 2 runs at least until this loops again to check if it's another max.
-			runCount += 1
+			PaginationRunCount += 1
 		}
 		for _, table := range result.TableNames {
 			responseDescription, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
@@ -53,8 +53,8 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 		}
 		// Empty the slice for reuse.
 		tableNames = nil
-		// Remove 1 from the counter if it's one run the loop will end as runCount will = 0
-		runCount -= 1
+		// Remove 1 from the counter if it's one run the loop will end as PaginationRunCount will = 0
+		PaginationRunCount -= 1
 	}
 	return tableNames, nil
 }
