@@ -39,7 +39,6 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 			runCount += 1
 		}
 		for _, table := range result.TableNames {
-
 			responseDescription, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
 			if err != nil {
 				log.Fatalf("There was an error describing table: %v\n", err)
@@ -49,7 +48,6 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 				break
 			}
 			if excludeAfter.After(*responseDescription.Table.CreationDateTime) {
-
 				tableNames = append(tableNames, table)
 			}
 		}
