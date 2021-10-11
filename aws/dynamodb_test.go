@@ -75,17 +75,17 @@ func TestGetTablesDynamo(t *testing.T) {
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
-
+	db := DynamoDB{}
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: &region,
 	})
 	require.NoError(t, err)
-	getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1))
+	getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), db)
 }
 
 func TestNukeAllDynamoDBTables(t *testing.T) {
-
 	t.Parallel()
+	db := DynamoDB{}
 	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -108,7 +108,7 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	require.NoError(t, nukeErr)
 
-	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1))
+	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), db)
 	require.NoError(t, err)
 
 	for _, table := range tables {

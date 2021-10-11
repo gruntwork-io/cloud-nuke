@@ -11,16 +11,14 @@ import (
 	"time"
 )
 
-const maxBatchSizeDynamo = 100
-
-func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db DynamoDB) ([]*string, error) {
 	var tableNames []*string
 	svc := dynamodb.New(session)
 	// Run count is used for pagination if the list tables exceeds max value
 	// Tells loop to rerun
 	var runCount = 1
 	for runCount > 0 {
-		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(maxBatchSizeDynamo)})
+		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
 		if err != nil {
 			//
 			if aerr, ok := err.(awserr.Error); ok {
@@ -35,32 +33,34 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time) ([]*st
 
 		tableLen := len(result.TableNames)
 		// Check table length if it matches the max value add 1 to rerun
-		if tableLen == maxBatchSizeDynamo {
+		if tableLen == DynamoDB.MaxBatchSize(db) {
 			// Tell the user that this will be run twice due to max tables detected
 			logging.Logger.Infof("The tables detected exceed the 100. Running more than once")
 			// Adds one to the count as it will = 2 runs at least until this loops again to check if it's another max.
 			runCount += 1
-		} else {
-			for _, table := range result.TableNames {
-
-				rsDesc, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
-				if err != nil {
-					log.Fatalf("There was an error describing table: %v\n", err)
-				}
-				// This is used in case of a nil so null pointers don't occur
-				if rsDesc.Table.CreationDateTime == nil {
-					break
-				}
-				if excludeAfter.After(*rsDesc.Table.CreationDateTime) {
-
-					tableNames = append(tableNames, table)
-
-				}
-			}
-			// Remove 1 from the counter if it's one run the loop will end as runCount will = 0
-			runCount -= 1
 		}
+		for _, table := range result.TableNames {
+
+			rsDesc, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
+			if err != nil {
+				log.Fatalf("There was an error describing table: %v\n", err)
+			}
+			// This is used in case of a nil so null pointers don't occur
+			if rsDesc.Table.CreationDateTime == nil {
+				break
+			}
+			if excludeAfter.After(*rsDesc.Table.CreationDateTime) {
+
+				tableNames = append(tableNames, table)
+
+			}
+
+		}
+		// Remove 1 from the counter if it's one run the loop will end as runCount will = 0
+		runCount -= 1
+
 	}
+
 
 	return tableNames, nil
 
