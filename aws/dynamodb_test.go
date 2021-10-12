@@ -86,9 +86,14 @@ func TestGetTablesDynamo(t *testing.T) {
 func TestNukeAllDynamoDBTables(t *testing.T) {
 	t.Parallel()
 	db := DynamoDB{}
-	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
+	awsSession, err := session.NewSession(&aws.Config{
+		Region: aws.String(region)},
+	)
 
 	tableName := "cloud-nuke-test-" + util.UniqueID()
 	defer nukeAllDynamoDBTables(awsSession, []*string{&tableName})
