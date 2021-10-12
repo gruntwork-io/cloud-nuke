@@ -14,8 +14,8 @@ s3:
       - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
       - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
       - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
-      - "[a-zA-Z0-9]{6}-service-test-s3-bucket"
-      - "[a-zA-Z0-9]{6}-ecs-service-test-s3-bucket"
+      - "^[a-zA-Z0-9]{6}-service-test-s3-bucket"
+      - "^[a-zA-Z0-9]{6}-ecs-service-test-s3-bucket"
 
 SecretsManager:
   include:
