@@ -13,10 +13,10 @@ import (
 	"time"
 )
 
-func createTestDynamoTables(t *testing.T, tableName string) {
-	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+func createTestDynamoTables(t *testing.T, tableName, region string) {
+	awsSession, err := session.NewSession(&aws.Config{
+		Region: aws.String(region)},
+	)
 
 	svc := dynamodb.New(awsSession)
 	// THE INFORMATION TO CREATE THE TABLE
@@ -48,15 +48,15 @@ func createTestDynamoTables(t *testing.T, tableName string) {
 		},
 	}
 	// CREATING THE TABLE FROM THE INPUT
-	_, err := svc.CreateTable(input)
+	_, err = svc.CreateTable(input)
 	require.NoError(t, err)
 
 }
 
-func getTableStatus(TableName string) *string {
-	awsSession := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+func getTableStatus(TableName string, region string ) *string {
+	awsSession, err := session.NewSession(&aws.Config{
+		Region: aws.String(region)},
+	)
 
 	svc := dynamodb.New(awsSession)
 
@@ -77,8 +77,9 @@ func TestGetTablesDynamo(t *testing.T) {
 	require.NoError(t, err)
 	db := DynamoDB{}
 	awsSession, err := session.NewSession(&aws.Config{
-		Region: &region,
-	})
+		Region: aws.String(region)},
+	)
+
 	require.NoError(t, err)
 	getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), db)
 }
@@ -97,10 +98,10 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 
 	tableName := "cloud-nuke-test-" + util.UniqueID()
 	defer nukeAllDynamoDBTables(awsSession, []*string{&tableName})
-	createTestDynamoTables(t, tableName)
+	createTestDynamoTables(t, tableName, region)
 	COUNTER := 0
 	for COUNTER <= 1 {
-		tableStatus := getTableStatus(tableName)
+		tableStatus := getTableStatus(tableName, region)
 		if *tableStatus == "ACTIVE" {
 			COUNTER += 1
 			log.Printf("Created a table: %v\n", tableName)
