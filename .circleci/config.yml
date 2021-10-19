@@ -1,12 +1,35 @@
 defaults: &defaults
   docker:
     - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.16-go111module
+  environment:
+    environment:
+    GRUNTWORK_INSTALLER_VERSION: v0.0.35
+    TERRATEST_LOG_PARSER_VERSION: v0.29.0
+    MODULE_CI_VERSION: v0.33.1
+    TERRAFORM_VERSION: 0.14.9
+    TERRAGRUNT_VERSION: NONE
+    PACKER_VERSION: NONE
+    GOLANG_VERSION: 1.16
+    GO111MODULE: auto
+install_gruntwork_utils: &install_gruntwork_utils
+  name: install gruntwork utils
+  command: |
+    curl -Ls https://raw.githubusercontent.com/gruntwork-io/gruntwork-installer/master/bootstrap-gruntwork-installer.sh | bash /dev/stdin --version "${GRUNTWORK_INSTALLER_VERSION}"
+    gruntwork-install --module-name "gruntwork-module-circleci-helpers" --repo "https://github.com/gruntwork-io/terraform-aws-ci" --tag "${MODULE_CI_VERSION}"
+    gruntwork-install --binary-name "terratest_log_parser" --repo "https://github.com/gruntwork-io/terratest" --tag "${TERRATEST_LOG_PARSER_VERSION}"
+    configure-environment-for-gruntwork-module \
+      --terraform-version ${TERRAFORM_VERSION} \
+      --terragrunt-version ${TERRAGRUNT_VERSION} \
+      --packer-version ${PACKER_VERSION} \
+      --go-version ${GOLANG_VERSION} \
 version: 2
 jobs:
   test:
     <<: *defaults
     steps:
       - checkout
+      - run:
+          <<: *install_gruntwork_utils
       - run:
           command: |
             mkdir -p /tmp/logs
@@ -25,6 +48,8 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run:
+          <<: *install_gruntwork_utils
       - run: build-go-binaries --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
       - persist_to_workspace:
           root: .
