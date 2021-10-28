@@ -617,6 +617,38 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End GuardDuty Detectors
 
+		// ConfigService Rules
+		configServiceRules := ConfigService{}
+		if IsNukeable(configServiceRules.ResourceName(), resourceTypes) {
+			ruleNames, err := getAllConfigRules(session, region)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(ruleNames) > 0 {
+				configServiceRules.Rules = awsgo.StringValueSlice(ruleNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, configServiceRules)
+			}
+		}
+		// End ConfigService Rules
+
+		// ConfigService Recorders
+		configServiceRecorders := ConfigServiceRecorders{}
+		if IsNukeable(configServiceRecorders.ResourceName(), resourceTypes) {
+			ruleNames, err := getAllConfigRecorders(session, region)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(ruleNames) > 0 {
+				configServiceRecorders.Rules = awsgo.StringValueSlice(ruleNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, configServiceRecorders)
+			}
+		}
+		// End ConfigService Recorders
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -690,6 +722,8 @@ func ListResourceTypes() []string {
 		NatGateways{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		GuardDutyDetectors{}.ResourceName(),
+		ConfigService{}.ResourceName(),
+		ConfigServiceRecorders{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
