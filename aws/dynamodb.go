@@ -55,8 +55,6 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 				tableNames = append(tableNames, table)
 			}
 		}
-		// Empty the slice for reuse.
-		tableNames = nil
 		// Remove 1 from the counter if it's one run the loop will end as PaginationRunCount will = 0
 		PaginationRunCount -= 1
 	}
