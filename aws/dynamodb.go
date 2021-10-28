@@ -18,7 +18,9 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 	// Tells loop to rerun
 	var PaginationRunCount = 1
 	for PaginationRunCount > 0 {
-		result, err := svc.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
+		result, err := svc.ListTables(&dynamodb.ListTablesInput{ExclusiveStartTableName: lastTableName, Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
+		
+		lastTableName = result.LastEvaluatedTableName
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Error() {
