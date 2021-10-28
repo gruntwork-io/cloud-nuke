@@ -601,6 +601,22 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End S3 Buckets
 
+		// GuardDuty Detectors
+		guardDutyDetectors := GuardDutyDetectors{}
+		if IsNukeable(guardDutyDetectors.ResourceName(), resourceTypes) {
+			detectorIds, err := getAllGuardDutyDetectors(session, region)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(detectorIds) > 0 {
+				guardDutyDetectors.Detectors = awsgo.StringValueSlice(detectorIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, guardDutyDetectors)
+			}
+		}
+		// End GuardDuty Detectors
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -673,6 +689,7 @@ func ListResourceTypes() []string {
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
+		GuardDutyDetectors{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
