@@ -630,7 +630,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		DynamoDB := DynamoDB{}
 		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
 			tablenames, err := getAllDynamoTables(session, excludeAfter, DynamoDB)
-
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -641,6 +640,23 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End Dynamo DB tables
+
+		// GuardDuty Detectors
+		guardDutyDetectors := GuardDutyDetectors{}
+		if IsNukeable(guardDutyDetectors.ResourceName(), resourceTypes) {
+			detectorIds, err := getAllGuardDutyDetectors(session, region)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+
+			if len(detectorIds) > 0 {
+				guardDutyDetectors.Detectors = awsgo.StringValueSlice(detectorIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, guardDutyDetectors)
+			}
+		}
+		// End GuardDuty Detectors
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
@@ -716,7 +732,11 @@ func ListResourceTypes() []string {
 		OpenSearchDomains{}.ResourceName(),
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
+<<<<<<< HEAD
 		DynamoDB{}.ResourceName(),
+=======
+		GuardDutyDetectors{}.ResourceName(),
+>>>>>>> e53888f (initial work to support nuking guardduty)
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
