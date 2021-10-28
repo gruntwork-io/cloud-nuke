@@ -14,6 +14,8 @@ import (
 func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db DynamoDB) ([]*string, error) {
 	var tableNames []*string
 	svc := dynamodb.New(session)
+	
+	var lastTableName *string
 	// Run count is used for pagination if the list tables exceeds max value
 	// Tells loop to rerun
 	var PaginationRunCount = 1
