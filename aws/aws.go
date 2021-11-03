@@ -601,6 +601,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End S3 Buckets
 
+		DynamoDB := DynamoDB{}
+		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
+			tablenames, err := getAllDynamoTables(session, excludeAfter, DynamoDB)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(tablenames) > 0 {
+				DynamoDB.DynamoTableNames = awsgo.StringValueSlice(tablenames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, DynamoDB)
+			}
+		}
+		// End Dynamo DB tables
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -673,6 +688,7 @@ func ListResourceTypes() []string {
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
+		DynamoDB{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
