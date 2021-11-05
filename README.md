@@ -351,7 +351,7 @@ Every source file in this project should be formatted with `go fmt`.
 
 ### Releasing new versions
 
-To release a new version, just go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and
+To release a new version, just go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and 
 create a new release. The CircleCI job for this repo has been configured to:
 
 1. Automatically detect new tags.
@@ -359,6 +359,11 @@ create a new release. The CircleCI job for this repo has been configured to:
 1. Upload the binaries to the release in GitHub.
 
 See `.circleci/config.yml` for details.
+
+#### Choosing a new release tag
+If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities.
+
+This is because since version v0.2.0 `cloud-nuke` has been configured to include automatically new resources (opt-out vs opt-in), which is inherently not backwards compatible. As such, we have decided to mark the addition of new nuked resources as backward incompatible to provide better signals for users when we introduce a new resource.
 
 ## License
 
