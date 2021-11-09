@@ -350,20 +350,21 @@ TEST_ACMPCA_EXPENSIVE_ENABLE=1 go test -v ./...
 Every source file in this project should be formatted with `go fmt`.
 
 ### Releasing new versions
+We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48). _This document is only visible to Gruntwork employees currently._
 
-To release a new version, just go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and 
-create a new release. The CircleCI job for this repo has been configured to:
+#### Choosing a new release tag
+If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities.
+
+This is because since version v0.2.0 `cloud-nuke` has been configured to include automatically new resources (opt-out vs opt-in), which is inherently not backwards compatible. As such, we have decided to mark the addition of new nuked resources as backward incompatible to provide better signals for users when we introduce a new resource.
+
+#### To release a new version
+Go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and create a new release. The CircleCI job for this repo has been configured to:
 
 1. Automatically detect new tags.
 1. Build binaries for every OS using that tag as a version number.
 1. Upload the binaries to the release in GitHub.
 
 See `.circleci/config.yml` for details.
-
-#### Choosing a new release tag
-If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities.
-
-This is because since version v0.2.0 `cloud-nuke` has been configured to include automatically new resources (opt-out vs opt-in), which is inherently not backwards compatible. As such, we have decided to mark the addition of new nuked resources as backward incompatible to provide better signals for users when we introduce a new resource.
 
 ## License
 
