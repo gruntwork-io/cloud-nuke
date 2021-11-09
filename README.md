@@ -350,7 +350,7 @@ TEST_ACMPCA_EXPENSIVE_ENABLE=1 go test -v ./...
 Every source file in this project should be formatted with `go fmt`.
 
 ### Releasing new versions
-We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48). _This document is only visible to Gruntwork employees currently._
+We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48). 
 
 #### Choosing a new release tag
 If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities.
