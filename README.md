@@ -39,6 +39,11 @@ When executed as `cloud-nuke aws`, this tool is **HIGHLY DESTRUCTIVE** and delet
 
 When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs and the default ingress/egress rule for all default security groups. This should be used in production environments **WITH CAUTION**.
 
+### Backwards incompatibility
+As of [v0.2.0](https://github.com/gruntwork-io/cloud-nuke/releases/tag/v0.2.0) new resources nuked by cloud-nuke will be marked as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities. 
+:warning: This is significant for users with CI practices because new resources are included automatically (opt-out vs opt-in) and may unexpectedly target resources for deletion.
+As a result, we have decided to mark the addition of new nuked resources as backwards incompatible to provide better communication to users when we introduce a new resource.
+
 ## Install
 
 ### Download from releases page
