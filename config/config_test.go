@@ -16,6 +16,7 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
 	}
 }
 
@@ -346,7 +347,7 @@ func TestShouldInclude_ExcludeWhenMatches(t *testing.T) {
 
 	exclude, err := regexp.Compile(`test.*`)
 	require.NoError(t, err)
-	excludeREs := []Expression { { RE: *exclude } }
+	excludeREs := []Expression{{RE: *exclude}}
 
 	assert.False(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
 		"Should not include when matches from the 'exclude' list")
@@ -357,7 +358,7 @@ func TestShouldInclude_ExcludeWhenMatches(t *testing.T) {
 func TestShouldInclude_IncludeWhenMatches(t *testing.T) {
 	include, err := regexp.Compile(`.*openvpn.*`)
 	require.NoError(t, err)
-	includeREs := []Expression { { RE: *include } }
+	includeREs := []Expression{{RE: *include}}
 
 	var excludeREs []Expression
 
@@ -370,11 +371,11 @@ func TestShouldInclude_IncludeWhenMatches(t *testing.T) {
 func TestShouldInclude_WhenMatchesIncludeAndExclude(t *testing.T) {
 	include, err := regexp.Compile(`test.*`)
 	require.NoError(t, err)
-	includeREs := []Expression { { RE: *include } }
+	includeREs := []Expression{{RE: *include}}
 
 	exclude, err := regexp.Compile(`.*openvpn.*`)
 	require.NoError(t, err)
-	excludeREs := []Expression { { RE: *exclude } }
+	excludeREs := []Expression{{RE: *exclude}}
 
 	assert.True(t, ShouldInclude("test-eks-cluster-123", includeREs, excludeREs),
 		"Should include when matches the 'include' list but not matches the 'exclude' list")

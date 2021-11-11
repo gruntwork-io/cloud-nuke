@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +43,7 @@ func TestTimeFilterExclusionNewlyCreatedCloudWatchDashboard(t *testing.T) {
 	require.NoError(t, err)
 	svc := cloudwatch.New(session)
 
-	cwdbName := createCloudWatchDashbaord(t, svc, region)
+	cwdbName := createCloudWatchDashboard(t, svc, region)
 	defer deleteCloudWatchDashboard(t, svc, cwdbName, true)
 
 	// Assert CWDB is picked up without filters
@@ -125,7 +124,7 @@ func createCloudWatchDashboard(t *testing.T, svc *cloudwatch.CloudWatch, region 
 	if len(resp.DashboardValidationMessages) > 0 {
 		t.Fatalf("Error creating Dashboard %v", resp.DashboardValidationMessages)
 	}
-	return name
+	return &name
 }
 
 // deleteCloudWatchDashboard is a function to delete the given CloudWatch Dashboard.
@@ -139,10 +138,11 @@ func deleteCloudWatchDashboard(t *testing.T, svc *cloudwatch.CloudWatch, name *s
 
 func assertCloudWatchDashboardsDeleted(t *testing.T, svc *cloudwatch.CloudWatch, identifiers []*string) {
 	for _, name := range identifiers {
-	resp, err := svc.ListDashboards(&cloudwatch.ListDashboardsInput{DashboardNamePrefix: name})
-	require.NoError(t, err)
-	if len(resp.DashboardEntries) > 0 {
-		t.Fatalf("Dashboard %s is not deleted", aws.StringValue(name))
+		resp, err := svc.ListDashboards(&cloudwatch.ListDashboardsInput{DashboardNamePrefix: name})
+		require.NoError(t, err)
+		if len(resp.DashboardEntries) > 0 {
+			t.Fatalf("Dashboard %s is not deleted", aws.StringValue(name))
+		}
 	}
 }
 
