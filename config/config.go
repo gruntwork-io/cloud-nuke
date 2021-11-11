@@ -15,6 +15,7 @@ type Config struct {
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
 	NatGateway            ResourceType `yaml:"NatGateway"`
 	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
+	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
 }
 
 type ResourceType struct {
@@ -84,13 +85,13 @@ func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression
 	// If no rules are defined, should always include
 	if len(includeREs) == 0 && len(excludeREs) == 0 {
 		return true
-	// If a rule that exclude matches, should not include
+		// If a rule that exclude matches, should not include
 	} else if matches(name, excludeREs) {
 		return false
-	// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
+		// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
 	} else if len(includeREs) == 0 {
 		return true
-	// Given there is a 'include' list, and 'name' is there, should include
+		// Given there is a 'include' list, and 'name' is there, should include
 	} else {
 		return matches(name, includeREs)
 	}
