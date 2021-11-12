@@ -124,6 +124,8 @@ func createCloudWatchDashboard(t *testing.T, svc *cloudwatch.CloudWatch, region 
 	if len(resp.DashboardValidationMessages) > 0 {
 		t.Fatalf("Error creating Dashboard %v", resp.DashboardValidationMessages)
 	}
+	// Add an arbitrary sleep to account for eventual consistency
+	time.Sleep(15 * time.Second)
 	return &name
 }
 
