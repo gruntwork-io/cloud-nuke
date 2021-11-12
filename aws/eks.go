@@ -6,32 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 )
-
-// The regions that support EKS. Refer to
-// https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/
-var eksRegions = []string{
-	"us-east-1",
-	"us-east-2",
-	"us-west-2",
-	"eu-central-1",
-	"eu-west-1",
-	"eu-west-2",
-	"eu-west-3",
-	"eu-north-1",
-	"ap-southeast-1",
-	"ap-southeast-2",
-	"ap-northeast-1",
-	"ap-northeast-2",
-	"ap-south-1",
-}
-
-// eksSupportedRegion returns true if the provided region supports EKS
-func eksSupportedRegion(region string) bool {
-	return collections.ListContainsElement(eksRegions, region)
-}
 
 // getAllEksClusters returns a list of strings of EKS Cluster Names that uniquely identify each cluster.
 func getAllEksClusters(awsSession *session.Session, excludeAfter time.Time) ([]*string, error) {

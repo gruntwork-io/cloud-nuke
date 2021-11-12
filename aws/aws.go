@@ -469,15 +469,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EKS resources
 		eksClusters := EKSClusters{}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
-			if eksSupportedRegion(region) {
-				eksClusterNames, err := getAllEksClusters(session, excludeAfter)
-				if err != nil {
-					return nil, errors.WithStackTrace(err)
-				}
-				if len(eksClusterNames) > 0 {
-					eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
-					resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
-				}
+			eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(eksClusterNames) > 0 {
+				eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
 			}
 		}
 		// End EKS resources
