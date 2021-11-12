@@ -46,7 +46,7 @@ func TestTimeFilterExclusionNewlyCreatedCloudWatchDashboard(t *testing.T) {
 	cwdbName := createCloudWatchDashboard(t, svc, region)
 	defer deleteCloudWatchDashboard(t, svc, cwdbName, true)
 
-	// Assert CWDB is picked up without filters
+	// Assert CloudWatch Dashboard is picked up without filters
 	cwdbNamesNewer, err := getAllCloudWatchDashboards(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(cwdbNamesNewer), aws.StringValue(cwdbName))
