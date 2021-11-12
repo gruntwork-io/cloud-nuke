@@ -32,6 +32,7 @@ The currently supported functionality includes:
 - Deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 - Deleting all DynamoDB tables in an AWS account
+- Deleting all CloudWatch Dashboards in an AWS account
 
 ### BEWARE!
 
@@ -158,6 +159,9 @@ The following resources support the Config file:
 - IAM Access Analyzers
     - Resource type: `accessanalyzer`
     - Config key: `AccessAnalyzer`
+- CloudWatch Dashboards
+    - Resource type: `cloudwatch-dashboard`
+    - Config key: `CloudWatchDashboard`
 
 
 #### Example
@@ -350,7 +354,7 @@ TEST_ACMPCA_EXPENSIVE_ENABLE=1 go test -v ./...
 Every source file in this project should be formatted with `go fmt`.
 
 ### Releasing new versions
-We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48). 
+We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48).
 
 #### Choosing a new release tag
 If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities.

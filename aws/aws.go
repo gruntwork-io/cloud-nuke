@@ -561,6 +561,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End AccessAnalyzer
 
+		// CloudWatchDashboard
+		cloudwatchDashboards := CloudWatchDashboards{}
+		if IsNukeable(cloudwatchDashboards.ResourceName(), resourceTypes) {
+			cwdbNames, err := getAllCloudWatchDashboards(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(cwdbNames) > 0 {
+				cloudwatchDashboards.DashboardNames = awsgo.StringValueSlice(cwdbNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchDashboards)
+			}
+		}
+		// End CloudWatchDashboard
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -687,6 +701,7 @@ func ListResourceTypes() []string {
 		IAMUsers{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
+		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
 	}
