@@ -365,6 +365,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End NATGateway
 
+		// OpenSearch Domains
+		domains := OpenSearchDomains{}
+		if IsNukeable(domains.ResourceName(), resourceTypes) {
+			domainNames, err := getOpenSearchDomainsToNuke(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(domainNames) > 0 {
+				domains.DomainNames = awsgo.StringValueSlice(domainNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, domains)
+			}
+		}
+		// End OpenSearchDomains
+
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
@@ -699,6 +713,7 @@ func ListResourceTypes() []string {
 		IAMUsers{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
+		OpenSearchDomains{}.ResourceName(),
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
