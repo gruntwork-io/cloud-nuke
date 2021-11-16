@@ -26,6 +26,7 @@ The currently supported functionality includes:
 - Deleting all SQS queues in an AWS account
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
+- Deleting all non-default VPCs in an AWS Account - except for default vps which is handled by default-aws
 - Deleting all IAM users in an AWS account
 - Deleting all Secrets Manager Secrets in an AWS account
 - Deleting all NAT Gateways in an AWS account
