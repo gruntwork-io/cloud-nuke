@@ -749,6 +749,8 @@ func ListResourceTypes() []string {
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
+		ConfigService{}.ResourceName(),
+		ConfigServiceRecorders{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
