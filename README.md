@@ -30,6 +30,7 @@ The currently supported functionality includes:
 - Deleting all Secrets Manager Secrets in an AWS account
 - Deleting all NAT Gateways in an AWS account
 - Deleting all IAM Access Analyzers in an AWS account
+- Deleting all GuardDuty Detectors in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 - Deleting all DynamoDB tables in an AWS account
 - Deleting all CloudWatch Dashboards in an AWS account
