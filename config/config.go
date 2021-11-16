@@ -16,6 +16,7 @@ type Config struct {
 	NatGateway            ResourceType `yaml:"NatGateway"`
 	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
 	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
+	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
 }
 
 type ResourceType struct {

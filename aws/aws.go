@@ -365,6 +365,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End NATGateway
 
+		// OpenSearch Domains
+		domains := OpenSearchDomains{}
+		if IsNukeable(domains.ResourceName(), resourceTypes) {
+			domainNames, err := getOpenSearchDomainsToNuke(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(domainNames) > 0 {
+				domains.DomainNames = awsgo.StringValueSlice(domainNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, domains)
+			}
+		}
+		// End OpenSearchDomains
+
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
@@ -469,15 +483,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EKS resources
 		eksClusters := EKSClusters{}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
-			if eksSupportedRegion(region) {
-				eksClusterNames, err := getAllEksClusters(session, excludeAfter)
-				if err != nil {
-					return nil, errors.WithStackTrace(err)
-				}
-				if len(eksClusterNames) > 0 {
-					eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
-					resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
-				}
+			eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(eksClusterNames) > 0 {
+				eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
 			}
 		}
 		// End EKS resources
@@ -701,6 +713,7 @@ func ListResourceTypes() []string {
 		IAMUsers{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
+		OpenSearchDomains{}.ResourceName(),
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),

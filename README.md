@@ -33,6 +33,7 @@ The currently supported functionality includes:
 - Revoking the default rules in the un-deletable default security group of a VPC
 - Deleting all DynamoDB tables in an AWS account
 - Deleting all CloudWatch Dashboards in an AWS account
+- Deleting all OpenSearch Domains in an AWS account
 
 ### BEWARE!
 
@@ -162,6 +163,9 @@ The following resources support the Config file:
 - CloudWatch Dashboards
     - Resource type: `cloudwatch-dashboard`
     - Config key: `CloudWatchDashboard`
+- OpenSearch Domains
+    - Resource type: `opensearch`
+    - Config key: `OpenSearchDomain`
 
 
 #### Example
