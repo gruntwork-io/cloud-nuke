@@ -650,7 +650,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				return nil, errors.WithStackTrace(err)
 			}
 
-
 			if len(detectorIds) > 0 {
 				guardDutyDetectors.Detectors = awsgo.StringValueSlice(detectorIds)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, guardDutyDetectors)
@@ -732,11 +731,8 @@ func ListResourceTypes() []string {
 		OpenSearchDomains{}.ResourceName(),
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
-<<<<<<< HEAD
 		DynamoDB{}.ResourceName(),
-=======
 		GuardDutyDetectors{}.ResourceName(),
->>>>>>> e53888f (initial work to support nuking guardduty)
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
