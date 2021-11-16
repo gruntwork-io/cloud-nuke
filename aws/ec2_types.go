@@ -63,3 +63,30 @@ func (v EC2VPCs) Nuke(session *session.Session, identifiers []string) error {
 
 	return nil
 }
+
+type EC2KeyPairs struct {
+	KeyPairIds []string
+}
+
+// ResourceName - the simple name of the aws resource
+func (k EC2KeyPairs) ResourceName() string {
+	return "ec2-keypairs"
+}
+
+// ResourceIdentifiers - The instance ids of the ec2 instances
+func (k EC2KeyPairs) ResourceIdentifiers() []string {
+	return k.KeyPairIds
+}
+
+func (k EC2KeyPairs) MaxBatchSize() int {
+	// Tentative batch size to ensure AWS doesn't throttle
+	return 200
+}
+
+func (k EC2KeyPairs) Nuke(session *session.Session, identifiers []string) error {
+	if err := nukeAllEc2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}

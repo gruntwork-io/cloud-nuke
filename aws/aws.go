@@ -658,6 +658,18 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EC2 VPCS
 
+		// Start EC2 KeyPairs
+		KeyPairs := EC2KeyPairs{}
+		if IsNukeable(KeyPairs.ResourceName(), resourceTypes) {
+			keyPairIds, err := getAllEc2KeyPairs(session, region)
+
+			if len(keyPairIds) > 0 {
+				KeyPairs.KeyPairIds = awsgo.StringValueSlice(keyPairIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, KeyPairs)
+			}
+		}
+		// End EC2 KeyPairs
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -734,6 +746,7 @@ func ListResourceTypes() []string {
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
+		EC2KeyPairs{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
