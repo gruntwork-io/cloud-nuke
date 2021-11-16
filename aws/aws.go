@@ -642,6 +642,28 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Dynamo DB tables
 
+		// SecurityHub
+		securityHubEnabled, err := checkSecurityHubEnabled(session)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		if securityHubEnabled {
+			securityHub := SecurityHub{}
+			if IsNukeable(securityHub.ResourceName(), resourceTypes) {
+				insights, err := getAllSecurityHubInsights(session, region)
+
+				if err != nil {
+					return nil, errors.WithStackTrace(err)
+				}
+
+				if len(insights) > 0 {
+					securityHub.Insights = awsgo.StringValueSlice(insights)
+					resourcesInRegion.Resources = append(resourcesInRegion.Resources, securityHub)
+				}
+			}
+		}
+		// End SecurityHub
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -717,6 +739,7 @@ func ListResourceTypes() []string {
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
+		SecurityHub{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
