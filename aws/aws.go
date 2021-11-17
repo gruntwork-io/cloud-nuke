@@ -642,6 +642,22 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Dynamo DB tables
 
+		// EC2 VPCS
+		ec2Vpcs := EC2VPCs{}
+		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
+			vpcids, vpcs, err := getAllVpcs(session, region)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(vpcids) > 0 {
+				ec2Vpcs.VPCIds = awsgo.StringValueSlice(vpcids)
+				ec2Vpcs.VPCs = vpcs
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Vpcs)
+			}
+		}
+		// End EC2 VPCS
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -717,6 +733,7 @@ func ListResourceTypes() []string {
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
+		EC2VPCs{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
