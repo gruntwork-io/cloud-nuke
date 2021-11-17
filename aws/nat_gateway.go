@@ -44,6 +44,10 @@ func shouldIncludeNatGateway(ngw *ec2.NatGateway, excludeAfter time.Time, config
 		return false
 	}
 
+	if aws.StringValue(ngw.State) == ec2.NatGatewayStateDeleted {
+		return false
+	}
+
 	return config.ShouldInclude(
 		getNatGatewayName(ngw),
 		configObj.NatGateway.IncludeRule.NamesRegExp,
