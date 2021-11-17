@@ -221,6 +221,36 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// The order in which resources are nuked is important
 		// because of dependencies between resources
 
+		// Cloudformation StackSets -- This is early on because it can control other infrastructure
+		stacksets := CloudformationStackSets{}
+		if IsNukeable(stacksets.ResourceName(), resourceTypes) {
+			sets, err := getAllCloudFormationStacksSets(session)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(sets) > 0 {
+				stacksets.StackSetNames = awsgo.StringValueSlice(sets)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, stacksets)
+			}
+		}
+		// End Cloudformation StackSets
+
+		// Cloudformation Stacks
+		stacks := CloudformationStacks{}
+		if IsNukeable(stacks.ResourceName(), resourceTypes) {
+			s, err := getAllCloudFormationStacks(session)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(s) > 0 {
+				stacks.StackNames = awsgo.StringValueSlice(s)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, stacks)
+			}
+		}
+		// End Cloudformation Stacks
+
 		// ACMPCA arns
 		acmpca := ACMPCA{}
 		if IsNukeable(acmpca.ResourceName(), resourceTypes) {
@@ -734,6 +764,8 @@ func ListResourceTypes() []string {
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
+		CloudformationStackSets{}.ResourceName(),
+		CloudformationStacks{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
