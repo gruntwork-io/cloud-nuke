@@ -662,6 +662,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		KeyPairs := EC2KeyPairs{}
 		if IsNukeable(KeyPairs.ResourceName(), resourceTypes) {
 			keyPairIds, err := getAllEc2KeyPairs(session, region)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
 
 			if len(keyPairIds) > 0 {
 				KeyPairs.KeyPairIds = awsgo.StringValueSlice(keyPairIds)
