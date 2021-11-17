@@ -786,6 +786,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM OpenIDConnectProviders
 
+		// IAM Roles
+		iamRoles := IAMRoles{}
+		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
+			roleNames, err := getAllIamRoles(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(roleNames) > 0 {
+				iamRoles.RoleNames = awsgo.StringValueSlice(roleNames)
+				globalResources.Resources = append(globalResources.Resources, iamRoles)
+			}
+		}
+		// End IAM Roles
+
 		if len(globalResources.Resources) > 0 {
 			account.Resources[GlobalRegion] = globalResources
 		}
@@ -818,6 +832,7 @@ func ListResourceTypes() []string {
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
+		IAMRoles{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		OpenSearchDomains{}.ResourceName(),
