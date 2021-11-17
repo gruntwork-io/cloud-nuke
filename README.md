@@ -28,6 +28,7 @@ The currently supported functionality includes:
 - Deleting all default VPCs in an AWS account
 - Deleting VPCs in an AWS Account (except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
 - Deleting all IAM users in an AWS account
+- Deleting all IAM roles in an AWS account (except aws defined roles and OrganizationAccountAccessRole)
 - Deleting all Secrets Manager Secrets in an AWS account
 - Deleting all NAT Gateways in an AWS account
 - Deleting all IAM Access Analyzers in an AWS account
