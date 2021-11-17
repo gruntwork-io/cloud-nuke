@@ -38,6 +38,7 @@ The currently supported functionality includes:
 - Deleting all OpenSearch Domains in an AWS account
 - Deleting all IAM OpenID Connect Providers
 - Deleting all Customer managed keys from Key Management Service in an AWS account
+- Deleting all CloudWatch Log Groups in an AWS Account
 
 ### BEWARE!
 
