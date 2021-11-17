@@ -30,32 +30,6 @@ func getAllCloudFormationStacks(session *session.Session) ([]*string, error) {
 	return names, nil
 }
 
-func getAllCloudFormationStacksSets(session *session.Session) ([]*string, error) {
-	svc := cloudformation.New(session)
-
-	stacks, err := svc.ListStackSets(&cloudformation.ListStackSetsInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	var names []*string
-	for _, set := range stacks.Summaries {
-		names = append(names, set.StackSetName)
-	}
-
-	return names, nil
-}
-
-func deleteCloudFormationStackSet(svc *cloudformation.CloudFormation, name *string) error {
-	if _, err := svc.DeleteStackSet(&cloudformation.DeleteStackSetInput{
-		StackSetName: name,
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func nukeAllCloudformationStacks(session *session.Session, identifiers []*string) error {
 	region := aws.StringValue(session.Config.Region)
 
@@ -115,28 +89,6 @@ func nukeAllCloudformationStacks(session *session.Session, identifiers []*string
 	return nil
 }
 
-func nukeAllCloudformationStackSets(session *session.Session, names []*string) error {
-	if len(names) == 0 {
-		logging.Logger.Info("No Cloudformation Stacks to nuke")
-		return nil
-	}
-
-	logging.Logger.Info("Deleting all Cloudformation Stacks")
-
-	deletedStackSets := 0
-	svc := cloudformation.New(session)
-
-	for _, name := range names {
-		if err := deleteCloudFormationStackSet(svc, name); err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-		} else {
-			deletedStackSets++
-		}
-	}
-
-	return nil
-}
-
 func deleteCloudformationStackAsync(wg *sync.WaitGroup, errChan chan error, svc *cloudformation.CloudFormation, stackName *string) {
 	defer wg.Done()
 
@@ -152,8 +104,20 @@ func areAllCloudformationStacksDeleted(svc *cloudformation.CloudFormation, ident
 	if err != nil {
 		return false, err
 	}
+
 	if len(resp.StackSummaries) == 0 {
 		return true, nil
 	}
-	return true, nil
+
+	for _, stack := range resp.StackSummaries {
+		if stack == nil {
+			continue
+		}
+
+		if aws.StringValue(stack.StackStatus) != cloudformation.StackStatusDeleteComplete {
+			return false, nil
+		}
+	}
+
+	return false, nil
 }
