@@ -636,7 +636,6 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 				bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
 
 				require.NoError(t, err, "Failed to list S3 Buckets")
-				fmt.Printf("bucketNamesPerRegion : %v", aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]))
 				if tc.args.exactMatch {
 					require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
 				} else {
