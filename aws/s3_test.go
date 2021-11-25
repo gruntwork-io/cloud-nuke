@@ -2,7 +2,9 @@ package aws
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -385,7 +387,7 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 	}
 
 	var configObj *config.Config
-	configObj, err = config.GetConfig("../config/mocks/s3_include_names.yaml")
+	configObj, err = config.GetConfig(readTemplate(t, "../config/mocks/s3_include_names.yaml", map[string]string{"__TESTID__": ""}))
 	require.NoError(t, err)
 
 	// Verify that - after nuking test bucket - it should not exist
@@ -491,29 +493,53 @@ func TestNukeS3Bucket(t *testing.T) {
 	}
 }
 
+// readTemplate - read and replace variables in template, return path to temporary file with processed template.
+func readTemplate(t *testing.T, templatePath string, variables map[string]string) string {
+	_, name := path.Split(templatePath)
+	file, err := ioutil.TempFile(os.TempDir(), "*"+name)
+	require.NoError(t, err)
+
+	defer file.Close()
+	content, err := ioutil.ReadFile(templatePath)
+	require.NoError(t, err)
+
+	template := string(content)
+
+	for key, value := range variables {
+		template = strings.Replace(template, key, value, -1)
+	}
+
+	_, err = file.WriteString(template)
+	require.NoError(t, err)
+
+	return file.Name()
+}
+
 // TestFilterS3BucketArgs represents arguments for TestFilterS3Bucket_Config
 type TestFilterS3BucketArgs struct {
 	configFilePath string
 	matches        []string
 }
 
-func bucketNamesForConfigTests() []string {
+func bucketNamesForConfigTests(id string) []string {
 	return []string{
-		"alb-alb-123456-access-logs-" + S3TestGenBucketName(),
-		"alb-alb-234567-access-logs-" + S3TestGenBucketName(),
-		"tonico-prod-alb-access-logs-" + S3TestGenBucketName(),
-		"prod-alb-public-access-logs-" + S3TestGenBucketName(),
-		"stage-alb-internal-access-logs-" + S3TestGenBucketName(),
-		"stage-alb-public-access-logs-" + S3TestGenBucketName(),
-		"cloud-watch-logs-staging-" + S3TestGenBucketName(),
-		"something-else-logs-staging-" + S3TestGenBucketName(),
+		"alb-alb-123456-access-logs-" + id,
+		"alb-alb-234567-access-logs-" + id,
+		"tonico-prod-alb-access-logs-" + id,
+		"prod-alb-public-access-logs-" + id,
+		"stage-alb-internal-access-logs-" + id,
+		"stage-alb-public-access-logs-" + id,
+		"cloud-watch-logs-staging-" + id,
+		"something-else-logs-staging-" + id,
 	}
 }
 
 // TestFilterS3Bucket_Config tests listing only S3 buckets that match config file
 func TestFilterS3Bucket_Config(t *testing.T) {
-	t.Skip("This test is disabled, as it's failing inconsistently due to the count of S3 buckets in the same region. See open github issue #142 for more details.")
 	t.Parallel()
+
+	testId := S3TestGenBucketName()
+	logging.Logger.Debugf("Generated test id %v", testId)
 
 	// Create AWS session in ca-central-1
 	awsParams, err := newS3TestAWSParams("ca-central-1")
@@ -522,7 +548,7 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 	// Nuke all buckets in ca-central-1 first
 	// passing in a config that matches all buckets
 	var configObj *config.Config
-	configObj, err = config.GetConfig("../config/mocks/s3_all.yaml")
+	configObj, err = config.GetConfig(readTemplate(t, "../config/mocks/s3_all.yaml", map[string]string{"__TESTID__": testId}))
 
 	// Verify that only filtered buckets are listed
 	cleanupBuckets, err := getAllS3Buckets(awsParams.awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
@@ -533,7 +559,7 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 
 	// Create test buckets in ca-central-1
 	var bucketTags []map[string]string
-	bucketNames := bucketNamesForConfigTests()
+	bucketNames := bucketNamesForConfigTests(testId)
 	for _, bucketName := range bucketNames {
 		err = S3TestCreateBucket(awsParams.svc, bucketName, bucketTags, false)
 		require.NoErrorf(t, err, "Failed to create test bucket - %s", bucketName)
@@ -566,21 +592,21 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 		{
 			"Include",
 			TestFilterS3BucketArgs{
-				configFilePath: "../config/mocks/s3_include_names.yaml",
+				configFilePath: readTemplate(t, "../config/mocks/s3_include_names.yaml", map[string]string{"__TESTID__": testId}),
 				matches:        includeBuckets,
 			},
 		},
 		{
 			"Exclude",
 			TestFilterS3BucketArgs{
-				configFilePath: "../config/mocks/s3_exclude_names.yaml",
+				configFilePath: readTemplate(t, "../config/mocks/s3_exclude_names.yaml", map[string]string{"__TESTID__": testId}),
 				matches:        excludeBuckets,
 			},
 		},
 		{
 			"IncludeAndExclude",
 			TestFilterS3BucketArgs{
-				configFilePath: "../config/mocks/s3_filter_names.yaml",
+				configFilePath: readTemplate(t, "../config/mocks/s3_filter_names.yaml", map[string]string{"__TESTID__": testId}),
 				matches:        filterBuckets,
 			},
 		},
