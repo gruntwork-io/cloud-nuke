@@ -518,6 +518,7 @@ func readTemplate(t *testing.T, templatePath string, variables map[string]string
 // TestFilterS3BucketArgs represents arguments for TestFilterS3Bucket_Config
 type TestFilterS3BucketArgs struct {
 	configFilePath string
+	exactMatch     bool
 	matches        []string
 }
 
@@ -601,6 +602,9 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 			TestFilterS3BucketArgs{
 				configFilePath: readTemplate(t, "../config/mocks/s3_exclude_names.yaml", map[string]string{"__TESTID__": testId}),
 				matches:        excludeBuckets,
+				// exclude match may include multiple buckets than created during test
+				// https://github.com/gruntwork-io/cloud-nuke/issues/142
+				exactMatch: false,
 			},
 		},
 		{
@@ -632,7 +636,13 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 				bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
 
 				require.NoError(t, err, "Failed to list S3 Buckets")
-				require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
+				fmt.Printf("bucketNamesPerRegion : %v", aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]))
+				if tc.args.exactMatch {
+					require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
+				} else {
+					// in case of not exact match, at least check if number of matched buckets are more or equal to arg count
+					require.True(t, len(bucketNamesPerRegion[awsParams.region]) >= len(tc.args.matches))
+				}
 				require.Subset(t, aws.StringValueSlice(bucketNamesPerRegion[awsParams.region]), tc.args.matches)
 			})
 		}
