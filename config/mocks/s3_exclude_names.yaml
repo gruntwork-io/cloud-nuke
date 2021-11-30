@@ -1,4 +1,4 @@
 s3:
   exclude:
     names_regex:
-      - public
+      - public.*__TESTID__$

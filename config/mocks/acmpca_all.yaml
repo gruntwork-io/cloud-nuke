@@ -1,4 +1,4 @@
-s3:
+acmpca:
   include:
     names_regex:
-      - .*__TESTID__$
+      - .*

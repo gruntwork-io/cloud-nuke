@@ -26,6 +26,7 @@ var OptInNotRequiredRegions = []string{
 	"eu-west-3",
 	"eu-west-2",
 	"eu-west-1",
+	"ap-northeast-3",
 	"ap-northeast-2",
 	"ap-northeast-1",
 	"sa-east-1",
@@ -220,6 +221,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// The order in which resources are nuked is important
 		// because of dependencies between resources
 
+		// ACMPCA arns
+		acmpca := ACMPCA{}
+		if IsNukeable(acmpca.ResourceName(), resourceTypes) {
+			arns, err := getAllACMPCA(session, region, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(arns) > 0 {
+				acmpca.ARNs = awsgo.StringValueSlice(arns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, acmpca)
+			}
+		}
+		// End ACMPCA arns
+
 		// ASG Names
 		asGroups := ASGroups{}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
@@ -336,6 +351,34 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End TransitGateway
 
+		// NATGateway
+		natGateways := NatGateways{}
+		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
+			ngwIDs, err := getAllNatGateways(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(ngwIDs) > 0 {
+				natGateways.NatGatewayIDs = awsgo.StringValueSlice(ngwIDs)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, natGateways)
+			}
+		}
+		// End NATGateway
+
+		// OpenSearch Domains
+		domains := OpenSearchDomains{}
+		if IsNukeable(domains.ResourceName(), resourceTypes) {
+			domainNames, err := getOpenSearchDomainsToNuke(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(domainNames) > 0 {
+				domains.DomainNames = awsgo.StringValueSlice(domainNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, domains)
+			}
+		}
+		// End OpenSearchDomains
+
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
@@ -440,15 +483,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EKS resources
 		eksClusters := EKSClusters{}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
-			if eksSupportedRegion(region) {
-				eksClusterNames, err := getAllEksClusters(session, excludeAfter)
-				if err != nil {
-					return nil, errors.WithStackTrace(err)
-				}
-				if len(eksClusterNames) > 0 {
-					eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
-					resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
-				}
+			eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(eksClusterNames) > 0 {
+				eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
 			}
 		}
 		// End EKS resources
@@ -518,6 +559,34 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Secrets Manager Secrets
 
+		// AccessAnalyzer
+		accessAnalyzer := AccessAnalyzer{}
+		if IsNukeable(accessAnalyzer.ResourceName(), resourceTypes) {
+			analyzerNames, err := getAllAccessAnalyzers(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(analyzerNames) > 0 {
+				accessAnalyzer.AnalyzerNames = awsgo.StringValueSlice(analyzerNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, accessAnalyzer)
+			}
+		}
+		// End AccessAnalyzer
+
+		// CloudWatchDashboard
+		cloudwatchDashboards := CloudWatchDashboards{}
+		if IsNukeable(cloudwatchDashboards.ResourceName(), resourceTypes) {
+			cwdbNames, err := getAllCloudWatchDashboards(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(cwdbNames) > 0 {
+				cloudwatchDashboards.DashboardNames = awsgo.StringValueSlice(cwdbNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchDashboards)
+			}
+		}
+		// End CloudWatchDashboard
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -557,6 +626,37 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End S3 Buckets
+
+		DynamoDB := DynamoDB{}
+		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
+			tablenames, err := getAllDynamoTables(session, excludeAfter, DynamoDB)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(tablenames) > 0 {
+				DynamoDB.DynamoTableNames = awsgo.StringValueSlice(tablenames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, DynamoDB)
+			}
+		}
+		// End Dynamo DB tables
+
+		// EC2 VPCS
+		ec2Vpcs := EC2VPCs{}
+		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
+			vpcids, vpcs, err := getAllVpcs(session, region)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(vpcids) > 0 {
+				ec2Vpcs.VPCIds = awsgo.StringValueSlice(vpcids)
+				ec2Vpcs.VPCs = vpcs
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Vpcs)
+			}
+		}
+		// End EC2 VPCS
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
@@ -606,6 +706,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 // ListResourceTypes - Returns list of resources which can be passed to --resource-type
 func ListResourceTypes() []string {
 	resourceTypes := []string{
+		ACMPCA{}.ResourceName(),
 		ASGroups{}.ResourceName(),
 		LaunchConfigs{}.ResourceName(),
 		LoadBalancers{}.ResourceName(),
@@ -627,6 +728,12 @@ func ListResourceTypes() []string {
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
+		NatGateways{}.ResourceName(),
+		OpenSearchDomains{}.ResourceName(),
+		CloudWatchDashboards{}.ResourceName(),
+		AccessAnalyzer{}.ResourceName(),
+		DynamoDB{}.ResourceName(),
+		EC2VPCs{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

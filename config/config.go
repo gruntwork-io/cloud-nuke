@@ -13,6 +13,10 @@ type Config struct {
 	S3                    ResourceType `yaml:"s3"`
 	IAMUsers              ResourceType `yaml:"IAMUsers"`
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
+	NatGateway            ResourceType `yaml:"NatGateway"`
+	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
+	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
+	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
 }
 
 type ResourceType struct {
@@ -77,27 +81,19 @@ func matches(name string, regexps []Expression) bool {
 	return false
 }
 
-// ShouldInclude - Checks if a name should be included according to the inclusion and exclusion rules
+// ShouldInclude - Checks if a resource's name should be included according to the inclusion and exclusion rules
 func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression) bool {
-	shouldInclude := false
-
-	if len(includeREs) > 0 {
-		// If any include rules are specified,
-		// only check to see if an exclude rule matches when an include rule matches the user
-		if matches(name, includeREs) {
-			shouldInclude = true
-			if matches(name, excludeREs) {
-				shouldInclude = false
-			}
-		}
-	} else if len(excludeREs) > 0 {
-		// Only check to see if an exclude rule matches when there are no include rules defined
-		if matches(name, excludeREs) {
-			shouldInclude = false
-		}
+	if len(includeREs) == 0 && len(excludeREs) == 0 {
+		// If no rules are defined, should always include
+		return true
+	} else if matches(name, excludeREs) {
+		// If a rule that exclude matches, should not include
+		return false
+	} else if len(includeREs) == 0 {
+		// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
+		return true
 	} else {
-		shouldInclude = true
+		// Given there is a 'include' list, and 'name' is there, should include
+		return matches(name, includeREs)
 	}
-
-	return shouldInclude
 }

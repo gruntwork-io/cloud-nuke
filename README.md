@@ -8,6 +8,7 @@ The currently supported functionality includes:
 
 ## AWS
 
+- Deleting all ACM Private CA in an AWS account
 - Deleting all Auto scaling groups in an AWS account
 - Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
 - Deleting all Transit Gateways in an AWS account
@@ -25,8 +26,15 @@ The currently supported functionality includes:
 - Deleting all SQS queues in an AWS account
 - Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Deleting all default VPCs in an AWS account
+- Deleting VPCs in an AWS Account (except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
 - Deleting all IAM users in an AWS account
+- Deleting all Secrets Manager Secrets in an AWS account
+- Deleting all NAT Gateways in an AWS account
+- Deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
+- Deleting all DynamoDB tables in an AWS account
+- Deleting all CloudWatch Dashboards in an AWS account
+- Deleting all OpenSearch Domains in an AWS account
 
 ### BEWARE!
 
@@ -147,6 +155,18 @@ The following resources support the Config file:
 - Secrets Manager Secrets
     - Resource type: `secretsmanager`
     - Config key: `SecretsManager`
+- NAT Gateways
+    - Resource type: `nat-gateway`
+    - Config key: `NATGateway`
+- IAM Access Analyzers
+    - Resource type: `accessanalyzer`
+    - Config key: `AccessAnalyzer`
+- CloudWatch Dashboards
+    - Resource type: `cloudwatch-dashboard`
+    - Config key: `CloudWatchDashboard`
+- OpenSearch Domains
+    - Resource type: `opensearch`
+    - Config key: `OpenSearchDomain`
 
 
 #### Example
@@ -169,7 +189,7 @@ s3:
 Similarly, you can adjust the config to delete only IAM users of a particular name by using the `IAMUsers` key. For
 example, in the following config, only IAM users that have the prefix `my-test-user-` in their username will be deleted.
 
-```
+```yaml
 IAMUsers:
   include:
     names_regex:
@@ -232,45 +252,18 @@ Be careful when nuking and append the `--dry-run` option if you're unsure. Even 
 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
-| resource type  | support |
-|----------------|---------|
-| s3             | partial |
-| iam            | partial |
-| secretsmanager | partial |
-| ec2 instance   | none    |
-| iam role       | none    |
-| ... (more to come) | none |
+| resource type      | names | names_regex | tags | tags_regex |
+|--------------------|-------|-------------|------|------------|
+| s3                 | none  | ✅          | none | none       |
+| iam                | none  | ✅          | none | none       |
+| secretsmanager     | none  | ✅          | none | none       |
+| nat-gateway        | none  | ✅          | none | none       |
+| accessanalyzer     | none  | ✅          | none | none       |
+| acmpca             | none  | none        | none | none       |
+| ec2 instance       | none  | none        | none | none       |
+| iam role           | none  | none        | none | none       |
+| ... (more to come) | none  | none        | none | none       |
 
-
-##### s3 resource type:
-_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
-
-| field       | include | exclude |
-|-------------|---------|---------|
-| names       | none    | none    |
-| names_regex | ✅      | ✅      |
-| tags        | none    | none    |
-| tags_regex  | none    | none    |
-
-##### iam resource type:
-_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
-
-| field       | include | exclude |
-|-------------|---------|---------|
-| names       | none    | none    |
-| names_regex | ✅      | ✅      |
-| tags        | none    | none    |
-| tags_regex  | none    | none    |
-
-##### secretsmanager resource type:
-_Note: the fields without `_regex` suffixes refer to support for plain-text matching against those fields._
-
-| field       | include | exclude |
-|-------------|---------|---------|
-| names       | none    | none    |
-| names_regex | ✅      | ✅      |
-| tags        | none    | none    |
-| tags_regex  | none    | none    |
 
 
 ### Log level
@@ -354,14 +347,27 @@ cd aws
 go test -v -run TestListAMIs
 ```
 
+Use env-vars to opt-in to special tests, which are expensive to run:
+
+```bash
+# Run acmpca tests
+TEST_ACMPCA_EXPENSIVE_ENABLE=1 go test -v ./...
+```
+
 ### Formatting
 
 Every source file in this project should be formatted with `go fmt`.
 
 ### Releasing new versions
+We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48).
 
-To release a new version, just go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and
-create a new release. The CircleCI job for this repo has been configured to:
+#### Choosing a new release tag
+If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities.
+
+This is because since version v0.2.0 `cloud-nuke` has been configured to include automatically new resources (opt-out vs opt-in), which is inherently not backwards compatible. As such, we have decided to mark the addition of new nuked resources as backward incompatible to provide better signals for users when we introduce a new resource.
+
+#### To release a new version
+Go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and create a new release. The CircleCI job for this repo has been configured to:
 
 1. Automatically detect new tags.
 1. Build binaries for every OS using that tag as a version number.

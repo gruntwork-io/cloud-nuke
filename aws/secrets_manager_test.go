@@ -67,6 +67,8 @@ func TestTimeFilterExclusionNewlyCreatedSecret(t *testing.T) {
 }
 
 func TestNukeSecretOne(t *testing.T) {
+	t.Parallel()
+
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
@@ -89,6 +91,8 @@ func TestNukeSecretOne(t *testing.T) {
 }
 
 func TestNukeSecretMoreThanOne(t *testing.T) {
+	t.Parallel()
+
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
@@ -124,5 +128,8 @@ func TestNukeSecretMoreThanOne(t *testing.T) {
 func createSecretStringWithDefaultKey(t *testing.T, awsRegion string, name string) string {
 	description := "Random secret created for cloud-nuke testing."
 	secretVal := random.UniqueId()
-	return terraws.CreateSecretStringWithDefaultKey(t, awsRegion, description, name, secretVal)
+	arn := terraws.CreateSecretStringWithDefaultKey(t, awsRegion, description, name, secretVal)
+	// Add an arbitrary sleep to account for eventual consistency
+	time.Sleep(15 * time.Second)
+	return arn
 }

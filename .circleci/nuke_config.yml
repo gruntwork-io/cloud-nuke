@@ -14,6 +14,8 @@ s3:
       - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
       - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
       - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
+      - "^[a-zA-Z0-9]{6}-service-test-s3-bucket"
+      - "^[a-zA-Z0-9]{6}-ecs-service-test-s3-bucket"
 
 SecretsManager:
   include:
@@ -24,3 +26,10 @@ SecretsManager:
       - "^RDSDBConfig[a-zA-Z0-9]{6}$"
       - "ECRDeployRunnerTestSSHKey-[a-zA-Z0-9]{6}$"
       - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
+
+NatGateway:
+  exclude:
+    names_regex:
+      # We have an active ECS Deploy Runner running in the sandbox environment for sales demos, and this NAT gateway is
+      # critical for that.
+      - "^ecs-deploy-runner-v2-nat-gateway-0$"
