@@ -10,12 +10,11 @@ process](https://help.github.com/articles/about-pull-requests/) for contribution
 1. [Update the code](#update-the-code)
 1. [Create a pull request](#create-a-pull-request)
 1. [Merge and release](#merge-and-release)
-    1. [Bump the minor!](#bump-the-minor)
 
 ## If you are adding a new nuked resource
 
 ⚠️ If your contribution includes the addition of a new nuked resource, please mark the PR as backward incompatible.
-Please jump to the [releases section](#bump-the-minor) for more info.
+Read [choosing a new release tag](README.md#choosing-a-new-release-tag) for more info.
 
 
 ## File a GitHub issue or write an RFC
@@ -78,14 +77,3 @@ to include the following:
 
 The maintainers for this repo will review your code and provide feedback. If everything looks good, they will merge the
 code and release a new version, which you'll be able to find in the [releases page](../../releases).
-
-### Bump the minor
-
-⚠️ New resources nuked by `cloud-nuke` should be marked as a **minor version bump** (`X` in `v0.X.Y`) to indicate backward
-incompatibilities. Previously, all new resources were considered backward compatible, but since new resources are included
-automatically (so you have to explicitly opt-out), users with CI practices around `cloud-nuke` would be surprised by new 
-resources that are suddenly being picked up for deletion! This surprise is stronger for resources that are actively in use
-for any account, such as IAM Users.
-
-Please mark your PR as backward incompatible so that when a maintainer does the release process, we can provide better 
-signals for users when we introduce a new resource.
