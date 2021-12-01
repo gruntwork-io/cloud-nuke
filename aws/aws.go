@@ -658,6 +658,18 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EC2 VPCS
 
+		// KMS Customer managed keys
+		cmk := KMSCMKeys {}
+		if IsNukeable(cmk.ResourceName(), resourceTypes) {
+			keys, err := getAllKmsKeys(session, excludeAfter)
+
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			fmt.Printf("keys: \n %v \n", keys)
+		}
+		// End KMS Customer managed keys
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
