@@ -19,9 +19,8 @@ func getAllKmsKeys(session *session.Session, excludeAfter time.Time) ([]*string,
 
 	for _, key := range result.Keys {
 		key.
-		kmsIds = append(kmsIds, key.KeyId)
+			kmsIds = append(kmsIds, key.KeyId)
 	}
-
 
 	return kmsIds, nil
 }
