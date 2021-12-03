@@ -16,7 +16,7 @@ type KmsCustomerKeys struct {
 
 // ResourceName - the simple name of the aws resource
 func (c KmsCustomerKeys) ResourceName() string {
-	return "kms-customer"
+	return "kmscustomerkeys"
 }
 
 // ResourceIdentifiers - The IAM UserNames
