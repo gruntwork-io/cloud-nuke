@@ -1,12 +1,9 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
 // https://docs.aws.amazon.com/sdk-for-go/api/service/kms/#ScheduleKeyDeletionInput
@@ -32,21 +29,12 @@ func (r KMSCustomerKeys) MaxBatchSize() int {
 	return 100
 }
 
+// Nuke - remove all customer managed keys
 func (c KMSCustomerKeys) Nuke(session *session.Session, keyIds []string) error {
-	if len(keyIds) == 0 {
-		logging.Logger.Info("No Key IDs to nuke")
-		return nil
-	}
-	svc := kms.New(session)
-	var allErrs *multierror.Error
-	for _, key := range keyIds {
-		input := &kms.ScheduleKeyDeletionInput{KeyId: &key, PendingWindowInDays: aws.Int64(int64(kmsRemovalWindow))}
-		_, err := svc.ScheduleKeyDeletion(input)
-		if err != nil {
-			allErrs = multierror.Append(allErrs, err)
-		}
+	if err := nukeAllCustomerManagedKmsKeys(session, awsgo.StringSlice(keyIds)); err != nil {
+		return errors.WithStackTrace(err)
 	}
 
-	return errors.WithStackTrace(allErrs.ErrorOrNil())
+	return nil
 }
 
