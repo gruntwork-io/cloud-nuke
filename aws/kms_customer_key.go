@@ -100,7 +100,7 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, svc *kms.KMS, key *kms.KeyListE
 func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) error {
 	region := aws.StringValue(session.Config.Region)
 	if len(keyIds) == 0 {
-		logging.Logger.Info("No Customer Keys to nuke in region %s", region)
+		logging.Logger.Infof("No Customer Keys to nuke in region %s", region)
 		return nil
 	}
 

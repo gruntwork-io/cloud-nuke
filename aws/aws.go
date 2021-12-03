@@ -659,7 +659,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EC2 VPCS
 
 		// KMS Customer managed keys
-		customerKeys := KMSCustomerKeys{}
+		customerKeys := KmsCustomerKeys{}
 		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
 			keys, err := getAllKmsUserKeys(session, customerKeys.MaxBatchSize(), excludeAfter)
 			if err != nil {
@@ -749,7 +749,7 @@ func ListResourceTypes() []string {
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
-		KMSCustomerKeys{}.ResourceName(),
+		KmsCustomerKeys{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
