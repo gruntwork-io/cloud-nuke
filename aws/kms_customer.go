@@ -21,16 +21,37 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	err := svc.ListKeysPages(input, func(page *kms.ListKeysOutput, lastPage bool) bool {
 		logging.Logger.Debugf("Loading User Key %d", listPage)
 
-		for _, key := range page.Keys {
-			include, err := shouldIncludeKmsUserKey(svc, key, excludeAfter)
-			if err != nil {
-				logging.Logger.Errorf("Occured error during checking key %v", err)
-				return false
+		wg := new(sync.WaitGroup)
+		wg.Add(len(page.Keys))
+		keyChans := make([]chan *kms.KeyListEntry, len(page.Keys))
+		errChans := make([]chan error, len(page.Keys))
+		for i, key := range page.Keys {
+			keyChans[i] = make(chan *kms.KeyListEntry, 1)
+			errChans[i] = make(chan error, 1)
+			go shouldIncludeKmsUserKey(wg, svc, key, excludeAfter, keyChans[i], errChans[i])
+		}
+		wg.Wait()
+
+		// collect errors
+		var allErrs *multierror.Error
+		for _, errChan := range errChans {
+			if err := <-errChan; err != nil {
+				allErrs = multierror.Append(allErrs, err)
+				logging.Logger.Errorf("[Failed] %s", err)
 			}
-			if  include{
+		}
+		// stop in case of errors
+		if allErrs.ErrorOrNil() != nil {
+			return false
+		}
+
+		// collect keys
+		for _, keyChan := range keyChans {
+			if key := <- keyChan; key != nil {
 				kmsIds = append(kmsIds, key.KeyId)
 			}
 		}
+
 		listPage++
 		return true
 	})
@@ -38,28 +59,42 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	return kmsIds, errors.WithStackTrace(err)
 }
 
-func shouldIncludeKmsUserKey(svc *kms.KMS, key *kms.KeyListEntry, excludeAfter time.Time) (bool, error) {
+func shouldIncludeKmsUserKey(wg *sync.WaitGroup, svc *kms.KMS, key *kms.KeyListEntry, excludeAfter time.Time, keyChan chan *kms.KeyListEntry, errChan chan error) {
+	defer wg.Done()
+	// additional request to describe key and get information about creation date, removal status
 	details, err := svc.DescribeKey(&kms.DescribeKeyInput{KeyId: key.KeyId})
 	if err != nil {
-		return false, nil
+		errChan <- err
+		keyChan <- nil
+		return
 	}
 	metadata := details.KeyMetadata
 	// evaluate only user keys
 	if *metadata.KeyManager != kms.KeyManagerTypeCustomer {
-		return false, err
+		keyChan <- nil
+		errChan <- nil
+		return
 	}
 	// skip keys already scheduled for removal
 	if metadata.DeletionDate != nil {
-		return false, nil
+		keyChan <- nil
+		errChan <- nil
+		return
 	}
 	if metadata.PendingDeletionWindowInDays != nil {
-		return false, nil
+		keyChan <- nil
+		errChan <- nil
+		return
 	}
 	var referenceTime = *metadata.CreationDate
 	if referenceTime.After(excludeAfter) {
-		return false, nil
+		keyChan <- nil
+		errChan <- nil
+		return
 	}
-	return true, nil
+	// put key in channel to be considered for removal
+	keyChan <- key
+	errChan <- nil
 }
 
 func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) error {
