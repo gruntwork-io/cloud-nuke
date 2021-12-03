@@ -1,14 +1,15 @@
 package aws
 
 import (
+	"sync"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"sync"
-	"time"
 )
 
 func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time) ([]*string, error) {
@@ -47,7 +48,7 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 
 		// collect keys
 		for _, keyChan := range keyChans {
-			if key := <- keyChan; key != nil {
+			if key := <-keyChan; key != nil {
 				kmsIds = append(kmsIds, key.KeyId)
 			}
 		}

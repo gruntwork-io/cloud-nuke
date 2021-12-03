@@ -37,4 +37,3 @@ func (c KmsCustomerKeys) Nuke(session *session.Session, keyIds []string) error {
 
 	return nil
 }
-
