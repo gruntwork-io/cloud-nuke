@@ -35,6 +35,7 @@ The currently supported functionality includes:
 - Deleting all DynamoDB tables in an AWS account
 - Deleting all CloudWatch Dashboards in an AWS account
 - Deleting all OpenSearch Domains in an AWS account
+- Deleting all Customer managed keys from Key Management Service in an AWS account
 
 ### BEWARE!
 
