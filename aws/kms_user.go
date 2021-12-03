@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-
+const kmsUserKeyStore = "CUSTOMER"
 
 func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time) ([]*string, error) {
 	svc := kms.New(session)
@@ -28,7 +28,6 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 				return false
 			}
 			if  include{
-				logging.Logger.Debugf("key.KeyArn %v", key.KeyArn)
 				kmsIds = append(kmsIds, key.KeyId)
 			}
 		}
@@ -45,12 +44,13 @@ func shouldIncludeKmsUserKey(svc *kms.KMS, key *kms.KeyListEntry, excludeAfter t
 		return false, nil
 	}
 	metadata := details.KeyMetadata
+	// evaluate only user keys
+	if *metadata.KeyManager != kmsUserKeyStore {
+		return false, err
+	}
 	// skip keys already scheduled for removal
 	if metadata.DeletionDate != nil {
 		return false, nil
-	}
-	if *metadata.KeyManager == "CUSTOMER" {
-		return false, err
 	}
 	var referenceTime = *metadata.CreationDate
 	if referenceTime.After(excludeAfter) {

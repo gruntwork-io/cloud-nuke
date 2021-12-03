@@ -659,9 +659,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EC2 VPCS
 
 		// KMS Customer managed keys
-		cmk := KMSCMKeys{}
+		cmk := KMSUserKeys{}
 		if IsNukeable(cmk.ResourceName(), resourceTypes) {
-			keys, err := getAllKmsKeys(session, excludeAfter)
+			keys, err := getAllKmsUserKeys(session, cmk.MaxBatchSize(), excludeAfter)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
