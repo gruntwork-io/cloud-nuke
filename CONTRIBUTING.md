@@ -2,7 +2,8 @@
 
 Contributions to this repo are very welcome! We follow a fairly standard [pull request 
 process](https://help.github.com/articles/about-pull-requests/) for contributions, subject to the following guidelines:
- 
+
+1. [If you are adding a new nuked resource](#if-you-are-adding-a-new-nuked-resource)
 1. [File a GitHub issue or write an RFC](#file-a-github-issue-or-write-an-rfc)
 1. [Update the documentation](#update-the-documentation)
 1. [Update the tests](#update-the-tests)
@@ -10,13 +11,19 @@ process](https://help.github.com/articles/about-pull-requests/) for contribution
 1. [Create a pull request](#create-a-pull-request)
 1. [Merge and release](#merge-and-release)
 
+## If you are adding a new nuked resource
+
+⚠️ If your contribution includes the addition of a new nuked resource, please mark the PR as backward incompatible.
+Read [choosing a new release tag](README.md#choosing-a-new-release-tag) for more info.
+
+
 ## File a GitHub issue or write an RFC
 
 Before starting any work, we recommend filing a GitHub issue in this repo. This is your chance to ask questions and
 get feedback from the maintainers and the community before you sink a lot of time into writing (possibly the wrong) 
 code. If there is anything you're unsure about, just ask!
 
-Sometimes, the scope of the feature proposal is large enough that it requires major updates to the code base to
+Sometimes the scope of the feature proposal is large enough that it requires major updates to the code base to
 implement. In these situations, a maintainer may suggest writing up an RFC that describes the feature in more details
 than what can be reasonably captured in a Github Issue. RFCs are written in markdown and live in the directory
 `_docs/rfc`.

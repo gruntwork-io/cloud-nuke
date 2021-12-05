@@ -1,8 +1,8 @@
 s3:
   include:
     names_regex:
-      - ^alb-.*-access-logs
-      - prod
+      - ^alb-.*-access-logs.*__TESTID__$
+      - prod.*__TESTID__$
   exclude:
     names_regex:
-      - public
+      - public.*__TESTID__$
