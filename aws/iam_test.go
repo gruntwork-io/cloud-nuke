@@ -370,32 +370,42 @@ func createFullTestUser(t *testing.T, session *session.Session) (*userInfos, err
 	})
 	require.NoError(t, err)
 
+	var lastError error = nil
+	for i := 0; i < 3; i++ {
+		// verify if profile is ready by sending update request and checking if update error is returned
+		// https://github.com/gruntwork-io/cloud-nuke/issues/227
+		_, lastError = svc.UpdateLoginProfile(&iam.UpdateLoginProfileInput{
+			PasswordResetRequired: aws.Bool(true),
+			UserName:              aws.String(userName),
+		})
+		if lastError != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		break
+	}
+	require.NoError(t, lastError)
+
 	// Create a Virtual MFA Device for the user
 	output, err := svc.CreateVirtualMFADevice(&iam.CreateVirtualMFADeviceInput{
 		VirtualMFADeviceName: aws.String("mfa-" + userName),
 	})
 	require.NoError(t, err)
 	virtualMFADevice := output.VirtualMFADevice
-	for i := 0; i < 3; i++ {
-		// We now need to generate two codes to enable the MFA device
-		authenticationCode1, err := totp.GenerateCode(string(virtualMFADevice.Base32StringSeed), time.Now())
-		require.NoError(t, err)
-		logging.Logger.Infof("Will sleep for 30 seconds so we can generate the second OTP for the user that is being created")
-		time.Sleep(31 * time.Second) // 31 seconds just to be sure
-		authenticationCode2, err := totp.GenerateCode(string(virtualMFADevice.Base32StringSeed), time.Now())
-		require.NoError(t, err)
-		// Associate the Virtual MFA Device to the user
-		_, err = svc.EnableMFADevice(&iam.EnableMFADeviceInput{
-			AuthenticationCode1: aws.String(authenticationCode1),
-			AuthenticationCode2: aws.String(authenticationCode2),
-			SerialNumber:        virtualMFADevice.SerialNumber,
-			UserName:            aws.String(userName),
-		})
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-	}
+	// We now need to generate two codes to enable the MFA device
+	authenticationCode1, err := totp.GenerateCode(string(virtualMFADevice.Base32StringSeed), time.Now())
+	require.NoError(t, err)
+	logging.Logger.Infof("Will sleep for 30 seconds so we can generate the second OTP for the user that is being created")
+	time.Sleep(31 * time.Second) // 31 seconds just to be sure
+	authenticationCode2, err := totp.GenerateCode(string(virtualMFADevice.Base32StringSeed), time.Now())
+	require.NoError(t, err)
+	// Associate the Virtual MFA Device to the user
+	_, err = svc.EnableMFADevice(&iam.EnableMFADeviceInput{
+		AuthenticationCode1: aws.String(authenticationCode1),
+		AuthenticationCode2: aws.String(authenticationCode2),
+		SerialNumber:        virtualMFADevice.SerialNumber,
+		UserName:            aws.String(userName),
+	})
 	require.NoError(t, err)
 
 	infos := &userInfos{
