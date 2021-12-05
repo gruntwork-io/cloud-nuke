@@ -379,7 +379,7 @@ func createFullTestUser(t *testing.T, session *session.Session) (*userInfos, err
 			UserName:              aws.String(userName),
 		})
 		if lastError != nil {
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 		break
