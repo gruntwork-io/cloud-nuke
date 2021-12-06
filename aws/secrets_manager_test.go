@@ -20,7 +20,7 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-list-%s", random.UniqueId())
 	defer terraws.DeleteSecret(t, region, secretName, true)
 	arn := createSecretStringWithDefaultKey(t, region, secretName)
 
@@ -38,7 +38,7 @@ func TestTimeFilterExclusionNewlyCreatedSecret(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-exclusion-%s", random.UniqueId())
 	defer terraws.DeleteSecret(t, region, secretName, true)
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
@@ -72,7 +72,7 @@ func TestNukeSecretOne(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-one-%s", random.UniqueId())
 	// We use the E version and ignore the error, as this is meant to be a stop gap deletion in case nuke has a bug.
 	defer terraws.DeleteSecretE(t, region, secretName, true)
 	arn := createSecretStringWithDefaultKey(t, region, secretName)
@@ -96,7 +96,7 @@ func TestNukeSecretMoreThanOne(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretNameBase := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretNameBase := fmt.Sprintf("test-cloud-nuke-secretsmanager-more-than-one-%s", random.UniqueId())
 
 	secretArns := []string{}
 	for i := 0; i < 3; i++ {
