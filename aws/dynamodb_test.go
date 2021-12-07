@@ -116,14 +116,13 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	require.NoError(t, nukeErr)
 
+	time.Sleep(5 * time.Second)
+
 	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{}, db)
 	require.NoError(t, err)
 
-	time.Sleep(10 * time.Second)
 	for _, table := range tables {
 		if tableName == *table {
-			log.Println("FINNA FAIL")
-			log.Println(*table)
 			assert.Fail(t, errors.WithStackTrace(err).Error())
 		}
 	}

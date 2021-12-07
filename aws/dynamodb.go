@@ -84,8 +84,6 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 
 	logging.Logger.Infof("Deleting all DynamoDB tables in region %s", *session.Config.Region)
 	for _, table := range tables {
-
-		log.Printf("Deleting table %v", aws.String(*table))
 		input := &dynamodb.DeleteTableInput{
 			TableName: aws.String(*table),
 		}
@@ -101,6 +99,5 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 			}
 		}
 	}
-	log.Println("Returning nil error")
 	return nil
 }
