@@ -167,6 +167,9 @@ The following resources support the Config file:
 - OpenSearch Domains
     - Resource type: `opensearch`
     - Config key: `OpenSearchDomain`
+- DynamoDB Tables
+    - Resource type: `dynamodb`
+    - Config key: `DynamoDB`
 
 
 #### Example
@@ -259,6 +262,7 @@ To find out what we options are supported in the config file today, consult this
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
 | accessanalyzer     | none  | ✅          | none | none       |
+| dynamodb           | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |

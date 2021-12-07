@@ -17,6 +17,7 @@ type Config struct {
 	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
 	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
 	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
+	DynamoDB              ResourceType `yaml:"DynamoDB"`
 }
 
 type ResourceType struct {

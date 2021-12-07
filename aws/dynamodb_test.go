@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
@@ -81,21 +82,24 @@ func TestGetTablesDynamo(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), db)
+	getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{}, db)
 }
 
 func TestNukeAllDynamoDBTables(t *testing.T) {
 	t.Parallel()
 	db := DynamoDB{}
 
-	region, err := getRandomRegion()
+	region := "ap-south-1"
+	_, err := getRandomRegion()
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)},
 	)
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	tableName := "cloud-nuke-test-" + util.UniqueID()
 	defer nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	createTestDynamoTables(t, tableName, region)
@@ -112,11 +116,14 @@ func TestNukeAllDynamoDBTables(t *testing.T) {
 	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
 	require.NoError(t, nukeErr)
 
-	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), db)
+	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{}, db)
 	require.NoError(t, err)
 
+	time.Sleep(10 * time.Second)
 	for _, table := range tables {
 		if tableName == *table {
+			log.Println("FINNA FAIL")
+			log.Println(*table)
 			assert.Fail(t, errors.WithStackTrace(err).Error())
 		}
 	}

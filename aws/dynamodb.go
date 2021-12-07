@@ -6,12 +6,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"log"
 	"time"
 )
 
-func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db DynamoDB) ([]*string, error) {
+func getAllDynamoTables(session *session.Session, excludeAfter time.Time, configObj config.Config, db DynamoDB) ([]*string, error) {
 	var tableNames []*string
 	svc := dynamodb.New(session)
 	
@@ -47,11 +48,8 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 			if err != nil {
 				log.Fatalf("There was an error describing table: %v\n", err)
 			}
-			// This is used in case of a nil so null pointers don't occur
-			if responseDescription.Table.CreationDateTime == nil {
-				break
-			}
-			if excludeAfter.After(*responseDescription.Table.CreationDateTime) {
+
+			if shouldIncludeTable(responseDescription.Table, excludeAfter, configObj) {
 				tableNames = append(tableNames, table)
 			}
 		}
@@ -59,6 +57,22 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db Dyn
 		PaginationRunCount -= 1
 	}
 	return tableNames, nil
+}
+
+func shouldIncludeTable(table *dynamodb.TableDescription, excludeAfter time.Time, configObj config.Config) bool{
+	if table == nil {
+		return false
+	}
+
+	if table.CreationDateTime != nil && excludeAfter.Before(*table.CreationDateTime) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(table.TableName),
+		configObj.DynamoDB.IncludeRule.NamesRegExp,
+		configObj.DynamoDB.ExcludeRule.NamesRegExp,
+	)
 }
 
 func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
@@ -71,6 +85,7 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 	logging.Logger.Infof("Deleting all DynamoDB tables in region %s", *session.Config.Region)
 	for _, table := range tables {
 
+		log.Printf("Deleting table %v", aws.String(*table))
 		input := &dynamodb.DeleteTableInput{
 			TableName: aws.String(*table),
 		}
@@ -86,5 +101,6 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 			}
 		}
 	}
+	log.Println("Returning nil error")
 	return nil
 }
