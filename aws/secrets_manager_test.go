@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/go-commons/collections"
 	"testing"
 	"time"
 
@@ -32,7 +33,6 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 	require.NoError(t, err)
 
 	secretARNPtrs, err := getAllSecretsManagerSecrets(session, time.Now(), config.Config{})
-	fmt.Printf("secretARNPtrs %v\n", secretARNPtrs)
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(secretARNPtrs), arn)
 }
@@ -134,19 +134,24 @@ func createSecretStringWithDefaultKey(t *testing.T, awsRegion string, name strin
 	description := "Random secret created for cloud-nuke testing."
 	secretVal := random.UniqueId()
 	arn := terraws.CreateSecretStringWithDefaultKey(t, awsRegion, description, name, secretVal)
-	// Add an arbitrary sleep to account for eventual consistency
+	// Check if created secret is available by checking secret ARN in list of all secrets
+	// https://github.com/gruntwork-io/cloud-nuke/issues/227
 	awsSession, err := session.NewSession(&aws.Config{Region: aws.String(awsRegion)})
 	require.NoError(t, err)
 	err = retry.DoWithRetry(
 		logging.Logger,
-		"Verify if profile is ready",
+		"Check if created secret is available",
 		4,
 		15*time.Second,
 		func() error {
 			secretARNPtrs, err := getAllSecretsManagerSecrets(awsSession, time.Now(), config.Config{})
-			require.NoError(t, err)
-			assert.Contains(t, aws.StringValueSlice(secretARNPtrs), arn)
-			return nil
+			if err != nil {
+				return err
+			}
+			if collections.ListContainsElement(aws.StringValueSlice(secretARNPtrs), arn) {
+				return nil
+			}
+			return fmt.Errorf("not found secret %s", arn)
 		},
 	)
 	require.NoError(t, err)
