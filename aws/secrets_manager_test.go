@@ -23,7 +23,6 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
-	region = "ap-northeast-3"
 	require.NoError(t, err)
 
 	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-list-%s", random.UniqueId())
