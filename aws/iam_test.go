@@ -385,7 +385,6 @@ func createFullTestUser(t *testing.T, session *session.Session) (*userInfos, err
 				PasswordResetRequired: aws.Bool(true),
 				UserName:              aws.String(userName),
 			})
-			fmt.Printf("UpdateLoginProfile: %v", err)
 			if err != nil {
 				if aerr, ok := err.(awserr.Error); ok {
 					switch aerr.Code() {
