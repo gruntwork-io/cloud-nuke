@@ -88,6 +88,7 @@ func TestGetTablesDynamo(t *testing.T) {
 func TestNukeAllDynamoDBTables(t *testing.T) {
 	t.Parallel()
 	db := DynamoDB{}
+	
 	region, err := getRandomRegion()
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
