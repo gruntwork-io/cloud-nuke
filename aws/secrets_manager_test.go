@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"testing"
 	"time"
 
@@ -12,12 +13,15 @@ import (
 	"github.com/gruntwork-io/terratest/modules/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gruntwork-io/go-commons/retry"
 )
 
 func TestListSecretsManagerSecrets(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
+	region = "ap-northeast-3"
 	require.NoError(t, err)
 
 	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-list-%s", random.UniqueId())
@@ -28,6 +32,7 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 	require.NoError(t, err)
 
 	secretARNPtrs, err := getAllSecretsManagerSecrets(session, time.Now(), config.Config{})
+	fmt.Printf("secretARNPtrs %v\n", secretARNPtrs)
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(secretARNPtrs), arn)
 }
@@ -130,6 +135,20 @@ func createSecretStringWithDefaultKey(t *testing.T, awsRegion string, name strin
 	secretVal := random.UniqueId()
 	arn := terraws.CreateSecretStringWithDefaultKey(t, awsRegion, description, name, secretVal)
 	// Add an arbitrary sleep to account for eventual consistency
-	time.Sleep(15 * time.Second)
+	awsSession, err := session.NewSession(&aws.Config{Region: aws.String(awsRegion)})
+	require.NoError(t, err)
+	err = retry.DoWithRetry(
+		logging.Logger,
+		"Verify if profile is ready",
+		4,
+		15*time.Second,
+		func() error {
+			secretARNPtrs, err := getAllSecretsManagerSecrets(awsSession, time.Now(), config.Config{})
+			require.NoError(t, err)
+			assert.Contains(t, aws.StringValueSlice(secretARNPtrs), arn)
+			return nil
+		},
+	)
+	require.NoError(t, err)
 	return arn
 }
