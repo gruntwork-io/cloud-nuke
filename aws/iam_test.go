@@ -376,8 +376,8 @@ func createFullTestUser(t *testing.T, session *session.Session) (*userInfos, err
 	err = retry.DoWithRetry(
 		logging.Logger,
 		"Verify if profile is ready",
-		10,
-		5*time.Second,
+		4,
+		30*time.Second,
 		func() error {
 			// verify if profile is ready by sending update request and checking if update error is returned
 			// https://github.com/gruntwork-io/cloud-nuke/issues/227
