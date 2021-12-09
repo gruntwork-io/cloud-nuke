@@ -12,13 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const region = "ap-south-1"
-
 // Test that we can find ECS services that are running Fargate tasks
 func TestListECSFargateServices(t *testing.T) {
 	t.Parallel()
 
-	//region := getRandomFargateSupportedRegion()
+	region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -64,7 +62,7 @@ func TestListECSFargateServices(t *testing.T) {
 func TestNukeECSFargateServices(t *testing.T) {
 	t.Parallel()
 
-	//region := getRandomFargateSupportedRegion()
+	region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -104,7 +102,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 func TestListECSEC2Services(t *testing.T) {
 	t.Parallel()
 
-	//region := getRandomFargateSupportedRegion()
+	region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -169,7 +167,7 @@ func TestListECSEC2Services(t *testing.T) {
 func TestNukeECSEC2Services(t *testing.T) {
 	t.Parallel()
 
-	//region := getRandomFargateSupportedRegion()
+	region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
