@@ -17,6 +17,7 @@ type Config struct {
 	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
 	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
 	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
+	ELBv2                 ResourceType `yaml:"ELBv2"`
 }
 
 type ResourceType struct {

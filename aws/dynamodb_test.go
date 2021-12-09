@@ -53,7 +53,7 @@ func createTestDynamoTables(t *testing.T, tableName, region string) {
 
 }
 
-func getTableStatus(TableName string, region string ) *string {
+func getTableStatus(TableName string, region string) *string {
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)},
 	)

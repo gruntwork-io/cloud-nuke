@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -101,12 +102,12 @@ func TestListELBv2(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElbv2Instances(session, []*string{balancer.LoadBalancerArn})
 
-	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour*-1))
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))
 
-	arns, err = getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
+	arns, err = getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.Contains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))
@@ -145,7 +146,7 @@ func TestNukeELBv2(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))

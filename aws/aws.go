@@ -280,7 +280,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancerV2 Arns
 		loadBalancersV2 := LoadBalancersV2{}
 		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
-			elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter)
+			elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

@@ -3,14 +3,16 @@ package aws
 import (
 	"time"
 
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of ELBv2 Arns
-func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := elbv2.New(session)
 	result, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
@@ -19,12 +21,28 @@ func getAllElbv2Instances(session *session.Session, region string, excludeAfter 
 
 	var arns []*string
 	for _, balancer := range result.LoadBalancers {
-		if excludeAfter.After(*balancer.CreatedTime) {
+		if shouldIncludeELBv2(balancer, excludeAfter, configObj) {
 			arns = append(arns, balancer.LoadBalancerArn)
 		}
 	}
 
 	return arns, nil
+}
+
+func shouldIncludeELBv2(balancer *elbv2.LoadBalancer, excludeAfter time.Time, configObj config.Config) bool {
+	if balancer == nil {
+		return false
+	}
+
+	if balancer.CreatedTime != nil && excludeAfter.Before(*balancer.CreatedTime) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(balancer.LoadBalancerName),
+		configObj.ELBv2.IncludeRule.NamesRegExp,
+		configObj.ELBv2.ExcludeRule.NamesRegExp,
+	)
 }
 
 // Deletes all Elastic Load Balancers
