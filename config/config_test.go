@@ -18,6 +18,8 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
 	}
 }
 
@@ -330,6 +332,192 @@ func TestConfigSecretsManager_FilterNames(t *testing.T) {
 	if len(configObj.SecretsManagerSecrets.IncludeRule.NamesRegExp) == 0 ||
 		len(configObj.SecretsManagerSecrets.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain secrets regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// ECS Service Tests
+
+func TestConfigECSService_Empty(t *testing.T) {
+	configFilePath := "./mocks/ecs_service_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.ECSService)
+	}
+
+	return
+}
+
+func TestConfigECSService_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/ecs_service_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSService_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/ecs_service_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSService_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/ecs_service_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ECSService.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ECS service regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSService_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/ecs_service_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ECSService.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ECS service regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSService_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/ecs_service_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ECSService.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.ECSService.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ECS service regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// ECS Cluster Tests
+
+func TestConfigECSCluster_Empty(t *testing.T) {
+	configFilePath := "./mocks/ecs_cluster_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.ECSCluster)
+	}
+
+	return
+}
+
+func TestConfigECSCluster_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/ecs_cluster_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSCluster_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/ecs_cluster_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSCluster_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/ecs_cluster_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ECSCluster.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ECS Cluster regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSCluster_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/ecs_cluster_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ECSCluster.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ECS Cluster regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigECSCluster_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/ecs_cluster_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ECSCluster.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.ECSCluster.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ECS Cluster regexes, %+v\n", configObj)
 	}
 
 	return

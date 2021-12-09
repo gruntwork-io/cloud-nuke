@@ -6,16 +6,19 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 )
 
+const region = "ap-south-1"
+
 // Test that we can find ECS services that are running Fargate tasks
 func TestListECSFargateServices(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomFargateSupportedRegion()
+	//region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -40,7 +43,7 @@ func TestListECSFargateServices(t *testing.T) {
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
 	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 
-	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1))
+	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -48,7 +51,7 @@ func TestListECSFargateServices(t *testing.T) {
 	_, exists := newEcsServiceClusterMap[*service.ServiceArn]
 	assert.False(t, exists)
 
-	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -61,7 +64,7 @@ func TestListECSFargateServices(t *testing.T) {
 func TestNukeECSFargateServices(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomFargateSupportedRegion()
+	//region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -90,7 +93,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 		assert.Fail(t, err.Error())
 	}
 
-	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -101,7 +104,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 func TestListECSEC2Services(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomFargateSupportedRegion()
+	//region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -145,7 +148,7 @@ func TestListECSEC2Services(t *testing.T) {
 	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 	// END prepare resources
 
-	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1))
+	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -153,7 +156,7 @@ func TestListECSEC2Services(t *testing.T) {
 	_, exists := newEcsServiceClusterMap[*service.ServiceArn]
 	assert.False(t, exists)
 
-	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -166,7 +169,7 @@ func TestListECSEC2Services(t *testing.T) {
 func TestNukeECSEC2Services(t *testing.T) {
 	t.Parallel()
 
-	region := getRandomFargateSupportedRegion()
+	//region := getRandomFargateSupportedRegion()
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
@@ -211,7 +214,7 @@ func TestNukeECSEC2Services(t *testing.T) {
 
 	err = nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 
-	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}

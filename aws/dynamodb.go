@@ -14,14 +14,14 @@ import (
 func getAllDynamoTables(session *session.Session, excludeAfter time.Time, db DynamoDB) ([]*string, error) {
 	var tableNames []*string
 	svc := dynamodb.New(session)
-	
+
 	var lastTableName *string
 	// Run count is used for pagination if the list tables exceeds max value
 	// Tells loop to rerun
 	var PaginationRunCount = 1
 	for PaginationRunCount > 0 {
 		result, err := svc.ListTables(&dynamodb.ListTablesInput{ExclusiveStartTableName: lastTableName, Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
-		
+
 		lastTableName = result.LastEvaluatedTableName
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {

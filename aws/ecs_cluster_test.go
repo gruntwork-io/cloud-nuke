@@ -6,6 +6,7 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,7 +68,7 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 	require.NoError(t, err2)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
-	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours)
+	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours, config.Config{})
 	require.NoError(t, err)
 
 	assert.Contains(t, awsgo.StringValueSlice(filteredClusterArns), awsgo.StringValue(cluster1.ClusterArn))
@@ -103,7 +104,7 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	require.NoError(t, err3)
 
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
-	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours)
+	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours, config.Config{})
 	require.NoError(t, err)
 
 	nukeErr := nukeEcsClusters(awsSession, filteredClusterArns)

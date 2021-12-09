@@ -167,6 +167,12 @@ The following resources support the Config file:
 - OpenSearch Domains
     - Resource type: `opensearch`
     - Config key: `OpenSearchDomain`
+- ECS Services
+    - Resource type: `ecsserv`
+    - Config key: `ECSService`
+- ECS Clusters
+    - Resource type: `ecscluster`
+    - Config key: `ECSCluster`
 
 
 #### Example
@@ -256,6 +262,8 @@ To find out what we options are supported in the config file today, consult this
 |--------------------|-------|-------------|------|------------|
 | s3                 | none  | ✅          | none | none       |
 | iam                | none  | ✅          | none | none       |
+| ecsserv            | none  | ✅          | none | none       |
+| ecscluster         | none  | ✅          | none | none       |
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
 | accessanalyzer     | none  | ✅          | none | none       |
