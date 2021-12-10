@@ -5,8 +5,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"log"
 	"time"
@@ -15,14 +15,14 @@ import (
 func getAllDynamoTables(session *session.Session, excludeAfter time.Time, configObj config.Config, db DynamoDB) ([]*string, error) {
 	var tableNames []*string
 	svc := dynamodb.New(session)
-	
+
 	var lastTableName *string
 	// Run count is used for pagination if the list tables exceeds max value
 	// Tells loop to rerun
 	var PaginationRunCount = 1
 	for PaginationRunCount > 0 {
 		result, err := svc.ListTables(&dynamodb.ListTablesInput{ExclusiveStartTableName: lastTableName, Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
-		
+
 		lastTableName = result.LastEvaluatedTableName
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
@@ -59,7 +59,7 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, config
 	return tableNames, nil
 }
 
-func shouldIncludeTable(table *dynamodb.TableDescription, excludeAfter time.Time, configObj config.Config) bool{
+func shouldIncludeTable(table *dynamodb.TableDescription, excludeAfter time.Time, configObj config.Config) bool {
 	if table == nil {
 		return false
 	}

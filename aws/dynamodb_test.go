@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"log"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -54,7 +55,7 @@ func createTestDynamoTables(t *testing.T, tableName, region string) {
 
 }
 
-func getTableStatus(TableName string, region string ) *string {
+func getTableStatus(TableName string, region string) *string {
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)},
 	)
@@ -72,17 +73,92 @@ func getTableStatus(TableName string, region string ) *string {
 
 }
 
+func TestShouldIncludeTable(t *testing.T) {
+	mockTable := &dynamodb.TableDescription{
+		TableName:        aws.String("cloud-nuke-test"),
+		CreationDateTime: aws.Time(time.Now()),
+	}
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		log.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		DynamoDB: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		DynamoDB: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name         string
+		Table        *dynamodb.TableDescription
+		Config       config.Config
+		ExcludeAfter time.Time
+		Expected     bool
+	}{
+		{
+			Name:         "ConfigExclude",
+			Table:        mockTable,
+			Config:       mockExcludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     false,
+		},
+		{
+			Name:         "ConfigInclude",
+			Table:        mockTable,
+			Config:       mockIncludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     true,
+		},
+		{
+			Name:         "NotOlderThan",
+			Table:        mockTable,
+			Config:       config.Config{},
+			ExcludeAfter: time.Now().Add(1 * time.Hour * -1),
+			Expected:     false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeTable(c.Table, c.ExcludeAfter, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
+	}
+}
+
 func TestGetTablesDynamo(t *testing.T) {
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
+
 	db := DynamoDB{}
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)},
 	)
-
 	require.NoError(t, err)
-	getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{}, db)
+
+	_, err = getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{}, db)
+	require.NoError(t, err)
 }
 
 func TestNukeAllDynamoDBTables(t *testing.T) {
