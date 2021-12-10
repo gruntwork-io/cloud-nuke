@@ -60,5 +60,6 @@ func createKmsCustomerManagedKey(t *testing.T, session *session.Session, err err
 	result, err := svc.CreateKey(input)
 	require.NoError(t, err)
 	createdKeyId := *result.KeyMetadata.KeyId
+	time.Sleep(15 * time.Second)
 	return createdKeyId
 }

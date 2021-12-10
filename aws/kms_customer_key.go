@@ -20,7 +20,7 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	}
 	listPage := 1
 	err := svc.ListKeysPages(input, func(page *kms.ListKeysOutput, lastPage bool) bool {
-		logging.Logger.Debugf("Loading User Key %d", listPage)
+		logging.Logger.Debugf("Loading User Key from page %d", listPage)
 
 		wg := new(sync.WaitGroup)
 		wg.Add(len(page.Keys))
