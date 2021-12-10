@@ -34,18 +34,11 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 		wg.Wait()
 
 		// collect errors
-		var allErrs *multierror.Error
 		for _, errChan := range errChans {
 			if err := <-errChan; err != nil {
-				allErrs = multierror.Append(allErrs, err)
 				logging.Logger.Errorf("[Failed] %s", err)
 			}
 		}
-		// stop in case of errors
-		if allErrs.ErrorOrNil() != nil {
-			return false
-		}
-
 		// collect keys
 		for _, keyChan := range keyChans {
 			if key := <-keyChan; key != nil {
