@@ -138,24 +138,30 @@ func TestNukeLambdaFunction(t *testing.T) {
 	)
 
 	lambdaFunctionName := "cloud-nuke-test-" + util.UniqueID()
+	lambdaFunctionName2 := "cloud-nuke-test2-" + util.UniqueID()
+
 	excludeAfter := time.Now().Add(1 * time.Hour)
 
 	createTestLambdaFunction(t, session, lambdaFunctionName)
+	createTestLambdaFunction(t, session, lambdaFunctionName2)
 
 	defer func() {
-		nukeAllLambdaFunctions(session, []*string{&lambdaFunctionName})
+		nukeAllLambdaFunctions(session, []*string{&lambdaFunctionName, &lambdaFunctionName2})
 
-		lambdaFunctionNames, _ := getAllLambdaFunctions(session, excludeAfter)
+		lambdaFunctionNames, _ := getAllLambdaFunctions(session, excludeAfter, 1)
 
 		assert.NotContains(t, awsgo.StringValueSlice(lambdaFunctionNames), lambdaFunctionName)
+		assert.NotContains(t, awsgo.StringValueSlice(lambdaFunctionNames), lambdaFunctionName2)
+
 	}()
 
-	lambdaFunctions, err := getAllLambdaFunctions(session, excludeAfter)
+	lambdaFunctions, err := getAllLambdaFunctions(session, excludeAfter, 1)
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of Lambda Functions", errors.WithStackTrace(err).Error())
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(lambdaFunctions), lambdaFunctionName)
+	assert.Contains(t, awsgo.StringValueSlice(lambdaFunctions), lambdaFunctionName2)
 
 }

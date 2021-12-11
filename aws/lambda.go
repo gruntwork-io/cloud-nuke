@@ -10,7 +10,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time, batchSize int) ([]*string, error) {
 	svc := lambda.New(session)
 
 	var result []*lambda.FunctionConfiguration
@@ -18,7 +18,8 @@ func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time) ([]
 	var next *string = nil
 	for {
 		list, err := svc.ListFunctions(&lambda.ListFunctionsInput{
-			Marker: next,
+			Marker:   next,
+			MaxItems: awsgo.Int64(int64(batchSize)),
 		})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
