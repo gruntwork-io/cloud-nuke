@@ -127,7 +127,7 @@ func split(identifiers []string, limit int) [][]string {
 		chunks = append(chunks, chunk)
 	}
 	if len(identifiers) > 0 {
-		chunks = append(chunks, identifiers[:len(identifiers)])
+		chunks = append(chunks, identifiers[:])
 	}
 
 	return chunks
@@ -469,7 +469,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		ecsClusters := ECSClusters{}
 		if IsNukeable(ecsClusters.ResourceName(), resourceTypes) {
-			ecsClusterArns, err := getAllEcsClustersOlderThan(session, region, excludeAfter)
+			ecsClusterArns, err := getAllEcsClustersOlderThan(session, excludeAfter)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -613,7 +613,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 				resourcesCache["S3"] = make(map[string][]*string)
 
-				for bucketRegion, _ := range bucketNamesPerRegion {
+				for bucketRegion := range bucketNamesPerRegion {
 					resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
 				}
 			}
