@@ -13,15 +13,26 @@ import (
 func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time) ([]*string, error) {
 	svc := lambda.New(session)
 
-	result, err := svc.ListFunctions(nil)
+	var result []*lambda.FunctionConfiguration
 
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	var next *string = nil
+	for {
+		list, err := svc.ListFunctions(&lambda.ListFunctionsInput{
+			Marker: next,
+		})
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		result = append(result, list.Functions...)
+		if list.NextMarker == nil || len(*list.NextMarker) == 0 {
+			break
+		}
+		next = list.NextMarker
 	}
 
 	var names []*string
 
-	for _, lambda := range result.Functions {
+	for _, lambda := range result {
 		layout := "2006-01-02T15:04:05.000+0000"
 		lastModifiedDateTime, err := time.Parse(layout, *lambda.LastModified)
 		if err != nil {
