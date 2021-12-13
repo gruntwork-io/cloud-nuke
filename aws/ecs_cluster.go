@@ -58,11 +58,7 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 	return filteredEcsClusterArns, nil
 }
 
-func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-
+func getAllEcsClustersOlderThan(awsSession *session.Session, excludeAfter time.Time) ([]*string, error) {
 	clusterArns, err := getAllActiveEcsClusterArns(awsSession)
 	if err != nil {
 		logging.Logger.Errorf("Error getting all ECS clusters with `ACTIVE` status")
