@@ -6,10 +6,13 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
+	"regexp"
 )
 
 // Test that we can find ECS services that are running Fargate tasks
@@ -217,4 +220,78 @@ func TestNukeECSEC2Services(t *testing.T) {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
 	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
+}
+
+// Test the config file filtering works as expected
+func TestShouldIncludeECSService(t *testing.T) {
+	mockService := &ecs.Service{
+		ServiceName: awsgo.String("cloud-nuke-test"),
+		CreatedAt:   awsgo.Time(time.Now()),
+	}
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		ECSService: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		ECSService: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name         string
+		Service      *ecs.Service
+		Config       config.Config
+		ExcludeAfter time.Time
+		Expected     bool
+	}{
+		{
+			Name:         "ConfigExclude",
+			Service:      mockService,
+			Config:       mockExcludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     false,
+		},
+		{
+			Name:         "ConfigInclude",
+			Service:      mockService,
+			Config:       mockIncludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     true,
+		},
+		{
+			Name:         "NotOlderThan",
+			Service:      mockService,
+			Config:       config.Config{},
+			ExcludeAfter: time.Now().Add(1 * time.Hour * -1),
+			Expected:     false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeECSService(c.Service, c.ExcludeAfter, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
+	}
 }

@@ -6,10 +6,13 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"regexp"
 )
 
 // Test we can create a cluster, tag it, and then find the tag
@@ -114,4 +117,79 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, awsgo.StringValueSlice(allLeftClusterArns), awsgo.StringValue(cluster2.ClusterArn))
+}
+
+// Test the config file filtering works as expected
+func TestShouldIncludeECSCluster(t *testing.T) {
+	mockCluster := &ecs.Cluster{
+		ClusterName: awsgo.String("cloud-nuke-test"),
+		Status:      awsgo.String("ACTIVE"),
+	}
+
+	mockClusterInactive := &ecs.Cluster{
+		ClusterName: awsgo.String("cloud-nuke-test"),
+		Status:      awsgo.String("INACTIVE"),
+	}
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		ECSCluster: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		ECSCluster: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name     string
+		Cluster  *ecs.Cluster
+		Config   config.Config
+		Expected bool
+	}{
+		{
+			Name:     "ConfigExclude",
+			Cluster:  mockCluster,
+			Config:   mockExcludeConfig,
+			Expected: false,
+		},
+		{
+			Name:     "ConfigInclude",
+			Cluster:  mockCluster,
+			Config:   mockIncludeConfig,
+			Expected: true,
+		},
+		{
+			Name:     "ConfigIncludeInactive",
+			Cluster:  mockClusterInactive,
+			Config:   mockIncludeConfig,
+			Expected: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeECSCluster(c.Cluster, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
+	}
 }
