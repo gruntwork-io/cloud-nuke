@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"regexp"
 )
 
 // Test we can create a cluster, tag it, and then find the tag

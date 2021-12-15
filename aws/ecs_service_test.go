@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
-	"regexp"
 )
 
 // Test that we can find ECS services that are running Fargate tasks
