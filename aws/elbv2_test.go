@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"regexp"
 )
 
 func getSubnetsInDifferentAZs(t *testing.T, session *session.Session) (*ec2.Subnet, *ec2.Subnet) {
