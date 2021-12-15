@@ -1,6 +1,11 @@
 package aws
 
 import (
+	"log"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -9,10 +14,6 @@ import (
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"log"
-	"regexp"
-	"testing"
-	"time"
 )
 
 func createTestDynamoTables(t *testing.T, tableName, region string) {
