@@ -140,7 +140,7 @@ func TestListEBSVolumesWithConfigFile(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEbsVolumes(session, []*string{includedVolume.VolumeId, excludedVolume.VolumeId})
 
-	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour*-1), config.Config{
+	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{
 		EBSVolume: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
