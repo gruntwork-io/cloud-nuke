@@ -1,15 +1,19 @@
 package aws
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getAZFromSubnet(t *testing.T, session *session.Session, subnetID *string) string {
@@ -101,19 +105,53 @@ func TestListEBSVolumes(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEbsVolumes(session, []*string{volume.VolumeId})
 
-	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour*-1))
+	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
 
-	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
+	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(volumeIds), awsgo.StringValue(volume.VolumeId))
+}
+
+func TestListEBSVolumesWithConfigFile(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+	require.NoError(t, err)
+
+	includedEBSVolumeName := "cloud-nuke-test-include-" + util.UniqueID()
+	excludedEBSVolumeName := "cloud-nuke-test-" + util.UniqueID()
+	az := awsgo.StringValue(session.Config.Region) + "a"
+
+	includedVolume := createTestEBSVolume(t, session, includedEBSVolumeName, az)
+	excludedVolume := createTestEBSVolume(t, session, excludedEBSVolumeName, az)
+	// clean up after this test
+	defer nukeAllEbsVolumes(session, []*string{includedVolume.VolumeId, excludedVolume.VolumeId})
+
+	volumeIds, err := getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour*-1), config.Config{
+		EBSVolume: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{RE: *regexp.MustCompile("^cloud-nuke-test-include-.*")},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(volumeIds))
+	require.Equal(t, aws.StringValue(includedVolume.VolumeId), aws.StringValue(volumeIds[0]))
 }
 
 func TestNukeEBSVolumes(t *testing.T) {
@@ -145,7 +183,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
+	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
@@ -207,7 +245,7 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour))
+	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}

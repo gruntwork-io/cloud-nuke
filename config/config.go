@@ -18,6 +18,8 @@ type Config struct {
 	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
 	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
 	DynamoDB              ResourceType `yaml:"DynamoDB"`
+	EBSVolume             ResourceType `yaml:"EBSVolume"`
+	LambdaFunction        ResourceType `yaml:"LambdaFunction"`
 }
 
 type ResourceType struct {
