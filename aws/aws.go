@@ -629,7 +629,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		DynamoDB := DynamoDB{}
 		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
-			tablenames, err := getAllDynamoTables(session, excludeAfter, DynamoDB)
+			tablenames, err := getAllDynamoTables(session, excludeAfter, configObj, DynamoDB)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
