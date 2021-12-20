@@ -19,6 +19,8 @@ type Config struct {
 	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
 	DynamoDB              ResourceType `yaml:"DynamoDB"`
 	ELBv2                 ResourceType `yaml:"ELBv2"`
+	ECSService            ResourceType `yaml:"ECSService"`
+	ECSCluster            ResourceType `yaml:"ECSCluster"`
 }
 
 type ResourceType struct {

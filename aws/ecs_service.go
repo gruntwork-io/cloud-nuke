@@ -6,6 +6,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -34,8 +35,9 @@ func getAllEcsClusters(awsSession *session.Session) ([]*string, error) {
 }
 
 // filterOutRecentServices - Given a list of services and an excludeAfter
-// timestamp, filter out any services that were created after `excludeAfter`.
-func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []string, excludeAfter time.Time) ([]*string, error) {
+// timestamp, filter out any services that were created after `excludeAfter.
+// Additionally, filter based on Config file patterns.
+func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	// Fetch descriptions in batches of 10, which is the max that AWS
 	// accepts for describe service.
 	var filteredEcsServiceArns []*string
@@ -50,7 +52,7 @@ func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []
 			return nil, errors.WithStackTrace(err)
 		}
 		for _, service := range describeResult.Services {
-			if excludeAfter.After(*service.CreatedAt) {
+			if shouldIncludeECSService(service, excludeAfter, configObj) {
 				filteredEcsServiceArns = append(filteredEcsServiceArns, service.ServiceArn)
 			}
 		}
@@ -58,12 +60,28 @@ func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []
 	return filteredEcsServiceArns, nil
 }
 
+func shouldIncludeECSService(service *ecs.Service, excludeAfter time.Time, configObj config.Config) bool {
+	if service == nil {
+		return false
+	}
+
+	if service.CreatedAt != nil && excludeAfter.Before(*service.CreatedAt) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(service.ServiceName),
+		configObj.ECSService.IncludeRule.NamesRegExp,
+		configObj.ECSService.ExcludeRule.NamesRegExp,
+	)
+}
+
 // getAllEcsServices - Returns a formatted string of ECS Service ARNs, which
 // uniquely identifies the service, in addition to a mapping of services to
 // clusters. For ECS, need to track ECS clusters of services as all service
 // level API endpoints require providing the corresponding cluster.
 // Note that this looks up services by ECS cluster ARNs.
-func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, excludeAfter time.Time) ([]*string, map[string]string, error) {
+func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, excludeAfter time.Time, configObj config.Config) ([]*string, map[string]string, error) {
 	ecsServiceClusterMap := map[string]string{}
 	svc := ecs.New(awsSession)
 
@@ -75,7 +93,7 @@ func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, ex
 		if err != nil {
 			return nil, nil, errors.WithStackTrace(err)
 		}
-		filteredServiceArns, err := filterOutRecentServices(svc, clusterArn, awsgo.StringValueSlice(result.ServiceArns), excludeAfter)
+		filteredServiceArns, err := filterOutRecentServices(svc, clusterArn, awsgo.StringValueSlice(result.ServiceArns), excludeAfter, configObj)
 		if err != nil {
 			return nil, nil, errors.WithStackTrace(err)
 		}

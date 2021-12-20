@@ -173,6 +173,12 @@ The following resources support the Config file:
 - Elastic Load Balancers
     - Resource type: `elbv2`
     - Config key: `ELBv2`
+- ECS Services
+    - Resource type: `ecsserv`
+    - Config key: `ECSService`
+- ECS Clusters
+    - Resource type: `ecscluster`
+    - Config key: `ECSCluster`
 
 
 #### Example
@@ -262,6 +268,8 @@ To find out what we options are supported in the config file today, consult this
 |--------------------|-------|-------------|------|------------|
 | s3                 | none  | ✅          | none | none       |
 | iam                | none  | ✅          | none | none       |
+| ecsserv            | none  | ✅          | none | none       |
+| ecscluster         | none  | ✅          | none | none       |
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
 | accessanalyzer     | none  | ✅          | none | none       |
