@@ -429,6 +429,99 @@ func TestConfigDynamoDB_FilterNames(t *testing.T) {
 	return
 }
 
+// ELBv2Tests
+
+func TestConfigELBv2_Empty(t *testing.T) {
+	configFilePath := "./mocks/elbv2_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.ELBv2)
+	}
+
+	return
+}
+
+func TestConfigELBv2_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/elbv2_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigELBv2_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/elbv2_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigELBv2_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/elbv2_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ELBv2.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ELBv2 regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigELBv2_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/elbv2_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ELBv2.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ELBv2 regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigELBv2_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/elbv2_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ELBv2.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.ELBv2.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ELBv2 regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
 func TestShouldInclude_AllowWhenEmpty(t *testing.T) {
 	var includeREs []Expression
 	var excludeREs []Expression

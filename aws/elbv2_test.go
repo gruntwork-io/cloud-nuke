@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -101,12 +104,12 @@ func TestListELBv2(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElbv2Instances(session, []*string{balancer.LoadBalancerArn})
 
-	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour*-1))
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))
 
-	arns, err = getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
+	arns, err = getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.Contains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))
@@ -145,8 +148,82 @@ func TestNukeELBv2(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour))
+	arns, err := getAllElbv2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(balancer.LoadBalancerArn))
+}
+
+// Test config file filtering works as expected
+func TestShouldIncludeELBv2(t *testing.T) {
+	mockELBv2 := &elbv2.LoadBalancer{
+		LoadBalancerName: awsgo.String("cloud-nuke-test"),
+		CreatedTime:      awsgo.Time(time.Now()),
+	}
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		ELBv2: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		ELBv2: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name         string
+		ELBv2        *elbv2.LoadBalancer
+		Config       config.Config
+		ExcludeAfter time.Time
+		Expected     bool
+	}{
+		{
+			Name:         "ConfigExclude",
+			ELBv2:        mockELBv2,
+			Config:       mockExcludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     false,
+		},
+		{
+			Name:         "ConfigInclude",
+			ELBv2:        mockELBv2,
+			Config:       mockIncludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     true,
+		},
+		{
+			Name:         "NotOlderThan",
+			ELBv2:        mockELBv2,
+			Config:       config.Config{},
+			ExcludeAfter: time.Now().Add(1 * time.Hour * -1),
+			Expected:     false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeELBv2(c.ELBv2, c.ExcludeAfter, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
+	}
 }
