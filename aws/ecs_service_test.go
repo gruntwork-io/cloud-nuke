@@ -1,11 +1,15 @@
 package aws
 
 import (
+	"regexp"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +44,7 @@ func TestListECSFargateServices(t *testing.T) {
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
 	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 
-	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1))
+	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -48,7 +52,7 @@ func TestListECSFargateServices(t *testing.T) {
 	_, exists := newEcsServiceClusterMap[*service.ServiceArn]
 	assert.False(t, exists)
 
-	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -90,7 +94,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 		assert.Fail(t, err.Error())
 	}
 
-	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -145,7 +149,7 @@ func TestListECSEC2Services(t *testing.T) {
 	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 	// END prepare resources
 
-	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1))
+	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -153,7 +157,7 @@ func TestListECSEC2Services(t *testing.T) {
 	_, exists := newEcsServiceClusterMap[*service.ServiceArn]
 	assert.False(t, exists)
 
-	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
@@ -211,9 +215,83 @@ func TestNukeECSEC2Services(t *testing.T) {
 
 	err = nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 
-	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour))
+	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
 	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
+}
+
+// Test the config file filtering works as expected
+func TestShouldIncludeECSService(t *testing.T) {
+	mockService := &ecs.Service{
+		ServiceName: awsgo.String("cloud-nuke-test"),
+		CreatedAt:   awsgo.Time(time.Now()),
+	}
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		ECSService: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		ECSService: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name         string
+		Service      *ecs.Service
+		Config       config.Config
+		ExcludeAfter time.Time
+		Expected     bool
+	}{
+		{
+			Name:         "ConfigExclude",
+			Service:      mockService,
+			Config:       mockExcludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     false,
+		},
+		{
+			Name:         "ConfigInclude",
+			Service:      mockService,
+			Config:       mockIncludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Expected:     true,
+		},
+		{
+			Name:         "NotOlderThan",
+			Service:      mockService,
+			Config:       config.Config{},
+			ExcludeAfter: time.Now().Add(1 * time.Hour * -1),
+			Expected:     false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeECSService(c.Service, c.ExcludeAfter, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
+	}
 }

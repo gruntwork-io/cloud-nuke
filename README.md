@@ -170,6 +170,15 @@ The following resources support the Config file:
 - DynamoDB Tables
     - Resource type: `dynamodb`
     - Config key: `DynamoDB`
+- Elastic Load Balancers
+    - Resource type: `elbv2`
+    - Config key: `ELBv2`
+- ECS Services
+    - Resource type: `ecsserv`
+    - Config key: `ECSService`
+- ECS Clusters
+    - Resource type: `ecscluster`
+    - Config key: `ECSCluster`
 
 
 #### Example
@@ -259,10 +268,13 @@ To find out what we options are supported in the config file today, consult this
 |--------------------|-------|-------------|------|------------|
 | s3                 | none  | ✅          | none | none       |
 | iam                | none  | ✅          | none | none       |
+| ecsserv            | none  | ✅          | none | none       |
+| ecscluster         | none  | ✅          | none | none       |
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
 | accessanalyzer     | none  | ✅          | none | none       |
 | dynamodb           | none  | ✅          | none | none       |
+| elbv2              | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
