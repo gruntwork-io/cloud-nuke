@@ -20,6 +20,9 @@ type Config struct {
 	DynamoDB              ResourceType `yaml:"DynamoDB"`
 	EBSVolume             ResourceType `yaml:"EBSVolume"`
 	LambdaFunction        ResourceType `yaml:"LambdaFunction"`
+	ELBv2                 ResourceType `yaml:"ELBv2"`
+	ECSService            ResourceType `yaml:"ECSService"`
+	ECSCluster            ResourceType `yaml:"ECSCluster"`
 }
 
 type ResourceType struct {
