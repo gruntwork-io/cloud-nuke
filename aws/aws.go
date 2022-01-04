@@ -127,7 +127,7 @@ func split(identifiers []string, limit int) [][]string {
 		chunks = append(chunks, chunk)
 	}
 	if len(identifiers) > 0 {
-		chunks = append(chunks, identifiers[:len(identifiers)])
+		chunks = append(chunks, identifiers[:])
 	}
 
 	return chunks
@@ -280,7 +280,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancerV2 Arns
 		loadBalancersV2 := LoadBalancersV2{}
 		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
-			elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter)
+			elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -396,7 +396,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EBS Volumes
 		ebsVolumes := EBSVolumes{}
 		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
-			volumeIds, err := getAllEbsVolumes(session, region, excludeAfter)
+			volumeIds, err := getAllEbsVolumes(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -457,7 +457,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				return nil, errors.WithStackTrace(err)
 			}
 			if len(clusterArns) > 0 {
-				serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
+				serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter, configObj)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
@@ -469,7 +469,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		ecsClusters := ECSClusters{}
 		if IsNukeable(ecsClusters.ResourceName(), resourceTypes) {
-			ecsClusterArns, err := getAllEcsClustersOlderThan(session, region, excludeAfter)
+			ecsClusterArns, err := getAllEcsClustersOlderThan(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -531,7 +531,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Lambda Functions
 		lambdaFunctions := LambdaFunctions{}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
-			lambdaFunctionNames, err := getAllLambdaFunctions(session, excludeAfter, lambdaFunctions.MaxBatchSize())
+			lambdaFunctionNames, err := getAllLambdaFunctions(session, excludeAfter, configObj, lambdaFunctions.MaxBatchSize())
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -613,7 +613,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 				resourcesCache["S3"] = make(map[string][]*string)
 
-				for bucketRegion, _ := range bucketNamesPerRegion {
+				for bucketRegion := range bucketNamesPerRegion {
 					resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
 				}
 			}
@@ -629,7 +629,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		DynamoDB := DynamoDB{}
 		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
-			tablenames, err := getAllDynamoTables(session, excludeAfter, DynamoDB)
+			tablenames, err := getAllDynamoTables(session, excludeAfter, configObj, DynamoDB)
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)

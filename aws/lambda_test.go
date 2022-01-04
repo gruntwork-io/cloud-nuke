@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
@@ -126,6 +128,40 @@ func createTestLambdaFunction(t *testing.T, session *session.Session, name strin
 	require.NoError(t, err)
 }
 
+func TestLambdaFunctionConfigFile(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+	require.NoError(t, err)
+
+	includedLambdaFunctionName := "cloud-nuke-test-include-" + util.UniqueID()
+	createTestLambdaFunction(t, session, includedLambdaFunctionName)
+
+	excludedLambdaFunctionName := "cloud-nuke-test-" + util.UniqueID()
+	createTestLambdaFunction(t, session, excludedLambdaFunctionName)
+
+	defer nukeAllLambdaFunctions(session, []*string{&includedLambdaFunctionName, &excludedLambdaFunctionName})
+
+	excludeAfter := time.Now().Add(1 * time.Hour)
+	lambdaFunctions, err := getAllLambdaFunctions(session, excludeAfter, config.Config{
+		LambdaFunction: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{RE: *regexp.MustCompile("^cloud-nuke-test-include-.*")},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(lambdaFunctions))
+	require.Equal(t, includedLambdaFunctionName, aws.StringValue(lambdaFunctions[0]))
+}
+
 func TestNukeLambdaFunction(t *testing.T) {
 	t.Parallel()
 
@@ -148,14 +184,14 @@ func TestNukeLambdaFunction(t *testing.T) {
 	defer func() {
 		nukeAllLambdaFunctions(session, []*string{&lambdaFunctionName, &lambdaFunctionName2})
 
-		lambdaFunctionNames, _ := getAllLambdaFunctions(session, excludeAfter, 1)
+		lambdaFunctionNames, _ := getAllLambdaFunctions(session, excludeAfter, config.Config{}, 1)
 
 		assert.NotContains(t, awsgo.StringValueSlice(lambdaFunctionNames), lambdaFunctionName)
 		assert.NotContains(t, awsgo.StringValueSlice(lambdaFunctionNames), lambdaFunctionName2)
 
 	}()
 
-	lambdaFunctions, err := getAllLambdaFunctions(session, excludeAfter, 1)
+	lambdaFunctions, err := getAllLambdaFunctions(session, excludeAfter, config.Config{}, 1)
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of Lambda Functions", errors.WithStackTrace(err).Error())
