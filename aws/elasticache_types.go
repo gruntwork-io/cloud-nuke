@@ -1,10 +1,14 @@
 package aws
 
-import "github.com/aws/aws-sdk-go/aws/session"
+import (
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/go-commons/errors"
+)
 
 // Elasticaches - represents all Elasticache clusters
 type Elasticaches struct {
-	Arns []string
+	ClusterIds []string
 }
 
 // ResourceName - the simple name of the aws resource
@@ -14,7 +18,7 @@ func (cache Elasticaches) ResourceName() string {
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
 func (cache Elasticaches) ResourceIdentifiers() []string {
-	return cache.Arns
+	return cache.ClusterIds
 }
 
 func (cache Elasticaches) MaxBatchSize() int {
@@ -24,5 +28,9 @@ func (cache Elasticaches) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (cache Elasticaches) Nuke(session *session.Session, identifiers []string) error {
+	if err := nukeAllElasticacheClusters(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	return nil
 }
