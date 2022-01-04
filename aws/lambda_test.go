@@ -156,7 +156,7 @@ func TestLambdaFunctionConfigFile(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, 1)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(lambdaFunctions))
 	require.Equal(t, includedLambdaFunctionName, aws.StringValue(lambdaFunctions[0]))

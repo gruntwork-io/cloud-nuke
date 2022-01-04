@@ -35,7 +35,7 @@ func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time, con
 
 	var names []*string
 
-	for _, lambda := range result.Functions {
+	for _, lambda := range result {
 		if shouldIncludeLambdaFunction(lambda, excludeAfter, configObj) {
 			names = append(names, lambda.FunctionName)
 		}
