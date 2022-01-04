@@ -734,6 +734,7 @@ func ListResourceTypes() []string {
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
+		Elasticaches{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
