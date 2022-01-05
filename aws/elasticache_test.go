@@ -3,6 +3,7 @@ package aws
 import (
 	"strings"
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -58,7 +59,7 @@ func TestListElasticacheClusters(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElasticacheClusters(session, []*string{&clusterId})
 
-	clusterIds, err := getAllElasticacheClusters(session, region)
+	clusterIds, err := getAllElasticacheClusters(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of Elasticache clusters", errors.WithStackTrace(err).Error())
 	}
@@ -89,7 +90,7 @@ func TestNukeElasticacheClusters(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	clusterIds, err := getAllElasticacheClusters(session, region)
+	clusterIds, err := getAllElasticacheClusters(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of Elasticache clusters", errors.WithStackTrace(err).Error())
 	}

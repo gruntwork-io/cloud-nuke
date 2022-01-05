@@ -1,6 +1,9 @@
 package aws
 
 import (
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -8,7 +11,7 @@ import (
 )
 
 // Returns a formatted string of Elasticache cluster Ids
-func getAllElasticacheClusters(session *session.Session, region string) ([]*string, error) {
+func getAllElasticacheClusters(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := elasticache.New(session)
 	result, err := svc.DescribeCacheClusters(&elasticache.DescribeCacheClustersInput{})
 	if err != nil {
@@ -17,10 +20,20 @@ func getAllElasticacheClusters(session *session.Session, region string) ([]*stri
 
 	var clusterIds []*string
 	for _, cluster := range result.CacheClusters {
-		clusterIds = append(clusterIds, cluster.CacheClusterId)
+		if shouldIncludeElasticacheCluster(cluster, excludeAfter) {
+			clusterIds = append(clusterIds, cluster.CacheClusterId)
+		}
 	}
 
 	return clusterIds, nil
+}
+
+func shouldIncludeElasticacheCluster(cluster *elasticache.CacheCluster, excludeAfter time.Time) bool {
+	if cluster == nil {
+		return false
+	}
+
+	return !excludeAfter.Before(aws.TimeValue(cluster.CacheClusterCreateTime))
 }
 
 func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) error {
