@@ -661,7 +661,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Elasticaches
 		elasticaches := Elasticaches{}
 		if IsNukeable(elasticaches.ResourceName(), resourceTypes) {
-			clusterIds, err := getAllElasticacheClusters(session, region, excludeAfter)
+			clusterIds, err := getAllElasticacheClusters(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

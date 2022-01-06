@@ -6,12 +6,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of Elasticache cluster Ids
-func getAllElasticacheClusters(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllElasticacheClusters(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := elasticache.New(session)
 	result, err := svc.DescribeCacheClusters(&elasticache.DescribeCacheClustersInput{})
 	if err != nil {
@@ -20,7 +21,7 @@ func getAllElasticacheClusters(session *session.Session, region string, excludeA
 
 	var clusterIds []*string
 	for _, cluster := range result.CacheClusters {
-		if shouldIncludeElasticacheCluster(cluster, excludeAfter) {
+		if shouldIncludeElasticacheCluster(cluster, excludeAfter, configObj) {
 			clusterIds = append(clusterIds, cluster.CacheClusterId)
 		}
 	}
@@ -28,12 +29,20 @@ func getAllElasticacheClusters(session *session.Session, region string, excludeA
 	return clusterIds, nil
 }
 
-func shouldIncludeElasticacheCluster(cluster *elasticache.CacheCluster, excludeAfter time.Time) bool {
+func shouldIncludeElasticacheCluster(cluster *elasticache.CacheCluster, excludeAfter time.Time, configObj config.Config) bool {
 	if cluster == nil {
 		return false
 	}
 
-	return !excludeAfter.Before(aws.TimeValue(cluster.CacheClusterCreateTime))
+	if excludeAfter.Before(aws.TimeValue(cluster.CacheClusterCreateTime)) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(cluster.CacheClusterId),
+		configObj.Elasticache.IncludeRule.NamesRegExp,
+		configObj.Elasticache.ExcludeRule.NamesRegExp,
+	)
 }
 
 func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) error {
