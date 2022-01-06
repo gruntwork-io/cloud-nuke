@@ -186,6 +186,9 @@ The following resources support the Config file:
 - ECS Clusters
     - Resource type: `ecscluster`
     - Config key: `ECSCluster`
+- Elasticache
+    - Resource type: `elasticache`
+    - Config key: `Elasticache`
 
 
 #### Example
