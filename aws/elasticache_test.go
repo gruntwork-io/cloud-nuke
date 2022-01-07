@@ -71,7 +71,7 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 
 	require.NoError(t, err)
 
-	includedClusterId := "cloud-nuke-test-include" + strings.ToLower(util.UniqueID())
+	includedClusterId := "cloud-nuke-test-include-" + strings.ToLower(util.UniqueID())
 	excludedClusterId := "cloud-nuke-test-" + strings.ToLower(util.UniqueID())
 
 	createTestElasticacheCluster(t, session, includedClusterId)
