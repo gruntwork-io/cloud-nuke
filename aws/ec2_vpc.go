@@ -1,15 +1,17 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllVpcs(session *session.Session, region string) ([]*string, []Vpc, error) {
+func getAllVpcs(session *session.Session, region string, configObj config.Config) ([]*string, []Vpc, error) {
 	svc := ec2.New(session)
 
 	result, err := svc.DescribeVpcs(&ec2.DescribeVpcsInput{
@@ -29,16 +31,30 @@ func getAllVpcs(session *session.Session, region string) ([]*string, []Vpc, erro
 	var ids []*string
 	var vpcs []Vpc
 	for _, vpc := range result.Vpcs {
-		ids = append(ids, vpc.VpcId)
+		if shouldIncludeVpc(vpc, configObj) {
+			ids = append(ids, vpc.VpcId)
 
-		vpcs = append(vpcs, Vpc{
-			VpcId:  *vpc.VpcId,
-			Region: region,
-			svc:    svc,
-		})
+			vpcs = append(vpcs, Vpc{
+				VpcId:  *vpc.VpcId,
+				Region: region,
+				svc:    svc,
+			})
+		}
 	}
 
 	return ids, vpcs, nil
+}
+
+func shouldIncludeVpc(vpc *ec2.Vpc, configObj config.Config) bool {
+	if vpc == nil {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(vpc.VpcId),
+		configObj.VPC.IncludeRule.NamesRegExp,
+		configObj.VPC.ExcludeRule.NamesRegExp,
+	)
 }
 
 func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
