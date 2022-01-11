@@ -175,3 +175,33 @@ func getDescribeDefaultSecurityGroupsOutput(groups []DefaultSecurityGroup) *ec2.
 	}
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: securityGroups}
 }
+
+func getDescribeEndpointsInput(vpcId string) *ec2.DescribeVpcEndpointsInput {
+	return &ec2.DescribeVpcEndpointsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   awsgo.String("vpc-id"),
+				Values: []*string{awsgo.String(vpcId)},
+			},
+		},
+	}
+}
+
+func getDescribeEndpointsOutput(endpointIds []string) *ec2.DescribeVpcEndpointsOutput {
+	var endpoints []*ec2.VpcEndpoint
+	for _, endpointId := range endpointIds {
+		endpoints = append(endpoints, &ec2.VpcEndpoint{
+			VpcEndpointId: &endpointId,
+		})
+	}
+
+	return &ec2.DescribeVpcEndpointsOutput{
+		VpcEndpoints: endpoints,
+	}
+}
+
+func getDeleteEndpointInput(endpointId string) *ec2.DeleteVpcEndpointsInput {
+	return &ec2.DeleteVpcEndpointsInput{
+		VpcEndpointIds: []*string{&endpointId},
+	}
+}
