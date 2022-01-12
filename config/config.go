@@ -23,6 +23,7 @@ type Config struct {
 	ELBv2                 ResourceType `yaml:"ELBv2"`
 	ECSService            ResourceType `yaml:"ECSService"`
 	ECSCluster            ResourceType `yaml:"ECSCluster"`
+	Elasticache           ResourceType `yaml:"Elasticache"`
 }
 
 type ResourceType struct {

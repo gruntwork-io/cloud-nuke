@@ -658,6 +658,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EC2 VPCS
 
+		// Elasticaches
+		elasticaches := Elasticaches{}
+		if IsNukeable(elasticaches.ResourceName(), resourceTypes) {
+			clusterIds, err := getAllElasticacheClusters(session, region, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(clusterIds) > 0 {
+				elasticaches.ClusterIds = awsgo.StringValueSlice(clusterIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticaches)
+			}
+		}
+		// End Elasticaches
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -734,6 +749,7 @@ func ListResourceTypes() []string {
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
+		Elasticaches{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

@@ -17,6 +17,7 @@ The currently supported functionality includes:
 - Deleting all AMIs in an AWS account
 - Deleting all Snapshots in an AWS account
 - Deleting all Elastic IPs in an AWS account
+- Deleting all Elasticache clusters in an AWS account
 - Deleting all Launch Configurations in an AWS account
 - Deleting all ECS services in an AWS account
 - Deleting all ECS clusters in an AWS account
@@ -185,6 +186,9 @@ The following resources support the Config file:
 - ECS Clusters
     - Resource type: `ecscluster`
     - Config key: `ECSCluster`
+- Elasticache
+    - Resource type: `elasticache`
+    - Config key: `Elasticache`
 
 
 #### Example
@@ -284,6 +288,7 @@ To find out what we options are supported in the config file today, consult this
 | lambda             | none  | ✅          | none | none       |
 | elbv2              | none  | ✅          | none | none       |
 | ecs                | none  | ✅          | none | none       |
+| elasticache        | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
