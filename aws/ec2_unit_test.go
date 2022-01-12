@@ -97,7 +97,7 @@ func getTestVpcsWithIds(mockEC2 *mock_ec2iface.MockEC2API) []Vpc {
 	}
 }
 
-func TestNukeVpcs(t *testing.T) {
+func TestNukeMockVpcs(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
