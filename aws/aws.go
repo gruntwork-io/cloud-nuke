@@ -531,7 +531,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Lambda Functions
 		lambdaFunctions := LambdaFunctions{}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
-			lambdaFunctionNames, err := getAllLambdaFunctions(session, excludeAfter, configObj)
+			lambdaFunctionNames, err := getAllLambdaFunctions(session, excludeAfter, configObj, lambdaFunctions.MaxBatchSize())
 
 			if err != nil {
 				return nil, errors.WithStackTrace(err)

@@ -12,18 +12,30 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time, configObj config.Config, batchSize int) ([]*string, error) {
 	svc := lambda.New(session)
 
-	result, err := svc.ListFunctions(nil)
+	var result []*lambda.FunctionConfiguration
 
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	var next *string = nil
+	for {
+		list, err := svc.ListFunctions(&lambda.ListFunctionsInput{
+			Marker:   next,
+			MaxItems: awsgo.Int64(int64(batchSize)),
+		})
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		result = append(result, list.Functions...)
+		if list.NextMarker == nil || len(*list.NextMarker) == 0 {
+			break
+		}
+		next = list.NextMarker
 	}
 
 	var names []*string
 
-	for _, lambda := range result.Functions {
+	for _, lambda := range result {
 		if shouldIncludeLambdaFunction(lambda, excludeAfter, configObj) {
 			names = append(names, lambda.FunctionName)
 		}
