@@ -765,7 +765,7 @@ func ListResourceTypes() []string {
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
 		Elasticaches{}.ResourceName(),
-                KmsCustomerKeys{}.ResourceName(),
+		KmsCustomerKeys{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
