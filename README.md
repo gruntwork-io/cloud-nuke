@@ -190,6 +190,11 @@ The following resources support the Config file:
 - Elasticache
     - Resource type: `elasticache`
     - Config key: `Elasticache`
+- KMS customer keys
+    - Resource type: `kmscustomerkeys`
+
+Notes:
+  * no configuration options for KMS customer keys since keys are created with auto-generated identifier
 
 
 #### Example
@@ -290,6 +295,7 @@ To find out what we options are supported in the config file today, consult this
 | elbv2              | none  | ✅          | none | none       |
 | ecs                | none  | ✅          | none | none       |
 | elasticache        | none  | ✅          | none | none       |
+| kmscustomerkeys    | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
