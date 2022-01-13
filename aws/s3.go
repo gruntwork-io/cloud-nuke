@@ -136,9 +136,7 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 			if _, ok := bucketNamesPerRegion[region]; !ok {
 				bucketNamesPerRegion[region] = []*string{}
 			}
-			for _, bucket := range buckets {
-				bucketNamesPerRegion[region] = append(bucketNamesPerRegion[region], bucket)
-			}
+			bucketNamesPerRegion[region] = append(bucketNamesPerRegion[region], buckets...)
 		}
 		batchCount++
 	}

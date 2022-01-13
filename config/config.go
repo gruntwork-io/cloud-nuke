@@ -17,6 +17,13 @@ type Config struct {
 	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
 	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
 	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
+	DynamoDB              ResourceType `yaml:"DynamoDB"`
+	EBSVolume             ResourceType `yaml:"EBSVolume"`
+	LambdaFunction        ResourceType `yaml:"LambdaFunction"`
+	ELBv2                 ResourceType `yaml:"ELBv2"`
+	ECSService            ResourceType `yaml:"ECSService"`
+	ECSCluster            ResourceType `yaml:"ECSCluster"`
+	Elasticache           ResourceType `yaml:"Elasticache"`
 }
 
 type ResourceType struct {

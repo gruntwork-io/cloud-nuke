@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/go-commons/collections"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -12,6 +15,8 @@ import (
 	"github.com/gruntwork-io/terratest/modules/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gruntwork-io/go-commons/retry"
 )
 
 func TestListSecretsManagerSecrets(t *testing.T) {
@@ -20,7 +25,7 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-list-%s", random.UniqueId())
 	defer terraws.DeleteSecret(t, region, secretName, true)
 	arn := createSecretStringWithDefaultKey(t, region, secretName)
 
@@ -38,7 +43,7 @@ func TestTimeFilterExclusionNewlyCreatedSecret(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-exclusion-%s", random.UniqueId())
 	defer terraws.DeleteSecret(t, region, secretName, true)
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
@@ -72,7 +77,7 @@ func TestNukeSecretOne(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-one-%s", random.UniqueId())
 	// We use the E version and ignore the error, as this is meant to be a stop gap deletion in case nuke has a bug.
 	defer terraws.DeleteSecretE(t, region, secretName, true)
 	arn := createSecretStringWithDefaultKey(t, region, secretName)
@@ -96,7 +101,7 @@ func TestNukeSecretMoreThanOne(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	secretNameBase := fmt.Sprintf("test-cloud-nuke-secretsmanager-%s", random.UniqueId())
+	secretNameBase := fmt.Sprintf("test-cloud-nuke-secretsmanager-more-than-one-%s", random.UniqueId())
 
 	secretArns := []string{}
 	for i := 0; i < 3; i++ {
@@ -129,7 +134,26 @@ func createSecretStringWithDefaultKey(t *testing.T, awsRegion string, name strin
 	description := "Random secret created for cloud-nuke testing."
 	secretVal := random.UniqueId()
 	arn := terraws.CreateSecretStringWithDefaultKey(t, awsRegion, description, name, secretVal)
-	// Add an arbitrary sleep to account for eventual consistency
-	time.Sleep(15 * time.Second)
+	// Check if created secret is available by checking secret ARN in list of all secrets
+	// https://github.com/gruntwork-io/cloud-nuke/issues/227
+	awsSession, err := session.NewSession(&aws.Config{Region: aws.String(awsRegion)})
+	require.NoError(t, err)
+	err = retry.DoWithRetry(
+		logging.Logger,
+		"Check if created secret is available",
+		4,
+		15*time.Second,
+		func() error {
+			secretARNPtrs, err := getAllSecretsManagerSecrets(awsSession, time.Now(), config.Config{})
+			if err != nil {
+				return err
+			}
+			if collections.ListContainsElement(aws.StringValueSlice(secretARNPtrs), arn) {
+				return nil
+			}
+			return fmt.Errorf("not found secret %s", arn)
+		},
+	)
+	require.NoError(t, err)
 	return arn
 }

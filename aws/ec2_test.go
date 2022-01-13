@@ -30,6 +30,7 @@ const (
 	ExampleSecurityGroupIdTwo   = "sg-" + ExampleIdTwo
 	ExampleSecurityGroupIdThree = "sg-" + ExampleIdThree
 	ExampleInternetGatewayId    = "igw-" + ExampleId
+	ExampleEndpointId           = "vpce-" + ExampleId
 )
 
 // getAMIIdByName - Retrieves an AMI ImageId given the name of the Id. Used for

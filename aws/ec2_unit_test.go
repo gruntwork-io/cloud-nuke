@@ -143,6 +143,13 @@ func TestNukeVpcs(t *testing.T) {
 		}
 		deleteSecurityGroupInput := getDeleteSecurityGroupInput(ExampleSecurityGroupId)
 
+		describeEndpointsInput := getDescribeEndpointsInput(vpc.VpcId)
+		describeEndpointsOutput := getDescribeEndpointsOutput([]string{ExampleEndpointId})
+		describeEndpointsFunc := func(input *ec2.DescribeVpcEndpointsInput) (*ec2.DescribeVpcEndpointsOutput, error) {
+			return describeEndpointsOutput, nil
+		}
+		deleteEndpointInput := getDeleteEndpointInput(ExampleEndpointId)
+
 		deleteVpcInput := getDeleteVpcInput(vpc.VpcId)
 
 		gomock.InOrder(
@@ -159,6 +166,8 @@ func TestNukeVpcs(t *testing.T) {
 			mockEC2.EXPECT().DeleteNetworkAcl(deleteNetworkAclInput),
 			mockEC2.EXPECT().DescribeSecurityGroups(describeSecurityGroupsInput).DoAndReturn(describeSecurityGroupsFunc),
 			mockEC2.EXPECT().DeleteSecurityGroup(deleteSecurityGroupInput),
+			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsInput).DoAndReturn(describeEndpointsFunc),
+			mockEC2.EXPECT().DeleteVpcEndpoints(deleteEndpointInput),
 			mockEC2.EXPECT().DeleteVpc(deleteVpcInput),
 		)
 	}

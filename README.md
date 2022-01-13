@@ -17,6 +17,7 @@ The currently supported functionality includes:
 - Deleting all AMIs in an AWS account
 - Deleting all Snapshots in an AWS account
 - Deleting all Elastic IPs in an AWS account
+- Deleting all Elasticache clusters in an AWS account
 - Deleting all Launch Configurations in an AWS account
 - Deleting all ECS services in an AWS account
 - Deleting all ECS clusters in an AWS account
@@ -168,6 +169,27 @@ The following resources support the Config file:
 - OpenSearch Domains
     - Resource type: `opensearch`
     - Config key: `OpenSearchDomain`
+- DynamoDB Tables
+    - Resource type: `dynamodb`
+    - Config key: `DynamoDB`
+- EBS Volumes
+    - Resource type: `ebs`
+    - Config key: `EBSVolume`
+- Lambda Functions
+    - Resource type: `lambda`
+    - Config key: `LambdaFunction`
+- Elastic Load Balancers
+    - Resource type: `elbv2`
+    - Config key: `ELBv2`
+- ECS Services
+    - Resource type: `ecsserv`
+    - Config key: `ECSService`
+- ECS Clusters
+    - Resource type: `ecscluster`
+    - Config key: `ECSCluster`
+- Elasticache
+    - Resource type: `elasticache`
+    - Config key: `Elasticache`
 
 
 #### Example
@@ -257,9 +279,17 @@ To find out what we options are supported in the config file today, consult this
 |--------------------|-------|-------------|------|------------|
 | s3                 | none  | ✅          | none | none       |
 | iam                | none  | ✅          | none | none       |
+| ecsserv            | none  | ✅          | none | none       |
+| ecscluster         | none  | ✅          | none | none       |
 | secretsmanager     | none  | ✅          | none | none       |
 | nat-gateway        | none  | ✅          | none | none       |
 | accessanalyzer     | none  | ✅          | none | none       |
+| dynamodb           | none  | ✅          | none | none       |
+| ebs                | none  | ✅          | none | none       |
+| lambda             | none  | ✅          | none | none       |
+| elbv2              | none  | ✅          | none | none       |
+| ecs                | none  | ✅          | none | none       |
+| elasticache        | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
@@ -363,9 +393,16 @@ Every source file in this project should be formatted with `go fmt`.
 We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48).
 
 #### Choosing a new release tag
-If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y) to indicate backward incompatibilities.
+If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y)
+to indicate backward incompatibilities.
 
-This is because since version v0.2.0 `cloud-nuke` has been configured to include automatically new resources (opt-out vs opt-in), which is inherently not backwards compatible. As such, we have decided to mark the addition of new nuked resources as backward incompatible to provide better signals for users when we introduce a new resource.
+This is because since version `v0.2.0` `cloud-nuke` has been configured to automatically include new resources (so you have
+to explicitly opt-out). This is inherently not backward compatible, because users with CI practices around `cloud-nuke` would
+be surprised by new resources that are suddenly being picked up for deletion! This surprise is more alarming for resources
+that are actively in use for any account, such as IAM Users.
+
+Therefore please mark your release as backward incompatible and bump the **minor version** (`X` in `v0.X.Y`) when it includes
+support for nuking new resources, so that we provide better signals for users when we introduce a new resource.
 
 #### To release a new version
 Go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and create a new release. The CircleCI job for this repo has been configured to:

@@ -338,6 +338,41 @@ func (v Vpc) nukeSecurityGroups() error {
 	return nil
 }
 
+func (v Vpc) nukeEndpoints() error {
+	endpoints, _ := v.svc.DescribeVpcEndpoints(
+		&ec2.DescribeVpcEndpointsInput{
+			Filters: []*ec2.Filter{
+				{
+					Name:   awsgo.String("vpc-id"),
+					Values: []*string{awsgo.String(v.VpcId)},
+				},
+			},
+		},
+	)
+
+	var endpointIds []*string
+
+	for _, endpoint := range endpoints.VpcEndpoints {
+		endpointIds = append(endpointIds, endpoint.VpcEndpointId)
+		logging.Logger.Infof("...deleting VPC endpoint %s", awsgo.StringValue(endpoint.VpcEndpointId))
+	}
+
+	if len(endpointIds) == 0 {
+		logging.Logger.Infof("...no endpoints found")
+		return nil
+	}
+
+	_, err := v.svc.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
+		VpcEndpointIds: endpointIds,
+	})
+
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
 func (v Vpc) nukeVpc() error {
 	logging.Logger.Infof("...deleting VPC %s", v.VpcId)
 	input := &ec2.DeleteVpcInput{
@@ -380,6 +415,12 @@ func (v Vpc) nuke() error {
 	err = v.nukeSecurityGroups()
 	if err != nil {
 		logging.Logger.Errorf("Error cleaning up Security Groups for VPC %s: %s", v.VpcId, err.Error())
+		return err
+	}
+
+	err = v.nukeEndpoints()
+	if err != nil {
+		logging.Logger.Errorf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 

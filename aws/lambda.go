@@ -3,37 +3,71 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time, configObj config.Config, batchSize int) ([]*string, error) {
 	svc := lambda.New(session)
 
-	result, err := svc.ListFunctions(nil)
+	var result []*lambda.FunctionConfiguration
 
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	var next *string = nil
+	for {
+		list, err := svc.ListFunctions(&lambda.ListFunctionsInput{
+			Marker:   next,
+			MaxItems: awsgo.Int64(int64(batchSize)),
+		})
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		result = append(result, list.Functions...)
+		if list.NextMarker == nil || len(*list.NextMarker) == 0 {
+			break
+		}
+		next = list.NextMarker
 	}
 
 	var names []*string
 
-	for _, lambda := range result.Functions {
-		layout := "2006-01-02T15:04:05.000+0000"
-		lastModifiedDateTime, err := time.Parse(layout, *lambda.LastModified)
-		if err != nil {
-			return nil, err
-		}
-
-		if lambda.LastModified != nil && excludeAfter.After(lastModifiedDateTime) {
+	for _, lambda := range result {
+		if shouldIncludeLambdaFunction(lambda, excludeAfter, configObj) {
 			names = append(names, lambda.FunctionName)
 		}
 	}
 
 	return names, nil
+}
+
+func shouldIncludeLambdaFunction(lambdaFn *lambda.FunctionConfiguration, excludeAfter time.Time, configObj config.Config) bool {
+	if lambdaFn == nil {
+		return false
+	}
+
+	fnLastModified := aws.StringValue(lambdaFn.LastModified)
+	fnName := aws.StringValue(lambdaFn.FunctionName)
+
+	layout := "2006-01-02T15:04:05.000+0000"
+	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
+	if err != nil {
+		logging.Logger.Warnf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, fnName)
+		return false
+	}
+
+	if excludeAfter.Before(lastModifiedDateTime) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		fnName,
+		configObj.LambdaFunction.IncludeRule.NamesRegExp,
+		configObj.LambdaFunction.ExcludeRule.NamesRegExp,
+	)
 }
 
 func nukeAllLambdaFunctions(session *session.Session, names []*string) error {

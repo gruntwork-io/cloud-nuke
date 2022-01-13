@@ -3,15 +3,17 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of EBS volume ids
-func getAllEbsVolumes(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllEbsVolumes(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 
 	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
@@ -21,12 +23,34 @@ func getAllEbsVolumes(session *session.Session, region string, excludeAfter time
 
 	var volumeIds []*string
 	for _, volume := range result.Volumes {
-		if excludeAfter.After(*volume.CreateTime) {
+		if shouldIncludeEBSVolume(volume, excludeAfter, configObj) {
 			volumeIds = append(volumeIds, volume.VolumeId)
 		}
 	}
 
 	return volumeIds, nil
+}
+
+func shouldIncludeEBSVolume(volume *ec2.Volume, excludeAfter time.Time, configObj config.Config) bool {
+	if volume == nil {
+		return false
+	}
+
+	if excludeAfter.Before(aws.TimeValue(volume.CreateTime)) {
+		return false
+	}
+
+	name := ""
+	for _, tag := range volume.Tags {
+		if tag != nil && aws.StringValue(tag.Key) == "Name" {
+			name = aws.StringValue(tag.Value)
+		}
+	}
+	return config.ShouldInclude(
+		name,
+		configObj.EBSVolume.IncludeRule.NamesRegExp,
+		configObj.EBSVolume.ExcludeRule.NamesRegExp,
+	)
 }
 
 // Deletes all EBS Volumes
