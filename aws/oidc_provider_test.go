@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/terratest/modules/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -140,7 +140,7 @@ func TestNukeOIDCProviderMoreThanOne(t *testing.T) {
 // createOIDCProvider will create a new OIDC Provider
 func createOIDCProvider(t *testing.T, svc *iam.IAM, basename string, region string) *string {
 	input := &iam.CreateOpenIDConnectProviderInput{
-		Url: aws.String(fmt.Sprintf("https://%s.%s.gruntwork-sandbox.in", util.UniqueID(), basename)),
+		Url: aws.String(fmt.Sprintf("https://%s.%s.gruntwork-sandbox.in", random.UniqueId(), basename)),
 		// We can use a non-functional thumbprint here because we don't care if the provider actually works - only that
 		// the resource exists.
 		ThumbprintList: aws.StringSlice([]string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}),
