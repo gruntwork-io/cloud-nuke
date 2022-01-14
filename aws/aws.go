@@ -710,6 +710,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Users
 
+		// IAM OpenID Connect Providers
+		oidcProviders := OIDCProviders{}
+		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
+			providerARNs, err := getAllOIDCProviders(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(providerARNs) > 0 {
+				oidcProviders.ProviderARNs = awsgo.StringValueSlice(providerARNs)
+				globalResources.Resources = append(globalResources.Resources, oidcProviders)
+			}
+		}
+		// End IAM OpenIDConnectProviders
+
 		if len(globalResources.Resources) > 0 {
 			account.Resources[GlobalRegion] = globalResources
 		}
@@ -750,6 +765,7 @@ func ListResourceTypes() []string {
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
 		Elasticaches{}.ResourceName(),
+		OIDCProviders{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
