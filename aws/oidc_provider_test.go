@@ -148,8 +148,8 @@ func createOIDCProvider(t *testing.T, svc *iam.IAM, basename string, region stri
 	resp, err := svc.CreateOpenIDConnectProvider(input)
 	require.NoError(t, err)
 
-	// Wait 5 seconds after creation to ensure the OIDC provider gets propagated through AWS system.
-	time.Sleep(time.Second * 5)
+	// Wait 10 seconds after creation to ensure the OIDC provider gets propagated through AWS system.
+	time.Sleep(time.Second * 10)
 
 	return resp.OpenIDConnectProviderArn
 }
