@@ -15,7 +15,7 @@ import (
 )
 
 // Excluded regions which doesn't include "t3.small.search" instances
-var excludedOpenSearchDomains = []string{
+var ExcludedOpenSearchDomains = []string{
 	"ap-northeast-3",
 }
 
@@ -23,7 +23,7 @@ var excludedOpenSearchDomains = []string{
 func TestCanTagOpenSearchDomains(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludedOpenSearchDomains)
+	region, err := getRandomRegionWithExclusions(ExcludedOpenSearchDomains)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -56,7 +56,7 @@ func TestCanTagOpenSearchDomains(t *testing.T) {
 func TestCanListAllOpenSearchDomainsOlderThan24hours(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludedOpenSearchDomains)
+	region, err := getRandomRegionWithExclusions(ExcludedOpenSearchDomains)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -90,7 +90,7 @@ func TestCanListAllOpenSearchDomainsOlderThan24hours(t *testing.T) {
 func TestCanNukeOpenSearchDomain(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludedOpenSearchDomains)
+	region, err := getRandomRegionWithExclusions(ExcludedOpenSearchDomains)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
