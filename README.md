@@ -190,6 +190,9 @@ The following resources support the Config file:
 - Elasticache
     - Resource type: `elasticache`
     - Config key: `Elasticache`
+- VPCs
+    - Resource type: `vpc`
+    - Config key: `VPC`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
 
@@ -295,6 +298,7 @@ To find out what we options are supported in the config file today, consult this
 | elbv2              | none  | ✅          | none | none       |
 | ecs                | none  | ✅          | none | none       |
 | elasticache        | none  | ✅          | none | none       |
+| vpc                | none  | ✅          | none | none       |
 | kmscustomerkeys    | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
