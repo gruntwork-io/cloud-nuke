@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -112,6 +113,16 @@ func getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvide
 
 	resp, err := svc.GetOpenIDConnectProvider(&iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
 	if err != nil {
+		// If we get a 404, meaning the OIDC Provider was deleted between retrieving it with list and detail fetching,
+		// we ignore the error and return nothing.
+		aerr, ok := err.(awserr.Error)
+		if ok && aerr.Code() == iam.ErrCodeNoSuchEntityException {
+			resultChan <- nil
+			errChan <- nil
+			return
+		}
+
+		// For all other errors, bubble the error
 		resultChan <- nil
 		errChan <- errors.WithStackTrace(err)
 		return
