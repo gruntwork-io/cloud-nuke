@@ -14,11 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Excluded regions which doesn't include "t3.small.search" instances
+var excludedOpenSearchDomains = []string{
+	"ap-northeast-3",
+}
+
 // Test we can create an OpenSearch Domain, tag it, and then find the tag
 func TestCanTagOpenSearchDomains(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludedOpenSearchDomains)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -51,7 +56,7 @@ func TestCanTagOpenSearchDomains(t *testing.T) {
 func TestCanListAllOpenSearchDomainsOlderThan24hours(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludedOpenSearchDomains)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -85,7 +90,7 @@ func TestCanListAllOpenSearchDomainsOlderThan24hours(t *testing.T) {
 func TestCanNukeOpenSearchDomain(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludedOpenSearchDomains)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{

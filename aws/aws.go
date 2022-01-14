@@ -113,6 +113,31 @@ func getRandomRegion() (string, error) {
 	return allRegions[randIndex], nil
 }
 
+func getRandomRegionWithExclusions(regionsToExclude []string) (string, error) {
+	allRegions, err := GetEnabledRegions()
+	if err != nil {
+		return "", errors.WithStackTrace(err)
+	}
+	rand.Seed(time.Now().UnixNano())
+
+	// exclude from "allRegions"
+	var exclusions = make(map[string]string)
+	for _, region := range regionsToExclude {
+		exclusions[region] = region
+	}
+	// filter regions
+	var updatedRegions []string
+	for _, region := range allRegions {
+		_, excluded := exclusions[region]
+		if !excluded {
+			updatedRegions = append(updatedRegions, region)
+		}
+	}
+	randIndex := rand.Intn(len(updatedRegions))
+	logging.Logger.Infof("Random region chosen: %s", updatedRegions[randIndex])
+	return updatedRegions[randIndex], nil
+}
+
 func split(identifiers []string, limit int) [][]string {
 	if limit < 0 {
 		limit = -1 * limit
