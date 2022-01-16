@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -10,6 +12,41 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
+
+func setFirstSeenVpcTag(svc *ec2.EC2, vpc ec2.Vpc, key string, value time.Time, layout string) error {
+	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
+	_, err := svc.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{vpc.VpcId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(key),
+				Value: awsgo.String(value.Format(layout)),
+			},
+		},
+	})
+
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func getFirstSeenVpcTag(vpc ec2.Vpc, key string, layout string) (*time.Time, error) {
+	tags := vpc.Tags
+	for _, tag := range tags {
+		if *tag.Key == key {
+			firstSeenTime, err := time.Parse(layout, *tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return &firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
 
 func getAllVpcs(session *session.Session, region string, configObj config.Config) ([]*string, []Vpc, error) {
 	svc := ec2.New(session)
