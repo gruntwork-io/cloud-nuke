@@ -103,16 +103,10 @@ func GetEnabledRegions() ([]string, error) {
 }
 
 func getRandomRegion() (string, error) {
-	allRegions, err := GetEnabledRegions()
-	if err != nil {
-		return "", errors.WithStackTrace(err)
-	}
-	rand.Seed(time.Now().UnixNano())
-	randIndex := rand.Intn(len(allRegions))
-	logging.Logger.Infof("Random region chosen: %s", allRegions[randIndex])
-	return allRegions[randIndex], nil
+	return getRandomRegionWithExclusions([]string{})
 }
 
+// getRandomRegionWithExclusions - return random from enabled regions, excluding regions from the argument
 func getRandomRegionWithExclusions(regionsToExclude []string) (string, error) {
 	allRegions, err := GetEnabledRegions()
 	if err != nil {
