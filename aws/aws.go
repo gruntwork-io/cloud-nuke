@@ -645,7 +645,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 VPCS
 		ec2Vpcs := EC2VPCs{}
 		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
-			vpcids, vpcs, err := getAllVpcs(session, region, configObj)
+			vpcids, vpcs, err := getAllVpcs(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

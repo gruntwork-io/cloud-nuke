@@ -3,6 +3,7 @@ package aws
 import (
 	"regexp"
 	"testing"
+	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -49,7 +50,7 @@ func TestListVpcs(t *testing.T) {
 		svc:    ec2.New(session),
 	}})
 
-	vpcIds, _, err := getAllVpcs(session, region, config.Config{})
+	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.Contains(t, awsgo.StringValueSlice(vpcIds), vpcId)
@@ -81,7 +82,7 @@ func TestListVpcsWithConfigFile(t *testing.T) {
 		svc:    ec2.New(session),
 	}})
 
-	vpcIds, _, err := getAllVpcs(session, region, config.Config{
+	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{
 		VPC: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -119,7 +120,7 @@ func TestNukeVpcs(t *testing.T) {
 
 	require.NoError(t, err)
 
-	vpcIds, _, err := getAllVpcs(session, region, config.Config{})
+	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(vpcIds), vpcId)
