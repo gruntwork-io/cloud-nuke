@@ -89,7 +89,7 @@ func shouldIncludeVpc(svc *ec2.EC2, vpc *ec2.Vpc, excludeAfter time.Time, config
 
 	firstSeenTime, err := getFirstSeenVpcTag(*vpc, firstSeenTagKey)
 	if err != nil {
-		// TODO: Log error
+		logging.Logger.Error("Unable to retrieve tags")
 		return false
 	}
 
