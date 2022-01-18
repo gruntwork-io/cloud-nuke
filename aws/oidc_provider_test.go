@@ -24,7 +24,7 @@ func TestListOIDCProviders(t *testing.T) {
 	require.NoError(t, err)
 	svc := iam.New(session)
 
-	oidcProviderARN := createOIDCProvider(t, svc, "base", defaultRegion)
+	oidcProviderARN := createOIDCProvider(t, svc, "base")
 	defer deleteOIDCProvider(t, svc, oidcProviderARN, true)
 
 	providerARNs, err := getAllOIDCProviders(session, time.Now(), config.Config{})
@@ -39,7 +39,7 @@ func TestTimeFilterExclusionNewlyCreatedOIDCProvider(t *testing.T) {
 	require.NoError(t, err)
 	svc := iam.New(session)
 
-	oidcProviderARN := createOIDCProvider(t, svc, "base", defaultRegion)
+	oidcProviderARN := createOIDCProvider(t, svc, "base")
 	defer deleteOIDCProvider(t, svc, oidcProviderARN, true)
 
 	// Assert OpenID Connect Provider is picked up without filters
@@ -51,7 +51,7 @@ func TestTimeFilterExclusionNewlyCreatedOIDCProvider(t *testing.T) {
 	olderThan := time.Now().Add(-1 * time.Hour)
 	providerARNsOlder, err := getAllOIDCProviders(session, olderThan, config.Config{})
 	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(providerARNsOlder), aws.StringValue(oidcProviderARN))
+	assert.NotContains(t, aws.StringValueSlice(providerARNsOlder), aws.StringValue(oidcProviderARN))
 }
 
 func TestConfigExclusionCreatedOIDCProvider(t *testing.T) {
@@ -61,10 +61,10 @@ func TestConfigExclusionCreatedOIDCProvider(t *testing.T) {
 	require.NoError(t, err)
 	svc := iam.New(session)
 
-	includedOIDCProviderARN := createOIDCProvider(t, svc, "include", defaultRegion)
+	includedOIDCProviderARN := createOIDCProvider(t, svc, "include")
 	defer deleteOIDCProvider(t, svc, includedOIDCProviderARN, true)
 
-	excludedOIDCProviderARN := createOIDCProvider(t, svc, "exclude", defaultRegion)
+	excludedOIDCProviderARN := createOIDCProvider(t, svc, "exclude")
 	defer deleteOIDCProvider(t, svc, excludedOIDCProviderARN, true)
 
 	// Assert OpenID Connect Providers are picked up without filters
@@ -98,7 +98,7 @@ func TestNukeOIDCProviderOne(t *testing.T) {
 	svc := iam.New(session)
 
 	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	oidcProviderARN := createOIDCProvider(t, svc, "base", defaultRegion)
+	oidcProviderARN := createOIDCProvider(t, svc, "base")
 	defer deleteOIDCProvider(t, svc, oidcProviderARN, false)
 
 	identifiers := []*string{oidcProviderARN}
@@ -121,7 +121,7 @@ func TestNukeOIDCProviderMoreThanOne(t *testing.T) {
 	providers := []*string{}
 	for i := 0; i < 3; i++ {
 		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		oidcProviderARN := createOIDCProvider(t, svc, "base", defaultRegion)
+		oidcProviderARN := createOIDCProvider(t, svc, "base")
 		defer deleteOIDCProvider(t, svc, oidcProviderARN, false)
 		providers = append(providers, oidcProviderARN)
 	}
@@ -138,7 +138,7 @@ func TestNukeOIDCProviderMoreThanOne(t *testing.T) {
 // Helper functions for driving the OIDC Provider tests
 
 // createOIDCProvider will create a new OIDC Provider
-func createOIDCProvider(t *testing.T, svc *iam.IAM, basename string, region string) *string {
+func createOIDCProvider(t *testing.T, svc *iam.IAM, basename string) *string {
 	input := &iam.CreateOpenIDConnectProviderInput{
 		Url: aws.String(fmt.Sprintf("https://%s.%s.gruntwork-sandbox.in", random.UniqueId(), basename)),
 		// We can use a non-functional thumbprint here because we don't care if the provider actually works - only that
