@@ -29,6 +29,60 @@ func createTestVpc(t *testing.T, session *session.Session) string {
 	return *vpc.Vpc.VpcId
 }
 
+func TestCanTagVpc(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	require.NoError(t, err)
+
+	vpcId := createTestVpc(t, session)
+	svc := ec2.New(session)
+
+	// clean up after this test
+	defer nukeAllVPCs(session, []string{vpcId}, []Vpc{{
+		Region: region,
+		VpcId:  vpcId,
+		svc:    svc,
+	}})
+
+	result, err := svc.DescribeVpcs(&ec2.DescribeVpcsInput{
+		VpcIds: awsgo.StringSlice([]string{vpcId}),
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result.Vpcs))
+
+	vpc := result.Vpcs[0]
+	key := "cloud-nuke-first-seen-test"
+	value := time.Now().UTC()
+
+	err = setFirstSeenVpcTag(svc, *vpc, key, value)
+	require.NoError(t, err)
+
+	result, err = svc.DescribeVpcs(&ec2.DescribeVpcsInput{
+		VpcIds: awsgo.StringSlice([]string{vpcId}),
+	})
+
+	require.NoError(t, err)
+
+	vpc = result.Vpcs[0]
+	value1, err := getFirstSeenVpcTag(*vpc, key)
+	require.NoError(t, err)
+	require.NotNil(t, value1)
+
+	// Parsing from string doesn't include the millisecond,
+	// so format the dates according to this layout so we can
+	// perform a direct comparison.
+	layout := "2006-01-02T15:04:05"
+	assert.Equal(t, value.Format(layout), (*value1).Format(layout))
+}
+
 func TestListVpcs(t *testing.T) {
 	t.Parallel()
 
