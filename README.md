@@ -36,6 +36,7 @@ The currently supported functionality includes:
 - Deleting all DynamoDB tables in an AWS account
 - Deleting all CloudWatch Dashboards in an AWS account
 - Deleting all OpenSearch Domains in an AWS account
+- Deleting all IAM OpenID Connect Providers
 
 ### BEWARE!
 
@@ -192,6 +193,9 @@ The following resources support the Config file:
 - VPCs
     - Resource type: `vpc`
     - Config key: `VPC`
+- IAM OpenID Connect Providers
+    - Resource type: `oidcprovider`
+    - Config key: `OIDCProvider`
 
 
 #### Example
@@ -293,6 +297,7 @@ To find out what we options are supported in the config file today, consult this
 | ecs                | none  | ✅          | none | none       |
 | elasticache        | none  | ✅          | none | none       |
 | vpc                | none  | ✅          | none | none       |
+| oidcprovider       | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |

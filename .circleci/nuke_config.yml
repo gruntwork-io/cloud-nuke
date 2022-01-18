@@ -33,3 +33,9 @@ NatGateway:
       # We have an active ECS Deploy Runner running in the sandbox environment for sales demos, and this NAT gateway is
       # critical for that.
       - "^ecs-deploy-runner-v2-nat-gateway-0$"
+
+OIDCProvider:
+  exclude:
+    names_regex:
+      # We have an active OIDC Provider used by github actions
+      - ".*token.actions.githubusercontent.com.*"
