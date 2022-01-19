@@ -104,6 +104,11 @@ func TestListVpcs(t *testing.T) {
 		svc:    ec2.New(session),
 	}})
 
+	// First run gives us a chance to tag the VPC
+	_, _, err = getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	require.NoError(t, err)
+
+	// VPC should be tagged at this point
 	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
