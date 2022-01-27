@@ -103,14 +103,33 @@ func GetEnabledRegions() ([]string, error) {
 }
 
 func getRandomRegion() (string, error) {
+	return getRandomRegionWithExclusions([]string{})
+}
+
+// getRandomRegionWithExclusions - return random from enabled regions, excluding regions from the argument
+func getRandomRegionWithExclusions(regionsToExclude []string) (string, error) {
 	allRegions, err := GetEnabledRegions()
 	if err != nil {
 		return "", errors.WithStackTrace(err)
 	}
 	rand.Seed(time.Now().UnixNano())
-	randIndex := rand.Intn(len(allRegions))
-	logging.Logger.Infof("Random region chosen: %s", allRegions[randIndex])
-	return allRegions[randIndex], nil
+
+	// exclude from "allRegions"
+	var exclusions = make(map[string]string)
+	for _, region := range regionsToExclude {
+		exclusions[region] = region
+	}
+	// filter regions
+	var updatedRegions []string
+	for _, region := range allRegions {
+		_, excluded := exclusions[region]
+		if !excluded {
+			updatedRegions = append(updatedRegions, region)
+		}
+	}
+	randIndex := rand.Intn(len(updatedRegions))
+	logging.Logger.Infof("Random region chosen: %s", updatedRegions[randIndex])
+	return updatedRegions[randIndex], nil
 }
 
 func split(identifiers []string, limit int) [][]string {
@@ -645,7 +664,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 VPCS
 		ec2Vpcs := EC2VPCs{}
 		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
-			vpcids, vpcs, err := getAllVpcs(session, region, configObj)
+			vpcids, vpcs, err := getAllVpcs(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -725,6 +744,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Users
 
+		// IAM OpenID Connect Providers
+		oidcProviders := OIDCProviders{}
+		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
+			providerARNs, err := getAllOIDCProviders(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(providerARNs) > 0 {
+				oidcProviders.ProviderARNs = awsgo.StringValueSlice(providerARNs)
+				globalResources.Resources = append(globalResources.Resources, oidcProviders)
+			}
+		}
+		// End IAM OpenIDConnectProviders
+
 		if len(globalResources.Resources) > 0 {
 			account.Resources[GlobalRegion] = globalResources
 		}
@@ -765,6 +799,7 @@ func ListResourceTypes() []string {
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
 		Elasticaches{}.ResourceName(),
+		OIDCProviders{}.ResourceName(),
 		KmsCustomerKeys{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)

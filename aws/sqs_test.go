@@ -4,6 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/go-commons/retry"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -27,6 +30,17 @@ func createTestQueue(t *testing.T, session *session.Session, name string) *strin
 	require.NoError(t, err)
 	require.True(t, len(awsgo.StringValue(result.QueueUrl)) > 0, "Can't create test Sqs Queue")
 
+	err = retry.DoWithRetry(
+		logging.Logger,
+		"Check if queue is created",
+		3,
+		5*time.Second,
+		func() error {
+			_, err = svc.GetQueueUrl(&sqs.GetQueueUrlInput{QueueName: awsgo.String(name)})
+			return err
+		},
+	)
+	require.NoError(t, err)
 	return result.QueueUrl
 }
 

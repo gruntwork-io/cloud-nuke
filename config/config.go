@@ -25,6 +25,7 @@ type Config struct {
 	ECSCluster            ResourceType `yaml:"ECSCluster"`
 	Elasticache           ResourceType `yaml:"Elasticache"`
 	VPC                   ResourceType `yaml:"VPC"`
+	OIDCProvider          ResourceType `yaml:"OIDCProvider"`
 }
 
 type ResourceType struct {
