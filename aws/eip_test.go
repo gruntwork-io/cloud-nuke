@@ -1,19 +1,24 @@
 package aws
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestEIPAddress(t *testing.T, session *session.Session, name string) ec2.Address {
+// eipLock - lock to allow single call to AllocateAddress, parallel calls may generate same address id
+var eipLock = sync.Mutex{}
+
+func createTestEIPAddress(t *testing.T, session *session.Session) ec2.Address {
+	eipLock.Lock()
+	defer eipLock.Unlock()
 	svc := ec2.New(session)
 	result, err := svc.AllocateAddress(&ec2.AllocateAddressInput{})
 	if err != nil {
@@ -51,10 +56,9 @@ func TestSetFirstSeenTag(t *testing.T) {
 	}
 
 	svc := ec2.New(session)
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
+	address := createTestEIPAddress(t, session)
 	now := time.Now().UTC()
 
-	address := createTestEIPAddress(t, session, uniqueTestID)
 	// clean up after this test
 	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
 
@@ -96,10 +100,9 @@ func TestGetFirstSeenTag(t *testing.T) {
 	}
 
 	svc := ec2.New(session)
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
+	address := createTestEIPAddress(t, session)
 	now := time.Now().UTC()
 
-	address := createTestEIPAddress(t, session, uniqueTestID)
 	// clean up after this test
 	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
 
@@ -149,9 +152,7 @@ func TestListEIPAddress(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-
-	address := createTestEIPAddress(t, session, uniqueTestID)
+	address := createTestEIPAddress(t, session)
 	// clean up after this test
 	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
 
@@ -184,9 +185,7 @@ func TestNukeEIPAddress(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	address := createTestEIPAddress(t, session, uniqueTestID)
-
+	address := createTestEIPAddress(t, session)
 	if err := nukeAllEIPAddresses(session, []*string{address.AllocationId}); err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}

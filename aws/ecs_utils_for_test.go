@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/config"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -47,6 +49,27 @@ func createEcsFargateCluster(t *testing.T, awsSession *session.Session, name str
 	if err != nil {
 		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
+	_, err = retry.DoWithRetryE(
+		t,
+		"Wait for ECS cluster to be created",
+		4,
+		15*time.Second,
+		func() (string, error) {
+			ecsClusters, err := getAllActiveEcsClusterArns(awsSession, config.Config{})
+			if err != nil {
+				return "", retry.FatalError{Underlying: err}
+			}
+
+			for _, value := range awsgo.StringValueSlice(ecsClusters) {
+				if value == awsgo.StringValue(result.Cluster.ClusterArn) {
+					return "", nil
+				}
+			}
+			return "", errors.New("cluster not found")
+		},
+	)
+	require.NoError(t, err)
+
 	return *result.Cluster
 }
 

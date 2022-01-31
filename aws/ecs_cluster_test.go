@@ -87,11 +87,11 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cluster1 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
+	cluster1 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-24-"+util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster1)
-	cluster2 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
+	cluster2 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-24-"+util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster2)
-	cluster3 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
+	cluster3 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-24-"+util.UniqueID())
 	defer deleteEcsCluster(awsSession, cluster3)
 
 	now := time.Now().UTC()
@@ -106,8 +106,22 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 	err3 := tagEcsClusterWhenFirstSeen(awsSession, cluster3.ClusterArn, oldClusterTagValue2)
 	require.NoError(t, err3)
 
+	// expression to match created clusters
+	clusterMatchExpression, err := regexp.Compile("^cloud-nuke-test-24*")
+	assert.NoError(t, err)
+
 	last24Hours := now.Add(time.Hour * time.Duration(-24))
-	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours, config.Config{})
+	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours, config.Config{
+		ECSCluster: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *clusterMatchExpression,
+					},
+				},
+			},
+		},
+	})
 	require.NoError(t, err)
 
 	nukeErr := nukeEcsClusters(awsSession, filteredClusterArns)
