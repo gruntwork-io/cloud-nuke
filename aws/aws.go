@@ -692,6 +692,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Elasticaches
 
+		// KMS Customer managed keys
+		customerKeys := KmsCustomerKeys{}
+		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
+			keys, err := getAllKmsUserKeys(session, customerKeys.MaxBatchSize(), excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(keys) > 0 {
+				customerKeys.KeyIds = awsgo.StringValueSlice(keys)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, customerKeys)
+			}
+
+		}
+		// End KMS Customer managed keys
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -785,6 +800,7 @@ func ListResourceTypes() []string {
 		EC2VPCs{}.ResourceName(),
 		Elasticaches{}.ResourceName(),
 		OIDCProviders{}.ResourceName(),
+		KmsCustomerKeys{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

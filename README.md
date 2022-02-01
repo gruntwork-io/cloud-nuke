@@ -37,6 +37,7 @@ The currently supported functionality includes:
 - Deleting all CloudWatch Dashboards in an AWS account
 - Deleting all OpenSearch Domains in an AWS account
 - Deleting all IAM OpenID Connect Providers
+- Deleting all Customer managed keys from Key Management Service in an AWS account
 
 ### BEWARE!
 
@@ -196,6 +197,11 @@ The following resources support the Config file:
 - IAM OpenID Connect Providers
     - Resource type: `oidcprovider`
     - Config key: `OIDCProvider`
+- KMS customer keys
+    - Resource type: `kmscustomerkeys`
+
+Notes:
+  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
 
 
 #### Example
@@ -298,6 +304,7 @@ To find out what we options are supported in the config file today, consult this
 | elasticache        | none  | ✅          | none | none       |
 | vpc                | none  | ✅          | none | none       |
 | oidcprovider       | none  | ✅          | none | none       |
+| kmscustomerkeys    | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
