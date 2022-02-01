@@ -42,7 +42,8 @@ jobs:
               --force \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
-              --exclude-resource-type vpc
+              --exclude-resource-type vpc \
+              --exclude-resource-type kmscustomerkeys
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -59,7 +60,8 @@ jobs:
               --force \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
-              --exclude-resource-type vpc
+              --exclude-resource-type vpc \
+              --exclude-resource-type kmscustomerkeys
           no_output_timeout: 1h
   deploy:
     <<: *defaults
