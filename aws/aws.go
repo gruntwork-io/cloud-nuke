@@ -220,7 +220,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
 		cloudNukeSession := newSession(region)
-
 		resourcesInRegion := AwsRegionResource{}
 
 		// The order in which resources are nuked is important
@@ -717,6 +716,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		}
 		// End GuardDuty detectors
+
 		// Macie member accounts
 		macieAccounts := MacieMember{}
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
@@ -732,6 +732,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		}
 		// End Macie member accounts
+
+		// Start SageMaker Notebook Instances
+		notebookInstances := SageMakerNotebookInstances{}
+		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
+			instances, err := getAllNotebookInstances(cloudNukeSession, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(instances) > 0 {
+				notebookInstances.InstanceNames = awsgo.StringValueSlice(instances)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, notebookInstances)
+			}
+		}
+		// End SageMaker Notebook Instances
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
@@ -846,6 +860,7 @@ func ListResourceTypes() []string {
 		CloudWatchLogGroups{}.ResourceName(),
 		GuardDuty{}.ResourceName(),
 		MacieMember{}.ResourceName(),
+		SageMakerNotebookInstances{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
