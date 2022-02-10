@@ -227,8 +227,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
-		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(region)},
+		session, err := session.NewSessionWithOptions(
+			session.Options{
+				SharedConfigState: session.SharedConfigEnable,
+				Config: awsgo.Config{
+					Region: awsgo.String(region),
+				},
+			},
 		)
 
 		if err != nil {
@@ -707,6 +712,19 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End KMS Customer managed keys
 
+		// SageMaker Notebook Instances
+		notebookInstances := SageMakerNotebookInstances{}
+		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
+			instances, err := getAllNotebookInstances(session, excludeAfter)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(instances) > 0 {
+				notebookInstances.InstanceNames = awsgo.StringValueSlice(instances)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, notebookInstances)
+			}
+		}
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -801,6 +819,7 @@ func ListResourceTypes() []string {
 		Elasticaches{}.ResourceName(),
 		OIDCProviders{}.ResourceName(),
 		KmsCustomerKeys{}.ResourceName(),
+		SageMakerNotebookInstances{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
