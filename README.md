@@ -38,6 +38,7 @@ The currently supported functionality includes:
 - Deleting all OpenSearch Domains in an AWS account
 - Deleting all IAM OpenID Connect Providers
 - Deleting all Customer managed keys from Key Management Service in an AWS account
+- Deleting all SageMaker Notebook Instances in an AWS account
 
 ### BEWARE!
 
@@ -308,6 +309,7 @@ To find out what we options are supported in the config file today, consult this
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
+| sagemaker-notebook-instances| none| none | none | none       |
 | ... (more to come) | none  | none        | none | none       |
 
 
