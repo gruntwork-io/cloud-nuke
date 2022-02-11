@@ -19,8 +19,6 @@ import (
 // the times that it was tested, it wasn't returning anything so we'll leave with the
 // custom one.
 
-
-
 func waitUntilNotebookInstanceCreated(svc *sagemaker.SageMaker, name *string) error {
 	input := &sagemaker.DescribeNotebookInstanceInput{
 		NotebookInstanceName: name,
@@ -49,9 +47,9 @@ func createTestNotebookInstance(t *testing.T, session *session.Session, name str
 	svc := sagemaker.New(session)
 
 	params := &sagemaker.CreateNotebookInstanceInput{
-		InstanceType: awsgo.String("ml.t2.medium"),
+		InstanceType:         awsgo.String("ml.t2.medium"),
 		NotebookInstanceName: awsgo.String(name),
-		RoleArn: awsgo.String(roleArn),
+		RoleArn:              awsgo.String(roleArn),
 	}
 
 	_, err := svc.CreateNotebookInstance(params)
@@ -68,18 +66,17 @@ func TestNukeNotebookInstance(t *testing.T) {
 	require.NoError(t, errors.WithStackTrace(err))
 
 	session, err := session.NewSessionWithOptions(
-			session.Options{
-				SharedConfigState: session.SharedConfigEnable,
-				Config: awsgo.Config{
-					Region: awsgo.String(region),
-				},
+		session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+			Config: awsgo.Config{
+				Region: awsgo.String(region),
 			},
-		)
+		},
+	)
 
 	notebookName := "cloud-nuke-test-" + util.UniqueID()
 	excludeAfter := time.Now().Add(1 * time.Hour)
 
-	
 	role := createNotebookRole(t, session, notebookName+"-role")
 	defer deleteNotebookRole(session, role)
 
