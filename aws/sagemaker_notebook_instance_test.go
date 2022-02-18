@@ -8,6 +8,7 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -85,12 +86,12 @@ func TestNukeNotebookInstance(t *testing.T) {
 	defer func() {
 		nukeAllNotebookInstances(session, []*string{&notebookName})
 
-		notebookNames, _ := getAllNotebookInstances(session, excludeAfter)
+		notebookNames, _ := getAllNotebookInstances(session, excludeAfter, config.Config{})
 
 		assert.NotContains(t, awsgo.StringValueSlice(notebookNames), strings.ToLower(notebookName))
 	}()
 
-	instances, err := getAllNotebookInstances(session, excludeAfter)
+	instances, err := getAllNotebookInstances(session, excludeAfter, config.Config{})
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of SageMaker Notebook Instances", errors.WithStackTrace(err).Error())

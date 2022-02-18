@@ -334,6 +334,7 @@ The following resources support the Config file:
     - Config key: `CloudWatchLogGroup`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
+<<<<<<< HEAD
     - Config key: `KMSCustomerKeys`
 - Auto Scaling Groups
     - Resource type: `asg`
@@ -350,6 +351,13 @@ The following resources support the Config file:
 - EKS Clusters
     - Resource type: `ekscluster`
     - Config key: `EKSCluster`
+- SageMaker Notebook Instances
+  - Resource type: `sagemaker-notebook-instances`
+  - Config key: `SageMakerNotebook`
+
+Notes:
+  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
+
 
 #### Example
 
@@ -460,9 +468,8 @@ To find out what we options are supported in the config file today, consult this
 | eks                 | none | ✅   | none | none |
 | acmpca              | none | none | none | none |
 | iam role            | none | none | none | none |
-| sagemaker-notebook-instances| none| none | none | none       |
+| sagemaker-notebook-instances| none| ✅   | none | none       |
 | ... (more to come)  | none | none | none | none |
-
 
 
 ### Log level

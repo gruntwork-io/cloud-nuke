@@ -34,6 +34,7 @@ type Config struct {
 	CloudWatchLogGroup    ResourceType `yaml:"CloudWatchLogGroup"`
 	KMSCustomerKeys       ResourceType `yaml:"KMSCustomerKeys"`
 	EKSCluster            ResourceType `yaml:"EKSCluster"`
+	SageMakerNotebook     ResourceType `yaml:"SageMakerNotebook"`
 }
 
 type ResourceType struct {
