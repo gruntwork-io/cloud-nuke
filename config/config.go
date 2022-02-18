@@ -26,6 +26,7 @@ type Config struct {
 	Elasticache           ResourceType `yaml:"Elasticache"`
 	VPC                   ResourceType `yaml:"VPC"`
 	OIDCProvider          ResourceType `yaml:"OIDCProvider"`
+	KMSCustomerKeys       ResourceType `yaml:"KMSCustomerKeys"`
 }
 
 type ResourceType struct {
