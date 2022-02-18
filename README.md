@@ -200,6 +200,9 @@ The following resources support the Config file:
     - Config key: `OIDCProvider`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
+- SageMaker Notebook Instances
+  - Resource type: `sagemaker-notebook-instances`
+  - Config key: `SageMakerNotebook`
 
 Notes:
   * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
@@ -309,7 +312,7 @@ To find out what we options are supported in the config file today, consult this
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
-| sagemaker-notebook-instances| none| none | none | none       |
+| sagemaker-notebook-instances| none| ✅   | none | none       |
 | ... (more to come) | none  | none        | none | none       |
 
 

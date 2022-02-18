@@ -6,11 +6,12 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllNotebookInstances(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllNotebookInstances(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := sagemaker.New(session)
 
 	result, err := svc.ListNotebookInstances(&sagemaker.ListNotebookInstancesInput{})
@@ -22,10 +23,18 @@ func getAllNotebookInstances(session *session.Session, excludeAfter time.Time) (
 	var names []*string
 
 	for _, notebook := range result.NotebookInstances {
-		if notebook.CreationTime != nil && excludeAfter.After(awsgo.TimeValue(notebook.CreationTime)) {
-			names = append(names, notebook.NotebookInstanceName)
+		if notebook.CreationTime == nil {
+			continue
+		} 
+		if !excludeAfter.After(awsgo.TimeValue(notebook.CreationTime)) {
+			continue
 		}
+		if !config.ShouldInclude(awsgo.StringValue(notebook.NotebookInstanceName), configObj.S3.IncludeRule.NamesRegExp, configObj.S3.ExcludeRule.NamesRegExp){
+			continue
+		}
+		names = append(names, notebook.NotebookInstanceName)
 	}
+
 
 	return names, nil
 }

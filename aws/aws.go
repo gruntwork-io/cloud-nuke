@@ -715,7 +715,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// SageMaker Notebook Instances
 		notebookInstances := SageMakerNotebookInstances{}
 		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
-			instances, err := getAllNotebookInstances(session, excludeAfter)
+			instances, err := getAllNotebookInstances(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

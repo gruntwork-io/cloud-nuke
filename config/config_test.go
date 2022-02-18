@@ -27,6 +27,7 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
 	}
 }
 
@@ -525,6 +526,100 @@ func TestConfigELBv2_FilterNames(t *testing.T) {
 	if len(configObj.ELBv2.IncludeRule.NamesRegExp) == 0 ||
 		len(configObj.ELBv2.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain ELBv2 regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+
+// SageMakerNotebookTests
+
+func TestConfigSageMakerNotebook_Empty(t *testing.T) {
+	configFilePath := "./mocks/sagemakernotebook_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.SageMakerNotebook)
+	}
+
+	return
+}
+
+func TestConfigSageMakerNotebook_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/sagemakernotebook_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSageMakerNotebook_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/sagemakernotebook_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSageMakerNotebook_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/sagemakernotebook_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.SageMakerNotebook.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain SageMakerNotebook regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSageMakerNotebook_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/sagemakernotebook_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.SageMakerNotebook.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain SageMakerNotebook regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigSageMakerNotebook_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/sagemakernotebook_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.SageMakerNotebook.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.SageMakerNotebook.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain SageMakerNotebook regexes, %+v\n", configObj)
 	}
 
 	return
