@@ -1,9 +1,10 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"sync"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/config"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
