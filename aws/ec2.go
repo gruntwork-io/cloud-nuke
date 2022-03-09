@@ -552,3 +552,21 @@ func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 	logging.Logger.Info("Finished nuking default Security Groups in all regions")
 	return nil
 }
+
+// Given an EC2 resource ID, return the value of the Name tag
+func GetEC2ResourceNameTagValue(svc ec2iface.EC2API, id *string) (*string, error) {
+	output, err := svc.DescribeTags(&ec2.DescribeTagsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   awsgo.String("resource-id"),
+				Values: []*string{id},
+			},
+			{
+				Name:   awsgo.String("key"),
+				Values: []*string{awsgo.String("Name")},
+			},
+		},
+	})
+
+	return output.Tags[0].Value, err
+}

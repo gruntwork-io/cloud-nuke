@@ -202,7 +202,12 @@ The following resources support the Config file:
 - Auto Scaling Groups
     - Resource type: `asg`
     - Config key: `AutoScalingGroup`
-
+- Launch Configurations
+    - Resource type: `lc`
+    - Config key: `LaunchConfiguration`
+- Elastic IP Address
+    - Resource type: `eip`
+    - Config key: `ElasticIP`
 Notes:
   * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
 
@@ -309,6 +314,8 @@ To find out what we options are supported in the config file today, consult this
 | oidcprovider       | none  | ✅          | none | none       |
 | kmscustomerkeys    | none  | ✅          | none | none       |
 | asg                | none  | ✅          | none | none       |
+| lc                 | none  | ✅          | none | none       |
+| eip                | none  | ✅          | none | none       |
 | acmpca             | none  | none        | none | none       |
 | ec2 instance       | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |

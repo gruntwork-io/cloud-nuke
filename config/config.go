@@ -27,6 +27,8 @@ type Config struct {
 	VPC                   ResourceType `yaml:"VPC"`
 	OIDCProvider          ResourceType `yaml:"OIDCProvider"`
 	AutoScalingGroup 	  ResourceType `yaml:"AutoScalingGroup"`
+	LaunchConfiguration   ResourceType `yaml:"LaunchConfiguration"`
+	ElasticIP			  ResourceType `yaml:"ElasticIP"`
 }
 
 type ResourceType struct {

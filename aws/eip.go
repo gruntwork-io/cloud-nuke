@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -47,7 +48,7 @@ func getFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, layout strin
 }
 
 // Returns a formatted string of EIP allocation ids
-func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 	const layout = "2006-01-02 15:04:05"
 
@@ -58,6 +59,12 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
+		allocationName, err := GetEC2ResourceNameTagValue(svc, address.AllocationId)
+		if err != nil {
+			logging.Logger.Error("Unable to retrieve value of Name tag")
+			return nil, err
+		}
+
 		firstSeenTime, err := getFirstSeenTag(svc, *address, firstSeenTagKey, layout)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
@@ -70,13 +77,29 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 				return nil, err
 			}
 		}
-
-		if excludeAfter.After(*firstSeenTime) {
+		if shouldIncludeAllocationId(allocationName, excludeAfter, *firstSeenTime, configObj) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
 
 	return allocationIds, nil
+}
+
+func shouldIncludeAllocationId(allocationName *string, excludeAfter time.Time, firstSeenTime time.Time, configObj config.Config) bool {
+
+	if allocationName == nil {
+		return false
+	}
+
+	if excludeAfter.Before(firstSeenTime) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(allocationName),
+		configObj.ElasticIP.IncludeRule.NamesRegExp,
+		configObj.ElasticIP.ExcludeRule.NamesRegExp,
+	)
 }
 
 // Deletes all EIP allocation ids

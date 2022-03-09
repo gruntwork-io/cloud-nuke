@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -8,6 +9,8 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -156,12 +159,12 @@ func TestListEIPAddress(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEIPAddresses(session, []*string{address.AllocationId})
 
-	allocationIds, err := getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour*-1))
+	allocationIds, err := getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(allocationIds), awsgo.StringValue(address.AllocationId))
 
-	allocationIds, err = getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour))
+	allocationIds, err = getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EIP Addresses")
 	}
@@ -190,10 +193,84 @@ func TestNukeEIPAddress(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	allocationIds, err := getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour))
+	allocationIds, err := getAllEIPAddresses(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EIP Addresses")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(allocationIds), awsgo.StringValue(address.AllocationId))
+}
+
+// Test config file filtering works as expected
+func TestShouldIncludeElasticIP(t *testing.T) {
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		ElasticIP: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		ElasticIP: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name           string
+		AllocationName *string
+		Config         config.Config
+		ExcludeAfter   time.Time
+		FirstSeenTime  time.Time
+		Expected       bool
+	}{
+		{
+			Name:           "ConfigExclude",
+			AllocationName: awsgo.String("cloud-nuke-test"),
+			Config:         mockExcludeConfig,
+			ExcludeAfter:   time.Now().Add(1 * time.Hour),
+			FirstSeenTime:  time.Now(),
+			Expected:       false,
+		},
+		{
+			Name:           "ConfigInclude",
+			AllocationName: awsgo.String("cloud-nuke-test"),
+			Config:         mockIncludeConfig,
+			ExcludeAfter:   time.Now().Add(1 * time.Hour),
+			FirstSeenTime:  time.Now(),
+			Expected:       true,
+		},
+		{
+			Name:           "NotOlderThan",
+			AllocationName: awsgo.String("cloud-nuke-test"),
+			Config:         config.Config{},
+			ExcludeAfter:   time.Now().Add(1 * time.Hour * -1),
+			FirstSeenTime:  time.Now(),
+			Expected:       false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeAllocationId(c.AllocationName, c.ExcludeAfter, c.FirstSeenTime, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
+	}
 }
