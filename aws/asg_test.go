@@ -15,8 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var region string = "us-west-1"
-
 func createTestAutoScalingGroup(t *testing.T, session *session.Session, name string) {
 	svc := autoscaling.New(session)
 	instance := createTestEC2Instance(t, session, name, false)
@@ -45,10 +43,10 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 func TestListAutoScalingGroups(t *testing.T) {
 	t.Parallel()
 
-	// region, err := getRandomRegion()
-	// if err != nil {
-	// 	assert.Fail(t, errors.WithStackTrace(err).Error())
-	// }
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
@@ -81,10 +79,10 @@ func TestListAutoScalingGroups(t *testing.T) {
 func TestNukeAutoScalingGroups(t *testing.T) {
 	t.Parallel()
 
-	// region, err := getRandomRegion()
-	// if err != nil {
-	// 	assert.Fail(t, errors.WithStackTrace(err).Error())
-	// }
+	region, err := getRandomRegion()
+	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)

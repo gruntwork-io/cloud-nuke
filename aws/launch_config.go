@@ -3,14 +3,16 @@ package aws
 import (
 	"time"
 
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of Launch config Names
-func getAllLaunchConfigurations(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllLaunchConfigurations(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := autoscaling.New(session)
 	result, err := svc.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{})
 
@@ -20,12 +22,28 @@ func getAllLaunchConfigurations(session *session.Session, region string, exclude
 
 	var configNames []*string
 	for _, config := range result.LaunchConfigurations {
-		if excludeAfter.After(*config.CreatedTime) {
+		if shouldIncludeLaunchConfiguration(config, excludeAfter, configObj) {
 			configNames = append(configNames, config.LaunchConfigurationName)
 		}
 	}
 
 	return configNames, nil
+}
+
+func shouldIncludeLaunchConfiguration(lc *autoscaling.LaunchConfiguration, excludeAfter time.Time, configObj config.Config) bool {
+	if lc == nil {
+		return false
+	}
+
+	if lc.CreatedTime != nil && excludeAfter.Before(*lc.CreatedTime) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(lc.LaunchConfigurationName),
+		configObj.LaunchConfiguration.IncludeRule.NamesRegExp,
+		configObj.LaunchConfiguration.ExcludeRule.NamesRegExp,
+	)
 }
 
 // Deletes all Launch configurations
