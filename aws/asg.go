@@ -6,12 +6,13 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of ASG Names
-func getAllAutoScalingGroups(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllAutoScalingGroups(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := autoscaling.New(session)
 	result, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
@@ -20,12 +21,28 @@ func getAllAutoScalingGroups(session *session.Session, region string, excludeAft
 
 	var groupNames []*string
 	for _, group := range result.AutoScalingGroups {
-		if excludeAfter.After(*group.CreatedTime) {
+		if shouldIncludeAutoScalingGroup(group, excludeAfter, configObj) {
 			groupNames = append(groupNames, group.AutoScalingGroupName)
 		}
 	}
 
 	return groupNames, nil
+}
+
+func shouldIncludeAutoScalingGroup(group *autoscaling.Group, excludeAfter time.Time, configObj config.Config) bool {
+	if group == nil {
+		return false
+	}
+
+	if group.CreatedTime != nil && excludeAfter.Before(*group.CreatedTime) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(group.AutoScalingGroupName),
+		configObj.AutoScalingGroup.IncludeRule.NamesRegExp,
+		configObj.AutoScalingGroup.ExcludeRule.NamesRegExp,
+	)
 }
 
 // Deletes all Auto Scaling Groups

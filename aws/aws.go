@@ -257,7 +257,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ASG Names
 		asGroups := ASGroups{}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
-			groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter)
+			groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
