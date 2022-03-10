@@ -255,3 +255,55 @@ func TestNukeInstances(t *testing.T) {
 		assert.NotContains(t, instances, *instanceID)
 	}
 }
+
+func TestGetEC2ResourceNameTagValue(t *testing.T) {
+	cases := []struct {
+		Name          string
+		Tags          []*ec2.Tag
+		Expected      string
+		ExpectedError error
+	}{
+		{
+			Name: "HasName",
+			Tags: []*ec2.Tag{
+				{
+					Key:   awsgo.String("Name"),
+					Value: awsgo.String("cloud-nuke-test"),
+				},
+				{
+					Key:   awsgo.String("Foo"),
+					Value: awsgo.String("Bar"),
+				},
+			},
+			Expected:      "cloud-nuke-test",
+			ExpectedError: nil,
+		},
+		{
+			Name: "MissingName",
+			Tags: []*ec2.Tag{
+				{
+					Key:   awsgo.String("foo"),
+					Value: awsgo.String("bar"),
+				},
+			},
+			Expected: "",
+		},
+		{
+			Name:     "NoTags",
+			Tags:     []*ec2.Tag{},
+			Expected: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result, err := GetEC2ResourceNameTagValue(c.Tags)
+			assert.Equal(t, c.Expected, result)
+			switch err {
+			case nil:
+				assert.Equal(t, c.ExpectedError, err)
+			default:
+				assert.Error(t, err)
+			}
+		})
+	}
+}

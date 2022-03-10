@@ -59,12 +59,6 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
-		allocationName, err := GetEC2ResourceNameTagValue(svc, address.AllocationId)
-		if err != nil {
-			logging.Logger.Error("Unable to retrieve value of Name tag")
-			return nil, err
-		}
-
 		firstSeenTime, err := getFirstSeenTag(svc, *address, firstSeenTagKey, layout)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
@@ -77,7 +71,7 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 				return nil, err
 			}
 		}
-		if shouldIncludeAllocationId(allocationName, excludeAfter, *firstSeenTime, configObj) {
+		if shouldIncludeAllocationId(address, excludeAfter, *firstSeenTime, configObj) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
@@ -85,9 +79,9 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 	return allocationIds, nil
 }
 
-func shouldIncludeAllocationId(allocationName *string, excludeAfter time.Time, firstSeenTime time.Time, configObj config.Config) bool {
+func shouldIncludeAllocationId(address *ec2.Address, excludeAfter time.Time, firstSeenTime time.Time, configObj config.Config) bool {
 
-	if allocationName == nil {
+	if address == nil {
 		return false
 	}
 
@@ -95,8 +89,13 @@ func shouldIncludeAllocationId(allocationName *string, excludeAfter time.Time, f
 		return false
 	}
 
+	allocationName, err := GetEC2ResourceNameTagValue(address.Tags)
+	if err != nil {
+		return false
+	}
+
 	return config.ShouldInclude(
-		awsgo.StringValue(allocationName),
+		allocationName,
 		configObj.ElasticIP.IncludeRule.NamesRegExp,
 		configObj.ElasticIP.ExcludeRule.NamesRegExp,
 	)

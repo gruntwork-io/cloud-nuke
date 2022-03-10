@@ -204,6 +204,19 @@ func TestNukeEIPAddress(t *testing.T) {
 // Test config file filtering works as expected
 func TestShouldIncludeElasticIP(t *testing.T) {
 
+	mockAddress := &ec2.Address{
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String("Name"),
+				Value: awsgo.String("cloud-nuke-test"),
+			},
+			{
+				Key:   awsgo.String("Foo"),
+				Value: awsgo.String("Bar"),
+			},
+		},
+	}
+
 	mockExpression, err := regexp.Compile("^cloud-nuke-*")
 	if err != nil {
 		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
@@ -234,42 +247,42 @@ func TestShouldIncludeElasticIP(t *testing.T) {
 	}
 
 	cases := []struct {
-		Name           string
-		AllocationName *string
-		Config         config.Config
-		ExcludeAfter   time.Time
-		FirstSeenTime  time.Time
-		Expected       bool
+		Name          string
+		Address       *ec2.Address
+		Config        config.Config
+		ExcludeAfter  time.Time
+		FirstSeenTime time.Time
+		Expected      bool
 	}{
 		{
-			Name:           "ConfigExclude",
-			AllocationName: awsgo.String("cloud-nuke-test"),
-			Config:         mockExcludeConfig,
-			ExcludeAfter:   time.Now().Add(1 * time.Hour),
-			FirstSeenTime:  time.Now(),
-			Expected:       false,
+			Name:          "ConfigExclude",
+			Address:       mockAddress,
+			Config:        mockExcludeConfig,
+			ExcludeAfter:  time.Now().Add(1 * time.Hour),
+			FirstSeenTime: time.Now(),
+			Expected:      false,
 		},
 		{
-			Name:           "ConfigInclude",
-			AllocationName: awsgo.String("cloud-nuke-test"),
-			Config:         mockIncludeConfig,
-			ExcludeAfter:   time.Now().Add(1 * time.Hour),
-			FirstSeenTime:  time.Now(),
-			Expected:       true,
+			Name:          "ConfigInclude",
+			Address:       mockAddress,
+			Config:        mockIncludeConfig,
+			ExcludeAfter:  time.Now().Add(1 * time.Hour),
+			FirstSeenTime: time.Now(),
+			Expected:      true,
 		},
 		{
-			Name:           "NotOlderThan",
-			AllocationName: awsgo.String("cloud-nuke-test"),
-			Config:         config.Config{},
-			ExcludeAfter:   time.Now().Add(1 * time.Hour * -1),
-			FirstSeenTime:  time.Now(),
-			Expected:       false,
+			Name:          "NotOlderThan",
+			Address:       mockAddress,
+			Config:        config.Config{},
+			ExcludeAfter:  time.Now().Add(1 * time.Hour * -1),
+			FirstSeenTime: time.Now(),
+			Expected:      false,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			result := shouldIncludeAllocationId(c.AllocationName, c.ExcludeAfter, c.FirstSeenTime, c.Config)
+			result := shouldIncludeAllocationId(c.Address, c.ExcludeAfter, c.FirstSeenTime, c.Config)
 			assert.Equal(t, c.Expected, result)
 		})
 	}

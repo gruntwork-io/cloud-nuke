@@ -553,20 +553,17 @@ func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 	return nil
 }
 
-// Given an EC2 resource ID, return the value of the Name tag
-func GetEC2ResourceNameTagValue(svc ec2iface.EC2API, id *string) (*string, error) {
-	output, err := svc.DescribeTags(&ec2.DescribeTagsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   awsgo.String("resource-id"),
-				Values: []*string{id},
-			},
-			{
-				Name:   awsgo.String("key"),
-				Values: []*string{awsgo.String("Name")},
-			},
-		},
-	})
+// Given an map of tags, return the value of the Name tag
+func GetEC2ResourceNameTagValue(tags []*ec2.Tag) (string, error) {
+	t := make(map[string]string)
 
-	return output.Tags[0].Value, err
+	for _, v := range tags {
+		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
+	}
+
+	if name, ok := t["Name"]; ok {
+		return name, nil
+	}
+	return "", fmt.Errorf("Resource does not have Name tag")
+
 }
