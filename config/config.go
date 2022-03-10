@@ -26,6 +26,7 @@ type Config struct {
 	Elasticache           ResourceType `yaml:"Elasticache"`
 	VPC                   ResourceType `yaml:"VPC"`
 	OIDCProvider          ResourceType `yaml:"OIDCProvider"`
+	CloudWatchLogGroup    ResourceType `yaml:"CloudWatchLogGroup"`
 }
 
 type ResourceType struct {

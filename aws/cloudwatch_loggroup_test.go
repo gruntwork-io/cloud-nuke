@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,12 +26,37 @@ func TestListCloudWatchLogGroups(t *testing.T) {
 
 	svc := cloudwatchlogs.New(session)
 
-	lgName := createCloudWatchLogGroup(t, svc, region)
+	lgName := createCloudWatchLogGroup(t, svc)
 	defer deleteCloudWatchLogGroup(t, svc, lgName, true)
 
-	lgNames, err := getAllCloudWatchLogGroups(session, region)
+	lgNames, err := getAllCloudWatchLogGroups(session, region, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(lgNames), aws.StringValue(lgName))
+}
+
+func TestTimeFilterExclusionNewlyCreatedCloudWatchLogGroup(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+	svc := cloudwatchlogs.New(session)
+
+	lgName := createCloudWatchLogGroup(t, svc)
+	defer deleteCloudWatchLogGroup(t, svc, lgName, true)
+
+	// Assert CloudWatch Dashboard is picked up without filters
+	lgNames, err := getAllCloudWatchLogGroups(session, region, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.Contains(t, aws.StringValueSlice(lgNames), aws.StringValue(lgName))
+
+	// Assert user doesn't appear when we look at users older than 1 Hour
+	olderThan := time.Now().Add(-1 * time.Hour)
+	lgNamesOlder, err := getAllCloudWatchLogGroups(session, region, olderThan, config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, aws.StringValueSlice(lgNamesOlder), aws.StringValue(lgName))
 }
 
 func TestNukeCloudWatchLogGroupOne(t *testing.T) {
@@ -44,7 +70,7 @@ func TestNukeCloudWatchLogGroupOne(t *testing.T) {
 	svc := cloudwatchlogs.New(session)
 
 	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	lgName := createCloudWatchLogGroup(t, svc, region)
+	lgName := createCloudWatchLogGroup(t, svc)
 	defer deleteCloudWatchLogGroup(t, svc, lgName, false)
 	identifiers := []*string{lgName}
 
@@ -70,7 +96,7 @@ func TestNukeCloudWatchLogGroupMoreThanOne(t *testing.T) {
 	lgNames := []*string{}
 	for i := 0; i < 3; i++ {
 		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		lgName := createCloudWatchLogGroup(t, svc, region)
+		lgName := createCloudWatchLogGroup(t, svc)
 		defer deleteCloudWatchLogGroup(t, svc, lgName, false)
 		lgNames = append(lgNames, lgName)
 	}
@@ -84,7 +110,7 @@ func TestNukeCloudWatchLogGroupMoreThanOne(t *testing.T) {
 	assertCloudWatchLogGroupsDeleted(t, svc, lgNames)
 }
 
-func createCloudWatchLogGroup(t *testing.T, svc *cloudwatchlogs.CloudWatchLogs, region string) *string {
+func createCloudWatchLogGroup(t *testing.T, svc *cloudwatchlogs.CloudWatchLogs) *string {
 	uniqueID := util.UniqueID()
 	name := fmt.Sprintf("cloud-nuke-test-%s", strings.ToLower(uniqueID))
 
