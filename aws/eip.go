@@ -89,10 +89,9 @@ func shouldIncludeAllocationId(address *ec2.Address, excludeAfter time.Time, fir
 		return false
 	}
 
-	allocationName, err := GetEC2ResourceNameTagValue(address.Tags)
-	if err != nil {
-		return false
-	}
+	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
+	// Ignore this error and pass empty string to config.ShouldInclude
+	allocationName, _ := GetEC2ResourceNameTagValue(address.Tags)
 
 	return config.ShouldInclude(
 		allocationName,
