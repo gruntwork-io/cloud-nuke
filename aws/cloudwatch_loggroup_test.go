@@ -29,7 +29,7 @@ func TestListCloudWatchLogGroups(t *testing.T) {
 	lgName := createCloudWatchLogGroup(t, svc)
 	defer deleteCloudWatchLogGroup(t, svc, lgName, true)
 
-	lgNames, err := getAllCloudWatchLogGroups(session, region, time.Now(), config.Config{})
+	lgNames, err := getAllCloudWatchLogGroups(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(lgNames), aws.StringValue(lgName))
 }
@@ -48,13 +48,13 @@ func TestTimeFilterExclusionNewlyCreatedCloudWatchLogGroup(t *testing.T) {
 	defer deleteCloudWatchLogGroup(t, svc, lgName, true)
 
 	// Assert CloudWatch Dashboard is picked up without filters
-	lgNames, err := getAllCloudWatchLogGroups(session, region, time.Now(), config.Config{})
+	lgNames, err := getAllCloudWatchLogGroups(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(lgNames), aws.StringValue(lgName))
 
 	// Assert user doesn't appear when we look at users older than 1 Hour
 	olderThan := time.Now().Add(-1 * time.Hour)
-	lgNamesOlder, err := getAllCloudWatchLogGroups(session, region, olderThan, config.Config{})
+	lgNamesOlder, err := getAllCloudWatchLogGroups(session, olderThan, config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(lgNamesOlder), aws.StringValue(lgName))
 }
