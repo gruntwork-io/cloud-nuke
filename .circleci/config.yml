@@ -59,6 +59,7 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --exclude-region ap-east-1 \
               --exclude-resource-type iam \
               --exclude-resource-type vpc \
               --exclude-resource-type kmscustomerkeys
