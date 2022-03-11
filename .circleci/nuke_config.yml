@@ -39,3 +39,48 @@ OIDCProvider:
     names_regex:
       # We have an active OIDC Provider used by github actions
       - ".*token.actions.githubusercontent.com.*"
+
+CloudWatchLogGroup:
+  # Use an allow list instead of block list because we haven't done the due diligence yet to figure out what log groups
+  # we need to keep. This is hard to do in the current scenario as we have thousands of log groups in the accounts.
+  include:
+    names_regex:
+      - "/aws/containerinsights/eks-cluster-[a-zA-Z0-9]{6}/.*"
+      - "/aws/containerinsights/eks-service-catalog-[a-zA-Z0-9]{6}/.*"
+      - "/aws/ecs/containerinsights/[a-zA-Z0-9]{6}-cluster/.*"
+      - "/aws/ecs/containerinsights/[a-zA-Z0-9]{6}-ecs-cluster/.*"
+      - "/aws/ecs/containerinsights/Test-cluster[a-zA-Z0-9]{6}/.*"
+      - "/aws/eks/eks-cluster-[a-zA-Z0-9]{6}.*"
+      - "/aws/eks/eks-service-catalog-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/Test.*"
+      - "/aws/lambda/[a-zA-Z0-9]{6}-ecs-deploy-runner.*"
+      - "/aws/lambda/ecs-deploy-runner-[a-zA-Z0-9]{6}-invoker$"
+      - "/aws/lambda/es-cluster-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/jenkins-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/jenkins[a-zA-Z0-9]{6}-0-backup$"
+      - "/aws/lambda/test-aurora-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/[a-zA-Z0-9]{6}-handler$"
+      - "/aws/lambda/test[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/lambda-[a-zA-Z0-9]{6}$"
+      - "/aws/lambda/us-east-1\\.[a-zA-Z0-9]{6}cloudfront.*"
+      - "/aws/lambda/cleanup-expired-iam-certs-[a-zA-Z0-9]{6}$"
+      - "/aws/lambda/create-snapshot-example-(aurora|mysql)$"
+      - "/aws/lambda/HoustonExpress[a-zA-Z0-9]{6}.*"
+      - "/aws/rds/cluster/test[a-zA-Z0-9]{6}.*"
+      - "/aws/rds/cluster/test-aurora-[a-zA-Z0-9]{6}.*"
+      - "eks-service-catalog-[a-zA-Z0-9]{6}$"
+      - "eks-cluster-[a-zA-Z0-9]{6}-container-logs$"
+      - "es-[a-zA-Z0-9]{6}-lg$"
+      - "TestCloudWatchLogAggregation.*"
+      - "API-Gateway-Execution-Logs_.*/example$"
+      - "asg-[a-zA-Z0-9]{6}$"
+      - "^[a-zA-Z0-9]{6}-service$"
+      - "^[a-zA-Z0-9]{6}-ecs-deploy-runner-[a-zA-Z0-9]{6}$"
+      - "ecs-deploy-runner-[a-zA-Z0-9]{6}$"
+      - "^[a-zA-Z0-9]{6}(stage|prod)-ec2-syslog$"
+      - "Ubuntu1804-[a-zA-Z0-9]{6}-logs$"
+      - "bastion-host-[a-zA-Z0-9]{6}$"
+      - "ec2-instance-[a-zA-Z0-9]{6}$"
+      - "jenkins-[a-zA-Z0-9]{6}$"
+      - "openvpn-server-[a-zA-Z0-9]{6}_log_group$"
+      - "vpc-test-[a-zA-Z0-9]{6}.*"
