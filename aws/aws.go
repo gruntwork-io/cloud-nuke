@@ -609,7 +609,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// CloudWatchLogGroup
 		cloudwatchLogGroups := CloudWatchLogGroups{}
 		if IsNukeable(cloudwatchLogGroups.ResourceName(), resourceTypes) {
-			lgNames, err := getAllCloudWatchLogGroups(session, region, excludeAfter, configObj)
+			lgNames, err := getAllCloudWatchLogGroups(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

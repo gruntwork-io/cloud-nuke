@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllCloudWatchLogGroups(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllCloudWatchLogGroups(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := cloudwatchlogs.New(session)
 
 	allLogGroups := []*string{}
