@@ -38,6 +38,7 @@ The currently supported functionality includes:
 - Deleting all OpenSearch Domains in an AWS account
 - Deleting all IAM OpenID Connect Providers
 - Deleting all Customer managed keys from Key Management Service in an AWS account
+- Deleting all CloudWatch Log Groups in an AWS Account
 
 ### BEWARE!
 
@@ -197,8 +198,12 @@ The following resources support the Config file:
 - IAM OpenID Connect Providers
     - Resource type: `oidcprovider`
     - Config key: `OIDCProvider`
+- CloudWatch LogGroups
+    - Resource type: `cloudwatch-loggroup`
+    - Config key: `CloudWatchLogGroup`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
+    - Config key: `KMSCustomerKeys`
 - Auto Scaling Groups
     - Resource type: `asg`
     - Config key: `AutoScalingGroup`
@@ -214,6 +219,7 @@ The following resources support the Config file:
 Notes:
   * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
 
+    - Config key: `KMSCustomerKeys`
 
 #### Example
 
@@ -315,7 +321,8 @@ To find out what we options are supported in the config file today, consult this
 | elasticache        | none  | ✅          | none | none       |
 | vpc                | none  | ✅          | none | none       |
 | oidcprovider       | none  | ✅          | none | none       |
-| kmscustomerkeys    | none  | ✅          | none | none       |
+| cloudwatch-loggroup | none  | ✅          | none | none       |
+| kmscustomerkeys     | none  | ✅          | none | none       |
 | asg                | none  | ✅          | none | none       |
 | lc                 | none  | ✅          | none | none       |
 | eip                | none  | ✅          | none | none       |
@@ -323,6 +330,7 @@ To find out what we options are supported in the config file today, consult this
 | acmpca             | none  | none        | none | none       |
 | iam role           | none  | none        | none | none       |
 | ... (more to come) | none  | none        | none | none       |
+
 
 
 

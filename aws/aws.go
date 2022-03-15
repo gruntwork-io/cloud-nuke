@@ -606,6 +606,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End CloudWatchDashboard
 
+		// CloudWatchLogGroup
+		cloudwatchLogGroups := CloudWatchLogGroups{}
+		if IsNukeable(cloudwatchLogGroups.ResourceName(), resourceTypes) {
+			lgNames, err := getAllCloudWatchLogGroups(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(lgNames) > 0 {
+				cloudwatchLogGroups.Names = awsgo.StringValueSlice(lgNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchLogGroups)
+			}
+		}
+		// End CloudWatchLogGroup
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -695,7 +709,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// KMS Customer managed keys
 		customerKeys := KmsCustomerKeys{}
 		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
-			keys, err := getAllKmsUserKeys(session, customerKeys.MaxBatchSize(), excludeAfter)
+			keys, err := getAllKmsUserKeys(session, customerKeys.MaxBatchSize(), excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -801,6 +815,7 @@ func ListResourceTypes() []string {
 		Elasticaches{}.ResourceName(),
 		OIDCProviders{}.ResourceName(),
 		KmsCustomerKeys{}.ResourceName(),
+		CloudWatchLogGroups{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

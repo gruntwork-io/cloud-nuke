@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/config"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -12,83 +14,130 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time) ([]*string, error) {
+func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := kms.New(session)
-	var kmsIds []*string
-	input := &kms.ListKeysInput{
-		Limit: aws.Int64(int64(batchSize)),
+	// collect all aliases for each key
+	keyAliases, err := listKeyAliases(svc, batchSize)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
 	}
-	listPage := 1
-	err := svc.ListKeysPages(input, func(page *kms.ListKeysOutput, lastPage bool) bool {
-		logging.Logger.Debugf("Loading User Key from page %d", listPage)
 
-		wg := new(sync.WaitGroup)
-		wg.Add(len(page.Keys))
-		keyChans := make([]chan *kms.KeyListEntry, len(page.Keys))
-		errChans := make([]chan error, len(page.Keys))
-		for i, key := range page.Keys {
-			keyChans[i] = make(chan *kms.KeyListEntry, 1)
-			errChans[i] = make(chan error, 1)
-			go shouldIncludeKmsUserKey(wg, svc, key, excludeAfter, keyChans[i], errChans[i])
+	// checking in parallel if keys can be considered for removal
+	var wg sync.WaitGroup
+	wg.Add(len(keyAliases))
+	resultsChan := make([]chan *KmsCheckIncludeResult, len(keyAliases))
+	var id = 0
+	for key, aliases := range keyAliases {
+		resultsChan[id] = make(chan *KmsCheckIncludeResult, 1)
+		go shouldIncludeKmsUserKey(&wg, resultsChan[id], svc, key, aliases, excludeAfter, configObj)
+		id++
+	}
+	wg.Wait()
+
+	var kmsIds []*string
+	for _, channel := range resultsChan {
+		result := <-channel
+		if result.Error != nil {
+			logging.Logger.Warnf("Can't read KMS key %s", result.Error)
+
+			continue
 		}
-		wg.Wait()
-
-		// collect errors
-		for _, errChan := range errChans {
-			if err := <-errChan; err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
-			}
+		if result.KeyId != "" {
+			kmsIds = append(kmsIds, &result.KeyId)
 		}
-		// collect keys
-		for _, keyChan := range keyChans {
-			if key := <-keyChan; key != nil {
-				kmsIds = append(kmsIds, key.KeyId)
-			}
-		}
-
-		listPage++
-		return true
-	})
-
-	return kmsIds, errors.WithStackTrace(err)
+	}
+	return kmsIds, nil
 }
 
-func shouldIncludeKmsUserKey(wg *sync.WaitGroup, svc *kms.KMS, key *kms.KeyListEntry, excludeAfter time.Time, keyChan chan *kms.KeyListEntry, errChan chan error) {
+// KmsCheckIncludeResult - structure used results of evaluation: not null KeyId - key should be included
+type KmsCheckIncludeResult struct {
+	KeyId string
+	Error error
+}
+
+func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckIncludeResult, svc *kms.KMS, key string,
+	aliases []string, excludeAfter time.Time, configObj config.Config) {
 	defer wg.Done()
+	var includedByName = false
+	// verify if key aliases matches configurations
+	for _, alias := range aliases {
+		v := config.ShouldInclude(alias, configObj.KMSCustomerKeys.IncludeRule.NamesRegExp,
+			configObj.KMSCustomerKeys.ExcludeRule.NamesRegExp)
+		if v {
+			includedByName = true
+
+			break
+		}
+	}
+	if !includedByName {
+		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
+		return
+	}
 	// additional request to describe key and get information about creation date, removal status
-	details, err := svc.DescribeKey(&kms.DescribeKeyInput{KeyId: key.KeyId})
+	details, err := svc.DescribeKey(&kms.DescribeKeyInput{KeyId: &key})
+
 	if err != nil {
-		errChan <- err
-		keyChan <- nil
+		resultsChan <- &KmsCheckIncludeResult{Error: err}
 		return
 	}
 	metadata := details.KeyMetadata
 	// evaluate only user keys
 	if *metadata.KeyManager != kms.KeyManagerTypeCustomer {
-		keyChan <- nil
-		errChan <- nil
+		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
 	// skip keys already scheduled for removal
 	if metadata.DeletionDate != nil {
-		keyChan <- nil
-		errChan <- nil
+		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
 	if metadata.PendingDeletionWindowInDays != nil {
-		keyChan <- nil
-		errChan <- nil
+		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
 	var referenceTime = *metadata.CreationDate
 	if referenceTime.After(excludeAfter) {
-		keyChan <- nil
-		errChan <- nil
+		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
 	// put key in channel to be considered for removal
-	keyChan <- key
-	errChan <- nil
+	resultsChan <- &KmsCheckIncludeResult{KeyId: key}
+}
+
+func listKeyAliases(svc *kms.KMS, batchSize int) (map[string][]string, error) {
+	// map key - KMS key id, value list of aliases
+	aliases := map[string][]string{}
+	var next *string
+
+	for {
+		list, err := svc.ListAliases(&kms.ListAliasesInput{
+			Marker: next,
+			Limit:  aws.Int64(int64(batchSize)),
+		})
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		// collect key aliases to map
+		for _, alias := range list.Aliases {
+			key := alias.TargetKeyId
+			if key == nil {
+				continue
+			}
+			list, found := aliases[*key]
+			if !found {
+				list = make([]string, 0)
+			}
+			list = append(list, *alias.AliasName)
+			aliases[*key] = list
+		}
+
+		if list.NextMarker == nil || len(*list.NextMarker) == 0 {
+			break
+		}
+		next = list.NextMarker
+	}
+	return aliases, nil
 }
 
 func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) error {
