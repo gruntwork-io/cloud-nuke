@@ -216,10 +216,6 @@ The following resources support the Config file:
 - EC2 Instances
     - Resource type: `ec2`
     - Config key: `EC2`
-Notes:
-  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
-
-    - Config key: `KMSCustomerKeys`
 
 #### Example
 
