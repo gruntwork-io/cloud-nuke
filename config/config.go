@@ -27,6 +27,7 @@ type Config struct {
 	VPC                   ResourceType `yaml:"VPC"`
 	OIDCProvider          ResourceType `yaml:"OIDCProvider"`
 	CloudWatchLogGroup    ResourceType `yaml:"CloudWatchLogGroup"`
+	KMSCustomerKeys       ResourceType `yaml:"KMSCustomerKeys"`
 }
 
 type ResourceType struct {

@@ -709,7 +709,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// KMS Customer managed keys
 		customerKeys := KmsCustomerKeys{}
 		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
-			keys, err := getAllKmsUserKeys(session, customerKeys.MaxBatchSize(), excludeAfter)
+			keys, err := getAllKmsUserKeys(session, customerKeys.MaxBatchSize(), excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

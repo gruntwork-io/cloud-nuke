@@ -203,10 +203,7 @@ The following resources support the Config file:
     - Config key: `CloudWatchLogGroup`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
-
-Notes:
-  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
-
+    - Config key: `KMSCustomerKeys`
 
 #### Example
 
