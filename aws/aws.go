@@ -257,7 +257,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ASG Names
 		asGroups := ASGroups{}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
-			groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter)
+			groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -271,7 +271,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Launch Configuration Names
 		configs := LaunchConfigs{}
 		if IsNukeable(configs.ResourceName(), resourceTypes) {
-			configNames, err := getAllLaunchConfigurations(session, region, excludeAfter)
+			configNames, err := getAllLaunchConfigurations(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -401,7 +401,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
-			instanceIds, err := getAllEc2Instances(session, region, excludeAfter)
+			instanceIds, err := getAllEc2Instances(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -429,7 +429,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EIP Addresses
 		eipAddresses := EIPAddresses{}
 		if IsNukeable(eipAddresses.ResourceName(), resourceTypes) {
-			allocationIds, err := getAllEIPAddresses(session, region, excludeAfter)
+			allocationIds, err := getAllEIPAddresses(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

@@ -204,6 +204,18 @@ The following resources support the Config file:
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
     - Config key: `KMSCustomerKeys`
+- Auto Scaling Groups
+    - Resource type: `asg`
+    - Config key: `AutoScalingGroup`
+- Launch Configurations
+    - Resource type: `lc`
+    - Config key: `LaunchConfiguration`
+- Elastic IP Address
+    - Resource type: `eip`
+    - Config key: `ElasticIP`
+- EC2 Instances
+    - Resource type: `ec2`
+    - Config key: `EC2`
 
 #### Example
 
@@ -288,29 +300,33 @@ Be careful when nuking and append the `--dry-run` option if you're unsure. Even 
 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
-| resource type       | names | names_regex | tags | tags_regex |
-|---------------------|-------|-------------|------|------------|
-| s3                  | none  | ✅          | none | none       |
-| iam                 | none  | ✅          | none | none       |
-| ecsserv             | none  | ✅          | none | none       |
-| ecscluster          | none  | ✅          | none | none       |
-| secretsmanager      | none  | ✅          | none | none       |
-| nat-gateway         | none  | ✅          | none | none       |
-| accessanalyzer      | none  | ✅          | none | none       |
-| dynamodb            | none  | ✅          | none | none       |
-| ebs                 | none  | ✅          | none | none       |
-| lambda              | none  | ✅          | none | none       |
-| elbv2               | none  | ✅          | none | none       |
-| ecs                 | none  | ✅          | none | none       |
-| elasticache         | none  | ✅          | none | none       |
-| vpc                 | none  | ✅          | none | none       |
-| oidcprovider        | none  | ✅          | none | none       |
+| resource type      | names | names_regex | tags | tags_regex |
+|--------------------|-------|-------------|------|------------|
+| s3                 | none  | ✅          | none | none       |
+| iam                | none  | ✅          | none | none       |
+| ecsserv            | none  | ✅          | none | none       |
+| ecscluster         | none  | ✅          | none | none       |
+| secretsmanager     | none  | ✅          | none | none       |
+| nat-gateway        | none  | ✅          | none | none       |
+| accessanalyzer     | none  | ✅          | none | none       |
+| dynamodb           | none  | ✅          | none | none       |
+| ebs                | none  | ✅          | none | none       |
+| lambda             | none  | ✅          | none | none       |
+| elbv2              | none  | ✅          | none | none       |
+| ecs                | none  | ✅          | none | none       |
+| elasticache        | none  | ✅          | none | none       |
+| vpc                | none  | ✅          | none | none       |
+| oidcprovider       | none  | ✅          | none | none       |
 | cloudwatch-loggroup | none  | ✅          | none | none       |
 | kmscustomerkeys     | none  | ✅          | none | none       |
-| acmpca              | none  | none        | none | none       |
-| ec2 instance        | none  | none        | none | none       |
-| iam role            | none  | none        | none | none       |
-| ... (more to come)  | none  | none        | none | none       |
+| asg                | none  | ✅          | none | none       |
+| lc                 | none  | ✅          | none | none       |
+| eip                | none  | ✅          | none | none       |
+| ec2                | none  | ✅          | none | none       |
+| acmpca             | none  | none        | none | none       |
+| iam role           | none  | none        | none | none       |
+| ... (more to come) | none  | none        | none | none       |
+
 
 
 

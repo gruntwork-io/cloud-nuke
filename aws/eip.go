@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -47,7 +48,7 @@ func getFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, layout strin
 }
 
 // Returns a formatted string of EIP allocation ids
-func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 	const layout = "2006-01-02 15:04:05"
 
@@ -70,13 +71,33 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 				return nil, err
 			}
 		}
-
-		if excludeAfter.After(*firstSeenTime) {
+		if shouldIncludeAllocationId(address, excludeAfter, *firstSeenTime, configObj) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
 
 	return allocationIds, nil
+}
+
+func shouldIncludeAllocationId(address *ec2.Address, excludeAfter time.Time, firstSeenTime time.Time, configObj config.Config) bool {
+
+	if address == nil {
+		return false
+	}
+
+	if excludeAfter.Before(firstSeenTime) {
+		return false
+	}
+
+	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
+	// Ignore this error and pass empty string to config.ShouldInclude
+	allocationName, _ := GetEC2ResourceNameTagValue(address.Tags)
+
+	return config.ShouldInclude(
+		allocationName,
+		configObj.ElasticIP.IncludeRule.NamesRegExp,
+		configObj.ElasticIP.ExcludeRule.NamesRegExp,
+	)
 }
 
 // Deletes all EIP allocation ids

@@ -9,12 +9,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // returns only instance Ids of unprotected ec2 instances
-func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutput, excludeAfter time.Time) ([]*string, error) {
+func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutput, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	var filteredIds []*string
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
@@ -28,13 +29,8 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-
-			protected := *attr.DisableApiTermination.Value
-			// Exclude protected EC2 instances
-			if !protected {
-				if excludeAfter.After(*instance.LaunchTime) {
-					filteredIds = append(filteredIds, &instanceID)
-				}
+			if shouldIncludeInstanceId(instance, excludeAfter, *attr.DisableApiTermination.Value, configObj) {
+				filteredIds = append(filteredIds, &instanceID)
 			}
 		}
 	}
@@ -43,7 +39,7 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 }
 
 // Returns a formatted string of EC2 instance ids
-func getAllEc2Instances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllEc2Instances(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 
 	params := &ec2.DescribeInstancesInput{
@@ -63,12 +59,37 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 		return nil, errors.WithStackTrace(err)
 	}
 
-	instanceIds, err := filterOutProtectedInstances(svc, output, excludeAfter)
+	instanceIds, err := filterOutProtectedInstances(svc, output, excludeAfter, configObj)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	return instanceIds, nil
+}
+
+func shouldIncludeInstanceId(instance *ec2.Instance, excludeAfter time.Time, protected bool, configObj config.Config) bool {
+
+	if instance == nil {
+		return false
+	}
+
+	if excludeAfter.Before(*instance.LaunchTime) {
+		return false
+	}
+
+	if protected {
+		return false
+	}
+
+	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
+	// Ignore this error and pass empty string to config.ShouldInclude
+	instanceName, _ := GetEC2ResourceNameTagValue(instance.Tags)
+
+	return config.ShouldInclude(
+		instanceName,
+		configObj.EC2.IncludeRule.NamesRegExp,
+		configObj.EC2.ExcludeRule.NamesRegExp,
+	)
 }
 
 // Deletes all non protected EC2 instances
@@ -551,4 +572,19 @@ func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 	}
 	logging.Logger.Info("Finished nuking default Security Groups in all regions")
 	return nil
+}
+
+// Given an map of tags, return the value of the Name tag
+func GetEC2ResourceNameTagValue(tags []*ec2.Tag) (string, error) {
+	t := make(map[string]string)
+
+	for _, v := range tags {
+		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
+	}
+
+	if name, ok := t["Name"]; ok {
+		return name, nil
+	}
+	return "", fmt.Errorf("Resource does not have Name tag")
+
 }

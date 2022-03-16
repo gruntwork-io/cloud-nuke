@@ -3,12 +3,15 @@ package aws
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	gruntworkerrors "github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
@@ -200,7 +203,7 @@ func TestListInstances(t *testing.T) {
 	// clean up after this test
 	defer nukeAllEc2Instances(session, []*string{instance.InstanceId, protectedInstance.InstanceId})
 
-	instanceIds, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour*-1))
+	instanceIds, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
 	}
@@ -208,7 +211,7 @@ func TestListInstances(t *testing.T) {
 	assert.NotContains(t, instanceIds, instance.InstanceId)
 	assert.NotContains(t, instanceIds, protectedInstance.InstanceId)
 
-	instanceIds, err = getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))
+	instanceIds, err = getAllEc2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
 	}
@@ -245,7 +248,7 @@ func TestNukeInstances(t *testing.T) {
 	if err := nukeAllEc2Instances(session, instanceIds); err != nil {
 		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}
-	instances, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour))
+	instances, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EC2 Instances")
@@ -253,5 +256,153 @@ func TestNukeInstances(t *testing.T) {
 
 	for _, instanceID := range instanceIds {
 		assert.NotContains(t, instances, *instanceID)
+	}
+}
+
+func TestGetEC2ResourceNameTagValue(t *testing.T) {
+	cases := []struct {
+		Name          string
+		Tags          []*ec2.Tag
+		Expected      string
+		ExpectedError error
+	}{
+		{
+			Name: "HasName",
+			Tags: []*ec2.Tag{
+				{
+					Key:   awsgo.String("Name"),
+					Value: awsgo.String("cloud-nuke-test"),
+				},
+				{
+					Key:   awsgo.String("Foo"),
+					Value: awsgo.String("Bar"),
+				},
+			},
+			Expected:      "cloud-nuke-test",
+			ExpectedError: nil,
+		},
+		{
+			Name: "MissingName",
+			Tags: []*ec2.Tag{
+				{
+					Key:   awsgo.String("foo"),
+					Value: awsgo.String("bar"),
+				},
+			},
+			Expected: "",
+		},
+		{
+			Name:     "NoTags",
+			Tags:     []*ec2.Tag{},
+			Expected: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result, err := GetEC2ResourceNameTagValue(c.Tags)
+			assert.Equal(t, c.Expected, result)
+			switch err {
+			case nil:
+				assert.Equal(t, c.ExpectedError, err)
+			default:
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
+// Test config file filtering works as expected
+func TestShouldIncludeInstanceId(t *testing.T) {
+
+	mockInstance := &ec2.Instance{
+		LaunchTime: awsgo.Time(time.Now()),
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String("Name"),
+				Value: awsgo.String("cloud-nuke-test"),
+			},
+			{
+				Key:   awsgo.String("Foo"),
+				Value: awsgo.String("Bar"),
+			},
+		},
+	}
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		EC2: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		EC2: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name         string
+		Instance     *ec2.Instance
+		Config       config.Config
+		ExcludeAfter time.Time
+		Protected    bool
+		Expected     bool
+	}{
+		{
+			Name:         "ConfigExclude",
+			Instance:     mockInstance,
+			Config:       mockExcludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Protected:    false,
+			Expected:     false,
+		},
+		{
+			Name:         "ConfigInclude",
+			Instance:     mockInstance,
+			Config:       mockIncludeConfig,
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Protected:    false,
+			Expected:     true,
+		},
+		{
+			Name:         "NotOlderThan",
+			Instance:     mockInstance,
+			Config:       config.Config{},
+			ExcludeAfter: time.Now().Add(1 * time.Hour * -1),
+			Protected:    false,
+			Expected:     false,
+		},
+		{
+			Name:         "Protected",
+			Instance:     mockInstance,
+			Config:       config.Config{},
+			ExcludeAfter: time.Now().Add(1 * time.Hour),
+			Protected:    true,
+			Expected:     false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeInstanceId(c.Instance, c.ExcludeAfter, c.Protected, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
 	}
 }
