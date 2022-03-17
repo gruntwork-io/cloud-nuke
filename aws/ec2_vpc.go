@@ -3,7 +3,6 @@ package aws
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -68,7 +67,21 @@ func getAllVpcs(session *session.Session, region string, excludeAfter time.Time,
 	var ids []*string
 	var vpcs []Vpc
 	for _, vpc := range result.Vpcs {
-		if shouldIncludeVpc(svc, vpc, excludeAfter, configObj) {
+		firstSeenTime, err := getFirstSeenVpcTag(*vpc, firstSeenTagKey)
+		if err != nil {
+			logging.Logger.Error("Unable to retrieve tags")
+			return nil, nil, errors.WithStackTrace(err)
+		}
+
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := setFirstSeenVpcTag(svc, *vpc, firstSeenTagKey, time.Now().UTC()); err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if shouldIncludeVpc(vpc, excludeAfter, *firstSeenTime, configObj) {
 			ids = append(ids, vpc.VpcId)
 
 			vpcs = append(vpcs, Vpc{
@@ -82,28 +95,21 @@ func getAllVpcs(session *session.Session, region string, excludeAfter time.Time,
 	return ids, vpcs, nil
 }
 
-func shouldIncludeVpc(svc *ec2.EC2, vpc *ec2.Vpc, excludeAfter time.Time, configObj config.Config) bool {
+func shouldIncludeVpc(vpc *ec2.Vpc, excludeAfter time.Time, firstSeenTime time.Time, configObj config.Config) bool {
 	if vpc == nil {
 		return false
 	}
 
-	firstSeenTime, err := getFirstSeenVpcTag(*vpc, firstSeenTagKey)
-	if err != nil {
-		logging.Logger.Error("Unable to retrieve tags")
+	if excludeAfter.Before(firstSeenTime) {
 		return false
 	}
 
-	if firstSeenTime == nil {
-		setFirstSeenVpcTag(svc, *vpc, firstSeenTagKey, time.Now().UTC())
-		return false
-	}
-
-	if excludeAfter.Before(*firstSeenTime) {
-		return false
-	}
+	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
+	// Ignore this error and pass empty string to config.ShouldInclude
+	vpcName, _ := GetEC2ResourceNameTagValue(vpc.Tags)
 
 	return config.ShouldInclude(
-		aws.StringValue(vpc.VpcId),
+		vpcName,
 		configObj.VPC.IncludeRule.NamesRegExp,
 		configObj.VPC.ExcludeRule.NamesRegExp,
 	)
