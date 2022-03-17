@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,62 +116,6 @@ func TestListVpcs(t *testing.T) {
 	assert.Contains(t, awsgo.StringValueSlice(vpcIds), vpcId)
 }
 
-func TestListVpcsWithConfigFile(t *testing.T) {
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	require.NoError(t, err)
-
-	includedVpcId := createTestVpc(t, session)
-	excludedVpcId := createTestVpc(t, session)
-
-	// clean up after this test
-	defer nukeAllVPCs(session, []string{includedVpcId, excludedVpcId}, []Vpc{{
-		Region: region,
-		VpcId:  includedVpcId,
-		svc:    ec2.New(session),
-	}, {
-		Region: region,
-		VpcId:  excludedVpcId,
-		svc:    ec2.New(session),
-	}})
-
-	// First run gives us a chance to tag the VPC
-	_, _, err = getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{
-		VPC: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{RE: *regexp.MustCompile(includedVpcId)},
-				},
-			},
-		},
-	})
-
-	require.NoError(t, err)
-
-	// VPC should be tagged at this point
-	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{
-		VPC: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{RE: *regexp.MustCompile(includedVpcId)},
-				},
-			},
-		},
-	})
-
-	require.NoError(t, err)
-
-	require.Equal(t, 1, len(vpcIds))
-	assert.Contains(t, awsgo.StringValueSlice(vpcIds), includedVpcId)
-}
-
 func TestNukeVpcs(t *testing.T) {
 	t.Parallel()
 
@@ -203,4 +148,91 @@ func TestNukeVpcs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(vpcIds), vpcId)
+}
+
+// Test config file filtering works as expected
+func TestShouldIncludeVpc(t *testing.T) {
+
+	mockVpc := &ec2.Vpc{
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String("Name"),
+				Value: awsgo.String("cloud-nuke-test"),
+			},
+			{
+				Key:   awsgo.String("Foo"),
+				Value: awsgo.String("Bar"),
+			},
+		},
+	}
+
+	mockExpression, err := regexp.Compile("^cloud-nuke-*")
+	if err != nil {
+		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
+	}
+
+	mockExcludeConfig := config.Config{
+		VPC: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	mockIncludeConfig := config.Config{
+		VPC: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{
+					{
+						RE: *mockExpression,
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		Name          string
+		Vpc           *ec2.Vpc
+		Config        config.Config
+		ExcludeAfter  time.Time
+		FirstSeenTime time.Time
+		Expected      bool
+	}{
+		{
+			Name:          "ConfigExclude",
+			Vpc:           mockVpc,
+			Config:        mockExcludeConfig,
+			ExcludeAfter:  time.Now().Add(1 * time.Hour),
+			FirstSeenTime: time.Now(),
+			Expected:      false,
+		},
+		{
+			Name:          "ConfigInclude",
+			Vpc:           mockVpc,
+			Config:        mockIncludeConfig,
+			ExcludeAfter:  time.Now().Add(1 * time.Hour),
+			FirstSeenTime: time.Now(),
+			Expected:      true,
+		},
+		{
+			Name:          "NotOlderThan",
+			Vpc:           mockVpc,
+			Config:        config.Config{},
+			ExcludeAfter:  time.Now().Add(1 * time.Hour * -1),
+			FirstSeenTime: time.Now(),
+			Expected:      false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			result := shouldIncludeVpc(c.Vpc, c.ExcludeAfter, c.FirstSeenTime, c.Config)
+			assert.Equal(t, c.Expected, result)
+		})
+	}
 }

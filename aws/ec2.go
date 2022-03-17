@@ -574,7 +574,7 @@ func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 	return nil
 }
 
-// Given an map of tags, return the value of the Name tag
+// Given an slice of tags, return the value of the Name tag
 func GetEC2ResourceNameTagValue(tags []*ec2.Tag) (string, error) {
 	t := make(map[string]string)
 
