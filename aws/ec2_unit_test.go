@@ -113,6 +113,19 @@ func TestNukeMockVpcs(t *testing.T) {
 		detachInternetGatewayInput := getDetachInternetGatewayInput(vpc.VpcId, ExampleInternetGatewayId)
 		deleteInternetGatewayInput := getDeleteInternetGatewayInput(ExampleInternetGatewayId)
 
+		describeEndpointsInput := getDescribeEndpointsInput(vpc.VpcId)
+		describeEndpointsOutput := getDescribeEndpointsOutput([]string{ExampleEndpointId})
+		describeEndpointsFunc := func(input *ec2.DescribeVpcEndpointsInput) (*ec2.DescribeVpcEndpointsOutput, error) {
+			return describeEndpointsOutput, nil
+		}
+		deleteEndpointInput := getDeleteEndpointInput(ExampleEndpointId)
+
+		describeEndpointsWaitForDeletionInput := getDescribeEndpointsWaitForDeletionInput(vpc.VpcId)
+		describeEndpointsWaitForDeletionOutput := getDescribeEndpointsOutput(nil)
+		describeEndpointsWaitForDeletionFunc := func(input *ec2.DescribeVpcEndpointsInput) (*ec2.DescribeVpcEndpointsOutput, error) {
+			return describeEndpointsWaitForDeletionOutput, nil
+		}
+
 		describeSubnetsInput := getDescribeSubnetsInput(vpc.VpcId)
 		describeSubnetsOutput := getDescribeSubnetsOutput([]string{ExampleSubnetId, ExampleSubnetIdTwo, ExampleSubnetIdThree})
 		describeSubnetsFunc := func(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error) {
@@ -143,19 +156,15 @@ func TestNukeMockVpcs(t *testing.T) {
 		}
 		deleteSecurityGroupInput := getDeleteSecurityGroupInput(ExampleSecurityGroupId)
 
-		describeEndpointsInput := getDescribeEndpointsInput(vpc.VpcId)
-		describeEndpointsOutput := getDescribeEndpointsOutput([]string{ExampleEndpointId})
-		describeEndpointsFunc := func(input *ec2.DescribeVpcEndpointsInput) (*ec2.DescribeVpcEndpointsOutput, error) {
-			return describeEndpointsOutput, nil
-		}
-		deleteEndpointInput := getDeleteEndpointInput(ExampleEndpointId)
-
 		deleteVpcInput := getDeleteVpcInput(vpc.VpcId)
 
 		gomock.InOrder(
 			mockEC2.EXPECT().DescribeInternetGateways(describeInternetGatewaysInput).DoAndReturn(describeInternetGatewaysFunc),
 			mockEC2.EXPECT().DetachInternetGateway(detachInternetGatewayInput),
 			mockEC2.EXPECT().DeleteInternetGateway(deleteInternetGatewayInput),
+			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsInput).DoAndReturn(describeEndpointsFunc),
+			mockEC2.EXPECT().DeleteVpcEndpoints(deleteEndpointInput),
+			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsWaitForDeletionInput).DoAndReturn(describeEndpointsWaitForDeletionFunc),
 			mockEC2.EXPECT().DescribeSubnets(describeSubnetsInput).DoAndReturn(describeSubnetsFunc),
 			mockEC2.EXPECT().DeleteSubnet(deleteSubnetInputOne),
 			mockEC2.EXPECT().DeleteSubnet(deleteSubnetInputTwo),
@@ -166,8 +175,6 @@ func TestNukeMockVpcs(t *testing.T) {
 			mockEC2.EXPECT().DeleteNetworkAcl(deleteNetworkAclInput),
 			mockEC2.EXPECT().DescribeSecurityGroups(describeSecurityGroupsInput).DoAndReturn(describeSecurityGroupsFunc),
 			mockEC2.EXPECT().DeleteSecurityGroup(deleteSecurityGroupInput),
-			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsInput).DoAndReturn(describeEndpointsFunc),
-			mockEC2.EXPECT().DeleteVpcEndpoints(deleteEndpointInput),
 			mockEC2.EXPECT().DeleteVpc(deleteVpcInput),
 		)
 	}

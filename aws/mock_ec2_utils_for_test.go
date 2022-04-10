@@ -187,6 +187,21 @@ func getDescribeEndpointsInput(vpcId string) *ec2.DescribeVpcEndpointsInput {
 	}
 }
 
+func getDescribeEndpointsWaitForDeletionInput(vpcId string) *ec2.DescribeVpcEndpointsInput {
+	return &ec2.DescribeVpcEndpointsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   awsgo.String("vpc-id"),
+				Values: []*string{awsgo.String(vpcId)},
+			},
+			{
+				Name:   awsgo.String("vpc-endpoint-state"),
+				Values: []*string{awsgo.String("deleting")},
+			},
+		},
+	}
+}
+
 func getDescribeEndpointsOutput(endpointIds []string) *ec2.DescribeVpcEndpointsOutput {
 	var endpoints []*ec2.VpcEndpoint
 	for _, endpointId := range endpointIds {
