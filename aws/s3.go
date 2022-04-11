@@ -473,6 +473,13 @@ func nukeEmptyS3Bucket(svc *s3.S3, bucketName *string, verifyBucketDeletion bool
 	return err
 }
 
+func nukeS3BucketPolicy(svc *s3.S3, bucketName *string) error {
+	_, err := svc.DeleteBucketPolicy(&s3.DeleteBucketPolicyInput{
+		Bucket: aws.String(*bucketName),
+	})
+	return err
+}
+
 // nukeAllS3Buckets deletes all S3 buckets passed as input
 func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, objectBatchSize int) (delCount int, err error) {
 	svc := s3.New(awsSession)
@@ -496,6 +503,13 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		err = nukeAllS3BucketObjects(svc, bucketName, objectBatchSize)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		err = nukeS3BucketPolicy(svc, bucketName)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - bucket policy cleanup error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			multierror.Append(multiErr, err)
 			continue
 		}

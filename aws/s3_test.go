@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -321,7 +322,7 @@ type TestNukeS3BucketArgs struct {
 
 // testNukeS3Bucket - generates the test function for TestNukeS3Bucket
 func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
-	awsParams, err := newS3TestAWSParams("")
+	awsParams, err := newS3TestAWSParams("eu-central-1")
 	require.NoError(t, err, "Failed to setup AWS params")
 
 	// Create test bucket
@@ -646,4 +647,54 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestNukeS3BucketWithBucketPolicy tests deletion of S3 buckets with a policy that denies deletion
+func TestNukeS3BucketWithBucketPolicy(t *testing.T) {
+	awsParams, err := newS3TestAWSParams("eu-central-1")
+	require.NoError(t, err, "Failed to setup AWS params")
+
+	// Create test bucket
+	bucketName := S3TestGenBucketName()
+	var bucketTags []map[string]string
+
+	err = S3TestCreateBucket(awsParams.svc, bucketName, bucketTags, false)
+	require.NoError(t, err, "Failed to create test bucket")
+
+	policy, _ := json.Marshal(map[string]interface{}{
+		"Version": "2012-10-17",
+		"Statement": []map[string]interface{}{
+			{
+				"Effect":    "Deny",
+				"Principal": "*",
+				"Action": []string{
+					"s3:DeleteBucket",
+				},
+				"Resource": []string{
+					fmt.Sprintf("arn:aws:s3:::%s", bucketName),
+				},
+			},
+		},
+	})
+
+	_, err = awsParams.svc.PutBucketPolicy(&s3.PutBucketPolicyInput{
+		Bucket: aws.String(bucketName),
+		Policy: aws.String(string(policy)),
+	})
+	require.NoError(t, err)
+
+	defer func() {
+		/*
+			If the policy was not removed, delete it manually and delete
+			the bucket to not leave any test data in the account
+		*/
+		awsParams.svc.DeleteBucketPolicy(&s3.DeleteBucketPolicyInput{
+			Bucket: aws.String(bucketName),
+		})
+		nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
+	}()
+
+	_, err = nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
+	require.NoError(t, err)
+
 }
