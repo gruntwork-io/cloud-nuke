@@ -651,7 +651,7 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 
 // TestNukeS3BucketWithBucketPolicy tests deletion of S3 buckets with a policy that denies deletion
 func TestNukeS3BucketWithBucketPolicy(t *testing.T) {
-	awsParams, err := newS3TestAWSParams("eu-central-1")
+	awsParams, err := newS3TestAWSParams("")
 	require.NoError(t, err, "Failed to setup AWS params")
 
 	// Create test bucket
