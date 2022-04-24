@@ -14,12 +14,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	// Exclude ap-southeast-1, which currently has a ghost EKS cluster that messes cloud-nuke up.
+	excludeRegionsForEKSTest = []string{"ap-southeast-1"}
+)
+
 // Test that we can successfully list clusters by manually creating a cluster, and then using the list function to find
 // it.
 func TestListEksClusters(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -53,7 +58,7 @@ func TestListEksClusters(t *testing.T) {
 func TestNukeEksClusters(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -79,7 +84,7 @@ func TestNukeEksClusters(t *testing.T) {
 func TestNukeEksClustersWithCompute(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
