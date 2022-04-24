@@ -7,30 +7,41 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
 // getAllEksClusters returns a list of strings of EKS Cluster Names that uniquely identify each cluster.
-func getAllEksClusters(awsSession *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllEksClusters(awsSession *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := eks.New(awsSession)
 	result, err := svc.ListClusters(&eks.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
-	filteredClusters, err := filterOutRecentEksClusters(svc, result.Clusters, excludeAfter)
+	filteredClusters, err := filterOutEksClusters(svc, result.Clusters, excludeAfter, configObj)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 	return filteredClusters, nil
 }
 
-// filterOutRecentEksClusters will take in the list of clusters and filter out any clusters that were created after
-// `excludeAfter`.
-func filterOutRecentEksClusters(svc *eks.EKS, clusterNames []*string, excludeAfter time.Time) ([]*string, error) {
+// filterOutEksClusters will take in the list of clusters and filter out any clusters that were created after
+// `excludeAfter`, and those that are excluded by the config file.
+func filterOutEksClusters(svc *eks.EKS, clusterNames []*string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	var filteredEksClusterNames []*string
 	for _, clusterName := range clusterNames {
+		// Since we already have the name here, avoid an extra API call by applying the name based config filter first.
+		shouldInclude := config.ShouldInclude(
+			aws.StringValue(clusterName),
+			configObj.EKSCluster.IncludeRule.NamesRegExp,
+			configObj.EKSCluster.ExcludeRule.NamesRegExp,
+		)
+		if !shouldInclude {
+			continue
+		}
+
 		describeResult, err := svc.DescribeCluster(&eks.DescribeClusterInput{
 			Name: clusterName,
 		})

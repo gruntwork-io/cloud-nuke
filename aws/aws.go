@@ -502,7 +502,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EKS resources
 		eksClusters := EKSClusters{}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
-			eksClusterNames, err := getAllEksClusters(session, excludeAfter)
+			eksClusterNames, err := getAllEksClusters(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

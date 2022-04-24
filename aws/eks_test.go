@@ -7,6 +7,7 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/terratest/modules/logger"
 	"github.com/stretchr/testify/assert"
@@ -34,13 +35,13 @@ func TestListEksClusters(t *testing.T) {
 	cluster := createEKSCluster(t, awsSession, uniqueID, *role.Arn)
 	defer nukeAllEksClusters(awsSession, []*string{cluster.Name})
 
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour*-1))
+	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of clusters: %s", err.Error())
 	}
 	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 
-	eksClusterNames, err = getAllEksClusters(awsSession, time.Now().Add(1*time.Hour))
+	eksClusterNames, err = getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of clusters: %s", err.Error())
 	}
@@ -69,7 +70,7 @@ func TestNukeEksClusters(t *testing.T) {
 	err = nukeAllEksClusters(awsSession, []*string{cluster.Name})
 	require.NoError(t, err)
 
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour))
+	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 }
@@ -121,7 +122,7 @@ func TestNukeEksClustersWithCompute(t *testing.T) {
 	err = nukeAllEksClusters(awsSession, []*string{cluster.Name})
 	require.NoError(t, err)
 
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour))
+	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 }
