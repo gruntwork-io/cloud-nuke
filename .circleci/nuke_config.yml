@@ -40,6 +40,12 @@ OIDCProvider:
       # We have an active OIDC Provider used by github actions
       - ".*token.actions.githubusercontent.com.*"
 
+EKSCluster:
+  exclude:
+    names_regex:
+      # This EKS cluster is a ghost cluster in our account in the ap-southeast-1 region that can not be deleted.
+      - "^cloud-nuke-TestListEksClusters-o8DrEi$"
+
 CloudWatchLogGroup:
   # Use an allow list instead of block list because we haven't done the due diligence yet to figure out what log groups
   # we need to keep. This is hard to do in the current scenario as we have thousands of log groups in the accounts.

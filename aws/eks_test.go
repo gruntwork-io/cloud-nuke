@@ -7,10 +7,16 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/terratest/modules/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	// Exclude ap-southeast-1, which currently has a ghost EKS cluster that messes cloud-nuke up.
+	excludeRegionsForEKSTest = []string{"ap-southeast-1"}
 )
 
 // Test that we can successfully list clusters by manually creating a cluster, and then using the list function to find
@@ -18,7 +24,7 @@ import (
 func TestListEksClusters(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -34,13 +40,13 @@ func TestListEksClusters(t *testing.T) {
 	cluster := createEKSCluster(t, awsSession, uniqueID, *role.Arn)
 	defer nukeAllEksClusters(awsSession, []*string{cluster.Name})
 
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour*-1))
+	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of clusters: %s", err.Error())
 	}
 	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 
-	eksClusterNames, err = getAllEksClusters(awsSession, time.Now().Add(1*time.Hour))
+	eksClusterNames, err = getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of clusters: %s", err.Error())
 	}
@@ -52,7 +58,7 @@ func TestListEksClusters(t *testing.T) {
 func TestNukeEksClusters(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -69,7 +75,7 @@ func TestNukeEksClusters(t *testing.T) {
 	err = nukeAllEksClusters(awsSession, []*string{cluster.Name})
 	require.NoError(t, err)
 
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour))
+	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 }
@@ -78,7 +84,7 @@ func TestNukeEksClusters(t *testing.T) {
 func TestNukeEksClustersWithCompute(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
 	require.NoError(t, err)
 
 	awsSession, err := session.NewSession(&awsgo.Config{
@@ -121,7 +127,7 @@ func TestNukeEksClustersWithCompute(t *testing.T) {
 	err = nukeAllEksClusters(awsSession, []*string{cluster.Name})
 	require.NoError(t, err)
 
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour))
+	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 }

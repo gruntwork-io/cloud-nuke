@@ -32,6 +32,7 @@ type Config struct {
 	EC2                   ResourceType `yaml:"EC2"`
 	CloudWatchLogGroup    ResourceType `yaml:"CloudWatchLogGroup"`
 	KMSCustomerKeys       ResourceType `yaml:"KMSCustomerKeys"`
+	EKSCluster            ResourceType `yaml:"EKSCluster"`
 }
 
 type ResourceType struct {
