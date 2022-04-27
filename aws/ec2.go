@@ -391,7 +391,49 @@ func (v Vpc) nukeEndpoints() error {
 		return errors.WithStackTrace(err)
 	}
 
+	if err := waitForVPCEndpointsToBeDeleted(v); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	return nil
+}
+
+func waitForVPCEndpointsToBeDeleted(v Vpc) error {
+	for i := 0; i < 30; i++ {
+		endpoints, err := v.svc.DescribeVpcEndpoints(
+			&ec2.DescribeVpcEndpointsInput{
+				Filters: []*ec2.Filter{
+					{
+						Name:   awsgo.String("vpc-id"),
+						Values: []*string{awsgo.String(v.VpcId)},
+					},
+					{
+						Name:   awsgo.String("vpc-endpoint-state"),
+						Values: []*string{awsgo.String("deleting")},
+					},
+				},
+			},
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if len(endpoints.VpcEndpoints) == 0 {
+			return nil
+		}
+
+		time.Sleep(20 * time.Second)
+		logging.Logger.Debug("Waiting for VPC endpoints to be deleted...")
+	}
+
+	return VPCEndpointDeleteTimeoutError{}
+}
+
+type VPCEndpointDeleteTimeoutError struct{}
+
+func (e VPCEndpointDeleteTimeoutError) Error() string {
+	return "Timed out waiting for VPC endpoints to be successfully deleted"
 }
 
 func (v Vpc) nukeVpc() error {
@@ -412,6 +454,12 @@ func (v Vpc) nuke() error {
 	err := v.nukeInternetGateway()
 	if err != nil {
 		logging.Logger.Errorf("Error cleaning up Internet Gateway for VPC %s: %s", v.VpcId, err.Error())
+		return err
+	}
+
+	err = v.nukeEndpoints()
+	if err != nil {
+		logging.Logger.Errorf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
@@ -436,12 +484,6 @@ func (v Vpc) nuke() error {
 	err = v.nukeSecurityGroups()
 	if err != nil {
 		logging.Logger.Errorf("Error cleaning up Security Groups for VPC %s: %s", v.VpcId, err.Error())
-		return err
-	}
-
-	err = v.nukeEndpoints()
-	if err != nil {
-		logging.Logger.Errorf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
