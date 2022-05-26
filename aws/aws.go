@@ -717,6 +717,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		}
 		// End GuardDuty detectors
+
 		// Macie member accounts
 		macieAccounts := MacieMember{}
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
@@ -732,6 +733,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		}
 		// End Macie member accounts
+
+		// Kinesis Streams
+		kinesisStreams := KinesisStreams{}
+		if IsNukeable(kinesisStreams.ResourceName(), resourceTypes) {
+			streams, err := getAllKinesisStreams(cloudNukeSession, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(streams) > 0 {
+				kinesisStreams.Names = awsgo.StringValueSlice(streams)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, kinesisStreams)
+			}
+		}
+		// End Kinesis Streams
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
@@ -831,6 +846,7 @@ func ListResourceTypes() []string {
 		CloudWatchLogGroups{}.ResourceName(),
 		GuardDuty{}.ResourceName(),
 		MacieMember{}.ResourceName(),
+		KinesisStreams{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
