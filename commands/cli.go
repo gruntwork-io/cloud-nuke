@@ -123,7 +123,7 @@ func CreateCli(version string) *cli.App {
 				},
 				cli.StringFlag{
 					Name:  "older-than",
-					Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
+					Usage: "Only inspect resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 					Value: "0s",
 				},
 			},
