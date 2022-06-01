@@ -119,7 +119,7 @@ func CreateCli(version string) *cli.App {
 				},
 				cli.StringSliceFlag{
 					Name:  "exclude-resource-type",
-					Usage: "Resource types to exclude from nuking. Include multiple times if more than one.",
+					Usage: "Resource types to exclude from inspection. Include multiple times if more than one.",
 				},
 				cli.StringFlag{
 					Name:  "older-than",
