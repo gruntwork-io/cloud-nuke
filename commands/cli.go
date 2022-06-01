@@ -115,7 +115,7 @@ func CreateCli(version string) *cli.App {
 				},
 				cli.StringSliceFlag{
 					Name:  "resource-type",
-					Usage: "Resource types to nuke. Include multiple times if more than one.",
+					Usage: "Resource types to inspect. Include multiple times if more than one.",
 				},
 				cli.StringSliceFlag{
 					Name:  "exclude-resource-type",
