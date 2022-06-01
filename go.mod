@@ -12,8 +12,10 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/pquerna/otp v1.3.0
 	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/stretchr/testify v1.7.1
 	github.com/urfave/cli v1.22.4
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

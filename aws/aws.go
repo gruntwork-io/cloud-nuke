@@ -781,7 +781,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	return &account, nil
 }
 
-// ListResourceTypes - Returns list of resources which can be passed to --resource-type
 func ListResourceTypes() []string {
 	resourceTypes := []string{
 		ACMPCA{}.ResourceName(),
@@ -893,6 +892,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
+
 	}
 
 	return nil
