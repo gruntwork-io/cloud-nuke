@@ -192,8 +192,7 @@ Dry run mode is only available within:
 
 You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources. 
 
-
-```golang
+```golang 
 package main
 
 import (
@@ -206,6 +205,7 @@ func main() {
 
 	// You can scan multiple regions at once, or just pass a single region for speed
 	targetRegions := []string{"us-east-1", "us-west-1", "us-west-2"}
+	excludeRegions := []string{}
 	// You can simultaneously target multiple resource types as well
 	resourceTypes := []string{"ec2", "vpc"}
 	excludeResourceTypes := []string{}
@@ -215,6 +215,7 @@ func main() {
 	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
 	query, err := nuke_aws.NewQuery(
 		targetRegions,
+		excludeRegions,
 		resourceTypes,
 		excludeResourceTypes,
 		excludeAfter,
@@ -224,7 +225,8 @@ func main() {
 		fmt.Println(err)
 	}
 
-  // Submit our query to cloud-nuke and scan the account
+	// InspectResources still returns *AwsAccountResources, but this struct has been extended with several
+	// convenience methods for quickly determining if resources exist in a given region
 	accountResources, err := nuke_aws.InspectResources(query)
 	if err != nil {
 		fmt.Println(err)
@@ -233,7 +235,7 @@ func main() {
 	// You can call GetRegion to examine a single region's resources
 	usWest1Resources := accountResources.GetRegion("us-west-1")
 
-	// Then further narrow your results by region or resource type 
+	// Then interrogate them with the new methods:
 
 	// Count the number of any resource type within the region
 	countOfEc2InUsWest1 := usWest1Resources.CountOfResourceType("ec2")
@@ -241,18 +243,19 @@ func main() {
 	fmt.Printf("countOfEc2InUsWest1: %d\n", countOfEc2InUsWest1)
 	// countOfEc2InUsWest1: 2
 
-	fmt.Printf("usWest1Resources.ResourceTypePresent(\"ec2\"): %b", usWest1Resources.ResourceTypePresent("ec2"))
+	fmt.Printf("usWest1Resources.ResourceTypePresent(\"ec2\"):%b\n", usWest1Resources.ResourceTypePresent("ec2"))
 	//usWest1Resources.ResourceTypePresent("ec2"): true
 
 	// Get all the resource identifiers for a given resource type
 	// In this example, we're only looking for ec2 instances
 	resourceIds := usWest1Resources.IdentifiersForResourceType("ec2")
 
-	fmt.Printf("resourceIds: ", resourceIds)
+	fmt.Printf("resourceIds: %s", resourceIds)
 	// resourceIds:  [i-0c5d16c3ef28dda24 i-09d9739e1f4d27814]
 
 }
 ```
+
 
 ### Config file
 
