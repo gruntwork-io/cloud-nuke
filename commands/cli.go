@@ -422,7 +422,7 @@ func awsInspect(c *cli.Context) error {
 
 	if c.Bool("list-resource-types") {
 		for _, resourceType := range aws.ListResourceTypes() {
-			fmt.Println(resourceType)
+			logging.Logger.Infoln(resourceType)
 		}
 		return nil
 	}
