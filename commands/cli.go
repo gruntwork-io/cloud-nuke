@@ -431,6 +431,10 @@ func awsInspect(c *cli.Context) error {
 	// resourceTypes
 	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-type"), c.StringSlice("exclude-resource-type"))
 
+	if err != nil {
+		return err
+	}
+
 	// Log which resource types will be nuked
 	logging.Logger.Info("The following resource types will be inspected:")
 	if len(resourceTypes) > 0 {
