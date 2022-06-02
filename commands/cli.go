@@ -413,8 +413,6 @@ func awsInspect(c *cli.Context) error {
 		return nil
 	}
 
-	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-
 	query, err := aws.NewQuery(
 		c.StringSlice("region"),
 		c.StringSlice("exclude-region"),
