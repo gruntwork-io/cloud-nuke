@@ -30,20 +30,14 @@ func ExtractResourcesForPrinting(account *AwsAccountResources) []string {
 	return resources
 }
 
-func ensureValidResourceTypes(resourceTypes, excludeResourceTypes, allResourceTypes []string) ([]string, error) {
+func ensureValidResourceTypes(resourceTypes []string) ([]string, error) {
 
 	invalidresourceTypes := []string{}
 	for _, resourceType := range resourceTypes {
 		if resourceType == "all" {
 			continue
 		}
-		if !IsValidResourceType(resourceType, allResourceTypes) {
-			invalidresourceTypes = append(invalidresourceTypes, resourceType)
-		}
-	}
-
-	for _, resourceType := range excludeResourceTypes {
-		if !IsValidResourceType(resourceType, allResourceTypes) {
+		if !IsValidResourceType(resourceType, ListResourceTypes()) {
 			invalidresourceTypes = append(invalidresourceTypes, resourceType)
 		}
 	}
@@ -55,24 +49,27 @@ func ensureValidResourceTypes(resourceTypes, excludeResourceTypes, allResourceTy
 	return resourceTypes, nil
 }
 
-// HandleResourcrTypeSelections accepts a slice of target resourceTypes and a slice of resourceTypes to exclude. It filters
+// HandleResourceTypeSelections accepts a slice of target resourceTypes and a slice of resourceTypes to exclude. It filters
 // any excluded or invalid types from target resourceTypes then returns the filtered slice
 func HandleResourceTypeSelections(resourceTypes, excludeResourceTypes []string) ([]string, error) {
 	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
 		return []string{}, ResourceTypeAndExcludeFlagsBothPassedError{}
 	}
-	// Ensure only selected resource types are being targeted
-	allResourceTypes := ListResourceTypes()
 
-	validResourceTypes, err := ensureValidResourceTypes(resourceTypes, excludeResourceTypes, allResourceTypes)
+	validResourceTypes, err := ensureValidResourceTypes(resourceTypes)
 	if err != nil {
 		return validResourceTypes, err
 	}
 
+	validExcludeResourceTypes, err := ensureValidResourceTypes(excludeResourceTypes)
+	if err != nil {
+		return validExcludeResourceTypes, err
+	}
+
 	// Handle exclude resource types by going through the list of all types and only include those that are not
 	// mentioned in the exclude list.
-	if len(excludeResourceTypes) > 0 {
-		for _, resourceType := range allResourceTypes {
+	if len(validExcludeResourceTypes) > 0 {
+		for _, resourceType := range validResourceTypes {
 			if !collections.ListContainsElement(excludeResourceTypes, resourceType) {
 				resourceTypes = append(resourceTypes, resourceType)
 			}
