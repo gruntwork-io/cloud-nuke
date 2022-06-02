@@ -81,19 +81,10 @@ func HandleResourceTypeSelections(resourceTypes, excludeResourceTypes []string) 
 
 func InspectResources(q Query) (*AwsAccountResources, error) {
 
-	account := &AwsAccountResources{
-		Resources: make(map[string]AwsRegionResource),
-	}
-
-	resourceTypes, err := HandleResourceTypeSelections(q.ResourceTypes, q.ExcludeResourceTypes)
-	if err != nil {
-		return account, err
-	}
-
 	// Log which resource types will be inspected
-	logging.Logger.Info("The following resource types will be scanned for (inspected):")
-	if len(resourceTypes) > 0 {
-		for _, resourceType := range resourceTypes {
+	logging.Logger.Info("The following resource types will be inspected:")
+	if len(q.ResourceTypes) > 0 {
+		for _, resourceType := range q.ResourceTypes {
 			logging.Logger.Infof("- %s", resourceType)
 		}
 	} else {
@@ -102,10 +93,6 @@ func InspectResources(q Query) (*AwsAccountResources, error) {
 		}
 	}
 
-	if err != nil {
-		return account, err
-	}
-
 	// NOTE: The inspect functionality currently does not support config file, so we short circuit the logic with an empty struct.
-	return GetAllResources(q.Regions, q.ExcludeAfter, resourceTypes, config.Config{})
+	return GetAllResources(q.Regions, q.ExcludeAfter, q.ResourceTypes, config.Config{})
 }

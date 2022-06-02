@@ -406,20 +406,6 @@ func awsInspect(c *cli.Context) error {
 		logging.Logger.Infof("Found enabled region %s", region)
 	}
 
-	configObj := config.Config{}
-	configFilePath := c.String("config")
-
-	if configFilePath != "" {
-		configObjPtr, err := config.GetConfig(configFilePath)
-
-		if err != nil {
-			return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
-		}
-		configObj = *configObjPtr
-	}
-
-	allResourceTypes := aws.ListResourceTypes()
-
 	if c.Bool("list-resource-types") {
 		for _, resourceType := range aws.ListResourceTypes() {
 			logging.Logger.Infoln(resourceType)
@@ -427,51 +413,31 @@ func awsInspect(c *cli.Context) error {
 		return nil
 	}
 
-	// Ensure that the resourceTypes and excludeResourceTypes arguments are valid, and then filter
-	// resourceTypes
-	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-type"), c.StringSlice("exclude-resource-type"))
-
-	if err != nil {
-		return err
-	}
-
-	// Log which resource types will be nuked
-	logging.Logger.Info("The following resource types will be inspected:")
-	if len(resourceTypes) > 0 {
-		for _, resourceType := range resourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
-		}
-	} else {
-		for _, resourceType := range allResourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
-		}
-	}
-
-	selectedRegions := c.StringSlice("region")
-	excludedRegions := c.StringSlice("exclude-region")
-
-	// targetRegions uses selectedRegions and excludedRegions to create a filtered
-	// target region slice
-	targetRegions, err := aws.GetTargetRegions(regions, selectedRegions, excludedRegions)
-	if err != nil {
-		return fmt.Errorf("Failed to select regions: %s", err)
-	}
-
-	logging.Logger.Infoln(targetRegions)
-
-	excludeAfter, err := parseDurationParam(c.String("older-than"))
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
+
+	query, err := aws.NewQuery(
+		c.StringSlice("region"),
+		c.StringSlice("exclude-region"),
+		c.StringSlice("resource-type"),
+		c.StringSlice("exclude-resource-type"),
+		c.String("older-than"),
+	)
+
+	if err != nil {
+		return aws.QueryCreationError{Underlying: err}
+	}
+
+	accountResources, err := aws.InspectResources(query)
+
+	if err != nil {
+		return aws.ResourceInspectionError{Underlying: err}
+	}
 
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	foundResources := aws.ExtractResourcesForPrinting(account)
+	foundResources := aws.ExtractResourcesForPrinting(accountResources)
 
 	logging.Logger.Infoln("The following AWS resources were found:")
 

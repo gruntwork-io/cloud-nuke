@@ -75,16 +75,18 @@ type AwsRegionResource struct {
 // Query is a struct that represents the desired parameters for scanning resources within a given account
 type Query struct {
 	Regions              []string
+	ExcludeRegions       []string
 	ResourceTypes        []string
 	ExcludeResourceTypes []string
 	ExcludeAfter         time.Time
 }
 
 // NewQuery configures and returns a Query struct that can be passed into the InspectResources method
-func NewQuery(regions, resourceTypes, excludeResourceTypes []string, excludeAfter string) (Query, error) {
+func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string, excludeAfter string) (Query, error) {
 
 	q := Query{
 		Regions:              regions,
+		ExcludeRegions:       excludeRegions,
 		ResourceTypes:        resourceTypes,
 		ExcludeResourceTypes: excludeResourceTypes,
 	}
@@ -120,7 +122,18 @@ func (q Query) Validate() error {
 
 	q.ResourceTypes = resourceTypes
 
-	//TODO - validate region
+	enabledRegions, err := GetEnabledRegions()
+	if err != nil {
+		return CouldNotDetermineEnabledRegionsError{Underlying: err}
+	}
+
+	targetRegions, err := GetTargetRegions(enabledRegions, q.Regions, q.ExcludeRegions)
+
+	if err != nil {
+		return CouldNotSelectRegionError{Underlying: err}
+	}
+
+	q.Regions = targetRegions
 
 	return nil
 }
@@ -148,4 +161,36 @@ type InvalidTimeStringPassedError struct {
 
 func (err InvalidTimeStringPassedError) Error() string {
 	return fmt.Sprintf("Could not parse %s as a valid time duration. Underlying error: %s", err.Entry, err.Underlying)
+}
+
+type QueryCreationError struct {
+	Underlying error
+}
+
+func (err QueryCreationError) Error() string {
+	return fmt.Sprintf("Error forming a cloud-nuke Query with supplied parameters. Original error: %v", err.Underlying)
+}
+
+type ResourceInspectionError struct {
+	Underlying error
+}
+
+func (err ResourceInspectionError) Error() string {
+	return fmt.Sprintf("Error encountered when querying for accoun resources. Original error: %v", err.Underlying)
+}
+
+type CouldNotSelectRegionError struct {
+	Underlying error
+}
+
+func (err CouldNotSelectRegionError) Error() string {
+	return fmt.Sprintf("Unable to determine target region set. Please double check your combination of target and excluded regions. Original error: %v", err.Underlying)
+}
+
+type CouldNotDetermineEnabledRegionsError struct {
+	Underlying error
+}
+
+func (err CouldNotDetermineEnabledRegionsError) Error() string {
+	return fmt.Sprintf("Unable to determine enabled regions in target account. Original error: %v", err.Underlying)
 }
