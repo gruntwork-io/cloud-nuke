@@ -106,7 +106,6 @@ func InspectResources(q Query) (*AwsAccountResources, error) {
 		return account, err
 	}
 
-	// We're currently short-circuiting the config file by passing an empty config here,
-	// but the inspect functionalty does not currently support the config file
+	// NOTE: The inspect functionality currently does not support config file, so we short circuit the logic with an empty struct.
 	return GetAllResources(q.Regions, q.ExcludeAfter, resourceTypes, config.Config{})
 }
