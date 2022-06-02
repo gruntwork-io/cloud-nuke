@@ -55,6 +55,8 @@ func ensureValidResourceTypes(resourceTypes, excludeResourceTypes, allResourceTy
 	return resourceTypes, nil
 }
 
+// HandleResourcrTypeSelections accepts a slice of target resourceTypes and a slice of resourceTypes to exclude. It filters
+// any excluded or invalid types from target resourceTypes then returns the filtered slice
 func HandleResourceTypeSelections(resourceTypes, excludeResourceTypes []string) ([]string, error) {
 	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
 		return []string{}, ResourceTypeAndExcludeFlagsBothPassedError{}
