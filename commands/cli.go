@@ -438,8 +438,6 @@ func awsInspect(c *cli.Context) error {
 
 	foundResources := aws.ExtractResourcesForPrinting(accountResources)
 
-	logging.Logger.Infoln("The following AWS resources were found:")
-
 	for _, resource := range foundResources {
 		logging.Logger.Infoln(resource)
 	}
