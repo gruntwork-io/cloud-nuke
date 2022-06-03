@@ -141,7 +141,7 @@ func (err InvalidResourceTypesSuppliedError) Error() string {
 type ResourceTypeAndExcludeFlagsBothPassedError struct{}
 
 func (err ResourceTypeAndExcludeFlagsBothPassedError) Error() string {
-	return fmt.Sprint("You can not specify both --resource-type and --exclude-resource-type")
+	return "You can not specify both --resource-type and --exclude-resource-type"
 }
 
 type InvalidTimeStringPassedError struct {
