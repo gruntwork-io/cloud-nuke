@@ -79,7 +79,7 @@ func HandleResourceTypeSelections(resourceTypes, excludeResourceTypes []string) 
 	return resourceTypes, nil
 }
 
-func InspectResources(q Query) (*AwsAccountResources, error) {
+func InspectResources(q *Query) (*AwsAccountResources, error) {
 
 	// Log which resource types will be inspected
 	logging.Logger.Info("The following resource types will be inspected:")

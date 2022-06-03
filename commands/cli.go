@@ -413,12 +413,17 @@ func awsInspect(c *cli.Context) error {
 		return nil
 	}
 
+	excludeAfter, err := parseDurationParam(c.String("older-than"))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	query, err := aws.NewQuery(
 		c.StringSlice("region"),
 		c.StringSlice("exclude-region"),
 		c.StringSlice("resource-type"),
 		c.StringSlice("exclude-resource-type"),
-		c.String("older-than"),
+		*excludeAfter,
 	)
 
 	if err != nil {

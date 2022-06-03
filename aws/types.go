@@ -82,25 +82,15 @@ type Query struct {
 }
 
 // NewQuery configures and returns a Query struct that can be passed into the InspectResources method
-func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string, excludeAfter string) (Query, error) {
+func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string, excludeAfter time.Time) (*Query, error) {
 
-	q := Query{
+	q := &Query{
 		Regions:              regions,
 		ExcludeRegions:       excludeRegions,
 		ResourceTypes:        resourceTypes,
 		ExcludeResourceTypes: excludeResourceTypes,
+		ExcludeAfter:         excludeAfter,
 	}
-
-	duration, err := time.ParseDuration(excludeAfter)
-
-	if err != nil {
-		return q, InvalidTimeStringPassedError{Underlying: err}
-	}
-
-	// Make it negative so it goes back in time
-	duration = -1 * duration
-
-	q.ExcludeAfter = time.Now().Add(duration)
 
 	validationErr := q.Validate()
 
@@ -113,7 +103,7 @@ func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []str
 
 // Validate ensures the configured values for a Query are valid, returning an error if there are
 // any invalid params, or nil if the Query is valid
-func (q Query) Validate() error {
+func (q *Query) Validate() error {
 
 	resourceTypes, err := HandleResourceTypeSelections(q.ResourceTypes, q.ExcludeResourceTypes)
 	if err != nil {
@@ -176,7 +166,7 @@ type ResourceInspectionError struct {
 }
 
 func (err ResourceInspectionError) Error() string {
-	return fmt.Sprintf("Error encountered when querying for accoun resources. Original error: %v", err.Underlying)
+	return fmt.Sprintf("Error encountered when querying for account resources. Original error: %v", err.Underlying)
 }
 
 type CouldNotSelectRegionError struct {
