@@ -433,11 +433,7 @@ func awsInspect(c *cli.Context) error {
 	accountResources, err := aws.InspectResources(query)
 
 	if err != nil {
-		return aws.ResourceInspectionError{Underlying: err}
-	}
-
-	if err != nil {
-		return errors.WithStackTrace(err)
+		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
 	foundResources := aws.ExtractResourcesForPrinting(accountResources)
