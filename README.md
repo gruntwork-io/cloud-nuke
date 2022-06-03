@@ -197,6 +197,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
 )
@@ -210,7 +211,7 @@ func main() {
 	resourceTypes := []string{"ec2", "vpc"}
 	excludeResourceTypes := []string{}
 	// excludeAfter is parsed identically to the --older-than flag
-	excludeAfter := "1h"
+	excludeAfter := time.Now()
 
 	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
 	query, err := nuke_aws.NewQuery(
