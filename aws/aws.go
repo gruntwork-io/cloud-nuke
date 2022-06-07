@@ -893,6 +893,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
+
 	}
 
 	return nil

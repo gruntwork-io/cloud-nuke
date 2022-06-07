@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/shell"
 	"github.com/sirupsen/logrus"
@@ -97,6 +96,37 @@ func CreateCli(version string) *cli.App {
 					Usage: "Skip confirmation prompt. WARNING: this will automatically delete defaults without any confirmation",
 				},
 			},
+		}, {
+			Name:   "inspect-aws",
+			Usage:  "Non-destructive inspection of target resources only",
+			Action: errors.WithPanicHandling(awsInspect),
+			Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:  "region",
+					Usage: "regions to include",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-region",
+					Usage: "regions to exclude",
+				},
+				cli.BoolFlag{
+					Name:  "list-resource-types",
+					Usage: "List available resource types",
+				},
+				cli.StringSliceFlag{
+					Name:  "resource-type",
+					Usage: "Resource types to inspect. Include multiple times if more than one.",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-resource-type",
+					Usage: "Resource types to exclude from inspection. Include multiple times if more than one.",
+				},
+				cli.StringFlag{
+					Name:  "older-than",
+					Usage: "Only inspect resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
+					Value: "0s",
+				},
+			},
 		},
 	}
 
@@ -146,43 +176,11 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	resourceTypes := c.StringSlice("resource-type")
-	excludeResourceTypes := c.StringSlice("exclude-resource-type")
-	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
-		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type")
-	}
-
-	// Var check to make sure only allowed resource types are included in the --resource-type or --exclude-resource-type
-	// args.
-	invalidresourceTypes := []string{}
-	for _, resourceType := range resourceTypes {
-		if resourceType == "all" {
-			continue
-		}
-		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
-			invalidresourceTypes = append(invalidresourceTypes, resourceType)
-		}
-	}
-
-	for _, resourceType := range excludeResourceTypes {
-		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
-			invalidresourceTypes = append(invalidresourceTypes, resourceType)
-		}
-	}
-
-	if len(invalidresourceTypes) > 0 {
-		msg := "Try --list-resource-types to get list of valid resource types."
-		return fmt.Errorf("Invalid resourceTypes %s specified: %s", invalidresourceTypes, msg)
-	}
-
-	// Handle exclude resource types by going through the list of all types and only include those that are not
-	// mentioned in the exclude list.
-	if len(excludeResourceTypes) > 0 {
-		for _, resourceType := range allResourceTypes {
-			if !collections.ListContainsElement(excludeResourceTypes, resourceType) {
-				resourceTypes = append(resourceTypes, resourceType)
-			}
-		}
+	// Ensure that the resourceTypes and excludeResourceTypes arguments are valid, and then filter
+	// resourceTypes
+	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-types"), c.StringSlice("exclude-resource-type"))
+	if err != nil {
+		return err
 	}
 
 	// Log which resource types will be nuked
@@ -232,14 +230,7 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	nukableResources := make([]string, 0)
-	for region, resourcesInRegion := range account.Resources {
-		for _, resources := range resourcesInRegion.Resources {
-			for _, identifier := range resources.ResourceIdentifiers() {
-				nukableResources = append(nukableResources, fmt.Sprintf("* %s %s %s\n", resources.ResourceName(), identifier, region))
-			}
-		}
-	}
+	nukableResources := aws.ExtractResourcesForPrinting(account)
 
 	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukableResources))
 
@@ -403,4 +394,53 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func awsInspect(c *cli.Context) error {
+	logging.Logger.Infoln("Identifying enabled regions")
+	regions, err := aws.GetEnabledRegions()
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+	for _, region := range regions {
+		logging.Logger.Infof("Found enabled region %s", region)
+	}
+
+	if c.Bool("list-resource-types") {
+		for _, resourceType := range aws.ListResourceTypes() {
+			logging.Logger.Infoln(resourceType)
+		}
+		return nil
+	}
+
+	excludeAfter, err := parseDurationParam(c.String("older-than"))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	query, err := aws.NewQuery(
+		c.StringSlice("region"),
+		c.StringSlice("exclude-region"),
+		c.StringSlice("resource-type"),
+		c.StringSlice("exclude-resource-type"),
+		*excludeAfter,
+	)
+
+	if err != nil {
+		return aws.QueryCreationError{Underlying: err}
+	}
+
+	accountResources, err := aws.InspectResources(query)
+
+	if err != nil {
+		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
+	}
+
+	foundResources := aws.ExtractResourcesForPrinting(accountResources)
+
+	for _, resource := range foundResources {
+		logging.Logger.Infoln(resource)
+	}
+
+	return nil
 }

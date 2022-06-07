@@ -4,41 +4,43 @@
 
 This repo contains a CLI tool to delete all resources in an AWS account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
 
+In addition, cloud-nuke offers non-destructive inspecting functionality that can either be called via the command-line interface, or consumed as library methods, for scripting purposes.
+ 
 The currently supported functionality includes:
 
 ## AWS
 
-- Deleting all ACM Private CA in an AWS account
-- Deleting all Auto scaling groups in an AWS account
-- Deleting all Elastic Load Balancers (Classic and V2) in an AWS account
-- Deleting all Transit Gateways in an AWS account
-- Deleting all EBS Volumes in an AWS account
-- Deleting all unprotected EC2 instances in an AWS account
-- Deleting all AMIs in an AWS account
-- Deleting all Snapshots in an AWS account
-- Deleting all Elastic IPs in an AWS account
-- Deleting all Elasticache clusters in an AWS account
-- Deleting all Launch Configurations in an AWS account
-- Deleting all ECS services in an AWS account
-- Deleting all ECS clusters in an AWS account
-- Deleting all EKS clusters in an AWS account
-- Deleting all RDS DB instances in an AWS account
-- Deleting all Lambda Functions in an AWS account
-- Deleting all SQS queues in an AWS account
-- Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all default VPCs in an AWS account
+- Inspecting and deleting all ACM Private CA in an AWS account
+- Inspecting and deleting all Auto scaling groups in an AWS account
+- Inspecting and deleting all Elastic Load Balancers (Classic and V in an AWS account
+- Inspecting and deleting all Transit Gateways in an AWS account
+- Inspecting and deleting all EBS Volumes in an AWS account
+- Inspecting and deleting all unprotected EC2 instances in an AWS account
+- Inspecting and deleting all AMIs in an AWS account
+- Inspecting and deleting all Snapshots in an AWS account
+- Inspecting and deleting all Elastic IPs in an AWS account
+- Inspecting and deleting all Elasticache clusters in an AWS account
+- Inspecting and deleting all Launch Configurations in an AWS account
+- Inspecting and deleting all ECS services in an AWS account
+- Inspecting and deleting all ECS clusters in an AWS account
+- Inspecting and deleting all EKS clusters in an AWS account
+- Inspecting and deleting all RDS DB instances in an AWS account
+- Inspecting and deleting all Lambda Functions in an AWS account
+- Inspecting and deleting all SQS queues in an AWS account
+- Inspecting and deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
+- Inspecting and deleting all default VPCs in an AWS account
 - Deleting VPCs in an AWS Account (except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
-- Deleting all IAM users in an AWS account
-- Deleting all Secrets Manager Secrets in an AWS account
-- Deleting all NAT Gateways in an AWS account
-- Deleting all IAM Access Analyzers in an AWS account
+- Inspecting and deleting all IAM users in an AWS account
+- Inspecting and deleting all Secrets Manager Secrets in an AWS account
+- Inspecting and deleting all NAT Gateways in an AWS account
+- Inspecting and deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
-- Deleting all DynamoDB tables in an AWS account
-- Deleting all CloudWatch Dashboards in an AWS account
-- Deleting all OpenSearch Domains in an AWS account
-- Deleting all IAM OpenID Connect Providers
-- Deleting all Customer managed keys from Key Management Service in an AWS account
-- Deleting all CloudWatch Log Groups in an AWS Account
+- Inspecting and deleting all DynamoDB tables in an AWS account
+- Inspecting and deleting all CloudWatch Dashboards in an AWS account
+- Inspecting and deleting all OpenSearch Domains in an AWS account
+- Inspecting and deleting all IAM OpenID Connect Providers
+- Inspecting and deleting all Customer managed keys from Key Management Service in an AWS account
+- Inspecting and deleting all CloudWatch Log Groups in an AWS Account
 
 ### BEWARE!
 
@@ -69,27 +71,44 @@ Simply running `cloud-nuke aws` will start the process of cleaning up your cloud
 
 In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will remove the default VPCs in each region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note that the default security group itself is unable to be deleted.
 
-### Nuke resources in certain regions
+### Nuke or inspect resources in certain regions
 
-When using `cloud-nuke aws`, you can use the `--region` flag to target resources in certain regions for deletion. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions:
+When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can use the `--region` flag to target resources in certain regions. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
 cloud-nuke aws --region ap-south-1 --region ap-south-2
 ```
 
-Including regions is available within both `cloud-nuke aws` and with `cloud-nuke defaults-aws`.
+Similarly, the following command will inspect resources only in `us-east-1` 
+```shell
+cloud-nuke inspect-aws --region us-east-1
+```
+
+Including regions is available within: 
+- `cloud-nuke aws` 
+- `cloud-nuke defaults-aws`
+- `cloud-nuke inspect-aws`
 
 ### Exclude resources in certain regions
 
-When using `cloud-nuke aws`, you can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
+When using `cloud-nuke aws` or `cloud-nuke inspect-aws`, you can use the `--exclude-region` flag to exclude resources in certain regions from being deleted or inspected. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
 cloud-nuke aws --exclude-region ap-south-1 --exclude-region ap-south-2
 ```
 
+Similarly, the following command will not inspect resources in the `us-west-1` region:
+
+```shell
+cloud-nuke inspect-aws --exclude-region us-west-1
+```
+
 `--region` and `--exclude-region` flags cannot be specified together i.e. they are mutually exclusive.
 
-Excluding regions is available within both `cloud-nuke aws` and with `cloud-nuke defaults-aws`.
+Excluding regions is available within: 
+- `cloud-nuke aws` 
+- `cloud-nuke defaults-aws`
+- `cloud-nuke inspect-aws`
 
 ### Excluding Resources by Age
 
@@ -99,6 +118,11 @@ You can use the `--older-than` flag to only nuke resources that were created bef
 cloud-nuke aws --older-than 24h
 ```
 
+Excluding resources by age is available within: 
+- `cloud-nuke aws` 
+- `cloud-nuke inspect-aws`
+
+
 ### List supported resource types
 
 You can use the `--list-resource-types` flag to list resource types whose termination is currently supported:
@@ -107,7 +131,12 @@ You can use the `--list-resource-types` flag to list resource types whose termin
 cloud-nuke aws --list-resource-types
 ```
 
-### Terminate specific resource types
+Listing supported resource types is available within: 
+- `cloud-nuke aws` 
+- `cloud-nuke inspect-aws`
+
+
+### Terminate or inspect specific resource types
 
 If you want to target specific resource types (e.g ec2, ami, etc.) instead of all the supported resources you can
 do so by specifying them through the `--resource-type` flag:
@@ -119,6 +148,16 @@ cloud-nuke aws --resource-type ec2 --resource-type ami
 will search and target only `ec2` and `ami` resources. The specified resource type should be a valid resource type
 i.e. it should be present in the `--list-resource-types` output. Using `--resource-type` also speeds up search because
 we are searching only for specific resource types.
+
+Similarly, the following command will inspect only ec2 instances: 
+
+```shell
+cloud-nuke inspect-aws --resource-type ec2
+```
+
+Specifying target resource types is available within: 
+- `cloud-nuke aws` 
+- `cloud-nuke inspect-aws`
 
 ### Exclude terminating specific resource types
 
@@ -133,6 +172,10 @@ This will terminate all resource types other than S3 and EC2.
 
 `--resource-type` and `--exclude-resource-type` flags cannot be specified together i.e. they are mutually exclusive.
 
+Specifying resource types to exclude is available within: 
+- `cloud-nuke aws` 
+- `cloud-nuke inspect-aws`
+
 ### Dry run mode
 
 If you want to check what resources are going to be targeted without actually terminating them, you can use the
@@ -141,6 +184,79 @@ If you want to check what resources are going to be targeted without actually te
 ```shell
 cloud-nuke aws --resource-type ec2 --dry-run
 ```
+
+Dry run mode is only available within: 
+- `cloud-nuke aws`
+
+### Using cloud-nuke as a library
+
+You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources. 
+
+```golang 
+package main
+
+import (
+	"fmt"
+	"time"
+
+	nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
+)
+
+func main() {
+
+	// You can scan multiple regions at once, or just pass a single region for speed
+	targetRegions := []string{"us-east-1", "us-west-1", "us-west-2"}
+	excludeRegions := []string{}
+	// You can simultaneously target multiple resource types as well
+	resourceTypes := []string{"ec2", "vpc"}
+	excludeResourceTypes := []string{}
+	// excludeAfter is parsed identically to the --older-than flag
+	excludeAfter := time.Now()
+
+	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
+	query, err := nuke_aws.NewQuery(
+		targetRegions,
+		excludeRegions,
+		resourceTypes,
+		excludeResourceTypes,
+		excludeAfter,
+	)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// InspectResources still returns *AwsAccountResources, but this struct has been extended with several
+	// convenience methods for quickly determining if resources exist in a given region
+	accountResources, err := nuke_aws.InspectResources(query)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// You can call GetRegion to examine a single region's resources
+	usWest1Resources := accountResources.GetRegion("us-west-1")
+
+	// Then interrogate them with the new methods:
+
+	// Count the number of any resource type within the region
+	countOfEc2InUsWest1 := usWest1Resources.CountOfResourceType("ec2")
+
+	fmt.Printf("countOfEc2InUsWest1: %d\n", countOfEc2InUsWest1)
+	// countOfEc2InUsWest1: 2
+
+	fmt.Printf("usWest1Resources.ResourceTypePresent(\"ec2\"):%b\n", usWest1Resources.ResourceTypePresent("ec2"))
+	//usWest1Resources.ResourceTypePresent("ec2"): true
+
+	// Get all the resource identifiers for a given resource type
+	// In this example, we're only looking for ec2 instances
+	resourceIds := usWest1Resources.IdentifiersForResourceType("ec2")
+
+	fmt.Printf("resourceIds: %s", resourceIds)
+	// resourceIds:  [i-0c5d16c3ef28dda24 i-09d9739e1f4d27814]
+
+}
+```
+
 
 ### Config file
 
