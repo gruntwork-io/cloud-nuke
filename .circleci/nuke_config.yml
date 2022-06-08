@@ -92,3 +92,9 @@ CloudWatchLogGroup:
       - "jenkins-[a-zA-Z0-9]{6}$"
       - "openvpn-server-[a-zA-Z0-9]{6}_log_group$"
       - "vpc-test-[a-zA-Z0-9]{6}.*"
+
+IAMUsers:
+  exclude:
+    names_regex:
+      # We want to make sure the main circle-ci-test user is never deleted
+      - "^circle-ci-test$"
