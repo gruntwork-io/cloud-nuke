@@ -8,14 +8,16 @@ s3:
       - "^gw-cis-aws-config-all-regions-[a-zA-Z0-9]{6}-.*"
       - "^gruntwork-test-[a-zA-Z0-9]{6}-config-test$"
       - "^houston-static-[a-zA-Z0-9]{12}.*"
-      - "^cloud-nuke-test-[a-zA-Z0-9]{12}.*"
-      - "^cloud-nuke-test-[a-zA-Z0-9]{6}-bucket$"
+      - "^.*-cloud-nuke-test-.*"
       - "^alb-alb-[a-zA-Z0-9]{6}-access-logs$"
       - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
       - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
       - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
       - "^[a-zA-Z0-9]{6}-service-test-s3-bucket"
       - "^[a-zA-Z0-9]{6}-ecs-service-test-s3-bucket"
+      - "^test-service-[a-zA-Z0-9]{6}-test-s3-bucket"
+      - "^tst-openvpn-[a-zA-Z0-9]{6}"
+      - "^vault-module-test-[a-zA-Z0-9]{6}"
 
 SecretsManager:
   include:
