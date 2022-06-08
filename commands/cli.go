@@ -167,8 +167,6 @@ func awsNuke(c *cli.Context) error {
 		configObj = *configObjPtr
 	}
 
-	allResourceTypes := aws.ListResourceTypes()
-
 	if c.Bool("list-resource-types") {
 		for _, resourceType := range aws.ListResourceTypes() {
 			fmt.Println(resourceType)
@@ -178,21 +176,15 @@ func awsNuke(c *cli.Context) error {
 
 	// Ensure that the resourceTypes and excludeResourceTypes arguments are valid, and then filter
 	// resourceTypes
-	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-types"), c.StringSlice("exclude-resource-type"))
+	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-type"), c.StringSlice("exclude-resource-type"))
 	if err != nil {
 		return err
 	}
 
 	// Log which resource types will be nuked
 	logging.Logger.Info("The following resource types will be nuked:")
-	if len(resourceTypes) > 0 {
-		for _, resourceType := range resourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
-		}
-	} else {
-		for _, resourceType := range allResourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
-		}
+	for _, resourceType := range resourceTypes {
+		logging.Logger.Infof("- %s", resourceType)
 	}
 
 	regions, err := aws.GetEnabledRegions()

@@ -51,31 +51,30 @@ func ensureValidResourceTypes(resourceTypes []string) ([]string, error) {
 
 // HandleResourceTypeSelections accepts a slice of target resourceTypes and a slice of resourceTypes to exclude. It filters
 // any excluded or invalid types from target resourceTypes then returns the filtered slice
-func HandleResourceTypeSelections(resourceTypes, excludeResourceTypes []string) ([]string, error) {
-	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
+func HandleResourceTypeSelections(
+	includeResourceTypes, excludeResourceTypes []string,
+) ([]string, error) {
+	if len(includeResourceTypes) > 0 && len(excludeResourceTypes) > 0 {
 		return []string{}, ResourceTypeAndExcludeFlagsBothPassedError{}
 	}
 
-	validResourceTypes, err := ensureValidResourceTypes(resourceTypes)
-	if err != nil {
-		return validResourceTypes, err
-	}
-
-	validExcludeResourceTypes, err := ensureValidResourceTypes(excludeResourceTypes)
-	if err != nil {
-		return validExcludeResourceTypes, err
+	if len(includeResourceTypes) > 0 {
+		return ensureValidResourceTypes(includeResourceTypes)
 	}
 
 	// Handle exclude resource types by going through the list of all types and only include those that are not
 	// mentioned in the exclude list.
-	if len(validExcludeResourceTypes) > 0 {
-		for _, resourceType := range validResourceTypes {
-			if !collections.ListContainsElement(excludeResourceTypes, resourceType) {
-				resourceTypes = append(resourceTypes, resourceType)
-			}
-		}
+	validExcludeResourceTypes, err := ensureValidResourceTypes(excludeResourceTypes)
+	if err != nil {
+		return []string{}, err
 	}
 
+	resourceTypes := []string{}
+	for _, resourceType := range ListResourceTypes() {
+		if !collections.ListContainsElement(validExcludeResourceTypes, resourceType) {
+			resourceTypes = append(resourceTypes, resourceType)
+		}
+	}
 	return resourceTypes, nil
 }
 
