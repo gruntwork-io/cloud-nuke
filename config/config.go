@@ -19,6 +19,7 @@ type Config struct {
 	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
 	DynamoDB              ResourceType `yaml:"DynamoDB"`
 	EBSVolume             ResourceType `yaml:"EBSVolume"`
+	EFSInstances          ResourceType `yaml:"EFSInstances"`
 	LambdaFunction        ResourceType `yaml:"LambdaFunction"`
 	ELBv2                 ResourceType `yaml:"ELBv2"`
 	ECSService            ResourceType `yaml:"ECSService"`
