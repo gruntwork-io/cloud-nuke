@@ -7,6 +7,9 @@ s3:
       - "^gruntwork-terratest-[a-zA-Z0-9]{6}$"
       - "^gw-cis-aws-config-all-regions-[a-zA-Z0-9]{6}-.*"
       - "^gruntwork-test-[a-zA-Z0-9]{6}-config-test$"
+      - "^gruntwork-test-[a-zA-Z0-9]{6}-cloudtrail-test.*"
+      - "^gruntwork-test-privs3bucket-[a-zA-Z0-9]{6}"
+      - "^gruntwork-terratest-[a-zA-Z0-9]{6}-logs"
       - "^houston-static-[a-zA-Z0-9]{12}.*"
       - "^.*-cloud-nuke-test-.*"
       - "^alb-alb-[a-zA-Z0-9]{6}-access-logs$"
@@ -17,7 +20,12 @@ s3:
       - "^[a-zA-Z0-9]{6}-ecs-service-test-s3-bucket"
       - "^test-service-[a-zA-Z0-9]{6}-test-s3-bucket"
       - "^tst-openvpn-[a-zA-Z0-9]{6}"
+      - "^openvpn-test-[a-zA-Z0-9]{6}"
       - "^vault-module-test-[a-zA-Z0-9]{6}"
+      - "^es-cluster-[a-zA-Z0-9]{6}-es-backup-bucket"
+      - "^gruntwork-(test-)?ecs-deploy-runner-outputs-[a-zA-Z0-9]{6}"
+      - "^test-bucket-.*"
+      - "^test-private-s3-bucket-.*"
 
 SecretsManager:
   include:
