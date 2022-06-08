@@ -104,7 +104,9 @@ workflows:
             branches:
               only: master
     jobs:
-      - nuke_phx_devops
+      - nuke_phx_devops:
+          context:
+            - Gruntwork Admin
   nightly:
     triggers:
       - schedule:
@@ -113,4 +115,7 @@ workflows:
             branches:
               only: master
     jobs:
-      - nuke_sandbox
+      - nuke_sandbox:
+          context:
+            - Gruntwork Admin
+            - Gruntwork Sandbox
