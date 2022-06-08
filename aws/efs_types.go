@@ -1,10 +1,10 @@
 package aws
 
-// import (
-// 	awsgo "github.com/aws/aws-sdk-go/aws"
-// 	"github.com/aws/aws-sdk-go/aws/session"
-// 	"github.com/gruntwork-io/go-commons/errors"
-// )
+import (
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gruntwork-io/go-commons/errors"
+)
 
 // EFSInstances - represents all EFS instances
 type EFSInstances struct {
@@ -25,3 +25,13 @@ func (fileSystem EFSInstances) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 10
 }
+
+// Nuke - nuke 'em all!!!
+func (fileSystem EFSInstances) Nuke(session *session.Session, identifiers []string) error {
+	if err := nukeAllEfsVolumes(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+

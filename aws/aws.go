@@ -429,13 +429,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EFS Volumes
 		efsVolumes := EFSInstances{}
 		if IsNukeable(efsVolumes.ResourceName(), resourceTypes) {
-			efsVolumeIds, err := getAllEfsVolumes(session, region, excludeAFter, configObj)
+			efsVolumeIds, err := getAllEfsVolumes(session, region, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 			if len(efsVolumeIds) > 0 {
-				efsVolumes.FIleSystemIds = awsgo.StringValueSlice(efsVolumeIds)
-				resourceInRegion.Resources = append(resourcesInRegion.Resources, efsVolumes)
+				efsVolumes.FileSystemIds = awsgo.StringValueSlice(efsVolumeIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, efsVolumes)
 			}
 		}
 		// End EFS Volumes
