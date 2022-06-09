@@ -64,7 +64,7 @@ func TestListNatGatewaysWithConfigFile(t *testing.T) {
 	excludedNatGatewayID := createNatGatewayWithName(t, svc, region, excludedNatGatewayName)
 	defer nukeAllNatGateways(session, []*string{includedNatGatewayID, excludedNatGatewayID})
 
-	nateGatewayIds, err := getAllNatGateways(session, time.Now().Add(1*time.Hour), config.Config{
+	natGatewayIds, err := getAllNatGateways(session, time.Now().Add(1*time.Hour), config.Config{
 		NatGateway: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -75,8 +75,8 @@ func TestListNatGatewaysWithConfigFile(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	require.Equal(t, 1, len(nateGatewayIds))
-	require.Equal(t, aws.StringValue(includedNatGatewayID), aws.StringValue(nateGatewayIds[0]))
+	require.Equal(t, 1, len(natGatewayIds))
+	require.Equal(t, aws.StringValue(includedNatGatewayID), aws.StringValue(natGatewayIds[0]))
 }
 
 func TestTimeFilterExclusionNewlyCreatedNatGateway(t *testing.T) {
@@ -156,7 +156,7 @@ func TestNukeNatGatewayMoreThanOne(t *testing.T) {
 	assertNatGatewaysDeleted(t, svc, natGateways)
 }
 
-// Helper functions for driving the NAT gateway testsŚ
+// Helper functions for driving the NAT gateway tests
 func setTagsToResource(t *testing.T, svc *ec2.EC2, resourceId *string, tags []*ec2.Tag) error {
 	_, err := svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{resourceId},

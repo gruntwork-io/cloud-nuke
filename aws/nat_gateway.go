@@ -32,11 +32,17 @@ func getAllNatGateways(session *session.Session, excludeAfter time.Time, configO
 			return !lastPage
 		},
 	)
+
 	return allNatGateways, errors.WithStackTrace(err)
 }
 
 func shouldIncludeNatGateway(ngw *ec2.NatGateway, excludeAfter time.Time, configObj config.Config) bool {
 	if ngw == nil {
+		return false
+	}
+
+	ngwState := aws.StringValue(ngw.State)
+	if ngwState == ec2.NatGatewayStateDeleted || ngwState == ec2.NatGatewayStateDeleting {
 		return false
 	}
 
