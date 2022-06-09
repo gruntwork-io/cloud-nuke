@@ -14,7 +14,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 )
 
-func getAllEfsVolumes(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllEfsVolumes(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := efs.New(session)
 
 	result, err := svc.DescribeFileSystems(&efs.DescribeFileSystemsInput{})
@@ -61,7 +61,7 @@ func waitUntilEfsVolumeIsNuked(session *session.Session, efsVolumeId *string) er
 	// We need to delete all volume mount targets of this EFS volume before destroying the EFS volume itself.
 	err := nukeEfsVolumeMountTargets(session, efsVolumeId)
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
+		return errors.WithStackTrace(err)
 	}
 
 	_, err = svc.DeleteFileSystem(&efs.DeleteFileSystemInput{
@@ -71,7 +71,7 @@ func waitUntilEfsVolumeIsNuked(session *session.Session, efsVolumeId *string) er
 		if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "FileSystemNotFound" {
 			logging.Logger.Infof("EFS volume %s has already been deleted", *efsVolumeId)
 		} else {
-			logging.Logger.Errorf("[Failed] %s", err)
+			return errors.WithStackTrace(err)
 		}
 	}
 
@@ -121,13 +121,41 @@ func nukeEfsVolumeMountTargets(session *session.Session, efsVolumeId *string) er
 		})
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Errorf("[Failed] Problem at deleting mount target %s", err)
 		} else {
-			logging.Logger.Infof("Deleted EFS Volume Mount Target: %s (volume %s)", *mount.MountTargetId, *efsVolumeId)
-			deletedMountTargets = append(deletedMountTargets, mount.MountTargetId)
+			if err := retry.DoWithRetry(
+				logging.Logger,
+				fmt.Sprintf("Waiting until EFS [%s] volume mount ID %s is fully deleted", *efsVolumeId, *mount.MountTargetId),
+				30,
+				1*time.Second,
+				func () error {
+					details, err := svc.DescribeMountTargets(&efs.DescribeMountTargetsInput{
+						MountTargetId: mount.MountTargetId,
+					})
+					if err != nil {
+						if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "MountTargetNotFound" {
+							logging.Logger.Infof("EFS volume mount %s has already been deleted", *mount.MountTargetId)
+							return nil
+						}
+					}
+					if len(details.MountTargets) > 1 {
+						return fmt.Errorf("There should never been two mount targets with the same id %s", *mount.MountTargetId)
+					}
+					if *details.MountTargets[0].LifeCycleState == efs.LifeCycleStateDeleting {
+						return fmt.Errorf("MountTarget %s is still being deleted", *mount.MountTargetId)
+					}
+					return nil
+				},
+			); err != nil {
+				logging.Logger.Errorf("[Failed] Problem waiting for Mount Target deletion %s", err)
+			} else {
+				logging.Logger.Infof("Deleted EFS Volume Mount Target: %s (volume %s)", *mount.MountTargetId, *efsVolumeId)
+				deletedMountTargets = append(deletedMountTargets, mount.MountTargetId)
+			}
 		}
 	}
 
+	logging.Logger.Infof("[OK] %d EFS [ID %s] volume mount(s) terminated in %s", len(deletedMountTargets), *efsVolumeId, *session.Config.Region)
 	return nil
 }
 

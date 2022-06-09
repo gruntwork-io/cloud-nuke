@@ -429,7 +429,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EFS Volumes
 		efsVolumes := EFSInstances{}
 		if IsNukeable(efsVolumes.ResourceName(), resourceTypes) {
-			efsVolumeIds, err := getAllEfsVolumes(session, region, excludeAfter, configObj)
+			efsVolumeIds, err := getAllEfsVolumes(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

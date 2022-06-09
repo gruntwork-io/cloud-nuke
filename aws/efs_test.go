@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/efs"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -17,9 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-var excludedRegions = []string{}
-// var excludedRegions = []string{"ap-south-1", "eu-west-2", "ap-northeast-3", "ap-southeast-1", "ap-southeast-2", "eu-north-1", "eu-west-1", "ca-central-1"}
 
 func findEFSVolumesByNameTag(t *testing.T, session *session.Session, name string) []*string {
 	output, err := efs.New(session).DescribeFileSystems(&efs.DescribeFileSystemsInput{})
@@ -99,7 +97,7 @@ func createTestEFSVolume(t *testing.T, session *session.Session, name string, az
 func TestListEFSVolumes(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludedRegions)
+	region, err := getRandomRegion()
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -117,14 +115,14 @@ func TestListEFSVolumes(t *testing.T) {
 	volume := createTestEFSVolume(t, session, uniqueTestID, az)
 	defer nukeAllEfsVolumes(session, []*string{volume.FileSystemId})
 
-	volumeIds, err := getAllEfsVolumes(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
+	volumeIds, err := getAllEfsVolumes(session, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EFS Volumes")
 	}
 
 	assert.NotContains(t, aws.StringValueSlice(volumeIds), aws.StringValue(volume.FileSystemId))
 
-	volumeIds, err = getAllEfsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	volumeIds, err = getAllEfsVolumes(session, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EFS Volumes")
 	}
@@ -135,7 +133,7 @@ func TestListEFSVolumes(t *testing.T) {
 func TestListEFSVolumesWithConfigFile(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludedRegions)
+	region, err := getRandomRegion()
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -156,7 +154,7 @@ func TestListEFSVolumesWithConfigFile(t *testing.T) {
 	excludedVolume := createTestEFSVolume(t, session, excludedEFSVolumeName, az)
 	defer nukeAllEfsVolumes(session, []*string{includedVolume.FileSystemId, excludedVolume.FileSystemId})
 
-	volumeIds, err := getAllEfsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{
+	volumeIds, err := getAllEfsVolumes(session, time.Now().Add(1*time.Hour), config.Config{
 		EFSInstances: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -173,7 +171,7 @@ func TestListEFSVolumesWithConfigFile(t *testing.T) {
 func TestNukeEFSVolume(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludedRegions)
+	region, err := getRandomRegion()
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -199,7 +197,7 @@ func TestNukeEFSVolume(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	volumeIds, err = getAllEfsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	volumeIds, err = getAllEfsVolumes(session, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EFS volumes")
 	}
@@ -210,7 +208,7 @@ func TestNukeEFSVolume(t *testing.T) {
 func TestNukeEFSVolumeWithMountTargets(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludedRegions)
+	region, err := getRandomRegion()
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -241,10 +239,13 @@ func TestNukeEFSVolumeWithMountTargets(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	volumeIds, err = getAllEfsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	volumeIds, err = getAllEfsVolumes(session, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of EFS volumes")
 	}
 
 	assert.NotContains(t, aws.StringValueSlice(volumeIds), aws.StringValue(volume.FileSystemId))
+	if err = removeEC2InstanceProtection(ec2.New(session), &instance); err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
+	}
 }
