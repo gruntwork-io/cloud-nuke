@@ -34,4 +34,3 @@ func (fileSystem EFSInstances) Nuke(session *session.Session, identifiers []stri
 
 	return nil
 }
-

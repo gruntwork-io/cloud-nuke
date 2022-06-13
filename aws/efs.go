@@ -2,16 +2,16 @@ package aws
 
 import (
 	"fmt"
-	"time"
 	"github.com/gruntwork-io/go-commons/errors"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/efs"
-	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/go-commons/retry"
 )
 
 func getAllEfsVolumes(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
@@ -44,7 +44,7 @@ func shouldIncludeEFSVolume(volume *efs.FileSystemDescription, excludeAfter time
 	name := aws.StringValue(volume.Name)
 
 	return config.ShouldInclude(
-		name, 
+		name,
 		configObj.EFSInstances.IncludeRule.NamesRegExp,
 		configObj.EFSInstances.ExcludeRule.NamesRegExp,
 	)
@@ -80,7 +80,7 @@ func waitUntilEfsVolumeIsNuked(session *session.Session, efsVolumeId *string) er
 		fmt.Sprintf("Waiting until EFS volume ID %s is fully deleted", *efsVolumeId),
 		10,
 		1*time.Second,
-		func () error {
+		func() error {
 			details, err := svc.DescribeFileSystems(&efs.DescribeFileSystemsInput{
 				FileSystemId: efsVolumeId,
 			})
@@ -105,7 +105,7 @@ func waitUntilEfsVolumeIsNuked(session *session.Session, efsVolumeId *string) er
 
 func nukeEfsVolumeMountTargets(session *session.Session, efsVolumeId *string) error {
 	svc := efs.New(session)
-	
+
 	mounts, err := svc.DescribeMountTargets(&efs.DescribeMountTargetsInput{
 		FileSystemId: efsVolumeId,
 	})
@@ -128,7 +128,7 @@ func nukeEfsVolumeMountTargets(session *session.Session, efsVolumeId *string) er
 				fmt.Sprintf("Waiting until EFS [%s] volume mount ID %s is fully deleted", *efsVolumeId, *mount.MountTargetId),
 				30,
 				1*time.Second,
-				func () error {
+				func() error {
 					details, err := svc.DescribeMountTargets(&efs.DescribeMountTargetsInput{
 						MountTargetId: mount.MountTargetId,
 					})

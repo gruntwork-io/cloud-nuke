@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/efs"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,7 +40,7 @@ func createTestEFSVolumeMountTarget(t *testing.T, session *session.Session, file
 
 	mountTarget, err := svc.CreateMountTarget(&efs.CreateMountTargetInput{
 		FileSystemId: fileSystemId,
-		SubnetId: subnetId,
+		SubnetId:     subnetId,
 	})
 
 	if err != nil {
@@ -72,7 +72,7 @@ func createTestEFSVolume(t *testing.T, session *session.Session, name string, az
 		fmt.Sprintf("Waiting until EFS volume ID %s is fully created", *volume.FileSystemId),
 		10,
 		1*time.Second,
-		func () error {
+		func() error {
 			details, err := svc.DescribeFileSystems(&efs.DescribeFileSystemsInput{
 				FileSystemId: volume.FileSystemId,
 			})
