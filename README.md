@@ -277,7 +277,7 @@ The following resources support the Config file:
     - Config key: `SecretsManager`
 - NAT Gateways
     - Resource type: `nat-gateway`
-    - Config key: `NATGateway`
+    - Config key: `NatGateway`
 - IAM Access Analyzers
     - Resource type: `accessanalyzer`
     - Config key: `AccessAnalyzer`
