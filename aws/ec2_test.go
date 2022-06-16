@@ -32,6 +32,7 @@ const (
 	ExampleSecurityGroupId      = "sg-" + ExampleId
 	ExampleSecurityGroupIdTwo   = "sg-" + ExampleIdTwo
 	ExampleSecurityGroupIdThree = "sg-" + ExampleIdThree
+	ExampleSecurityGroupRuleId  = "sgr-" + ExampleId
 	ExampleInternetGatewayId    = "igw-" + ExampleId
 	ExampleEndpointId           = "vpce-" + ExampleId
 )

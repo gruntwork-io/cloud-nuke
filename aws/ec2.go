@@ -343,6 +343,44 @@ func (v Vpc) nukeSecurityGroups() error {
 			},
 		},
 	)
+
+	for _, securityGroup := range securityGroups.SecurityGroups {
+		securityGroupRules, _ := v.svc.DescribeSecurityGroupRules(
+			&ec2.DescribeSecurityGroupRulesInput{
+				Filters: []*ec2.Filter{
+					{
+						Name:   awsgo.String("group-id"),
+						Values: []*string{securityGroup.GroupId},
+					},
+				},
+			},
+		)
+		for _, securityGroupRule := range securityGroupRules.SecurityGroupRules {
+			logging.Logger.Infof("...deleting Security Group Rule %s", awsgo.StringValue(securityGroupRule.SecurityGroupRuleId))
+			if *securityGroupRule.IsEgress {
+				_, err := v.svc.RevokeSecurityGroupEgress(
+					&ec2.RevokeSecurityGroupEgressInput{
+						GroupId: securityGroup.GroupId,
+						SecurityGroupRuleIds: []*string{securityGroupRule.SecurityGroupRuleId},
+					},
+				)
+				if err != nil {
+					return errors.WithStackTrace(err)
+				}
+			} else {
+				_, err := v.svc.RevokeSecurityGroupIngress(
+					&ec2.RevokeSecurityGroupIngressInput{
+						GroupId: securityGroup.GroupId,
+						SecurityGroupRuleIds: []*string{securityGroupRule.SecurityGroupRuleId},
+					},
+				)
+				if err != nil {
+					return errors.WithStackTrace(err)
+				}
+			}
+		}
+	}
+
 	for _, securityGroup := range securityGroups.SecurityGroups {
 		logging.Logger.Infof("...deleting Security Group %s", awsgo.StringValue(securityGroup.GroupId))
 		if *securityGroup.GroupName != "default" {

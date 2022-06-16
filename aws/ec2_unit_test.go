@@ -149,6 +149,14 @@ func TestNukeMockVpcs(t *testing.T) {
 		}
 		deleteNetworkAclInput := getDeleteNetworkAclInput(ExampleNetworkAclId)
 
+		describeSecurityGroupRulesInput := getDescribeSecurityGroupRulesInput(ExampleSecurityGroupId)
+		describeSecurityGroupRulesOutput := getDescribeSecurityGroupRulesOutput([]string{ExampleSecurityGroupRuleId})
+		describeSecurityGroupRulesFunc := func(input *ec2.DescribeSecurityGroupRulesInput) (*ec2.DescribeSecurityGroupRulesOutput, error) {
+			return describeSecurityGroupRulesOutput, nil
+		}
+		revokeSecurityGroupEgressInput := getRevokeSecurityGroupEgressInput(ExampleSecurityGroupId ,ExampleSecurityGroupRuleId)
+		revokeSecurityGroupIngressInput := getRevokeSecurityGroupIngressInput(ExampleSecurityGroupId, ExampleSecurityGroupRuleId)
+
 		describeSecurityGroupsInput := getDescribeSecurityGroupsInput(vpc.VpcId)
 		describeSecurityGroupsOutput := getDescribeSecurityGroupsOutput([]string{ExampleSecurityGroupId})
 		describeSecurityGroupsFunc := func(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
@@ -174,6 +182,9 @@ func TestNukeMockVpcs(t *testing.T) {
 			mockEC2.EXPECT().DescribeNetworkAcls(describeNetworkAclsInput).DoAndReturn(describeNetworkAclsFunc),
 			mockEC2.EXPECT().DeleteNetworkAcl(deleteNetworkAclInput),
 			mockEC2.EXPECT().DescribeSecurityGroups(describeSecurityGroupsInput).DoAndReturn(describeSecurityGroupsFunc),
+			mockEC2.EXPECT().DescribeSecurityGroupRules(describeSecurityGroupRulesInput).DoAndReturn(describeSecurityGroupRulesFunc),
+			mockEC2.EXPECT().RevokeSecurityGroupEgress(revokeSecurityGroupEgressInput),
+			mockEC2.EXPECT().RevokeSecurityGroupIngress(revokeSecurityGroupIngressInput),
 			mockEC2.EXPECT().DeleteSecurityGroup(deleteSecurityGroupInput),
 			mockEC2.EXPECT().DeleteVpc(deleteVpcInput),
 		)
