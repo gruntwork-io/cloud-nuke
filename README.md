@@ -41,6 +41,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all IAM OpenID Connect Providers
 - Inspecting and deleting all Customer managed keys from Key Management Service in an AWS account
 - Inspecting and deleting all CloudWatch Log Groups in an AWS Account
+- Inspecting and deleting all GuardDuty Detectors in an AWS Account
 
 ### BEWARE!
 
