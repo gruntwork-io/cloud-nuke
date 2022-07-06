@@ -3,7 +3,7 @@ module github.com/gruntwork-io/cloud-nuke
 go 1.16
 
 require (
-	github.com/aws/aws-sdk-go v1.42.4
+	github.com/aws/aws-sdk-go v1.44.46
 	github.com/fatih/color v1.9.0
 	github.com/golang/mock v1.6.0
 	github.com/gruntwork-io/go-commons v0.8.2
