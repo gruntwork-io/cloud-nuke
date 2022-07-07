@@ -115,7 +115,7 @@ func getRandomRegionWithExclusions(regionsToExclude []string) (string, error) {
 	rand.Seed(time.Now().UnixNano())
 
 	// exclude from "allRegions"
-	var exclusions = make(map[string]string)
+	exclusions := make(map[string]string)
 	for _, region := range regionsToExclude {
 		exclusions[region] = region
 	}
@@ -217,7 +217,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 	count := 1
 	totalRegions := len(targetRegions)
-	var resourcesCache = map[string]map[string][]*string{}
+	resourcesCache := map[string]map[string][]*string{}
 
 	for _, region := range targetRegions {
 		// The "global" region case is handled outside this loop
@@ -228,9 +228,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
 		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(region)},
+			Region: awsgo.String(region),
+		},
 		)
-
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -517,7 +517,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		dbInstances := DBInstances{}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
 			instanceNames, err := getAllRdsInstances(session, excludeAfter)
-
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -535,7 +534,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		dbClusters := DBClusters{}
 		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
 			clustersNames, err := getAllRdsClusters(session, excludeAfter)
-
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -551,7 +549,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		lambdaFunctions := LambdaFunctions{}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
 			lambdaFunctionNames, err := getAllLambdaFunctions(session, excludeAfter, configObj, lambdaFunctions.MaxBatchSize())
-
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -663,7 +660,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		DynamoDB := DynamoDB{}
 		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
 			tablenames, err := getAllDynamoTables(session, excludeAfter, configObj, DynamoDB)
-
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -721,10 +717,26 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End KMS Customer managed keys
 
+		// GuardDuty detectors
+		guardDutyDetectors := GuardDuty{}
+		if IsNukeable(guardDutyDetectors.ResourceName(), resourceTypes) {
+			detectors, err := getAllGuardDutyDetectors(session, excludeAfter, configObj, guardDutyDetectors.MaxBatchSize())
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(detectors) > 0 {
+				guardDutyDetectors.detectorIds = detectors
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, guardDutyDetectors)
+			}
+
+		}
+		// End GuardDuty detectors
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
 		count++
+
 	}
 
 	// Global Resources - These resources are global and do not belong to a specific region
@@ -735,7 +747,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// As there is no actual region named global we have to pick a valid one just to create the session
 		sessionRegion := defaultRegion
 		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(sessionRegion)},
+			Region: awsgo.String(sessionRegion),
+		},
 		)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
@@ -747,7 +760,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		iamUsers := IAMUsers{}
 		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
 			userNames, err := getAllIamUsers(session, excludeAfter, configObj)
-
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -816,6 +828,7 @@ func ListResourceTypes() []string {
 		OIDCProviders{}.ResourceName(),
 		KmsCustomerKeys{}.ResourceName(),
 		CloudWatchLogGroups{}.ResourceName(),
+		GuardDuty{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
@@ -881,9 +894,9 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		}
 
 		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(sessionRegion)},
+			Region: awsgo.String(sessionRegion),
+		},
 		)
-
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
