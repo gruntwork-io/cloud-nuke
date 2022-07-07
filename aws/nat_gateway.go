@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -147,6 +148,9 @@ func areAllNatGatewaysDeleted(svc *ec2.EC2, identifiers []*string) (bool, error)
 	// based on NatGateways.MaxBatchSize.
 	resp, err := svc.DescribeNatGateways(&ec2.DescribeNatGatewaysInput{NatGatewayIds: identifiers})
 	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "NatGatewayNotFound" {
+			return true, nil
+		}
 		return false, err
 	}
 	if len(resp.NatGateways) == 0 {
