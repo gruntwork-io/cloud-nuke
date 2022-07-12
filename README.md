@@ -42,6 +42,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all Customer managed keys from Key Management Service in an AWS account
 - Inspecting and deleting all CloudWatch Log Groups in an AWS Account
 - Inspecting and deleting all GuardDuty Detectors in an AWS Account
+- Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
 
 ### BEWARE!
 
