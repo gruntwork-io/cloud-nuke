@@ -19,6 +19,7 @@ func getAllMacieAccounts(session *session.Session, excludeAfter time.Time, confi
 
 	allMacieAccounts := []string{}
 	output, err := svc.GetAdministratorAccount(&macie2.GetAdministratorAccountInput{})
+	// If the current account does have an Administrator account relationship, and it is enabled, then we consider this a macie member account
 	if output.Administrator != nil && output.Administrator.RelationshipStatus != nil {
 		if aws.StringValue(output.Administrator.RelationshipStatus) == macie2.RelationshipStatusEnabled {
 
@@ -30,9 +31,7 @@ func getAllMacieAccounts(session *session.Session, excludeAfter time.Time, confi
 
 			currentAccountId := aws.StringValue(output.Account)
 
-			if shouldIncludeMacieAccount(currentAccountId, excludeAfter, configObj) {
-				allMacieAccounts = append(allMacieAccounts, currentAccountId)
-			}
+			allMacieAccounts = append(allMacieAccounts, currentAccountId)
 		}
 	}
 	if err != nil {
@@ -53,14 +52,6 @@ func getAllMacieAccounts(session *session.Session, excludeAfter time.Time, confi
 		}
 	}
 	return allMacieAccounts, nil
-}
-
-// TODO - not sure this pattern is really useful here, as Macie member accounts don't have a timestamp for when they were "created"
-// The closest would be the timestamp for when they were initiall invited, but there could be a significant delta between when the
-// invite was first sent and when the member account actually accepted it. In the meantime, we probably want to drop this and just
-// return all macie memberships found
-func shouldIncludeMacieAccount(a string, excludeAfter time.Time, configObj config.Config) bool {
-	return true
 }
 
 func nukeAllMacieAccounts(session *session.Session, identifiers []string) error {
