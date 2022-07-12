@@ -32,9 +32,14 @@ func TestListMacieAccounts(t *testing.T) {
 	assert.Contains(t, retrievedAccountIds, accountId)
 }
 
-// TODO - for this to work properly, we'd probably need a standing invite from another test account
-// that we can continually re-accept at testing time. In testing with the AWS console, you can contiunously
-// delete your membership account association, then re-accept the same standing invitation after enabling Macie again
+// Macie is not very conducive to programmatic testing. In order to make this test work, we  maintain a standing invite
+// from our phxdevops test account to our nuclear-wasteland account. We can continuously "nuke" our membership because
+// Macie supports a member account *that was invited* to remove its own association at any time. Meanwhile, diassociating
+// in this manner does not destroy or invalidate the original invitation, which allows us to to continually re-accept it
+// from our nuclear-wasteland account (where cloud-nuke tests are run), just so that we can nuke it again
+//
+// Macie is also regional, so for the purposes of cost-savings and lower admin overhead, we're initially only testing this
+// in the one hardcoded region
 func acceptTestInvite(t *testing.T, session *session.Session) {
 	svc := macie2.New(session)
 
