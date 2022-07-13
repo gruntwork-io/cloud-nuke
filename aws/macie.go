@@ -19,23 +19,7 @@ func getAllMacieMemberAccounts(session *session.Session, excludeAfter time.Time,
 
 	allMacieAccounts := []string{}
 	output, err := svc.GetAdministratorAccount(&macie2.GetAdministratorAccountInput{})
-	// If the current account does have an Administrator account relationship, and it is enabled, then we consider this a macie member account
-	if output.Administrator != nil && output.Administrator.RelationshipStatus != nil {
-		if aws.StringValue(output.Administrator.RelationshipStatus) == macie2.RelationshipStatusEnabled {
-
-			input := &sts.GetCallerIdentityInput{}
-			output, err := stssvc.GetCallerIdentity(input)
-			if err != nil {
-				return allMacieAccounts, errors.WithStackTrace(err)
-			}
-
-			currentAccountId := aws.StringValue(output.Account)
-
-			allMacieAccounts = append(allMacieAccounts, currentAccountId)
-		}
-	}
 	if err != nil {
-
 		// There are several different errors that AWS may return when you attempt to call Macie operations on an account
 		// that doesn't yet have Macie enabled. For our purposes, this is fine, as we're only looking for those accounts and
 		// regions where Macie is enabled. Therefore, we ignore only these expected errors, and return any other errror that might occur
@@ -51,6 +35,22 @@ func getAllMacieMemberAccounts(session *session.Session, excludeAfter time.Time,
 			return allMacieAccounts, errors.WithStackTrace(err)
 		}
 	}
+	// If the current account does have an Administrator account relationship, and it is enabled, then we consider this a macie member account
+	if output.Administrator != nil && output.Administrator.RelationshipStatus != nil {
+		if aws.StringValue(output.Administrator.RelationshipStatus) == macie2.RelationshipStatusEnabled {
+
+			input := &sts.GetCallerIdentityInput{}
+			output, err := stssvc.GetCallerIdentity(input)
+			if err != nil {
+				return allMacieAccounts, errors.WithStackTrace(err)
+			}
+
+			currentAccountId := aws.StringValue(output.Account)
+
+			allMacieAccounts = append(allMacieAccounts, currentAccountId)
+		}
+	}
+
 	return allMacieAccounts, nil
 }
 
