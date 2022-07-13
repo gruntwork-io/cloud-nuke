@@ -734,7 +734,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Macie member accounts
 		macieAccounts := MacieMember{}
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
-			accountIds, err := getAllMacieAccounts(session, excludeAfter, configObj)
+			accountIds, err := getAllMacieMemberAccounts(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

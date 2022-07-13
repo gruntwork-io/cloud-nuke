@@ -22,7 +22,7 @@ func (r MacieMember) MaxBatchSize() int {
 }
 
 func (r MacieMember) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllMacieAccounts(session, identifiers); err != nil {
+	if err := nukeAllMacieMemberAccounts(session, identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil

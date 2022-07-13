@@ -13,7 +13,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllMacieAccounts(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
+func getAllMacieMemberAccounts(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
 	svc := macie2.New(session)
 	stssvc := sts.New(session)
 
@@ -54,7 +54,7 @@ func getAllMacieAccounts(session *session.Session, excludeAfter time.Time, confi
 	return allMacieAccounts, nil
 }
 
-func nukeAllMacieAccounts(session *session.Session, identifiers []string) error {
+func nukeAllMacieMemberAccounts(session *session.Session, identifiers []string) error {
 	svc := macie2.New(session)
 	region := aws.StringValue(session.Config.Region)
 

@@ -24,9 +24,9 @@ func TestListMacieAccounts(t *testing.T) {
 
 	acceptTestInvite(t, session)
 	// Clean up after test by deleting the macie account association
-	defer nukeAllMacieAccounts(session, []string{accountId})
+	defer nukeAllMacieMemberAccounts(session, []string{accountId})
 
-	retrievedAccountIds, lookupErr := getAllMacieAccounts(session, time.Now(), config.Config{})
+	retrievedAccountIds, lookupErr := getAllMacieMemberAccounts(session, time.Now(), config.Config{})
 	require.NoError(t, lookupErr)
 
 	assert.Contains(t, retrievedAccountIds, accountId)
