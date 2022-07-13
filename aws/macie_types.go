@@ -10,7 +10,7 @@ type MacieMember struct {
 }
 
 func (r MacieMember) ResourceName() string {
-	return "macie"
+	return "macie-member"
 }
 
 func (r MacieMember) ResourceIdentifiers() []string {
