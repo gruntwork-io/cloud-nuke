@@ -5,23 +5,23 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type Macie struct {
+type MacieMember struct {
 	AccountIds []string
 }
 
-func (r Macie) ResourceName() string {
+func (r MacieMember) ResourceName() string {
 	return "macie"
 }
 
-func (r Macie) ResourceIdentifiers() []string {
+func (r MacieMember) ResourceIdentifiers() []string {
 	return r.AccountIds
 }
 
-func (r Macie) MaxBatchSize() int {
+func (r MacieMember) MaxBatchSize() int {
 	return 10
 }
 
-func (r Macie) Nuke(session *session.Session, identifiers []string) error {
+func (r MacieMember) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllMacieAccounts(session, identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

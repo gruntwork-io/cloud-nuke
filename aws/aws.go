@@ -732,7 +732,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End GuardDuty detectors
 		// Macie member accounts
-		macieAccounts := Macie{}
+		macieAccounts := MacieMember{}
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
 			accountIds, err := getAllMacieAccounts(session, excludeAfter, configObj)
 			if err != nil {
@@ -843,7 +843,7 @@ func ListResourceTypes() []string {
 		KmsCustomerKeys{}.ResourceName(),
 		CloudWatchLogGroups{}.ResourceName(),
 		GuardDuty{}.ResourceName(),
-		Macie{}.ResourceName(),
+		MacieMember{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
