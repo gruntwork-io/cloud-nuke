@@ -34,7 +34,7 @@ func TestListMacieAccounts(t *testing.T) {
 
 // Macie is not very conducive to programmatic testing. In order to make this test work, we  maintain a standing invite
 // from our phxdevops test account to our nuclear-wasteland account. We can continuously "nuke" our membership because
-// Macie supports a member account *that was invited* to remove its own association at any time. Meanwhile, diassociating
+// Macie supports a member account *that was invited* to remove its own association at any time. Meanwhile, disassociating
 // in this manner does not destroy or invalidate the original invitation, which allows us to to continually re-accept it
 // from our nuclear-wasteland account (where cloud-nuke tests are run), just so that we can nuke it again
 //
