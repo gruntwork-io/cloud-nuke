@@ -1,7 +1,7 @@
 defaults: &defaults
   docker:
     - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.16-tf1.0-tg31.1-pck1.7
-version: 2
+version: 2.1
 jobs:
   test:
     <<: *defaults
@@ -73,6 +73,10 @@ jobs:
 workflows:
   version: 2
   build-and-test:
+    # Make sure this pipeline doesn't run when a schedule is triggered
+    when:
+      not:
+        equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
     jobs:
       - test:
           filters:
@@ -96,24 +100,20 @@ workflows:
               ignore: /.*/
           context:
             - Gruntwork Admin
-  frequently:
-    triggers:
-      - schedule:
-          cron: "0 0,3,6,9,12,15,18,21 * * *"
-          filters:
-            branches:
-              only: master
+  nuke_phxdevops:
+    when:
+      and:
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "every 3 hours", << pipeline.schedule.name >> ]
     jobs:
       - nuke_phx_devops:
           context:
             - Gruntwork Admin
-  nightly:
-    triggers:
-      - schedule:
-          cron: "0 6 * * *"
-          filters:
-            branches:
-              only: master
+  nuke_sandbox:
+    when:
+      and:
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "nightly", << pipeline.schedule.name >> ]
     jobs:
       - nuke_sandbox:
           context:
