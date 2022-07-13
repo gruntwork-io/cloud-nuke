@@ -65,7 +65,7 @@ func nukeAllMacieAccounts(session *session.Session, identifiers []string) error 
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting Macie account membership in %s", region)
+	logging.Logger.Infof("Deleting Macie account membership and disabling Macie in %s", region)
 
 	for _, accountId := range identifiers {
 		_, disassociateErr := svc.DisassociateFromAdministratorAccount(&macie2.DisassociateFromAdministratorAccountInput{})
