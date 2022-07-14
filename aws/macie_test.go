@@ -46,8 +46,8 @@ func acceptTestInvite(t *testing.T, session *session.Session) {
 	// Accept the "standing" invite from our other test account to become a Macie member account
 	// This works because Macie invites don't expire or get deleted when you disassociate your member account following an invitation
 	acceptInviteInput := &macie2.AcceptInvitationInput{
-		AdministratorAccountId: aws.String("087285199408"),                     // phxdevops
-		InvitationId:           aws.String("28c0eacd402dd97cbf8a0c14b6cc3237"), // "standing" test invite ID
+		AdministratorAccountId: aws.String("353720269506"),                     // sandbox
+		InvitationId:           aws.String("18c0febb89142640f07ba497b19bac8e"), // "standing" test invite ID
 	}
 
 	_, acceptInviteErr := svc.AcceptInvitation(acceptInviteInput)
