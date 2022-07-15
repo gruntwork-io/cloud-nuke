@@ -31,7 +31,6 @@ func ExtractResourcesForPrinting(account *AwsAccountResources) []string {
 }
 
 func ensureValidResourceTypes(resourceTypes []string) ([]string, error) {
-
 	invalidresourceTypes := []string{}
 	for _, resourceType := range resourceTypes {
 		if resourceType == "all" {
@@ -79,7 +78,6 @@ func HandleResourceTypeSelections(
 }
 
 func InspectResources(q *Query) (*AwsAccountResources, error) {
-
 	// Log which resource types will be inspected
 	logging.Logger.Info("The following resource types will be inspected:")
 	if len(q.ResourceTypes) > 0 {

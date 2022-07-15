@@ -194,17 +194,19 @@ Dry run mode is only available within:
 You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources. 
 
 ```golang 
+
 package main
 
 import (
 	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 )
 
 func main() {
-
 	// You can scan multiple regions at once, or just pass a single region for speed
 	targetRegions := []string{"us-east-1", "us-west-1", "us-west-2"}
 	excludeRegions := []string{}
@@ -214,6 +216,17 @@ func main() {
 	// excludeAfter is parsed identically to the --older-than flag
 	excludeAfter := time.Now()
 
+	// Any custom settings you want
+	myCustomConfig := &aws.Config{}
+
+	myCustomConfig.WithMaxRetries(3)
+	myCustomConfig.WithLogLevel(aws.LogDebugWithRequestErrors)
+	// Optionally, set custom credentials
+	// myCustomConfig.WithCredentials()
+
+	// Be sure to set your config prior to calling any library methods such as NewQuery
+	externalcreds.Set(myCustomConfig)
+
 	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
 	query, err := nuke_aws.NewQuery(
 		targetRegions,
@@ -222,7 +235,6 @@ func main() {
 		excludeResourceTypes,
 		excludeAfter,
 	)
-
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -246,7 +258,7 @@ func main() {
 	// countOfEc2InUsWest1: 2
 
 	fmt.Printf("usWest1Resources.ResourceTypePresent(\"ec2\"):%b\n", usWest1Resources.ResourceTypePresent("ec2"))
-	//usWest1Resources.ResourceTypePresent("ec2"): true
+	// usWest1Resources.ResourceTypePresent("ec2"): true
 
 	// Get all the resource identifiers for a given resource type
 	// In this example, we're only looking for ec2 instances
@@ -254,7 +266,6 @@ func main() {
 
 	fmt.Printf("resourceIds: %s", resourceIds)
 	// resourceIds:  [i-0c5d16c3ef28dda24 i-09d9739e1f4d27814]
-
 }
 ```
 

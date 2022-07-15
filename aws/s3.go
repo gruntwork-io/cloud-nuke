@@ -94,8 +94,8 @@ type S3Bucket struct {
 
 // getAllS3Buckets returns a map of per region AWS S3 buckets which were created before excludeAfter
 func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
-	targetRegions []string, bucketNameSubStr string, batchSize int, configObj config.Config) (map[string][]*string, error) {
-
+	targetRegions []string, bucketNameSubStr string, batchSize int, configObj config.Config,
+) (map[string][]*string, error) {
 	if batchSize <= 0 {
 		return nil, fmt.Errorf("Invalid batchsize - %d - should be > 0", batchSize)
 	}
@@ -112,7 +112,7 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var bucketNamesPerRegion = make(map[string][]*string)
+	bucketNamesPerRegion := make(map[string][]*string)
 	totalBuckets := len(output.Buckets)
 	if totalBuckets == 0 {
 		return bucketNamesPerRegion, nil
@@ -127,7 +127,6 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 		logging.Logger.Infof("Getting - %d-%d buckets of batch %d/%d", batchStart+1, batchEnd, batchCount, totalBatches)
 		targetBuckets := output.Buckets[batchStart:batchEnd]
 		currBucketNamesPerRegion, err := getBucketNamesPerRegion(svc, targetBuckets, excludeAfter, regionClients, bucketNameSubStr, configObj)
-
 		if err != nil {
 			return bucketNamesPerRegion, err
 		}
@@ -145,15 +144,12 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 
 // getRegions creates s3 clients for target regions
 func getRegionClients(regions []string) (map[string]*s3.S3, error) {
-	var regionClients = make(map[string]*s3.S3)
+	regionClients := make(map[string]*s3.S3)
 	for _, region := range regions {
 		logging.Logger.Debugf("S3 - creating session - region %s", region)
-		awsSession, err := session.NewSession(&aws.Config{
-			Region: aws.String(region)},
-		)
-		if err != nil {
-			return regionClients, err
-		}
+
+		awsSession := newSession(region)
+
 		regionClients[region] = s3.New(awsSession)
 	}
 	return regionClients, nil
@@ -161,10 +157,10 @@ func getRegionClients(regions []string) (map[string]*s3.S3, error) {
 
 // getBucketNamesPerRegions gets valid bucket names concurrently from list of target buckets
 func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfter time.Time, regionClients map[string]*s3.S3,
-	bucketNameSubStr string, configObj config.Config) (map[string][]*string, error) {
-
-	var bucketNamesPerRegion = make(map[string][]*string)
-	var bucketCh = make(chan *S3Bucket, len(targetBuckets))
+	bucketNameSubStr string, configObj config.Config,
+) (map[string][]*string, error) {
+	bucketNamesPerRegion := make(map[string][]*string)
+	bucketCh := make(chan *S3Bucket, len(targetBuckets))
 	var wg sync.WaitGroup
 
 	for _, bucket := range targetBuckets {
