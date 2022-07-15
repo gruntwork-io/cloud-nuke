@@ -203,7 +203,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
-	nuke_creds "github.com/gruntwork-io/cloud-nuke/externalcreds"
+	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 )
 
 func main() {
@@ -222,11 +222,10 @@ func main() {
 	myCustomConfig.WithMaxRetries(3)
 	myCustomConfig.WithLogLevel(aws.LogDebugWithRequestErrors)
 	// Optionally, set custom credentials
-	// myCustomConfig.WithCredentials(<your-custom-credentials>)
+	// myCustomConfig.WithCredentials()
 
-	// Pass your custom config to cloud-nuke prior to calling any library methods. This is how you would pass external 
-    // credentials into a cloud-nuke script
-	nuke_creds.Set(myCustomConfig)
+	// Be sure to set your config prior to calling any library methods such as NewQuery
+	externalcreds.Set(myCustomConfig)
 
 	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
 	query, err := nuke_aws.NewQuery(
