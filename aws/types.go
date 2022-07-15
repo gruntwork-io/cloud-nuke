@@ -83,7 +83,6 @@ type Query struct {
 
 // NewQuery configures and returns a Query struct that can be passed into the InspectResources method
 func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string, excludeAfter time.Time) (*Query, error) {
-
 	q := &Query{
 		Regions:              regions,
 		ExcludeRegions:       excludeRegions,
@@ -104,7 +103,6 @@ func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []str
 // Validate ensures the configured values for a Query are valid, returning an error if there are
 // any invalid params, or nil if the Query is valid
 func (q *Query) Validate() error {
-
 	resourceTypes, err := HandleResourceTypeSelections(q.ResourceTypes, q.ExcludeResourceTypes)
 	if err != nil {
 		return err
@@ -118,7 +116,6 @@ func (q *Query) Validate() error {
 	}
 
 	targetRegions, err := GetTargetRegions(enabledRegions, q.Regions, q.ExcludeRegions)
-
 	if err != nil {
 		return CouldNotSelectRegionError{Underlying: err}
 	}

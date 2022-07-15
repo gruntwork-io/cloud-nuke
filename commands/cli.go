@@ -160,7 +160,6 @@ func awsNuke(c *cli.Context) error {
 
 	if configFilePath != "" {
 		configObjPtr, err := config.GetConfig(configFilePath)
-
 		if err != nil {
 			return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
 		}
@@ -212,7 +211,6 @@ func awsNuke(c *cli.Context) error {
 
 	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
 	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
-
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -372,7 +370,6 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 	prompts := 0
 	for prompts < maxPrompts {
 		input, err := shell.PromptUserForInput(prompt, &shellOptions)
-
 		if err != nil {
 			return false, errors.WithStackTrace(err)
 		}
@@ -417,13 +414,11 @@ func awsInspect(c *cli.Context) error {
 		c.StringSlice("exclude-resource-type"),
 		*excludeAfter,
 	)
-
 	if err != nil {
 		return aws.QueryCreationError{Underlying: err}
 	}
 
 	accountResources, err := aws.InspectResources(query)
-
 	if err != nil {
 		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
