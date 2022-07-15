@@ -60,8 +60,6 @@ func nukeAllMacieMemberAccounts(session *session.Session, identifiers []string) 
 	svc := macie2.New(session)
 	region := aws.StringValue(session.Config.Region)
 
-	disassociatedAccountIds := []string{}
-
 	if len(identifiers) == 0 {
 		logging.Logger.Infof("No Macie member accounts to nuke in region %s", *session.Config.Region)
 		return nil
@@ -82,7 +80,6 @@ func nukeAllMacieMemberAccounts(session *session.Session, identifiers []string) 
 		}
 
 		logging.Logger.Infof("[OK] Macie account association for accountId %s deleted in %s", accountId, region)
-		disassociatedAccountIds = append(disassociatedAccountIds, accountId)
 	}
 
 	return nil
