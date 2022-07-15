@@ -55,33 +55,7 @@ const (
 )
 
 func newSession(region string) *session.Session {
-	// If there were no external credentials configured by the caller, use the default credentials
-	if externalcreds.Get() == nil {
-		return session.Must(
-			session.NewSessionWithOptions(
-				session.Options{
-					SharedConfigState: session.SharedConfigEnable,
-					Config: awsgo.Config{
-						Region: awsgo.String(region),
-					},
-				},
-			),
-		)
-	}
-
-	// If external credentials were passed, use them when instantiating a new session
-	externalCreds := externalcreds.Get()
-	return session.Must(
-		session.NewSessionWithOptions(
-			session.Options{
-				SharedConfigState: session.SharedConfigEnable,
-				Config: awsgo.Config{
-					Region:      awsgo.String(region),
-					Credentials: externalCreds.Credentials,
-				},
-			},
-		),
-	)
+	return externalcreds.Get(region)
 }
 
 // Try a describe regions command with the most likely enabled regions
@@ -245,28 +219,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
-		var cloudNukeSession *session.Session
-		var err error
-
-		// If no aws.Config was passed in externally, generate a new session using the default credentials
-		if externalcreds.Get() == nil {
-			cloudNukeSession, err = session.NewSession(&awsgo.Config{
-				Region: awsgo.String(region),
-			})
-		} else {
-
-			externalConfig := externalcreds.Get()
-			// If a pointer to an aws.Config was passed by the caller, use its credentials
-			newConfig := &awsgo.Config{}
-			newConfig.WithRegion(region)
-			newConfig.WithCredentials(externalConfig.Credentials)
-
-			cloudNukeSession, err = session.NewSession(newConfig)
-		}
-
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
+		cloudNukeSession := newSession(region)
 
 		resourcesInRegion := AwsRegionResource{}
 

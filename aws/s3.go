@@ -10,14 +10,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gruntwork-io/go-commons/errors"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 )
 
@@ -150,25 +148,8 @@ func getRegionClients(regions []string) (map[string]*s3.S3, error) {
 	for _, region := range regions {
 		logging.Logger.Debugf("S3 - creating session - region %s", region)
 
-		var awsSession *session.Session
-		var err error
+		awsSession := newSession(region)
 
-		if externalcreds.Get() == nil {
-			awsSession, err = session.NewSession(&aws.Config{
-				Region: aws.String(region),
-			},
-			)
-		} else {
-			externalConfig := externalcreds.Get()
-			newConfig := &awsgo.Config{}
-			newConfig.WithRegion(region)
-			newConfig.WithCredentials(externalConfig.Credentials)
-			awsSession, err = session.NewSession(newConfig)
-		}
-
-		if err != nil {
-			return regionClients, err
-		}
 		regionClients[region] = s3.New(awsSession)
 	}
 	return regionClients, nil
