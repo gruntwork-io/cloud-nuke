@@ -225,7 +225,7 @@ func main() {
 	// myCustomConfig.WithCredentials(<your-custom-credentials>)
 
 	// Pass your custom config to cloud-nuke prior to calling any library methods. This is how you would pass external 
-  // credentials into a cloud-nuke script
+    // credentials into a cloud-nuke script
 	nuke_creds.Set(myCustomConfig)
 
 	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
