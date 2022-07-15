@@ -39,7 +39,11 @@ func TestListMacieAccounts(t *testing.T) {
 // from our nuclear-wasteland account (where cloud-nuke tests are run), just so that we can nuke it again
 //
 // Macie is also regional, so for the purposes of cost-savings and lower admin overhead, we're initially only testing this
-// in the one hardcoded region
+// in the one hardcoded region - us-east-1
+//
+// The other reason we only test in us-east-1 is to avoid conflict with our Macie test in the CIS service catalog, which uses
+// these same two accounts for similar purposes, but in EU regions.
+// See: https://github.com/gruntwork-io/terraform-aws-cis-service-catalog/blob/master/test/security/macie_test.go
 func acceptTestInvite(t *testing.T, session *session.Session) {
 	svc := macie2.New(session)
 
