@@ -22,15 +22,17 @@ func getAllMacieMemberAccounts(session *session.Session, excludeAfter time.Time,
 	if err != nil {
 		// There are several different errors that AWS may return when you attempt to call Macie operations on an account
 		// that doesn't yet have Macie enabled. For our purposes, this is fine, as we're only looking for those accounts and
-		// regions where Macie is enabled. Therefore, we ignore only these expected errors, and return any other errror that might occur
+		// regions where Macie is enabled. Therefore, we ignore only these expected errors, and return any other error that might occur
 		var ade *macie2.AccessDeniedException
 		var rnfe *macie2.ResourceNotFoundException
 
 		switch {
 		case goerror.As(err, &ade):
 			logging.Logger.Debugf("Macie AccessDeniedException means macie is not enabled in account, so skipping")
+			return allMacieAccounts, nil
 		case goerror.As(err, &rnfe):
 			logging.Logger.Debugf("Macie ResourceNotFoundException means macie is not enabled in account, so skipping")
+			return allMacieAccounts, nil
 		default:
 			return allMacieAccounts, errors.WithStackTrace(err)
 		}
