@@ -12,28 +12,19 @@ func Set(opts *aws.Config) {
 }
 
 func Get(region string) *session.Session {
-	if externalConfig == nil {
-		return session.Must(
-			session.NewSessionWithOptions(
-				session.Options{
-					SharedConfigState: session.SharedConfigEnable,
-					Config: aws.Config{
-						Region: aws.String(region),
-					},
-				},
-			),
-		)
-	} else {
-		return session.Must(
-			session.NewSessionWithOptions(
-				session.Options{
-					SharedConfigState: session.SharedConfigEnable,
-					Config: aws.Config{
-						Region:      aws.String(region),
-						Credentials: externalConfig.Credentials,
-					},
-				},
-			),
-		)
+	config := aws.Config{
+		Region: aws.String(region),
 	}
+	// If external config was passed in, use its credentials
+	if externalConfig != nil {
+		config.Credentials = externalConfig.Credentials
+	}
+	return session.Must(
+		session.NewSessionWithOptions(
+			session.Options{
+				SharedConfigState: session.SharedConfigEnable,
+				Config:            config,
+			},
+		),
+	)
 }
