@@ -110,12 +110,15 @@ func (q *Query) Validate() error {
 
 	q.ResourceTypes = resourceTypes
 
-	enabledRegions, err := GetEnabledRegions()
+	regions, err := GetEnabledRegions()
 	if err != nil {
 		return CouldNotDetermineEnabledRegionsError{Underlying: err}
 	}
 
-	targetRegions, err := GetTargetRegions(enabledRegions, q.Regions, q.ExcludeRegions)
+	// global is a fake region, used to represent global resources
+	regions = append(regions, GlobalRegion)
+
+	targetRegions, err := GetTargetRegions(regions, q.Regions, q.ExcludeRegions)
 	if err != nil {
 		return CouldNotSelectRegionError{Underlying: err}
 	}

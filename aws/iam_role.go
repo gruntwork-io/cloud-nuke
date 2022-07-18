@@ -17,31 +17,25 @@ import (
 func getAllIamRoles(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := iam.New(session)
 
-	var roleNames []*string
-
-	// TODO: Probably use ListRoles together with ListRolesPages in case there are lots of roles
-	output, err := svc.ListRoles(&iam.ListRolesInput{})
+	allIAMRoles := []*string{}
+	err := svc.ListRolesPages(
+		&iam.ListRolesInput{},
+		func(page *iam.ListRolesOutput, lastPage bool) bool {
+			for _, iamRole := range page.Roles {
+				if shouldIncludeIAMRole(iamRole, excludeAfter, configObj) {
+					allIAMRoles = append(allIAMRoles, iamRole.RoleName)
+				}
+			}
+			return !lastPage
+		},
+	)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
-
-	for _, role := range output.Roles {
-		if strings.Contains(aws.StringValue(role.RoleName), "OrganizationAccountAccessRole") {
-			continue
-		}
-		if strings.Contains(aws.StringValue(role.Arn), "aws-service-role") || strings.Contains(aws.StringValue(role.Arn), "aws-reserved") {
-			continue
-		}
-
-		if config.ShouldInclude(aws.StringValue(role.RoleName), configObj.IAMRoles.IncludeRule.NamesRegExp, configObj.IAMRoles.ExcludeRule.NamesRegExp) && excludeAfter.After(*role.CreateDate) {
-			roleNames = append(roleNames, role.RoleName)
-		}
-	}
-
-	return roleNames, nil
+	return allIAMRoles, nil
 }
 
-func detachRolePolicies(svc *iam.IAM, roleName *string) error {
+func deleteManagedRolePolicies(svc *iam.IAM, roleName *string) error {
 	policiesOutput, err := svc.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
 		RoleName: roleName,
 	})
@@ -89,28 +83,25 @@ func deleteInlineRolePolicies(svc *iam.IAM, roleName *string) error {
 	return nil
 }
 
-func removeRoleFromInstanceProfiles(svc *iam.IAM, roleName *string) error {
-	resp, err := svc.ListInstanceProfilesForRole(&iam.ListInstanceProfilesForRoleInput{
+func detachInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
+	profilesOutput, err := svc.ListInstanceProfilesForRole(&iam.ListInstanceProfilesForRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
-	for _, profile := range resp.InstanceProfiles {
+	for _, profile := range profilesOutput.InstanceProfiles {
 		_, err := svc.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
-			RoleName:            roleName,
 			InstanceProfileName: profile.InstanceProfileName,
+			RoleName:            roleName,
 		})
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-
-		logging.Logger.Infof("Removed Role %s from Instance Profile %s", aws.StringValue(roleName), aws.StringValue(profile.InstanceProfileName))
+		logging.Logger.Infof("Detached InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
 	}
-
 	return nil
 }
 
@@ -132,9 +123,9 @@ func nukeRole(svc *iam.IAM, roleName *string) error {
 	// NOTE: The actual role deletion should always be the last one. This way we
 	// can guarantee that it will fail if we forgot to delete/detach an item.
 	functions := []func(svc *iam.IAM, roleName *string) error{
-		detachRolePolicies,
+		detachInstanceProfilesFromRole,
 		deleteInlineRolePolicies,
-		removeRoleFromInstanceProfiles,
+		deleteManagedRolePolicies,
 		deleteIamRole,
 	}
 
@@ -150,11 +141,11 @@ func nukeRole(svc *iam.IAM, roleName *string) error {
 // Delete all IAM Roles
 func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	if len(roleNames) == 0 {
-		logging.Logger.Info("No IAM Users to nuke")
+		logging.Logger.Info("No IAM Roles to nuke")
 		return nil
 	}
 
-	logging.Logger.Info("Deleting all IAM Users")
+	logging.Logger.Info("Deleting all IAM Roles")
 
 	deletedUsers := 0
 	svc := iam.New(session)
@@ -173,4 +164,27 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 
 	logging.Logger.Infof("[OK] %d IAM Roles(s) terminated", deletedUsers)
 	return multiErr.ErrorOrNil()
+}
+
+func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj config.Config) bool {
+	if iamRole == nil {
+		return false
+	}
+
+	if strings.Contains(aws.StringValue(iamRole.RoleName), "OrganizationAccountAccessRole") {
+		return false
+	}
+
+	// The arns of AWS-managed IAM roles, which can only be modified or deleted by AWS, contain "aws-service-role", so we can filter them out
+	// of the Roles found and managed by cloud-nuke
+	// The same general rule applies with roles whose arn contains "aws-reserved"
+	if strings.Contains(aws.StringValue(iamRole.Arn), "aws-service-role") || strings.Contains(aws.StringValue(iamRole.Arn), "aws-reserved") {
+		return false
+	}
+
+	if excludeAfter.Before(*iamRole.CreateDate) {
+		return false
+	}
+
+	return config.ShouldInclude(aws.StringValue(iamRole.RoleName), configObj.IAMRoles.IncludeRule.NamesRegExp, configObj.IAMRoles.ExcludeRule.NamesRegExp)
 }
