@@ -23,7 +23,6 @@ func TestListECSFargateServices(t *testing.T) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -69,7 +68,6 @@ func TestNukeECSFargateServices(t *testing.T) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -109,7 +107,6 @@ func TestListECSEC2Services(t *testing.T) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -174,7 +171,6 @@ func TestNukeECSEC2Services(t *testing.T) {
 	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
-
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}

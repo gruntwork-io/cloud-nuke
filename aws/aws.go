@@ -731,14 +731,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
 
 		// As there is no actual region named global we have to pick a valid one just to create the session
-		sessionRegion := defaultRegion
-		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(sessionRegion),
-		},
-		)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
+		session := newSession(defaultRegion)
 
 		globalResources := AwsRegionResource{}
 
@@ -755,6 +748,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End IAM Users
+
+		// IAM Roles
+		iamRoles := IAMRoles{}
+		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
+			roleNames, err := getAllIamRoles(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(roleNames) > 0 {
+				iamRoles.RoleNames = awsgo.StringValueSlice(roleNames)
+				globalResources.Resources = append(globalResources.Resources, iamRoles)
+			}
+		}
+		// End IAM Roles
 
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
@@ -815,6 +822,7 @@ func ListResourceTypes() []string {
 		KmsCustomerKeys{}.ResourceName(),
 		CloudWatchLogGroups{}.ResourceName(),
 		GuardDuty{}.ResourceName(),
+		IAMRoles{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

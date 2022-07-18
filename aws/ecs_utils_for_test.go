@@ -242,7 +242,6 @@ func deleteInstanceProfile(awsSession *session.Session, instanceProfile iam.Inst
 		return gruntworkerrors.WithStackTrace(err)
 	}
 	return nil
-
 }
 
 func createEcsRole(t *testing.T, awsSession *session.Session, roleName string) iam.Role {
@@ -300,7 +299,7 @@ func getVpcConfiguration(awsSession *session.Session) (ecs.AwsVpcConfiguration, 
 	ec2Svc := ec2.New(awsSession)
 	describeVpcsParams := &ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name:   awsgo.String("isDefault"),
 				Values: []*string{awsgo.String("true")},
 			},
@@ -318,7 +317,7 @@ func getVpcConfiguration(awsSession *session.Session) (ecs.AwsVpcConfiguration, 
 
 	describeSubnetsParams := &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name:   awsgo.String("vpc-id"),
 				Values: []*string{defaultVpc.VpcId},
 			},

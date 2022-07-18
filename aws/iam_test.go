@@ -37,11 +37,30 @@ func TestListIamUsers(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 	require.NoError(t, err)
 
 	userNames, err := getAllIamUsers(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, userNames)
+}
+
+func TestListIamRoles(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region),
+	},
+	)
+	require.NoError(t, err)
+
+	userNames, err := getAllIamRoles(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, userNames)
@@ -59,6 +78,34 @@ func createTestUser(t *testing.T, session *session.Session, name string) error {
 	return nil
 }
 
+func createTestRole(t *testing.T, session *session.Session, name string) error {
+	svc := iam.New(session)
+	input := &iam.CreateRoleInput{
+		AssumeRolePolicyDocument: aws.String(`{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sts:AssumeRole"
+            ],
+            "Principal": {
+                "Service": [
+                    "ec2.amazonaws.com"
+                ]
+            }
+        }
+    ]}`),
+		Description: aws.String("This is a test-generated role used by cloud-nuke tests"),
+		RoleName:    aws.String(name),
+	}
+
+	_, err := svc.CreateRole(input)
+	require.NoError(t, err)
+
+	return nil
+}
+
 func TestCreateIamUser(t *testing.T) {
 	t.Parallel()
 
@@ -66,7 +113,8 @@ func TestCreateIamUser(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 	require.NoError(t, err)
 
@@ -84,6 +132,32 @@ func TestCreateIamUser(t *testing.T) {
 	assert.Contains(t, awsgo.StringValueSlice(userNames), name)
 }
 
+func TestCreateIamRole(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region),
+	},
+	)
+	require.NoError(t, err)
+
+	name := "cloud-nuke-test-" + util.UniqueID()
+	roleNames, err := getAllIamRoles(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
+
+	err = createTestRole(t, session, name)
+	defer nukeAllIamRoles(session, []*string{&name})
+	require.NoError(t, err)
+
+	roleNames, err = getAllIamRoles(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(roleNames), name)
+}
+
 func TestNukeIamUsers(t *testing.T) {
 	t.Parallel()
 
@@ -91,7 +165,8 @@ func TestNukeIamUsers(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 	require.NoError(t, err)
 
@@ -103,6 +178,26 @@ func TestNukeIamUsers(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestNukeIamRoles(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region),
+	},
+	)
+	require.NoError(t, err)
+
+	name := "cloud-nuke-test-" + util.UniqueID()
+	err = createTestRole(t, session, name)
+	require.NoError(t, err)
+
+	err = nukeAllIamRoles(session, []*string{&name})
+	require.NoError(t, err)
+}
+
 func TestTimeFilterExclusionNewlyCreatedIamUser(t *testing.T) {
 	t.Parallel()
 
@@ -110,7 +205,8 @@ func TestTimeFilterExclusionNewlyCreatedIamUser(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 	require.NoError(t, err)
 
@@ -134,6 +230,40 @@ func TestTimeFilterExclusionNewlyCreatedIamUser(t *testing.T) {
 	userNames, err = getAllIamUsers(session, olderThan, config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(userNames), name)
+}
+
+func TestTimeFilterExclusionNewlyCreatedIamRole(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region),
+	},
+	)
+	require.NoError(t, err)
+
+	// Assert user didn't exist
+	name := "cloud-nuke-test-" + util.UniqueID()
+	roleNames, err := getAllIamRoles(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
+
+	// Creates a role
+	err = createTestRole(t, session, name)
+	defer nukeAllIamRoles(session, []*string{&name})
+
+	// Assert role is created
+	roleNames, err = getAllIamRoles(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(roleNames), name)
+
+	// Assert role doesn't appear when we look at users older than 1 Hour
+	olderThan := time.Now().Add(-1 * time.Hour)
+	roleNames, err = getAllIamRoles(session, olderThan, config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
 }
 
 // We need to create a valid X.509 certificate and upload it to associate it with a "Signing Certificate" for our user
@@ -461,7 +591,8 @@ func TestDeleteFullIamUser(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 	require.NoError(t, err)
 

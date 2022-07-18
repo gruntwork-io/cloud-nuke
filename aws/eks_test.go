@@ -14,10 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	// Exclude ap-southeast-1, which currently has a ghost EKS cluster that messes cloud-nuke up.
-	excludeRegionsForEKSTest = []string{"ap-southeast-1"}
-)
+// Exclude ap-southeast-1, which currently has a ghost EKS cluster that messes cloud-nuke up.
+var excludeRegionsForEKSTest = []string{"ap-southeast-1"}
 
 // Test that we can successfully list clusters by manually creating a cluster, and then using the list function to find
 // it.
