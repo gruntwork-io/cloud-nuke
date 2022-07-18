@@ -31,14 +31,10 @@ The currently supported functionality includes:
 - Inspecting and deleting all default VPCs in an AWS account
 - Deleting VPCs in an AWS Account (except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
 - Inspecting and deleting all IAM users in an AWS account
+- Inspecting and deleting all IAM roles in an AWS account
 - Inspecting and deleting all Secrets Manager Secrets in an AWS account
 - Inspecting and deleting all NAT Gateways in an AWS account
 - Inspecting and deleting all IAM Access Analyzers in an AWS account
-- Deleting all IAM users in an AWS account
-- Deleting all IAM roles in an AWS account (except aws defined roles and OrganizationAccountAccessRole)
-- Deleting all Secrets Manager Secrets in an AWS account
-- Deleting all NAT Gateways in an AWS account
-- Deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 - Inspecting and deleting all DynamoDB tables in an AWS account
 - Inspecting and deleting all CloudWatch Dashboards in an AWS account
