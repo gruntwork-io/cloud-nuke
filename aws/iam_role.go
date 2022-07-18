@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// List all IAM users in the AWS account and returns a slice of the UserNames
+// List all IAM Roles in the AWS account
 func getAllIamRoles(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := iam.New(session)
 
@@ -117,7 +117,7 @@ func deleteIamRole(svc *iam.IAM, roleName *string) error {
 	return nil
 }
 
-// Nuke a single user
+// Nuke a single IAM Role
 func nukeRole(svc *iam.IAM, roleName *string) error {
 	// Functions used to really nuke an IAM Role as a role can have many attached
 	// items we need delete/detach them before actually deleting it.
