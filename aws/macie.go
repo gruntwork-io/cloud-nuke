@@ -2,18 +2,19 @@ package aws
 
 import (
 	goerror "errors"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/macie2"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllMacieMemberAccounts(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
+// getAllMacieMemberAccounts will find and return any Macie accounts that were created via accepting an invite from another AWS Account
+// Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the excludeAfter or configObj patterns, so we
+// currently can only accept a session
+func getAllMacieMemberAccounts(session *session.Session) ([]string, error) {
 	svc := macie2.New(session)
 	stssvc := sts.New(session)
 

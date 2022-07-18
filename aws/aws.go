@@ -720,7 +720,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Macie member accounts
 		macieAccounts := MacieMember{}
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
-			accountIds, err := getAllMacieMemberAccounts(session, excludeAfter, configObj)
+			// Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the excludeAfter or configObj patterns
+			accountIds, err := getAllMacieMemberAccounts(cloudNukeSession)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
