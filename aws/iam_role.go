@@ -2,6 +2,7 @@ package aws
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -140,30 +141,52 @@ func nukeRole(svc *iam.IAM, roleName *string) error {
 
 // Delete all IAM Roles
 func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
+	region := aws.StringValue(session.Config.Region)
+
+	svc := iam.New(session)
+
 	if len(roleNames) == 0 {
 		logging.Logger.Info("No IAM Roles to nuke")
 		return nil
 	}
 
-	logging.Logger.Info("Deleting all IAM Roles")
-
-	deletedUsers := 0
-	svc := iam.New(session)
-	multiErr := new(multierror.Error)
-
-	for _, roleName := range roleNames {
-		err := nukeRole(svc, roleName)
-		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-		} else {
-			deletedUsers++
-			logging.Logger.Infof("Deleted IAM Role: %s", *roleName)
-		}
+	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
+	// based on NatGateways.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
+	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
+	// because many APIs in AWS have a limit of 100 requests per second.
+	if len(roleNames) > 100 {
+		logging.Logger.Errorf("Nuking too many IAM Roles at once (100): halting to avoid hitting AWS API rate limiting")
+		return TooManyIamRoleErr{}
 	}
 
-	logging.Logger.Infof("[OK] %d IAM Roles(s) terminated", deletedUsers)
-	return multiErr.ErrorOrNil()
+	// There is no bulk delete IAM Roles API, so we delete the batch of IAM roles concurrently using go routines
+	logging.Logger.Infof("Deleting all IAM Roles in region %s", region)
+	wg := new(sync.WaitGroup)
+	wg.Add(len(roleNames))
+	errChans := make([]chan error, len(roleNames))
+	for i, roleName := range roleNames {
+		errChans[i] = make(chan error, 1)
+		go deleteIamRoleAsync(wg, errChans[i], svc, roleName)
+	}
+	wg.Wait()
+
+	// Collect all the errors from the async delete calls into a single error struct.
+	var allErrs *multierror.Error
+	for _, errChan := range errChans {
+		if err := <-errChan; err != nil {
+			allErrs = multierror.Append(allErrs, err)
+			logging.Logger.Errorf("[Failed] %s", err)
+		}
+	}
+	finalErr := allErrs.ErrorOrNil()
+	if finalErr != nil {
+		return errors.WithStackTrace(finalErr)
+	}
+
+	for _, roleName := range roleNames {
+		logging.Logger.Infof("[OK] IAM Role %s was deleted in %s", aws.StringValue(roleName), region)
+	}
+	return nil
 }
 
 func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj config.Config) bool {
@@ -186,5 +209,42 @@ func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj c
 		return false
 	}
 
-	return config.ShouldInclude(aws.StringValue(iamRole.RoleName), configObj.IAMRoles.IncludeRule.NamesRegExp, configObj.IAMRoles.ExcludeRule.NamesRegExp)
+	return config.ShouldInclude(
+		aws.StringValue(iamRole.RoleName),
+		configObj.IAMRoles.IncludeRule.NamesRegExp,
+		configObj.IAMRoles.ExcludeRule.NamesRegExp,
+	)
+}
+
+func deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, roleName *string) {
+	defer wg.Done()
+
+	var result *multierror.Error
+
+	// Functions used to really nuke an IAM Role as a role can have many attached
+	// items we need delete/detach them before actually deleting it.
+	// NOTE: The actual role deletion should always be the last one. This way we
+	// can guarantee that it will fail if we forgot to delete/detach an item.
+	functions := []func(svc *iam.IAM, roleName *string) error{
+		detachInstanceProfilesFromRole,
+		deleteInlineRolePolicies,
+		deleteManagedRolePolicies,
+		deleteIamRole,
+	}
+
+	for _, fn := range functions {
+		if err := fn(svc, roleName); err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+
+	errChan <- result.ErrorOrNil()
+}
+
+// Custom errors
+
+type TooManyIamRoleErr struct{}
+
+func (err TooManyIamRoleErr) Error() string {
+	return "Too many IAM Roles requested at once"
 }
