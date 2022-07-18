@@ -23,7 +23,7 @@ func (r IAMRoles) ResourceIdentifiers() []string {
 
 // Tentative batch size to ensure AWS doesn't throttle
 func (r IAMRoles) MaxBatchSize() int {
-	return 200
+	return 80
 }
 
 // Nuke - nuke 'em all!!!
