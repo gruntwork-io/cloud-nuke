@@ -142,7 +142,6 @@ func nukeRole(svc *iam.IAM, roleName *string) error {
 // Delete all IAM Roles
 func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	region := aws.StringValue(session.Config.Region)
-
 	svc := iam.New(session)
 
 	if len(roleNames) == 0 {
