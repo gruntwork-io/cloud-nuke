@@ -106,3 +106,7 @@ IAMUsers:
     names_regex:
       # We want to make sure the main circle-ci-test user is never deleted
       - "^circle-ci-test$"
+IAMRoles:
+  include: 
+    names_regex: 
+      - "^cloud-nuke-Test*"
