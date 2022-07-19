@@ -117,28 +117,6 @@ func deleteIamRole(svc *iam.IAM, roleName *string) error {
 	return nil
 }
 
-// Nuke a single IAM Role
-func nukeRole(svc *iam.IAM, roleName *string) error {
-	// Functions used to really nuke an IAM Role as a role can have many attached
-	// items we need delete/detach them before actually deleting it.
-	// NOTE: The actual role deletion should always be the last one. This way we
-	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(svc *iam.IAM, roleName *string) error{
-		detachInstanceProfilesFromRole,
-		deleteInlineRolePolicies,
-		deleteManagedRolePolicies,
-		deleteIamRole,
-	}
-
-	for _, fn := range functions {
-		if err := fn(svc, roleName); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // Delete all IAM Roles
 func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	region := aws.StringValue(session.Config.Region)
