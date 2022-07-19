@@ -5,7 +5,7 @@
 This repo contains a CLI tool to delete all resources in an AWS account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
 
 In addition, cloud-nuke offers non-destructive inspecting functionality that can either be called via the command-line interface, or consumed as library methods, for scripting purposes.
- 
+
 The currently supported functionality includes:
 
 ## AWS
@@ -44,6 +44,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all CloudWatch Log Groups in an AWS Account
 - Inspecting and deleting all GuardDuty Detectors in an AWS Account
 - Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
+- Inspecting and deleting all SageMaker Notebook Instances in an AWS account
 
 ### BEWARE!
 
@@ -82,13 +83,13 @@ When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can use the `--reg
 cloud-nuke aws --region ap-south-1 --region ap-south-2
 ```
 
-Similarly, the following command will inspect resources only in `us-east-1` 
+Similarly, the following command will inspect resources only in `us-east-1`
 ```shell
 cloud-nuke inspect-aws --region us-east-1
 ```
 
-Including regions is available within: 
-- `cloud-nuke aws` 
+Including regions is available within:
+- `cloud-nuke aws`
 - `cloud-nuke defaults-aws`
 - `cloud-nuke inspect-aws`
 
@@ -108,8 +109,8 @@ cloud-nuke inspect-aws --exclude-region us-west-1
 
 `--region` and `--exclude-region` flags cannot be specified together i.e. they are mutually exclusive.
 
-Excluding regions is available within: 
-- `cloud-nuke aws` 
+Excluding regions is available within:
+- `cloud-nuke aws`
 - `cloud-nuke defaults-aws`
 - `cloud-nuke inspect-aws`
 
@@ -121,8 +122,8 @@ You can use the `--older-than` flag to only nuke resources that were created bef
 cloud-nuke aws --older-than 24h
 ```
 
-Excluding resources by age is available within: 
-- `cloud-nuke aws` 
+Excluding resources by age is available within:
+- `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
 
 
@@ -134,8 +135,8 @@ You can use the `--list-resource-types` flag to list resource types whose termin
 cloud-nuke aws --list-resource-types
 ```
 
-Listing supported resource types is available within: 
-- `cloud-nuke aws` 
+Listing supported resource types is available within:
+- `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
 
 
@@ -152,14 +153,14 @@ will search and target only `ec2` and `ami` resources. The specified resource ty
 i.e. it should be present in the `--list-resource-types` output. Using `--resource-type` also speeds up search because
 we are searching only for specific resource types.
 
-Similarly, the following command will inspect only ec2 instances: 
+Similarly, the following command will inspect only ec2 instances:
 
 ```shell
 cloud-nuke inspect-aws --resource-type ec2
 ```
 
-Specifying target resource types is available within: 
-- `cloud-nuke aws` 
+Specifying target resource types is available within:
+- `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
 
 ### Exclude terminating specific resource types
@@ -175,8 +176,8 @@ This will terminate all resource types other than S3 and EC2.
 
 `--resource-type` and `--exclude-resource-type` flags cannot be specified together i.e. they are mutually exclusive.
 
-Specifying resource types to exclude is available within: 
-- `cloud-nuke aws` 
+Specifying resource types to exclude is available within:
+- `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
 
 ### Dry run mode
@@ -188,14 +189,14 @@ If you want to check what resources are going to be targeted without actually te
 cloud-nuke aws --resource-type ec2 --dry-run
 ```
 
-Dry run mode is only available within: 
+Dry run mode is only available within:
 - `cloud-nuke aws`
 
 ### Using cloud-nuke as a library
 
-You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources. 
+You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources.
 
-```golang 
+```golang
 
 package main
 
@@ -333,6 +334,7 @@ The following resources support the Config file:
     - Config key: `CloudWatchLogGroup`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
+<<<<<<< HEAD
     - Config key: `KMSCustomerKeys`
 - Auto Scaling Groups
     - Resource type: `asg`
@@ -349,6 +351,13 @@ The following resources support the Config file:
 - EKS Clusters
     - Resource type: `ekscluster`
     - Config key: `EKSCluster`
+- SageMaker Notebook Instances
+  - Resource type: `sagemaker-notebook-instances`
+  - Config key: `SageMakerNotebook`
+
+Notes:
+  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
+
 
 #### Example
 
@@ -459,9 +468,8 @@ To find out what we options are supported in the config file today, consult this
 | eks                 | none | ✅   | none | none |
 | acmpca              | none | none | none | none |
 | iam role            | none | none | none | none |
+| sagemaker-notebook-instances| none| ✅   | none | none       |
 | ... (more to come)  | none | none | none | none |
-
-
 
 
 ### Log level
