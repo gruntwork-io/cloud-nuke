@@ -1,0 +1,9 @@
+SageMakerNotebook:
+  include:
+    names_regex:
+      - ^cloud-nuke-*
+      - test
+  exclude:
+    names_regex:
+      - alice
+      - bob

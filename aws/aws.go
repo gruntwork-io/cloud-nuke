@@ -220,7 +220,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
 
 		cloudNukeSession := newSession(region)
-
 		resourcesInRegion := AwsRegionResource{}
 
 		// The order in which resources are nuked is important
@@ -734,6 +733,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Macie member accounts
 
+		// Start SageMaker Notebook Instances
+		notebookInstances := SageMakerNotebookInstances{}
+		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
+			instances, err := getAllNotebookInstances(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(instances) > 0 {
+				notebookInstances.InstanceNames = awsgo.StringValueSlice(instances)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, notebookInstances)
+			}
+		}
+		// End SageMaker Notebook Instances
+
 		// Kinesis Streams
 		kinesisStreams := KinesisStreams{}
 		if IsNukeable(kinesisStreams.ResourceName(), resourceTypes) {
@@ -801,6 +814,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM OpenIDConnectProviders
 
+		// IAM Roles
+		iamRoles := IAMRoles{}
+		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
+			roleNames, err := getAllIamRoles(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(roleNames) > 0 {
+				iamRoles.RoleNames = awsgo.StringValueSlice(roleNames)
+				globalResources.Resources = append(globalResources.Resources, iamRoles)
+			}
+		}
+		// End IAM Roles
+
 		if len(globalResources.Resources) > 0 {
 			account.Resources[GlobalRegion] = globalResources
 		}
@@ -833,6 +860,7 @@ func ListResourceTypes() []string {
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
+		IAMRoles{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		OpenSearchDomains{}.ResourceName(),
@@ -846,6 +874,7 @@ func ListResourceTypes() []string {
 		CloudWatchLogGroups{}.ResourceName(),
 		GuardDuty{}.ResourceName(),
 		MacieMember{}.ResourceName(),
+		SageMakerNotebookInstances{}.ResourceName(),
 		KinesisStreams{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)

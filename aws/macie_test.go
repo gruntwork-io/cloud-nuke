@@ -2,12 +2,10 @@ package aws
 
 import (
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/macie2"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +24,7 @@ func TestListMacieAccounts(t *testing.T) {
 	// Clean up after test by deleting the macie account association
 	defer nukeAllMacieMemberAccounts(session, []string{accountId})
 
-	retrievedAccountIds, lookupErr := getAllMacieMemberAccounts(session, time.Now(), config.Config{})
+	retrievedAccountIds, lookupErr := getAllMacieMemberAccounts(session)
 	require.NoError(t, lookupErr)
 
 	assert.Contains(t, retrievedAccountIds, accountId)

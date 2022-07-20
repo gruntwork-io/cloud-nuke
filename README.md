@@ -31,6 +31,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all default VPCs in an AWS account
 - Deleting VPCs in an AWS Account (except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
 - Inspecting and deleting all IAM users in an AWS account
+- Inspecting and deleting all IAM roles in an AWS account
 - Inspecting and deleting all Secrets Manager Secrets in an AWS account
 - Inspecting and deleting all NAT Gateways in an AWS account
 - Inspecting and deleting all IAM Access Analyzers in an AWS account
@@ -43,6 +44,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all CloudWatch Log Groups in an AWS Account
 - Inspecting and deleting all GuardDuty Detectors in an AWS Account
 - Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
+- Inspecting and deleting all SageMaker Notebook Instances in an AWS account
 - Inspecting and deleting all Kinesis Streams in an AWS account
 
 ### BEWARE!
@@ -333,6 +335,7 @@ The following resources support the Config file:
     - Config key: `CloudWatchLogGroup`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
+<<<<<<< HEAD
     - Config key: `KMSCustomerKeys`
 - Auto Scaling Groups
     - Resource type: `asg`
@@ -349,6 +352,13 @@ The following resources support the Config file:
 - EKS Clusters
     - Resource type: `ekscluster`
     - Config key: `EKSCluster`
+- SageMaker Notebook Instances
+  - Resource type: `sagemaker-notebook-instances`
+  - Config key: `SageMakerNotebook`
+
+Notes:
+  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
+
 - Kinesis Streams
     - Resource type: `kinesis-stream`
     - Config key: `KinesisStream`
@@ -463,9 +473,8 @@ To find out what we options are supported in the config file today, consult this
 | kinesis-stream      | none | ✅   | none | none |
 | acmpca              | none | none | none | none |
 | iam role            | none | none | none | none |
+| sagemaker-notebook-instances| none| ✅   | none | none       |
 | ... (more to come)  | none | none | none | none |
-
-
 
 
 ### Log level
