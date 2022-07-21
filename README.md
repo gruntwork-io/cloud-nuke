@@ -45,6 +45,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all GuardDuty Detectors in an AWS Account
 - Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
 - Inspecting and deleting all SageMaker Notebook Instances in an AWS account
+- Inspecting and deleting all Kinesis Streams in an AWS account
 
 ### BEWARE!
 
@@ -358,6 +359,9 @@ The following resources support the Config file:
 Notes:
   * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
 
+- Kinesis Streams
+    - Resource type: `kinesis-stream`
+    - Config key: `KinesisStream`
 
 #### Example
 
@@ -466,6 +470,7 @@ To find out what we options are supported in the config file today, consult this
 | eip                 | none | ✅   | none | none |
 | ec2                 | none | ✅   | none | none |
 | eks                 | none | ✅   | none | none |
+| kinesis-stream      | none | ✅   | none | none |
 | acmpca              | none | none | none | none |
 | iam role            | none | none | none | none |
 | sagemaker-notebook-instances| none| ✅   | none | none       |

@@ -35,6 +35,7 @@ type Config struct {
 	KMSCustomerKeys       ResourceType `yaml:"KMSCustomerKeys"`
 	EKSCluster            ResourceType `yaml:"EKSCluster"`
 	SageMakerNotebook     ResourceType `yaml:"SageMakerNotebook"`
+	KinesisStream         ResourceType `yaml:"KinesisStream"`
 }
 
 type ResourceType struct {
