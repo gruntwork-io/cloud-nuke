@@ -120,8 +120,10 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 
 	var deletedClusterIds []*string
 	for _, clusterId := range clusterIds {
-		// First, we need to look up the cache cluster again to determine if it is a member of a replication group or not,
-		// because members of a replication group require that the replication group be deleted first
+		// We need to look up the cache cluster again to determine if it is a member of a replication group or not,
+		// because there are two separate codepaths for deleting a cluster. Cache clusters that are not members of a
+		// replication group can be deleted via DeleteCacheCluster, whereas those that are members require a call to
+		// DeleteReplicationGroup, which will destroy both the replication group and its member clusters
 		cacheCluster, describeErr := getSingleCacheCluster(svc, clusterId)
 		if describeErr != nil {
 			return describeErr
