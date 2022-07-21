@@ -35,6 +35,21 @@ func createTestElasticacheCluster(t *testing.T, session *session.Session, name s
 	require.NoError(t, err)
 }
 
+func createTestElasticacheReplicationGroup(t *testing, session *session.Session) *string {
+	svc := elasticache.New(session)
+
+	output, err := svc.CreateReplicationGroup(&elasticache.CreateReplicationGroupInput{})
+	require.NoError(t, err)
+
+	err = svc.WaitUntilReplicationGroupAvailable(&elasticache.DescribeReplicationGroupsInput{
+		ReplicationGroupId: output.ReplicationGroup.ReplicationGroupId,
+	})
+
+	require.NoError(t, err)
+
+	return output.ReplicationGroup.ReplicationGroupId
+}
+
 func TestListElasticacheClusters(t *testing.T) {
 	t.Parallel()
 
@@ -42,7 +57,8 @@ func TestListElasticacheClusters(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 
 	require.NoError(t, err)
@@ -66,7 +82,8 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 
 	require.NoError(t, err)
@@ -102,7 +119,8 @@ func TestNukeElasticacheClusters(t *testing.T) {
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
+		Region: awsgo.String(region),
+	},
 	)
 
 	require.NoError(t, err)
@@ -110,7 +128,11 @@ func TestNukeElasticacheClusters(t *testing.T) {
 	clusterId := "cloud-nuke-test-" + strings.ToLower(util.UniqueID())
 	createTestElasticacheCluster(t, session, clusterId)
 
-	err = nukeAllElasticacheClusters(session, []*string{&clusterId})
+	replicationGroupId := createTestElasticacheReplicationGroup(t, session)
+	// Ensure that nukeAllElasticacheClusters can handle both scenarios for elasticache:
+	// 1. The elasticache cluster is not the member of a replication group, so it can be deleted directly
+	// 2. The elasticache cluster is a member of a replication group, so that replication group must be deleted
+	err = nukeAllElasticacheClusters(session, []*string{&clusterId, replicationGroupId})
 	require.NoError(t, err)
 
 	clusterIds, err := getAllElasticacheClusters(session, region, time.Now().Add(1*time.Hour), config.Config{})

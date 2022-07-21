@@ -45,6 +45,66 @@ func shouldIncludeElasticacheCluster(cluster *elasticache.CacheCluster, excludeA
 	)
 }
 
+func getSingleCacheCluster(svc *elasticache.ElastiCache, clusterId *string) (*elasticache.CacheCluster, error) {
+	var cacheCluster *elasticache.CacheCluster
+
+	describeParams := &elasticache.DescribeCacheClustersInput{
+		CacheClusterId: clusterId,
+	}
+
+	output, describeErr := svc.DescribeCacheClusters(describeParams)
+	if describeErr != nil {
+		return nil, describeErr
+	}
+
+	if len(output.CacheClusters) == 1 {
+		cacheCluster = output.CacheClusters[0]
+	}
+	return cacheCluster, nil
+}
+
+func nukeNonReplicationGroupElasticacheCluster(svc *elasticache.ElastiCache, clusterId *string) error {
+	logging.Logger.Infof("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.StringValue(clusterId))
+	params := elasticache.DeleteCacheClusterInput{
+		CacheClusterId: clusterId,
+	}
+	_, err := svc.DeleteCacheCluster(&params)
+	if err != nil {
+		return err
+	}
+
+	return svc.WaitUntilCacheClusterDeleted(&elasticache.DescribeCacheClustersInput{
+		CacheClusterId: clusterId,
+	})
+}
+
+func nukeReplicationGroupMemberElasticacheCluster(svc *elasticache.ElastiCache, cacheCluster *elasticache.CacheCluster) error {
+	clusterId := cacheCluster.CacheClusterId
+	replicationGroupId := cacheCluster.ReplicationGroupId
+
+	logging.Logger.Infof("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group Id: %s", aws.StringValue(clusterId), aws.StringValue(replicationGroupId))
+
+	params := &elasticache.DeleteReplicationGroupInput{
+		ReplicationGroupId: replicationGroupId,
+	}
+	_, err := svc.DeleteReplicationGroup(params)
+	if err != nil {
+		return err
+	}
+
+	waitErr := svc.WaitUntilReplicationGroupDeleted(&elasticache.DescribeReplicationGroupsInput{
+		ReplicationGroupId: replicationGroupId,
+	})
+
+	if waitErr != nil {
+		return waitErr
+	}
+
+	logging.Logger.Infof("Successfully deleted replication group Id: %s", replicationGroupId)
+
+	return nil
+}
+
 func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) error {
 	svc := elasticache.New(session)
 
@@ -57,31 +117,25 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 
 	var deletedClusterIds []*string
 	for _, clusterId := range clusterIds {
-		params := elasticache.DeleteCacheClusterInput{
-			CacheClusterId: clusterId,
+		// First, we need to look up the cache cluster again to determine if it is a member of a replication group or not,
+		// because members of a replication group require that the replication group be deleted first
+		cacheCluster, describeErr := getSingleCacheCluster(svc, clusterId)
+		if describeErr != nil {
+			return describeErr
 		}
 
-		_, err := svc.DeleteCacheCluster(&params)
+		var err error
+		if cacheCluster.ReplicationGroupId == nil {
+			err = nukeNonReplicationGroupElasticacheCluster(svc, clusterId)
+		} else {
+			err = nukeReplicationGroupMemberElasticacheCluster(svc, cacheCluster)
+		}
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
 			deletedClusterIds = append(deletedClusterIds, clusterId)
 			logging.Logger.Infof("Deleted Elasticache cluster: %s", *clusterId)
-		}
-	}
-
-	if len(deletedClusterIds) > 0 {
-		logging.Logger.Infof("Confirming deletion of %d Elasticache clusters in region %s", len(deletedClusterIds), *session.Config.Region)
-
-		for _, clusterId := range deletedClusterIds {
-			params := elasticache.DescribeCacheClustersInput{
-				CacheClusterId: clusterId,
-			}
-
-			err := svc.WaitUntilCacheClusterDeleted(&params)
-			if err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
-			}
 		}
 	}
 
