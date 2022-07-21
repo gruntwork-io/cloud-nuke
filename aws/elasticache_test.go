@@ -35,7 +35,7 @@ func createTestElasticacheCluster(t *testing.T, session *session.Session, name s
 	require.NoError(t, err)
 }
 
-func createTestElasticacheReplicationGroup(t *testing, session *session.Session) *string {
+func createTestElasticacheReplicationGroup(t *testing.T, session *session.Session) *string {
 	svc := elasticache.New(session)
 
 	output, err := svc.CreateReplicationGroup(&elasticache.CreateReplicationGroupInput{})

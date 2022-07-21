@@ -103,7 +103,7 @@ func nukeReplicationGroupMemberElasticacheCluster(svc *elasticache.ElastiCache, 
 		return waitErr
 	}
 
-	logging.Logger.Infof("Successfully deleted replication group Id: %s", replicationGroupId)
+	logging.Logger.Infof("Successfully deleted replication group Id: %s", aws.StringValue(replicationGroupId))
 
 	return nil
 }
