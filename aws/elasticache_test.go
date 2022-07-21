@@ -35,10 +35,13 @@ func createTestElasticacheCluster(t *testing.T, session *session.Session, name s
 	require.NoError(t, err)
 }
 
-func createTestElasticacheReplicationGroup(t *testing.T, session *session.Session) *string {
+func createTestElasticacheReplicationGroup(t *testing.T, session *session.Session, name string) *string {
 	svc := elasticache.New(session)
 
-	output, err := svc.CreateReplicationGroup(&elasticache.CreateReplicationGroupInput{})
+	output, err := svc.CreateReplicationGroup(&elasticache.CreateReplicationGroupInput{
+		ReplicationGroupDescription: awsgo.String("A test cluster"),
+		ReplicationGroupId:          awsgo.String(name),
+	})
 	require.NoError(t, err)
 
 	err = svc.WaitUntilReplicationGroupAvailable(&elasticache.DescribeReplicationGroupsInput{
@@ -128,11 +131,12 @@ func TestNukeElasticacheClusters(t *testing.T) {
 	clusterId := "cloud-nuke-test-" + strings.ToLower(util.UniqueID())
 	createTestElasticacheCluster(t, session, clusterId)
 
-	replicationGroupId := createTestElasticacheReplicationGroup(t, session)
+	replicationGroupId := "cloud-nuke-test-" + strings.ToLower(util.UniqueID())
+	createTestElasticacheReplicationGroup(t, session, replicationGroupId)
 	// Ensure that nukeAllElasticacheClusters can handle both scenarios for elasticache:
 	// 1. The elasticache cluster is not the member of a replication group, so it can be deleted directly
 	// 2. The elasticache cluster is a member of a replication group, so that replication group must be deleted
-	err = nukeAllElasticacheClusters(session, []*string{&clusterId, replicationGroupId})
+	err = nukeAllElasticacheClusters(session, []*string{&clusterId, &replicationGroupId})
 	require.NoError(t, err)
 
 	clusterIds, err := getAllElasticacheClusters(session, region, time.Now().Add(1*time.Hour), config.Config{})
