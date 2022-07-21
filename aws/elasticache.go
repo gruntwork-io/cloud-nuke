@@ -153,5 +153,5 @@ type CouldNotLookupCacheClusterErr struct {
 }
 
 func (err CouldNotLookupCacheClusterErr) Error() string {
-	return fmt.Sprintf("Failed to lookup clusterId: %s", err.ClusterId)
+	return fmt.Sprintf("Failed to lookup clusterId: %s", aws.StringValue(err.ClusterId))
 }
