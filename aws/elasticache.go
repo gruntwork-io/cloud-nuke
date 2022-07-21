@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -59,6 +60,8 @@ func getSingleCacheCluster(svc *elasticache.ElastiCache, clusterId *string) (*el
 
 	if len(output.CacheClusters) == 1 {
 		cacheCluster = output.CacheClusters[0]
+	} else {
+		return nil, CouldNotLookupCacheClusterErr{ClusterId: clusterId}
 	}
 	return cacheCluster, nil
 }
@@ -141,4 +144,14 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 
 	logging.Logger.Infof("[OK] %d Elasticache clusters deleted in %s", len(deletedClusterIds), *session.Config.Region)
 	return nil
+}
+
+// Custome errors
+
+type CouldNotLookupCacheClusterErr struct {
+	ClusterId *string
+}
+
+func (err CouldNotLookupCacheClusterErr) Error() string {
+	return fmt.Sprintf("Failed to lookup clusterId: %s", err.ClusterId)
 }
