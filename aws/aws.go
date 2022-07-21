@@ -16,6 +16,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/hashicorp/go-multierror"
 )
 
 // OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
@@ -881,9 +882,10 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) error {
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session, ignoreNukeErrors bool) error {
 	resourcesInRegion := account.Resources[region]
 
+	var finalErr error
 	for _, resources := range resourcesInRegion.Resources {
 		length := len(resources.ResourceIdentifiers())
 
@@ -900,8 +902,10 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 					time.Sleep(1 * time.Minute)
 					continue
 				}
-
-				return errors.WithStackTrace(err)
+				if ignoreNukeErrors == false {
+					return errors.WithStackTrace(err)
+				}
+				finalErr = multierror.Append(finalErr, err)
 			}
 
 			if i != len(batches)-1 {
@@ -911,11 +915,12 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 		}
 	}
 
-	return nil
+	return finalErr
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources(account *AwsAccountResources, regions []string) error {
+func NukeAllResources(account *AwsAccountResources, regions []string, ignoreNukeErrors bool) error {
+	var finalErr error
 	for _, region := range regions {
 		// region that will be used to create a session
 		sessionRegion := region
@@ -933,13 +938,14 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		err = nukeAllResourcesInRegion(account, region, session)
-
+		err = nukeAllResourcesInRegion(account, region, session, ignoreNukeErrors)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			if ignoreNukeErrors == false {
+				return errors.WithStackTrace(err)
+			}
+			finalErr = multierror.Append(finalErr, err)
 		}
-
 	}
 
-	return nil
+	return finalErr
 }

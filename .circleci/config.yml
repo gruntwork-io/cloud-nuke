@@ -40,6 +40,7 @@ jobs:
             go run main.go aws \
               --older-than 1h \
               --force \
+              --ignore-nuke-errors \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
               --exclude-resource-type vpc \
@@ -58,6 +59,7 @@ jobs:
             go run main.go aws \
               --older-than 24h \
               --force \
+              --ignore-nuke-errors \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
               --exclude-resource-type vpc \

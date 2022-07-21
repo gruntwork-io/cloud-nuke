@@ -63,6 +63,10 @@ func CreateCli(version string) *cli.App {
 					Name:  "force",
 					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
 				},
+				cli.BoolFlag{
+					Name:  "ignore-nuke-errors",
+					Usage: "When passed in, cloud-nuke will ignore errors when nuking resources, continuing to other resources and regions even if a resource fails to delete.",
+				},
 				cli.StringFlag{
 					Name:   "log-level",
 					Value:  "info",
@@ -233,6 +237,8 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
+	ignoreNukeErrors := c.Bool("ignore-nuke-errors")
+
 	if !c.Bool("force") {
 		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C): "
 		proceed, err := confirmationPrompt(prompt, 2)
@@ -240,7 +246,7 @@ func awsNuke(c *cli.Context) error {
 			return err
 		}
 		if proceed {
-			if err := aws.NukeAllResources(account, regions); err != nil {
+			if err := aws.NukeAllResources(account, regions, ignoreNukeErrors); err != nil {
 				return err
 			}
 		}
@@ -252,7 +258,7 @@ func awsNuke(c *cli.Context) error {
 		}
 
 		fmt.Println()
-		if err := aws.NukeAllResources(account, regions); err != nil {
+		if err := aws.NukeAllResources(account, regions, ignoreNukeErrors); err != nil {
 			return err
 		}
 	}
