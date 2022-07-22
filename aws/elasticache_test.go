@@ -41,6 +41,7 @@ func createTestElasticacheReplicationGroup(t *testing.T, session *session.Sessio
 	output, err := svc.CreateReplicationGroup(&elasticache.CreateReplicationGroupInput{
 		ReplicationGroupDescription: awsgo.String("A test cluster"),
 		ReplicationGroupId:          awsgo.String(name),
+		Engine:                      awsgo.String("Redis"),
 	})
 	require.NoError(t, err)
 
