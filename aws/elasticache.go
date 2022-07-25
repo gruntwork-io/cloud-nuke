@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -46,24 +47,54 @@ func shouldIncludeElasticacheCluster(cluster *elasticache.CacheCluster, excludeA
 	)
 }
 
-func getSingleCacheCluster(svc *elasticache.ElastiCache, clusterId *string) (*elasticache.CacheCluster, error) {
-	var cacheCluster *elasticache.CacheCluster
+type CacheClusterType string
 
+const (
+	Replication CacheClusterType = "replication"
+	Single      CacheClusterType = "single"
+)
+
+func determineCacheClusterType(svc *elasticache.ElastiCache, clusterId *string) (*string, CacheClusterType, error) {
+	// A single cache cluster can either be standalone, in the case where Engine is memcached,
+	// or a member of a replication group, in the case where Engine is Redis, so we must
+	// check the current clusterId via both describe methods, otherwise we'll fail to find it
 	describeParams := &elasticache.DescribeCacheClustersInput{
 		CacheClusterId: clusterId,
 	}
 
-	output, describeErr := svc.DescribeCacheClusters(describeParams)
+	cacheClustersOutput, describeErr := svc.DescribeCacheClusters(describeParams)
 	if describeErr != nil {
-		return nil, describeErr
+		if awsErr, ok := describeErr.(awserr.Error); ok {
+			if awsErr.Code() == elasticache.ErrCodeCacheClusterNotFoundFault {
+				// It's possible that we're looking at a replication group, in which case we can safely ignore this error
+			} else {
+				return nil, Single, describeErr
+			}
+		}
 	}
 
-	if len(output.CacheClusters) == 1 {
-		cacheCluster = output.CacheClusters[0]
-	} else {
-		return nil, CouldNotLookupCacheClusterErr{ClusterId: clusterId}
+	replicationGroupDescribeParams := &elasticache.DescribeReplicationGroupsInput{
+		ReplicationGroupId: clusterId,
 	}
-	return cacheCluster, nil
+
+	replicationGroupOutput, describeReplicationGroupsErr := svc.DescribeReplicationGroups(replicationGroupDescribeParams)
+	if describeReplicationGroupsErr != nil {
+		if awsErr, ok := describeReplicationGroupsErr.(awserr.Error); ok {
+			if awsErr.Code() == elasticache.ErrCodeReplicationGroupNotFoundFault {
+				// It's possible that we're looking at a cache cluster, in which case we can safely ignore this error
+			} else {
+				return nil, Single, describeReplicationGroupsErr
+			}
+		}
+	}
+
+	if len(cacheClustersOutput.CacheClusters) == 1 {
+		return cacheClustersOutput.CacheClusters[0].CacheClusterId, Single, nil
+	} else if len(replicationGroupOutput.ReplicationGroups) == 1 {
+		return replicationGroupOutput.ReplicationGroups[0].ReplicationGroupId, Replication, nil
+	}
+
+	return nil, Single, CouldNotLookupCacheClusterErr{ClusterId: clusterId}
 }
 
 func nukeNonReplicationGroupElasticacheCluster(svc *elasticache.ElastiCache, clusterId *string) error {
@@ -81,14 +112,11 @@ func nukeNonReplicationGroupElasticacheCluster(svc *elasticache.ElastiCache, clu
 	})
 }
 
-func nukeReplicationGroupMemberElasticacheCluster(svc *elasticache.ElastiCache, cacheCluster *elasticache.CacheCluster) error {
-	clusterId := cacheCluster.CacheClusterId
-	replicationGroupId := cacheCluster.ReplicationGroupId
-
-	logging.Logger.Infof("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group Id: %s", aws.StringValue(clusterId), aws.StringValue(replicationGroupId))
+func nukeReplicationGroupMemberElasticacheCluster(svc *elasticache.ElastiCache, clusterId *string) error {
+	logging.Logger.Infof("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.StringValue(clusterId))
 
 	params := &elasticache.DeleteReplicationGroupInput{
-		ReplicationGroupId: replicationGroupId,
+		ReplicationGroupId: clusterId,
 	}
 	_, err := svc.DeleteReplicationGroup(params)
 	if err != nil {
@@ -96,14 +124,14 @@ func nukeReplicationGroupMemberElasticacheCluster(svc *elasticache.ElastiCache, 
 	}
 
 	waitErr := svc.WaitUntilReplicationGroupDeleted(&elasticache.DescribeReplicationGroupsInput{
-		ReplicationGroupId: replicationGroupId,
+		ReplicationGroupId: clusterId,
 	})
 
 	if waitErr != nil {
 		return waitErr
 	}
 
-	logging.Logger.Infof("Successfully deleted replication group Id: %s", aws.StringValue(replicationGroupId))
+	logging.Logger.Infof("Successfully deleted replication group Id: %s", aws.StringValue(clusterId))
 
 	return nil
 }
@@ -124,16 +152,16 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 		// because there are two separate codepaths for deleting a cluster. Cache clusters that are not members of a
 		// replication group can be deleted via DeleteCacheCluster, whereas those that are members require a call to
 		// DeleteReplicationGroup, which will destroy both the replication group and its member clusters
-		cacheCluster, describeErr := getSingleCacheCluster(svc, clusterId)
+		clusterId, clusterType, describeErr := determineCacheClusterType(svc, clusterId)
 		if describeErr != nil {
 			return describeErr
 		}
 
 		var err error
-		if cacheCluster.ReplicationGroupId == nil {
+		if clusterType == Single {
 			err = nukeNonReplicationGroupElasticacheCluster(svc, clusterId)
-		} else {
-			err = nukeReplicationGroupMemberElasticacheCluster(svc, cacheCluster)
+		} else if clusterType == Replication {
+			err = nukeReplicationGroupMemberElasticacheCluster(svc, clusterId)
 		}
 
 		if err != nil {
