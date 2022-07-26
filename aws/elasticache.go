@@ -176,7 +176,7 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 	return nil
 }
 
-// Custome errors
+// Custom errors
 
 type CouldNotLookupCacheClusterErr struct {
 	ClusterId *string
