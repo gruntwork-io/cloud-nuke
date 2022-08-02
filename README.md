@@ -76,6 +76,20 @@ Simply running `cloud-nuke aws` will start the process of cleaning up your cloud
 
 In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will remove the default VPCs in each region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note that the default security group itself is unable to be deleted.
 
+
+### Nuke or inspect resources using AWS Profile
+
+When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can pass in the `AWS_PROFILE` env variable to target resources in certain regions for a specific AWS account. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions in the `gruntwork-dev` AWS account:
+
+```shell
+AWS_PROFILE=gruntwork-dev cloud-nuke aws --region ap-south-1 --region ap-south-2
+```
+
+Similarly, the following command will inspect resources only in `us-east-1`
+```shell
+AWS_PROFILE=gruntwork-dev cloud-nuke inspect-aws --region us-east-1
+```
+
 ### Nuke or inspect resources in certain regions
 
 When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can use the `--region` flag to target resources in certain regions. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions:
