@@ -16,13 +16,31 @@ import (
 // Returns a formatted string of Elasticache cluster Ids
 func getAllElasticacheClusters(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := elasticache.New(session)
-	result, err := svc.DescribeCacheClusters(&elasticache.DescribeCacheClustersInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+
+	// First, get any cache clusters that are replication groups, which will be the case for all multi-node Redis clusters
+	replicationGroupsResult, replicationGroupsErr := svc.DescribeReplicationGroups(&elasticache.DescribeReplicationGroupsInput{})
+	if replicationGroupsErr != nil {
+		return nil, errors.WithStackTrace(replicationGroupsErr)
+	}
+
+	// Next, get any cache clusters that are not members of a replication group: meaning:
+	// 1. any cache clusters with a Engine of "memcached"
+	// 2. any single node Redis clusters
+	cacheClustersResult, cacheClustersErr := svc.DescribeCacheClusters(&elasticache.DescribeCacheClustersInput{
+		ShowCacheClustersNotInReplicationGroups: aws.Bool(true),
+	})
+	if cacheClustersErr != nil {
+		return nil, errors.WithStackTrace(cacheClustersErr)
 	}
 
 	var clusterIds []*string
-	for _, cluster := range result.CacheClusters {
+	for _, replicationGroup := range replicationGroupsResult.ReplicationGroups {
+		if shouldIncludeElasticacheReplicationGroup(replicationGroup, excludeAfter, configObj) {
+			clusterIds = append(clusterIds, replicationGroup.ReplicationGroupId)
+		}
+	}
+
+	for _, cluster := range cacheClustersResult.CacheClusters {
 		if shouldIncludeElasticacheCluster(cluster, excludeAfter, configObj) {
 			clusterIds = append(clusterIds, cluster.CacheClusterId)
 		}
@@ -47,6 +65,22 @@ func shouldIncludeElasticacheCluster(cluster *elasticache.CacheCluster, excludeA
 	)
 }
 
+func shouldIncludeElasticacheReplicationGroup(replicationGroup *elasticache.ReplicationGroup, excludeAfter time.Time, configObj config.Config) bool {
+	if replicationGroup == nil {
+		return false
+	}
+
+	if excludeAfter.Before(aws.TimeValue(replicationGroup.ReplicationGroupCreateTime)) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(replicationGroup.ReplicationGroupId),
+		configObj.Elasticache.IncludeRule.NamesRegExp,
+		configObj.Elasticache.ExcludeRule.NamesRegExp,
+	)
+}
+
 type CacheClusterType string
 
 const (
@@ -55,6 +89,25 @@ const (
 )
 
 func determineCacheClusterType(svc *elasticache.ElastiCache, clusterId *string) (*string, CacheClusterType, error) {
+	replicationGroupDescribeParams := &elasticache.DescribeReplicationGroupsInput{
+		ReplicationGroupId: clusterId,
+	}
+
+	replicationGroupOutput, describeReplicationGroupsErr := svc.DescribeReplicationGroups(replicationGroupDescribeParams)
+	if describeReplicationGroupsErr != nil {
+		if awsErr, ok := describeReplicationGroupsErr.(awserr.Error); ok {
+			if awsErr.Code() == elasticache.ErrCodeReplicationGroupNotFoundFault {
+				// It's possible that we're looking at a cache cluster, in which case we can safely ignore this error
+			} else {
+				return nil, Single, describeReplicationGroupsErr
+			}
+		}
+	}
+
+	if len(replicationGroupOutput.ReplicationGroups) > 0 {
+		return replicationGroupOutput.ReplicationGroups[0].ReplicationGroupId, Replication, nil
+	}
+
 	// A single cache cluster can either be standalone, in the case where Engine is memcached,
 	// or a member of a replication group, in the case where Engine is Redis, so we must
 	// check the current clusterId via both describe methods, otherwise we'll fail to find it
@@ -73,25 +126,8 @@ func determineCacheClusterType(svc *elasticache.ElastiCache, clusterId *string) 
 		}
 	}
 
-	replicationGroupDescribeParams := &elasticache.DescribeReplicationGroupsInput{
-		ReplicationGroupId: clusterId,
-	}
-
-	replicationGroupOutput, describeReplicationGroupsErr := svc.DescribeReplicationGroups(replicationGroupDescribeParams)
-	if describeReplicationGroupsErr != nil {
-		if awsErr, ok := describeReplicationGroupsErr.(awserr.Error); ok {
-			if awsErr.Code() == elasticache.ErrCodeReplicationGroupNotFoundFault {
-				// It's possible that we're looking at a cache cluster, in which case we can safely ignore this error
-			} else {
-				return nil, Single, describeReplicationGroupsErr
-			}
-		}
-	}
-
 	if len(cacheClustersOutput.CacheClusters) == 1 {
 		return cacheClustersOutput.CacheClusters[0].CacheClusterId, Single, nil
-	} else if len(replicationGroupOutput.ReplicationGroups) == 1 {
-		return replicationGroupOutput.ReplicationGroups[0].ReplicationGroupId, Replication, nil
 	}
 
 	return nil, Single, CouldNotLookupCacheClusterErr{ClusterId: clusterId}
