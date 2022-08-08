@@ -61,7 +61,7 @@ func CreateCli(version string) *cli.App {
 				},
 				cli.BoolFlag{
 					Name:  "force",
-					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
+					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all targeted resources without any confirmation. It will not modify resource selections made via the --resource-type flag or an optional config file.",
 				},
 				cli.StringFlag{
 					Name:   "log-level",
