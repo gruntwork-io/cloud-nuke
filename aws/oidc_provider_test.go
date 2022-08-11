@@ -15,12 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	defaultTestRegion = "us-east-1"
+)
+
 // NOTE: OpenID Connect Provider is a global resource, so we use the default region for the tests.
 
 func TestListOIDCProviders(t *testing.T) {
 	t.Parallel()
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultRegion)})
+	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
 	require.NoError(t, err)
 	svc := iam.New(session)
 
@@ -35,7 +39,7 @@ func TestListOIDCProviders(t *testing.T) {
 func TestTimeFilterExclusionNewlyCreatedOIDCProvider(t *testing.T) {
 	t.Parallel()
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultRegion)})
+	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
 	require.NoError(t, err)
 	svc := iam.New(session)
 
@@ -57,7 +61,7 @@ func TestTimeFilterExclusionNewlyCreatedOIDCProvider(t *testing.T) {
 func TestConfigExclusionCreatedOIDCProvider(t *testing.T) {
 	t.Parallel()
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultRegion)})
+	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
 	require.NoError(t, err)
 	svc := iam.New(session)
 
@@ -93,7 +97,7 @@ func TestConfigExclusionCreatedOIDCProvider(t *testing.T) {
 func TestNukeOIDCProviderOne(t *testing.T) {
 	t.Parallel()
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultRegion)})
+	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
 	require.NoError(t, err)
 	svc := iam.New(session)
 
@@ -114,7 +118,7 @@ func TestNukeOIDCProviderOne(t *testing.T) {
 func TestNukeOIDCProviderMoreThanOne(t *testing.T) {
 	t.Parallel()
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultRegion)})
+	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
 	require.NoError(t, err)
 	svc := iam.New(session)
 
