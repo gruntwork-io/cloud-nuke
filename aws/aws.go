@@ -50,8 +50,6 @@ var GovCloudRegions = []string{
 
 const (
 	GlobalRegion string = "global"
-	// us-east-1 is the region that is available in every account
-	defaultRegion string = "us-east-1"
 )
 
 func newSession(region string) *session.Session {
@@ -211,6 +209,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	totalRegions := len(targetRegions)
 	resourcesCache := map[string]map[string][]*string{}
 
+	defaultRegion := targetRegions[0]
 	for _, region := range targetRegions {
 		// The "global" region case is handled outside this loop
 		if region == GlobalRegion {
@@ -775,12 +774,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// As there is no actual region named global we have to pick a valid one just to create the session
 		sessionRegion := defaultRegion
-		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(sessionRegion),
-		},
-		)
+		session, err := newAWSSession(sessionRegion)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		globalResources := AwsRegionResource{}
@@ -931,6 +927,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
+	defaultRegion := regions[0]
 	for _, region := range regions {
 		// region that will be used to create a session
 		sessionRegion := region
@@ -940,12 +937,9 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 			sessionRegion = defaultRegion
 		}
 
-		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(sessionRegion),
-		},
-		)
+		session, err := newAWSSession(sessionRegion)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		err = nukeAllResourcesInRegion(account, region, session)
@@ -957,4 +951,16 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	}
 
 	return nil
+}
+
+func newAWSSession(awsRegion string) (*session.Session, error) {
+	sessionOptions := session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}
+	sess, err := session.NewSessionWithOptions(sessionOptions)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+	sess.Config.Region = aws.String(awsRegion)
+	return sess, nil
 }
