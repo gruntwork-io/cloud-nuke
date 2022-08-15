@@ -34,7 +34,7 @@ func createTestAPIGatewayV2(t *testing.T, session *session.Session, name string)
 
 	output, err := svc.CreateApi(param)
 	if err != nil {
-		assert.Failf(t, "Could not create test API Gateway: %s", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not create test API Gateway (v2): %s", errors.WithStackTrace(err).Error())
 	}
 
 	testGw.ID = output.ApiId
