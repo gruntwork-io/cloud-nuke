@@ -12,7 +12,7 @@ The currently supported functionality includes:
 
 - Inspecting and deleting all ACM Private CA in an AWS account
 - Inspecting and deleting all Auto scaling groups in an AWS account
-- Inspecting and deleting all Elastic Load Balancers (Classic and V in an AWS account
+- Inspecting and deleting all Elastic Load Balancers (v1 and v2) in an AWS account
 - Inspecting and deleting all Transit Gateways in an AWS account
 - Inspecting and deleting all EBS Volumes in an AWS account
 - Inspecting and deleting all unprotected EC2 instances in an AWS account
@@ -46,6 +46,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
 - Inspecting and deleting all SageMaker Notebook Instances in an AWS account
 - Inspecting and deleting all Kinesis Streams in an AWS account
+- Inspecting and deleting all API Gateways (v1 and v2) in an AWS account
 
 ### BEWARE!
 
@@ -469,6 +470,8 @@ To find out what we options are supported in the config file today, consult this
 | lc                  | none | ✅   | none | none |
 | eip                 | none | ✅   | none | none |
 | ec2                 | none | ✅   | none | none |
+| apigateway          | none | ✅   | none | none |
+| apigatewayv2        | none | ✅   | none | none |
 | eks                 | none | ✅   | none | none |
 | kinesis-stream      | none | ✅   | none | none |
 | acmpca              | none | none | none | none |
