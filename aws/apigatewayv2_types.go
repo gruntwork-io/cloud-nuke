@@ -6,31 +6,32 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type ApiGateway struct {
+type ApiGatewayV2 struct {
 	Ids []string
 }
 
-func (apigateway ApiGateway) ResourceName() string {
-	return "apigateway"
+func (apigateway ApiGatewayV2) ResourceName() string {
+	return "apigatewayv2"
 }
 
-func (apigateway ApiGateway) ResourceIdentifiers() []string {
+func (apigateway ApiGatewayV2) ResourceIdentifiers() []string {
 	return apigateway.Ids
 }
 
-func (apigateway ApiGateway) MaxBatchSize() int {
+func (apigateway ApiGatewayV2) MaxBatchSize() int {
 	return 10
 }
 
-func (apigateway ApiGateway) Nuke(session *session.Session, identifiers []string) error {
+func (apigateway ApiGatewayV2) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllAPIGateways(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
+
 	return nil
 }
 
-type TooManyApiGatewayErr struct{}
+type TooManyApiGatewayV2Err struct{}
 
-func (err TooManyApiGatewayErr) Error() string {
+func (err TooManyApiGatewayV2Err) Error() string {
 	return "Too many Api Gateways requested at once."
 }
