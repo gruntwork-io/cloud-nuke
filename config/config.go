@@ -36,6 +36,8 @@ type Config struct {
 	EKSCluster            ResourceType `yaml:"EKSCluster"`
 	SageMakerNotebook     ResourceType `yaml:"SageMakerNotebook"`
 	KinesisStream         ResourceType `yaml:"KinesisStream"`
+	APIGateway            ResourceType `yaml:"APIGateway"`
+	APIGatewayV2          ResourceType `yaml:"APIGatewayV2"`
 }
 
 type ResourceType struct {

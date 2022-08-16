@@ -760,6 +760,34 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Kinesis Streams
 
+		// API Gateways (v1)
+		apiGateways := ApiGateway{}
+		if IsNukeable(apiGateways.ResourceName(), resourceTypes) {
+			gatewayIds, err := getAllAPIGateways(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(gatewayIds) > 0 {
+				apiGateways.Ids = awsgo.StringValueSlice(gatewayIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, apiGateways)
+			}
+		}
+		// End API Gateways (v1)
+
+		// API Gateways (v2)
+		apiGatewaysV2 := ApiGatewayV2{}
+		if IsNukeable(apiGatewaysV2.ResourceName(), resourceTypes) {
+			gatewayV2Ids, err := getAllAPIGatewaysV2(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(gatewayV2Ids) > 0 {
+				apiGatewaysV2.Ids = awsgo.StringValueSlice(gatewayV2Ids)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, apiGatewaysV2)
+			}
+		}
+		// End API Gateways (v2)
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -872,6 +900,8 @@ func ListResourceTypes() []string {
 		MacieMember{}.ResourceName(),
 		SageMakerNotebookInstances{}.ResourceName(),
 		KinesisStreams{}.ResourceName(),
+		ApiGateway{}.ResourceName(),
+		ApiGatewayV2{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
