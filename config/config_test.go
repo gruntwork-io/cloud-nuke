@@ -38,6 +38,7 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
 	}
 }
 
@@ -629,6 +630,194 @@ func TestConfigSageMakerNotebook_FilterNames(t *testing.T) {
 	if len(configObj.SageMakerNotebook.IncludeRule.NamesRegExp) == 0 ||
 		len(configObj.SageMakerNotebook.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain SageMakerNotebook regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// APIGateway Tests
+
+func TestConfigAPIGateway_Empty(t *testing.T) {
+	configFilePath := "./mocks/apigateway_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.APIGateway)
+	}
+
+	return
+}
+
+func TestConfigAPIGateway_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/apigateway_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGateway_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/apigateway_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGateway_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/apigateway_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.APIGateway.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain APIGateway regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGateway_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/apigateway_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.APIGateway.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain APIGateway regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGateway_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/apigateway_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.APIGateway.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.APIGateway.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain APIGateway regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// end APIGateway tests
+
+// APIGateway V2 tests
+
+func TestConfigAPIGatewayV2_Empty(t *testing.T) {
+	configFilePath := "./mocks/apigatewayv2_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.APIGateway)
+	}
+
+	return
+}
+
+func TestConfigAPIGatewayV2_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/apigatewayv2_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGatewayV2_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/apigatewayv2_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGatewayV2_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/apigatewayv2_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.APIGatewayV2.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain APIGatewayV2 regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGatewayV2_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/apigatewayv2_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.APIGatewayV2.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain APIGatewayV2 regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigAPIGatewayV2_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/apigatewayv2_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.APIGatewayV2.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.APIGatewayV2.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain APIGatewayV2 regexes, %+v\n", configObj)
 	}
 
 	return
