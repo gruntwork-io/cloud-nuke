@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllEFSFileSystems(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllElasticFileSystems(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
@@ -30,7 +30,9 @@ func getAllEFSFileSystems(session *session.Session, excludeAfter time.Time, conf
 
 	Ids := []*string{}
 	for _, fileSystem := range result.FileSystems {
-		Ids = append(Ids, fileSystem.FileSystemId)
+		if shouldIncludeElasticFileSystem(&fileSystem, excludeAfter, configObj) {
+			Ids = append(Ids, fileSystem.FileSystemId)
+		}
 	}
 	return Ids, nil
 }

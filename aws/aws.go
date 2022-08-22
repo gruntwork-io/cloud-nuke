@@ -791,7 +791,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Elastic FileSystems (efs)
 		elasticFileSystems := ElasticFileSystem{}
 		if IsNukeable(elasticFileSystems.ResourceName(), resourceTypes) {
-			elasticFileSystemsIds, err := getAllEFSFileSystems(cloudNukeSession, excludeAfter, configObj)
+			elasticFileSystemsIds, err := getAllElasticFileSystems(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
