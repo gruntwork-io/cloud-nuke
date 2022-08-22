@@ -38,6 +38,7 @@ type Config struct {
 	KinesisStream         ResourceType `yaml:"KinesisStream"`
 	APIGateway            ResourceType `yaml:"APIGateway"`
 	APIGatewayV2          ResourceType `yaml:"APIGatewayV2"`
+	ElasticFileSystem     ResourceType `yaml:"ElasticFileSystem"`
 }
 
 type ResourceType struct {
