@@ -117,7 +117,6 @@ func TestNukeElasticFileSystemOne(t *testing.T) {
 	require.NoError(t, nukeErr)
 
 	// This sleep is necessary to allow AWS to realize the Elastic FileSystem is no longer "in-use"
-
 	time.Sleep(10 * time.Second)
 
 	// Make sure the Elastic FileSystem was deleted
