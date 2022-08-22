@@ -104,8 +104,9 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 	defer wg.Done()
 	defer func() { errChan <- allErrs.ErrorOrNil() }()
 
-	// First, we need to check if the Elastic FileSystem is in use. It is considered in-use if it has any mount points,
-	// so we first describe and delete any existing mount points
+	// First, we need to check if the Elastic FileSystem is "in-use", because an in-use file system cannot be deleted
+	// An Elastic FileSystem is considered in-use if it has any access points, or any mount targets
+	// Here, we first look up and delete any and all access points for the given Elastic FileSystem
 	accessPointIds := []*string{}
 
 	accessPointParam := &efs.DescribeAccessPointsInput{
@@ -137,7 +138,10 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 		}
 	}
 
-	// Until we've paginated through all of the Elastic FileSysem's mount targets, we have to keep going
+	// With Access points cleared up, we next turn to looking up and deleting mount targets
+	// Note that, despite having a MaxItems field in its struct, DescribeMountTargetsInput will actually
+	// only set this value to 10, ignoring any other values. This means we must page through our mount targets,
+	// because we must guarantee they are all deleted before we can successfully delete the Elastic FileSystem itself
 	done := false
 	var marker *string
 
@@ -145,7 +149,6 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 
 	for !done {
 
-		// We also need to ensure the Elastic FileSystem does not have any mount points
 		mountTargetParam := &efs.DescribeMountTargetsInput{
 			FileSystemId: efsID,
 		}
