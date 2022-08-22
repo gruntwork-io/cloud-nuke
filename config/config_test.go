@@ -824,6 +824,101 @@ func TestConfigAPIGatewayV2_FilterNames(t *testing.T) {
 	return
 }
 
+// Elastic FileSystem Tests
+
+func TestConfigElasticFileSystem_Empty(t *testing.T) {
+	configFilePath := "./mocks/efs_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.APIGateway)
+	}
+
+	return
+}
+
+func TestConfigElasticFileSystem_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/efs_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigElasticFileSystem_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/efs_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigElasticFileSystem_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/efs_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ElasticFileSystem.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ElasticFileSystem regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigElasticFileSystem_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/efs_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ElasticFileSystem.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ElasticFileSystem regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigElasticFileSystem_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/efs_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.ElasticFileSystem.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.ElasticFileSystem.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain ElasticFileSystem regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// end ElasticFileSystem tests
+
 func TestShouldInclude_AllowWhenEmpty(t *testing.T) {
 	var includeREs []Expression
 	var excludeREs []Expression
