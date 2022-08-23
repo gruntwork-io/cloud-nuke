@@ -802,6 +802,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Elastic FileSystems (efs)
 
+		// SNS Topics
+		snsTopics := SNSTopic{}
+		if IsNukeable(snsTopics.ResourceName(), resourceTypes) {
+			snsTopicArns, err := getAllSNSTopics(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(snsTopicArns) > 0 {
+				snsTopics.Arns = awsgo.StringValueSlice(snsTopicArns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, snsTopics)
+			}
+		}
+		// End SNS Topics
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -917,6 +931,7 @@ func ListResourceTypes() []string {
 		ApiGateway{}.ResourceName(),
 		ApiGatewayV2{}.ResourceName(),
 		ElasticFileSystem{}.ResourceName(),
+		SNSTopic{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
