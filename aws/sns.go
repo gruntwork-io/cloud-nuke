@@ -82,10 +82,7 @@ func nukeAllSNSTopics(session *session.Session, identifiers []*string) error {
 }
 
 func deleteSNSTopicAsync(wg *sync.WaitGroup, errChan chan error, svc *sns.Client, topicArn *string, region string) {
-	var allErrs *multierror.Error
-
 	defer wg.Done()
-	defer func() { errChan <- allErrs.ErrorOrNil() }()
 
 	deleteParam := &sns.DeleteTopicInput{
 		TopicArn: topicArn,
@@ -94,14 +91,11 @@ func deleteSNSTopicAsync(wg *sync.WaitGroup, errChan chan error, svc *sns.Client
 	logging.Logger.Infof("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
 
 	_, err := svc.DeleteTopic(context.TODO(), deleteParam)
-	if err != nil {
-		allErrs = multierror.Append(allErrs, err)
-	} else {
-		logging.Logger.Infof("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
-	}
+
+	errChan <- err
 
 	if err == nil {
-		logging.Logger.Infof("[OK] SNS Topic (arn=%s) deleted in %s", aws.StringValue(topicArn), region)
+		logging.Logger.Infof("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
 	} else {
 		logging.Logger.Errorf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), region)
 	}
