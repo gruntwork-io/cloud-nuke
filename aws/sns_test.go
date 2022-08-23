@@ -100,7 +100,7 @@ func TestNukeSNSTopicOne(t *testing.T) {
 	require.NoError(t, err)
 
 	snsTopicName := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
+
 	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName)
 	require.NoError(t, createTestSNSTopicErr)
 
@@ -125,7 +125,7 @@ func TestNukeSNSTopicMoreThanOne(t *testing.T) {
 
 	testSNSTopicName := "aws-nuke-test-" + util.UniqueID()
 	testSNSTopicName2 := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
+
 	testSNSTopic, createTestErr := createTestSNSTopic(t, session, testSNSTopicName)
 	require.NoError(t, createTestErr)
 	testSNSTopic2, createTestErr2 := createTestSNSTopic(t, session, testSNSTopicName2)
