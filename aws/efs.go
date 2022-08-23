@@ -28,13 +28,13 @@ func getAllElasticFileSystems(session *session.Session, excludeAfter time.Time, 
 		return []*string{}, errors.WithStackTrace(err)
 	}
 
-	Ids := []*string{}
+	allEfs := []*string{}
 	for _, fileSystem := range result.FileSystems {
 		if shouldIncludeElasticFileSystem(&fileSystem, excludeAfter, configObj) {
-			Ids = append(Ids, fileSystem.FileSystemId)
+			allEfs = append(allEfs, fileSystem.FileSystemId)
 		}
 	}
-	return Ids, nil
+	return allEfs, nil
 }
 
 func shouldIncludeElasticFileSystem(efsDescription *types.FileSystemDescription, excludeAfter time.Time, configObj config.Config) bool {

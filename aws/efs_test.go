@@ -24,6 +24,9 @@ type TestElasticFileSystem struct {
 
 func createTestElasticFileSystem(t *testing.T, session *session.Session, name string) (*TestElasticFileSystem, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
 
 	svc := efs.NewFromConfig(cfg)
 
