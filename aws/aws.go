@@ -788,6 +788,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End API Gateways (v2)
 
+		// Elastic FileSystems (efs)
+		elasticFileSystems := ElasticFileSystem{}
+		if IsNukeable(elasticFileSystems.ResourceName(), resourceTypes) {
+			elasticFileSystemsIds, err := getAllElasticFileSystems(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(elasticFileSystemsIds) > 0 {
+				elasticFileSystems.Ids = awsgo.StringValueSlice(elasticFileSystemsIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticFileSystems)
+			}
+		}
+		// End Elastic FileSystems (efs)
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -902,6 +916,7 @@ func ListResourceTypes() []string {
 		KinesisStreams{}.ResourceName(),
 		ApiGateway{}.ResourceName(),
 		ApiGatewayV2{}.ResourceName(),
+		ElasticFileSystem{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

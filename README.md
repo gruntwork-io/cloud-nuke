@@ -47,6 +47,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all SageMaker Notebook Instances in an AWS account
 - Inspecting and deleting all Kinesis Streams in an AWS account
 - Inspecting and deleting all API Gateways (v1 and v2) in an AWS account
+- Inspecting and deleting all Elastic FileSystems (efs) in an AWS account
 
 ### BEWARE!
 
@@ -336,7 +337,6 @@ The following resources support the Config file:
     - Config key: `CloudWatchLogGroup`
 - KMS customer keys
     - Resource type: `kmscustomerkeys`
-<<<<<<< HEAD
     - Config key: `KMSCustomerKeys`
 - Auto Scaling Groups
     - Resource type: `asg`
@@ -356,6 +356,20 @@ The following resources support the Config file:
 - SageMaker Notebook Instances
   - Resource type: `sagemaker-notebook-instances`
   - Config key: `SageMakerNotebook`
+- API Gateways (v1) 
+  - Resource type: `apigateway`
+  - Config key: `APIGateway`
+- API Gateways (v2) 
+  - Resource type: `apigatewayv2`
+  - Config key: `APIGatewayV2`
+- Elastic FileSystems (efs) 
+  - Resource type: `efs`
+  - Config key: `ElasticFileSystem`
+
+
+
+
+
 
 Notes:
   * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
@@ -474,6 +488,7 @@ To find out what we options are supported in the config file today, consult this
 | apigatewayv2        | none | ✅   | none | none |
 | eks                 | none | ✅   | none | none |
 | kinesis-stream      | none | ✅   | none | none |
+| efs                 | none | ✅   | none | none |
 | acmpca              | none | none | none | none |
 | iam role            | none | none | none | none |
 | sagemaker-notebook-instances| none| ✅   | none | none       |
