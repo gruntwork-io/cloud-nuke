@@ -3,11 +3,13 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -15,7 +17,6 @@ import (
 func getAllLaunchConfigurations(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := autoscaling.New(session)
 	result, err := svc.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{})
-
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -64,6 +65,15 @@ func nukeAllLaunchConfigurations(session *session.Session, configNames []*string
 		}
 
 		_, err := svc.DeleteLaunchConfiguration(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(configName),
+			ResourceType: "Launch configuration",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {

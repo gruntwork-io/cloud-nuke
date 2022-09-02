@@ -10,6 +10,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
 func getAllCloudWatchDashboards(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
@@ -69,6 +70,15 @@ func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string
 	logging.Logger.Infof("Deleting CloudWatch Dashboards in region %s", region)
 	input := cloudwatch.DeleteDashboardsInput{DashboardNames: identifiers}
 	_, err := svc.DeleteDashboards(&input)
+
+	// Record status of this resource
+	e := report.BatchEntry{
+		Identifiers:  aws.StringValueSlice(identifiers),
+		ResourceType: "CloudWatch Dashboard",
+		Error:        err,
+	}
+	report.RecordBatch(e)
+
 	if err != nil {
 		logging.Logger.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)

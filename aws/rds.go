@@ -3,10 +3,12 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -14,7 +16,6 @@ func getAllRdsInstances(session *session.Session, excludeAfter time.Time) ([]*st
 	svc := rds.New(session)
 
 	result, err := svc.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
-
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -63,6 +64,14 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 			err := svc.WaitUntilDBInstanceDeleted(&rds.DescribeDBInstancesInput{
 				DBInstanceIdentifier: name,
 			})
+
+			// Record status of this resource
+			e := report.Entry{
+				Identifier:   aws.StringValue(name),
+				ResourceType: "RDS Instance",
+				Error:        err,
+			}
+			report.Record(e)
 
 			if err != nil {
 				logging.Logger.Errorf("[Failed] %s", err)

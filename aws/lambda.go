@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -87,6 +88,14 @@ func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
 		}
 
 		_, err := svc.DeleteFunction(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(name),
+			ResourceType: "Lambda function",
+			Error:        err,
+		}
+		report.Record(e)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)

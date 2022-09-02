@@ -14,6 +14,7 @@ require (
 	github.com/gruntwork-io/terratest v0.36.3
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/pquerna/otp v1.3.0
+	github.com/pterm/pterm v0.12.45
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.7.1
 	github.com/urfave/cli v1.22.4

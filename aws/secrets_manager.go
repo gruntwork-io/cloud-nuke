@@ -11,6 +11,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -99,5 +100,14 @@ func deleteSecretAsync(wg *sync.WaitGroup, errChan chan error, svc *secretsmanag
 		SecretId:                   secretID,
 	}
 	_, err := svc.DeleteSecret(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(secretID),
+		ResourceType: "Secrets Manager Secret",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 }

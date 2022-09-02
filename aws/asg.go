@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -64,6 +65,15 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		}
 
 		_, err := svc.DeleteAutoScalingGroup(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   *groupName,
+			ResourceType: "Auto-Scaling Group",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
@@ -76,7 +86,6 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		err := svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
 			AutoScalingGroupNames: deletedGroupNames,
 		})
-
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)

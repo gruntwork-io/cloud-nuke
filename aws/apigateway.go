@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -93,6 +94,14 @@ func deleteApiGatewayAsync(wg *sync.WaitGroup, errChan chan error, svc *apigatew
 	input := &apigateway.DeleteRestApiInput{RestApiId: apigwID}
 	_, err := svc.DeleteRestApi(input)
 	errChan <- err
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   *apigwID,
+		ResourceType: "APIGateway (v1)",
+		Error:        err,
+	}
+	report.Record(e)
 
 	if err == nil {
 		logging.Logger.Infof("[OK] API Gateway (v1) %s deleted in %s", aws.StringValue(apigwID), region)

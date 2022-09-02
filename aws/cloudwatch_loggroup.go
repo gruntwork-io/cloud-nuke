@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -115,6 +116,15 @@ func deleteCloudWatchLogGroupAsync(
 	defer wg.Done()
 	input := &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: logGroupName}
 	_, err := svc.DeleteLogGroup(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(logGroupName),
+		ResourceType: "CloudWatch Log Group",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 
 	logGroupNameStr := aws.StringValue(logGroupName)

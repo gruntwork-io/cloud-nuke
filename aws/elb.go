@@ -3,10 +3,12 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -64,6 +66,15 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 		}
 
 		_, err := svc.DeleteLoadBalancer(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(name),
+			ResourceType: "Load Balancer (v1)",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
@@ -76,7 +87,6 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 		err := waitUntilElbDeleted(svc, &elb.DescribeLoadBalancersInput{
 			LoadBalancerNames: deletedNames,
 		})
-
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)

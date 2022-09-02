@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -121,6 +122,15 @@ func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) erro
 			Cluster: clusterArn,
 		}
 		_, err := svc.DeleteCluster(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(clusterArn),
+			ResourceType: "ECS Cluster",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("Error, failed to delete cluster with ARN %s", aws.StringValue(clusterArn))
 			return errors.WithStackTrace(err)
@@ -179,7 +189,6 @@ func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) 
 		if aws.StringValue(tag.Key) == firstSeenTagKey {
 
 			firstSeenTime, err := parseTimestampTag(aws.StringValue(tag.Value))
-
 			if err != nil {
 				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
@@ -193,7 +202,6 @@ func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) 
 
 func parseTimestampTag(timestamp string) (time.Time, error) {
 	parsed, err := time.Parse(time.RFC3339, timestamp)
-
 	if err != nil {
 		logging.Logger.Errorf("Error parsing the timestamp into a `RFC3339` Time format")
 		return parsed, errors.WithStackTrace(err)

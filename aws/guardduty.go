@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -109,6 +110,14 @@ func nukeAllGuardDutyDetectors(session *session.Session, detectorIds []string) e
 		}
 
 		_, err := svc.DeleteDetector(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   detectorId,
+			ResourceType: "GuardDuty Detector",
+			Error:        err,
+		}
+		report.Record(e)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", detectorId, err)

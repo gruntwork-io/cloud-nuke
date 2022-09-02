@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -199,6 +200,14 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 		} else if clusterType == Replication {
 			err = nukeReplicationGroupMemberElasticacheCluster(svc, clusterId)
 		}
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(clusterId),
+			ResourceType: "Elasticache",
+			Error:        err,
+		}
+		report.Record(e)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)

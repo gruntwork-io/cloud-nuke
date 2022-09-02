@@ -17,6 +17,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
 // getS3BucketRegion returns S3 Bucket region.
@@ -516,6 +517,14 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 			multierror.Append(multiErr, err)
 			continue
 		}
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(bucketName),
+			ResourceType: "S3 Bucket",
+			Error:        multiErr.ErrorOrNil(),
+		}
+		report.Record(e)
 
 		logging.Logger.Infof("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)
 		delCount++

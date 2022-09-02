@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -195,6 +196,15 @@ func waitUntilEksClustersDeleted(svc *eks.EKS, eksClusterNames []*string) []*str
 	var successfullyDeleted []*string
 	for _, eksClusterName := range eksClusterNames {
 		err := svc.WaitUntilClusterDeleted(&eks.DescribeClusterInput{Name: eksClusterName})
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(eksClusterName),
+			ResourceType: "EKS Cluster",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] Failed waiting for EKS cluster to be deleted %s: %s", *eksClusterName, err)
 		} else {

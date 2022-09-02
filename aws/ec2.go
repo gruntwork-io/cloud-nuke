@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -25,7 +26,6 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 				Attribute:  awsgo.String("disableApiTermination"),
 				InstanceId: awsgo.String(instanceID),
 			})
-
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -44,7 +44,7 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name: awsgo.String("instance-state-name"),
 				Values: []*string{
 					awsgo.String("running"), awsgo.String("pending"),
@@ -68,7 +68,6 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 }
 
 func shouldIncludeInstanceId(instance *ec2.Instance, excludeAfter time.Time, protected bool, configObj config.Config) bool {
-
 	if instance == nil {
 		return false
 	}
@@ -115,7 +114,7 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 
 	err = svc.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name:   awsgo.String("instance-id"),
 				Values: instanceIds,
 			},
@@ -248,7 +247,7 @@ func (v Vpc) nukeSubnets() error {
 	subnets, _ := v.svc.DescribeSubnets(
 		&ec2.DescribeSubnetsInput{
 			Filters: []*ec2.Filter{
-				&ec2.Filter{
+				{
 					Name:   awsgo.String("vpc-id"),
 					Values: []*string{awsgo.String(v.VpcId)},
 				},
@@ -277,7 +276,7 @@ func (v Vpc) nukeRouteTables() error {
 	routeTables, _ := v.svc.DescribeRouteTables(
 		&ec2.DescribeRouteTablesInput{
 			Filters: []*ec2.Filter{
-				&ec2.Filter{
+				{
 					Name:   awsgo.String("vpc-id"),
 					Values: []*string{awsgo.String(v.VpcId)},
 				},
@@ -307,11 +306,11 @@ func (v Vpc) nukeNacls() error {
 	networkACLs, _ := v.svc.DescribeNetworkAcls(
 		&ec2.DescribeNetworkAclsInput{
 			Filters: []*ec2.Filter{
-				&ec2.Filter{
+				{
 					Name:   awsgo.String("default"),
 					Values: []*string{awsgo.String("false")},
 				},
-				&ec2.Filter{
+				{
 					Name:   awsgo.String("vpc-id"),
 					Values: []*string{awsgo.String(v.VpcId)},
 				},
@@ -336,7 +335,7 @@ func (v Vpc) nukeSecurityGroups() error {
 	securityGroups, _ := v.svc.DescribeSecurityGroups(
 		&ec2.DescribeSecurityGroupsInput{
 			Filters: []*ec2.Filter{
-				&ec2.Filter{
+				{
 					Name:   awsgo.String("vpc-id"),
 					Values: []*string{awsgo.String(v.VpcId)},
 				},
@@ -360,7 +359,7 @@ func (v Vpc) nukeSecurityGroups() error {
 			if *securityGroupRule.IsEgress {
 				_, err := v.svc.RevokeSecurityGroupEgress(
 					&ec2.RevokeSecurityGroupEgressInput{
-						GroupId: securityGroup.GroupId,
+						GroupId:              securityGroup.GroupId,
 						SecurityGroupRuleIds: []*string{securityGroupRule.SecurityGroupRuleId},
 					},
 				)
@@ -370,7 +369,7 @@ func (v Vpc) nukeSecurityGroups() error {
 			} else {
 				_, err := v.svc.RevokeSecurityGroupIngress(
 					&ec2.RevokeSecurityGroupIngressInput{
-						GroupId: securityGroup.GroupId,
+						GroupId:              securityGroup.GroupId,
 						SecurityGroupRuleIds: []*string{securityGroupRule.SecurityGroupRuleId},
 					},
 				)
@@ -424,7 +423,6 @@ func (v Vpc) nukeEndpoints() error {
 	_, err := v.svc.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
 		VpcEndpointIds: endpointIds,
 	})
-
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -452,7 +450,6 @@ func waitForVPCEndpointsToBeDeleted(v Vpc) error {
 				},
 			},
 		)
-
 		if err != nil {
 			return err
 		}
@@ -536,6 +533,15 @@ func (v Vpc) nuke() error {
 func NukeVpcs(vpcs []Vpc) error {
 	for _, vpc := range vpcs {
 		err := vpc.nuke()
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   vpc.VpcId,
+			ResourceType: "VPC",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("Skipping to the next default VPC")
 			continue
@@ -644,6 +650,15 @@ func (sg DefaultSecurityGroup) nuke() error {
 func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 	for _, sg := range sgs {
 		err := sg.nuke()
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   sg.GroupId,
+			ResourceType: "Default Security Group",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("Error: %s", err)
 			logging.Logger.Error("Skipping to the next default Security Group")
@@ -666,5 +681,4 @@ func GetEC2ResourceNameTagValue(tags []*ec2.Tag) (string, error) {
 		return name, nil
 	}
 	return "", fmt.Errorf("Resource does not have Name tag")
-
 }

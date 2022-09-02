@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -191,6 +192,14 @@ func deleteOIDCProviderAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IA
 	defer wg.Done()
 
 	_, err := svc.DeleteOpenIDConnectProvider(&iam.DeleteOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(providerARN),
+		ResourceType: "OIDC Provider",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 }
 

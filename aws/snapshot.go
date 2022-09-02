@@ -3,10 +3,12 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -51,6 +53,15 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 		}
 
 		_, err := svc.DeleteSnapshot(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(snapshotID),
+			ResourceType: "EBS Snapshot",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {

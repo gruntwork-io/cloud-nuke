@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -23,7 +24,6 @@ func setFirstSeenVpcTag(svc *ec2.EC2, vpc ec2.Vpc, key string, value time.Time) 
 			},
 		},
 	})
-
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -127,7 +127,17 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 	multiErr := new(multierror.Error)
 
 	for _, vpc := range vpcs {
-		if err := vpc.nuke(); err != nil {
+		err := vpc.nuke()
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   vpc.VpcId,
+			ResourceType: "VPC",
+			Error:        err,
+		}
+		report.Record(e)
+
+		if err != nil {
+
 			logging.Logger.Errorf("[Failed] %s", err)
 			multierror.Append(multiErr, err)
 		} else {

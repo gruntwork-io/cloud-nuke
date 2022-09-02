@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -53,6 +54,15 @@ func nukeAllTransitGatewayInstances(session *session.Session, ids []*string) err
 		}
 
 		_, err := svc.DeleteTransitGateway(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(id),
+			ResourceType: "Transit Gateway",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
@@ -76,7 +86,8 @@ func getAllTransitGatewayRouteTables(session *session.Session, region string, ex
 				Name: aws.String("default-association-route-table"),
 				Values: []*string{
 					aws.String("false"),
-				}},
+				},
+			},
 		},
 	}
 

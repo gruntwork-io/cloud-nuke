@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -93,6 +94,14 @@ func deleteSNSTopicAsync(wg *sync.WaitGroup, errChan chan error, svc *sns.Client
 	_, err := svc.DeleteTopic(context.TODO(), deleteParam)
 
 	errChan <- err
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   *topicArn,
+		ResourceType: "SNS Topic",
+		Error:        err,
+	}
+	report.Record(e)
 
 	if err == nil {
 		logging.Logger.Infof("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)

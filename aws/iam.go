@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/hashicorp/go-multierror"
@@ -351,6 +352,14 @@ func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 
 	for _, userName := range userNames {
 		err := nukeUser(svc, userName)
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(userName),
+			ResourceType: "IAM User",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			multierror.Append(multiErr, err)

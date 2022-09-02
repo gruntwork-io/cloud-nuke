@@ -4,10 +4,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -75,6 +77,15 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 		}
 
 		_, err := svc.DeleteQueue(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(url),
+			ResourceType: "SQS Queue",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {

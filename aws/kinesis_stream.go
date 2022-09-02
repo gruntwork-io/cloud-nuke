@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -103,6 +104,15 @@ func deleteKinesisStreamAsync(
 	defer wg.Done()
 	input := &kinesis.DeleteStreamInput{StreamName: streamName}
 	_, err := svc.DeleteStream(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(streamName),
+		ResourceType: "Kinesis Stream",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 
 	streamNameStr := aws.StringValue(streamName)

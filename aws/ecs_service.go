@@ -3,11 +3,13 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -180,6 +182,15 @@ func waitUntilServicesDeleted(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 			Services: []*string{ecsServiceArn},
 		}
 		err := svc.WaitUntilServicesInactive(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(ecsServiceArn),
+			ResourceType: "ECS Service",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
 		} else {

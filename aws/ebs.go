@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -71,6 +72,15 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		}
 
 		_, err := svc.DeleteVolume(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(volumeID),
+			ResourceType: "EBS Volume",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "VolumeInUse" {
 				logging.Logger.Warnf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
@@ -89,7 +99,6 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		err := svc.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
 			VolumeIds: deletedVolumeIDs,
 		})
-
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)

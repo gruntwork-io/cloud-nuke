@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -200,6 +201,14 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 	}
 
 	_, deleteErr := svc.DeleteFileSystem(context.TODO(), deleteEfsParam)
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(efsID),
+		ResourceType: "Elastic FileSystem (EFS)",
+		Error:        err,
+	}
+	report.Record(e)
+
 	if deleteErr != nil {
 		allErrs = multierror.Append(allErrs, deleteErr)
 	}

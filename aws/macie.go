@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/macie2"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -76,6 +77,15 @@ func nukeAllMacieMemberAccounts(session *session.Session, identifiers []string) 
 		}
 
 		_, err := svc.DisableMacie(&macie2.DisableMacieInput{})
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   accountId,
+			ResourceType: "Macie member account",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}

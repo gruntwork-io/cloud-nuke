@@ -15,6 +15,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
 func getAllNatGateways(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
@@ -176,6 +177,15 @@ func deleteNatGatewayAsync(wg *sync.WaitGroup, errChan chan error, svc *ec2.EC2,
 
 	input := &ec2.DeleteNatGatewayInput{NatGatewayId: ngwID}
 	_, err := svc.DeleteNatGateway(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(ngwID),
+		ResourceType: "NAT Gateway",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 }
 

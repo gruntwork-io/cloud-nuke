@@ -3,11 +3,13 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -34,7 +36,6 @@ func getAllRdsClusters(session *session.Session, excludeAfter time.Time) ([]*str
 	svc := rds.New(session)
 
 	result, err := svc.DescribeDBClusters(&rds.DescribeDBClustersInput{})
-
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -69,6 +70,14 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 
 		_, err := svc.DeleteDBCluster(params)
 
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(name),
+			ResourceType: "RDS Cluster",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 		} else {
@@ -83,7 +92,6 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 			err := waitUntilRdsClusterDeleted(svc, &rds.DescribeDBClustersInput{
 				DBClusterIdentifier: name,
 			})
-
 			if err != nil {
 				logging.Logger.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)

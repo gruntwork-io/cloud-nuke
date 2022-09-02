@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
@@ -20,7 +21,7 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, config
 	var lastTableName *string
 	// Run count is used for pagination if the list tables exceeds max value
 	// Tells loop to rerun
-	var PaginationRunCount = 1
+	PaginationRunCount := 1
 	for PaginationRunCount > 0 {
 		result, err := svc.ListTables(&dynamodb.ListTablesInput{ExclusiveStartTableName: lastTableName, Limit: aws.Int64(int64(DynamoDB.MaxBatchSize(db)))})
 
@@ -90,6 +91,15 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 			TableName: aws.String(*table),
 		}
 		_, err := svc.DeleteTable(input)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(table),
+			ResourceType: "DynamoDB Table",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Error() {
