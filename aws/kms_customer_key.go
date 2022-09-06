@@ -144,13 +144,13 @@ func listKeyAliases(svc *kms.KMS, batchSize int) (map[string][]string, error) {
 func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) error {
 	region := aws.StringValue(session.Config.Region)
 	if len(keyIds) == 0 {
-		logging.Logger.Infof("No Customer Keys to nuke in region %s", region)
+		logging.Logger.Debugf("No Customer Keys to nuke in region %s", region)
 		return nil
 	}
 
 	// usage of go routines for parallel keys removal
 	// https://docs.aws.amazon.com/sdk-for-go/api/service/kms/#KMS.ScheduleKeyDeletion
-	logging.Logger.Infof("Deleting Keys secrets in region %s", region)
+	logging.Logger.Debugf("Deleting Keys secrets in region %s", region)
 	svc := kms.New(session)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(keyIds))
@@ -166,7 +166,7 @@ func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) e
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	return errors.WithStackTrace(allErrs.ErrorOrNil())

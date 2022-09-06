@@ -52,11 +52,11 @@ func nukeAllLaunchConfigurations(session *session.Session, configNames []*string
 	svc := autoscaling.New(session)
 
 	if len(configNames) == 0 {
-		logging.Logger.Infof("No Launch Configurations to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Launch Configurations to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Launch Configurations in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Launch Configurations in region %s", *session.Config.Region)
 	var deletedConfigNames []*string
 
 	for _, configName := range configNames {
@@ -78,10 +78,10 @@ func nukeAllLaunchConfigurations(session *session.Session, configNames []*string
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
 			deletedConfigNames = append(deletedConfigNames, configName)
-			logging.Logger.Infof("Deleted Launch configuration: %s", *configName)
+			logging.Logger.Debugf("Deleted Launch configuration: %s", *configName)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Launch Configuration(s) deleted in %s", len(deletedConfigNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Launch Configuration(s) deleted in %s", len(deletedConfigNames), *session.Config.Region)
 	return nil
 }
