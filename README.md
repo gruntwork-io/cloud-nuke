@@ -197,6 +197,8 @@ cloud-nuke aws --resource-type ec2 --dry-run
 Dry run mode is only available within:
 - `cloud-nuke aws`
 
+
+
 ### Using cloud-nuke as a library
 
 You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources.
@@ -498,6 +500,9 @@ To find out what we options are supported in the config file today, consult this
 
 
 ### Log level
+By default, cloud-nuke sends most output to the `Debug` level logger, to enhance legibility, since the results of every deletion attempt will be displayed in the report that cloud-nuke prints after each run. 
+
+However, sometimes it's helpful to see all output, such as when you're debugging something. 
 
 You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:
 
