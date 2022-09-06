@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -266,7 +267,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	// Print the report showing the user what happened with each resource
-	report.Print()
+	report.Print(os.Stdout)
 	s := spinner.GetSpinner()
 	s.Success("Nuking complete")
 

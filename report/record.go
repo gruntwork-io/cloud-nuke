@@ -1,6 +1,7 @@
 package report
 
 import (
+	"io"
 	"sync"
 
 	"github.com/pterm/pterm"
@@ -29,8 +30,8 @@ func RecordBatch(e BatchEntry) {
 	}
 }
 
-func Print() {
-	renderSection("Nuking complete:")
+func Print(w io.Writer) {
+	renderSection("Nuking complete:", w)
 	data := make([][]string, len(records))
 	entriesToDisplay := []Entry{}
 	for _, entry := range records {
@@ -47,15 +48,16 @@ func Print() {
 		data[idx] = []string{entry.Identifier, entry.ResourceType, errSymbol}
 	}
 
-	renderTableWithHeader([]string{"Identifier", "Resource Type", "Deleted Successfully"}, data)
+	renderTableWithHeader([]string{"Identifier", "Resource Type", "Deleted Successfully"}, data, w)
 }
 
-func renderSection(sectionTitle string) {
-	pterm.DefaultSection.Style = pterm.NewStyle(pterm.FgLightCyan)
-	pterm.DefaultSection.WithLevel(0).Println(sectionTitle)
+func renderSection(sectionTitle string, w io.Writer) {
+	section := pterm.DefaultSection.WithStyle(pterm.NewStyle(pterm.FgLightCyan))
+	section = section.WithWriter(w).WithLevel(0)
+	section.Println(sectionTitle)
 }
 
-func renderTableWithHeader(headers []string, data [][]string) {
+func renderTableWithHeader(headers []string, data [][]string, w io.Writer) {
 	tableData := pterm.TableData{
 		headers,
 	}
@@ -67,7 +69,12 @@ func renderTableWithHeader(headers []string, data [][]string) {
 		WithBoxed(true).
 		WithRowSeparator("-").
 		WithData(tableData).
+		WithWriter(w).
 		Render()
+}
+
+func Reset() {
+	records = make(map[string]Entry)
 }
 
 // Custom types
