@@ -106,6 +106,6 @@ func deleteSNSTopicAsync(wg *sync.WaitGroup, errChan chan error, svc *sns.Client
 	if err == nil {
 		logging.Logger.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), region)
+		logging.Logger.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), region)
 	}
 }
