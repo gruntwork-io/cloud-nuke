@@ -118,7 +118,7 @@ func getRandomRegionWithExclusions(regionsToExclude []string) (string, error) {
 		}
 	}
 	randIndex := rand.Intn(len(updatedRegions))
-	logging.Logger.Infof("Random region chosen: %s", updatedRegions[randIndex])
+	logging.Logger.Debugf("Random region chosen: %s", updatedRegions[randIndex])
 	return updatedRegions[randIndex], nil
 }
 
@@ -216,7 +216,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			continue
 		}
 
-		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
+		logging.Logger.Debugf("Checking region [%d/%d]: %s", count, totalRegions, region)
 
 		cloudNukeSession := newSession(region)
 		resourcesInRegion := AwsRegionResource{}
