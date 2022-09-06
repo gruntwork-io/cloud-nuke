@@ -117,11 +117,11 @@ func shouldIncludeVpc(vpc *ec2.Vpc, excludeAfter time.Time, firstSeenTime time.T
 
 func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 	if len(vpcIds) == 0 {
-		logging.Logger.Info("No VPCs to nuke")
+		logging.Logger.Debug("No VPCs to nuke")
 		return nil
 	}
 
-	logging.Logger.Info("Deleting all VPCs")
+	logging.Logger.Debug("Deleting all VPCs")
 
 	deletedVPCs := 0
 	multiErr := new(multierror.Error)
@@ -142,11 +142,11 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 			multierror.Append(multiErr, err)
 		} else {
 			deletedVPCs++
-			logging.Logger.Infof("Deleted VPC: %s", vpc.VpcId)
+			logging.Logger.Debugf("Deleted VPC: %s", vpc.VpcId)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d VPC terminated", deletedVPCs)
+	logging.Logger.Debugf("[OK] %d VPC terminated", deletedVPCs)
 
 	return nil
 }

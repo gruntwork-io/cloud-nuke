@@ -974,7 +974,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 		length := len(resources.ResourceIdentifiers())
 
 		// Split api calls into batches
-		logging.Logger.Infof("Terminating %d resources in batches", length)
+		logging.Logger.Debugf("Terminating %d resources in batches", length)
 		batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
 
 		for i := 0; i < len(batches); i++ {

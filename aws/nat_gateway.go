@@ -78,7 +78,7 @@ func nukeAllNatGateways(session *session.Session, identifiers []*string) error {
 	svc := ec2.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No Nat Gateways to nuke in region %s", region)
+		logging.Logger.Debugf("No Nat Gateways to nuke in region %s", region)
 		return nil
 	}
 
@@ -87,12 +87,12 @@ func nukeAllNatGateways(session *session.Session, identifiers []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many NAT gateways at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Logger.Debugf("Nuking too many NAT gateways at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyNatErr{}
 	}
 
 	// There is no bulk delete nat gateway API, so we delete the batch of nat gateways concurrently using go routines.
-	logging.Logger.Infof("Deleting Nat Gateways in region %s", region)
+	logging.Logger.Debugf("Deleting Nat Gateways in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -107,7 +107,7 @@ func nukeAllNatGateways(session *session.Session, identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -136,7 +136,7 @@ func nukeAllNatGateways(session *session.Session, identifiers []*string) error {
 		return errors.WithStackTrace(err)
 	}
 	for _, ngwID := range identifiers {
-		logging.Logger.Infof("[OK] NAT Gateway %s was deleted in %s", aws.StringValue(ngwID), region)
+		logging.Logger.Debugf("[OK] NAT Gateway %s was deleted in %s", aws.StringValue(ngwID), region)
 	}
 	return nil
 }

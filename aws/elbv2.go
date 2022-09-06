@@ -52,11 +52,11 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 	svc := elbv2.New(session)
 
 	if len(arns) == 0 {
-		logging.Logger.Infof("No V2 Elastic Load Balancers to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No V2 Elastic Load Balancers to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all V2 Elastic Load Balancers in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all V2 Elastic Load Balancers in region %s", *session.Config.Region)
 	var deletedArns []*string
 
 	for _, arn := range arns {
@@ -75,10 +75,10 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedArns = append(deletedArns, arn)
-			logging.Logger.Infof("Deleted ELBv2: %s", *arn)
+			logging.Logger.Debugf("Deleted ELBv2: %s", *arn)
 		}
 	}
 
@@ -87,11 +87,11 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 			LoadBalancerArns: deletedArns,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), *session.Config.Region)
 	return nil
 }

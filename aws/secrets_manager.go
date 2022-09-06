@@ -64,12 +64,12 @@ func nukeAllSecretsManagerSecrets(session *session.Session, identifiers []*strin
 	svc := secretsmanager.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No Secrets Manager Secrets to nuke in region %s", region)
+		logging.Logger.Debugf("No Secrets Manager Secrets to nuke in region %s", region)
 		return nil
 	}
 
 	// There is no bulk delete secrets API, so we delete the batch of secrets concurrently using go routines.
-	logging.Logger.Infof("Deleting Secrets Manager secrets in region %s", region)
+	logging.Logger.Debugf("Deleting Secrets Manager secrets in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))

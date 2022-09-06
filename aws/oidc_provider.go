@@ -143,7 +143,7 @@ func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error
 	svc := iam.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No OIDC Providers to nuke")
+		logging.Logger.Debugf("No OIDC Providers to nuke")
 		return nil
 	}
 
@@ -152,12 +152,12 @@ func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many OIDC Providers at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Logger.Debugf("Nuking too many OIDC Providers at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyOIDCProvidersErr{}
 	}
 
 	// There is no bulk delete OIDC Provider API, so we delete the batch of nat gateways concurrently using go routines.
-	logging.Logger.Infof("Deleting OIDC Providers")
+	logging.Logger.Debugf("Deleting OIDC Providers")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -172,7 +172,7 @@ func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -181,7 +181,7 @@ func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error
 	}
 
 	for _, providerARN := range identifiers {
-		logging.Logger.Infof("[OK] OIDC Provider %s was deleted", aws.StringValue(providerARN))
+		logging.Logger.Debugf("[OK] OIDC Provider %s was deleted", aws.StringValue(providerARN))
 	}
 	return nil
 }

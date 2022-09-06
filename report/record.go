@@ -40,9 +40,9 @@ func Print() {
 	for idx, entry := range entriesToDisplay {
 		var errSymbol string
 		if entry.Error != nil {
-			errSymbol = "  ❌  "
+			errSymbol = "     ❌    "
 		} else {
-			errSymbol = "  ✅  "
+			errSymbol = "     ✅    "
 		}
 		data[idx] = []string{entry.Identifier, entry.ResourceType, errSymbol}
 	}

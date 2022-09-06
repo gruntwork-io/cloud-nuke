@@ -14,7 +14,7 @@ import (
 )
 
 func sleepWithMessage(duration time.Duration, whySleepMessage string) {
-	logging.Logger.Infof("Sleeping %v: %s", duration, whySleepMessage)
+	logging.Logger.Debugf("Sleeping %v: %s", duration, whySleepMessage)
 	time.Sleep(duration)
 }
 
@@ -41,11 +41,11 @@ func nukeAllTransitGatewayInstances(session *session.Session, ids []*string) err
 	svc := ec2.New(session)
 
 	if len(ids) == 0 {
-		logging.Logger.Infof("No Transit Gateways to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Transit Gateways to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Transit Gateways in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Transit Gateways in region %s", *session.Config.Region)
 	var deletedIds []*string
 
 	for _, id := range ids {
@@ -64,14 +64,14 @@ func nukeAllTransitGatewayInstances(session *session.Session, ids []*string) err
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Logger.Infof("Deleted Transit Gateway: %s", *id)
+			logging.Logger.Debugf("Deleted Transit Gateway: %s", *id)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Transit Gateway(s) deleted in %s", len(deletedIds), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Transit Gateway(s) deleted in %s", len(deletedIds), *session.Config.Region)
 	return nil
 }
 
@@ -111,11 +111,11 @@ func nukeAllTransitGatewayRouteTables(session *session.Session, ids []*string) e
 	svc := ec2.New(session)
 
 	if len(ids) == 0 {
-		logging.Logger.Infof("No Transit Gateway Route Tables to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Transit Gateway Route Tables to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Transit Gateway Route Tables in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Transit Gateway Route Tables in region %s", *session.Config.Region)
 	var deletedIds []*string
 
 	for _, id := range ids {
@@ -125,14 +125,14 @@ func nukeAllTransitGatewayRouteTables(session *session.Session, ids []*string) e
 
 		_, err := svc.DeleteTransitGatewayRouteTable(param)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Logger.Infof("Deleted Transit Gateway Route Table: %s", *id)
+			logging.Logger.Debugf("Deleted Transit Gateway Route Table: %s", *id)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Transit Gateway Route Table(s) deleted in %s", len(deletedIds), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Transit Gateway Route Table(s) deleted in %s", len(deletedIds), *session.Config.Region)
 	return nil
 }
 
@@ -159,11 +159,11 @@ func nukeAllTransitGatewayVpcAttachments(session *session.Session, ids []*string
 	svc := ec2.New(session)
 
 	if len(ids) == 0 {
-		logging.Logger.Infof("No Transit Gateway Vpc Attachments to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Transit Gateway Vpc Attachments to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Transit Gateway Vpc Attachments in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Transit Gateway Vpc Attachments in region %s", *session.Config.Region)
 	var deletedIds []*string
 
 	for _, id := range ids {
@@ -172,11 +172,20 @@ func nukeAllTransitGatewayVpcAttachments(session *session.Session, ids []*string
 		}
 
 		_, err := svc.DeleteTransitGatewayVpcAttachment(param)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(id),
+			ResourceType: "Transit Gateway",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Logger.Infof("Deleted Transit Gateway Vpc Attachment: %s", *id)
+			logging.Logger.Debugf("Deleted Transit Gateway Vpc Attachment: %s", *id)
 		}
 	}
 
@@ -184,7 +193,7 @@ func nukeAllTransitGatewayVpcAttachments(session *session.Session, ids []*string
 	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 
-	logging.Logger.Infof(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), *session.Config.Region)
+	logging.Logger.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), *session.Config.Region)
 	return nil
 }
 

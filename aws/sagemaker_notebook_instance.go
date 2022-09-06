@@ -43,11 +43,11 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 	svc := sagemaker.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No Sagemaker Notebook Instance to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Sagemaker Notebook Instance to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Sagemaker Notebook Instances in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Sagemaker Notebook Instances in region %s", *session.Config.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -76,7 +76,7 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Infof("Deleted Sagemaker Notebook Instance: %s", awsgo.StringValue(name))
+			logging.Logger.Debugf("Deleted Sagemaker Notebook Instance: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -102,6 +102,6 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Sagemaker Notebook Instance(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Sagemaker Notebook Instance(s) deleted in %s", len(deletedNames), *session.Config.Region)
 	return nil
 }

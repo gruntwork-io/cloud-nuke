@@ -35,11 +35,11 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 	svc := rds.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No RDS DB Instance to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No RDS DB Instance to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all RDS Instances in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all RDS Instances in region %s", *session.Config.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -54,7 +54,7 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Infof("Deleted RDS DB Instance: %s", awsgo.StringValue(name))
+			logging.Logger.Debugf("Deleted RDS DB Instance: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -80,6 +80,6 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d RDS DB Instance(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d RDS DB Instance(s) deleted in %s", len(deletedNames), *session.Config.Region)
 	return nil
 }

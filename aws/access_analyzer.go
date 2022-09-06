@@ -49,7 +49,7 @@ func shouldIncludeAccessAnalyzer(analyzer *accessanalyzer.AnalyzerSummary, exclu
 
 func nukeAllAccessAnalyzers(session *session.Session, names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Infof("No IAM Access Analyzers to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No IAM Access Analyzers to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
@@ -63,7 +63,7 @@ func nukeAllAccessAnalyzers(session *session.Session, names []*string) error {
 	}
 
 	// There is no bulk delete access analyzer API, so we delete the batch of Access Analyzers concurrently using go routines.
-	logging.Logger.Infof("Deleting all Access Analyzers in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Access Analyzers in region %s", *session.Config.Region)
 
 	svc := accessanalyzer.New(session)
 	wg := new(sync.WaitGroup)
@@ -80,7 +80,7 @@ func nukeAllAccessAnalyzers(session *session.Session, names []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

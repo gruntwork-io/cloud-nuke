@@ -56,7 +56,7 @@ func shouldIncludeLambdaFunction(lambdaFn *lambda.FunctionConfiguration, exclude
 	layout := "2006-01-02T15:04:05.000+0000"
 	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
 	if err != nil {
-		logging.Logger.Warnf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, fnName)
+		logging.Logger.Debugf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, fnName)
 		return false
 	}
 
@@ -75,11 +75,11 @@ func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
 	svc := lambda.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No Lambda Functions to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Lambda Functions to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Lambda Functions in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Lambda Functions in region %s", *session.Config.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -101,10 +101,10 @@ func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Infof("Deleted Lambda Function: %s", awsgo.StringValue(name))
+			logging.Logger.Debugf("Deleted Lambda Function: %s", awsgo.StringValue(name))
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), *session.Config.Region)
 	return nil
 }

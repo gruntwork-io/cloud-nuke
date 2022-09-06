@@ -52,7 +52,7 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 	svc := kinesis.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No Kinesis Streams to nuke in region: %s", region)
+		logging.Logger.Debugf("No Kinesis Streams to nuke in region: %s", region)
 	}
 
 	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
@@ -66,7 +66,7 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 
 	// There is no bulk delete Kinesis Stream API, so we delete the batch of Kinesis Streams concurrently
 	// using go routines.
-	logging.Logger.Infof("Deleting Kinesis Streams in region: %s", region)
+	logging.Logger.Debugf("Deleting Kinesis Streams in region: %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -117,9 +117,9 @@ func deleteKinesisStreamAsync(
 
 	streamNameStr := aws.StringValue(streamName)
 	if err == nil {
-		logging.Logger.Infof("[OK] Kinesis Stream %s delete in %s", streamNameStr, region)
+		logging.Logger.Debugf("[OK] Kinesis Stream %s delete in %s", streamNameStr, region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting Kinesis Stream %s in %s: %s", streamNameStr, region, err)
+		logging.Logger.Debugf("[Failed] Error deleting Kinesis Stream %s in %s: %s", streamNameStr, region, err)
 	}
 }
 

@@ -41,7 +41,7 @@ func getAllDynamoTables(session *session.Session, excludeAfter time.Time, config
 		// Check table length if it matches the max value add 1 to rerun
 		if tableLen == DynamoDB.MaxBatchSize(db) {
 			// Tell the user that this will be run twice due to max tables detected
-			logging.Logger.Infof("The tables detected exceed the 100. Running more than once")
+			logging.Logger.Debugf("The tables detected exceed the 100. Running more than once")
 			// Adds one to the count as it will = 2 runs at least until this loops again to check if it's another max.
 			PaginationRunCount += 1
 		}
@@ -80,11 +80,11 @@ func shouldIncludeTable(table *dynamodb.TableDescription, excludeAfter time.Time
 func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 	svc := dynamodb.New(session)
 	if len(tables) == 0 {
-		logging.Logger.Infof("No DynamoDB tables to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No DynamoDB tables to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all DynamoDB tables in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all DynamoDB tables in region %s", *session.Config.Region)
 	for _, table := range tables {
 
 		input := &dynamodb.DeleteTableInput{

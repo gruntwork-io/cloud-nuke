@@ -64,11 +64,11 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 	svc := sqs.New(session)
 
 	if len(urls) == 0 {
-		logging.Logger.Infof("No SQS Queues to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No SQS Queues to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all SQS Queues in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all SQS Queues in region %s", *session.Config.Region)
 	var deletedUrls []*string
 
 	for _, url := range urls {
@@ -90,11 +90,11 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
 			deletedUrls = append(deletedUrls, url)
-			logging.Logger.Infof("Deleted SQS Queue: %s", *url)
+			logging.Logger.Debugf("Deleted SQS Queue: %s", *url)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), *session.Config.Region)
 
 	return nil
 }
