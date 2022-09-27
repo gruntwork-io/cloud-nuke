@@ -4,6 +4,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/pterm/pterm"
 )
 
@@ -64,13 +65,17 @@ func renderTableWithHeader(headers []string, data [][]string, w io.Writer) {
 	for idx := range data {
 		tableData = append(tableData, data[idx])
 	}
-	pterm.DefaultTable.
+	renderErr := pterm.DefaultTable.
 		WithHasHeader().
 		WithBoxed(true).
 		WithRowSeparator("-").
 		WithData(tableData).
 		WithWriter(w).
 		Render()
+
+	if renderErr != nil {
+		logging.Logger.Infof("Error rendering report table: %s\n", renderErr)
+	}
 }
 
 func Reset() {
