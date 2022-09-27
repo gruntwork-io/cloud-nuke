@@ -81,7 +81,7 @@ func TestTimeFilterExclusionNewlyCreatedAPIGatewayV2(t *testing.T) {
 
 	testGw, createTestGwErr := createTestAPIGatewayV2(t, session, apigwName)
 	require.NoError(t, createTestGwErr)
-	defer nukeAllAPIGateways(session, []*string{testGw.ID})
+	defer nukeAllAPIGatewaysV2(session, []*string{testGw.ID})
 
 	// Assert API Gateway is picked up without filters
 	apigwIds, err := getAllAPIGatewaysV2(session, time.Now(), config.Config{})

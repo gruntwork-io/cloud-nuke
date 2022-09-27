@@ -23,7 +23,7 @@ func (apigateway ApiGatewayV2) MaxBatchSize() int {
 }
 
 func (apigateway ApiGatewayV2) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllAPIGateways(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := nukeAllAPIGatewaysV2(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
