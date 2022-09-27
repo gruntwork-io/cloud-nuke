@@ -1,0 +1,5 @@
+CloudtrailTrail:
+  include:
+    names_regex:
+  exclude:
+    names_regex:

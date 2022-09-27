@@ -40,6 +40,7 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
 	}
 }
 
@@ -918,6 +919,101 @@ func TestConfigElasticFileSystem_FilterNames(t *testing.T) {
 }
 
 // end ElasticFileSystem tests
+
+// Cloudtrail Trail Tests
+
+func TestConfigCloudtrailTrail_Empty(t *testing.T) {
+	configFilePath := "./mocks/cloudtrail_empty.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.APIGateway)
+	}
+
+	return
+}
+
+func TestConfigCloudtrailTrail_EmptyFilters(t *testing.T) {
+	configFilePath := "./mocks/cloudtrail_empty_filters.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigCloudtrailTrail_EmptyRules(t *testing.T) {
+	configFilePath := "./mocks/cloudtrail_empty_rules.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if !reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should be empty, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigCloudtrailTrail_IncludeNames(t *testing.T) {
+	configFilePath := "./mocks/cloudtrail_include_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.CloudtrailTrail.IncludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain CloudtrailTrail regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigCloudtrailTrail_ExcludeNames(t *testing.T) {
+	configFilePath := "./mocks/cloudtrail_exclude_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.CloudtrailTrail.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain CloudtrailTrail regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+func TestConfigCloudtrailTrail_FilterNames(t *testing.T) {
+	configFilePath := "./mocks/cloudtrail_filter_names.yaml"
+	configObj, err := GetConfig(configFilePath)
+
+	require.NoError(t, err)
+
+	if reflect.DeepEqual(configObj, emptyConfig()) {
+		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
+	}
+
+	if len(configObj.CloudtrailTrail.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.CloudtrailTrail.ExcludeRule.NamesRegExp) == 0 {
+		assert.Fail(t, "ConfigObj should contain CloudtrailTrail regexes, %+v\n", configObj)
+	}
+
+	return
+}
+
+// end CloudtrailTrail tests
 
 func TestShouldInclude_AllowWhenEmpty(t *testing.T) {
 	var includeREs []Expression

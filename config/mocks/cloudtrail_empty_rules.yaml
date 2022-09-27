@@ -1,0 +1,3 @@
+CloudtrailTrail:
+  include:
+  exclude:

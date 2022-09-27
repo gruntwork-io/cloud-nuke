@@ -20,7 +20,9 @@ func getAllCloudtrailTrails(session *session.Session, excludeAfter time.Time, co
 
 	paginator := func(output *cloudtrail.ListTrailsOutput, lastPage bool) bool {
 		for _, trailInfo := range output.Trails {
-			trailIds = append(trailIds, trailInfo.TrailARN)
+			if shouldIncludeCloudtrailTrail(trailInfo, configObj) {
+				trailIds = append(trailIds, trailInfo.TrailARN)
+			}
 		}
 		return !lastPage
 	}
@@ -31,6 +33,18 @@ func getAllCloudtrailTrails(session *session.Session, excludeAfter time.Time, co
 	}
 
 	return trailIds, nil
+}
+
+func shouldIncludeCloudtrailTrail(trail *cloudtrail.TrailInfo, configObj config.Config) bool {
+	if trail == nil {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(trail.Name),
+		configObj.CloudtrailTrail.IncludeRule.NamesRegExp,
+		configObj.CloudtrailTrail.ExcludeRule.NamesRegExp,
+	)
 }
 
 func nukeAllCloudTrailTrails(session *session.Session, arns []*string) error {
