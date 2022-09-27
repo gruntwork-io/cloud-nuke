@@ -95,8 +95,8 @@ func deleteApiGatewayAsyncV2(wg *sync.WaitGroup, errChan chan error, svc *apigat
 	errChan <- err
 
 	if err == nil {
-		logging.Logger.Infof("[OK] API Gateway (v1) %s deleted in %s", aws.StringValue(apiId), region)
+		logging.Logger.Infof("[OK] API Gateway (v2) %s deleted in %s", aws.StringValue(apiId), region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting API Gateway (v1) %s in %s", aws.StringValue(apiId), region)
+		logging.Logger.Errorf("[Failed] Error deleting API Gateway (v2) %s in %s", aws.StringValue(apiId), region)
 	}
 }
