@@ -186,7 +186,7 @@ func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfte
 	// messages are shown to the user as soon as possible
 	for bucketData := range bucketCh {
 		if bucketData.Error != nil {
-			logging.Logger.Warnf("Skipping - Bucket %s - region - %s - error: %s", bucketData.Name, bucketData.Region, bucketData.Error)
+			logging.Logger.Debugf("Skipping - Bucket %s - region - %s - error: %s", bucketData.Name, bucketData.Region, bucketData.Error)
 			continue
 		}
 		if !bucketData.IsValid {

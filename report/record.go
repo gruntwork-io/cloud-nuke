@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
@@ -42,7 +43,7 @@ func Print(w io.Writer) {
 	for idx, entry := range entriesToDisplay {
 		var errSymbol string
 		if entry.Error != nil {
-			errSymbol = "     ❌    "
+			errSymbol = fmt.Sprintf("  ❌ %s   ", entry.Error.Error())
 		} else {
 			errSymbol = "     ✅    "
 		}
