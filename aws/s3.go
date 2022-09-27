@@ -461,11 +461,11 @@ func nukeEmptyS3Bucket(svc *s3.S3, bucketName *string, verifyBucketDeletion bool
 		})
 		// Exit early if no error
 		if err == nil {
-			logging.Logger.Info("Successfully detected bucket deletion.")
+			logging.Logger.Debug("Successfully detected bucket deletion.")
 			return nil
 		}
-		logging.Logger.Warnf("Error waiting for bucket (%s) deletion propagation (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
-		logging.Logger.Warnf("Underlying error was: %s", err)
+		logging.Logger.Debugf("Error waiting for bucket (%s) deletion propagation (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
+		logging.Logger.Debugf("Underlying error was: %s", err)
 	}
 	return err
 }
