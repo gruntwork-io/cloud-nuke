@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/pterm/pterm"
 )
 
@@ -17,6 +18,9 @@ func Record(e Entry) {
 	defer m.Unlock()
 	m.Lock()
 	records[e.Identifier] = e
+	// Increment the progressbar so the user feels measurable progress on long-running nuke jobs
+	p := progressbar.GetProgressbar()
+	p.Increment()
 }
 
 // RecordBatch accepts a BatchEntry that contains a slice of identifiers, loops through them and converts each identifier to
@@ -33,6 +37,10 @@ func RecordBatch(e BatchEntry) {
 }
 
 func Print(w io.Writer) {
+	// Start by removing the progressbar, now that we're ready to display the table report
+	p := progressbar.GetProgressbar()
+	p.Stop()
+
 	renderSection("Nuking complete:", w)
 	data := make([][]string, len(records))
 	entriesToDisplay := []Entry{}
@@ -43,6 +51,7 @@ func Print(w io.Writer) {
 	for idx, entry := range entriesToDisplay {
 		var errSymbol string
 		if entry.Error != nil {
+			// If we encountered an error when deleting the resource, display it in-line within the table for the operator
 			errSymbol = fmt.Sprintf("  ❌ %s   ", entry.Error.Error())
 		} else {
 			errSymbol = "     ✅    "

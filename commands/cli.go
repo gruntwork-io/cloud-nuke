@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/spinner"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -245,7 +246,10 @@ func awsNuke(c *cli.Context) error {
 		}
 		if proceed {
 
-			spinner.GetSpinner().Start(" Nuking resources")
+			progressbar.GetProgressbar().
+				WithTotal(len(nukableResources)).
+				UpdateTitle(" Nuking resources ").
+				Start()
 
 			if err := aws.NukeAllResources(account, regions); err != nil {
 				return err
