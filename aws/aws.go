@@ -840,7 +840,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 	// Global Resources - These resources are global and do not belong to a specific region
 	// Only process them if the global region was not explicitly excluded
 	if collections.ListContainsElement(targetRegions, GlobalRegion) {
-		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
+		logging.Logger.Debugf("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
 
 		// As there is no actual region named global we have to pick a valid one just to create the session
 		sessionRegion := defaultRegion

@@ -59,7 +59,7 @@ func nukeAllAPIGatewaysV2(session *session.Session, identifiers []*string) error
 	}
 
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many API Gateways (v2) at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Logger.Debugf("Nuking too many API Gateways (v2) at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyApiGatewayV2Err{}
 	}
 
@@ -104,8 +104,8 @@ func deleteApiGatewayAsyncV2(wg *sync.WaitGroup, errChan chan error, svc *apigat
 	report.Record(e)
 
 	if err == nil {
-		logging.Logger.Infof("[OK] API Gateway (v2) %s deleted in %s", aws.StringValue(apiId), region)
+		logging.Logger.Debugf("[OK] API Gateway (v2) %s deleted in %s", aws.StringValue(apiId), region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting API Gateway (v2) %s in %s", aws.StringValue(apiId), region)
+		logging.Logger.Debugf("[Failed] Error deleting API Gateway (v2) %s in %s", aws.StringValue(apiId), region)
 	}
 }

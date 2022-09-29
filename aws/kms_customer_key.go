@@ -39,7 +39,7 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	for _, channel := range resultsChan {
 		result := <-channel
 		if result.Error != nil {
-			logging.Logger.Warnf("Can't read KMS key %s", result.Error)
+			logging.Logger.Debugf("Can't read KMS key %s", result.Error)
 
 			continue
 		}

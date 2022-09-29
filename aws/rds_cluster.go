@@ -55,11 +55,11 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 	svc := rds.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No RDS DB Cluster to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No RDS DB Cluster to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all RDS Clusters in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all RDS Clusters in region %s", *session.Config.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -79,10 +79,10 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			logging.Logger.Debugf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Infof("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
+			logging.Logger.Debugf("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -99,6 +99,6 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), *session.Config.Region)
 	return nil
 }
