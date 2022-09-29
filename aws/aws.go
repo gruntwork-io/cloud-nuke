@@ -851,6 +851,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Users
 
+		//IAM Groups
+		//TODO Search through existig iam groups for resources to nuke
+		//TODO Append the nukeable ones to the global list of resources
+		//END IAM Groups
+
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
 		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
@@ -913,6 +918,7 @@ func ListResourceTypes() []string {
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
 		IAMRoles{}.ResourceName(),
+		IAMGroups{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		OpenSearchDomains{}.ResourceName(),
