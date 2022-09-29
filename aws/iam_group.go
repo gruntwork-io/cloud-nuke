@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -9,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
+	"github.com/hashicorp/go-multierror"
 )
 
 func getAllIamGroups(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
@@ -49,21 +51,43 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 	}
 
 	//No bulk delete exists, do it with goroutines
-	//TODO
+	logging.Logger.Info("Deleting all IAM Groups")
+	wg := new(sync.WaitGroup)
+	wg.Add(len(groupNames))
+	errChans := make([]chan error, len(groupNames))
+	for i, groupName := range groupNames {
+		errChans[i] = make(chan error, 1)
+		go deleteIamGroupAsync(wg, errChans[i], svc, groupName)
+	}
+	wg.Wait()
 
-	//TODO implement
+	//Collapse the errors down to one
+	var allErrs *multierror.Error
+	for _, errChan := range errChans {
+		if err := <-errChan; err != nil {
+			allErrs = multierror.Append(allErrs, err)
+			logging.Logger.Errorf("[Failed] %s", err)
+		}
+	}
+	finalErr := allErrs.ErrorOrNil()
+	if finalErr != nil {
+		return errors.WithStackTrace(finalErr)
+	}
+
+	//Print Successful deletions
+	for _, groupName := range groupNames {
+		logging.Logger.Infof("[OK] IAM Group %s was deleted in %s", aws.StringValue(groupName), region)
+	}
 	return nil
 }
 
-//deleteIamGroup - removes an IAM group from AWS
-func deleteIamGroup(svc *iam.IAM, groupName *string) error {
+//deleteIamGroup - removes an IAM group from AWS, designed to run as a goroutine
+func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, groupName *string) {
+	defer wg.Done()
 	_, err := svc.DeleteGroup(&iam.DeleteGroupInput{
 		GroupName: groupName,
 	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-	return nil
+	errChan <- err
 }
 
 //check if iam group should be included based on config rules (RegExp and Exclude After)
@@ -83,7 +107,7 @@ func shouldIncludeIamGroup(iamGroup *iam.Group, excludeAfter time.Time, configOb
 	)
 }
 
-//TODO delete policy functions belong here eventually but out of scope for trial
+//TODO delete policy functions belong here eventually but out of scope for now
 
 //Custom Errors
 type TooManyIamGroupErr struct{}
@@ -91,15 +115,3 @@ type TooManyIamGroupErr struct{}
 func (err TooManyIamGroupErr) Error() string {
 	return "Too many IAM Groups requested at once"
 }
-
-//Sanity Check
-
-// 1. aws.go lists all the resources
-// 2. I'd be adding something to the global resources that checks for any nukeable groups
-// 3. If not dry run, aws.go calls the .Nuke() function on each resource
-// 4. As far as I can tell (excluding potentially policies) there are no pre-requisites for removing
-//		an iam group.  Any users would get cleaned up by existing functionality and order shouldn't matter
-// 5. I'll add IAMGroups to the config.go file which may get us config file support for free, not 100% sure
-
-//IAM GROUP TYPES
-//		Implement AwsResources interface
