@@ -84,10 +84,32 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 //deleteIamGroup - removes an IAM group from AWS, designed to run as a goroutine
 func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, groupName *string) {
 	defer wg.Done()
-	_, err := svc.DeleteGroup(&iam.DeleteGroupInput{
+	var multierr *multierror.Error
+
+	//Remove any users from the group
+	//TODO make this threaded
+	getGroupInput := &iam.GetGroupInput{
+		GroupName: groupName,
+	}
+	grp, err := svc.GetGroup(getGroupInput)
+	for _, user := range grp.Users {
+		unlinkUserInput := &iam.RemoveUserFromGroupInput{
+			UserName:  user.UserName,
+			GroupName: groupName,
+		}
+		_, err := svc.RemoveUserFromGroup(unlinkUserInput)
+		if err != nil {
+			multierr = multierror.Append(multierr, err)
+		}
+	}
+
+	_, err = svc.DeleteGroup(&iam.DeleteGroupInput{
 		GroupName: groupName,
 	})
-	errChan <- err
+	if err != nil {
+		multierr = multierror.Append(multierr, err)
+	}
+	errChan <- multierr.ErrorOrNil()
 }
 
 //check if iam group should be included based on config rules (RegExp and Exclude After)
@@ -106,8 +128,6 @@ func shouldIncludeIamGroup(iamGroup *iam.Group, excludeAfter time.Time, configOb
 		configObj.IAMGroups.ExcludeRule.NamesRegExp,
 	)
 }
-
-//TODO delete policy functions belong here eventually but out of scope for now
 
 //Custom Errors
 type TooManyIamGroupErr struct{}

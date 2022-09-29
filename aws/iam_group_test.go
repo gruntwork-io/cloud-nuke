@@ -31,10 +31,8 @@ func TestListIamGroups(t *testing.T) {
 	assert.NotEmpty(t, groupNames)
 }
 
-//TODO could create empty and full IAM groups?
-
 //Creates an empty IAM group for testing
-func createTestGroup(t *testing.T, session *session.Session, name string) error {
+func createEmptyTestGroup(t *testing.T, session *session.Session, name string) error {
 	svc := iam.New(session)
 
 	groupInput := &iam.CreateGroupInput{
@@ -44,6 +42,36 @@ func createTestGroup(t *testing.T, session *session.Session, name string) error 
 	group, err := svc.CreateGroup(groupInput)
 	fmt.Println(group.Group.Arn)
 	require.NoError(t, err)
+	return nil
+}
+
+func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName string, userName string) error {
+	svc := iam.New(session)
+
+	//Create User
+	userInput := &iam.CreateUserInput{
+		UserName: awsgo.String(userName),
+	}
+
+	_, err := svc.CreateUser(userInput)
+	require.NoError(t, err)
+
+	//Create Group
+	groupInput := &iam.CreateGroupInput{
+		GroupName: awsgo.String(groupName),
+	}
+
+	_, err = svc.CreateGroup(groupInput)
+	require.NoError(t, err)
+
+	//Add user to Group
+	userGroupLinkInput := &iam.AddUserToGroupInput{
+		GroupName: awsgo.String(groupName),
+		UserName:  awsgo.String(userName),
+	}
+	_, err = svc.AddUserToGroup(userGroupLinkInput)
+	require.NoError(t, err)
+
 	return nil
 }
 
@@ -59,10 +87,34 @@ func TestNukeIamGroups(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	name := "cloud-nuke-test" + util.UniqueID()
-	err = createTestGroup(t, session, name)
+	//Create test entities
+	emptyName := "cloud-nuke-test" + util.UniqueID()
+	err = createEmptyTestGroup(t, session, emptyName)
 	require.NoError(t, err)
 
-	err = nukeAllIamGroups(session, []*string{&name})
+	nonEmptyName := "cloud-nuke-test" + util.UniqueID()
+	userName := "cloud-nuke-test" + util.UniqueID()
+	err = createNonEmptyTestGroup(t, session, nonEmptyName, userName)
 	require.NoError(t, err)
+
+	//Assert test entities exist
+	groupNames, err := getAllIamGroups(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(groupNames), nonEmptyName)
+	assert.Contains(t, awsgo.StringValueSlice(groupNames), emptyName)
+
+	//Nuke test entities
+	err = nukeAllIamGroups(session, []*string{&emptyName, &nonEmptyName})
+	require.NoError(t, err)
+
+	err = nukeAllIamUsers(session, []*string{&userName})
+	require.NoError(t, err)
+
+	//Assert test entites don't exist anymore
+	groupNames, err = getAllIamGroups(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(groupNames), nonEmptyName)
+	assert.NotContains(t, awsgo.StringValueSlice(groupNames), emptyName)
 }
+
+//TODO could test filtered nuke if time
