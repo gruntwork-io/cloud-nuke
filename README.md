@@ -49,6 +49,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all API Gateways (v1 and v2) in an AWS account
 - Inspecting and deleting all Elastic FileSystems (efs) in an AWS account
 - Inspecting and deleting all SNS Topics in an AWS account
+- Inspecting and deleting all CloudTrail Trails in an AWS account
 
 ### BEWARE!
 
