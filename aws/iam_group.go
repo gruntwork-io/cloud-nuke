@@ -87,7 +87,6 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 	var multierr *multierror.Error
 
 	//Remove any users from the group
-	//TODO make this threaded
 	getGroupInput := &iam.GetGroupInput{
 		GroupName: groupName,
 	}
@@ -103,6 +102,26 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 		}
 	}
 
+	//Detach any policies on the group
+	allPolicies := []*string{}
+	err = svc.ListAttachedGroupPoliciesPages(&iam.ListAttachedGroupPoliciesInput{GroupName: groupName},
+		func(page *iam.ListAttachedGroupPoliciesOutput, lastPage bool) bool {
+			for _, iamPolicy := range page.AttachedPolicies {
+				allPolicies = append(allPolicies, iamPolicy.PolicyArn)
+			}
+			return !lastPage
+		},
+	)
+
+	for _, policy := range allPolicies {
+		unlinkPolicyInput := &iam.DetachGroupPolicyInput{
+			GroupName: groupName,
+			PolicyArn: policy,
+		}
+		_, err = svc.DetachGroupPolicy(unlinkPolicyInput)
+	}
+
+	//Delete the group
 	_, err = svc.DeleteGroup(&iam.DeleteGroupInput{
 		GroupName: groupName,
 	})
@@ -118,7 +137,7 @@ func shouldIncludeIamGroup(iamGroup *iam.Group, excludeAfter time.Time, configOb
 		return false
 	}
 
-	if excludeAfter.Before(*iamGroup.CreateDate) {
+	if excludeAfter.Before(aws.TimeValue(iamGroup.CreateDate)) {
 		return false
 	}
 

@@ -45,7 +45,14 @@ func createEmptyTestGroup(t *testing.T, session *session.Session, name string) e
 	return nil
 }
 
-func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName string, userName string) error {
+//Stores information for cleanup
+type groupInfo struct {
+	GroupName *string
+	UserName  *string
+	PolicyArn *string
+}
+
+func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName string, userName string) (*groupInfo, error) {
 	svc := iam.New(session)
 
 	//Create User
@@ -54,6 +61,24 @@ func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName s
 	}
 
 	_, err := svc.CreateUser(userInput)
+	require.NoError(t, err)
+
+	//Create Policy
+	policyOutput, err := svc.CreatePolicy(&iam.CreatePolicyInput{
+		PolicyDocument: awsgo.String(`{
+			"Version": "2012-10-17",
+			"Statement": [
+					{
+							"Sid": "VisualEditor0",
+							"Effect": "Allow",
+							"Action": "ec2:DescribeInstances",
+							"Resource": "*"
+					}
+			]
+		}`),
+		PolicyName:  awsgo.String("policy-" + groupName),
+		Description: awsgo.String("Policy created by cloud-nuke tests - Should be deleted"),
+	})
 	require.NoError(t, err)
 
 	//Create Group
@@ -72,6 +97,38 @@ func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName s
 	_, err = svc.AddUserToGroup(userGroupLinkInput)
 	require.NoError(t, err)
 
+	//Add policy to Group
+
+	groupPolicyInput := &iam.AttachGroupPolicyInput{
+		PolicyArn: policyOutput.Policy.Arn,
+		GroupName: awsgo.String(groupName),
+	}
+	_, err = svc.AttachGroupPolicy(groupPolicyInput)
+
+	info := &groupInfo{
+		GroupName: &groupName,
+		PolicyArn: policyOutput.Policy.Arn,
+		UserName:  &userName,
+	}
+
+	return info, nil
+}
+
+func deleteGroupExtraResources(session *session.Session, info *groupInfo) error {
+	svc := iam.New(session)
+	_, err := svc.DeletePolicy(&iam.DeletePolicyInput{
+		PolicyArn: info.PolicyArn,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.DeleteUser(&iam.DeleteUserInput{
+		UserName: info.UserName,
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -94,7 +151,8 @@ func TestNukeIamGroups(t *testing.T) {
 
 	nonEmptyName := "cloud-nuke-test" + util.UniqueID()
 	userName := "cloud-nuke-test" + util.UniqueID()
-	err = createNonEmptyTestGroup(t, session, nonEmptyName, userName)
+	info, err := createNonEmptyTestGroup(t, session, nonEmptyName, userName)
+	defer deleteGroupExtraResources(session, info)
 	require.NoError(t, err)
 
 	//Assert test entities exist
@@ -107,14 +165,9 @@ func TestNukeIamGroups(t *testing.T) {
 	err = nukeAllIamGroups(session, []*string{&emptyName, &nonEmptyName})
 	require.NoError(t, err)
 
-	err = nukeAllIamUsers(session, []*string{&userName})
-	require.NoError(t, err)
-
 	//Assert test entites don't exist anymore
 	groupNames, err = getAllIamGroups(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(groupNames), nonEmptyName)
 	assert.NotContains(t, awsgo.StringValueSlice(groupNames), emptyName)
 }
-
-//TODO could test filtered nuke if time
