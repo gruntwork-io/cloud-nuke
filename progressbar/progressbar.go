@@ -1,12 +1,17 @@
 package progressbar
 
-import "github.com/pterm/pterm"
+import (
+	"time"
+
+	"github.com/pterm/pterm"
+)
 
 var p *pterm.ProgressbarPrinter
 
 func init() {
 	p = &pterm.DefaultProgressbar
 	p.RemoveWhenDone = true
+	p.ElapsedTimeRoundingFactor = time.Second
 }
 
 func GetProgressbar() *pterm.ProgressbarPrinter {

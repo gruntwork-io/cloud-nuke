@@ -9,7 +9,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
+	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/shell"
 	"github.com/pterm/pterm"
@@ -182,11 +183,19 @@ func awsNuke(c *cli.Context) error {
 		return err
 	}
 
-	// Log which resource types will be nuked
-	logging.Logger.Info("The following resource types will be nuked:")
-	for _, resourceType := range resourceTypes {
-		logging.Logger.Infof("- %s", resourceType)
+	targetedResourceList := []pterm.BulletListItem{}
+
+	for _, resource := range resourceTypes {
+		targetedResourceList = append(targetedResourceList, pterm.BulletListItem{Level: 0, Text: resource})
 	}
+
+	ui.WarningMessage("The following resource types are targeted for destruction")
+
+	// Log which resource types will be nuked
+	pterm.DefaultBulletList.
+		WithItems(targetedResourceList).
+		WithBullet(ui.TargetEmoji).
+		Render()
 
 	regions, err := aws.GetEnabledRegions()
 	if err != nil {
@@ -211,21 +220,26 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
+	spinnerMsg := fmt.Sprintf("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
+
+	// Create and start a fork of the default spinner.
+	spinnerSuccess, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start(spinnerMsg)
 
 	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
+	// Stop the spinner
+	spinnerSuccess.Stop()
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
 	if len(account.Resources) == 0 {
-		logging.Logger.Infoln("Nothing to nuke, you're all good!")
+		pterm.Info.Println("Nothing to nuke, you're all good!")
 		return nil
 	}
 
 	nukableResources := aws.ExtractResourcesForPrinting(account)
 
-	pterm.Warning.Printf("The following %d AWS resources will be nuked:\n", len(nukableResources))
+	ui.WarningMessage(fmt.Sprintf("The following %d AWS resources will be nuked:\n", len(nukableResources)))
 
 	items := []pterm.BulletListItem{}
 
@@ -233,7 +247,10 @@ func awsNuke(c *cli.Context) error {
 		items = append(items, pterm.BulletListItem{Level: 0, Text: resource})
 	}
 
-	pterm.DefaultBulletList.WithItems(items).Render()
+	pterm.DefaultBulletList.
+		WithItems(items).
+		WithBullet(ui.FireEmoji).
+		Render()
 
 	if c.Bool("dry-run") {
 		logging.Logger.Infoln("Not taking any action as dry-run set to true.")
@@ -267,8 +284,16 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
+	// Remove the progressbar, now that we're ready to display the table report
+	p := progressbar.GetProgressbar()
+	fmt.Print("\r")
+	p.Stop()
+	pterm.Println()
+
+	time.Sleep(500 * time.Millisecond)
+
 	// Print the report showing the user what happened with each resource
-	report.Print(os.Stdout)
+	ui.PrintRunReport(os.Stdout)
 
 	return nil
 }
@@ -374,7 +399,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 }
 
 func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
-	pterm.Warning.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
+	ui.UrgentMessage("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
 	shellOptions := shell.ShellOptions{Logger: logging.Logger}
 

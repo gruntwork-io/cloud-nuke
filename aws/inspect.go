@@ -5,6 +5,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/collections"
 )
 
@@ -22,7 +23,7 @@ func ExtractResourcesForPrinting(account *AwsAccountResources) []string {
 	for region, resourcesInRegion := range account.Resources {
 		for _, foundResources := range resourcesInRegion.Resources {
 			for _, identifier := range foundResources.ResourceIdentifiers() {
-				resources = append(resources, fmt.Sprintf("* %s %s %s\n", foundResources.ResourceName(), identifier, region))
+				resources = append(resources, fmt.Sprintf("%s %s %s\n", ui.ResourceHighlightStyle.Render(foundResources.ResourceName()), identifier, region))
 			}
 		}
 	}

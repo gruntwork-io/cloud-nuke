@@ -1,17 +1,15 @@
 package spinner
 
-import "github.com/pterm/pterm"
+import (
+	"github.com/pterm/pterm"
+)
 
-var s pterm.SpinnerPrinter = pterm.DefaultSpinner
+var s *pterm.SpinnerPrinter
 
 func init() {
-	s.Sequence = []string{"☢️ ", "💥", "🔥", "❌"}
+	s = &pterm.SpinnerPrinter{}
 }
 
-func GetSpinner() pterm.SpinnerPrinter {
+func GetSpinner() *pterm.SpinnerPrinter {
 	return s
-}
-
-func UpdateText(t string) {
-	s.UpdateText(t)
 }
