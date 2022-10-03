@@ -5,6 +5,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/charmbracelet/glamour"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/pterm/pterm"
@@ -40,19 +41,32 @@ func Print(w io.Writer) {
 	// Start by removing the progressbar, now that we're ready to display the table report
 	p := progressbar.GetProgressbar()
 	p.Stop()
+	fmt.Println()
+	fmt.Println()
 
-	renderSection("Nuking complete:", w)
 	data := make([][]string, len(records))
 	entriesToDisplay := []Entry{}
 	for _, entry := range records {
 		entriesToDisplay = append(entriesToDisplay, entry)
 	}
 
+	r, _ := glamour.NewTermRenderer(
+		// detect background color and pick either the default dark or light theme
+		glamour.WithAutoStyle(),
+		// wrap output at specific width
+		glamour.WithWordWrap(40),
+	)
+
 	for idx, entry := range entriesToDisplay {
 		var errSymbol string
 		if entry.Error != nil {
+			errStr := entry.Error.Error()
+			renderedStr, renderErr := r.Render(errStr)
+			if renderErr != nil {
+				fmt.Errorf("Error rendering report cell: %s\n", renderErr)
+			}
 			// If we encountered an error when deleting the resource, display it in-line within the table for the operator
-			errSymbol = fmt.Sprintf("  ❌ %s   ", entry.Error.Error())
+			errSymbol = fmt.Sprintf("  ❌ %s\n\n   ", renderedStr)
 		} else {
 			errSymbol = "     ✅    "
 		}

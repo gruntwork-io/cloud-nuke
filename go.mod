@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.17.1
 	github.com/aws/aws-sdk-go-v2/service/efs v1.17.10
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.13
-	github.com/fatih/color v1.9.0
+	github.com/charmbracelet/glamour v0.5.0
 	github.com/golang/mock v1.6.0
 	github.com/gruntwork-io/go-commons v0.8.2
 	github.com/gruntwork-io/gruntwork-cli v0.7.0

@@ -14,6 +14,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -1002,6 +1003,14 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
+	// Set the progressbar width to the total number of nukeable resources found
+	// across all regions
+
+	// Update the progress bar to have the correct width based on the total number of unique resource targteds
+	progressbar.WithTotal(account.TotalResourceCount())
+	p := progressbar.GetProgressbar()
+	p.Start()
+
 	defaultRegion := regions[0]
 	for _, region := range regions {
 		// region that will be used to create a session

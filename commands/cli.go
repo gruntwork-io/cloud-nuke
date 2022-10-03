@@ -6,15 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/spinner"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/shell"
+	"github.com/pterm/pterm"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -227,11 +225,15 @@ func awsNuke(c *cli.Context) error {
 
 	nukableResources := aws.ExtractResourcesForPrinting(account)
 
-	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukableResources))
+	pterm.Warning.Printf("The following %d AWS resources will be nuked:\n", len(nukableResources))
+
+	items := []pterm.BulletListItem{}
 
 	for _, resource := range nukableResources {
-		logging.Logger.Infoln(resource)
+		items = append(items, pterm.BulletListItem{Level: 0, Text: resource})
 	}
+
+	pterm.DefaultBulletList.WithItems(items).Render()
 
 	if c.Bool("dry-run") {
 		logging.Logger.Infoln("Not taking any action as dry-run set to true.")
@@ -246,10 +248,8 @@ func awsNuke(c *cli.Context) error {
 		}
 		if proceed {
 
-			progressbar.GetProgressbar().
-				WithTotal(len(nukableResources)).
-				UpdateTitle(" Nuking resources ").
-				Start()
+			fmt.Println()
+			fmt.Println()
 
 			if err := aws.NukeAllResources(account, regions); err != nil {
 				return err
@@ -262,9 +262,6 @@ func awsNuke(c *cli.Context) error {
 			time.Sleep(1 * time.Second)
 		}
 
-		fmt.Println()
-		spinner.GetSpinner().Start(" Nuking resources")
-
 		if err := aws.NukeAllResources(account, regions); err != nil {
 			return err
 		}
@@ -272,8 +269,6 @@ func awsNuke(c *cli.Context) error {
 
 	// Print the report showing the user what happened with each resource
 	report.Print(os.Stdout)
-	s := spinner.GetSpinner()
-	s.Success("Nuking complete")
 
 	return nil
 }
@@ -379,8 +374,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 }
 
 func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
-	color := color.New(color.FgHiRed, color.Bold)
-	color.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
+	pterm.Warning.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
 	shellOptions := shell.ShellOptions{Logger: logging.Logger}
 
