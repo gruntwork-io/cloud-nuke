@@ -1,14 +1,9 @@
 package report
 
 import (
-	"bytes"
 	"errors"
-	"io"
-	"os"
-	"strings"
 	"testing"
 
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,22 +14,25 @@ func TestRecordSingleEntry(t *testing.T) {
 		Error:        nil,
 	}
 	Record(e)
-	testPrintContains(t, e.Identifier)
-	testPrintContains(t, "✅")
+	ensureRecordsContainIdentifier(t, e.Identifier)
 }
 
 func TestRecordSingleEntryErrorState(t *testing.T) {
+	ResetRecords()
 	e := Entry{
 		Identifier:   "arn:aws:sns:us-east-1:999999999999:TestTopic",
 		ResourceType: "SNS Topic",
 		Error:        errors.New("This place is not a place of honor..."),
 	}
 	Record(e)
-	testPrintContains(t, e.Identifier)
-	testPrintContains(t, "❌")
+	entry := getTestRecord(e.Identifier)
+	require.NotNil(t, entry)
+	require.Equal(t, entry.Error, e.Error)
 }
 
 func TestRecordBatchEntries(t *testing.T) {
+	ResetRecords()
+
 	ids := []string{
 		"arn:aws:sns:us-east-1:999999999999:TestTopic",
 		"arn:aws:sns:us-east-1:111111111111:TestTopicTwo",
@@ -46,12 +44,14 @@ func TestRecordBatchEntries(t *testing.T) {
 		Error:        nil,
 	}
 	RecordBatch(be)
-	testPrintContains(t, ids[0])
-	testPrintContains(t, ids[1])
-	testPrintContains(t, "✅")
+	for _, id := range ids {
+		ensureRecordsContainIdentifier(t, id)
+	}
 }
 
 func TestRecordBatchEntriesErrorState(t *testing.T) {
+	ResetRecords()
+
 	ids := []string{
 		"arn:aws:sns:us-east-1:999999999999:TestTopic",
 		"arn:aws:sns:us-east-1:111111111111:TestTopicTwo",
@@ -63,42 +63,39 @@ func TestRecordBatchEntriesErrorState(t *testing.T) {
 		Error:        errors.New("no highly esteemed deed is commemorated here...nothing valued is here."),
 	}
 	RecordBatch(be)
-	testPrintContains(t, ids[0])
-	testPrintContains(t, ids[1])
+	for _, id := range ids {
+		ensureRecordsContainIdentifier(t, id)
+	}
+	entry1 := getTestRecord(ids[0])
+	require.NotNil(t, entry1)
+	require.Equal(t, entry1.Error, be.Error)
+
+	entry2 := getTestRecord(ids[1])
+	require.NotNil(t, entry2)
+	require.Equal(t, entry2.Error, be.Error)
 }
 
 // Test helpers
 
-// testPrintContains can be used to test Print methods.
-func testPrintContains(t *testing.T, match string) {
-	output := captureStdout(Print)
-	require.True(t, strings.Contains(output, match))
+func ensureRecordsContainIdentifier(t *testing.T, key string) {
+	records := GetRecords()
+	found := false
+	for k := range records {
+		if k == key {
+			found = true
+		}
+	}
+	if found == false {
+		t.Fail()
+	}
 }
 
-var outBuf bytes.Buffer
-
-// setupStdoutCapture sets up a fake stdout capture.
-func setupStdoutCapture() {
-	outBuf.Reset()
-	pterm.SetDefaultOutput(&outBuf)
-}
-
-// teardownStdoutCapture restores the real stdout.
-func teardownStdoutCapture() {
-	pterm.SetDefaultOutput(os.Stdout)
-	outBuf.Reset()
-}
-
-// captureStdout simulates capturing of os.stdout with a buffer and returns what was writted to the screen
-func captureStdout(f func(w io.Writer)) string {
-	setupStdoutCapture()
-	f(&outBuf)
-	return readStdout()
-}
-
-// readStdout reads the current stdout buffor. Assumes setupStdoutCapture() has been called before.
-func readStdout() string {
-	content := outBuf.String()
-	outBuf.Reset()
-	return content
+func getTestRecord(key string) *Entry {
+	records := GetRecords()
+	for k, entry := range records {
+		if k == key {
+			return &entry
+		}
+	}
+	return nil
 }

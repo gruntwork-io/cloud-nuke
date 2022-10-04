@@ -14,13 +14,20 @@ func GetRecords() map[string]Entry {
 	return records
 }
 
+func ResetRecords() {
+	records = make(map[string]Entry)
+}
+
 func Record(e Entry) {
 	defer m.Unlock()
 	m.Lock()
 	records[e.Identifier] = e
 	// Increment the progressbar so the user feels measurable progress on long-running nuke jobs
 	p := progressbar.GetProgressbar()
-	p.Increment()
+	// Don't increment the progressbar when running tests
+	if p.IsActive {
+		p.Increment()
+	}
 }
 
 // RecordBatch accepts a BatchEntry that contains a slice of identifiers, loops through them and converts each identifier to
