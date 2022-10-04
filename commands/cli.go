@@ -227,9 +227,13 @@ func awsNuke(c *cli.Context) error {
 	spinnerMsg := fmt.Sprintf("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
 
 	// Start a simple spinner to track progress reading all relevant AWS resources
-	spinnerSuccess, _ := pterm.DefaultSpinner.
+	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
 		WithRemoveWhenDone(true).
 		Start(spinnerMsg)
+
+	if spinnerErr != nil {
+		return errors.WithStackTrace(spinnerErr)
+	}
 
 	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
 	// Stop the spinner
