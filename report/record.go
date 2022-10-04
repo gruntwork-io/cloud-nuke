@@ -24,10 +24,7 @@ func Record(e Entry) {
 	records[e.Identifier] = e
 	// Increment the progressbar so the user feels measurable progress on long-running nuke jobs
 	p := progressbar.GetProgressbar()
-	// Don't increment the progressbar when running tests
-	if p.IsActive {
-		p.Increment()
-	}
+	p.Increment()
 }
 
 // RecordBatch accepts a BatchEntry that contains a slice of identifiers, loops through them and converts each identifier to
