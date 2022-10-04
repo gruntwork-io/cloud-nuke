@@ -222,8 +222,10 @@ func awsNuke(c *cli.Context) error {
 
 	spinnerMsg := fmt.Sprintf("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
 
-	// Create and start a fork of the default spinner.
-	spinnerSuccess, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start(spinnerMsg)
+	// Start a simple spinner to track progress reading all relevant AWS resources
+	spinnerSuccess, _ := pterm.DefaultSpinner.
+		WithRemoveWhenDone(true).
+		Start(spinnerMsg)
 
 	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
 	// Stop the spinner
@@ -264,10 +266,6 @@ func awsNuke(c *cli.Context) error {
 			return err
 		}
 		if proceed {
-
-			fmt.Println()
-			fmt.Println()
-
 			if err := aws.NukeAllResources(account, regions); err != nil {
 				return err
 			}
@@ -286,11 +284,11 @@ func awsNuke(c *cli.Context) error {
 
 	// Remove the progressbar, now that we're ready to display the table report
 	p := progressbar.GetProgressbar()
+	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up beofre the
+	// final run report table is printed
 	fmt.Print("\r")
 	p.Stop()
 	pterm.Println()
-
-	time.Sleep(500 * time.Millisecond)
 
 	// Print the report showing the user what happened with each resource
 	ui.PrintRunReport(os.Stdout)

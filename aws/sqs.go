@@ -87,7 +87,7 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedUrls = append(deletedUrls, url)
 			logging.Logger.Debugf("Deleted SQS Queue: %s", *url)

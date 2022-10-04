@@ -49,7 +49,7 @@ func (bucket S3Buckets) Nuke(session *session.Session, identifiers []string) err
 		logging.Logger.Debugf("[OK] - %d/%d - S3 bucket(s) deleted in %s", delCount, totalCount, *session.Config.Region)
 	}
 	if delCount != totalCount {
-		logging.Logger.Errorf("[Failed] - %d/%d - S3 bucket(s) failed deletion in %s", totalCount-delCount, totalCount, *session.Config.Region)
+		logging.Logger.Debugf("[Failed] - %d/%d - S3 bucket(s) failed deletion in %s", totalCount-delCount, totalCount, *session.Config.Region)
 	}
 
 	if err != nil {

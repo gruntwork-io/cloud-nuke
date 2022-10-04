@@ -13,6 +13,8 @@ func PrintRunReport(w io.Writer) {
 	// Workaround an issue where the pterm progressbar might not be cleaned up correctly
 	w.Write([]byte("\r"))
 
+	// Records is a map[string]Entry from the report package. This maps contains an entry for
+	// every AWS resource a given run of cloud-nuke operated on, along with the result (error or nil)
 	records := report.GetRecords()
 
 	data := make([][]string, len(records))
@@ -25,6 +27,11 @@ func PrintRunReport(w io.Writer) {
 		var errSymbol string
 		if entry.Error != nil {
 			// If we encountered an error when deleting the resource, display it in-line within the table for the operator
+			//
+			// We intentionally truncate the error message to its first 40 characters, because pterm tables are not fully
+			// responsive within a terminal, and this truncation allows rows to situate nicely within the table
+			//
+			// If we upgrade to a library that can render flexbox tables in the terminal we should revisit this
 			errSymbol = fmt.Sprintf("❌ %s", truncate(entry.Error.Error(), 40))
 		} else {
 			errSymbol = "✅"

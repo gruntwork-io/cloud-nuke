@@ -968,7 +968,7 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) error {
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) {
 	resourcesInRegion := account.Resources[region]
 
 	for _, resources := range resourcesInRegion.Resources {
@@ -988,7 +988,10 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 					continue
 				}
 
-				return errors.WithStackTrace(err)
+				// We're only interested in acting on Rate limit errors - no other error should prevent further processing
+				// of the current job.Since we handle each individual resource deletion error within its own resource-specific code,
+				// we can safely discard this error
+				_ = err
 			}
 
 			if i != len(batches)-1 {
@@ -997,8 +1000,6 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 			}
 		}
 	}
-
-	return nil
 }
 
 // NukeAllResources - Nukes all aws resources
@@ -1026,12 +1027,10 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 			return err
 		}
 
-		err = nukeAllResourcesInRegion(account, region, session)
-
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
-
+		// We intentionally do not handle an error returned from this method, because we collect individual errors
+		// on per-resource basis via the report package's Record method. In the run report displayed at the end of
+		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
+		nukeAllResourcesInRegion(account, region, session)
 	}
 
 	return nil

@@ -26,6 +26,7 @@ var (
 				Foreground(lipgloss.Color("201"))
 )
 
+// WarningMessage is a convenience method to display the supplied string in our pre-configured BoldWarningTextStyle
 func WarningMessage(s string) {
 	s = strings.ToUpper(s)
 	s = BoldWarningTextStyle.Render(s)
@@ -33,6 +34,8 @@ func WarningMessage(s string) {
 	pterm.Println()
 }
 
+// UrgentMessage is a convenience method to display the supplied string in our pre-configured BlinkingWarningStyle
+// This is appropriate to use as the final prompt to confirm the user really wants to nuke all selected resources
 func UrgentMessage(s string) {
 	s = strings.ToUpper(s)
 	s = BlinkingWarningStyle.Render(s)
