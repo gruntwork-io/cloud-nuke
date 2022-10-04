@@ -2,19 +2,56 @@ package ui
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/require"
 )
 
+func TestRenderEntriesWithNoErrors(t *testing.T) {
+	report.ResetRecords()
+
+	e := report.Entry{
+		Identifier:   "arn:aws:sns:us-west-1:222222222222:DifferentTopic",
+		ResourceType: "SNS Topic",
+		Error:        nil,
+	}
+	report.Record(e)
+
+	ensureRenderedReportContains(t, e.Identifier)
+	ensureRenderedReportContains(t, SuccessEmoji)
+	ensureRenderedReportDoesNotContain(t, FailureEmoji)
+}
+
+func TestRenderEntriesWithErrors(t *testing.T) {
+	report.ResetRecords()
+
+	e := report.Entry{
+		Identifier:   "arn:aws:sns:ap-southeast-1:222222222222:DifferentTopic",
+		ResourceType: "SNS Topic",
+		Error:        errors.New("What is here was dangerous and repulsive to us. This message is a warning about danger. "),
+	}
+	report.Record(e)
+
+	ensureRenderedReportContains(t, e.Identifier)
+	ensureRenderedReportContains(t, FailureEmoji)
+	ensureRenderedReportDoesNotContain(t, SuccessEmoji)
+}
+
 // testPrintContains can be used to test Print methods.
-func testPrintContains(t *testing.T, match string) {
+func ensureRenderedReportContains(t *testing.T, match string) {
 	output := captureStdout(PrintRunReport)
 	require.True(t, strings.Contains(output, match))
+}
+
+func ensureRenderedReportDoesNotContain(t *testing.T, match string) {
+	output := captureStdout(PrintRunReport)
+	require.False(t, strings.Contains(output, match))
 }
 
 var outBuf bytes.Buffer

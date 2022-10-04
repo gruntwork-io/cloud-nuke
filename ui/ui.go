@@ -33,9 +33,9 @@ func PrintRunReport(w io.Writer) {
 			// responsive within a terminal, and this truncation allows rows to situate nicely within the table
 			//
 			// If we upgrade to a library that can render flexbox tables in the terminal we should revisit this
-			errSymbol = fmt.Sprintf("❌ %s", truncate(removeNewlines(entry.Error.Error()), 40))
+			errSymbol = fmt.Sprintf("%s %s", FailureEmoji, truncate(removeNewlines(entry.Error.Error()), 40))
 		} else {
-			errSymbol = "✅"
+			errSymbol = SuccessEmoji
 		}
 		data[idx] = []string{entry.Identifier, entry.ResourceType, errSymbol}
 	}

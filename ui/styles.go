@@ -8,6 +8,8 @@ import (
 )
 
 var (
+	FailureEmoji           = "❌"
+	SuccessEmoji           = "✅"
 	FireEmoji              = "🔥"
 	TargetEmoji            = "🎯"
 	ResourceHighlightStyle = lipgloss.NewStyle().
