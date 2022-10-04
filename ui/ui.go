@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -32,7 +33,7 @@ func PrintRunReport(w io.Writer) {
 			// responsive within a terminal, and this truncation allows rows to situate nicely within the table
 			//
 			// If we upgrade to a library that can render flexbox tables in the terminal we should revisit this
-			errSymbol = fmt.Sprintf("❌ %s", truncate(entry.Error.Error(), 40))
+			errSymbol = fmt.Sprintf("❌ %s", truncate(removeNewlines(entry.Error.Error()), 40))
 		} else {
 			errSymbol = "✅"
 		}
@@ -73,4 +74,10 @@ func truncate(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s
+}
+
+// removeNewlines will delete all the newlines in a given string, which is useful for making error messages
+// "sit" more nicely within their specified table cells in the terminal
+func removeNewlines(s string) string {
+	return strings.ReplaceAll(s, "\n", "")
 }

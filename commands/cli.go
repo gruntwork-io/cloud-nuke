@@ -192,10 +192,14 @@ func awsNuke(c *cli.Context) error {
 	ui.WarningMessage("The following resource types are targeted for destruction")
 
 	// Log which resource types will be nuked
-	pterm.DefaultBulletList.
+	list := pterm.DefaultBulletList.
 		WithItems(targetedResourceList).
-		WithBullet(ui.TargetEmoji).
-		Render()
+		WithBullet(ui.TargetEmoji)
+
+	renderErr := list.Render()
+	if renderErr != nil {
+		return errors.WithStackTrace(renderErr)
+	}
 
 	regions, err := aws.GetEnabledRegions()
 	if err != nil {
@@ -249,10 +253,14 @@ func awsNuke(c *cli.Context) error {
 		items = append(items, pterm.BulletListItem{Level: 0, Text: resource})
 	}
 
-	pterm.DefaultBulletList.
+	targetList := pterm.DefaultBulletList.
 		WithItems(items).
-		WithBullet(ui.FireEmoji).
-		Render()
+		WithBullet(ui.FireEmoji)
+
+	targetRenderErr := targetList.Render()
+	if targetRenderErr != nil {
+		return errors.WithStackTrace(targetRenderErr)
+	}
 
 	if c.Bool("dry-run") {
 		logging.Logger.Infoln("Not taking any action as dry-run set to true.")
