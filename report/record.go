@@ -8,14 +8,24 @@ import (
 
 var m = &sync.Mutex{}
 
+var generalErrors = make(map[string]GeneralError)
+
 var records = make(map[string]Entry)
 
 func GetRecords() map[string]Entry {
 	return records
 }
 
+func GetErrors() map[string]GeneralError {
+	return generalErrors
+}
+
 func ResetRecords() {
 	records = make(map[string]Entry)
+}
+
+func ResetErrors() {
+	generalErrors = make(map[string]GeneralError)
 }
 
 func Record(e Entry) {
@@ -40,6 +50,12 @@ func RecordBatch(e BatchEntry) {
 	}
 }
 
+func RecordError(e GeneralError) {
+	defer m.Unlock()
+	m.Lock()
+	generalErrors[e.Description] = e
+}
+
 // Custom types
 type Entry struct {
 	Identifier   string
@@ -51,4 +67,10 @@ type BatchEntry struct {
 	Identifiers  []string
 	ResourceType string
 	Error        error
+}
+
+type GeneralError struct {
+	Error        error
+	ResourceType string
+	Description  string
 }

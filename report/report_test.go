@@ -75,6 +75,17 @@ func TestRecordBatchEntriesErrorState(t *testing.T) {
 	require.Equal(t, entry2.Error, be.Error)
 }
 
+func TestRecordErrorSingle(t *testing.T) {
+	ge := GeneralError{
+		Description:  "Something generic yet unexpected happened!",
+		ResourceType: "ASG",
+		Error:        errors.New("What is here was dangerous and repulsive to us. This message is a warning about danger. "),
+	}
+	RecordError(ge)
+	ensureGeneralErrorsContainDescription(t, ge.Description)
+	ensureGeneralErrorsContainError(t, ge.Error)
+}
+
 // Test helpers
 
 func ensureRecordsContainIdentifier(t *testing.T, key string) {
@@ -84,6 +95,31 @@ func ensureRecordsContainIdentifier(t *testing.T, key string) {
 		if k == key {
 			found = true
 		}
+	}
+	if found == false {
+		t.Fail()
+	}
+}
+
+func ensureGeneralErrorsContainDescription(t *testing.T, description string) {
+	generalErrors := GetErrors()
+	found := false
+	for _, ge := range generalErrors {
+		if ge.Description == description {
+			found = true
+		}
+	}
+	if found == false {
+		t.Fail()
+	}
+}
+
+func ensureGeneralErrorsContainError(t *testing.T, err error) {
+	generalErrors := GetErrors()
+	found := false
+	for _, ge := range generalErrors {
+		found = true
+		require.Equal(t, ge.Error, err)
 	}
 	if found == false {
 		t.Fail()

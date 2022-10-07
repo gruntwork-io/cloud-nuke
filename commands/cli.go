@@ -302,6 +302,9 @@ func awsNuke(c *cli.Context) error {
 	p.Stop()
 	pterm.Println()
 
+	// Conditionally print the general error report, if in fact there were errors
+	ui.PrintGeneralErrorReport(os.Stdout)
+
 	// Print the report showing the user what happened with each resource
 	ui.PrintRunReport(os.Stdout)
 

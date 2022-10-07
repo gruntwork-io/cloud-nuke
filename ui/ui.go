@@ -10,6 +10,37 @@ import (
 	"github.com/pterm/pterm"
 )
 
+func PrintGeneralErrorReport(w io.Writer) {
+	// generalErrors is a map[string]GeneralError from the report package. This map contains
+	// an entry for every general error (that is, not a resource-specific erorr) that occurred
+	// during a cloud-nuke run. A GeneralError, for example, would be when cloud-nuke fails to
+	// look up any particular resource type due to a network blip, AWS API 500, etc
+	generalErrors := report.GetErrors()
+
+	// Only render the general error table if there are, indeed, general errors
+	if len(generalErrors) > 0 {
+
+		// Workaround an issue where the pterm progressbar might not be cleaned up correctly
+		w.Write([]byte("\r"))
+
+		data := make([][]string, len(generalErrors))
+		entriesToDisplay := []report.GeneralError{}
+		for _, generalErr := range generalErrors {
+			entriesToDisplay = append(entriesToDisplay, generalErr)
+		}
+
+		for idx, generalErr := range entriesToDisplay {
+			data[idx] = []string{generalErr.ResourceType, generalErr.Description, generalErr.Error.Error()}
+		}
+
+		renderTableWithHeader([]string{"ResourceType", "Description", "Error"}, data, w)
+
+		// Workaround an issue where the pterm progressbar might not be cleaned up correctly
+		w.Write([]byte("\r"))
+
+	}
+}
+
 func PrintRunReport(w io.Writer) {
 	// Workaround an issue where the pterm progressbar might not be cleaned up correctly
 	w.Write([]byte("\r"))
