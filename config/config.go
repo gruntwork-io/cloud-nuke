@@ -12,7 +12,8 @@ import (
 type Config struct {
 	S3                    ResourceType `yaml:"s3"`
 	IAMUsers              ResourceType `yaml:"IAMUsers"`
-	IAMGroups             ResourceType `yaml:"IAMGroups"` //TODO update the test
+	IAMGroups             ResourceType `yaml:"IAMGroups"`
+	IAMPolicies           ResourceType `yaml:"IAMPolicies"`
 	IAMRoles              ResourceType `yaml:"IAMRoles"`
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
 	NatGateway            ResourceType `yaml:"NatGateway"`

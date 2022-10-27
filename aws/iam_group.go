@@ -16,7 +16,7 @@ import (
 func getAllIamGroups(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := iam.New(session)
 
-	allIamGroups := []*string{}
+	var allIamGroups []*string
 	err := svc.ListGroupsPages(
 		&iam.ListGroupsInput{},
 		func(page *iam.ListGroupsOutput, lastPage bool) bool {
@@ -34,9 +34,8 @@ func getAllIamGroups(session *session.Session, excludeAfter time.Time, configObj
 	return allIamGroups, nil
 }
 
-//nukeAllIamGroups - delete all IAM Roles.  Caller is responsible for pagination (no more than 100/request)
+// nukeAllIamGroups - delete all IAM groups.  Caller is responsible for pagination (no more than 100/request)
 func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
-	region := aws.StringValue(session.Config.Region) //Since this is a global resource this can be any random region
 	svc := iam.New(session)
 
 	if len(groupNames) == 0 {
@@ -74,14 +73,10 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 		return errors.WithStackTrace(finalErr)
 	}
 
-	//Print Successful deletions
-	for _, groupName := range groupNames {
-		logging.Logger.Infof("[OK] IAM Group %s was deleted in %s", aws.StringValue(groupName), region)
-	}
 	return nil
 }
 
-//deleteIamGroup - removes an IAM group from AWS, designed to run as a goroutine
+// deleteIamGroup - removes an IAM group from AWS, designed to run as a goroutine
 func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, groupName *string) {
 	defer wg.Done()
 	var multierr *multierror.Error
@@ -127,11 +122,13 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 	})
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
+	} else {
+		logging.Logger.Infof("[OK] IAM Group %s was deleted in global", aws.StringValue(groupName))
 	}
 	errChan <- multierr.ErrorOrNil()
 }
 
-//check if iam group should be included based on config rules (RegExp and Exclude After)
+// check if iam group should be included based on config rules (RegExp and Exclude After)
 func shouldIncludeIamGroup(iamGroup *iam.Group, excludeAfter time.Time, configObj config.Config) bool {
 	if iamGroup == nil {
 		return false
@@ -148,7 +145,7 @@ func shouldIncludeIamGroup(iamGroup *iam.Group, excludeAfter time.Time, configOb
 	)
 }
 
-//Custom Errors
+// TooManyIamGroupErr Custom Errors
 type TooManyIamGroupErr struct{}
 
 func (err TooManyIamGroupErr) Error() string {

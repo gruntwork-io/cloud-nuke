@@ -865,6 +865,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		//END IAM Groups
 
+		//IAM Policies
+		iamPolicies := IAMPolicies{}
+		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
+			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(policyArns) > 0 {
+				iamPolicies.PolicyArns = awsgo.StringValueSlice(policyArns)
+				globalResources.Resources = append(globalResources.Resources, iamPolicies)
+			}
+		}
+		//End IAM Policies
+
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
 		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
@@ -928,6 +942,7 @@ func ListResourceTypes() []string {
 		IAMUsers{}.ResourceName(),
 		IAMRoles{}.ResourceName(),
 		IAMGroups{}.ResourceName(),
+		IAMPolicies{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		OpenSearchDomains{}.ResourceName(),

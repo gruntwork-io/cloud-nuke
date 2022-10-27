@@ -1,7 +1,7 @@
 package aws
 
 import (
-	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"testing"
 	"time"
 
@@ -14,24 +14,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//Test that we can list IAM groups in an AWS account
+// Test that we can list IAM groups in an AWS account
 func TestListIamGroups(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	session, err := session.NewSession(&awsgo.Config{
+	localSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
 	require.NoError(t, err)
 
-	groupNames, err := getAllIamGroups(session, time.Now(), config.Config{})
+	groupNames, err := getAllIamGroups(localSession, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, groupNames)
 }
 
-//Creates an empty IAM group for testing
+// Creates an empty IAM group for testing
 func createEmptyTestGroup(t *testing.T, session *session.Session, name string) error {
 	svc := iam.New(session)
 
@@ -39,13 +39,12 @@ func createEmptyTestGroup(t *testing.T, session *session.Session, name string) e
 		GroupName: awsgo.String(name),
 	}
 
-	group, err := svc.CreateGroup(groupInput)
-	fmt.Println(group.Group.Arn)
+	_, err := svc.CreateGroup(groupInput)
 	require.NoError(t, err)
 	return nil
 }
 
-//Stores information for cleanup
+// Stores information for cleanup
 type groupInfo struct {
 	GroupName *string
 	UserName  *string
@@ -114,59 +113,58 @@ func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName s
 	return info, nil
 }
 
-func deleteGroupExtraResources(session *session.Session, info *groupInfo) error {
+func deleteGroupExtraResources(session *session.Session, info *groupInfo) {
 	svc := iam.New(session)
 	_, err := svc.DeletePolicy(&iam.DeletePolicyInput{
 		PolicyArn: info.PolicyArn,
 	})
 	if err != nil {
-		return err
+		logging.Logger.Errorf("Unable to delete test policy: %s", *info.PolicyArn)
 	}
 
 	_, err = svc.DeleteUser(&iam.DeleteUserInput{
 		UserName: info.UserName,
 	})
 	if err != nil {
-		return err
+		logging.Logger.Errorf("Unable to delete test user: %s", *info.UserName)
 	}
-	return nil
 }
 
-//Test that we can nuke iam groups.
+// Test that we can nuke iam groups.
 func TestNukeIamGroups(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	session, err := session.NewSession(&awsgo.Config{
+	localSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	})
 	require.NoError(t, err)
 
 	//Create test entities
 	emptyName := "cloud-nuke-test" + util.UniqueID()
-	err = createEmptyTestGroup(t, session, emptyName)
+	err = createEmptyTestGroup(t, localSession, emptyName)
 	require.NoError(t, err)
 
 	nonEmptyName := "cloud-nuke-test" + util.UniqueID()
 	userName := "cloud-nuke-test" + util.UniqueID()
-	info, err := createNonEmptyTestGroup(t, session, nonEmptyName, userName)
-	defer deleteGroupExtraResources(session, info)
+	info, err := createNonEmptyTestGroup(t, localSession, nonEmptyName, userName)
+	defer deleteGroupExtraResources(localSession, info)
 	require.NoError(t, err)
 
 	//Assert test entities exist
-	groupNames, err := getAllIamGroups(session, time.Now(), config.Config{})
+	groupNames, err := getAllIamGroups(localSession, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(groupNames), nonEmptyName)
 	assert.Contains(t, awsgo.StringValueSlice(groupNames), emptyName)
 
 	//Nuke test entities
-	err = nukeAllIamGroups(session, []*string{&emptyName, &nonEmptyName})
+	err = nukeAllIamGroups(localSession, []*string{&emptyName, &nonEmptyName})
 	require.NoError(t, err)
 
-	//Assert test entites don't exist anymore
-	groupNames, err = getAllIamGroups(session, time.Now(), config.Config{})
+	//Assert test entities don't exist anymore
+	groupNames, err = getAllIamGroups(localSession, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(groupNames), nonEmptyName)
 	assert.NotContains(t, awsgo.StringValueSlice(groupNames), emptyName)
