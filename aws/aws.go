@@ -865,6 +865,34 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Users
 
+		//IAM Groups
+		iamGroups := IAMGroups{}
+		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
+			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(groupNames) > 0 {
+				iamGroups.GroupNames = awsgo.StringValueSlice(groupNames)
+				globalResources.Resources = append(globalResources.Resources, iamGroups)
+			}
+		}
+		//END IAM Groups
+
+		//IAM Policies
+		iamPolicies := IAMPolicies{}
+		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
+			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(policyArns) > 0 {
+				iamPolicies.PolicyArns = awsgo.StringValueSlice(policyArns)
+				globalResources.Resources = append(globalResources.Resources, iamPolicies)
+			}
+		}
+		//End IAM Policies
+
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
 		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
@@ -927,6 +955,8 @@ func ListResourceTypes() []string {
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
 		IAMRoles{}.ResourceName(),
+		IAMGroups{}.ResourceName(),
+		IAMPolicies{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		OpenSearchDomains{}.ResourceName(),
