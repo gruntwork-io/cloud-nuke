@@ -816,6 +816,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End SNS Topics
 
+		// Cloudtrail Trails
+		cloudtrailTrails := CloudtrailTrail{}
+		if IsNukeable(cloudtrailTrails.ResourceName(), resourceTypes) {
+			cloudtrailArns, err := getAllCloudtrailTrails(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(cloudtrailArns) > 0 {
+				cloudtrailTrails.Arns = awsgo.StringValueSlice(cloudtrailArns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudtrailTrails)
+			}
+		}
+		// End Cloudtrail Trails
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -962,6 +976,7 @@ func ListResourceTypes() []string {
 		ApiGatewayV2{}.ResourceName(),
 		ElasticFileSystem{}.ResourceName(),
 		SNSTopic{}.ResourceName(),
+		CloudtrailTrail{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

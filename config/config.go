@@ -41,6 +41,7 @@ type Config struct {
 	APIGateway            ResourceType `yaml:"APIGateway"`
 	APIGatewayV2          ResourceType `yaml:"APIGatewayV2"`
 	ElasticFileSystem     ResourceType `yaml:"ElasticFileSystem"`
+	CloudtrailTrail       ResourceType `yaml:"CloudtrailTrail"`
 }
 
 type ResourceType struct {
