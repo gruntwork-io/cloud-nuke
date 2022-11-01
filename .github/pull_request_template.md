@@ -14,6 +14,8 @@ Read the [Gruntwork contribution guidelines](https://gruntwork.notion.site/Grunt
 - [ ] Run the relevant tests successfully, including pre-commit checks.
 - [ ] Ensure any 3rd party code adheres with our [license policy](https://www.notion.so/gruntwork/Gruntwork-licenses-and-open-source-usage-policy-f7dece1f780341c7b69c1763f22b1378) or delete this line if its not applicable.
 - [ ] Include release notes. If this PR is backward incompatible, include a migration guide.
+- [ ] Attention Grunts - if this PR adds support for a new resource, ensure the `nuke_sandbox` and `nuke_phxdevops` jobs in `.circleci/config.yml` have been updated with appropriate exclusions (either directly in the job or via the `.circleci/nuke_config.yml` file) to prevent nuking IAM roles, groups, resources, etc that are important for the test accounts.
+
 
 ## Release Notes (draft)
 
