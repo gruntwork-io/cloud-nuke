@@ -126,6 +126,12 @@ func CreateCli(version string) *cli.App {
 					Usage: "Only inspect resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 					Value: "0s",
 				},
+				cli.StringFlag{
+					Name:   "log-level",
+					Value:  "info",
+					Usage:  "Set log level",
+					EnvVar: "LOG_LEVEL",
+				},
 			},
 		},
 	}
