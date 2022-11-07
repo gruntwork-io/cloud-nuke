@@ -95,6 +95,12 @@ func CreateCli(version string) *cli.App {
 					Name:  "force",
 					Usage: "Skip confirmation prompt. WARNING: this will automatically delete defaults without any confirmation",
 				},
+				cli.StringFlag{
+					Name:   "log-level",
+					Value:  "info",
+					Usage:  "Set log level",
+					EnvVar: "LOG_LEVEL",
+				},
 			},
 		}, {
 			Name:   "inspect-aws",
