@@ -85,7 +85,7 @@ func deleteInlineRolePolicies(svc *iam.IAM, roleName *string) error {
 	return nil
 }
 
-func detachInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
+func deleteInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
 	profilesOutput, err := svc.ListInstanceProfilesForRole(&iam.ListInstanceProfilesForRoleInput{
 		RoleName: roleName,
 	})
@@ -94,6 +94,8 @@ func detachInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
 	}
 
 	for _, profile := range profilesOutput.InstanceProfiles {
+
+		// Role needs to be removed from instance profile before it can be deleted
 		_, err := svc.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: profile.InstanceProfileName,
 			RoleName:            roleName,
@@ -101,8 +103,16 @@ func detachInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
+		} else {
+			_, err := svc.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
+				InstanceProfileName: profile.InstanceProfileName,
+			})
+			if err != nil {
+				logging.Logger.Errorf("[Failed] %s", err)
+				return errors.WithStackTrace(err)
+			}
 		}
-		logging.Logger.Debugf("Detached InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
+		logging.Logger.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
 	}
 	return nil
 }
@@ -204,7 +214,7 @@ func deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, ro
 	// NOTE: The actual role deletion should always be the last one. This way we
 	// can guarantee that it will fail if we forgot to delete/detach an item.
 	functions := []func(svc *iam.IAM, roleName *string) error{
-		detachInstanceProfilesFromRole,
+		deleteInstanceProfilesFromRole,
 		deleteInlineRolePolicies,
 		deleteManagedRolePolicies,
 		deleteIamRole,
