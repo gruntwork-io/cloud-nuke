@@ -823,6 +823,21 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EC2 VPCS
 
+		// Start EC2 KeyPairs
+		KeyPairs := EC2KeyPairs{}
+		if IsNukeable(KeyPairs.ResourceName(), resourceTypes) {
+			keyPairIds, err := getAllEc2KeyPairs(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(keyPairIds) > 0 {
+				KeyPairs.KeyPairIds = awsgo.StringValueSlice(keyPairIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, KeyPairs)
+			}
+		}
+		// End EC2 KeyPairs
+
 		// Elasticaches
 		elasticaches := Elasticaches{}
 		if IsNukeable(elasticaches.ResourceName(), resourceTypes) {
@@ -1199,6 +1214,7 @@ func ListResourceTypes() []string {
 		ElasticFileSystem{}.ResourceName(),
 		SNSTopic{}.ResourceName(),
 		CloudtrailTrail{}.ResourceName(),
+		EC2KeyPairs{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

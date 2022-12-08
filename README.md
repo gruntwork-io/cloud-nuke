@@ -356,6 +356,9 @@ The following resources support the Config file:
 - EC2 Instances
     - Resource type: `ec2`
     - Config key: `EC2`
+- EC2 Key Pairs
+  - Resource type: `ec2-keypairs`
+  - Config key: `EC2KeyPairs`
 - EKS Clusters
     - Resource type: `ekscluster`
     - Config key: `EKSCluster`
