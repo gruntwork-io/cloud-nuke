@@ -911,7 +911,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve sage notebook instances",
+					Description:  "Unable to retrieve sagemaker notebook instances",
 					ResourceType: notebookInstances.ResourceName(),
 				}
 				report.RecordError(ge)
