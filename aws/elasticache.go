@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -134,7 +135,7 @@ func determineCacheClusterType(svc *elasticache.ElastiCache, clusterId *string) 
 }
 
 func nukeNonReplicationGroupElasticacheCluster(svc *elasticache.ElastiCache, clusterId *string) error {
-	logging.Logger.Infof("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.StringValue(clusterId))
+	logging.Logger.Debugf("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.StringValue(clusterId))
 	params := elasticache.DeleteCacheClusterInput{
 		CacheClusterId: clusterId,
 	}
@@ -149,7 +150,7 @@ func nukeNonReplicationGroupElasticacheCluster(svc *elasticache.ElastiCache, clu
 }
 
 func nukeReplicationGroupMemberElasticacheCluster(svc *elasticache.ElastiCache, clusterId *string) error {
-	logging.Logger.Infof("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.StringValue(clusterId))
+	logging.Logger.Debugf("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.StringValue(clusterId))
 
 	params := &elasticache.DeleteReplicationGroupInput{
 		ReplicationGroupId: clusterId,
@@ -167,7 +168,7 @@ func nukeReplicationGroupMemberElasticacheCluster(svc *elasticache.ElastiCache, 
 		return waitErr
 	}
 
-	logging.Logger.Infof("Successfully deleted replication group Id: %s", aws.StringValue(clusterId))
+	logging.Logger.Debugf("Successfully deleted replication group Id: %s", aws.StringValue(clusterId))
 
 	return nil
 }
@@ -176,11 +177,11 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 	svc := elasticache.New(session)
 
 	if len(clusterIds) == 0 {
-		logging.Logger.Infof("No Elasticache clusters to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Elasticache clusters to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting %d Elasticache clusters in region %s", len(clusterIds), *session.Config.Region)
+	logging.Logger.Debugf("Deleting %d Elasticache clusters in region %s", len(clusterIds), *session.Config.Region)
 
 	var deletedClusterIds []*string
 	for _, clusterId := range clusterIds {
@@ -200,15 +201,23 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 			err = nukeReplicationGroupMemberElasticacheCluster(svc, clusterId)
 		}
 
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(clusterId),
+			ResourceType: "Elasticache",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedClusterIds = append(deletedClusterIds, clusterId)
-			logging.Logger.Infof("Deleted Elasticache cluster: %s", *clusterId)
+			logging.Logger.Debugf("Deleted Elasticache cluster: %s", *clusterId)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Elasticache clusters deleted in %s", len(deletedClusterIds), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Elasticache clusters deleted in %s", len(deletedClusterIds), *session.Config.Region)
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -23,7 +24,6 @@ func setFirstSeenVpcTag(svc *ec2.EC2, vpc ec2.Vpc, key string, value time.Time) 
 			},
 		},
 	})
-
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -117,26 +117,36 @@ func shouldIncludeVpc(vpc *ec2.Vpc, excludeAfter time.Time, firstSeenTime time.T
 
 func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 	if len(vpcIds) == 0 {
-		logging.Logger.Info("No VPCs to nuke")
+		logging.Logger.Debug("No VPCs to nuke")
 		return nil
 	}
 
-	logging.Logger.Info("Deleting all VPCs")
+	logging.Logger.Debug("Deleting all VPCs")
 
 	deletedVPCs := 0
 	multiErr := new(multierror.Error)
 
 	for _, vpc := range vpcs {
-		if err := vpc.nuke(); err != nil {
+		err := vpc.nuke()
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   vpc.VpcId,
+			ResourceType: "VPC",
+			Error:        err,
+		}
+		report.Record(e)
+
+		if err != nil {
+
 			logging.Logger.Errorf("[Failed] %s", err)
 			multierror.Append(multiErr, err)
 		} else {
 			deletedVPCs++
-			logging.Logger.Infof("Deleted VPC: %s", vpc.VpcId)
+			logging.Logger.Debugf("Deleted VPC: %s", vpc.VpcId)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d VPC terminated", deletedVPCs)
+	logging.Logger.Debugf("[OK] %d VPC terminated", deletedVPCs)
 
 	return nil
 }

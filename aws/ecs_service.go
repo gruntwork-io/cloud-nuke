@@ -3,11 +3,13 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -141,9 +143,9 @@ func waitUntilServicesDrained(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 		}
 		err := svc.WaitUntilServicesStable(params)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
+			logging.Logger.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
 		} else {
-			logging.Logger.Infof("Drained service: %s", *ecsServiceArn)
+			logging.Logger.Debugf("Drained service: %s", *ecsServiceArn)
 			successfullyDrained = append(successfullyDrained, ecsServiceArn)
 		}
 	}
@@ -161,7 +163,7 @@ func deleteEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecs
 		}
 		_, err := svc.DeleteService(params)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
+			logging.Logger.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
 		} else {
 			requestedDeletes = append(requestedDeletes, ecsServiceArn)
 		}
@@ -180,10 +182,19 @@ func waitUntilServicesDeleted(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 			Services: []*string{ecsServiceArn},
 		}
 		err := svc.WaitUntilServicesInactive(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(ecsServiceArn),
+			ResourceType: "ECS Service",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
+			logging.Logger.Debugf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
 		} else {
-			logging.Logger.Infof("Deleted service: %s", *ecsServiceArn)
+			logging.Logger.Debugf("Deleted service: %s", *ecsServiceArn)
 			successfullyDeleted = append(successfullyDeleted, ecsServiceArn)
 		}
 	}
@@ -201,11 +212,11 @@ func nukeAllEcsServices(awsSession *session.Session, ecsServiceClusterMap map[st
 	svc := ecs.New(awsSession)
 
 	if numNuking == 0 {
-		logging.Logger.Infof("No ECS services to nuke in region %s", *awsSession.Config.Region)
+		logging.Logger.Debugf("No ECS services to nuke in region %s", *awsSession.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting %d ECS services in region %s", numNuking, *awsSession.Config.Region)
+	logging.Logger.Debugf("Deleting %d ECS services in region %s", numNuking, *awsSession.Config.Region)
 
 	// First, drain all the services to 0. You can't delete a
 	// service that is running tasks.
@@ -219,6 +230,6 @@ func nukeAllEcsServices(awsSession *session.Session, ecsServiceClusterMap map[st
 	successfullyDeleted := waitUntilServicesDeleted(svc, ecsServiceClusterMap, requestedDeletes)
 
 	numNuked := len(successfullyDeleted)
-	logging.Logger.Infof("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
+	logging.Logger.Debugf("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
 	return nil
 }

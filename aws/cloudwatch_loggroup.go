@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -60,7 +61,7 @@ func nukeAllCloudWatchLogGroups(session *session.Session, identifiers []*string)
 	svc := cloudwatchlogs.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No CloudWatch Log Groups to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No CloudWatch Log Groups to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
@@ -75,7 +76,7 @@ func nukeAllCloudWatchLogGroups(session *session.Session, identifiers []*string)
 
 	// There is no bulk delete CloudWatch Log Group API, so we delete the batch of CloudWatch Log Groups concurrently
 	// using go routines.
-	logging.Logger.Infof("Deleting CloudWatch Log Groups in region %s", region)
+	logging.Logger.Debugf("Deleting CloudWatch Log Groups in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -115,13 +116,22 @@ func deleteCloudWatchLogGroupAsync(
 	defer wg.Done()
 	input := &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: logGroupName}
 	_, err := svc.DeleteLogGroup(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(logGroupName),
+		ResourceType: "CloudWatch Log Group",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 
 	logGroupNameStr := aws.StringValue(logGroupName)
 	if err == nil {
-		logging.Logger.Infof("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, region)
+		logging.Logger.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, region, err)
+		logging.Logger.Debugf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, region, err)
 	}
 }
 

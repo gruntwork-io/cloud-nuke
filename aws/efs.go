@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -65,16 +66,16 @@ func nukeAllElasticFileSystems(session *session.Session, identifiers []*string) 
 	svc := efs.NewFromConfig(cfg)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No Elastic FileSystems (efs) to nuke in region %s", region)
+		logging.Logger.Debugf("No Elastic FileSystems (efs) to nuke in region %s", region)
 	}
 
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many Elastic FileSystems (100): halting to avoid hitting AWS API rate limiting")
+		logging.Logger.Debugf("Nuking too many Elastic FileSystems (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyElasticFileSystemsErr{}
 	}
 
 	// There is no bulk delete EFS API, so we delete the batch of Elastic FileSystems concurrently using goroutines
-	logging.Logger.Infof("Deleting Elastic FileSystems (efs) in region %s", region)
+	logging.Logger.Debugf("Deleting Elastic FileSystems (efs) in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -88,7 +89,7 @@ func nukeAllElasticFileSystems(session *session.Session, identifiers []*string) 
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -128,13 +129,13 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 			AccessPointId: apID,
 		}
 
-		logging.Logger.Infof("Deleting access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), region)
+		logging.Logger.Debugf("Deleting access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), region)
 
 		_, err := svc.DeleteAccessPoint(context.TODO(), deleteParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
-			logging.Logger.Infof("[OK] Deleted access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), region)
+			logging.Logger.Debugf("[OK] Deleted access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), region)
 		}
 	}
 
@@ -181,17 +182,17 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 			MountTargetId: mtID,
 		}
 
-		logging.Logger.Infof("Deleting mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), region)
+		logging.Logger.Debugf("Deleting mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), region)
 
 		_, err := svc.DeleteMountTarget(context.TODO(), deleteMtParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
-			logging.Logger.Infof("[OK] Deleted mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), region)
+			logging.Logger.Debugf("[OK] Deleted mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), region)
 		}
 	}
 
-	logging.Logger.Info("Sleeping 20 seconds to allow AWS to realize the Elastic FileSystem is no longer in use...")
+	logging.Logger.Debug("Sleeping 20 seconds to allow AWS to realize the Elastic FileSystem is no longer in use...")
 	time.Sleep(20 * time.Second)
 
 	// Now we can attempt to delete the Elastic FileSystem itself
@@ -200,13 +201,21 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 	}
 
 	_, deleteErr := svc.DeleteFileSystem(context.TODO(), deleteEfsParam)
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(efsID),
+		ResourceType: "Elastic FileSystem (EFS)",
+		Error:        err,
+	}
+	report.Record(e)
+
 	if deleteErr != nil {
 		allErrs = multierror.Append(allErrs, deleteErr)
 	}
 
 	if err == nil {
-		logging.Logger.Infof("[OK] Elastic FileSystem (efs) %s deleted in %s", aws.StringValue(efsID), region)
+		logging.Logger.Debugf("[OK] Elastic FileSystem (efs) %s deleted in %s", aws.StringValue(efsID), region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting Elastic FileSystem (efs) %s in %s", aws.StringValue(efsID), region)
+		logging.Logger.Debugf("[Failed] Error deleting Elastic FileSystem (efs) %s in %s", aws.StringValue(efsID), region)
 	}
 }

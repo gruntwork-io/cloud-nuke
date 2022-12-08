@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -54,16 +55,16 @@ func nukeAllAPIGatewaysV2(session *session.Session, identifiers []*string) error
 	svc := apigatewayv2.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No API Gateways (v2) to nuke in region %s", region)
+		logging.Logger.Debugf("No API Gateways (v2) to nuke in region %s", region)
 	}
 
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many API Gateways (v2) at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Logger.Debugf("Nuking too many API Gateways (v2) at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyApiGatewayV2Err{}
 	}
 
 	// There is no bulk delete Api Gateway API, so we delete the batch of gateways concurrently using goroutines
-	logging.Logger.Infof("Deleting Api Gateways (v2) in region %s", region)
+	logging.Logger.Debugf("Deleting Api Gateways (v2) in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -77,7 +78,7 @@ func nukeAllAPIGatewaysV2(session *session.Session, identifiers []*string) error
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -94,9 +95,17 @@ func deleteApiGatewayAsyncV2(wg *sync.WaitGroup, errChan chan error, svc *apigat
 	_, err := svc.DeleteApi(input)
 	errChan <- err
 
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   *apiId,
+		ResourceType: "APIGateway (v2)",
+		Error:        err,
+	}
+	report.Record(e)
+
 	if err == nil {
-		logging.Logger.Infof("[OK] API Gateway (v2) %s deleted in %s", aws.StringValue(apiId), region)
+		logging.Logger.Debugf("[OK] API Gateway (v2) %s deleted in %s", aws.StringValue(apiId), region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting API Gateway (v2) %s in %s", aws.StringValue(apiId), region)
+		logging.Logger.Debugf("[Failed] Error deleting API Gateway (v2) %s in %s", aws.StringValue(apiId), region)
 	}
 }

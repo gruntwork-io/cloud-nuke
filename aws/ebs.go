@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -58,11 +59,11 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(volumeIds) == 0 {
-		logging.Logger.Infof("No EBS volumes to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No EBS volumes to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all EBS volumes in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all EBS volumes in region %s", *session.Config.Region)
 	var deletedVolumeIDs []*string
 
 	for _, volumeID := range volumeIds {
@@ -71,17 +72,26 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		}
 
 		_, err := svc.DeleteVolume(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(volumeID),
+			ResourceType: "EBS Volume",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "VolumeInUse" {
-				logging.Logger.Warnf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
+				logging.Logger.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
 			} else if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidVolume.NotFound" {
-				logging.Logger.Infof("EBS volume %s has already been deleted", *volumeID)
+				logging.Logger.Debugf("EBS volume %s has already been deleted", *volumeID)
 			} else {
-				logging.Logger.Errorf("[Failed] %s", err)
+				logging.Logger.Debugf("[Failed] %s", err)
 			}
 		} else {
 			deletedVolumeIDs = append(deletedVolumeIDs, volumeID)
-			logging.Logger.Infof("Deleted EBS Volume: %s", *volumeID)
+			logging.Logger.Debugf("Deleted EBS Volume: %s", *volumeID)
 		}
 	}
 
@@ -89,13 +99,12 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		err := svc.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
 			VolumeIds: deletedVolumeIDs,
 		})
-
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), *session.Config.Region)
 	return nil
 }

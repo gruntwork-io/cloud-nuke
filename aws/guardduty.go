@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -80,7 +81,7 @@ func shouldIncludeDetector(detector *DetectorOutputWithID, excludeAfter time.Tim
 
 	createdAtDateTime, err := time.Parse(time.RFC3339, detectorCreatedAt)
 	if err != nil {
-		logging.Logger.Warnf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", detectorCreatedAt, awsgo.StringValue(detector.ID))
+		logging.Logger.Debugf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", detectorCreatedAt, awsgo.StringValue(detector.ID))
 	}
 
 	if excludeAfter.Before(createdAtDateTime) {
@@ -94,12 +95,12 @@ func nukeAllGuardDutyDetectors(session *session.Session, detectorIds []string) e
 	svc := guardduty.New(session)
 
 	if len(detectorIds) == 0 {
-		logging.Logger.Infof("No GuardDuty detectors to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No GuardDuty detectors to nuke in region %s", *session.Config.Region)
 
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all GuardDuty detectors in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all GuardDuty detectors in region %s", *session.Config.Region)
 
 	deletedIds := []string{}
 
@@ -110,15 +111,23 @@ func nukeAllGuardDutyDetectors(session *session.Session, detectorIds []string) e
 
 		_, err := svc.DeleteDetector(params)
 
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   detectorId,
+			ResourceType: "GuardDuty Detector",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s: %s", detectorId, err)
+			logging.Logger.Debugf("[Failed] %s: %s", detectorId, err)
 		} else {
 			deletedIds = append(deletedIds, detectorId)
-			logging.Logger.Infof("Deleted GuardDuty detector: %s", detectorId)
+			logging.Logger.Debugf("Deleted GuardDuty detector: %s", detectorId)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d GuardDuty Detector(s) deleted in %s", len(deletedIds), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d GuardDuty Detector(s) deleted in %s", len(deletedIds), *session.Config.Region)
 
 	return nil
 }

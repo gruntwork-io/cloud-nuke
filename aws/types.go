@@ -21,6 +21,19 @@ func (a *AwsAccountResources) GetRegion(region string) AwsRegionResource {
 	return AwsRegionResource{}
 }
 
+// TotalResourceCount returns the number of resources found, that are eligible for nuking, across all AWS regions targeted
+// In other words, if you have 3 nukeable resources in us-east-1 and 4 nukeable resources in ap-southeast-1, this function
+// would return 7
+func (a *AwsAccountResources) TotalResourceCount() int {
+	total := 0
+	for _, regionResource := range a.Resources {
+		for _, resource := range regionResource.Resources {
+			total += len(resource.ResourceIdentifiers())
+		}
+	}
+	return total
+}
+
 // MapResourceNameToIdentifiers converts a slice of Resources to a map of resource types to their found identifiers
 // For example: ["ec2"] = ["i-0b22a22eec53b9321", "i-0e22a22yec53b9456"]
 func (arr AwsRegionResource) MapResourceNameToIdentifiers() map[string][]string {

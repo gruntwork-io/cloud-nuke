@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -51,7 +52,7 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 	svc := kinesis.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No Kinesis Streams to nuke in region: %s", region)
+		logging.Logger.Debugf("No Kinesis Streams to nuke in region: %s", region)
 	}
 
 	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
@@ -65,7 +66,7 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 
 	// There is no bulk delete Kinesis Stream API, so we delete the batch of Kinesis Streams concurrently
 	// using go routines.
-	logging.Logger.Infof("Deleting Kinesis Streams in region: %s", region)
+	logging.Logger.Debugf("Deleting Kinesis Streams in region: %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -103,13 +104,22 @@ func deleteKinesisStreamAsync(
 	defer wg.Done()
 	input := &kinesis.DeleteStreamInput{StreamName: streamName}
 	_, err := svc.DeleteStream(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(streamName),
+		ResourceType: "Kinesis Stream",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 
 	streamNameStr := aws.StringValue(streamName)
 	if err == nil {
-		logging.Logger.Infof("[OK] Kinesis Stream %s delete in %s", streamNameStr, region)
+		logging.Logger.Debugf("[OK] Kinesis Stream %s delete in %s", streamNameStr, region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting Kinesis Stream %s in %s: %s", streamNameStr, region, err)
+		logging.Logger.Debugf("[Failed] Error deleting Kinesis Stream %s in %s: %s", streamNameStr, region, err)
 	}
 }
 

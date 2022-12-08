@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/opensearchservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/hashicorp/go-multierror"
@@ -153,7 +154,7 @@ func nukeAllOpenSearchDomains(session *session.Session, identifiers []*string) e
 	svc := opensearchservice.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No OpenSearch Domains to nuke in region %s", region)
+		logging.Logger.Debugf("No OpenSearch Domains to nuke in region %s", region)
 		return nil
 	}
 
@@ -166,7 +167,7 @@ func nukeAllOpenSearchDomains(session *session.Session, identifiers []*string) e
 		return TooManyOpenSearchDomainsErr{}
 	}
 
-	logging.Logger.Infof("Deleting OpenSearch Domains in region %s", region)
+	logging.Logger.Debugf("Deleting OpenSearch Domains in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -210,7 +211,7 @@ func nukeAllOpenSearchDomains(session *session.Session, identifiers []*string) e
 		return errors.WithStackTrace(err)
 	}
 	for _, domainName := range identifiers {
-		logging.Logger.Infof("[OK] OpenSearch Domain %s was deleted in %s", aws.StringValue(domainName), region)
+		logging.Logger.Debugf("[OK] OpenSearch Domain %s was deleted in %s", aws.StringValue(domainName), region)
 	}
 	return nil
 }
@@ -222,6 +223,15 @@ func deleteOpenSearchDomainAsync(wg *sync.WaitGroup, errChan chan error, svc *op
 
 	input := &opensearchservice.DeleteDomainInput{DomainName: domainName}
 	_, err := svc.DeleteDomain(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(domainName),
+		ResourceType: "OpenSearch Domain",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 }
 

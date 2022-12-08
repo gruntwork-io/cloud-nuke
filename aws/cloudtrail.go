@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -51,11 +52,11 @@ func nukeAllCloudTrailTrails(session *session.Session, arns []*string) error {
 	svc := cloudtrail.New(session)
 
 	if len(arns) == 0 {
-		logging.Logger.Infof("No Cloudtrail Trails to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Cloudtrail Trails to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Cloudtrail Trails in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Cloudtrail Trails in region %s", *session.Config.Region)
 	var deletedArns []*string
 
 	for _, arn := range arns {
@@ -64,15 +65,24 @@ func nukeAllCloudTrailTrails(session *session.Session, arns []*string) error {
 		}
 
 		_, err := svc.DeleteTrail(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(arn),
+			ResourceType: "Cloudtrail Trail",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedArns = append(deletedArns, arn)
-			logging.Logger.Infof("Deleted Cloudtrail Trail: %s", aws.StringValue(arn))
+			logging.Logger.Debugf("Deleted Cloudtrail Trail: %s", aws.StringValue(arn))
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Cloudtrail Trail deleted in %s", len(deletedArns), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Cloudtrail Trail deleted in %s", len(deletedArns), *session.Config.Region)
 
 	return nil
 }

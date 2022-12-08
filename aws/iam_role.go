@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -54,7 +55,7 @@ func deleteManagedRolePolicies(svc *iam.IAM, roleName *string) error {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Infof("Detached Policy %s from Role %s", aws.StringValue(arn), aws.StringValue(roleName))
+		logging.Logger.Debugf("Detached Policy %s from Role %s", aws.StringValue(arn), aws.StringValue(roleName))
 	}
 
 	return nil
@@ -65,7 +66,7 @@ func deleteInlineRolePolicies(svc *iam.IAM, roleName *string) error {
 		RoleName: roleName,
 	})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
+		logging.Logger.Debugf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -75,10 +76,10 @@ func deleteInlineRolePolicies(svc *iam.IAM, roleName *string) error {
 			RoleName:   roleName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Infof("Deleted Inline Policy %s from Role %s", aws.StringValue(policyName), aws.StringValue(roleName))
+		logging.Logger.Debugf("Deleted Inline Policy %s from Role %s", aws.StringValue(policyName), aws.StringValue(roleName))
 	}
 
 	return nil
@@ -98,10 +99,10 @@ func detachInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
 			RoleName:            roleName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Infof("Detached InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
+		logging.Logger.Debugf("Detached InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
 	}
 	return nil
 }
@@ -123,7 +124,7 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	svc := iam.New(session)
 
 	if len(roleNames) == 0 {
-		logging.Logger.Info("No IAM Roles to nuke")
+		logging.Logger.Debug("No IAM Roles to nuke")
 		return nil
 	}
 
@@ -132,12 +133,12 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(roleNames) > 100 {
-		logging.Logger.Errorf("Nuking too many IAM Roles at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Logger.Debugf("Nuking too many IAM Roles at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyIamRoleErr{}
 	}
 
 	// There is no bulk delete IAM Roles API, so we delete the batch of IAM roles concurrently using go routines
-	logging.Logger.Infof("Deleting all IAM Roles in region %s", region)
+	logging.Logger.Debugf("Deleting all IAM Roles in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(roleNames))
 	errChans := make([]chan error, len(roleNames))
@@ -152,7 +153,7 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -161,7 +162,7 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	}
 
 	for _, roleName := range roleNames {
-		logging.Logger.Infof("[OK] IAM Role %s was deleted in %s", aws.StringValue(roleName), region)
+		logging.Logger.Debugf("[OK] IAM Role %s was deleted in %s", aws.StringValue(roleName), region)
 	}
 	return nil
 }
@@ -214,6 +215,14 @@ func deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, ro
 			result = multierror.Append(result, err)
 		}
 	}
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(roleName),
+		ResourceType: "IAM Role",
+		Error:        result.ErrorOrNil(),
+	}
+	report.Record(e)
 
 	errChan <- result.ErrorOrNil()
 }

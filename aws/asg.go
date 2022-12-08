@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -50,11 +51,11 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 	svc := autoscaling.New(session)
 
 	if len(groupNames) == 0 {
-		logging.Logger.Infof("No Auto Scaling Groups to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Auto Scaling Groups to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Auto Scaling Groups in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Auto Scaling Groups in region %s", *session.Config.Region)
 	var deletedGroupNames []*string
 
 	for _, groupName := range groupNames {
@@ -64,11 +65,20 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		}
 
 		_, err := svc.DeleteAutoScalingGroup(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   *groupName,
+			ResourceType: "Auto-Scaling Group",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedGroupNames = append(deletedGroupNames, groupName)
-			logging.Logger.Infof("Deleted Auto Scaling Group: %s", *groupName)
+			logging.Logger.Debugf("Deleted Auto Scaling Group: %s", *groupName)
 		}
 	}
 
@@ -76,13 +86,12 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		err := svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
 			AutoScalingGroupNames: deletedGroupNames,
 		})
-
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), *session.Config.Region)
 	return nil
 }

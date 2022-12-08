@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/acmpca"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -64,12 +65,12 @@ func shouldIncludeACMPCA(ca *acmpca.CertificateAuthority, excludeAfter time.Time
 // nukeAllACMPCA will delete all ACMPCA, which are given by a list of arns.
 func nukeAllACMPCA(session *session.Session, arns []*string) error {
 	if len(arns) == 0 {
-		logging.Logger.Infof("No ACMPCA to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No ACMPCA to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 	svc := acmpca.New(session)
 
-	logging.Logger.Infof("Deleting all ACMPCA in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all ACMPCA in region %s", *session.Config.Region)
 	// There is no bulk delete acmpca API, so we delete the batch of ARNs concurrently using go routines.
 	wg := new(sync.WaitGroup)
 	wg.Add(len(arns))
@@ -96,7 +97,7 @@ func nukeAllACMPCA(session *session.Session, arns []*string) error {
 func deleteACMPCAASync(wg *sync.WaitGroup, errChan chan error, svc *acmpca.ACMPCA, arn *string, region string) {
 	defer wg.Done()
 
-	logging.Logger.Infof("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, region)
+	logging.Logger.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, region)
 	details, detailsErr := svc.DescribeCertificateAuthority(&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
 	if detailsErr != nil {
 		errChan <- detailsErr
@@ -119,7 +120,7 @@ func deleteACMPCAASync(wg *sync.WaitGroup, errChan chan error, svc *acmpca.ACMPC
 		statusSafe != acmpca.CertificateAuthorityStatusDeleted
 
 	if shouldUpdateStatus {
-		logging.Logger.Infof("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, region)
+		logging.Logger.Debugf("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, region)
 		if _, updateStatusErr := svc.UpdateCertificateAuthority(&acmpca.UpdateCertificateAuthorityInput{
 			CertificateAuthorityArn: arn,
 			Status:                  aws.String(acmpca.CertificateAuthorityStatusDisabled),
@@ -127,19 +128,29 @@ func deleteACMPCAASync(wg *sync.WaitGroup, errChan chan error, svc *acmpca.ACMPC
 			errChan <- updateStatusErr
 			return
 		}
-		logging.Logger.Infof("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, region)
+		logging.Logger.Debugf("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, region)
 	}
 
-	if _, deleteErr := svc.DeleteCertificateAuthority(&acmpca.DeleteCertificateAuthorityInput{
+	_, deleteErr := svc.DeleteCertificateAuthority(&acmpca.DeleteCertificateAuthorityInput{
 		CertificateAuthorityArn: arn,
 		// the range is 7 to 30 days.
 		// since cloud-nuke should not be used in production,
 		// we assume that the minimum (7 days) is fine.
 		PermanentDeletionTimeInDays: aws.Int64(7),
-	}); deleteErr != nil {
+	})
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(arn),
+		ResourceType: "ACM Private CA (ACMPCA)",
+		Error:        deleteErr,
+	}
+	report.Record(e)
+
+	if deleteErr != nil {
 		errChan <- deleteErr
 		return
 	}
-	logging.Logger.Infof("Deleted ACMPCA: %s successfully", *arn)
+	logging.Logger.Debugf("Deleted ACMPCA: %s successfully", *arn)
 	errChan <- nil
 }

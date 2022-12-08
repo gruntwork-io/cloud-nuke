@@ -3,10 +3,12 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -38,11 +40,11 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(snapshotIds) == 0 {
-		logging.Logger.Infof("No Snapshots to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Snapshots to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Snapshots in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Snapshots in region %s", *session.Config.Region)
 	var deletedSnapshotIDs []*string
 
 	for _, snapshotID := range snapshotIds {
@@ -51,14 +53,23 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 		}
 
 		_, err := svc.DeleteSnapshot(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(snapshotID),
+			ResourceType: "EBS Snapshot",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
-			logging.Logger.Infof("Deleted Snapshot: %s", *snapshotID)
+			logging.Logger.Debugf("Deleted Snapshot: %s", *snapshotID)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), *session.Config.Region)
 	return nil
 }

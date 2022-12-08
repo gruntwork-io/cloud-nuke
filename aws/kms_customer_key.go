@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/report"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -26,7 +27,7 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	var wg sync.WaitGroup
 	wg.Add(len(keyAliases))
 	resultsChan := make([]chan *KmsCheckIncludeResult, len(keyAliases))
-	var id = 0
+	id := 0
 	for key, aliases := range keyAliases {
 		resultsChan[id] = make(chan *KmsCheckIncludeResult, 1)
 		go shouldIncludeKmsUserKey(&wg, resultsChan[id], svc, key, aliases, excludeAfter, configObj)
@@ -38,7 +39,7 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	for _, channel := range resultsChan {
 		result := <-channel
 		if result.Error != nil {
-			logging.Logger.Warnf("Can't read KMS key %s", result.Error)
+			logging.Logger.Debugf("Can't read KMS key %s", result.Error)
 
 			continue
 		}
@@ -56,9 +57,10 @@ type KmsCheckIncludeResult struct {
 }
 
 func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckIncludeResult, svc *kms.KMS, key string,
-	aliases []string, excludeAfter time.Time, configObj config.Config) {
+	aliases []string, excludeAfter time.Time, configObj config.Config,
+) {
 	defer wg.Done()
-	var includedByName = false
+	includedByName := false
 	// verify if key aliases matches configurations
 	for _, alias := range aliases {
 		v := config.ShouldInclude(alias, configObj.KMSCustomerKeys.IncludeRule.NamesRegExp,
@@ -75,7 +77,6 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckInclu
 	}
 	// additional request to describe key and get information about creation date, removal status
 	details, err := svc.DescribeKey(&kms.DescribeKeyInput{KeyId: &key})
-
 	if err != nil {
 		resultsChan <- &KmsCheckIncludeResult{Error: err}
 		return
@@ -95,7 +96,7 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckInclu
 		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
-	var referenceTime = *metadata.CreationDate
+	referenceTime := *metadata.CreationDate
 	if referenceTime.After(excludeAfter) {
 		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
@@ -143,13 +144,13 @@ func listKeyAliases(svc *kms.KMS, batchSize int) (map[string][]string, error) {
 func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) error {
 	region := aws.StringValue(session.Config.Region)
 	if len(keyIds) == 0 {
-		logging.Logger.Infof("No Customer Keys to nuke in region %s", region)
+		logging.Logger.Debugf("No Customer Keys to nuke in region %s", region)
 		return nil
 	}
 
 	// usage of go routines for parallel keys removal
 	// https://docs.aws.amazon.com/sdk-for-go/api/service/kms/#KMS.ScheduleKeyDeletion
-	logging.Logger.Infof("Deleting Keys secrets in region %s", region)
+	logging.Logger.Debugf("Deleting Keys secrets in region %s", region)
 	svc := kms.New(session)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(keyIds))
@@ -165,7 +166,7 @@ func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) e
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		}
 	}
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
@@ -175,5 +176,14 @@ func requestKeyDeletion(wg *sync.WaitGroup, errChan chan error, svc *kms.KMS, ke
 	defer wg.Done()
 	input := &kms.ScheduleKeyDeletionInput{KeyId: key, PendingWindowInDays: aws.Int64(int64(kmsRemovalWindow))}
 	_, err := svc.ScheduleKeyDeletion(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(key),
+		ResourceType: "Key Management Service (KMS) Key",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 }

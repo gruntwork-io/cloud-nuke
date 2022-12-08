@@ -10,6 +10,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
 func getAllCloudWatchDashboards(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
@@ -53,7 +54,7 @@ func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string
 	svc := cloudwatch.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No CloudWatch Dashboards to nuke in region %s", region)
+		logging.Logger.Debugf("No CloudWatch Dashboards to nuke in region %s", region)
 		return nil
 	}
 
@@ -66,16 +67,25 @@ func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string
 		return TooManyCloudWatchDashboardsErr{}
 	}
 
-	logging.Logger.Infof("Deleting CloudWatch Dashboards in region %s", region)
+	logging.Logger.Debugf("Deleting CloudWatch Dashboards in region %s", region)
 	input := cloudwatch.DeleteDashboardsInput{DashboardNames: identifiers}
 	_, err := svc.DeleteDashboards(&input)
+
+	// Record status of this resource
+	e := report.BatchEntry{
+		Identifiers:  aws.StringValueSlice(identifiers),
+		ResourceType: "CloudWatch Dashboard",
+		Error:        err,
+	}
+	report.RecordBatch(e)
+
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
+		logging.Logger.Debugf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
 	for _, dashboardName := range identifiers {
-		logging.Logger.Infof("[OK] CloudWatch Dashboard %s was deleted in %s", aws.StringValue(dashboardName), region)
+		logging.Logger.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.StringValue(dashboardName), region)
 	}
 	return nil
 }

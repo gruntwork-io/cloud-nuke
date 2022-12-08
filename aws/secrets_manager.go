@@ -11,6 +11,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -63,12 +64,12 @@ func nukeAllSecretsManagerSecrets(session *session.Session, identifiers []*strin
 	svc := secretsmanager.New(session)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No Secrets Manager Secrets to nuke in region %s", region)
+		logging.Logger.Debugf("No Secrets Manager Secrets to nuke in region %s", region)
 		return nil
 	}
 
 	// There is no bulk delete secrets API, so we delete the batch of secrets concurrently using go routines.
-	logging.Logger.Infof("Deleting Secrets Manager secrets in region %s", region)
+	logging.Logger.Debugf("Deleting Secrets Manager secrets in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -99,5 +100,14 @@ func deleteSecretAsync(wg *sync.WaitGroup, errChan chan error, svc *secretsmanag
 		SecretId:                   secretID,
 	}
 	_, err := svc.DeleteSecret(input)
+
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   aws.StringValue(secretID),
+		ResourceType: "Secrets Manager Secret",
+		Error:        err,
+	}
+	report.Record(e)
+
 	errChan <- err
 }

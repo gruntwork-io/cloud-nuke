@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -48,7 +49,7 @@ func nukeAllSNSTopics(session *session.Session, identifiers []*string) error {
 	svc := sns.NewFromConfig(cfg)
 
 	if len(identifiers) == 0 {
-		logging.Logger.Infof("No SNS Topics to nuke in region %s", region)
+		logging.Logger.Debugf("No SNS Topics to nuke in region %s", region)
 	}
 
 	if len(identifiers) > 100 {
@@ -57,7 +58,7 @@ func nukeAllSNSTopics(session *session.Session, identifiers []*string) error {
 	}
 
 	// There is no bulk delete SNS API, so we delete the batch of SNS Topics concurrently using goroutines
-	logging.Logger.Infof("Deleting SNS Topics in region %s", region)
+	logging.Logger.Debugf("Deleting SNS Topics in region %s", region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -88,15 +89,23 @@ func deleteSNSTopicAsync(wg *sync.WaitGroup, errChan chan error, svc *sns.Client
 		TopicArn: topicArn,
 	}
 
-	logging.Logger.Infof("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
+	logging.Logger.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
 
 	_, err := svc.DeleteTopic(context.TODO(), deleteParam)
 
 	errChan <- err
 
+	// Record status of this resource
+	e := report.Entry{
+		Identifier:   *topicArn,
+		ResourceType: "SNS Topic",
+		Error:        err,
+	}
+	report.Record(e)
+
 	if err == nil {
-		logging.Logger.Infof("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
+		logging.Logger.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), region)
 	} else {
-		logging.Logger.Errorf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), region)
+		logging.Logger.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), region)
 	}
 }
