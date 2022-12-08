@@ -30,6 +30,21 @@ func createTestVpc(t *testing.T, session *session.Session) string {
 	return *vpc.Vpc.VpcId
 }
 
+func createTestVpcWithEgressGateway(t *testing.T, session *session.Session) string {
+	testVpcId := createTestVpc(t, session)
+	createTestEgressGateway(t, session, testVpcId)
+	return testVpcId
+}
+
+func createTestEgressGateway(t *testing.T, session *session.Session, vpcId string) string {
+	svc := ec2.New(session)
+	egressGateway, err := svc.CreateEgressOnlyInternetGateway(&ec2.CreateEgressOnlyInternetGatewayInput{
+		VpcId: awsgo.String(vpcId),
+	})
+	require.NoError(t, err)
+	return *egressGateway.EgressOnlyInternetGateway.EgressOnlyInternetGatewayId
+}
+
 func TestCanTagVpc(t *testing.T) {
 	t.Parallel()
 
@@ -129,6 +144,40 @@ func TestNukeVpcs(t *testing.T) {
 	require.NoError(t, err)
 
 	vpcId := createTestVpc(t, session)
+
+	// clean up after this test
+	err = nukeAllVPCs(session, []string{vpcId}, []Vpc{{
+		Region: region,
+		VpcId:  vpcId,
+		svc:    ec2.New(session),
+	}})
+
+	require.NoError(t, err)
+
+	// First run gives us a chance to tag the VPC
+	_, _, err = getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	require.NoError(t, err)
+
+	// VPC should be tagged at this point
+	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	require.NoError(t, err)
+
+	assert.NotContains(t, awsgo.StringValueSlice(vpcIds), vpcId)
+}
+
+func TestNukeVpcsWithGateways(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	require.NoError(t, err)
+
+	vpcId := createTestVpcWithEgressGateway(t, session)
 
 	// clean up after this test
 	err = nukeAllVPCs(session, []string{vpcId}, []Vpc{{
