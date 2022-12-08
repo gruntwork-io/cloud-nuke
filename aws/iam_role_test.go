@@ -56,6 +56,27 @@ func createTestRole(t *testing.T, session *session.Session, name string) error {
 	return nil
 }
 
+func createAndAttachInstanceProfile(t *testing.T, session *session.Session, name string) error {
+	svc := iam.New(session)
+
+	instanceProfile := &iam.CreateInstanceProfileInput{
+		InstanceProfileName: aws.String(name),
+	}
+
+	instanceProfileLink := &iam.AddRoleToInstanceProfileInput{
+		InstanceProfileName: aws.String(name),
+		RoleName:            aws.String(name),
+	}
+
+	_, err := svc.CreateInstanceProfile(instanceProfile)
+	require.NoError(t, err)
+
+	_, err = svc.AddRoleToInstanceProfile(instanceProfileLink)
+	require.NoError(t, err)
+
+	return nil
+}
+
 func TestCreateIamRole(t *testing.T) {
 	t.Parallel()
 
@@ -73,6 +94,9 @@ func TestCreateIamRole(t *testing.T) {
 	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
 
 	err = createTestRole(t, session, name)
+	require.NoError(t, err)
+
+	err = createAndAttachInstanceProfile(t, session, name)
 	defer nukeAllIamRoles(session, []*string{&name})
 	require.NoError(t, err)
 
@@ -94,6 +118,9 @@ func TestNukeIamRoles(t *testing.T) {
 
 	name := "cloud-nuke-test-" + util.UniqueID()
 	err = createTestRole(t, session, name)
+	require.NoError(t, err)
+
+	err = createAndAttachInstanceProfile(t, session, name)
 	require.NoError(t, err)
 
 	err = nukeAllIamRoles(session, []*string{&name})
