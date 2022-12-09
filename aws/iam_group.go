@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"sync"
 	"time"
 
@@ -39,7 +40,7 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 	svc := iam.New(session)
 
 	if len(groupNames) == 0 {
-		logging.Logger.Info("No IAM Groups to nuke")
+		logging.Logger.Debug("No IAM Groups to nuke")
 		return nil
 	}
 
@@ -50,7 +51,7 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 	}
 
 	//No bulk delete exists, do it with goroutines
-	logging.Logger.Info("Deleting all IAM Groups")
+	logging.Logger.Debug("Deleting all IAM Groups")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(groupNames))
 	errChans := make([]chan error, len(groupNames))
@@ -123,8 +124,16 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	} else {
-		logging.Logger.Infof("[OK] IAM Group %s was deleted in global", aws.StringValue(groupName))
+		logging.Logger.Debugf("[OK] IAM Group %s was deleted in global", aws.StringValue(groupName))
 	}
+
+	e := report.Entry{
+		Identifier:   aws.StringValue(groupName),
+		ResourceType: "IAM Group",
+		Error:        multierr.ErrorOrNil(),
+	}
+	report.Record(e)
+
 	errChan <- multierr.ErrorOrNil()
 }
 
