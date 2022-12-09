@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 	"sync"
@@ -42,7 +43,7 @@ func nukeAllIamPolicies(session *session.Session, policyArns []*string) error {
 	svc := iam.New(session)
 
 	if len(policyArns) == 0 {
-		logging.Logger.Info("No IAM Policies to nuke")
+		logging.Logger.Debug("No IAM Policies to nuke")
 	}
 
 	//Probably not required since pagination is handled by the caller
@@ -52,7 +53,7 @@ func nukeAllIamPolicies(session *session.Session, policyArns []*string) error {
 	}
 
 	//No Bulk Delete exists, do it with goroutines
-	logging.Logger.Info("Deleting all IAM Policies")
+	logging.Logger.Debug("Deleting all IAM Policies")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(policyArns))
 	errChans := make([]chan error, len(policyArns))
@@ -116,8 +117,15 @@ func deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, 
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	} else {
-		logging.Logger.Infof("[OK] IAM Policy %s was deleted in global", aws.StringValue(policyArn))
+		logging.Logger.Debugf("[OK] IAM Policy %s was deleted in global", aws.StringValue(policyArn))
 	}
+
+	e := report.Entry{
+		Identifier:   aws.StringValue(policyArn),
+		ResourceType: "IAM Policy",
+		Error:        multierr.ErrorOrNil(),
+	}
+	report.Record(e)
 
 	errChan <- multierr.ErrorOrNil()
 }
