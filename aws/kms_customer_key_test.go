@@ -29,19 +29,21 @@ func TestListKmsUserKeys(t *testing.T) {
 	keyAlias := fmt.Sprintf("alias/%s", aliasName)
 	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias, err)
 
-	// test if listing of keys will return new key
-	keys, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	// test if listing of keys will return new key and alias
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.Contains(t, aliases[createdKeyId], keyAlias)
 
 	// test if time shift works
 	olderThan := time.Now().Add(-1 * time.Hour)
-	keys, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{})
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.NotContains(t, aliases[createdKeyId], keyAlias)
 
 	// test if matching by regexp works
-	keys, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
 		KMSCustomerKeys: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -52,10 +54,11 @@ func TestListKmsUserKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.Contains(t, aliases[createdKeyId], keyAlias)
 	assert.Equal(t, 1, len(keys))
 
 	// test if exclusion by regexp works
-	keys, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
 		KMSCustomerKeys: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -66,6 +69,7 @@ func TestListKmsUserKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.NotContains(t, aliases[createdKeyId], keyAlias)
 }
 
 func TestRemoveKmsUserKeys(t *testing.T) {
@@ -80,13 +84,14 @@ func TestRemoveKmsUserKeys(t *testing.T) {
 	keyAlias := "alias/cloud-nuke-test-" + util.UniqueID()
 	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias, err)
 
-	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId})
+	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{"keyid": {keyAlias}})
 	require.NoError(t, err)
 
 	// test if key is not included for removal second time
-	keys, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.NotContains(t, aliases[createdKeyId], keyAlias)
 }
 
 func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias string, err error) string {

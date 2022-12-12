@@ -846,7 +846,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// KMS Customer managed keys
 		customerKeys := KmsCustomerKeys{}
 		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
-			keys, err := getAllKmsUserKeys(cloudNukeSession, customerKeys.MaxBatchSize(), excludeAfter, configObj)
+			keys, aliases, err := getAllKmsUserKeys(cloudNukeSession, customerKeys.MaxBatchSize(), excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -856,7 +856,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				report.RecordError(ge)
 			}
 			if len(keys) > 0 {
+				customerKeys.KeyAliases = aliases
 				customerKeys.KeyIds = awsgo.StringValueSlice(keys)
+
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, customerKeys)
 			}
 
