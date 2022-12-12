@@ -21,7 +21,7 @@ func (instance DBInstances) ResourceIdentifiers() []string {
 
 func (instance DBInstances) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
-	return 200
+	return 49
 }
 
 // Nuke - nuke 'em all!!!

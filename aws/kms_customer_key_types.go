@@ -26,7 +26,7 @@ func (c KmsCustomerKeys) ResourceIdentifiers() []string {
 
 // MaxBatchSize - Requests batch size
 func (r KmsCustomerKeys) MaxBatchSize() int {
-	return 100
+	return 49
 }
 
 // Nuke - remove all customer managed keys

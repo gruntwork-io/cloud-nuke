@@ -6,12 +6,12 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-//IAMGroups - represents all IAMGroups on the AWS Account
+// IAMGroups - represents all IAMGroups on the AWS Account
 type IAMGroups struct {
 	GroupNames []string
 }
 
-//ResourceName - the simple name of the AWS resource
+// ResourceName - the simple name of the AWS resource
 func (u IAMGroups) ResourceName() string {
 	return "iam-group"
 }
@@ -24,7 +24,7 @@ func (g IAMGroups) ResourceIdentifiers() []string {
 // Tentative batch size to ensure AWS doesn't throttle
 // There's a global max of 500 groups so it shouldn't take long either way
 func (g IAMGroups) MaxBatchSize() int {
-	return 80
+	return 49
 }
 
 // Nuke - Destroy every group in this collection

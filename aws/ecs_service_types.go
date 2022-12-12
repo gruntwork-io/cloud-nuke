@@ -23,7 +23,7 @@ func (services ECSServices) ResourceIdentifiers() []string {
 }
 
 func (services ECSServices) MaxBatchSize() int {
-	return 200
+	return 49
 }
 
 // Nuke - nuke all ECS service resources
