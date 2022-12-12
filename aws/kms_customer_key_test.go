@@ -87,17 +87,17 @@ func TestRemoveKmsUserKeys(t *testing.T) {
 	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{"keyid": {keyAlias}})
 	require.NoError(t, err)
 
-	// test if key is not included for removal second time
+	// test if key is not included for removal second time, after being marked for deletion
 	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
 
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.NotContains(t, aliases[createdKeyId], keyAlias)
 
-	// test that the aliases were deleted from the key, even if the key was successfully marked for deletion
+	// test that all aliases were deleted from the key, even if the key was successfully marked for deletion
 	listedAliases, err := listAliasesForKey(session, &createdKeyId)
-	require.NoError(t, err)
 
+	require.NoError(t, err)
 	assert.Empty(t, listedAliases)
 }
 
