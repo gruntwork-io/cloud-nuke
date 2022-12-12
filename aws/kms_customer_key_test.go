@@ -27,7 +27,7 @@ func TestListKmsUserKeys(t *testing.T) {
 
 	aliasName := "cloud-nuke-test-" + util.UniqueID()
 	keyAlias := fmt.Sprintf("alias/%s", aliasName)
-	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias, err)
+	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias)
 
 	// test if listing of keys will return new key and alias
 	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
@@ -82,19 +82,26 @@ func TestRemoveKmsUserKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	keyAlias := "alias/cloud-nuke-test-" + util.UniqueID()
-	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias, err)
+	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias)
 
 	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{"keyid": {keyAlias}})
 	require.NoError(t, err)
 
 	// test if key is not included for removal second time
 	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.NotContains(t, aliases[createdKeyId], keyAlias)
+
+	// test that the aliases were deleted from the key, even if the key was successfully marked for deletion
+	listedAliases, err := listAliasesForKey(session, &createdKeyId)
+	require.NoError(t, err)
+
+	assert.Empty(t, listedAliases)
 }
 
-func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias string, err error) string {
+func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias string) string {
 	svc := kms.New(session)
 	input := &kms.CreateKeyInput{}
 	result, err := svc.CreateKey(input)
@@ -106,4 +113,18 @@ func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias s
 	require.NoError(t, err)
 
 	return createdKeyId
+}
+
+func listAliasesForKey(session *session.Session, keyId *string) ([]string, error) {
+	svc := kms.New(session)
+	input := &kms.ListAliasesInput{KeyId: keyId}
+	result, err := svc.ListAliases(input)
+
+	aliases := make([]string, 0)
+
+	for _, alias := range result.Aliases {
+		aliases = append(aliases, *alias.TargetKeyId)
+	}
+
+	return aliases, err
 }
