@@ -21,7 +21,7 @@ func (lambda LambdaFunctions) ResourceIdentifiers() []string {
 
 func (lambda LambdaFunctions) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
-	return 200
+	return 49
 }
 
 // Nuke - nuke 'em all!!!

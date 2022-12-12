@@ -18,7 +18,7 @@ func (group ASGroups) ResourceName() string {
 
 func (group ASGroups) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
-	return 200
+	return 49
 }
 
 // ResourceIdentifiers - The group names of the auto scaling groups

@@ -23,7 +23,7 @@ func (image AMIs) ResourceIdentifiers() []string {
 
 func (image AMIs) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
-	return 200
+	return 49
 }
 
 // Nuke - nuke 'em all!!!

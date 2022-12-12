@@ -23,7 +23,7 @@ func (u IAMUsers) ResourceIdentifiers() []string {
 
 // Tentative batch size to ensure AWS doesn't throttle
 func (u IAMUsers) MaxBatchSize() int {
-	return 200
+	return 49
 }
 
 // Nuke - nuke 'em all!!!

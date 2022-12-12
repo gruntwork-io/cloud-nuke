@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"testing"
 	"time"
 
@@ -124,6 +126,37 @@ func TestNukeIamRoles(t *testing.T) {
 	require.NoError(t, err)
 
 	err = nukeAllIamRoles(session, []*string{&name})
+	require.NoError(t, err)
+}
+
+func TestIamRoleRateLimit(t *testing.T) {
+	t.Parallel()
+
+	region := "us-east-2" //getRandomRegion()
+	//require.NoError(t, err)
+
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+	require.NoError(t, err)
+
+	baseName := "cloud-nuke-test-" + util.UniqueID()
+	testRoles := []string{}
+	for i := 1; i < 50; i++ {
+		name := fmt.Sprintf("%s-%d", baseName, i)
+		logging.Logger.Infof("Name: %s", name)
+		testRoles = append(testRoles, name)
+		err = createTestRole(t, session, name)
+		require.NoError(t, err)
+	}
+
+	testPtrs := []*string{}
+	for _, v := range testRoles {
+		v2 := v
+		testPtrs = append(testPtrs, &v2)
+	}
+
+	err = nukeAllIamRoles(session, testPtrs)
 	require.NoError(t, err)
 }
 

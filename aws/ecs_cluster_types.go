@@ -10,8 +10,8 @@ import (
 // into batches when the function `NukeAllResources` is executed.
 // A batch max number has been chosen for most modules.
 // However, for ECS clusters there is no explicit limiting described in the AWS CLI docs.
-// Therefore this `maxBatchSize` here is set to 100 as a safe maximum.
-const maxBatchSize = 100
+// Therefore this `maxBatchSize` here is set to 49 as a safe maximum.
+const maxBatchSize = 49
 
 // ECSClusters - Represents all ECS clusters found in a region
 type ECSClusters struct {

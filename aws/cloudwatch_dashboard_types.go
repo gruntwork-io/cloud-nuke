@@ -22,7 +22,7 @@ func (cwdb CloudWatchDashboards) ResourceIdentifiers() []string {
 }
 
 func (cwdb CloudWatchDashboards) MaxBatchSize() int {
-	return 100
+	return 49
 }
 
 // Nuke - nuke 'em all!!!
