@@ -36,7 +36,6 @@ func shouldIncludeEc2KeyPair(keyPairInfo *ec2.KeyPairInfo, excludeAfter time.Tim
 	}
 
 	if keyPairInfo.CreateTime != nil && excludeAfter.Before(*keyPairInfo.CreateTime) {
-		print(fmt.Sprintf("Created time: %v and excludeAfter: %v", *keyPairInfo.CreateTime, excludeAfter))
 		return false
 	}
 
