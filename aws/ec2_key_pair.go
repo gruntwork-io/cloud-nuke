@@ -1,14 +1,14 @@
 package aws
 
 import (
-	"fmt"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/hashicorp/go-multierror"
-	"time"
 )
 
 // getAllEc2KeyPairs extracts the list of existing ec2 key pairs.
