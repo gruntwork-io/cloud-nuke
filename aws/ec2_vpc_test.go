@@ -30,23 +30,58 @@ func createTestVpc(t *testing.T, session *session.Session) string {
 	return *vpc.Vpc.VpcId
 }
 
+func createTestVpcWithEgressGateway(t *testing.T, awsSession *session.Session) string {
+	testVpcId := createTestVpc(t, awsSession)
+	createTestEgressGateway(t, awsSession, testVpcId)
+	return testVpcId
+}
+
+func createTestEgressGateway(t *testing.T, awsSession *session.Session, vpcId string) string {
+	svc := ec2.New(awsSession)
+	egressGateway, err := svc.CreateEgressOnlyInternetGateway(&ec2.CreateEgressOnlyInternetGatewayInput{
+		VpcId: awsgo.String(vpcId),
+	})
+	require.NoError(t, err)
+	return *egressGateway.EgressOnlyInternetGateway.EgressOnlyInternetGatewayId
+}
+
+func createTestVpcWithNetworkInterface(t *testing.T, awsSession *session.Session) string {
+	testVpcId := createTestVpc(t, awsSession)
+	createTestNetworkInterface(t, awsSession, testVpcId)
+	return testVpcId
+}
+
+func createTestNetworkInterface(t *testing.T, awsSession *session.Session, vpcId string) string {
+	svc := ec2.New(awsSession)
+	subnet, err := svc.CreateSubnet(&ec2.CreateSubnetInput{
+		VpcId:     awsgo.String(vpcId),
+		CidrBlock: awsgo.String("10.0.0.0/24"),
+	})
+	require.NoError(t, err)
+	netInterface, err := svc.CreateNetworkInterface(&ec2.CreateNetworkInterfaceInput{
+		SubnetId: subnet.Subnet.SubnetId,
+	})
+	require.NoError(t, err)
+	return *netInterface.NetworkInterface.NetworkInterfaceId
+}
+
 func TestCanTagVpc(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	session, err := session.NewSession(&awsgo.Config{
+	awsSession, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
 
 	require.NoError(t, err)
 
-	vpcId := createTestVpc(t, session)
-	svc := ec2.New(session)
+	vpcId := createTestVpc(t, awsSession)
+	svc := ec2.New(awsSession)
 
 	// clean up after this test
-	defer nukeAllVPCs(session, []string{vpcId}, []Vpc{{
+	defer nukeAllVPCs(awsSession, []string{vpcId}, []Vpc{{
 		Region: region,
 		VpcId:  vpcId,
 		svc:    svc,
@@ -145,6 +180,74 @@ func TestNukeVpcs(t *testing.T) {
 
 	// VPC should be tagged at this point
 	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	require.NoError(t, err)
+
+	assert.NotContains(t, awsgo.StringValueSlice(vpcIds), vpcId)
+}
+
+func TestNukeVpcsWithEgressGateway(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	awsSession, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	require.NoError(t, err)
+
+	vpcId := createTestVpcWithEgressGateway(t, awsSession)
+
+	// clean up after this test
+	err = nukeAllVPCs(awsSession, []string{vpcId}, []Vpc{{
+		Region: region,
+		VpcId:  vpcId,
+		svc:    ec2.New(awsSession),
+	}})
+
+	require.NoError(t, err)
+
+	// First run gives us a chance to tag the VPC
+	_, _, err = getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
+	require.NoError(t, err)
+
+	// VPC should be tagged at this point
+	vpcIds, _, err := getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
+	require.NoError(t, err)
+
+	assert.NotContains(t, awsgo.StringValueSlice(vpcIds), vpcId)
+}
+
+func TestNukeVpcsWithNetworkInterface(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	awsSession, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	require.NoError(t, err)
+
+	vpcId := createTestVpcWithNetworkInterface(t, awsSession)
+
+	// clean up after this test
+	err = nukeAllVPCs(awsSession, []string{vpcId}, []Vpc{{
+		Region: region,
+		VpcId:  vpcId,
+		svc:    ec2.New(awsSession),
+	}})
+
+	require.NoError(t, err)
+
+	// First run gives us a chance to tag the VPC
+	_, _, err = getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
+	require.NoError(t, err)
+
+	// VPC should be tagged at this point
+	vpcIds, _, err := getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, awsgo.StringValueSlice(vpcIds), vpcId)

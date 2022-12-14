@@ -11,7 +11,7 @@ s3:
       - "^gruntwork-test-privs3bucket-[a-zA-Z0-9]{6}"
       - "^gruntwork-terratest-[a-zA-Z0-9]{6}-logs"
       - "^houston-static-[a-zA-Z0-9]{12}.*"
-      - "^.*-cloud-nuke-test-.*"
+      - "^.*cloud-nuke-test-.*"
       - "^alb-alb-[a-zA-Z0-9]{6}-access-logs$"
       - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
       - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
