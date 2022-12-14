@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/hashicorp/go-multierror"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -434,6 +435,65 @@ func (v Vpc) nukeEndpoints() error {
 	return nil
 }
 
+func (v Vpc) nukeEgressOnlyGateways() error {
+	allEgressGateways := []*string{}
+	logging.Logger.Debugf("Finding Egress Only Internet Gateways to Nuke")
+	err := v.svc.DescribeEgressOnlyInternetGatewaysPages(
+		&ec2.DescribeEgressOnlyInternetGatewaysInput{},
+		func(page *ec2.DescribeEgressOnlyInternetGatewaysOutput, lastPage bool) bool {
+			for _, gateway := range page.EgressOnlyInternetGateways {
+				for _, attachment := range gateway.Attachments {
+					if *attachment.VpcId == v.VpcId {
+						allEgressGateways = append(allEgressGateways, gateway.EgressOnlyInternetGatewayId)
+						break
+					}
+				}
+			}
+			return !lastPage
+		},
+	)
+	if err != nil {
+		return err
+	}
+	logging.Logger.Debugf("Found %d Egress Only Internet Gateways to Nuke.", len(allEgressGateways))
+
+	var allErrs *multierror.Error
+	for _, gateway := range allEgressGateways {
+		_, e := v.svc.DeleteEgressOnlyInternetGateway(&ec2.DeleteEgressOnlyInternetGatewayInput{EgressOnlyInternetGatewayId: gateway})
+		allErrs = multierror.Append(allErrs, e)
+	}
+	return errors.WithStackTrace(allErrs.ErrorOrNil())
+}
+
+func (v Vpc) nukeNetworkInterfaces() error {
+	allNetworkInterfaces := []*string{}
+	logging.Logger.Debugf("Finding Elastic Network Interfaces to Nuke")
+	vpcIds := []string{v.VpcId}
+	filters := []*ec2.Filter{{Name: awsgo.String("vpc-id"), Values: awsgo.StringSlice(vpcIds)}}
+	err := v.svc.DescribeNetworkInterfacesPages(
+		&ec2.DescribeNetworkInterfacesInput{
+			Filters: filters,
+		},
+		func(page *ec2.DescribeNetworkInterfacesOutput, lastPage bool) bool {
+			for _, netInterface := range page.NetworkInterfaces {
+				allNetworkInterfaces = append(allNetworkInterfaces, netInterface.NetworkInterfaceId)
+			}
+			return !lastPage
+		},
+	)
+	if err != nil {
+		return err
+	}
+	logging.Logger.Debugf("Found %d ELastic Network Interfaces to Nuke.", len(allNetworkInterfaces))
+
+	var allErrs *multierror.Error
+	for _, netInterface := range allNetworkInterfaces {
+		_, e := v.svc.DeleteNetworkInterface(&ec2.DeleteNetworkInterfaceInput{NetworkInterfaceId: netInterface})
+		allErrs = multierror.Append(allErrs, e)
+	}
+	return errors.WithStackTrace(allErrs.ErrorOrNil())
+}
+
 func waitForVPCEndpointsToBeDeleted(v Vpc) error {
 	for i := 0; i < 30; i++ {
 		endpoints, err := v.svc.DescribeVpcEndpoints(
@@ -489,6 +549,18 @@ func (v Vpc) nuke() error {
 	err := v.nukeInternetGateway()
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Internet Gateway for VPC %s: %s", v.VpcId, err.Error())
+		return err
+	}
+
+	err = v.nukeEgressOnlyGateways()
+	if err != nil {
+		logging.Logger.Debugf("Error cleaning up Egress Only Internet Gateways for VPC %s: %s", v.VpcId, err.Error())
+		return err
+	}
+
+	err = v.nukeNetworkInterfaces()
+	if err != nil {
+		logging.Logger.Debugf("Error cleaning up Elastic Network Interfaces for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
