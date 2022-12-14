@@ -29,7 +29,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all SQS queues in an AWS account
 - Inspecting and deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Inspecting and deleting all default VPCs in an AWS account
-- Deleting VPCs in an AWS Account (except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
+- Deleting VPCs in an AWS Account (along with any dependency resources such as ENIs, Egress Only Gateways, and Security Groups. except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
 - Inspecting and deleting all IAM users in an AWS account
 - Inspecting and deleting all IAM roles (and any associated EC2 instance profiles) in an AWS account
 - Inspecting and deleting all IAM groups in an AWS account
@@ -531,6 +531,25 @@ security group rules and not the default VPCs.
 ```shell
 cloud-nuke defaults-aws --sg-only
 ```
+
+## Note for nuking VPCs
+
+When nuking VPCs cloud-nuke will attempt to remove dependency resources underneath the VPC
+
+### Supported VPC sub-resources
+
+- Internet Gateways
+- Egress Only Internet Gateways
+- Elastic Network Interfaces
+- VPC Endpoints
+- Subnets
+- Route Tables
+- Network ACLs
+- Security Groups
+- DHCP Option Sets (Will be dissociated from VPC, not deleted. Must be cleaned up separately)
+- Elastic IPs (Supported as a separate resource that gets cleaned up first. If you are filtering what gets nuked, Elastic IPs may prevent VPCs from destroying.)
+
+All other resources that get created within VPCs must be cleaned up prior to running cloud-nuke on VPC resources.
 
 Happy Nuking!!!
 

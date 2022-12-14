@@ -494,6 +494,14 @@ func (v Vpc) nukeNetworkInterfaces() error {
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
 }
 
+func (v Vpc) dissociateDhcpOptions() error {
+	_, err := v.svc.AssociateDhcpOptions(&ec2.AssociateDhcpOptionsInput{
+		DhcpOptionsId: awsgo.String("default"),
+		VpcId:         awsgo.String(v.VpcId),
+	})
+	return err
+}
+
 func waitForVPCEndpointsToBeDeleted(v Vpc) error {
 	for i := 0; i < 30; i++ {
 		endpoints, err := v.svc.DescribeVpcEndpoints(
@@ -591,6 +599,12 @@ func (v Vpc) nuke() error {
 	err = v.nukeSecurityGroups()
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Security Groups for VPC %s: %s", v.VpcId, err.Error())
+		return err
+	}
+
+	err = v.dissociateDhcpOptions()
+	if err != nil {
+		logging.Logger.Debugf("Error cleaning up DHCP Options for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 

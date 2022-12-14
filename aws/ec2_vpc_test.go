@@ -185,7 +185,7 @@ func TestNukeVpcs(t *testing.T) {
 	assert.NotContains(t, awsgo.StringValueSlice(vpcIds), vpcId)
 }
 
-func TestNukeVpcsWithGateways(t *testing.T) {
+func TestNukeVpcsWithEgressGateway(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
