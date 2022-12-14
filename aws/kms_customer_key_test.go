@@ -27,21 +27,23 @@ func TestListKmsUserKeys(t *testing.T) {
 
 	aliasName := "cloud-nuke-test-" + util.UniqueID()
 	keyAlias := fmt.Sprintf("alias/%s", aliasName)
-	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias, err)
+	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias)
 
-	// test if listing of keys will return new key
-	keys, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	// test if listing of keys will return new key and alias
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.Contains(t, aliases[createdKeyId], keyAlias)
 
 	// test if time shift works
 	olderThan := time.Now().Add(-1 * time.Hour)
-	keys, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{})
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.NotContains(t, aliases[createdKeyId], keyAlias)
 
 	// test if matching by regexp works
-	keys, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
 		KMSCustomerKeys: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -52,10 +54,11 @@ func TestListKmsUserKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.Contains(t, aliases[createdKeyId], keyAlias)
 	assert.Equal(t, 1, len(keys))
 
 	// test if exclusion by regexp works
-	keys, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
 		KMSCustomerKeys: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -66,6 +69,7 @@ func TestListKmsUserKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.NotContains(t, aliases[createdKeyId], keyAlias)
 }
 
 func TestRemoveKmsUserKeys(t *testing.T) {
@@ -78,18 +82,26 @@ func TestRemoveKmsUserKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	keyAlias := "alias/cloud-nuke-test-" + util.UniqueID()
-	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias, err)
+	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias)
 
-	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId})
+	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{"keyid": {keyAlias}})
 	require.NoError(t, err)
 
-	// test if key is not included for removal second time
-	keys, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	// test if key is not included for removal second time, after being marked for deletion
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.NotContains(t, aliases[createdKeyId], keyAlias)
+
+	// test that all aliases were deleted from the key, even if the key was successfully marked for deletion
+	listedAliases, err := listAliasesForKey(session, &createdKeyId)
+
+	require.NoError(t, err)
+	assert.Empty(t, listedAliases)
 }
 
-func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias string, err error) string {
+func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias string) string {
 	svc := kms.New(session)
 	input := &kms.CreateKeyInput{}
 	result, err := svc.CreateKey(input)
@@ -101,4 +113,18 @@ func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias s
 	require.NoError(t, err)
 
 	return createdKeyId
+}
+
+func listAliasesForKey(session *session.Session, keyId *string) ([]string, error) {
+	svc := kms.New(session)
+	input := &kms.ListAliasesInput{KeyId: keyId}
+	result, err := svc.ListAliases(input)
+
+	aliases := make([]string, 0)
+
+	for _, alias := range result.Aliases {
+		aliases = append(aliases, *alias.TargetKeyId)
+	}
+
+	return aliases, err
 }

@@ -11,7 +11,8 @@ import (
 const kmsRemovalWindow = 7
 
 type KmsCustomerKeys struct {
-	KeyIds []string
+	KeyIds     []string
+	KeyAliases map[string][]string
 }
 
 // ResourceName - the simple name of the aws resource
@@ -19,7 +20,7 @@ func (c KmsCustomerKeys) ResourceName() string {
 	return "kmscustomerkeys"
 }
 
-// ResourceIdentifiers - The IAM UserNames
+// ResourceIdentifiers - The KMS Key IDs
 func (c KmsCustomerKeys) ResourceIdentifiers() []string {
 	return c.KeyIds
 }
@@ -31,7 +32,7 @@ func (r KmsCustomerKeys) MaxBatchSize() int {
 
 // Nuke - remove all customer managed keys
 func (c KmsCustomerKeys) Nuke(session *session.Session, keyIds []string) error {
-	if err := nukeAllCustomerManagedKmsKeys(session, awsgo.StringSlice(keyIds)); err != nil {
+	if err := nukeAllCustomerManagedKmsKeys(session, awsgo.StringSlice(keyIds), c.KeyAliases); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

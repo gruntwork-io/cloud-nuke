@@ -15,14 +15,13 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time, configObj config.Config) ([]*string, map[string][]string, error) {
 	svc := kms.New(session)
 	// collect all aliases for each key
 	keyAliases, err := listKeyAliases(svc, batchSize)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, nil, errors.WithStackTrace(err)
 	}
-
 	// checking in parallel if keys can be considered for removal
 	var wg sync.WaitGroup
 	wg.Add(len(keyAliases))
@@ -36,6 +35,8 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	wg.Wait()
 
 	var kmsIds []*string
+	aliases := map[string][]string{}
+
 	for _, channel := range resultsChan {
 		result := <-channel
 		if result.Error != nil {
@@ -44,10 +45,11 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 			continue
 		}
 		if result.KeyId != "" {
+			aliases[result.KeyId] = keyAliases[result.KeyId]
 			kmsIds = append(kmsIds, &result.KeyId)
 		}
 	}
-	return kmsIds, nil
+	return kmsIds, aliases, nil
 }
 
 // KmsCheckIncludeResult - structure used results of evaluation: not null KeyId - key should be included
@@ -141,7 +143,7 @@ func listKeyAliases(svc *kms.KMS, batchSize int) (map[string][]string, error) {
 	return aliases, nil
 }
 
-func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) error {
+func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string, keyAliases map[string][]string) error {
 	region := aws.StringValue(session.Config.Region)
 	if len(keyIds) == 0 {
 		logging.Logger.Debugf("No Customer Keys to nuke in region %s", region)
@@ -161,6 +163,13 @@ func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) e
 	}
 	wg.Wait()
 
+	wgAlias := new(sync.WaitGroup)
+	wgAlias.Add(len(keyAliases))
+	for _, aliases := range keyAliases {
+		go deleteAliases(wgAlias, svc, aliases)
+	}
+	wgAlias.Wait()
+
 	// collect errors from each channel
 	var allErrs *multierror.Error
 	for _, errChan := range errChans {
@@ -170,6 +179,21 @@ func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string) e
 		}
 	}
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
+}
+
+func deleteAliases(wg *sync.WaitGroup, svc *kms.KMS, aliases []string) {
+	defer wg.Done()
+
+	for _, aliasName := range aliases {
+		input := &kms.DeleteAliasInput{AliasName: &aliasName}
+		_, err := svc.DeleteAlias(input)
+
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed deleting alias: %s", aliasName)
+		} else {
+			logging.Logger.Debugf("Deleted alias %s", aliasName)
+		}
+	}
 }
 
 func requestKeyDeletion(wg *sync.WaitGroup, errChan chan error, svc *kms.KMS, key *string) {
