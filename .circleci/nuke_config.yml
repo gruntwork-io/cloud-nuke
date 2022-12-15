@@ -95,6 +95,7 @@ CloudWatchLogGroup:
       - "/aws/lambda/cleanup-expired-iam-certs-[a-zA-Z0-9]{6}$"
       - "/aws/lambda/create-snapshot-example-(aurora|mysql)$"
       - "/aws/lambda/HoustonExpress[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/lambda-docker-[a-zA-Z0-9]{6}$"
       - "/aws/rds/cluster/test[a-zA-Z0-9]{6}.*"
       - "/aws/rds/cluster/test-aurora-[a-zA-Z0-9]{6}.*"
       - "eks-service-catalog-[a-zA-Z0-9]{6}$"
@@ -113,6 +114,7 @@ CloudWatchLogGroup:
       - "jenkins-[a-zA-Z0-9]{6}$"
       - "openvpn-server-[a-zA-Z0-9]{6}_log_group$"
       - "vpc-test-[a-zA-Z0-9]{6}.*"
+      - "cloud-nuke-test-[a-zA-Z0-9]{6}"
 
 IAMUsers:
   exclude:
