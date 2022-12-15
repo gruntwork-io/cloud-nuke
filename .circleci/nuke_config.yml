@@ -4,10 +4,19 @@ s3:
   include:
     names_regex:
       - "^cloudfront-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cloudfront-example-failover-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cf-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cf-example-failover-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^gwtest-[a-zA-Z0-9]{6}-config-test"
+      - "^s3-test-tg-.*"
       - "^gruntwork-terratest-[a-zA-Z0-9]{6}$"
+      - ".*-terratest-aws-s3-example-[a-zA-Z0-9]{6}"
       - "^gw-cis-aws-config-all-regions-[a-zA-Z0-9]{6}-.*"
+      - "^gw-service-catalog-test-[a-zA-Z0-9]{6}.*"
+      - "^gruntwork-service-catalog-test-nginx-[a-zA-Z0-9]{6}.*"
       - "^gruntwork-test-[a-zA-Z0-9]{6}-config-test$"
       - "^gruntwork-test-[a-zA-Z0-9]{6}-cloudtrail-test.*"
+      - "^gruntwork-[a-zA-Z0-9]{6}-cloudtrail-test.*"
       - "^gruntwork-test-privs3bucket-[a-zA-Z0-9]{6}"
       - "^gruntwork-terratest-[a-zA-Z0-9]{6}-logs"
       - "^houston-static-[a-zA-Z0-9]{12}.*"
@@ -26,6 +35,10 @@ s3:
       - "^gruntwork-(test-)?ecs-deploy-runner-outputs-[a-zA-Z0-9]{6}"
       - "^test-bucket-.*"
       - "^test-private-s3-bucket-.*"
+      - "^testlambdas3deploymentpackage-[a-zA-Z0-9]{6}-s3-deployment-package-test"
+      - "^testlambdas3-[a-zA-Z0-9]{6}-images-test"
+      - "^s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^redirect-s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
 
 SecretsManager:
   include:
