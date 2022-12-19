@@ -98,7 +98,8 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 
 	require.NoError(t, err)
 
-	includedClusterId := "cloud-nuke-test-include-" + strings.ToLower(util.UniqueID())
+	clusterId := strings.ToLower(util.UniqueID())
+	includedClusterId := "cloud-nuke-test-include-" + clusterId + "-" + strings.ToLower(util.UniqueID())
 	excludedClusterId := "cloud-nuke-test-" + strings.ToLower(util.UniqueID())
 
 	createTestElasticacheCluster(t, session, includedClusterId)
@@ -111,7 +112,7 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 		Elasticache: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
-					{RE: *regexp.MustCompile("^" + includedClusterId + "^")},
+					{RE: *regexp.MustCompile("^cloud-nuke-test-include-" + clusterId + ".*")},
 				},
 			},
 		},
