@@ -77,7 +77,7 @@ func createEcsEC2Cluster(t *testing.T, awsSession *session.Session, name string,
 	cluster := createEcsFargateCluster(t, awsSession, name)
 
 	ec2Svc := ec2.New(awsSession)
-	imageID, err := getAMIIdByName(ec2Svc, "amzn-ami-2018.03.g-amazon-ecs-optimized")
+	imageID, err := getAMIIdByName(ec2Svc, "amzn-ami-2018.03.20211120-amazon-ecs-optimized")
 	if err != nil {
 		assert.Fail(t, gruntworkerrors.WithStackTrace(err).Error())
 	}

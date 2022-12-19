@@ -111,7 +111,7 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 		Elasticache: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
-					{RE: *regexp.MustCompile("^cloud-nuke-test-include-.*")},
+					{RE: *regexp.MustCompile("^" + includedClusterId + "^")},
 				},
 			},
 		},
