@@ -2,9 +2,11 @@ package aws
 
 import (
 	"fmt"
-	"github.com/hashicorp/go-multierror"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -602,6 +604,12 @@ func (v Vpc) nuke() error {
 		return err
 	}
 
+	err = v.nukePeeringConnections()
+	if err != nil {
+		logging.Logger.Debugf("Error cleaning up Peering connections for VPC %s: %s", v.VpcId, err.Error())
+		return err
+	}
+
 	err = v.dissociateDhcpOptions()
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up DHCP Options for VPC %s: %s", v.VpcId, err.Error())
@@ -767,4 +775,55 @@ func GetEC2ResourceNameTagValue(tags []*ec2.Tag) (string, error) {
 		return name, nil
 	}
 	return "", fmt.Errorf("Resource does not have Name tag")
+}
+
+func (v Vpc) nukePeeringConnections() error {
+	peeringConnections, err := getAllPeeringConnections(aws.String(v.VpcId), v.svc)
+	if err != nil {
+		return err
+	}
+
+	for _, vpcPeeringConnection := range peeringConnections {
+		logging.Logger.Debugf("...deleting Peering connection %s", awsgo.StringValue(vpcPeeringConnection))
+		_, err := v.svc.DeleteVpcPeeringConnection(
+			&ec2.DeleteVpcPeeringConnectionInput{
+				VpcPeeringConnectionId: vpcPeeringConnection,
+			},
+		)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+	}
+
+	return nil
+}
+
+func getAllPeeringConnections(vpcId *string, svc ec2iface.EC2API) ([]*string, error) {
+	peeringConnectionsId := []*string{}
+	err := svc.DescribeVpcPeeringConnectionsPages(
+		&ec2.DescribeVpcPeeringConnectionsInput{
+			Filters: []*ec2.Filter{
+				{
+					Name:   awsgo.String("requester-vpc-info.vpc-id"),
+					Values: []*string{vpcId},
+				},
+			},
+		},
+		func(page *ec2.DescribeVpcPeeringConnectionsOutput, lastPage bool) bool {
+			for _, vpcPeeringConnection := range page.VpcPeeringConnections {
+				peeringConnectionsId = append(peeringConnectionsId, vpcPeeringConnection.VpcPeeringConnectionId)
+			}
+			return !lastPage
+		},
+	)
+	if err != nil {
+		awsErr, isAwsErr := err.(awserr.Error)
+		if isAwsErr && awsErr.Code() == "InvalidVpcID.NotFound" {
+			return []*string{}, nil
+		}
+
+		return nil, err
+	}
+
+	return peeringConnectionsId, nil
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -338,4 +339,57 @@ func TestShouldIncludeVpc(t *testing.T) {
 			assert.Equal(t, c.Expected, result)
 		})
 	}
+}
+
+func TestCanDeleteVPCPeering(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	awsSession, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region)},
+	)
+
+	require.NoError(t, err)
+
+	vpcId := createTestVpc(t, awsSession)
+	fakePeeringVpcId := createTestVpc(t, awsSession)
+
+	svc := ec2.New(awsSession)
+	_, err = svc.CreateVpcPeeringConnection(&ec2.CreateVpcPeeringConnectionInput{
+		PeerVpcId:  awsgo.String(fakePeeringVpcId),
+		VpcId:      awsgo.String(vpcId),
+		PeerRegion: awsgo.String(region),
+	})
+	require.NoError(t, err)
+
+	// clean up after this test
+	defer nukeAllVPCs(awsSession, []string{vpcId}, []Vpc{
+		{Region: region, VpcId: vpcId, svc: svc},
+		{Region: region, VpcId: fakePeeringVpcId, svc: svc},
+	})
+
+	result, err := svc.DescribeVpcs(&ec2.DescribeVpcsInput{
+		VpcIds: awsgo.StringSlice([]string{vpcId, fakePeeringVpcId}),
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 2, len(result.Vpcs))
+
+	nukeAllVPCs(awsSession, []string{vpcId}, []Vpc{
+		{Region: region, VpcId: vpcId, svc: svc},
+		{Region: region, VpcId: fakePeeringVpcId, svc: svc},
+	})
+
+	result, err = svc.DescribeVpcs(&ec2.DescribeVpcsInput{
+		VpcIds: awsgo.StringSlice([]string{vpcId}),
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 0, len(result.Vpcs))
+
+	peeringConnections, err := getAllPeeringConnections(aws.String(vpcId), svc)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(peeringConnections))
 }
