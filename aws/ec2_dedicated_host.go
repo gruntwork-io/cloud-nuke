@@ -14,7 +14,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllEc2DedicatedHosts(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllEc2DedicatedHosts(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 	var hostIds []*string
 

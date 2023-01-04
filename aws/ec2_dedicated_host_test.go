@@ -39,14 +39,14 @@ func TestListDedicatedHosts(t *testing.T) {
 	defer nukeAllEc2DedicatedHosts(session, createdHostIds)
 
 	// test if created allocation matches get response
-	hostIds, err := getAllEc2DedicatedHosts(session, region, time.Now(), config.Config{})
+	hostIds, err := getAllEc2DedicatedHosts(session, time.Now(), config.Config{})
 
 	require.NoError(t, err)
 	assert.Equal(t, aws.StringValueSlice(hostIds), aws.StringValueSlice(createdHostIds))
 
 	//test time shift
 	olderThan := time.Now().Add(-1 * time.Hour)
-	hostIds, err = getAllEc2DedicatedHosts(session, region, olderThan, config.Config{})
+	hostIds, err = getAllEc2DedicatedHosts(session, olderThan, config.Config{})
 	require.NoError(t, err)
 	assert.NotEqual(t, aws.StringValueSlice(hostIds), aws.StringValueSlice(createdHostIds))
 }
@@ -70,7 +70,7 @@ func TestNukeDedicatedHosts(t *testing.T) {
 	err = nukeAllEc2DedicatedHosts(session, createdHostIds)
 	require.NoError(t, err)
 
-	hostIds, err := getAllEc2DedicatedHosts(session, region, time.Now(), config.Config{})
+	hostIds, err := getAllEc2DedicatedHosts(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(hostIds), createdHostIds)
 }

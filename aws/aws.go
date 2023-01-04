@@ -466,7 +466,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 Dedicated Hosts
 		ec2DedicatedHosts := EC2DedicatedHosts{}
 		if IsNukeable(ec2DedicatedHosts.ResourceName(), resourceTypes) {
-			hostIds, err := getAllEc2DedicatedHosts(cloudNukeSession, region, excludeAfter, configObj)
+			hostIds, err := getAllEc2DedicatedHosts(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
