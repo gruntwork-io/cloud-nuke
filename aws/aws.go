@@ -463,6 +463,26 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EC2 Instances
 
+		// EC2 Dedicated Hosts
+		ec2DedicatedHosts := EC2DedicatedHosts{}
+		if IsNukeable(ec2DedicatedHosts.ResourceName(), resourceTypes) {
+			hostIds, err := getAllEc2DedicatedHosts(cloudNukeSession, region, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve EC2 dedicated hosts",
+					ResourceType: ec2DedicatedHosts.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(hostIds) > 0 {
+				ec2DedicatedHosts.HostIds = awsgo.StringValueSlice(hostIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2DedicatedHosts)
+			}
+		}
+
+		// End EC2 Dedicated Hosts
+
 		// EBS Volumes
 		ebsVolumes := EBSVolumes{}
 		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
@@ -1182,6 +1202,7 @@ func ListResourceTypes() []string {
 		TransitGatewaysRouteTables{}.ResourceName(),
 		TransitGateways{}.ResourceName(),
 		EC2Instances{}.ResourceName(),
+		EC2DedicatedHosts{}.ResourceName(),
 		EBSVolumes{}.ResourceName(),
 		EIPAddresses{}.ResourceName(),
 		AMIs{}.ResourceName(),
