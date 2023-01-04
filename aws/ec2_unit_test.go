@@ -112,6 +112,7 @@ func TestNukeMockVpcs(t *testing.T) {
 		}
 		detachInternetGatewayInput := getDetachInternetGatewayInput(vpc.VpcId, ExampleInternetGatewayId)
 		deleteInternetGatewayInput := getDeleteInternetGatewayInput(ExampleInternetGatewayId)
+		egressOnlyInternetGatewaysInput := getDescribeEgressOnlyInternetGatewaysInput()
 
 		describeEndpointsInput := getDescribeEndpointsInput(vpc.VpcId)
 		describeEndpointsOutput := getDescribeEndpointsOutput([]string{ExampleEndpointId})
@@ -154,7 +155,7 @@ func TestNukeMockVpcs(t *testing.T) {
 		describeSecurityGroupRulesFunc := func(input *ec2.DescribeSecurityGroupRulesInput) (*ec2.DescribeSecurityGroupRulesOutput, error) {
 			return describeSecurityGroupRulesOutput, nil
 		}
-		revokeSecurityGroupEgressInput := getRevokeSecurityGroupEgressInput(ExampleSecurityGroupId ,ExampleSecurityGroupRuleId)
+		revokeSecurityGroupEgressInput := getRevokeSecurityGroupEgressInput(ExampleSecurityGroupId, ExampleSecurityGroupRuleId)
 		revokeSecurityGroupIngressInput := getRevokeSecurityGroupIngressInput(ExampleSecurityGroupId, ExampleSecurityGroupRuleId)
 
 		describeSecurityGroupsInput := getDescribeSecurityGroupsInput(vpc.VpcId)
@@ -170,6 +171,7 @@ func TestNukeMockVpcs(t *testing.T) {
 			mockEC2.EXPECT().DescribeInternetGateways(describeInternetGatewaysInput).DoAndReturn(describeInternetGatewaysFunc),
 			mockEC2.EXPECT().DetachInternetGateway(detachInternetGatewayInput),
 			mockEC2.EXPECT().DeleteInternetGateway(deleteInternetGatewayInput),
+			mockEC2.EXPECT().DescribeEgressOnlyInternetGatewaysPages(egressOnlyInternetGatewaysInput, gomock.Any()),
 			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsInput).DoAndReturn(describeEndpointsFunc),
 			mockEC2.EXPECT().DeleteVpcEndpoints(deleteEndpointInput),
 			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsWaitForDeletionInput).DoAndReturn(describeEndpointsWaitForDeletionFunc),
