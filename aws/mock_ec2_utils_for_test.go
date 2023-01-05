@@ -52,6 +52,24 @@ func getDescribeEgressOnlyInternetGatewaysInput() *ec2.DescribeEgressOnlyInterne
 	return &ec2.DescribeEgressOnlyInternetGatewaysInput{}
 }
 
+func getDescribeNetworkInterfacesInput(vpcId string) *ec2.DescribeNetworkInterfacesInput {
+	return &ec2.DescribeNetworkInterfacesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("vpc-id"),
+				Values: awsgo.StringSlice([]string{vpcId}),
+			},
+		},
+	}
+}
+
+func getAssociateDhcpOptionsInput(vpcId string) *ec2.AssociateDhcpOptionsInput {
+	return &ec2.AssociateDhcpOptionsInput{
+		DhcpOptionsId: awsgo.String("default"),
+		VpcId:         awsgo.String(vpcId),
+	}
+}
+
 func getDescribeSubnetsInput(vpcId string) *ec2.DescribeSubnetsInput {
 	return &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
