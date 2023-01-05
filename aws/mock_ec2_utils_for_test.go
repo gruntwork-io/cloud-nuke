@@ -48,6 +48,28 @@ func getDeleteInternetGatewayInput(gatewayId string) *ec2.DeleteInternetGatewayI
 	}
 }
 
+func getDescribeEgressOnlyInternetGatewaysInput() *ec2.DescribeEgressOnlyInternetGatewaysInput {
+	return &ec2.DescribeEgressOnlyInternetGatewaysInput{}
+}
+
+func getDescribeNetworkInterfacesInput(vpcId string) *ec2.DescribeNetworkInterfacesInput {
+	return &ec2.DescribeNetworkInterfacesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("vpc-id"),
+				Values: awsgo.StringSlice([]string{vpcId}),
+			},
+		},
+	}
+}
+
+func getAssociateDhcpOptionsInput(vpcId string) *ec2.AssociateDhcpOptionsInput {
+	return &ec2.AssociateDhcpOptionsInput{
+		DhcpOptionsId: awsgo.String("default"),
+		VpcId:         awsgo.String(vpcId),
+	}
+}
+
 func getDescribeSubnetsInput(vpcId string) *ec2.DescribeSubnetsInput {
 	return &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
@@ -142,11 +164,11 @@ func getDescribeSecurityGroupRulesOutput(securityGroupRuleIds []string) *ec2.Des
 	var securityGroupRules []*ec2.SecurityGroupRule
 	for _, securityGroupRule := range securityGroupRuleIds {
 		securityGroupRules = append(securityGroupRules, &ec2.SecurityGroupRule{
-			IsEgress: awsgo.Bool(true), // egress rule
+			IsEgress:            awsgo.Bool(true), // egress rule
 			SecurityGroupRuleId: awsgo.String(securityGroupRule),
 		})
 		securityGroupRules = append(securityGroupRules, &ec2.SecurityGroupRule{
-			IsEgress: awsgo.Bool(false), // ingress rule
+			IsEgress:            awsgo.Bool(false), // ingress rule
 			SecurityGroupRuleId: awsgo.String(securityGroupRule),
 		})
 	}
@@ -155,14 +177,14 @@ func getDescribeSecurityGroupRulesOutput(securityGroupRuleIds []string) *ec2.Des
 
 func getRevokeSecurityGroupEgressInput(securityGroupId string, securityGroupRuleId string) *ec2.RevokeSecurityGroupEgressInput {
 	return &ec2.RevokeSecurityGroupEgressInput{
-		GroupId: awsgo.String(securityGroupId),
+		GroupId:              awsgo.String(securityGroupId),
 		SecurityGroupRuleIds: []*string{awsgo.String(securityGroupRuleId)},
 	}
 }
 
 func getRevokeSecurityGroupIngressInput(securityGroupId string, securityGroupRuleId string) *ec2.RevokeSecurityGroupIngressInput {
 	return &ec2.RevokeSecurityGroupIngressInput{
-		GroupId: awsgo.String(securityGroupId),
+		GroupId:              awsgo.String(securityGroupId),
 		SecurityGroupRuleIds: []*string{awsgo.String(securityGroupRuleId)},
 	}
 }

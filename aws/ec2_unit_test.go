@@ -112,7 +112,8 @@ func TestNukeMockVpcs(t *testing.T) {
 		}
 		detachInternetGatewayInput := getDetachInternetGatewayInput(vpc.VpcId, ExampleInternetGatewayId)
 		deleteInternetGatewayInput := getDeleteInternetGatewayInput(ExampleInternetGatewayId)
-
+		egressOnlyInternetGatewaysInput := getDescribeEgressOnlyInternetGatewaysInput()
+		describeNetworkInterfacesInput := getDescribeNetworkInterfacesInput(vpc.VpcId)
 		describeEndpointsInput := getDescribeEndpointsInput(vpc.VpcId)
 		describeEndpointsOutput := getDescribeEndpointsOutput([]string{ExampleEndpointId})
 		describeEndpointsFunc := func(input *ec2.DescribeVpcEndpointsInput) (*ec2.DescribeVpcEndpointsOutput, error) {
@@ -154,7 +155,8 @@ func TestNukeMockVpcs(t *testing.T) {
 		describeSecurityGroupRulesFunc := func(input *ec2.DescribeSecurityGroupRulesInput) (*ec2.DescribeSecurityGroupRulesOutput, error) {
 			return describeSecurityGroupRulesOutput, nil
 		}
-		revokeSecurityGroupEgressInput := getRevokeSecurityGroupEgressInput(ExampleSecurityGroupId ,ExampleSecurityGroupRuleId)
+		revokeSecurityGroupEgressInput := getRevokeSecurityGroupEgressInput(ExampleSecurityGroupId, ExampleSecurityGroupRuleId)
+		associateDhcpOptionsInput := getAssociateDhcpOptionsInput(vpc.VpcId)
 		revokeSecurityGroupIngressInput := getRevokeSecurityGroupIngressInput(ExampleSecurityGroupId, ExampleSecurityGroupRuleId)
 
 		describeSecurityGroupsInput := getDescribeSecurityGroupsInput(vpc.VpcId)
@@ -170,6 +172,8 @@ func TestNukeMockVpcs(t *testing.T) {
 			mockEC2.EXPECT().DescribeInternetGateways(describeInternetGatewaysInput).DoAndReturn(describeInternetGatewaysFunc),
 			mockEC2.EXPECT().DetachInternetGateway(detachInternetGatewayInput),
 			mockEC2.EXPECT().DeleteInternetGateway(deleteInternetGatewayInput),
+			mockEC2.EXPECT().DescribeEgressOnlyInternetGatewaysPages(egressOnlyInternetGatewaysInput, gomock.Any()),
+			mockEC2.EXPECT().DescribeNetworkInterfacesPages(describeNetworkInterfacesInput, gomock.Any()),
 			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsInput).DoAndReturn(describeEndpointsFunc),
 			mockEC2.EXPECT().DeleteVpcEndpoints(deleteEndpointInput),
 			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsWaitForDeletionInput).DoAndReturn(describeEndpointsWaitForDeletionFunc),
@@ -186,6 +190,7 @@ func TestNukeMockVpcs(t *testing.T) {
 			mockEC2.EXPECT().RevokeSecurityGroupEgress(revokeSecurityGroupEgressInput),
 			mockEC2.EXPECT().RevokeSecurityGroupIngress(revokeSecurityGroupIngressInput),
 			mockEC2.EXPECT().DeleteSecurityGroup(deleteSecurityGroupInput),
+			mockEC2.EXPECT().AssociateDhcpOptions(associateDhcpOptionsInput),
 			mockEC2.EXPECT().DeleteVpc(deleteVpcInput),
 		)
 	}
