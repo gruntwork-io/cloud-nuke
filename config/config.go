@@ -34,6 +34,7 @@ type Config struct {
 	ElasticIP             ResourceType `yaml:"ElasticIP"`
 	EC2                   ResourceType `yaml:"EC2"`
 	EC2KeyPairs           ResourceType `yaml:"EC2KeyPairs"`
+	EC2DedicatedHosts     ResourceType `yaml:"EC2DedicatedHosts"`
 	CloudWatchLogGroup    ResourceType `yaml:"CloudWatchLogGroup"`
 	KMSCustomerKeys       ResourceType `yaml:"KMSCustomerKeys"`
 	EKSCluster            ResourceType `yaml:"EKSCluster"`

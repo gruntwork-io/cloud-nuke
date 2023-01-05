@@ -370,6 +370,9 @@ The following resources support the Config file:
 - EC2 Instances
     - Resource type: `ec2`
     - Config key: `EC2`
+- EC2 Dedicated Hosts
+    - Resource type: `ec2-dedicated-hosts`
+    - Config key: `EC2DedicatedHosts`
 - EC2 Key Pairs
   - Resource type: `ec2-keypairs`
   - Config key: `EC2KeyPairs`
