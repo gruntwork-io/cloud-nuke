@@ -20,7 +20,7 @@ func getAllLocalIamPolicies(session *session.Session, excludeAfter time.Time, co
 	var allIamPolicies []*string
 
 	err := svc.ListPoliciesPages(
-		&iam.ListPoliciesInput{Scope: aws.String(iam.PolicyScopeTypeAll)},
+		&iam.ListPoliciesInput{Scope: aws.String(iam.PolicyScopeTypeLocal)},
 		func(page *iam.ListPoliciesOutput, lastPage bool) bool {
 			for _, policy := range page.Policies {
 				if shouldIncludeIamPolicy(policy, excludeAfter, configObj) {
