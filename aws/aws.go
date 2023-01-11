@@ -1114,6 +1114,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Users
 
+		//IAM Groups
+		iamGroups := IAMGroups{}
+		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
+			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(groupNames) > 0 {
+				iamGroups.GroupNames = awsgo.StringValueSlice(groupNames)
+				globalResources.Resources = append(globalResources.Resources, iamGroups)
+			}
+		}
+		//END IAM Groups
+
 		//IAM Policies
 		iamPolicies := IAMPolicies{}
 		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
@@ -1128,20 +1142,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		//End IAM Policies
 
-		//IAM Groups
-		iamGroups := IAMGroups{}
-		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
-			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-			if len(groupNames) > 0 {
-				iamGroups.GroupNames = awsgo.StringValueSlice(groupNames)
-				globalResources.Resources = append(globalResources.Resources, iamGroups)
-			}
-		}
-		//END IAM Groups
-	
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
 		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
