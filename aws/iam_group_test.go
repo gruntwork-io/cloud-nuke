@@ -103,6 +103,26 @@ func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName s
 		GroupName: awsgo.String(groupName),
 	}
 	_, err = svc.AttachGroupPolicy(groupPolicyInput)
+	require.NoError(t, err)
+
+	// Add inline policy to Group
+	putGroupPolicyInput := &iam.PutGroupPolicyInput{
+		GroupName: &groupName,
+		PolicyDocument: awsgo.String(`{
+			"Version": "2012-10-17",
+			"Statement": [
+					{
+							"Sid": "VisualEditor0",
+							"Effect": "Allow",
+							"Action": "ec2:DescribeInstances",
+							"Resource": "*"
+					}
+			]
+		}`),
+		PolicyName: awsgo.String("inline-policy-" + groupName),
+	}
+	_, err = svc.PutGroupPolicy(putGroupPolicyInput)
+	require.NoError(t, err)
 
 	info := &groupInfo{
 		GroupName: &groupName,

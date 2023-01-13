@@ -117,6 +117,26 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 		_, err = svc.DetachGroupPolicy(unlinkPolicyInput)
 	}
 
+	// Detach any inline policies on the group
+	allInlinePolicyNames := []*string{}
+	err = svc.ListGroupPoliciesPages(&iam.ListGroupPoliciesInput{GroupName: groupName},
+		func(page *iam.ListGroupPoliciesOutput, lastPage bool) bool {
+			logging.Logger.Info("ListGroupPolicies response page: ", page)
+			for _, policyName := range page.PolicyNames {
+				allInlinePolicyNames = append(allInlinePolicyNames, policyName)
+			}
+			return !lastPage
+		},
+	)
+
+	logging.Logger.Info("inline policies: ", allInlinePolicyNames)
+	for _, policyName := range allInlinePolicyNames {
+		_, err = svc.DeleteGroupPolicy(&iam.DeleteGroupPolicyInput{
+			GroupName:  groupName,
+			PolicyName: policyName,
+		})
+	}
+
 	//Delete the group
 	_, err = svc.DeleteGroup(&iam.DeleteGroupInput{
 		GroupName: groupName,
