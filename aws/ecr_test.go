@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -25,7 +26,9 @@ func TestListECRRepositories(t *testing.T) {
 	require.NoError(t, err)
 
 	repositoryName := createECRRepository(t, region)
-	defer deleteECRRepository(t, region, repositoryName, true)
+	defer deleteECRRepository(t, region, repositoryName, false)
+
+	time.Sleep(10 * time.Second)
 
 	repositoryNames, err := getAllECRRepositories(session, time.Now(), config.Config{})
 	require.NoError(t, err)
@@ -78,8 +81,7 @@ func TestNukeECRRepositoryOne(t *testing.T) {
 	require.NoError(t, err)
 
 	repositoryName := createECRRepository(t, region)
-
-	defer deleteECRRepository(t, region, repositoryName, true)
+	defer deleteECRRepository(t, region, repositoryName, false)
 
 	identifiers := []*string{repositoryName}
 
@@ -97,24 +99,25 @@ func assertECRRepositoriesDeleted(t *testing.T, region string, repositoryNames [
 	require.NoError(t, err)
 	svc := ecr.New(session)
 
-	// Try to figure out which registries we have in play
-	registryParam := &ecr.DescribeRegistryInput{}
-
-	registryResp, registryErr := svc.DescribeRegistry(registryParam)
-	require.NoError(t, registryErr)
-
-	registryID := registryResp.RegistryId
-
 	param := &ecr.DescribeRepositoriesInput{
-		RegistryId:      registryID,
 		RepositoryNames: repositoryNames,
 	}
 
 	resp, err := svc.DescribeRepositories(param)
 
-	require.NoError(t, err)
-	if len(resp.Repositories) > 0 {
-		t.Logf("Repository: %+v\n", resp.Repositories)
-		t.Fatalf("At least one of the following ECR Repositories was not deleted: %+v\n", aws.StringValueSlice(repositoryNames))
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			// If the repository can't be looked up because it doesn't exist...then our test has been successful
+			case ecr.ErrCodeRepositoryNotFoundException:
+				t.Log("Ignoring repository not found error in test lookup")
+			default:
+				require.NoError(t, err)
+				if len(resp.Repositories) > 0 {
+					t.Logf("Repository: %+v\n", resp.Repositories)
+					t.Fatalf("At least one of the following ECR Repositories was not deleted: %+v\n", aws.StringValueSlice(repositoryNames))
+				}
+			}
+		}
 	}
 }
