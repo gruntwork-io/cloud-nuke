@@ -16,12 +16,12 @@ func getAllECRRepositories(session *session.Session, excludeAfter time.Time, con
 
 	svc := ecr.New(session)
 
-	repositoryArns := []string{}
+	repositoryNames := []string{}
 
 	paginator := func(output *ecr.DescribeRepositoriesOutput, lastPage bool) bool {
 		for _, repository := range output.Repositories {
 			if shouldIncludeECRRepository(repository, excludeAfter, configObj) {
-				repositoryArns = append(repositoryArns, aws.StringValue(repository.RepositoryArn))
+				repositoryNames = append(repositoryNames, aws.StringValue(repository.RepositoryName))
 			}
 		}
 		return !lastPage
@@ -35,7 +35,7 @@ func getAllECRRepositories(session *session.Session, excludeAfter time.Time, con
 
 	}
 
-	return repositoryArns, nil
+	return repositoryNames, nil
 }
 
 func shouldIncludeECRRepository(repository *ecr.Repository, excludeAfter time.Time, configObj config.Config) bool {
@@ -57,28 +57,28 @@ func shouldIncludeECRRepository(repository *ecr.Repository, excludeAfter time.Ti
 
 }
 
-func nukeAllECRRepositories(session *session.Session, arns []string) error {
+func nukeAllECRRepositories(session *session.Session, repositoryNames []string) error {
 
 	svc := ecr.New(session)
 
-	if len(arns) == 0 {
+	if len(repositoryNames) == 0 {
 		logging.Logger.Debugf("No ECR repositories to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
 	var deletedArns []*string
 
-	for _, arn := range arns {
+	for _, repositoryName := range repositoryNames {
 		params := &ecr.DeleteRepositoryInput{
-			Force:      aws.Bool(true),
-			RegistryId: aws.String(arn),
+			Force:          aws.Bool(true),
+			RepositoryName: aws.String(repositoryName),
 		}
 
 		_, err := svc.DeleteRepository(params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   arn,
+			Identifier:   repositoryName,
 			ResourceType: "ECR Repository",
 			Error:        err,
 		}
@@ -88,8 +88,8 @@ func nukeAllECRRepositories(session *session.Session, arns []string) error {
 			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 
-			deletedArns = append(deletedArns, aws.String(arn))
-			logging.Logger.Debugf("Deleted ECR Repository: %s", arn)
+			deletedArns = append(deletedArns, aws.String(repositoryName))
+			logging.Logger.Debugf("Deleted ECR Repository: %s", repositoryName)
 		}
 	}
 
