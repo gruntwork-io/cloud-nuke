@@ -1091,7 +1091,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecrRepositories)
 			}
 		}
-		// End Cloudtrail Trails
+		// End ECR Repositories
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
@@ -1257,6 +1257,7 @@ func ListResourceTypes() []string {
 		SNSTopic{}.ResourceName(),
 		CloudtrailTrail{}.ResourceName(),
 		EC2KeyPairs{}.ResourceName(),
+		ECR{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
