@@ -93,6 +93,30 @@ func TestNukeECRRepositoryOne(t *testing.T) {
 	assertECRRepositoriesDeleted(t, region, identifiers)
 }
 
+func TestNukeECRRepositoryMoreThanOne(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	repositoryNames := []*string{}
+	for i := 0; i < 3; i++ {
+		repositoryName := createECRRepository(t, region)
+		defer deleteECRRepository(t, region, repositoryName, false)
+		repositoryNames = append(repositoryNames, repositoryName)
+	}
+
+	require.NoError(
+		t,
+		nukeAllECRRepositories(session, aws.StringValueSlice(repositoryNames)),
+	)
+
+	assertECRRepositoriesDeleted(t, region, repositoryNames)
+}
+
 func assertECRRepositoriesDeleted(t *testing.T, region string, repositoryNames []*string) {
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
