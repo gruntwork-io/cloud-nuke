@@ -13,7 +13,6 @@ import (
 )
 
 func getAllECRRepositories(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
-
 	svc := ecr.New(session)
 
 	repositoryNames := []string{}
@@ -58,7 +57,6 @@ func shouldIncludeECRRepository(repository *ecr.Repository, excludeAfter time.Ti
 }
 
 func nukeAllECRRepositories(session *session.Session, repositoryNames []string) error {
-
 	svc := ecr.New(session)
 
 	if len(repositoryNames) == 0 {

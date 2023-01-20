@@ -118,7 +118,6 @@ func TestNukeECRRepositoryMoreThanOne(t *testing.T) {
 }
 
 func assertECRRepositoriesDeleted(t *testing.T, region string, repositoryNames []*string) {
-
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 	svc := ecr.New(session)
