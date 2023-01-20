@@ -1074,6 +1074,25 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Cloudtrail Trails
 
+		// ECR Repositories
+		ecrRepositories := ECR{}
+		if IsNukeable(ecrRepositories.ResourceName(), resourceTypes) {
+			ecrRepositoryArns, err := getAllECRRepositories(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ECR repositories",
+					ResourceType: ecrRepositories.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(ecrRepositoryArns) > 0 {
+				ecrRepositories.RepositoryNames = ecrRepositoryArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecrRepositories)
+			}
+		}
+		// End ECR Repositories
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -1238,6 +1257,7 @@ func ListResourceTypes() []string {
 		SNSTopic{}.ResourceName(),
 		CloudtrailTrail{}.ResourceName(),
 		EC2KeyPairs{}.ResourceName(),
+		ECR{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

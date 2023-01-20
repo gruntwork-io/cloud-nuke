@@ -53,6 +53,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all Elastic FileSystems (efs) in an AWS account
 - Inspecting and deleting all SNS Topics in an AWS account
 - Inspecting and deleting all CloudTrail Trails in an AWS account
+- Inspecting and deleting all ECR Repositories in an AWS account
 
 ### BEWARE!
 
@@ -392,7 +393,9 @@ The following resources support the Config file:
 - Elastic FileSystems (efs) 
   - Resource type: `efs`
   - Config key: `ElasticFileSystem`
-
+- ECR Repositories
+  - Resource type: `ecr`
+  - Config key: `ECRRepository`
 
 
 
@@ -516,11 +519,12 @@ To find out what we options are supported in the config file today, consult this
 | eks                          | none  | ✅           | none | none       |
 | kinesis-stream               | none  | ✅           | none | none       |
 | efs                          | none  | ✅           | none | none       |
-| acmpca                       | none  | none        | none | none       |
+| acmpca                       | none  | none         | none | none       |
 | iam role                     | none  | ✅           | none | none       |
 | iam policy                   | none  | ✅           | none | none       |
 | sagemaker-notebook-instances | none  | ✅           | none | none       |
-| ... (more to come)           | none  | none        | none | none       |
+| ecr                          | none  | ✅           | none | none       |
+| ... (more to come)           | none  | none         | none | none       |
 
 
 ### Log level
