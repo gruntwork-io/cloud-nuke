@@ -6,7 +6,7 @@ import (
 )
 
 type ECR struct {
-	Arns []string
+	RepositoryNames []string
 }
 
 func (registry ECR) ResourceName() string {
@@ -14,7 +14,7 @@ func (registry ECR) ResourceName() string {
 }
 
 func (registry ECR) ResourceIdentifiers() []string {
-	return registry.Arns
+	return registry.RepositoryNames
 }
 
 func (registry ECR) MaxBatchSize() int {

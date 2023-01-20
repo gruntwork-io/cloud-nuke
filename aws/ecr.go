@@ -66,7 +66,7 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 		return nil
 	}
 
-	var deletedArns []*string
+	var deletedNames []*string
 
 	for _, repositoryName := range repositoryNames {
 		params := &ecr.DeleteRepositoryInput{
@@ -88,12 +88,12 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 
-			deletedArns = append(deletedArns, aws.String(repositoryName))
+			deletedNames = append(deletedNames, aws.String(repositoryName))
 			logging.Logger.Debugf("Deleted ECR Repository: %s", repositoryName)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedArns), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), *session.Config.Region)
 
 	return nil
 

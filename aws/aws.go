@@ -1087,7 +1087,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				report.RecordError(ge)
 			}
 			if len(ecrRepositoryArns) > 0 {
-				ecrRepositories.Arns = ecrRepositoryArns
+				ecrRepositories.RepositoryNames = ecrRepositoryArns
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecrRepositories)
 			}
 		}
