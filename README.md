@@ -4,33 +4,56 @@
 
 This repo contains a CLI tool to delete all resources in an AWS account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
 
+In addition, cloud-nuke offers non-destructive inspecting functionality that can either be called via the command-line interface, or consumed as library methods, for scripting purposes.
+
 The currently supported functionality includes:
 
 ## AWS
 
-- Deleting all ACM Private CA in an AWS account
-- Deleting all Auto scaling groups in an AWS account - except for scaling groups tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all Elastic Load Balancers (Classic and V2) in an AWS account - except for balancers tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all Transit Gateways in an AWS account
-- Deleting all EBS Volumes in an AWS account - except for volumes tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all unprotected EC2 instances in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all AMIs in an AWS account
-- Deleting all Snapshots in an AWS account - except for snapshots tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all Elastic IPs in an AWS account - except for IPs tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all Launch Configurations in an AWS account
-- Deleting all ECS services in an AWS account
-- Deleting all ECS clusters in an AWS account
-- Deleting all EKS clusters in an AWS account - except for clusters tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all RDS DB instances in an AWS account - except for instances tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all Lambda Functions in an AWS account
-- Deleting all SQS queues in an AWS account
-- Deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all default VPCs in an AWS account
-- Deleting all IAM users in an AWS account - except for users tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all Secrets Manager Secrets in an AWS account
-- Deleting all NAT Gateways in an AWS account - except for gateways tagged with Key=cloud-nuke-excluded Value=true
-- Deleting all IAM Access Analyzers in an AWS account
+- Inspecting and deleting all ACM Private CA in an AWS account
+- Inspecting and deleting all Auto scaling groups in an AWS account
+- Inspecting and deleting all Elastic Load Balancers (v1 and v2) in an AWS account
+- Inspecting and deleting all Transit Gateways in an AWS account
+- Inspecting and deleting all EBS Volumes in an AWS account
+- Inspecting and deleting all unprotected EC2 instances in an AWS account
+- Inspecting and deleting all AMIs in an AWS account
+- Inspecting and deleting all Snapshots in an AWS account
+- Inspecting and deleting all Elastic IPs in an AWS account
+- Inspecting and deleting all Elasticache clusters in an AWS account
+- Inspecting and deleting all Launch Configurations in an AWS account
+- Inspecting and deleting all ECS services in an AWS account
+- Inspecting and deleting all ECS clusters in an AWS account
+- Inspecting and deleting all EKS clusters in an AWS account
+- Inspecting and deleting all RDS DB instances in an AWS account
+- Inspecting and deleting all Lambda Functions in an AWS account
+- Inspecting and deleting all SQS queues in an AWS account
+- Inspecting and deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
+- Inspecting and deleting all default VPCs in an AWS account
+- Deleting VPCs in an AWS Account (along with any dependency resources such as ENIs, Egress Only Gateways, and Security Groups. except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
+- Inspecting and deleting all IAM users in an AWS account
+- Inspecting and deleting all IAM roles (and any associated EC2 instance profiles) in an AWS account
+- Inspecting and deleting all IAM groups in an AWS account
+- Inspecting and deleting all IAM policies in an AWS account
+- Inspecting and deleting all customer managed IAM policies in an AWS account
+- Inspecting and deleting all Secrets Manager Secrets in an AWS account
+- Inspecting and deleting all NAT Gateways in an AWS account
+- Inspecting and deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
+- Inspecting and deleting all DynamoDB tables in an AWS account
+- Inspecting and deleting all CloudWatch Dashboards in an AWS account
+- Inspecting and deleting all OpenSearch Domains in an AWS account
+- Inspecting and deleting all IAM OpenID Connect Providers
+- Inspecting and deleting all Customer managed keys (and associated key aliases) from Key Management Service in an AWS account
+- Inspecting and deleting all CloudWatch Log Groups in an AWS Account
+- Inspecting and deleting all GuardDuty Detectors in an AWS Account
+- Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
+- Inspecting and deleting all SageMaker Notebook Instances in an AWS account
+- Inspecting and deleting all Kinesis Streams in an AWS account
+- Inspecting and deleting all API Gateways (v1 and v2) in an AWS account
+- Inspecting and deleting all Elastic FileSystems (efs) in an AWS account
+- Inspecting and deleting all SNS Topics in an AWS account
+- Inspecting and deleting all CloudTrail Trails in an AWS account
+- Inspecting and deleting all ECR Repositories in an AWS account
 
 ### BEWARE!
 
@@ -61,27 +84,58 @@ Simply running `cloud-nuke aws` will start the process of cleaning up your cloud
 
 In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will remove the default VPCs in each region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note that the default security group itself is unable to be deleted.
 
-### Nuke resources in certain regions
 
-When using `cloud-nuke aws`, you can use the `--region` flag to target resources in certain regions for deletion. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions:
+### Nuke or inspect resources using AWS Profile
+
+When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can pass in the `AWS_PROFILE` env variable to target resources in certain regions for a specific AWS account. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions in the `gruntwork-dev` AWS account:
+
+```shell
+AWS_PROFILE=gruntwork-dev cloud-nuke aws --region ap-south-1 --region ap-south-2
+```
+
+Similarly, the following command will inspect resources only in `us-east-1`
+```shell
+AWS_PROFILE=gruntwork-dev cloud-nuke inspect-aws --region us-east-1
+```
+
+### Nuke or inspect resources in certain regions
+
+When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can use the `--region` flag to target resources in certain regions. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
 cloud-nuke aws --region ap-south-1 --region ap-south-2
 ```
 
-Including regions is available within both `cloud-nuke aws` and with `cloud-nuke defaults-aws`.
+Similarly, the following command will inspect resources only in `us-east-1`
+```shell
+cloud-nuke inspect-aws --region us-east-1
+```
+
+Including regions is available within:
+- `cloud-nuke aws`
+- `cloud-nuke defaults-aws`
+- `cloud-nuke inspect-aws`
 
 ### Exclude resources in certain regions
 
-When using `cloud-nuke aws`, you can use the `--exclude-region` flag to exclude resources in certain regions from being deleted. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
+When using `cloud-nuke aws` or `cloud-nuke inspect-aws`, you can use the `--exclude-region` flag to exclude resources in certain regions from being deleted or inspected. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
 cloud-nuke aws --exclude-region ap-south-1 --exclude-region ap-south-2
 ```
 
+Similarly, the following command will not inspect resources in the `us-west-1` region:
+
+```shell
+cloud-nuke inspect-aws --exclude-region us-west-1
+```
+
 `--region` and `--exclude-region` flags cannot be specified together i.e. they are mutually exclusive.
 
-Excluding regions is available within both `cloud-nuke aws` and with `cloud-nuke defaults-aws`.
+Excluding regions is available within:
+- `cloud-nuke aws`
+- `cloud-nuke defaults-aws`
+- `cloud-nuke inspect-aws`
 
 ### Excluding Resources by Age
 
@@ -91,6 +145,11 @@ You can use the `--older-than` flag to only nuke resources that were created bef
 cloud-nuke aws --older-than 24h
 ```
 
+Excluding resources by age is available within:
+- `cloud-nuke aws`
+- `cloud-nuke inspect-aws`
+
+
 ### List supported resource types
 
 You can use the `--list-resource-types` flag to list resource types whose termination is currently supported:
@@ -99,7 +158,12 @@ You can use the `--list-resource-types` flag to list resource types whose termin
 cloud-nuke aws --list-resource-types
 ```
 
-### Terminate specific resource types
+Listing supported resource types is available within:
+- `cloud-nuke aws`
+- `cloud-nuke inspect-aws`
+
+
+### Terminate or inspect specific resource types
 
 If you want to target specific resource types (e.g ec2, ami, etc.) instead of all the supported resources you can
 do so by specifying them through the `--resource-type` flag:
@@ -111,6 +175,16 @@ cloud-nuke aws --resource-type ec2 --resource-type ami
 will search and target only `ec2` and `ami` resources. The specified resource type should be a valid resource type
 i.e. it should be present in the `--list-resource-types` output. Using `--resource-type` also speeds up search because
 we are searching only for specific resource types.
+
+Similarly, the following command will inspect only ec2 instances:
+
+```shell
+cloud-nuke inspect-aws --resource-type ec2
+```
+
+Specifying target resource types is available within:
+- `cloud-nuke aws`
+- `cloud-nuke inspect-aws`
 
 ### Exclude terminating specific resource types
 
@@ -125,6 +199,10 @@ This will terminate all resource types other than S3 and EC2.
 
 `--resource-type` and `--exclude-resource-type` flags cannot be specified together i.e. they are mutually exclusive.
 
+Specifying resource types to exclude is available within:
+- `cloud-nuke aws`
+- `cloud-nuke inspect-aws`
+
 ### Dry run mode
 
 If you want to check what resources are going to be targeted without actually terminating them, you can use the
@@ -133,6 +211,92 @@ If you want to check what resources are going to be targeted without actually te
 ```shell
 cloud-nuke aws --resource-type ec2 --dry-run
 ```
+
+Dry run mode is only available within:
+- `cloud-nuke aws`
+
+
+
+### Using cloud-nuke as a library
+
+You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources.
+
+```golang
+
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/externalcreds"
+)
+
+func main() {
+	// You can scan multiple regions at once, or just pass a single region for speed
+	targetRegions := []string{"us-east-1", "us-west-1", "us-west-2"}
+	excludeRegions := []string{}
+	// You can simultaneously target multiple resource types as well
+	resourceTypes := []string{"ec2", "vpc"}
+	excludeResourceTypes := []string{}
+	// excludeAfter is parsed identically to the --older-than flag
+	excludeAfter := time.Now()
+
+	// Any custom settings you want
+	myCustomConfig := &aws.Config{}
+
+	myCustomConfig.WithMaxRetries(3)
+	myCustomConfig.WithLogLevel(aws.LogDebugWithRequestErrors)
+	// Optionally, set custom credentials
+	// myCustomConfig.WithCredentials()
+
+	// Be sure to set your config prior to calling any library methods such as NewQuery
+	externalcreds.Set(myCustomConfig)
+
+	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
+	query, err := nuke_aws.NewQuery(
+		targetRegions,
+		excludeRegions,
+		resourceTypes,
+		excludeResourceTypes,
+		excludeAfter,
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// InspectResources still returns *AwsAccountResources, but this struct has been extended with several
+	// convenience methods for quickly determining if resources exist in a given region
+	accountResources, err := nuke_aws.InspectResources(query)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// You can call GetRegion to examine a single region's resources
+	usWest1Resources := accountResources.GetRegion("us-west-1")
+
+	// Then interrogate them with the new methods:
+
+	// Count the number of any resource type within the region
+	countOfEc2InUsWest1 := usWest1Resources.CountOfResourceType("ec2")
+
+	fmt.Printf("countOfEc2InUsWest1: %d\n", countOfEc2InUsWest1)
+	// countOfEc2InUsWest1: 2
+
+	fmt.Printf("usWest1Resources.ResourceTypePresent(\"ec2\"):%b\n", usWest1Resources.ResourceTypePresent("ec2"))
+	// usWest1Resources.ResourceTypePresent("ec2"): true
+
+	// Get all the resource identifiers for a given resource type
+	// In this example, we're only looking for ec2 instances
+	resourceIds := usWest1Resources.IdentifiersForResourceType("ec2")
+
+	fmt.Printf("resourceIds: %s", resourceIds)
+	// resourceIds:  [i-0c5d16c3ef28dda24 i-09d9739e1f4d27814]
+}
+```
+
 
 ### Config file
 
@@ -153,11 +317,96 @@ The following resources support the Config file:
     - Config key: `SecretsManager`
 - NAT Gateways
     - Resource type: `nat-gateway`
-    - Config key: `NATGateway`
+    - Config key: `NatGateway`
 - IAM Access Analyzers
     - Resource type: `accessanalyzer`
     - Config key: `AccessAnalyzer`
+- CloudWatch Dashboards
+    - Resource type: `cloudwatch-dashboard`
+    - Config key: `CloudWatchDashboard`
+- OpenSearch Domains
+    - Resource type: `opensearch`
+    - Config key: `OpenSearchDomain`
+- DynamoDB Tables
+    - Resource type: `dynamodb`
+    - Config key: `DynamoDB`
+- EBS Volumes
+    - Resource type: `ebs`
+    - Config key: `EBSVolume`
+- Lambda Functions
+    - Resource type: `lambda`
+    - Config key: `LambdaFunction`
+- Elastic Load Balancers
+    - Resource type: `elbv2`
+    - Config key: `ELBv2`
+- ECS Services
+    - Resource type: `ecsserv`
+    - Config key: `ECSService`
+- ECS Clusters
+    - Resource type: `ecscluster`
+    - Config key: `ECSCluster`
+- Elasticache
+    - Resource type: `elasticache`
+    - Config key: `Elasticache`
+- VPCs
+    - Resource type: `vpc`
+    - Config key: `VPC`
+- IAM OpenID Connect Providers
+    - Resource type: `oidcprovider`
+    - Config key: `OIDCProvider`
+- CloudWatch LogGroups
+    - Resource type: `cloudwatch-loggroup`
+    - Config key: `CloudWatchLogGroup`
+- KMS customer keys
+    - Resource type: `kmscustomerkeys`
+    - Config key: `KMSCustomerKeys`
+- Auto Scaling Groups
+    - Resource type: `asg`
+    - Config key: `AutoScalingGroup`
+- Launch Configurations
+    - Resource type: `lc`
+    - Config key: `LaunchConfiguration`
+- Elastic IP Address
+    - Resource type: `eip`
+    - Config key: `ElasticIP`
+- EC2 Instances
+    - Resource type: `ec2`
+    - Config key: `EC2`
+- EC2 Dedicated Hosts
+    - Resource type: `ec2-dedicated-hosts`
+    - Config key: `EC2DedicatedHosts`
+- EC2 Key Pairs
+  - Resource type: `ec2-keypairs`
+  - Config key: `EC2KeyPairs`
+- EKS Clusters
+    - Resource type: `ekscluster`
+    - Config key: `EKSCluster`
+- SageMaker Notebook Instances
+  - Resource type: `sagemaker-notebook-instances`
+  - Config key: `SageMakerNotebook`
+- API Gateways (v1) 
+  - Resource type: `apigateway`
+  - Config key: `APIGateway`
+- API Gateways (v2) 
+  - Resource type: `apigatewayv2`
+  - Config key: `APIGatewayV2`
+- Elastic FileSystems (efs) 
+  - Resource type: `efs`
+  - Config key: `ElasticFileSystem`
+- ECR Repositories
+  - Resource type: `ecr`
+  - Config key: `ECRRepository`
 
+
+
+
+
+Notes:
+  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
+
+- Kinesis Streams
+    - Resource type: `kinesis-stream`
+    - Config key: `KinesisStream`
 
 #### Example
 
@@ -242,21 +491,46 @@ Be careful when nuking and append the `--dry-run` option if you're unsure. Even 
 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
-| resource type      | names | names_regex | tags | tags_regex |
-|--------------------|-------|-------------|------|------------|
-| s3                 | none  | ✅          | none | none       |
-| iam                | none  | ✅          | none | none       |
-| secretsmanager     | none  | ✅          | none | none       |
-| nat-gateway        | none  | ✅          | none | none       |
-| accessanalyzer     | none  | ✅          | none | none       |
-| acmpca             | none  | none        | none | none       |
-| ec2 instance       | none  | none        | none | none       |
-| iam role           | none  | none        | none | none       |
-| ... (more to come) | none  | none        | none | none       |
-
+| resource type                | names | names_regex | tags | tags_regex |
+|------------------------------|-------|-------------|------|------------|
+| s3                           | none  | ✅           | none | none       |
+| iam user                     | none  | ✅           | none | none       |
+| ecsserv                      | none  | ✅           | none | none       |
+| ecscluster                   | none  | ✅           | none | none       |
+| secretsmanager               | none  | ✅           | none | none       |
+| nat-gateway                  | none  | ✅           | none | none       |
+| accessanalyzer               | none  | ✅           | none | none       |
+| dynamodb                     | none  | ✅           | none | none       |
+| ebs                          | none  | ✅           | none | none       |
+| lambda                       | none  | ✅           | none | none       |
+| elbv2                        | none  | ✅           | none | none       |
+| ecs                          | none  | ✅           | none | none       |
+| elasticache                  | none  | ✅           | none | none       |
+| vpc                          | none  | ✅           | none | none       |
+| oidcprovider                 | none  | ✅           | none | none       |
+| cloudwatch-loggroup          | none  | ✅           | none | none       |
+| kmscustomerkeys              | none  | ✅           | none | none       |
+| asg                          | none  | ✅           | none | none       |
+| lc                           | none  | ✅           | none | none       |
+| eip                          | none  | ✅           | none | none       |
+| ec2                          | none  | ✅           | none | none       |
+| apigateway                   | none  | ✅           | none | none       |
+| apigatewayv2                 | none  | ✅           | none | none       |
+| eks                          | none  | ✅           | none | none       |
+| kinesis-stream               | none  | ✅           | none | none       |
+| efs                          | none  | ✅           | none | none       |
+| acmpca                       | none  | none         | none | none       |
+| iam role                     | none  | ✅           | none | none       |
+| iam policy                   | none  | ✅           | none | none       |
+| sagemaker-notebook-instances | none  | ✅           | none | none       |
+| ecr                          | none  | ✅           | none | none       |
+| ... (more to come)           | none  | none         | none | none       |
 
 
 ### Log level
+By default, cloud-nuke sends most output to the `Debug` level logger, to enhance legibility, since the results of every deletion attempt will be displayed in the report that cloud-nuke prints after each run. 
+
+However, sometimes it's helpful to see all output, such as when you're debugging something. 
 
 You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:
 
@@ -279,6 +553,25 @@ security group rules and not the default VPCs.
 ```shell
 cloud-nuke defaults-aws --sg-only
 ```
+
+## Note for nuking VPCs
+
+When nuking VPCs cloud-nuke will attempt to remove dependency resources underneath the VPC
+
+### Supported VPC sub-resources
+
+- Internet Gateways
+- Egress Only Internet Gateways
+- Elastic Network Interfaces
+- VPC Endpoints
+- Subnets
+- Route Tables
+- Network ACLs
+- Security Groups
+- DHCP Option Sets (Will be dissociated from VPC, not deleted. Must be cleaned up separately)
+- Elastic IPs (Supported as a separate resource that gets cleaned up first. If you are filtering what gets nuked, Elastic IPs may prevent VPCs from destroying.)
+
+All other resources that get created within VPCs must be cleaned up prior to running cloud-nuke on VPC resources.
 
 Happy Nuking!!!
 
@@ -349,9 +642,22 @@ TEST_ACMPCA_EXPENSIVE_ENABLE=1 go test -v ./...
 Every source file in this project should be formatted with `go fmt`.
 
 ### Releasing new versions
+We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48).
 
-To release a new version, just go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and
-create a new release. The CircleCI job for this repo has been configured to:
+#### Choosing a new release tag
+If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y)
+to indicate backward incompatibilities.
+
+This is because since version `v0.2.0` `cloud-nuke` has been configured to automatically include new resources (so you have
+to explicitly opt-out). This is inherently not backward compatible, because users with CI practices around `cloud-nuke` would
+be surprised by new resources that are suddenly being picked up for deletion! This surprise is more alarming for resources
+that are actively in use for any account, such as IAM Users.
+
+Therefore please mark your release as backward incompatible and bump the **minor version** (`X` in `v0.X.Y`) when it includes
+support for nuking new resources, so that we provide better signals for users when we introduce a new resource.
+
+#### To release a new version
+Go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and create a new release. The CircleCI job for this repo has been configured to:
 
 1. Automatically detect new tags.
 1. Build binaries for every OS using that tag as a version number.

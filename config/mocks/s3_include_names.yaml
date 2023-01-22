@@ -1,5 +1,5 @@
 s3:
   include:
     names_regex:
-      - prod
-      - ^alb-.*-access-logs
+      - prod.*__TESTID__$
+      - ^alb-.*-access-logs.*__TESTID__$

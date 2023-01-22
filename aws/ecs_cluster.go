@@ -7,7 +7,9 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -15,17 +17,17 @@ import (
 // For more details on other valid status values: https://docs.aws.amazon.com/sdk-for-go/api/service/ecs/#Cluster
 const activeEcsClusterStatus string = "ACTIVE"
 
-// Used in this context to limit the amount of clustes passed as input to the DescribeClusters function call
+// Used in this context to limit the amount of clusters passed as input to the DescribeClusters function call
 // For more details on this, please read here: https://docs.aws.amazon.com/cli/latest/reference/ecs/describe-clusters.html#options
 const describeClustersRequestBatchSize = 100
 
 // Filter all active ecs clusters
-func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) {
+func getAllActiveEcsClusterArns(awsSession *session.Session, configObj config.Config) ([]*string, error) {
 	svc := ecs.New(awsSession)
 
 	allClusters, err := getAllEcsClusters(awsSession)
 	if err != nil {
-		logging.Logger.Errorf("Error getting all ECS clusters")
+		logging.Logger.Debug("Error getting all ECS clusters")
 		return nil, errors.WithStackTrace(err)
 	}
 
@@ -39,17 +41,12 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 
 		describedClusters, describeErr := svc.DescribeClusters(input)
 		if describeErr != nil {
-			logging.Logger.Errorf("Error describing ECS clusters from input %s: ", input)
+			logging.Logger.Debugf("Error describing ECS clusters from input %s: ", input)
 			return nil, errors.WithStackTrace(describeErr)
 		}
 
-		// Filter out invalid state ECS Clusters (will return only `ACTIVE` state clusters)
-		// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
-		// Therefore to tag a cluster, that cluster must be in the `ACTIVE` state.
 		for _, cluster := range describedClusters.Clusters {
-			logging.Logger.Debugf("Status for ECS Cluster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
-
-			if aws.StringValue(cluster.Status) == activeEcsClusterStatus {
+			if shouldIncludeECSCluster(cluster, configObj) {
 				filteredEcsClusterArns = append(filteredEcsClusterArns, cluster.ClusterArn)
 			}
 		}
@@ -58,14 +55,30 @@ func getAllActiveEcsClusterArns(awsSession *session.Session) ([]*string, error) 
 	return filteredEcsClusterArns, nil
 }
 
-func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
+func shouldIncludeECSCluster(cluster *ecs.Cluster, configObj config.Config) bool {
+	if cluster == nil {
+		return false
+	}
 
-	clusterArns, err := getAllActiveEcsClusterArns(awsSession)
+	// Filter out invalid state ECS Clusters (will return only `ACTIVE` state clusters)
+	// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
+	// Therefore to tag a cluster, that cluster must be in the `ACTIVE` state.
+	logging.Logger.Debugf("Status for ECS Cluster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
+	if aws.StringValue(cluster.Status) != activeEcsClusterStatus {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(cluster.ClusterName),
+		configObj.ECSCluster.IncludeRule.NamesRegExp,
+		configObj.ECSCluster.ExcludeRule.NamesRegExp,
+	)
+}
+
+func getAllEcsClustersOlderThan(awsSession *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+	clusterArns, err := getAllActiveEcsClusterArns(awsSession, configObj)
 	if err != nil {
-		logging.Logger.Errorf("Error getting all ECS clusters with `ACTIVE` status")
+		logging.Logger.Debugf("Error getting all ECS clusters with `ACTIVE` status")
 		return nil, errors.WithStackTrace(err)
 	}
 
@@ -74,14 +87,14 @@ func getAllEcsClustersOlderThan(awsSession *session.Session, region string, excl
 
 		firstSeenTime, err := getFirstSeenEcsClusterTag(awsSession, clusterArn)
 		if err != nil {
-			logging.Logger.Errorf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+			logging.Logger.Debugf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 			return nil, errors.WithStackTrace(err)
 		}
 
 		if firstSeenTime.IsZero() {
 			err := tagEcsClusterWhenFirstSeen(awsSession, clusterArn, time.Now().UTC())
 			if err != nil {
-				logging.Logger.Errorf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Logger.Debugf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return nil, errors.WithStackTrace(err)
 			}
 		} else if excludeAfter.After(firstSeenTime) {
@@ -97,11 +110,11 @@ func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) erro
 	numNuking := len(ecsClusterArns)
 
 	if numNuking == 0 {
-		logging.Logger.Infof("No ECS clusters to nuke in region %s", aws.StringValue(awsSession.Config.Region))
+		logging.Logger.Debugf("No ECS clusters to nuke in region %s", aws.StringValue(awsSession.Config.Region))
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting %d ECS clusters in region %s", numNuking, aws.StringValue(awsSession.Config.Region))
+	logging.Logger.Debugf("Deleting %d ECS clusters in region %s", numNuking, aws.StringValue(awsSession.Config.Region))
 
 	var nukedEcsClusters []*string
 	for _, clusterArn := range ecsClusterArns {
@@ -109,17 +122,26 @@ func nukeEcsClusters(awsSession *session.Session, ecsClusterArns []*string) erro
 			Cluster: clusterArn,
 		}
 		_, err := svc.DeleteCluster(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(clusterArn),
+			ResourceType: "ECS Cluster",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("Error, failed to delete cluster with ARN %s", aws.StringValue(clusterArn))
+			logging.Logger.Debugf("Error, failed to delete cluster with ARN %s", aws.StringValue(clusterArn))
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Logger.Infof("Success, deleted cluster: %s", aws.StringValue(clusterArn))
+		logging.Logger.Debugf("Success, deleted cluster: %s", aws.StringValue(clusterArn))
 		nukedEcsClusters = append(nukedEcsClusters, clusterArn)
 	}
 
 	numNuked := len(nukedEcsClusters)
-	logging.Logger.Infof("[OK] %d of %d ECS cluster(s) deleted in %s", numNuked, numNuking, aws.StringValue(awsSession.Config.Region))
+	logging.Logger.Debugf("[OK] %d of %d ECS cluster(s) deleted in %s", numNuked, numNuking, aws.StringValue(awsSession.Config.Region))
 
 	return nil
 }
@@ -159,7 +181,7 @@ func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) 
 
 	clusterTags, err := svc.ListTagsForResource(input)
 	if err != nil {
-		logging.Logger.Errorf("Error getting the tags for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+		logging.Logger.Debugf("Error getting the tags for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 		return firstSeenTime, errors.WithStackTrace(err)
 	}
 
@@ -167,9 +189,8 @@ func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) 
 		if aws.StringValue(tag.Key) == firstSeenTagKey {
 
 			firstSeenTime, err := parseTimestampTag(aws.StringValue(tag.Value))
-
 			if err != nil {
-				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Logger.Debugf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 
@@ -181,9 +202,8 @@ func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) 
 
 func parseTimestampTag(timestamp string) (time.Time, error) {
 	parsed, err := time.Parse(time.RFC3339, timestamp)
-
 	if err != nil {
-		logging.Logger.Errorf("Error parsing the timestamp into a `RFC3339` Time format")
+		logging.Logger.Debugf("Error parsing the timestamp into a `RFC3339` Time format")
 		return parsed, errors.WithStackTrace(err)
 
 	}

@@ -2,3 +2,5 @@
 vendor
 .vscode
 cloud-nuke
+config.yaml
+.envrc

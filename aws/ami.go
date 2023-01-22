@@ -3,10 +3,12 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -44,11 +46,11 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(imageIds) == 0 {
-		logging.Logger.Infof("No AMIs to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No AMIs to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all AMIs in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all AMIs in region %s", *session.Config.Region)
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
@@ -57,14 +59,23 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 		}
 
 		_, err := svc.DeregisterImage(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(imageID),
+			ResourceType: "Amazon Machine Image (AMI)",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedCount++
-			logging.Logger.Infof("Deleted AMI: %s", *imageID)
+			logging.Logger.Debugf("Deleted AMI: %s", *imageID)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d AMI(s) terminated in %s", deletedCount, *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, *session.Config.Region)
 	return nil
 }

@@ -1,7 +1,8 @@
 defaults: &defaults
+  resource_class: medium+
   docker:
-    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.16-go111module
-version: 2
+    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.17-tf1.2-tg37.4-pck1.8-ci50.1
+version: 2.1
 jobs:
   test:
     <<: *defaults
@@ -10,7 +11,10 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/logs
-            run-go-tests --timeout 45m | tee /tmp/logs/all.log
+            # Run the tests. Note that we set the "-p 1" flag to tell Go to run tests in each package sequentially. Without
+            # this, Go buffers all log output until all packages are done, which with slower running tests can cause CircleCI
+            # to kill the build after more than 45 minutes without log output.
+            run-go-tests --extra-flags '-p 1' --timeout 45m | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
           name: parse test output
@@ -25,7 +29,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: build-go-binaries --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
+      - run: build-go-binaries --parallel 2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
       - persist_to_workspace:
           root: .
           paths: bin
@@ -41,7 +45,12 @@ jobs:
               --older-than 1h \
               --force \
               --config ./.circleci/nuke_config.yml \
-              --exclude-resource-type iam
+              --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type vpc \
+              --exclude-resource-type kmscustomerkeys \
+              --exclude-resource-type ecr
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -57,7 +66,12 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
-              --exclude-resource-type iam
+              --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type vpc \
+              --exclude-resource-type kmscustomerkeys \
+              --exclude-resource-type ecr
           no_output_timeout: 1h
   deploy:
     <<: *defaults
@@ -69,6 +83,10 @@ jobs:
 workflows:
   version: 2
   build-and-test:
+    # Make sure this pipeline doesn't run when a schedule is triggered
+    when:
+      not:
+        equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
     jobs:
       - test:
           filters:
@@ -92,21 +110,22 @@ workflows:
               ignore: /.*/
           context:
             - Gruntwork Admin
-  frequently:
-    triggers:
-      - schedule:
-          cron: "0 0,3,6,9,12,15,18,21 * * *"
-          filters:
-            branches:
-              only: master
+  nuke_phxdevops:
+    when:
+      and:
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "every 3 hours", << pipeline.schedule.name >> ]
     jobs:
-      - nuke_phx_devops
-  nightly:
-    triggers:
-      - schedule:
-          cron: "0 6 * * *"
-          filters:
-            branches:
-              only: master
+      - nuke_phx_devops:
+          context:
+            - Gruntwork Admin
+  nuke_sandbox:
+    when:
+      and:
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "nightly", << pipeline.schedule.name >> ]
     jobs:
-      - nuke_sandbox
+      - nuke_sandbox:
+          context:
+            - Gruntwork Admin
+            - Gruntwork Sandbox

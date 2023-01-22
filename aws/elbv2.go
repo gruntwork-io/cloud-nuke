@@ -4,34 +4,32 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of ELBv2 Arns
-func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := elbv2.New(session)
+	input := &elbv2.DescribeTagsInput{}
 	result, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	tags, err := svc.DescribeTags(input)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var arns []*string
 	for _, balancer := range result.LoadBalancers {
-		input := &elbv2.DescribeTagsInput{
-			ResourceArns: []*string{
-				aws.String(*balancer.LoadBalancerArn),
-			},
-		}
-		tagOutput, err := svc.DescribeTags(input)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-		if excludeAfter.After(*balancer.CreatedTime) && !hasELBv2ExcludeTag(tagOutput) {
-			arns = append(arns, balancer.LoadBalancerArn)
-		} else if !hasELBv2ExcludeTag(tagOutput) {
+		if shouldIncludeELBv2(balancer, excludeAfter, configObj, tags) {
 			arns = append(arns, balancer.LoadBalancerArn)
 		}
 	}
@@ -52,16 +50,36 @@ func hasELBv2ExcludeTag(tagOutput *elbv2.DescribeTagsOutput) bool {
 	return false
 }
 
+func shouldIncludeELBv2(balancer *elbv2.LoadBalancer, excludeAfter time.Time, configObj config.Config, tags *elbv2.DescribeTagsOutput) bool {
+	if balancer == nil {
+		return false
+	}
+
+	if balancer.CreatedTime != nil && excludeAfter.Before(*balancer.CreatedTime) {
+		return false
+	}
+
+	if hasELBv2ExcludeTag(tags) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(balancer.LoadBalancerName),
+		configObj.ELBv2.IncludeRule.NamesRegExp,
+		configObj.ELBv2.ExcludeRule.NamesRegExp,
+	)
+}
+
 // Deletes all Elastic Load Balancers
 func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 	svc := elbv2.New(session)
 
 	if len(arns) == 0 {
-		logging.Logger.Infof("No V2 Elastic Load Balancers to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No V2 Elastic Load Balancers to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all V2 Elastic Load Balancers in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all V2 Elastic Load Balancers in region %s", *session.Config.Region)
 	var deletedArns []*string
 
 	for _, arn := range arns {
@@ -70,11 +88,20 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 		}
 
 		_, err := svc.DeleteLoadBalancer(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(arn),
+			ResourceType: "Load Balancer (v2)",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedArns = append(deletedArns, arn)
-			logging.Logger.Infof("Deleted ELBv2: %s", *arn)
+			logging.Logger.Debugf("Deleted ELBv2: %s", *arn)
 		}
 	}
 
@@ -82,13 +109,12 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 		err := svc.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{
 			LoadBalancerArns: deletedArns,
 		})
-
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), *session.Config.Region)
 	return nil
 }

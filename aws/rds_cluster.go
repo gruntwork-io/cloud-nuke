@@ -3,11 +3,13 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -34,7 +36,6 @@ func getAllRdsClusters(session *session.Session, excludeAfter time.Time) ([]*str
 	svc := rds.New(session)
 
 	result, err := svc.DescribeDBClusters(&rds.DescribeDBClustersInput{})
-
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -67,11 +68,11 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 	svc := rds.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No RDS DB Cluster to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No RDS DB Cluster to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all RDS Clusters in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all RDS Clusters in region %s", *session.Config.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -82,11 +83,19 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 
 		_, err := svc.DeleteDBCluster(params)
 
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(name),
+			ResourceType: "RDS Cluster",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			logging.Logger.Debugf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Infof("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
+			logging.Logger.Debugf("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -96,7 +105,6 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 			err := waitUntilRdsClusterDeleted(svc, &rds.DescribeDBClustersInput{
 				DBClusterIdentifier: name,
 			})
-
 			if err != nil {
 				logging.Logger.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
@@ -104,6 +112,6 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), *session.Config.Region)
 	return nil
 }

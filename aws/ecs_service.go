@@ -3,10 +3,13 @@ package aws
 import (
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -34,8 +37,9 @@ func getAllEcsClusters(awsSession *session.Session) ([]*string, error) {
 }
 
 // filterOutRecentServices - Given a list of services and an excludeAfter
-// timestamp, filter out any services that were created after `excludeAfter`.
-func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []string, excludeAfter time.Time) ([]*string, error) {
+// timestamp, filter out any services that were created after `excludeAfter.
+// Additionally, filter based on Config file patterns.
+func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	// Fetch descriptions in batches of 10, which is the max that AWS
 	// accepts for describe service.
 	var filteredEcsServiceArns []*string
@@ -50,7 +54,7 @@ func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []
 			return nil, errors.WithStackTrace(err)
 		}
 		for _, service := range describeResult.Services {
-			if excludeAfter.After(*service.CreatedAt) {
+			if shouldIncludeECSService(service, excludeAfter, configObj) {
 				filteredEcsServiceArns = append(filteredEcsServiceArns, service.ServiceArn)
 			}
 		}
@@ -58,12 +62,28 @@ func filterOutRecentServices(svc *ecs.ECS, clusterArn *string, ecsServiceArns []
 	return filteredEcsServiceArns, nil
 }
 
+func shouldIncludeECSService(service *ecs.Service, excludeAfter time.Time, configObj config.Config) bool {
+	if service == nil {
+		return false
+	}
+
+	if service.CreatedAt != nil && excludeAfter.Before(*service.CreatedAt) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(service.ServiceName),
+		configObj.ECSService.IncludeRule.NamesRegExp,
+		configObj.ECSService.ExcludeRule.NamesRegExp,
+	)
+}
+
 // getAllEcsServices - Returns a formatted string of ECS Service ARNs, which
 // uniquely identifies the service, in addition to a mapping of services to
 // clusters. For ECS, need to track ECS clusters of services as all service
 // level API endpoints require providing the corresponding cluster.
 // Note that this looks up services by ECS cluster ARNs.
-func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, excludeAfter time.Time) ([]*string, map[string]string, error) {
+func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, excludeAfter time.Time, configObj config.Config) ([]*string, map[string]string, error) {
 	ecsServiceClusterMap := map[string]string{}
 	svc := ecs.New(awsSession)
 
@@ -75,7 +95,7 @@ func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, ex
 		if err != nil {
 			return nil, nil, errors.WithStackTrace(err)
 		}
-		filteredServiceArns, err := filterOutRecentServices(svc, clusterArn, awsgo.StringValueSlice(result.ServiceArns), excludeAfter)
+		filteredServiceArns, err := filterOutRecentServices(svc, clusterArn, awsgo.StringValueSlice(result.ServiceArns), excludeAfter, configObj)
 		if err != nil {
 			return nil, nil, errors.WithStackTrace(err)
 		}
@@ -123,9 +143,9 @@ func waitUntilServicesDrained(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 		}
 		err := svc.WaitUntilServicesStable(params)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
+			logging.Logger.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
 		} else {
-			logging.Logger.Infof("Drained service: %s", *ecsServiceArn)
+			logging.Logger.Debugf("Drained service: %s", *ecsServiceArn)
 			successfullyDrained = append(successfullyDrained, ecsServiceArn)
 		}
 	}
@@ -143,7 +163,7 @@ func deleteEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecs
 		}
 		_, err := svc.DeleteService(params)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
+			logging.Logger.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
 		} else {
 			requestedDeletes = append(requestedDeletes, ecsServiceArn)
 		}
@@ -162,10 +182,19 @@ func waitUntilServicesDeleted(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 			Services: []*string{ecsServiceArn},
 		}
 		err := svc.WaitUntilServicesInactive(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(ecsServiceArn),
+			ResourceType: "ECS Service",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
+			logging.Logger.Debugf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
 		} else {
-			logging.Logger.Infof("Deleted service: %s", *ecsServiceArn)
+			logging.Logger.Debugf("Deleted service: %s", *ecsServiceArn)
 			successfullyDeleted = append(successfullyDeleted, ecsServiceArn)
 		}
 	}
@@ -183,11 +212,11 @@ func nukeAllEcsServices(awsSession *session.Session, ecsServiceClusterMap map[st
 	svc := ecs.New(awsSession)
 
 	if numNuking == 0 {
-		logging.Logger.Infof("No ECS services to nuke in region %s", *awsSession.Config.Region)
+		logging.Logger.Debugf("No ECS services to nuke in region %s", *awsSession.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting %d ECS services in region %s", numNuking, *awsSession.Config.Region)
+	logging.Logger.Debugf("Deleting %d ECS services in region %s", numNuking, *awsSession.Config.Region)
 
 	// First, drain all the services to 0. You can't delete a
 	// service that is running tasks.
@@ -201,6 +230,6 @@ func nukeAllEcsServices(awsSession *session.Session, ecsServiceClusterMap map[st
 	successfullyDeleted := waitUntilServicesDeleted(svc, ecsServiceClusterMap, requestedDeletes)
 
 	numNuked := len(successfullyDeleted)
-	logging.Logger.Infof("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
+	logging.Logger.Debugf("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
 	return nil
 }

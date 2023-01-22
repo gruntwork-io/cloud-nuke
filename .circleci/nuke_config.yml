@@ -4,16 +4,41 @@ s3:
   include:
     names_regex:
       - "^cloudfront-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cloudfront-example-failover-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cf-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cf-example-failover-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^gwtest-[a-zA-Z0-9]{6}-config-test"
+      - "^s3-test-tg-.*"
       - "^gruntwork-terratest-[a-zA-Z0-9]{6}$"
+      - ".*-terratest-aws-s3-example-[a-zA-Z0-9]{6}"
       - "^gw-cis-aws-config-all-regions-[a-zA-Z0-9]{6}-.*"
+      - "^gw-service-catalog-test-[a-zA-Z0-9]{6}.*"
+      - "^gruntwork-service-catalog-test-nginx-[a-zA-Z0-9]{6}.*"
       - "^gruntwork-test-[a-zA-Z0-9]{6}-config-test$"
+      - "^gruntwork-test-[a-zA-Z0-9]{6}-cloudtrail-test.*"
+      - "^gruntwork-[a-zA-Z0-9]{6}-cloudtrail-test.*"
+      - "^gruntwork-test-privs3bucket-[a-zA-Z0-9]{6}"
+      - "^gruntwork-terratest-[a-zA-Z0-9]{6}-logs"
       - "^houston-static-[a-zA-Z0-9]{12}.*"
-      - "^cloud-nuke-test-[a-zA-Z0-9]{12}.*"
-      - "^cloud-nuke-test-[a-zA-Z0-9]{6}-bucket$"
+      - "^.*cloud-nuke-test-.*"
       - "^alb-alb-[a-zA-Z0-9]{6}-access-logs$"
       - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
       - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
       - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
+      - "^[a-zA-Z0-9]{6}-service-test-s3-bucket"
+      - "^[a-zA-Z0-9]{6}-ecs-service-test-s3-bucket"
+      - "^test-service-[a-zA-Z0-9]{6}-test-s3-bucket"
+      - "^tst-openvpn-[a-zA-Z0-9]{6}"
+      - "^openvpn-test-[a-zA-Z0-9]{6}"
+      - "^vault-module-test-[a-zA-Z0-9]{6}"
+      - "^es-cluster-[a-zA-Z0-9]{6}-es-backup-bucket"
+      - "^gruntwork-(test-)?ecs-deploy-runner-outputs-[a-zA-Z0-9]{6}"
+      - "^test-bucket-.*"
+      - "^test-private-s3-bucket-.*"
+      - "^testlambdas3deploymentpackage-[a-zA-Z0-9]{6}-s3-deployment-package-test"
+      - "^testlambdas3-[a-zA-Z0-9]{6}-images-test"
+      - "^s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^redirect-s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
 
 SecretsManager:
   include:
@@ -26,14 +51,77 @@ SecretsManager:
       - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
 
 NatGateway:
-  # There is a bug in the cloud-nuke config where exclude does not work by itself, so we add a null include rule that
-  # includes everything.
-  # See https://github.com/gruntwork-io/cloud-nuke/issues/198 for more info.
-  include:
-    names_regex:
-      - ".*"
   exclude:
     names_regex:
       # We have an active ECS Deploy Runner running in the sandbox environment for sales demos, and this NAT gateway is
       # critical for that.
       - "^ecs-deploy-runner-v2-nat-gateway-0$"
+
+OIDCProvider:
+  exclude:
+    names_regex:
+      # We have an active OIDC Provider used by github actions
+      - ".*token.actions.githubusercontent.com.*"
+
+EKSCluster:
+  exclude:
+    names_regex:
+      # This EKS cluster is a ghost cluster in our account in the ap-southeast-1 region that can not be deleted.
+      - "^cloud-nuke-TestListEksClusters-o8DrEi$"
+
+CloudWatchLogGroup:
+  # Use an allow list instead of block list because we haven't done the due diligence yet to figure out what log groups
+  # we need to keep. This is hard to do in the current scenario as we have thousands of log groups in the accounts.
+  include:
+    names_regex:
+      - "/aws/containerinsights/eks-cluster-[a-zA-Z0-9]{6}/.*"
+      - "/aws/containerinsights/eks-service-catalog-[a-zA-Z0-9]{6}/.*"
+      - "/aws/ecs/containerinsights/[a-zA-Z0-9]{6}-cluster/.*"
+      - "/aws/ecs/containerinsights/[a-zA-Z0-9]{6}-ecs-cluster/.*"
+      - "/aws/ecs/containerinsights/Test-cluster[a-zA-Z0-9]{6}/.*"
+      - "/aws/eks/eks-cluster-[a-zA-Z0-9]{6}.*"
+      - "/aws/eks/eks-service-catalog-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/Test.*"
+      - "/aws/lambda/[a-zA-Z0-9]{6}-ecs-deploy-runner.*"
+      - "/aws/lambda/ecs-deploy-runner-[a-zA-Z0-9]{6}-invoker$"
+      - "/aws/lambda/es-cluster-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/jenkins-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/jenkins[a-zA-Z0-9]{6}-0-backup$"
+      - "/aws/lambda/test-aurora-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/[a-zA-Z0-9]{6}-handler$"
+      - "/aws/lambda/test[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/lambda-[a-zA-Z0-9]{6}$"
+      - "/aws/lambda/us-east-1\\.[a-zA-Z0-9]{6}cloudfront.*"
+      - "/aws/lambda/cleanup-expired-iam-certs-[a-zA-Z0-9]{6}$"
+      - "/aws/lambda/create-snapshot-example-(aurora|mysql)$"
+      - "/aws/lambda/HoustonExpress[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/lambda-docker-[a-zA-Z0-9]{6}$"
+      - "/aws/rds/cluster/test[a-zA-Z0-9]{6}.*"
+      - "/aws/rds/cluster/test-aurora-[a-zA-Z0-9]{6}.*"
+      - "eks-service-catalog-[a-zA-Z0-9]{6}$"
+      - "eks-cluster-[a-zA-Z0-9]{6}-container-logs$"
+      - "es-[a-zA-Z0-9]{6}-lg$"
+      - "TestCloudWatchLogAggregation.*"
+      - "API-Gateway-Execution-Logs_.*/example$"
+      - "asg-[a-zA-Z0-9]{6}$"
+      - "^[a-zA-Z0-9]{6}-service$"
+      - "^[a-zA-Z0-9]{6}-ecs-deploy-runner-[a-zA-Z0-9]{6}$"
+      - "ecs-deploy-runner-[a-zA-Z0-9]{6}$"
+      - "^[a-zA-Z0-9]{6}(stage|prod)-ec2-syslog$"
+      - "Ubuntu1804-[a-zA-Z0-9]{6}-logs$"
+      - "bastion-host-[a-zA-Z0-9]{6}$"
+      - "ec2-instance-[a-zA-Z0-9]{6}$"
+      - "jenkins-[a-zA-Z0-9]{6}$"
+      - "openvpn-server-[a-zA-Z0-9]{6}_log_group$"
+      - "vpc-test-[a-zA-Z0-9]{6}.*"
+      - "cloud-nuke-test-[a-zA-Z0-9]{6}"
+
+IAMUsers:
+  exclude:
+    names_regex:
+      # We want to make sure the main circle-ci-test user is never deleted
+      - "^circle-ci-test$"
+IAMRoles:
+  include: 
+    names_regex: 
+      - "^cloud-nuke-Test*"

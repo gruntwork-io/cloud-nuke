@@ -12,7 +12,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -49,21 +52,10 @@ var GovCloudRegions = []string{
 
 const (
 	GlobalRegion string = "global"
-	// us-east-1 is the region that is available in every account
-	defaultRegion string = "us-east-1"
 )
 
 func newSession(region string) *session.Session {
-	return session.Must(
-		session.NewSessionWithOptions(
-			session.Options{
-				SharedConfigState: session.SharedConfigEnable,
-				Config: awsgo.Config{
-					Region: awsgo.String(region),
-				},
-			},
-		),
-	)
+	return externalcreds.Get(region)
 }
 
 // Try a describe regions command with the most likely enabled regions
@@ -103,14 +95,33 @@ func GetEnabledRegions() ([]string, error) {
 }
 
 func getRandomRegion() (string, error) {
+	return getRandomRegionWithExclusions([]string{})
+}
+
+// getRandomRegionWithExclusions - return random from enabled regions, excluding regions from the argument
+func getRandomRegionWithExclusions(regionsToExclude []string) (string, error) {
 	allRegions, err := GetEnabledRegions()
 	if err != nil {
 		return "", errors.WithStackTrace(err)
 	}
 	rand.Seed(time.Now().UnixNano())
-	randIndex := rand.Intn(len(allRegions))
-	logging.Logger.Infof("Random region chosen: %s", allRegions[randIndex])
-	return allRegions[randIndex], nil
+
+	// exclude from "allRegions"
+	exclusions := make(map[string]string)
+	for _, region := range regionsToExclude {
+		exclusions[region] = region
+	}
+	// filter regions
+	var updatedRegions []string
+	for _, region := range allRegions {
+		_, excluded := exclusions[region]
+		if !excluded {
+			updatedRegions = append(updatedRegions, region)
+		}
+	}
+	randIndex := rand.Intn(len(updatedRegions))
+	logging.Logger.Debugf("Random region chosen: %s", updatedRegions[randIndex])
+	return updatedRegions[randIndex], nil
 }
 
 func split(identifiers []string, limit int) [][]string {
@@ -127,7 +138,7 @@ func split(identifiers []string, limit int) [][]string {
 		chunks = append(chunks, chunk)
 	}
 	if len(identifiers) > 0 {
-		chunks = append(chunks, identifiers[:len(identifiers)])
+		chunks = append(chunks, identifiers[:])
 	}
 
 	return chunks
@@ -198,24 +209,18 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 	count := 1
 	totalRegions := len(targetRegions)
-	var resourcesCache = map[string]map[string][]*string{}
+	resourcesCache := map[string]map[string][]*string{}
 
+	defaultRegion := targetRegions[0]
 	for _, region := range targetRegions {
 		// The "global" region case is handled outside this loop
 		if region == GlobalRegion {
 			continue
 		}
 
-		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, region)
+		logging.Logger.Debugf("Checking region [%d/%d]: %s", count, totalRegions, region)
 
-		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(region)},
-		)
-
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
+		cloudNukeSession := newSession(region)
 		resourcesInRegion := AwsRegionResource{}
 
 		// The order in which resources are nuked is important
@@ -224,9 +229,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ACMPCA arns
 		acmpca := ACMPCA{}
 		if IsNukeable(acmpca.ResourceName(), resourceTypes) {
-			arns, err := getAllACMPCA(session, region, excludeAfter)
+			arns, err := getAllACMPCA(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ACMPCAs",
+					ResourceType: acmpca.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(arns) > 0 {
 				acmpca.ARNs = awsgo.StringValueSlice(arns)
@@ -238,9 +248,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ASG Names
 		asGroups := ASGroups{}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
-			groupNames, err := getAllAutoScalingGroups(session, region, excludeAfter)
+			groupNames, err := getAllAutoScalingGroups(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Auto-Scaling Groups",
+					ResourceType: asGroups.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(groupNames) > 0 {
 				asGroups.GroupNames = awsgo.StringValueSlice(groupNames)
@@ -252,9 +267,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Launch Configuration Names
 		configs := LaunchConfigs{}
 		if IsNukeable(configs.ResourceName(), resourceTypes) {
-			configNames, err := getAllLaunchConfigurations(session, region, excludeAfter)
+			configNames, err := getAllLaunchConfigurations(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Launch configurations",
+					ResourceType: configs.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(configNames) > 0 {
 				configs.LaunchConfigurationNames = awsgo.StringValueSlice(configNames)
@@ -266,9 +286,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancer Names
 		loadBalancers := LoadBalancers{}
 		if IsNukeable(loadBalancers.ResourceName(), resourceTypes) {
-			elbNames, err := getAllElbInstances(session, region, excludeAfter)
+			elbNames, err := getAllElbInstances(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve load balancers",
+					ResourceType: loadBalancers.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(elbNames) > 0 {
 				loadBalancers.Names = awsgo.StringValueSlice(elbNames)
@@ -280,9 +305,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancerV2 Arns
 		loadBalancersV2 := LoadBalancersV2{}
 		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
-			elbv2Arns, err := getAllElbv2Instances(session, region, excludeAfter)
+			elbv2Arns, err := getAllElbv2Instances(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve load balancers v2",
+					ResourceType: loadBalancersV2.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(elbv2Arns) > 0 {
 				loadBalancersV2.Arns = awsgo.StringValueSlice(elbv2Arns)
@@ -294,9 +324,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// SQS Queues
 		sqsQueue := SqsQueue{}
 		if IsNukeable(sqsQueue.ResourceName(), resourceTypes) {
-			queueUrls, err := getAllSqsQueue(session, region, excludeAfter)
+			queueUrls, err := getAllSqsQueue(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve SQS queues",
+					ResourceType: sqsQueue.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(queueUrls) > 0 {
 				sqsQueue.QueueUrls = awsgo.StringValueSlice(queueUrls)
@@ -307,14 +342,24 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// TransitGatewayVpcAttachment
 		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
-		transitGatewayIsAvailable, err := tgIsAvailableInRegion(session, region)
+		transitGatewayIsAvailable, err := tgIsAvailableInRegion(cloudNukeSession, region)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			ge := report.GeneralError{
+				Error:        err,
+				Description:  "Unable to retrieve Transit Gateways",
+				ResourceType: transitGatewayVpcAttachments.ResourceName(),
+			}
+			report.RecordError(ge)
 		}
 		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
-			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(session, region, excludeAfter)
+			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Could not retrieve Transit Gateway attachments",
+					ResourceType: transitGatewayVpcAttachments.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(transitGatewayVpcAttachmentIds) > 0 {
 				transitGatewayVpcAttachments.Ids = awsgo.StringValueSlice(transitGatewayVpcAttachmentIds)
@@ -326,9 +371,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// TransitGatewayRouteTable
 		transitGatewayRouteTables := TransitGatewaysRouteTables{}
 		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
-			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(session, region, excludeAfter)
+			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Transit Gateway route tables",
+					ResourceType: transitGatewayRouteTables.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(transitGatewayRouteTableIds) > 0 {
 				transitGatewayRouteTables.Ids = awsgo.StringValueSlice(transitGatewayRouteTableIds)
@@ -340,9 +390,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// TransitGateway
 		transitGateways := TransitGateways{}
 		if IsNukeable(transitGateways.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
-			transitGatewayIds, err := getAllTransitGatewayInstances(session, region, excludeAfter)
+			transitGatewayIds, err := getAllTransitGatewayInstances(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Transit Gateways",
+					ResourceType: transitGateways.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(transitGatewayIds) > 0 {
 				transitGateways.Ids = awsgo.StringValueSlice(transitGatewayIds)
@@ -354,9 +409,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// NATGateway
 		natGateways := NatGateways{}
 		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
-			ngwIDs, err := getAllNatGateways(session, excludeAfter, configObj)
+			ngwIDs, err := getAllNatGateways(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve NAT Gateways",
+					ResourceType: natGateways.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(ngwIDs) > 0 {
 				natGateways.NatGatewayIDs = awsgo.StringValueSlice(ngwIDs)
@@ -365,12 +425,36 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End NATGateway
 
+		// OpenSearch Domains
+		domains := OpenSearchDomains{}
+		if IsNukeable(domains.ResourceName(), resourceTypes) {
+			domainNames, err := getOpenSearchDomainsToNuke(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve OpenSearch Domains",
+					ResourceType: domains.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(domainNames) > 0 {
+				domains.DomainNames = awsgo.StringValueSlice(domainNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, domains)
+			}
+		}
+		// End OpenSearchDomains
+
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
-			instanceIds, err := getAllEc2Instances(session, region, excludeAfter)
+			instanceIds, err := getAllEc2Instances(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve EC2 instances",
+					ResourceType: ec2Instances.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(instanceIds) > 0 {
 				ec2Instances.InstanceIds = awsgo.StringValueSlice(instanceIds)
@@ -379,12 +463,37 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EC2 Instances
 
+		// EC2 Dedicated Hosts
+		ec2DedicatedHosts := EC2DedicatedHosts{}
+		if IsNukeable(ec2DedicatedHosts.ResourceName(), resourceTypes) {
+			hostIds, err := getAllEc2DedicatedHosts(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve EC2 dedicated hosts",
+					ResourceType: ec2DedicatedHosts.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(hostIds) > 0 {
+				ec2DedicatedHosts.HostIds = awsgo.StringValueSlice(hostIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2DedicatedHosts)
+			}
+		}
+
+		// End EC2 Dedicated Hosts
+
 		// EBS Volumes
 		ebsVolumes := EBSVolumes{}
 		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
-			volumeIds, err := getAllEbsVolumes(session, region, excludeAfter)
+			volumeIds, err := getAllEbsVolumes(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve EBS volumes",
+					ResourceType: ebsVolumes.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(volumeIds) > 0 {
 				ebsVolumes.VolumeIds = awsgo.StringValueSlice(volumeIds)
@@ -396,9 +505,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EIP Addresses
 		eipAddresses := EIPAddresses{}
 		if IsNukeable(eipAddresses.ResourceName(), resourceTypes) {
-			allocationIds, err := getAllEIPAddresses(session, region, excludeAfter)
+			allocationIds, err := getAllEIPAddresses(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve EIP addresses",
+					ResourceType: eipAddresses.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(allocationIds) > 0 {
 				eipAddresses.AllocationIds = awsgo.StringValueSlice(allocationIds)
@@ -410,9 +524,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// AMIs
 		amis := AMIs{}
 		if IsNukeable(amis.ResourceName(), resourceTypes) {
-			imageIds, err := getAllAMIs(session, region, excludeAfter)
+			imageIds, err := getAllAMIs(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve AMIs",
+					ResourceType: amis.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(imageIds) > 0 {
 				amis.ImageIds = awsgo.StringValueSlice(imageIds)
@@ -424,9 +543,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Snapshots
 		snapshots := Snapshots{}
 		if IsNukeable(snapshots.ResourceName(), resourceTypes) {
-			snapshotIds, err := getAllSnapshots(session, region, excludeAfter)
+			snapshotIds, err := getAllSnapshots(cloudNukeSession, region, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Snapshots",
+					ResourceType: snapshots.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(snapshotIds) > 0 {
 				snapshots.SnapshotIds = awsgo.StringValueSlice(snapshotIds)
@@ -438,12 +562,17 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ECS resources
 		ecsServices := ECSServices{}
 		if IsNukeable(ecsServices.ResourceName(), resourceTypes) {
-			clusterArns, err := getAllEcsClusters(session)
+			clusterArns, err := getAllEcsClusters(cloudNukeSession)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ECS clusters",
+					ResourceType: ecsServices.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(clusterArns) > 0 {
-				serviceArns, serviceClusterMap, err := getAllEcsServices(session, clusterArns, excludeAfter)
+				serviceArns, serviceClusterMap, err := getAllEcsServices(cloudNukeSession, clusterArns, excludeAfter, configObj)
 				if err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
@@ -455,9 +584,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		ecsClusters := ECSClusters{}
 		if IsNukeable(ecsClusters.ResourceName(), resourceTypes) {
-			ecsClusterArns, err := getAllEcsClustersOlderThan(session, region, excludeAfter)
+			ecsClusterArns, err := getAllEcsClustersOlderThan(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ECS clusters",
+					ResourceType: ecsClusters.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(ecsClusterArns) > 0 {
 				ecsClusters.ClusterArns = awsgo.StringValueSlice(ecsClusterArns)
@@ -469,15 +603,18 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EKS resources
 		eksClusters := EKSClusters{}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
-			if eksSupportedRegion(region) {
-				eksClusterNames, err := getAllEksClusters(session, excludeAfter)
-				if err != nil {
-					return nil, errors.WithStackTrace(err)
+			eksClusterNames, err := getAllEksClusters(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve EKS clusters",
+					ResourceType: eksClusters.ResourceName(),
 				}
-				if len(eksClusterNames) > 0 {
-					eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
-					resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
-				}
+				report.RecordError(ge)
+			}
+			if len(eksClusterNames) > 0 {
+				eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, eksClusters)
 			}
 		}
 		// End EKS resources
@@ -485,10 +622,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Instances
 		dbInstances := DBInstances{}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
-			instanceNames, err := getAllRdsInstances(session, excludeAfter)
-
+			instanceNames, err := getAllRdsInstances(cloudNukeSession, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve RDS instances",
+					ResourceType: dbInstances.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 
 			if len(instanceNames) > 0 {
@@ -503,10 +644,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// has different abstractions for each.
 		dbClusters := DBClusters{}
 		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
-			clustersNames, err := getAllRdsClusters(session, excludeAfter)
-
+			clustersNames, err := getAllRdsClusters(cloudNukeSession, excludeAfter)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve DB clusters",
+					ResourceType: dbClusters.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 
 			if len(clustersNames) > 0 {
@@ -519,10 +664,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Lambda Functions
 		lambdaFunctions := LambdaFunctions{}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
-			lambdaFunctionNames, err := getAllLambdaFunctions(session, excludeAfter)
-
+			lambdaFunctionNames, err := getAllLambdaFunctions(cloudNukeSession, excludeAfter, configObj, lambdaFunctions.MaxBatchSize())
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Lambda functions",
+					ResourceType: lambdaFunctions.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 
 			if len(lambdaFunctionNames) > 0 {
@@ -535,9 +684,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Secrets Manager Secrets
 		secretsManagerSecrets := SecretsManagerSecrets{}
 		if IsNukeable(secretsManagerSecrets.ResourceName(), resourceTypes) {
-			secrets, err := getAllSecretsManagerSecrets(session, excludeAfter, configObj)
+			secrets, err := getAllSecretsManagerSecrets(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Secrets managers entries",
+					ResourceType: secretsManagerSecrets.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 
 			if len(secrets) > 0 {
@@ -550,9 +704,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// AccessAnalyzer
 		accessAnalyzer := AccessAnalyzer{}
 		if IsNukeable(accessAnalyzer.ResourceName(), resourceTypes) {
-			analyzerNames, err := getAllAccessAnalyzers(session, excludeAfter, configObj)
+			analyzerNames, err := getAllAccessAnalyzers(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Access analyzers",
+					ResourceType: accessAnalyzer.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(analyzerNames) > 0 {
 				accessAnalyzer.AnalyzerNames = awsgo.StringValueSlice(analyzerNames)
@@ -560,6 +719,44 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End AccessAnalyzer
+
+		// CloudWatchDashboard
+		cloudwatchDashboards := CloudWatchDashboards{}
+		if IsNukeable(cloudwatchDashboards.ResourceName(), resourceTypes) {
+			cwdbNames, err := getAllCloudWatchDashboards(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve CloudWatch dashboards",
+					ResourceType: cloudwatchDashboards.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(cwdbNames) > 0 {
+				cloudwatchDashboards.DashboardNames = awsgo.StringValueSlice(cwdbNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchDashboards)
+			}
+		}
+		// End CloudWatchDashboard
+
+		// CloudWatchLogGroup
+		cloudwatchLogGroups := CloudWatchLogGroups{}
+		if IsNukeable(cloudwatchLogGroups.ResourceName(), resourceTypes) {
+			lgNames, err := getAllCloudWatchLogGroups(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve CloudWatch log groups",
+					ResourceType: cloudwatchLogGroups.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(lgNames) > 0 {
+				cloudwatchLogGroups.Names = awsgo.StringValueSlice(lgNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchLogGroups)
+			}
+		}
+		// End CloudWatchLogGroup
 
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
@@ -580,14 +777,19 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			bucketNamesPerRegion, ok := resourcesCache["S3"]
 
 			if !ok {
-				bucketNamesPerRegion, err = getAllS3Buckets(session, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(), configObj)
+				bucketNamesPerRegion, err = getAllS3Buckets(cloudNukeSession, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(), configObj)
 				if err != nil {
-					return nil, errors.WithStackTrace(err)
+					ge := report.GeneralError{
+						Error:        err,
+						Description:  "Unable to retrieve S3 buckets",
+						ResourceType: s3Buckets.ResourceName(),
+					}
+					report.RecordError(ge)
 				}
 
 				resourcesCache["S3"] = make(map[string][]*string)
 
-				for bucketRegion, _ := range bucketNamesPerRegion {
+				for bucketRegion := range bucketNamesPerRegion {
 					resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
 				}
 			}
@@ -601,24 +803,313 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End S3 Buckets
 
+		DynamoDB := DynamoDB{}
+		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
+			tablenames, err := getAllDynamoTables(cloudNukeSession, excludeAfter, configObj, DynamoDB)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Dynamo DB tables",
+					ResourceType: DynamoDB.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			if len(tablenames) > 0 {
+				DynamoDB.DynamoTableNames = awsgo.StringValueSlice(tablenames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, DynamoDB)
+			}
+		}
+		// End Dynamo DB tables
+
+		// EC2 VPCS
+		ec2Vpcs := EC2VPCs{}
+		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
+			vpcids, vpcs, err := getAllVpcs(cloudNukeSession, region, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve VPCs",
+					ResourceType: ec2Vpcs.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			if len(vpcids) > 0 {
+				ec2Vpcs.VPCIds = awsgo.StringValueSlice(vpcids)
+				ec2Vpcs.VPCs = vpcs
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Vpcs)
+			}
+		}
+		// End EC2 VPCS
+
+		// Start EC2 KeyPairs
+		KeyPairs := EC2KeyPairs{}
+		if IsNukeable(KeyPairs.ResourceName(), resourceTypes) {
+			keyPairIds, err := getAllEc2KeyPairs(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if len(keyPairIds) > 0 {
+				KeyPairs.KeyPairIds = awsgo.StringValueSlice(keyPairIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, KeyPairs)
+			}
+		}
+		// End EC2 KeyPairs
+
+		// Elasticaches
+		elasticaches := Elasticaches{}
+		if IsNukeable(elasticaches.ResourceName(), resourceTypes) {
+			clusterIds, err := getAllElasticacheClusters(cloudNukeSession, region, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Elasticaches",
+					ResourceType: elasticaches.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			if len(clusterIds) > 0 {
+				elasticaches.ClusterIds = awsgo.StringValueSlice(clusterIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticaches)
+			}
+		}
+		// End Elasticaches
+
+		// KMS Customer managed keys
+		customerKeys := KmsCustomerKeys{}
+		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
+			keys, aliases, err := getAllKmsUserKeys(cloudNukeSession, customerKeys.MaxBatchSize(), excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve KMS customer keys",
+					ResourceType: customerKeys.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(keys) > 0 {
+				customerKeys.KeyAliases = aliases
+				customerKeys.KeyIds = awsgo.StringValueSlice(keys)
+
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, customerKeys)
+			}
+
+		}
+		// End KMS Customer managed keys
+
+		// GuardDuty detectors
+		guardDutyDetectors := GuardDuty{}
+		if IsNukeable(guardDutyDetectors.ResourceName(), resourceTypes) {
+			detectors, err := getAllGuardDutyDetectors(cloudNukeSession, excludeAfter, configObj, guardDutyDetectors.MaxBatchSize())
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve GuardDuty detectors",
+					ResourceType: guardDutyDetectors.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(detectors) > 0 {
+				guardDutyDetectors.detectorIds = detectors
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, guardDutyDetectors)
+			}
+
+		}
+		// End GuardDuty detectors
+
+		// Macie member accounts
+		macieAccounts := MacieMember{}
+		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
+			// Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the excludeAfter or configObj patterns
+			accountIds, err := getAllMacieMemberAccounts(cloudNukeSession)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Macie member accounts",
+					ResourceType: macieAccounts.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(accountIds) > 0 {
+				macieAccounts.AccountIds = accountIds
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, macieAccounts)
+			}
+
+		}
+		// End Macie member accounts
+
+		// Start SageMaker Notebook Instances
+		notebookInstances := SageMakerNotebookInstances{}
+		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
+			instances, err := getAllNotebookInstances(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve sagemaker notebook instances",
+					ResourceType: notebookInstances.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(instances) > 0 {
+				notebookInstances.InstanceNames = awsgo.StringValueSlice(instances)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, notebookInstances)
+			}
+		}
+		// End SageMaker Notebook Instances
+
+		// Kinesis Streams
+		kinesisStreams := KinesisStreams{}
+		if IsNukeable(kinesisStreams.ResourceName(), resourceTypes) {
+			streams, err := getAllKinesisStreams(cloudNukeSession, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve kinesis streams",
+					ResourceType: kinesisStreams.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(streams) > 0 {
+				kinesisStreams.Names = awsgo.StringValueSlice(streams)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, kinesisStreams)
+			}
+		}
+		// End Kinesis Streams
+
+		// API Gateways (v1)
+		apiGateways := ApiGateway{}
+		if IsNukeable(apiGateways.ResourceName(), resourceTypes) {
+			gatewayIds, err := getAllAPIGateways(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve API gateways v1",
+					ResourceType: apiGateways.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(gatewayIds) > 0 {
+				apiGateways.Ids = awsgo.StringValueSlice(gatewayIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, apiGateways)
+			}
+		}
+		// End API Gateways (v1)
+
+		// API Gateways (v2)
+		apiGatewaysV2 := ApiGatewayV2{}
+		if IsNukeable(apiGatewaysV2.ResourceName(), resourceTypes) {
+			gatewayV2Ids, err := getAllAPIGatewaysV2(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve API gateways v2",
+					ResourceType: apiGatewaysV2.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(gatewayV2Ids) > 0 {
+				apiGatewaysV2.Ids = awsgo.StringValueSlice(gatewayV2Ids)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, apiGatewaysV2)
+			}
+		}
+		// End API Gateways (v2)
+
+		// Elastic FileSystems (efs)
+		elasticFileSystems := ElasticFileSystem{}
+		if IsNukeable(elasticFileSystems.ResourceName(), resourceTypes) {
+			elasticFileSystemsIds, err := getAllElasticFileSystems(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Elastic FileSystems",
+					ResourceType: elasticFileSystems.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(elasticFileSystemsIds) > 0 {
+				elasticFileSystems.Ids = awsgo.StringValueSlice(elasticFileSystemsIds)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticFileSystems)
+			}
+		}
+		// End Elastic FileSystems (efs)
+
+		// SNS Topics
+		snsTopics := SNSTopic{}
+		if IsNukeable(snsTopics.ResourceName(), resourceTypes) {
+			snsTopicArns, err := getAllSNSTopics(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve SNS topics",
+					ResourceType: snsTopics.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(snsTopicArns) > 0 {
+				snsTopics.Arns = awsgo.StringValueSlice(snsTopicArns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, snsTopics)
+			}
+		}
+		// End SNS Topics
+
+		// Cloudtrail Trails
+		cloudtrailTrails := CloudtrailTrail{}
+		if IsNukeable(cloudtrailTrails.ResourceName(), resourceTypes) {
+			cloudtrailArns, err := getAllCloudtrailTrails(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Cloudtrail trails",
+					ResourceType: cloudtrailTrails.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(cloudtrailArns) > 0 {
+				cloudtrailTrails.Arns = awsgo.StringValueSlice(cloudtrailArns)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudtrailTrails)
+			}
+		}
+		// End Cloudtrail Trails
+
+		// ECR Repositories
+		ecrRepositories := ECR{}
+		if IsNukeable(ecrRepositories.ResourceName(), resourceTypes) {
+			ecrRepositoryArns, err := getAllECRRepositories(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ECR repositories",
+					ResourceType: ecrRepositories.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(ecrRepositoryArns) > 0 {
+				ecrRepositories.RepositoryNames = ecrRepositoryArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecrRepositories)
+			}
+		}
+		// End ECR Repositories
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
 		count++
+
 	}
 
 	// Global Resources - These resources are global and do not belong to a specific region
 	// Only process them if the global region was not explicitly excluded
 	if collections.ListContainsElement(targetRegions, GlobalRegion) {
-		logging.Logger.Infof("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
+		logging.Logger.Debugf("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
 
 		// As there is no actual region named global we have to pick a valid one just to create the session
 		sessionRegion := defaultRegion
-		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(sessionRegion)},
-		)
+		session, err := newAWSSession(sessionRegion)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		globalResources := AwsRegionResource{}
@@ -627,9 +1118,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		iamUsers := IAMUsers{}
 		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
 			userNames, err := getAllIamUsers(session, excludeAfter, configObj)
-
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve IAM users",
+					ResourceType: iamUsers.ResourceName(),
+				}
+				report.RecordError(ge)
 			}
 			if len(userNames) > 0 {
 				iamUsers.UserNames = awsgo.StringValueSlice(userNames)
@@ -637,6 +1132,73 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End IAM Users
+
+		//IAM Groups
+		iamGroups := IAMGroups{}
+		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
+			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(groupNames) > 0 {
+				iamGroups.GroupNames = awsgo.StringValueSlice(groupNames)
+				globalResources.Resources = append(globalResources.Resources, iamGroups)
+			}
+		}
+		//END IAM Groups
+
+		//IAM Policies
+		iamPolicies := IAMPolicies{}
+		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
+			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+			if len(policyArns) > 0 {
+				iamPolicies.PolicyArns = awsgo.StringValueSlice(policyArns)
+				globalResources.Resources = append(globalResources.Resources, iamPolicies)
+			}
+		}
+		//End IAM Policies
+
+		// IAM OpenID Connect Providers
+		oidcProviders := OIDCProviders{}
+		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
+			providerARNs, err := getAllOIDCProviders(session, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve OIDC providers",
+					ResourceType: oidcProviders.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			if len(providerARNs) > 0 {
+				oidcProviders.ProviderARNs = awsgo.StringValueSlice(providerARNs)
+				globalResources.Resources = append(globalResources.Resources, oidcProviders)
+			}
+		}
+		// End IAM OpenIDConnectProviders
+
+		// IAM Roles
+		iamRoles := IAMRoles{}
+		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
+			roleNames, err := getAllIamRoles(session, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve IAM roles",
+					ResourceType: iamRoles.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(roleNames) > 0 {
+				iamRoles.RoleNames = awsgo.StringValueSlice(roleNames)
+				globalResources.Resources = append(globalResources.Resources, iamRoles)
+			}
+		}
+		// End IAM Roles
 
 		if len(globalResources.Resources) > 0 {
 			account.Resources[GlobalRegion] = globalResources
@@ -659,6 +1221,7 @@ func ListResourceTypes() []string {
 		TransitGatewaysRouteTables{}.ResourceName(),
 		TransitGateways{}.ResourceName(),
 		EC2Instances{}.ResourceName(),
+		EC2DedicatedHosts{}.ResourceName(),
 		EBSVolumes{}.ResourceName(),
 		EIPAddresses{}.ResourceName(),
 		AMIs{}.ResourceName(),
@@ -670,9 +1233,31 @@ func ListResourceTypes() []string {
 		LambdaFunctions{}.ResourceName(),
 		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
+		IAMRoles{}.ResourceName(),
+		IAMGroups{}.ResourceName(),
+		IAMPolicies{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
+		OpenSearchDomains{}.ResourceName(),
+		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
+		DynamoDB{}.ResourceName(),
+		EC2VPCs{}.ResourceName(),
+		Elasticaches{}.ResourceName(),
+		OIDCProviders{}.ResourceName(),
+		KmsCustomerKeys{}.ResourceName(),
+		CloudWatchLogGroups{}.ResourceName(),
+		GuardDuty{}.ResourceName(),
+		MacieMember{}.ResourceName(),
+		SageMakerNotebookInstances{}.ResourceName(),
+		KinesisStreams{}.ResourceName(),
+		ApiGateway{}.ResourceName(),
+		ApiGatewayV2{}.ResourceName(),
+		ElasticFileSystem{}.ResourceName(),
+		SNSTopic{}.ResourceName(),
+		CloudtrailTrail{}.ResourceName(),
+		EC2KeyPairs{}.ResourceName(),
+		ECR{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
@@ -693,14 +1278,14 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) error {
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) {
 	resourcesInRegion := account.Resources[region]
 
 	for _, resources := range resourcesInRegion.Resources {
 		length := len(resources.ResourceIdentifiers())
 
 		// Split api calls into batches
-		logging.Logger.Infof("Terminating %d resources in batches", length)
+		logging.Logger.Debugf("Terminating %d resources in batches", length)
 		batches := split(resources.ResourceIdentifiers(), resources.MaxBatchSize())
 
 		for i := 0; i < len(batches); i++ {
@@ -708,26 +1293,36 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 			if err := resources.Nuke(session, batch); err != nil {
 				// TODO: Figure out actual error type
 				if strings.Contains(err.Error(), "RequestLimitExceeded") {
-					logging.Logger.Info("Request limit reached. Waiting 1 minute before making new requests")
+					logging.Logger.Debug("Request limit reached. Waiting 1 minute before making new requests")
 					time.Sleep(1 * time.Minute)
 					continue
 				}
 
-				return errors.WithStackTrace(err)
+				// We're only interested in acting on Rate limit errors - no other error should prevent further processing
+				// of the current job.Since we handle each individual resource deletion error within its own resource-specific code,
+				// we can safely discard this error
+				_ = err
 			}
 
 			if i != len(batches)-1 {
-				logging.Logger.Info("Sleeping for 10 seconds before processing next batch...")
+				logging.Logger.Debug("Sleeping for 10 seconds before processing next batch...")
 				time.Sleep(10 * time.Second)
 			}
 		}
 	}
-
-	return nil
 }
 
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
+	// Set the progressbar width to the total number of nukeable resources found
+	// across all regions
+
+	// Update the progress bar to have the correct width based on the total number of unique resource targteds
+	progressbar.WithTotal(account.TotalResourceCount())
+	p := progressbar.GetProgressbar()
+	p.Start()
+
+	defaultRegion := regions[0]
 	for _, region := range regions {
 		// region that will be used to create a session
 		sessionRegion := region
@@ -737,20 +1332,28 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 			sessionRegion = defaultRegion
 		}
 
-		session, err := session.NewSession(&awsgo.Config{
-			Region: awsgo.String(sessionRegion)},
-		)
-
+		session, err := newAWSSession(sessionRegion)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
-		err = nukeAllResourcesInRegion(account, region, session)
-
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
+		// We intentionally do not handle an error returned from this method, because we collect individual errors
+		// on per-resource basis via the report package's Record method. In the run report displayed at the end of
+		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
+		nukeAllResourcesInRegion(account, region, session)
 	}
 
 	return nil
+}
+
+func newAWSSession(awsRegion string) (*session.Session, error) {
+	sessionOptions := session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}
+	sess, err := session.NewSessionWithOptions(sessionOptions)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+	sess.Config.Region = aws.String(awsRegion)
+	return sess, nil
 }

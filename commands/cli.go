@@ -2,16 +2,18 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/collections"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
+	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/shell"
+	"github.com/pterm/pterm"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -62,7 +64,7 @@ func CreateCli(version string) *cli.App {
 				},
 				cli.BoolFlag{
 					Name:  "force",
-					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all resources without any confirmation",
+					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all targeted resources without any confirmation. It will not modify resource selections made via the --resource-type flag or an optional config file.",
 				},
 				cli.StringFlag{
 					Name:   "log-level",
@@ -95,6 +97,49 @@ func CreateCli(version string) *cli.App {
 				cli.BoolFlag{
 					Name:  "force",
 					Usage: "Skip confirmation prompt. WARNING: this will automatically delete defaults without any confirmation",
+				},
+				cli.StringFlag{
+					Name:   "log-level",
+					Value:  "info",
+					Usage:  "Set log level",
+					EnvVar: "LOG_LEVEL",
+				},
+			},
+		}, {
+			Name:   "inspect-aws",
+			Usage:  "Non-destructive inspection of target resources only",
+			Action: errors.WithPanicHandling(awsInspect),
+			Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:  "region",
+					Usage: "regions to include",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-region",
+					Usage: "regions to exclude",
+				},
+				cli.BoolFlag{
+					Name:  "list-resource-types",
+					Usage: "List available resource types",
+				},
+				cli.StringSliceFlag{
+					Name:  "resource-type",
+					Usage: "Resource types to inspect. Include multiple times if more than one.",
+				},
+				cli.StringSliceFlag{
+					Name:  "exclude-resource-type",
+					Usage: "Resource types to exclude from inspection. Include multiple times if more than one.",
+				},
+				cli.StringFlag{
+					Name:  "older-than",
+					Usage: "Only inspect resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
+					Value: "0s",
+				},
+				cli.StringFlag{
+					Name:   "log-level",
+					Value:  "info",
+					Usage:  "Set log level",
+					EnvVar: "LOG_LEVEL",
 				},
 			},
 		},
@@ -130,14 +175,11 @@ func awsNuke(c *cli.Context) error {
 
 	if configFilePath != "" {
 		configObjPtr, err := config.GetConfig(configFilePath)
-
 		if err != nil {
 			return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
 		}
 		configObj = *configObjPtr
 	}
-
-	allResourceTypes := aws.ListResourceTypes()
 
 	if c.Bool("list-resource-types") {
 		for _, resourceType := range aws.ListResourceTypes() {
@@ -146,55 +188,29 @@ func awsNuke(c *cli.Context) error {
 		return nil
 	}
 
-	resourceTypes := c.StringSlice("resource-type")
-	excludeResourceTypes := c.StringSlice("exclude-resource-type")
-	if len(resourceTypes) > 0 && len(excludeResourceTypes) > 0 {
-		return fmt.Errorf("You can not specify both --resource-type and --exclude-resource-type")
+	// Ensure that the resourceTypes and excludeResourceTypes arguments are valid, and then filter
+	// resourceTypes
+	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-type"), c.StringSlice("exclude-resource-type"))
+	if err != nil {
+		return err
 	}
 
-	// Var check to make sure only allowed resource types are included in the --resource-type or --exclude-resource-type
-	// args.
-	invalidresourceTypes := []string{}
-	for _, resourceType := range resourceTypes {
-		if resourceType == "all" {
-			continue
-		}
-		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
-			invalidresourceTypes = append(invalidresourceTypes, resourceType)
-		}
+	targetedResourceList := []pterm.BulletListItem{}
+
+	for _, resource := range resourceTypes {
+		targetedResourceList = append(targetedResourceList, pterm.BulletListItem{Level: 0, Text: resource})
 	}
 
-	for _, resourceType := range excludeResourceTypes {
-		if !aws.IsValidResourceType(resourceType, allResourceTypes) {
-			invalidresourceTypes = append(invalidresourceTypes, resourceType)
-		}
-	}
-
-	if len(invalidresourceTypes) > 0 {
-		msg := "Try --list-resource-types to get list of valid resource types."
-		return fmt.Errorf("Invalid resourceTypes %s specified: %s", invalidresourceTypes, msg)
-	}
-
-	// Handle exclude resource types by going through the list of all types and only include those that are not
-	// mentioned in the exclude list.
-	if len(excludeResourceTypes) > 0 {
-		for _, resourceType := range allResourceTypes {
-			if !collections.ListContainsElement(excludeResourceTypes, resourceType) {
-				resourceTypes = append(resourceTypes, resourceType)
-			}
-		}
-	}
+	ui.WarningMessage("The following resource types are targeted for destruction")
 
 	// Log which resource types will be nuked
-	logging.Logger.Info("The following resource types will be nuked:")
-	if len(resourceTypes) > 0 {
-		for _, resourceType := range resourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
-		}
-	} else {
-		for _, resourceType := range allResourceTypes {
-			logging.Logger.Infof("- %s", resourceType)
-		}
+	list := pterm.DefaultBulletList.
+		WithItems(targetedResourceList).
+		WithBullet(ui.TargetEmoji)
+
+	renderErr := list.Render()
+	if renderErr != nil {
+		return errors.WithStackTrace(renderErr)
 	}
 
 	regions, err := aws.GetEnabledRegions()
@@ -220,31 +236,46 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Infof("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
+	spinnerMsg := fmt.Sprintf("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
 
+	// Start a simple spinner to track progress reading all relevant AWS resources
+	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
+		WithRemoveWhenDone(true).
+		Start(spinnerMsg)
+
+	if spinnerErr != nil {
+		return errors.WithStackTrace(spinnerErr)
+	}
+
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
+	// Stop the spinner
+	spinnerSuccess.Stop()
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
 	if len(account.Resources) == 0 {
-		logging.Logger.Infoln("Nothing to nuke, you're all good!")
+		pterm.Info.Println("Nothing to nuke, you're all good!")
 		return nil
 	}
 
-	nukableResources := make([]string, 0)
-	for region, resourcesInRegion := range account.Resources {
-		for _, resources := range resourcesInRegion.Resources {
-			for _, identifier := range resources.ResourceIdentifiers() {
-				nukableResources = append(nukableResources, fmt.Sprintf("* %s %s %s\n", resources.ResourceName(), identifier, region))
-			}
-		}
-	}
+	nukableResources := aws.ExtractResourcesForPrinting(account)
 
-	logging.Logger.Infof("The following %d AWS resources will be nuked:", len(nukableResources))
+	ui.WarningMessage(fmt.Sprintf("The following %d AWS resources will be nuked:\n", len(nukableResources)))
+
+	items := []pterm.BulletListItem{}
 
 	for _, resource := range nukableResources {
-		logging.Logger.Infoln(resource)
+		items = append(items, pterm.BulletListItem{Level: 0, Text: resource})
+	}
+
+	targetList := pterm.DefaultBulletList.
+		WithItems(items).
+		WithBullet(ui.FireEmoji)
+
+	targetRenderErr := targetList.Render()
+	if targetRenderErr != nil {
+		return errors.WithStackTrace(targetRenderErr)
 	}
 
 	if c.Bool("dry-run") {
@@ -270,11 +301,24 @@ func awsNuke(c *cli.Context) error {
 			time.Sleep(1 * time.Second)
 		}
 
-		fmt.Println()
 		if err := aws.NukeAllResources(account, regions); err != nil {
 			return err
 		}
 	}
+
+	// Remove the progressbar, now that we're ready to display the table report
+	p := progressbar.GetProgressbar()
+	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up beofre the
+	// final run report table is printed
+	fmt.Print("\r")
+	p.Stop()
+	pterm.Println()
+
+	// Conditionally print the general error report, if in fact there were errors
+	ui.PrintGeneralErrorReport(os.Stdout)
+
+	// Print the report showing the user what happened with each resource
+	ui.PrintRunReport(os.Stdout)
 
 	return nil
 }
@@ -380,8 +424,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 }
 
 func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
-	color := color.New(color.FgHiRed, color.Bold)
-	color.Println("\nTHE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
+	ui.UrgentMessage("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
 	shellOptions := shell.ShellOptions{Logger: logging.Logger}
 
@@ -389,7 +432,6 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 	prompts := 0
 	for prompts < maxPrompts {
 		input, err := shell.PromptUserForInput(prompt, &shellOptions)
-
 		if err != nil {
 			return false, errors.WithStackTrace(err)
 		}
@@ -403,4 +445,51 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func awsInspect(c *cli.Context) error {
+	logging.Logger.Infoln("Identifying enabled regions")
+	regions, err := aws.GetEnabledRegions()
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+	for _, region := range regions {
+		logging.Logger.Infof("Found enabled region %s", region)
+	}
+
+	if c.Bool("list-resource-types") {
+		for _, resourceType := range aws.ListResourceTypes() {
+			logging.Logger.Infoln(resourceType)
+		}
+		return nil
+	}
+
+	excludeAfter, err := parseDurationParam(c.String("older-than"))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	query, err := aws.NewQuery(
+		c.StringSlice("region"),
+		c.StringSlice("exclude-region"),
+		c.StringSlice("resource-type"),
+		c.StringSlice("exclude-resource-type"),
+		*excludeAfter,
+	)
+	if err != nil {
+		return aws.QueryCreationError{Underlying: err}
+	}
+
+	accountResources, err := aws.InspectResources(query)
+	if err != nil {
+		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
+	}
+
+	foundResources := aws.ExtractResourcesForPrinting(accountResources)
+
+	for _, resource := range foundResources {
+		logging.Logger.Infoln(resource)
+	}
+
+	return nil
 }

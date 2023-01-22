@@ -14,6 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/gruntwork-io/go-commons/retry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -369,6 +372,32 @@ func createFullTestUser(t *testing.T, session *session.Session) (*userInfos, err
 		UserName:    aws.String(userName),
 	})
 	require.NoError(t, err)
+
+	err = retry.DoWithRetry(
+		logging.Logger,
+		"Verify if profile is ready",
+		4,
+		30*time.Second,
+		func() error {
+			// verify if profile is ready by sending update request and checking if update error is returned
+			// https://github.com/gruntwork-io/cloud-nuke/issues/227
+			_, err = svc.UpdateLoginProfile(&iam.UpdateLoginProfileInput{
+				PasswordResetRequired: aws.Bool(true),
+				UserName:              aws.String(userName),
+			})
+			if err != nil {
+				if aerr, ok := err.(awserr.Error); ok {
+					switch aerr.Code() {
+					case iam.ErrCodeEntityTemporarilyUnmodifiableException:
+						return fmt.Errorf("profile not ready %s", userName)
+					default:
+						return retry.FatalError{Underlying: err}
+					}
+				}
+			}
+			return nil
+		})
+	assert.NoError(t, err)
 
 	// Create a Virtual MFA Device for the user
 	output, err := svc.CreateVirtualMFADevice(&iam.CreateVirtualMFADeviceInput{

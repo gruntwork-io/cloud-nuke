@@ -17,6 +17,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
 // getS3BucketRegion returns S3 Bucket region.
@@ -94,8 +95,8 @@ type S3Bucket struct {
 
 // getAllS3Buckets returns a map of per region AWS S3 buckets which were created before excludeAfter
 func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
-	targetRegions []string, bucketNameSubStr string, batchSize int, configObj config.Config) (map[string][]*string, error) {
-
+	targetRegions []string, bucketNameSubStr string, batchSize int, configObj config.Config,
+) (map[string][]*string, error) {
 	if batchSize <= 0 {
 		return nil, fmt.Errorf("Invalid batchsize - %d - should be > 0", batchSize)
 	}
@@ -112,7 +113,7 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var bucketNamesPerRegion = make(map[string][]*string)
+	bucketNamesPerRegion := make(map[string][]*string)
 	totalBuckets := len(output.Buckets)
 	if totalBuckets == 0 {
 		return bucketNamesPerRegion, nil
@@ -124,10 +125,9 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 	// Batch the get operation
 	for batchStart := 0; batchStart < totalBuckets; batchStart += batchSize {
 		batchEnd := int(math.Min(float64(batchStart)+float64(batchSize), float64(totalBuckets)))
-		logging.Logger.Infof("Getting - %d-%d buckets of batch %d/%d", batchStart+1, batchEnd, batchCount, totalBatches)
+		logging.Logger.Debugf("Getting - %d-%d buckets of batch %d/%d", batchStart+1, batchEnd, batchCount, totalBatches)
 		targetBuckets := output.Buckets[batchStart:batchEnd]
 		currBucketNamesPerRegion, err := getBucketNamesPerRegion(svc, targetBuckets, excludeAfter, regionClients, bucketNameSubStr, configObj)
-
 		if err != nil {
 			return bucketNamesPerRegion, err
 		}
@@ -136,9 +136,7 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 			if _, ok := bucketNamesPerRegion[region]; !ok {
 				bucketNamesPerRegion[region] = []*string{}
 			}
-			for _, bucket := range buckets {
-				bucketNamesPerRegion[region] = append(bucketNamesPerRegion[region], bucket)
-			}
+			bucketNamesPerRegion[region] = append(bucketNamesPerRegion[region], buckets...)
 		}
 		batchCount++
 	}
@@ -147,15 +145,12 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 
 // getRegions creates s3 clients for target regions
 func getRegionClients(regions []string) (map[string]*s3.S3, error) {
-	var regionClients = make(map[string]*s3.S3)
+	regionClients := make(map[string]*s3.S3)
 	for _, region := range regions {
 		logging.Logger.Debugf("S3 - creating session - region %s", region)
-		awsSession, err := session.NewSession(&aws.Config{
-			Region: aws.String(region)},
-		)
-		if err != nil {
-			return regionClients, err
-		}
+
+		awsSession := newSession(region)
+
 		regionClients[region] = s3.New(awsSession)
 	}
 	return regionClients, nil
@@ -163,10 +158,10 @@ func getRegionClients(regions []string) (map[string]*s3.S3, error) {
 
 // getBucketNamesPerRegions gets valid bucket names concurrently from list of target buckets
 func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfter time.Time, regionClients map[string]*s3.S3,
-	bucketNameSubStr string, configObj config.Config) (map[string][]*string, error) {
-
-	var bucketNamesPerRegion = make(map[string][]*string)
-	var bucketCh = make(chan *S3Bucket, len(targetBuckets))
+	bucketNameSubStr string, configObj config.Config,
+) (map[string][]*string, error) {
+	bucketNamesPerRegion := make(map[string][]*string)
+	bucketCh := make(chan *S3Bucket, len(targetBuckets))
 	var wg sync.WaitGroup
 
 	for _, bucket := range targetBuckets {
@@ -191,7 +186,7 @@ func getBucketNamesPerRegion(svc *s3.S3, targetBuckets []*s3.Bucket, excludeAfte
 	// messages are shown to the user as soon as possible
 	for bucketData := range bucketCh {
 		if bucketData.Error != nil {
-			logging.Logger.Warnf("Skipping - Bucket %s - region - %s - error: %s", bucketData.Name, bucketData.Region, bucketData.Error)
+			logging.Logger.Debugf("Skipping - Bucket %s - region - %s - error: %s", bucketData.Name, bucketData.Region, bucketData.Error)
 			continue
 		}
 		if !bucketData.IsValid {
@@ -292,15 +287,15 @@ func emptyBucket(svc *s3.S3, bucketName *string, isVersioned bool, batchSize int
 					errOut = err
 					return false
 				}
-				logging.Logger.Infof("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+				logging.Logger.Debugf("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
 
 				logging.Logger.Debugf("Deleting page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
 				if err := deleteDeletionMarkers(svc, bucketName, page.DeleteMarkers); err != nil {
-					logging.Logger.Errorf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+					logging.Logger.Debugf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
 					errOut = err
 					return false
 				}
-				logging.Logger.Infof("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+				logging.Logger.Debugf("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
 
 				pageId++
 				return true
@@ -435,11 +430,11 @@ func nukeAllS3BucketObjects(svc *s3.S3, bucketName *string, batchSize int) error
 		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d", batchSize, 1, 1000)
 	}
 
-	logging.Logger.Infof("Emptying bucket %s", aws.StringValue(bucketName))
+	logging.Logger.Debugf("Emptying bucket %s", aws.StringValue(bucketName))
 	if err := emptyBucket(svc, bucketName, isVersioned, batchSize); err != nil {
 		return err
 	}
-	logging.Logger.Infof("[OK] - successfully emptied bucket %s", aws.StringValue(bucketName))
+	logging.Logger.Debugf("[OK] - successfully emptied bucket %s", aws.StringValue(bucketName))
 	return nil
 }
 
@@ -460,18 +455,25 @@ func nukeEmptyS3Bucket(svc *s3.S3, bucketName *string, verifyBucketDeletion bool
 	// such, we retry this routine up to 3 times for a total of 300 seconds.
 	const maxRetries = 3
 	for i := 0; i < maxRetries; i++ {
-		logging.Logger.Infof("Waiting until bucket (%s) deletion is propagated (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
+		logging.Logger.Debugf("Waiting until bucket (%s) deletion is propagated (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
 		err = svc.WaitUntilBucketNotExists(&s3.HeadBucketInput{
 			Bucket: bucketName,
 		})
 		// Exit early if no error
 		if err == nil {
-			logging.Logger.Info("Successfully detected bucket deletion.")
+			logging.Logger.Debug("Successfully detected bucket deletion.")
 			return nil
 		}
-		logging.Logger.Warnf("Error waiting for bucket (%s) deletion propagation (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
-		logging.Logger.Warnf("Underlying error was: %s", err)
+		logging.Logger.Debugf("Error waiting for bucket (%s) deletion propagation (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
+		logging.Logger.Debugf("Underlying error was: %s", err)
 	}
+	return err
+}
+
+func nukeS3BucketPolicy(svc *s3.S3, bucketName *string) error {
+	_, err := svc.DeleteBucketPolicy(&s3.DeleteBucketPolicyInput{
+		Bucket: aws.String(*bucketName),
+	})
 	return err
 }
 
@@ -481,13 +483,13 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 	verifyBucketDeletion := true
 
 	if len(bucketNames) == 0 {
-		logging.Logger.Infof("No S3 Buckets to nuke in region %s", *awsSession.Config.Region)
+		logging.Logger.Debugf("No S3 Buckets to nuke in region %s", *awsSession.Config.Region)
 		return 0, nil
 	}
 
 	totalCount := len(bucketNames)
 
-	logging.Logger.Infof("Deleting - %d S3 Buckets in region %s", totalCount, *awsSession.Config.Region)
+	logging.Logger.Debugf("Deleting - %d S3 Buckets in region %s", totalCount, *awsSession.Config.Region)
 
 	multiErr := new(multierror.Error)
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
@@ -497,19 +499,34 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 
 		err = nukeAllS3BucketObjects(svc, bucketName, objectBatchSize)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			multierror.Append(multiErr, err)
+			continue
+		}
+
+		err = nukeS3BucketPolicy(svc, bucketName)
+		if err != nil {
+			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket policy cleanup error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			multierror.Append(multiErr, err)
 			continue
 		}
 
 		err = nukeEmptyS3Bucket(svc, bucketName, verifyBucketDeletion)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			multierror.Append(multiErr, err)
 			continue
 		}
 
-		logging.Logger.Infof("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(bucketName),
+			ResourceType: "S3 Bucket",
+			Error:        multiErr.ErrorOrNil(),
+		}
+		report.Record(e)
+
+		logging.Logger.Debugf("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)
 		delCount++
 	}
 

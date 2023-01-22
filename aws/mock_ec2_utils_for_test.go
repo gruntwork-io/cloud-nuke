@@ -48,6 +48,28 @@ func getDeleteInternetGatewayInput(gatewayId string) *ec2.DeleteInternetGatewayI
 	}
 }
 
+func getDescribeEgressOnlyInternetGatewaysInput() *ec2.DescribeEgressOnlyInternetGatewaysInput {
+	return &ec2.DescribeEgressOnlyInternetGatewaysInput{}
+}
+
+func getDescribeNetworkInterfacesInput(vpcId string) *ec2.DescribeNetworkInterfacesInput {
+	return &ec2.DescribeNetworkInterfacesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("vpc-id"),
+				Values: awsgo.StringSlice([]string{vpcId}),
+			},
+		},
+	}
+}
+
+func getAssociateDhcpOptionsInput(vpcId string) *ec2.AssociateDhcpOptionsInput {
+	return &ec2.AssociateDhcpOptionsInput{
+		DhcpOptionsId: awsgo.String("default"),
+		VpcId:         awsgo.String(vpcId),
+	}
+}
+
 func getDescribeSubnetsInput(vpcId string) *ec2.DescribeSubnetsInput {
 	return &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
@@ -127,6 +149,46 @@ func getDeleteNetworkAclInput(networkAclId string) *ec2.DeleteNetworkAclInput {
 	}
 }
 
+func getDescribeSecurityGroupRulesInput(securityGroupId string) *ec2.DescribeSecurityGroupRulesInput {
+	return &ec2.DescribeSecurityGroupRulesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("group-id"),
+				Values: []*string{awsgo.String(securityGroupId)},
+			},
+		},
+	}
+}
+
+func getDescribeSecurityGroupRulesOutput(securityGroupRuleIds []string) *ec2.DescribeSecurityGroupRulesOutput {
+	var securityGroupRules []*ec2.SecurityGroupRule
+	for _, securityGroupRule := range securityGroupRuleIds {
+		securityGroupRules = append(securityGroupRules, &ec2.SecurityGroupRule{
+			IsEgress:            awsgo.Bool(true), // egress rule
+			SecurityGroupRuleId: awsgo.String(securityGroupRule),
+		})
+		securityGroupRules = append(securityGroupRules, &ec2.SecurityGroupRule{
+			IsEgress:            awsgo.Bool(false), // ingress rule
+			SecurityGroupRuleId: awsgo.String(securityGroupRule),
+		})
+	}
+	return &ec2.DescribeSecurityGroupRulesOutput{SecurityGroupRules: securityGroupRules}
+}
+
+func getRevokeSecurityGroupEgressInput(securityGroupId string, securityGroupRuleId string) *ec2.RevokeSecurityGroupEgressInput {
+	return &ec2.RevokeSecurityGroupEgressInput{
+		GroupId:              awsgo.String(securityGroupId),
+		SecurityGroupRuleIds: []*string{awsgo.String(securityGroupRuleId)},
+	}
+}
+
+func getRevokeSecurityGroupIngressInput(securityGroupId string, securityGroupRuleId string) *ec2.RevokeSecurityGroupIngressInput {
+	return &ec2.RevokeSecurityGroupIngressInput{
+		GroupId:              awsgo.String(securityGroupId),
+		SecurityGroupRuleIds: []*string{awsgo.String(securityGroupRuleId)},
+	}
+}
+
 func getDescribeSecurityGroupsInput(vpcId string) *ec2.DescribeSecurityGroupsInput {
 	return &ec2.DescribeSecurityGroupsInput{
 		Filters: []*ec2.Filter{
@@ -174,4 +236,49 @@ func getDescribeDefaultSecurityGroupsOutput(groups []DefaultSecurityGroup) *ec2.
 		})
 	}
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: securityGroups}
+}
+
+func getDescribeEndpointsInput(vpcId string) *ec2.DescribeVpcEndpointsInput {
+	return &ec2.DescribeVpcEndpointsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   awsgo.String("vpc-id"),
+				Values: []*string{awsgo.String(vpcId)},
+			},
+		},
+	}
+}
+
+func getDescribeEndpointsWaitForDeletionInput(vpcId string) *ec2.DescribeVpcEndpointsInput {
+	return &ec2.DescribeVpcEndpointsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   awsgo.String("vpc-id"),
+				Values: []*string{awsgo.String(vpcId)},
+			},
+			{
+				Name:   awsgo.String("vpc-endpoint-state"),
+				Values: []*string{awsgo.String("deleting")},
+			},
+		},
+	}
+}
+
+func getDescribeEndpointsOutput(endpointIds []string) *ec2.DescribeVpcEndpointsOutput {
+	var endpoints []*ec2.VpcEndpoint
+	for _, endpointId := range endpointIds {
+		endpoints = append(endpoints, &ec2.VpcEndpoint{
+			VpcEndpointId: &endpointId,
+		})
+	}
+
+	return &ec2.DescribeVpcEndpointsOutput{
+		VpcEndpoints: endpoints,
+	}
+}
+
+func getDeleteEndpointInput(endpointId string) *ec2.DeleteVpcEndpointsInput {
+	return &ec2.DeleteVpcEndpointsInput{
+		VpcEndpointIds: []*string{&endpointId},
+	}
 }

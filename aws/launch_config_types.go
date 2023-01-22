@@ -18,7 +18,7 @@ func (config LaunchConfigs) ResourceName() string {
 
 func (config LaunchConfigs) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
-	return 200
+	return 49
 }
 
 // ResourceIdentifiers - The names of the launch configurations

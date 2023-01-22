@@ -1,0 +1,5 @@
+ECSCluster:
+  include:
+    names_regex:
+      - ^cloud-nuke-test-
+      - -cloud-nuke-test-

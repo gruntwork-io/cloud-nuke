@@ -12,9 +12,39 @@ import (
 type Config struct {
 	S3                    ResourceType `yaml:"s3"`
 	IAMUsers              ResourceType `yaml:"IAMUsers"`
+	IAMGroups             ResourceType `yaml:"IAMGroups"`
+	IAMPolicies           ResourceType `yaml:"IAMPolicies"`
+	IAMRoles              ResourceType `yaml:"IAMRoles"`
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
 	NatGateway            ResourceType `yaml:"NatGateway"`
 	AccessAnalyzer        ResourceType `yaml:"AccessAnalyzer"`
+	CloudWatchDashboard   ResourceType `yaml:"CloudWatchDashboard"`
+	OpenSearchDomain      ResourceType `yaml:"OpenSearchDomain"`
+	DynamoDB              ResourceType `yaml:"DynamoDB"`
+	EBSVolume             ResourceType `yaml:"EBSVolume"`
+	LambdaFunction        ResourceType `yaml:"LambdaFunction"`
+	ELBv2                 ResourceType `yaml:"ELBv2"`
+	ECSService            ResourceType `yaml:"ECSService"`
+	ECSCluster            ResourceType `yaml:"ECSCluster"`
+	Elasticache           ResourceType `yaml:"Elasticache"`
+	VPC                   ResourceType `yaml:"VPC"`
+	OIDCProvider          ResourceType `yaml:"OIDCProvider"`
+	AutoScalingGroup      ResourceType `yaml:"AutoScalingGroup"`
+	LaunchConfiguration   ResourceType `yaml:"LaunchConfiguration"`
+	ElasticIP             ResourceType `yaml:"ElasticIP"`
+	EC2                   ResourceType `yaml:"EC2"`
+	EC2KeyPairs           ResourceType `yaml:"EC2KeyPairs"`
+	EC2DedicatedHosts     ResourceType `yaml:"EC2DedicatedHosts"`
+	CloudWatchLogGroup    ResourceType `yaml:"CloudWatchLogGroup"`
+	KMSCustomerKeys       ResourceType `yaml:"KMSCustomerKeys"`
+	EKSCluster            ResourceType `yaml:"EKSCluster"`
+	SageMakerNotebook     ResourceType `yaml:"SageMakerNotebook"`
+	KinesisStream         ResourceType `yaml:"KinesisStream"`
+	APIGateway            ResourceType `yaml:"APIGateway"`
+	APIGatewayV2          ResourceType `yaml:"APIGatewayV2"`
+	ElasticFileSystem     ResourceType `yaml:"ElasticFileSystem"`
+	CloudtrailTrail       ResourceType `yaml:"CloudtrailTrail"`
+	ECRRepository         ResourceType `yaml:"ECRRepository"`
 }
 
 type ResourceType struct {
@@ -81,17 +111,17 @@ func matches(name string, regexps []Expression) bool {
 
 // ShouldInclude - Checks if a resource's name should be included according to the inclusion and exclusion rules
 func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression) bool {
-	// If no rules are defined, should always include
 	if len(includeREs) == 0 && len(excludeREs) == 0 {
+		// If no rules are defined, should always include
 		return true
-	// If a rule that exclude matches, should not include
 	} else if matches(name, excludeREs) {
+		// If a rule that exclude matches, should not include
 		return false
-	// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
 	} else if len(includeREs) == 0 {
+		// Given the 'name' is not in the 'exclude' list, should include if there is no 'include' list
 		return true
-	// Given there is a 'include' list, and 'name' is there, should include
 	} else {
+		// Given there is a 'include' list, and 'name' is there, should include
 		return matches(name, includeREs)
 	}
 }

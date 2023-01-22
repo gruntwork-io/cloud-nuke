@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -76,11 +77,11 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 	svc := elb.New(session)
 
 	if len(names) == 0 {
-		logging.Logger.Infof("No Elastic Load Balancers to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Elastic Load Balancers to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Elastic Load Balancers in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Elastic Load Balancers in region %s", *session.Config.Region)
 	var deletedNames []*string
 
 	for _, name := range names {
@@ -89,11 +90,20 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 		}
 
 		_, err := svc.DeleteLoadBalancer(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(name),
+			ResourceType: "Load Balancer (v1)",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Infof("Deleted ELB: %s", *name)
+			logging.Logger.Debugf("Deleted ELB: %s", *name)
 		}
 	}
 
@@ -101,13 +111,12 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 		err := waitUntilElbDeleted(svc, &elb.DescribeLoadBalancersInput{
 			LoadBalancerNames: deletedNames,
 		})
-
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), *session.Config.Region)
 	return nil
 }

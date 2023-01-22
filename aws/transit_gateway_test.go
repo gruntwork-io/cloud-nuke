@@ -213,7 +213,7 @@ func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Sessio
 
 	vpc := vpcs.Vpcs[0]
 
-	subnets := getVpcSubnets(t, session, awsgo.StringValue(vpc.VpcId))
+	subnets := getVpcSubnetsDistinctByAz(t, session, awsgo.StringValue(vpc.VpcId))
 
 	tgwVpctAttachmentName := ec2.TagSpecification{
 		ResourceType: awsgo.String(ec2.ResourceTypeTransitGatewayAttachment),

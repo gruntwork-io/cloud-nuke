@@ -18,7 +18,7 @@ func (queue SqsQueue) ResourceName() string {
 
 func (queue SqsQueue) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
-	return 200
+	return 49
 }
 
 // ResourceIdentifiers - The arns of the sqs queues

@@ -22,7 +22,10 @@ func (clusters EKSClusters) ResourceIdentifiers() []string {
 }
 
 func (clusters EKSClusters) MaxBatchSize() int {
-	return 200
+	// Tentative batch size to ensure AWS doesn't throttle. Note that deleting EKS clusters involves deleting many
+	// associated sub resources in tight loops, and they happen in parallel in go routines. We conservatively pick 10
+	// here, both to limit overloading the runtime and to avoid AWS throttling with many API calls.
+	return 10
 }
 
 // Nuke - nuke all EKS Cluster resources

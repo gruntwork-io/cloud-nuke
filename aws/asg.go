@@ -6,12 +6,14 @@ import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of ASG Names
-func getAllAutoScalingGroups(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
+func getAllAutoScalingGroups(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := autoscaling.New(session)
 	result, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
@@ -20,9 +22,7 @@ func getAllAutoScalingGroups(session *session.Session, region string, excludeAft
 
 	var groupNames []*string
 	for _, group := range result.AutoScalingGroups {
-		if excludeAfter.After(*group.CreatedTime) && !hasASGExcludeTag(group) {
-			groupNames = append(groupNames, group.AutoScalingGroupName)
-		} else if !hasASGExcludeTag(group) {
+		if shouldIncludeAutoScalingGroup(group, excludeAfter, configObj) {
 			groupNames = append(groupNames, group.AutoScalingGroupName)
 		}
 	}
@@ -41,16 +41,36 @@ func hasASGExcludeTag(group *autoscaling.Group) bool {
 	return false
 }
 
+func shouldIncludeAutoScalingGroup(group *autoscaling.Group, excludeAfter time.Time, configObj config.Config) bool {
+	if group == nil {
+		return false
+	}
+
+	if group.CreatedTime != nil && excludeAfter.Before(*group.CreatedTime) {
+		return false
+	}
+
+	if hasASGExcludeTag(group) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		awsgo.StringValue(group.AutoScalingGroupName),
+		configObj.AutoScalingGroup.IncludeRule.NamesRegExp,
+		configObj.AutoScalingGroup.ExcludeRule.NamesRegExp,
+	)
+}
+
 // Deletes all Auto Scaling Groups
 func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) error {
 	svc := autoscaling.New(session)
 
 	if len(groupNames) == 0 {
-		logging.Logger.Infof("No Auto Scaling Groups to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Auto Scaling Groups to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all Auto Scaling Groups in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Auto Scaling Groups in region %s", *session.Config.Region)
 	var deletedGroupNames []*string
 
 	for _, groupName := range groupNames {
@@ -60,11 +80,20 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		}
 
 		_, err := svc.DeleteAutoScalingGroup(params)
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   *groupName,
+			ResourceType: "Auto-Scaling Group",
+			Error:        err,
+		}
+		report.Record(e)
+
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 			deletedGroupNames = append(deletedGroupNames, groupName)
-			logging.Logger.Infof("Deleted Auto Scaling Group: %s", *groupName)
+			logging.Logger.Debugf("Deleted Auto Scaling Group: %s", *groupName)
 		}
 	}
 
@@ -72,13 +101,12 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		err := svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
 			AutoScalingGroupNames: deletedGroupNames,
 		})
-
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), *session.Config.Region)
 	return nil
 }
