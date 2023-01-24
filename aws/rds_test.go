@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"strings"
 	"testing"
 	"time"
@@ -80,12 +81,12 @@ func TestNukeRDSInstance(t *testing.T) {
 	defer func() {
 		nukeAllRdsInstances(session, []*string{&rdsName})
 
-		rdsNames, _ := getAllRdsInstances(session, excludeAfter)
+		rdsNames, _ := getAllRdsInstances(session, excludeAfter, config.Config{})
 
 		assert.NotContains(t, awsgo.StringValueSlice(rdsNames), strings.ToLower(rdsName))
 	}()
 
-	instances, err := getAllRdsInstances(session, excludeAfter)
+	instances, err := getAllRdsInstances(session, excludeAfter, config.Config{})
 
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of RDS DB Instances", errors.WithStackTrace(err).Error())

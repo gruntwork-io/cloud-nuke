@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,7 +13,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllRdsInstances(session *session.Session, excludeAfter time.Time) ([]*string, error) {
+func getAllRdsInstances(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := rds.New(session)
 
 	result, err := svc.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
@@ -23,12 +24,28 @@ func getAllRdsInstances(session *session.Session, excludeAfter time.Time) ([]*st
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		if database.InstanceCreateTime != nil && excludeAfter.After(awsgo.TimeValue(database.InstanceCreateTime)) {
+		if shouldIncludeDbInstance(database, excludeAfter, configObj) {
 			names = append(names, database.DBInstanceIdentifier)
 		}
 	}
 
 	return names, nil
+}
+
+func shouldIncludeDbInstance(database *rds.DBInstance, excludeAfter time.Time, configObj config.Config) bool {
+	if database == nil || database.InstanceCreateTime == nil {
+		return false
+	}
+
+	if excludeAfter.Before(*database.InstanceCreateTime) {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(database.DBName),
+		configObj.DBInstances.IncludeRule.NamesRegExp,
+		configObj.DBInstances.ExcludeRule.NamesRegExp,
+	)
 }
 
 func nukeAllRdsInstances(session *session.Session, names []*string) error {

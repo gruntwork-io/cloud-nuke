@@ -24,7 +24,8 @@ The currently supported functionality includes:
 - Inspecting and deleting all ECS services in an AWS account
 - Inspecting and deleting all ECS clusters in an AWS account
 - Inspecting and deleting all EKS clusters in an AWS account
-- Inspecting and deleting all RDS DB instances in an AWS account
+- Inspecting and deleting all RDS, Neptune, and Document DB instances in an AWS account
+> **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
 - Inspecting and deleting all Lambda Functions in an AWS account
 - Inspecting and deleting all SQS queues in an AWS account
 - Inspecting and deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
@@ -396,6 +397,9 @@ The following resources support the Config file:
 - ECR Repositories
   - Resource type: `ecr`
   - Config key: `ECRRepository`
+- RDS, Neptune, and Document DB Resources
+  - Resource type: `rds`
+  - Config key: `DBInstances`
 
 
 
@@ -491,40 +495,41 @@ Be careful when nuking and append the `--dry-run` option if you're unsure. Even 
 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
-| resource type                | names | names_regex | tags | tags_regex |
-|------------------------------|-------|-------------|------|------------|
-| s3                           | none  | ✅           | none | none       |
-| iam user                     | none  | ✅           | none | none       |
-| ecsserv                      | none  | ✅           | none | none       |
-| ecscluster                   | none  | ✅           | none | none       |
-| secretsmanager               | none  | ✅           | none | none       |
-| nat-gateway                  | none  | ✅           | none | none       |
-| accessanalyzer               | none  | ✅           | none | none       |
-| dynamodb                     | none  | ✅           | none | none       |
-| ebs                          | none  | ✅           | none | none       |
-| lambda                       | none  | ✅           | none | none       |
-| elbv2                        | none  | ✅           | none | none       |
-| ecs                          | none  | ✅           | none | none       |
-| elasticache                  | none  | ✅           | none | none       |
-| vpc                          | none  | ✅           | none | none       |
-| oidcprovider                 | none  | ✅           | none | none       |
-| cloudwatch-loggroup          | none  | ✅           | none | none       |
-| kmscustomerkeys              | none  | ✅           | none | none       |
-| asg                          | none  | ✅           | none | none       |
-| lc                           | none  | ✅           | none | none       |
-| eip                          | none  | ✅           | none | none       |
-| ec2                          | none  | ✅           | none | none       |
-| apigateway                   | none  | ✅           | none | none       |
-| apigatewayv2                 | none  | ✅           | none | none       |
-| eks                          | none  | ✅           | none | none       |
-| kinesis-stream               | none  | ✅           | none | none       |
-| efs                          | none  | ✅           | none | none       |
-| acmpca                       | none  | none         | none | none       |
-| iam role                     | none  | ✅           | none | none       |
-| iam policy                   | none  | ✅           | none | none       |
-| sagemaker-notebook-instances | none  | ✅           | none | none       |
-| ecr                          | none  | ✅           | none | none       |
-| ... (more to come)           | none  | none         | none | none       |
+| resource type                 | names | names_regex | tags | tags_regex |
+|-------------------------------|-------|-------------|------|------------|
+| s3                            | none  | ✅           | none | none       |
+| iam user                      | none  | ✅           | none | none       |
+| ecsserv                       | none  | ✅           | none | none       |
+| ecscluster                    | none  | ✅           | none | none       |
+| secretsmanager                | none  | ✅           | none | none       |
+| nat-gateway                   | none  | ✅           | none | none       |
+| accessanalyzer                | none  | ✅           | none | none       |
+| dynamodb                      | none  | ✅           | none | none       |
+| ebs                           | none  | ✅           | none | none       |
+| lambda                        | none  | ✅           | none | none       |
+| elbv2                         | none  | ✅           | none | none       |
+| ecs                           | none  | ✅           | none | none       |
+| elasticache                   | none  | ✅           | none | none       |
+| vpc                           | none  | ✅           | none | none       |
+| oidcprovider                  | none  | ✅           | none | none       |
+| cloudwatch-loggroup           | none  | ✅           | none | none       |
+| kmscustomerkeys               | none  | ✅           | none | none       |
+| asg                           | none  | ✅           | none | none       |
+| lc                            | none  | ✅           | none | none       |
+| eip                           | none  | ✅           | none | none       |
+| ec2                           | none  | ✅           | none | none       |
+| apigateway                    | none  | ✅           | none | none       |
+| apigatewayv2                  | none  | ✅           | none | none       |
+| eks                           | none  | ✅           | none | none       |
+| kinesis-stream                | none  | ✅           | none | none       |
+| efs                           | none  | ✅           | none | none       |
+| acmpca                        | none  | none         | none | none       |
+| iam role                      | none  | ✅           | none | none       |
+| iam policy                    | none  | ✅           | none | none       |
+| sagemaker-notebook-instances  | none  | ✅           | none | none       |
+| ecr                           | none  | ✅           | none | none       |
+| rds (+neptune and documentdb) | none  | ✅           | none | none       |
+| ... (more to come)            | none  | none         | none | none       |
 
 
 ### Log level

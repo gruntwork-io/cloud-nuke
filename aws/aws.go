@@ -622,11 +622,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Instances
 		dbInstances := DBInstances{}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
-			instanceNames, err := getAllRdsInstances(cloudNukeSession, excludeAfter)
+			instanceNames, err := getAllRdsInstances(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve RDS instances",
+					Description:  "Unable to retrieve DB instances",
 					ResourceType: dbInstances.ResourceName(),
 				}
 				report.RecordError(ge)
