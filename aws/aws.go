@@ -626,7 +626,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve RDS instances",
+					Description:  "Unable to retrieve DB instances",
 					ResourceType: dbInstances.ResourceName(),
 				}
 				report.RecordError(ge)
