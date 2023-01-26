@@ -245,10 +245,13 @@ func TestNukeDefaultSecurityGroups(t *testing.T) {
 		mockEC2.EXPECT().DescribeSecurityGroups(describeSecurityGroupsInput).DoAndReturn(describeSecurityGroupsFuncTwo),
 		mockEC2.EXPECT().RevokeSecurityGroupIngress(groups[0].getDefaultSecurityGroupIngressRule()),
 		mockEC2.EXPECT().RevokeSecurityGroupEgress(groups[0].getDefaultSecurityGroupEgressRule()),
+		mockEC2.EXPECT().RevokeSecurityGroupEgress(groups[0].getDefaultSecurityGroupIPv6EgressRule()),
 		mockEC2.EXPECT().RevokeSecurityGroupIngress(groups[1].getDefaultSecurityGroupIngressRule()),
 		mockEC2.EXPECT().RevokeSecurityGroupEgress(groups[1].getDefaultSecurityGroupEgressRule()),
+		mockEC2.EXPECT().RevokeSecurityGroupEgress(groups[1].getDefaultSecurityGroupIPv6EgressRule()),
 		mockEC2.EXPECT().RevokeSecurityGroupIngress(groups[2].getDefaultSecurityGroupIngressRule()),
 		mockEC2.EXPECT().RevokeSecurityGroupEgress(groups[2].getDefaultSecurityGroupEgressRule()),
+		mockEC2.EXPECT().RevokeSecurityGroupEgress(groups[2].getDefaultSecurityGroupIPv6EgressRule()),
 	)
 
 	for range regions {
