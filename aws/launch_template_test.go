@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,30 +27,22 @@ func createTestLaunchTemplate(t *testing.T, session *session.Session, name strin
 	}
 
 	_, err := svc.CreateLaunchTemplate(param)
-	if err != nil {
-		assert.Failf(t, "Could not create test Launch template", errors.WithStackTrace(err).Error())
-	}
 
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	assert.NoError(t, err, "Could not create test Launch template")
 }
 
 func TestListLaunchTemplates(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+
+	assert.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
 
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	assert.NoError(t, err)
 
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	createTestLaunchTemplate(t, session, uniqueTestID)
@@ -59,18 +50,16 @@ func TestListLaunchTemplates(t *testing.T) {
 	// clean up after this test
 	defer nukeAllLaunchTemplates(session, []*string{&uniqueTestID})
 
-	templateNames, err := getAllLaunchTemplates(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Launch Templates")
-	}
+	templateNames, err := getAllLaunchTemplates(session, time.Now().Add(1*time.Hour*-1), config.Config{})
+
+	assert.NoError(t, err, "Unable to fetch list of Launch Templates")
 
 	// Template should not be in the list due to the time filter
 	assert.NotContains(t, awsgo.StringValueSlice(templateNames), uniqueTestID)
 
-	templateNames, err = getAllLaunchTemplates(session, region, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Launch Templates")
-	}
+	templateNames, err = getAllLaunchTemplates(session, time.Now().Add(1*time.Hour), config.Config{})
+
+	assert.NoError(t, err, "Unable to fetch list of Launch Templates")
 
 	assert.Contains(t, awsgo.StringValueSlice(templateNames), uniqueTestID)
 }
@@ -79,18 +68,14 @@ func TestNukeLaunchTemplates(t *testing.T) {
 	t.Parallel()
 
 	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	assert.NoError(t, err)
 
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region)},
 	)
-	svc := ec2.New(session)
+	assert.NoError(t, err)
 
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	svc := ec2.New(session)
 
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	createTestLaunchTemplate(t, session, uniqueTestID)
@@ -98,19 +83,12 @@ func TestNukeLaunchTemplates(t *testing.T) {
 	_, err = svc.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{&uniqueTestID},
 	})
+	assert.NoError(t, err)
 
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	assert.NoError(t, nukeAllLaunchTemplates(session, []*string{&uniqueTestID}))
 
-	if err := nukeAllLaunchTemplates(session, []*string{&uniqueTestID}); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	groupNames, err := getAllLaunchTemplates(session, region, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Launch Templates")
-	}
+	groupNames, err := getAllLaunchTemplates(session, time.Now().Add(1*time.Hour), config.Config{})
+	assert.NoError(t, err, "Unable to fetch list of Launch Templates")
 
 	assert.NotContains(t, awsgo.StringValueSlice(groupNames), uniqueTestID)
 }

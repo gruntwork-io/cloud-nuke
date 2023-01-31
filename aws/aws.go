@@ -286,7 +286,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Launch Template Names
 		templates := LaunchTemplates{}
 		if IsNukeable(templates.ResourceName(), resourceTypes) {
-			templateNames, err := getAllLaunchTemplates(cloudNukeSession, region, excludeAfter, configObj)
+			templateNames, err := getAllLaunchTemplates(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

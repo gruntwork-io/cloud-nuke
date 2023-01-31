@@ -14,7 +14,7 @@ import (
 )
 
 // Returns a formatted string of Launch Template Names
-func getAllLaunchTemplates(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func getAllLaunchTemplates(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 	result, err := svc.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
