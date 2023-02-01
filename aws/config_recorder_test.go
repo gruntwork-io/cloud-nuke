@@ -36,22 +36,6 @@ func TestListConfigRecorders(t *testing.T) {
 	assert.Equal(t, configRecorderNames[0], configRecorderName)
 }
 
-func deleteConfigRecorder(t *testing.T, region string, configRecorderName string, checkErr bool) {
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	configService := configservice.New(session)
-
-	param := &configservice.DeleteConfigurationRecorderInput{
-		ConfigurationRecorderName: aws.String(configRecorderName),
-	}
-
-	_, deleteErr := configService.DeleteConfigurationRecorder(param)
-	if checkErr {
-		require.NoError(t, deleteErr)
-	}
-}
-
 func TestNukeConfigRecorderOne(t *testing.T) {
 	t.Parallel()
 
@@ -72,6 +56,24 @@ func TestNukeConfigRecorderOne(t *testing.T) {
 	)
 
 	assertConfigRecordersDeleted(t, region)
+}
+
+// Test helpers
+
+func deleteConfigRecorder(t *testing.T, region string, configRecorderName string, checkErr bool) {
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	configService := configservice.New(session)
+
+	param := &configservice.DeleteConfigurationRecorderInput{
+		ConfigurationRecorderName: aws.String(configRecorderName),
+	}
+
+	_, deleteErr := configService.DeleteConfigurationRecorder(param)
+	if checkErr {
+		require.NoError(t, deleteErr)
+	}
 }
 
 func assertConfigRecordersDeleted(t *testing.T, region string) {
