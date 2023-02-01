@@ -55,6 +55,8 @@ The currently supported functionality includes:
 - Inspecting and deleting all SNS Topics in an AWS account
 - Inspecting and deleting all CloudTrail Trails in an AWS account
 - Inspecting and deleting all ECR Repositories in an AWS account
+- Inspecting and deleting all Config service recorders in an AWS account
+- Inspecting and deleting all Config service rules in an AWS account
 
 ### BEWARE!
 
@@ -533,6 +535,8 @@ To find out what we options are supported in the config file today, consult this
 | ecr                           | none  | ✅           | none | none       |
 | rds (+neptune and documentdb) | none  | ✅           | none | none       |
 | lt                            | none  | ✅           | none | none       |
+| config-recorders              | none  | ✅           | none | none       |
+| config-rules                  | none  | ✅           | none | none       |
 | ... (more to come)            | none  | none         | none | none       |
 
 

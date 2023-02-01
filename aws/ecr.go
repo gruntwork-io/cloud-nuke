@@ -31,7 +31,6 @@ func getAllECRRepositories(session *session.Session, excludeAfter time.Time, con
 	err := svc.DescribeRepositoriesPages(param, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
-
 	}
 
 	return repositoryNames, nil
@@ -53,7 +52,6 @@ func shouldIncludeECRRepository(repository *ecr.Repository, excludeAfter time.Ti
 		configObj.ECRRepository.IncludeRule.NamesRegExp,
 		configObj.ECRRepository.ExcludeRule.NamesRegExp,
 	)
-
 }
 
 func nukeAllECRRepositories(session *session.Session, repositoryNames []string) error {
@@ -94,5 +92,4 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 	logging.Logger.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), *session.Config.Region)
 
 	return nil
-
 }
