@@ -385,13 +385,13 @@ The following resources support the Config file:
 - SageMaker Notebook Instances
   - Resource type: `sagemaker-notebook-instances`
   - Config key: `SageMakerNotebook`
-- API Gateways (v1) 
+- API Gateways (v1)
   - Resource type: `apigateway`
   - Config key: `APIGateway`
-- API Gateways (v2) 
+- API Gateways (v2)
   - Resource type: `apigatewayv2`
   - Config key: `APIGatewayV2`
-- Elastic FileSystems (efs) 
+- Elastic FileSystems (efs)
   - Resource type: `efs`
   - Config key: `ElasticFileSystem`
 - ECR Repositories
@@ -400,6 +400,9 @@ The following resources support the Config file:
 - RDS, Neptune, and Document DB Resources
   - Resource type: `rds`
   - Config key: `DBInstances`
+- Launch Templates
+  - Resource type: `lt`
+  - Config key: `LaunchTemplate`
 
 
 
@@ -529,13 +532,14 @@ To find out what we options are supported in the config file today, consult this
 | sagemaker-notebook-instances  | none  | ✅           | none | none       |
 | ecr                           | none  | ✅           | none | none       |
 | rds (+neptune and documentdb) | none  | ✅           | none | none       |
+| lt                            | none  | ✅           | none | none       |
 | ... (more to come)            | none  | none         | none | none       |
 
 
 ### Log level
-By default, cloud-nuke sends most output to the `Debug` level logger, to enhance legibility, since the results of every deletion attempt will be displayed in the report that cloud-nuke prints after each run. 
+By default, cloud-nuke sends most output to the `Debug` level logger, to enhance legibility, since the results of every deletion attempt will be displayed in the report that cloud-nuke prints after each run.
 
-However, sometimes it's helpful to see all output, such as when you're debugging something. 
+However, sometimes it's helpful to see all output, such as when you're debugging something.
 
 You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:
 

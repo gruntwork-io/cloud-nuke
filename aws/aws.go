@@ -283,6 +283,26 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Launch Configuration Names
 
+		// Launch Template Names
+		templates := LaunchTemplates{}
+		if IsNukeable(templates.ResourceName(), resourceTypes) {
+			templateNames, err := getAllLaunchTemplates(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Launch templates",
+					ResourceType: templates.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			if len(templateNames) > 0 {
+				templates.LaunchTemplateNames = awsgo.StringValueSlice(templateNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, templates)
+			}
+		}
+		// End Launch Template Names
+
 		// LoadBalancer Names
 		loadBalancers := LoadBalancers{}
 		if IsNukeable(loadBalancers.ResourceName(), resourceTypes) {
@@ -1258,6 +1278,7 @@ func ListResourceTypes() []string {
 		CloudtrailTrail{}.ResourceName(),
 		EC2KeyPairs{}.ResourceName(),
 		ECR{}.ResourceName(),
+		LaunchTemplates{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
