@@ -1121,11 +1121,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Config Service Rules
 		configServiceRules := ConfigServiceRule{}
 		if IsNukeable(configServiceRules.ResourceName(), resourceTypes) {
-			configServiceRuleNames, err := getAllConfigRules(
-				cloudNukeSession,
-				excludeAfter,
-				configObj,
-			)
+			configServiceRuleNames, err := getAllConfigRules(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1143,7 +1139,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// Config Service recorders
 		configServiceRecorders := ConfigServiceRecorders{}
-		if IsNukeable(configServiceRules.ResourceName(), resourceTypes) {
+		if IsNukeable(configServiceRecorders.ResourceName(), resourceTypes) {
 			configServiceRecorderNames, err := getAllConfigRecorders(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
