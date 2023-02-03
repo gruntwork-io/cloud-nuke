@@ -85,7 +85,7 @@ func TestNukeConfigServiceRuleMoreThanOne(t *testing.T) {
 // ensureConfigurationRecorderExistsInRegion is a convenience method to be used during testing
 // since you cannot create a custom configuration rule unless you already have a configuration
 // recorder in the target region
-func ensureConfigurationRecorderExistsInRegion(t *testing.T, region string) (string, error) {
+func ensureConfigurationRecorderExistsInRegion(t *testing.T, region string) string {
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
@@ -100,10 +100,10 @@ func ensureConfigurationRecorderExistsInRegion(t *testing.T, region string) (str
 	if len(output.ConfigurationRecorders) == 0 {
 		configRecorderName := createConfigurationRecorder(t, region)
 		require.NotEqual(t, "", configRecorderName)
-		return configRecorderName, nil
+		return configRecorderName
 	}
 
-	return aws.StringValue(output.ConfigurationRecorders[0].Name), nil
+	return aws.StringValue(output.ConfigurationRecorders[0].Name)
 }
 
 // getAccountId contacts STS to retrieve the ID of the AWS account the tests are

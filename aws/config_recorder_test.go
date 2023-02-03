@@ -25,8 +25,7 @@ func TestListConfigRecorders(t *testing.T) {
 	// create and list pattern, we'll just ensure there is a recorder in our target region,
 	// creating one if necessary, and then that we can see that config recorder returned by
 	// getAllConfigRecorders
-	configRecorderName, existsErr := ensureConfigurationRecorderExistsInRegion(t, region)
-	require.NoError(t, existsErr)
+	configRecorderName := ensureConfigurationRecorderExistsInRegion(t, region)
 
 	configRecorderNames, lookupErr := getAllConfigRecorders(session, time.Now(), config.Config{})
 	require.NoError(t, lookupErr)
@@ -45,8 +44,7 @@ func TestNukeConfigRecorderOne(t *testing.T) {
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
-	configRecorderName, existsErr := ensureConfigurationRecorderExistsInRegion(t, region)
-	require.NoError(t, existsErr)
+	configRecorderName := ensureConfigurationRecorderExistsInRegion(t, region)
 
 	defer deleteConfigRecorder(t, region, configRecorderName, false)
 
