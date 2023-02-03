@@ -11,33 +11,33 @@ The currently supported functionality includes:
 ## AWS
 
 - Inspecting and deleting all ACM Private CA in an AWS account
-- Inspecting and deleting all Auto scaling groups in an AWS account
-- Inspecting and deleting all Elastic Load Balancers (v1 and v2) in an AWS account
+- Inspecting and deleting all Auto scaling groups in an AWS account - except for ASGs tagged with Key=cloud-nuke-excluded Value=true
+- Inspecting and deleting all Elastic Load Balancers (v1 and v2) in an AWS account - except for ELBs tagged with Key=cloud-nuke-excluded Value=true
 - Inspecting and deleting all Transit Gateways in an AWS account
-- Inspecting and deleting all EBS Volumes in an AWS account
-- Inspecting and deleting all unprotected EC2 instances in an AWS account
+- Inspecting and deleting all EBS Volumes in an AWS account - except for volumes tagged with Key=cloud-nuke-excluded Value=true
+- Inspecting and deleting all unprotected EC2 instances in an AWS account - except for EC2s tagged with Key=cloud-nuke-excluded Value=true
 - Inspecting and deleting all AMIs in an AWS account
 - Inspecting and deleting all Snapshots in an AWS account
-- Inspecting and deleting all Elastic IPs in an AWS account
+- Inspecting and deleting all Elastic IPs in an AWS account - except for EIPs tagged with Key=cloud-nuke-excluded Value=true
 - Inspecting and deleting all Elasticache clusters in an AWS account
 - Inspecting and deleting all Launch Configurations in an AWS account
 - Inspecting and deleting all ECS services in an AWS account
 - Inspecting and deleting all ECS clusters in an AWS account
-- Inspecting and deleting all EKS clusters in an AWS account
-- Inspecting and deleting all RDS, Neptune, and Document DB instances in an AWS account
+- Inspecting and deleting all EKS clusters in an AWS account - except for clusters tagged with Key=cloud-nuke-excluded Value=true
+- Inspecting and deleting all RDS (except for RDSs tagged with Key=cloud-nuke-excluded Value=true), Neptune, and Document DB instances in an AWS account
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
 - Inspecting and deleting all Lambda Functions in an AWS account
 - Inspecting and deleting all SQS queues in an AWS account
 - Inspecting and deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
 - Inspecting and deleting all default VPCs in an AWS account
 - Deleting VPCs in an AWS Account (along with any dependency resources such as ENIs, Egress Only Gateways, and Security Groups. except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
-- Inspecting and deleting all IAM users in an AWS account
+- Inspecting and deleting all IAM users in an AWS account - except for users tagged with Key=cloud-nuke-excluded Value=true
 - Inspecting and deleting all IAM roles (and any associated EC2 instance profiles) in an AWS account
 - Inspecting and deleting all IAM groups in an AWS account
 - Inspecting and deleting all IAM policies in an AWS account
 - Inspecting and deleting all customer managed IAM policies in an AWS account
 - Inspecting and deleting all Secrets Manager Secrets in an AWS account
-- Inspecting and deleting all NAT Gateways in an AWS account
+- Inspecting and deleting all NAT Gateways in an AWS account - except for gateways tagged with Key=cloud-nuke-excluded Value=true
 - Inspecting and deleting all IAM Access Analyzers in an AWS account
 - Revoking the default rules in the un-deletable default security group of a VPC
 - Inspecting and deleting all DynamoDB tables in an AWS account
