@@ -53,10 +53,7 @@ func nukeAllConfigServiceRules(session *session.Session, configRuleNames []strin
 	svc := configservice.New(session)
 
 	if len(configRuleNames) == 0 {
-		logging.Logger.Debugf(
-			"No Config service rules to nuke in region %s",
-			*session.Config.Region,
-		)
+		logging.Logger.Debugf("No Config service rules to nuke in region %s", *session.Config.Region)
 	}
 
 	var deletedConfigRuleNames []*string
@@ -83,11 +80,7 @@ func nukeAllConfigServiceRules(session *session.Session, configRuleNames []strin
 		}
 	}
 
-	logging.Logger.Debugf(
-		"[OK] %d Config service rules deleted in %s",
-		len(configRuleNames),
-		*session.Config.Region,
-	)
+	logging.Logger.Debugf("[OK] %d Config service rules deleted in %s", len(deletedConfigRuleNames), *session.Config.Region)
 
 	return nil
 }
