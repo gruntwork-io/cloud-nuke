@@ -723,6 +723,20 @@ func (sg DefaultSecurityGroup) getDefaultSecurityGroupEgressRule() *ec2.RevokeSe
 	}
 }
 
+func (sg DefaultSecurityGroup) getDefaultSecurityGroupIPv6EgressRule() *ec2.RevokeSecurityGroupEgressInput {
+	return &ec2.RevokeSecurityGroupEgressInput{
+		GroupId: awsgo.String(sg.GroupId),
+		IpPermissions: []*ec2.IpPermission{
+			{
+				IpProtocol: awsgo.String("-1"),
+				FromPort:   awsgo.Int64(0),
+				ToPort:     awsgo.Int64(0),
+				Ipv6Ranges: []*ec2.Ipv6Range{{CidrIpv6: awsgo.String("::/0")}},
+			},
+		},
+	}
+}
+
 func (sg DefaultSecurityGroup) nuke() error {
 	logging.Logger.Debugf("...revoking default rules from Security Group %s", sg.GroupId)
 	if sg.GroupName == "default" {
@@ -738,6 +752,16 @@ func (sg DefaultSecurityGroup) nuke() error {
 
 		egressRule := sg.getDefaultSecurityGroupEgressRule()
 		_, err = sg.svc.RevokeSecurityGroupEgress(egressRule)
+		if err != nil {
+			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidPermission.NotFound" {
+				logging.Logger.Debugf("Ingress rule not present (ok)")
+			} else {
+				return fmt.Errorf("error deleting eggress rule: %s", errors.WithStackTrace(err))
+			}
+		}
+
+		ipv6EgressRule := sg.getDefaultSecurityGroupIPv6EgressRule()
+		_, err = sg.svc.RevokeSecurityGroupEgress(ipv6EgressRule)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidPermission.NotFound" {
 				logging.Logger.Debugf("Ingress rule not present (ok)")
