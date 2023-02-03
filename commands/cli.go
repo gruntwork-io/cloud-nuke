@@ -308,7 +308,7 @@ func awsNuke(c *cli.Context) error {
 
 	// Remove the progressbar, now that we're ready to display the table report
 	p := progressbar.GetProgressbar()
-	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up beofre the
+	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up before the
 	// final run report table is printed
 	fmt.Print("\r")
 	p.Stop()
@@ -356,24 +356,67 @@ func awsDefaults(c *cli.Context) error {
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
+
+	// Remove the progressbar, now that we're ready to display the table report
+	p := progressbar.GetProgressbar()
+	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up before the
+	// final run report table is printed
+	fmt.Print("\r")
+	p.Stop()
+	pterm.Println()
+
+	// Conditionally print the general error report, if in fact there were errors
+	ui.PrintGeneralErrorReport(os.Stdout)
+
+	// Print the report showing the user what happened with each resource
+	ui.PrintRunReport(os.Stdout)
+
 	return nil
 }
 
 func nukeDefaultVpcs(c *cli.Context, regions []string) error {
-	logging.Logger.Infof("Discovering default VPCs")
+	// Start a spinner so the user knows we're still performing work in the background
+	spinnerMsg := "Discovering default VPCs"
+
+	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
+		WithRemoveWhenDone(true).
+		Start(spinnerMsg)
+
+	if spinnerErr != nil {
+		return errors.WithStackTrace(spinnerErr)
+	}
+
 	vpcPerRegion := aws.NewVpcPerRegion(regions)
 	vpcPerRegion, err := aws.GetDefaultVpcs(vpcPerRegion)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
+	// Stop the spinner
+	spinnerSuccess.Stop()
+
 	if len(vpcPerRegion) == 0 {
 		logging.Logger.Info("No default VPCs found.")
 		return nil
 	}
 
+	targetedRegionList := []pterm.BulletListItem{}
+
 	for _, vpc := range vpcPerRegion {
-		logging.Logger.Infof("* Default VPC %s %s", vpc.VpcId, vpc.Region)
+		vpcDetailString := fmt.Sprintf("Default VPC %s %s", vpc.VpcId, vpc.Region)
+		targetedRegionList = append(targetedRegionList, pterm.BulletListItem{Level: 0, Text: vpcDetailString})
+	}
+
+	ui.WarningMessage("The following Default VPCs are targeted for destruction")
+
+	// Log which Default VPCs will be nuked
+	list := pterm.DefaultBulletList.
+		WithItems(targetedRegionList).
+		WithBullet(ui.TargetEmoji)
+
+	renderErr := list.Render()
+	if renderErr != nil {
+		return errors.WithStackTrace(renderErr)
 	}
 
 	var proceed bool
@@ -395,14 +438,40 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 }
 
 func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
-	logging.Logger.Infof("Discovering default security groups")
+	// Start a spinner so the user knows we're still performing work in the background
+	spinnerMsg := "Discovering default security groups"
+
+	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
+		WithRemoveWhenDone(true).
+		Start(spinnerMsg)
+
+	if spinnerErr != nil {
+		return errors.WithStackTrace(spinnerErr)
+	}
+
 	defaultSgs, err := aws.GetDefaultSecurityGroups(regions)
+	spinnerSuccess.Stop()
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
+	targetedRegionList := []pterm.BulletListItem{}
+
 	for _, sg := range defaultSgs {
-		logging.Logger.Infof("* Default rules for SG %s %s %s", sg.GroupId, sg.GroupName, sg.Region)
+		defaultSgDetailText := fmt.Sprintf("* Default rules for SG %s %s %s", sg.GroupId, sg.GroupName, sg.Region)
+		targetedRegionList = append(targetedRegionList, pterm.BulletListItem{Level: 0, Text: defaultSgDetailText})
+	}
+
+	ui.WarningMessage("The following Default security group rules are targeted for destruction")
+
+	// Log which default security group rules will be nuked
+	list := pterm.DefaultBulletList.
+		WithItems(targetedRegionList).
+		WithBullet(ui.TargetEmoji)
+
+	renderErr := list.Render()
+	if renderErr != nil {
+		return errors.WithStackTrace(renderErr)
 	}
 
 	var proceed bool
@@ -420,6 +489,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 			logging.Logger.Errorf("[Failed] %s", err)
 		}
 	}
+
 	return nil
 }
 
