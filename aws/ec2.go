@@ -204,7 +204,7 @@ func GetDefaultVpcs(vpcs []Vpc) ([]Vpc, error) {
 	return outVpcs, nil
 }
 
-func (v Vpc) nukeInternetGateway() error {
+func (v Vpc) nukeInternetGateway(spinner *pterm.SpinnerPrinter) error {
 	input := &ec2.DescribeInternetGatewaysInput{
 		Filters: []*ec2.Filter{
 			{
@@ -219,7 +219,9 @@ func (v Vpc) nukeInternetGateway() error {
 	}
 
 	if len(igw.InternetGateways) == 1 {
-		logging.Logger.Debugf("...detaching Internet Gateway %s", awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId))
+		msg := fmt.Sprintf("...detaching Internet Gateway %s", awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId))
+		spinner.UpdateText(msg)
+		logging.Logger.Debug(msg)
 		_, err := v.svc.DetachInternetGateway(
 			&ec2.DetachInternetGatewayInput{
 				InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
@@ -230,7 +232,9 @@ func (v Vpc) nukeInternetGateway() error {
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Logger.Debugf("...deleting Internet Gateway %s", awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId))
+		spinnerMsg := fmt.Sprintf("...deleting Internet Gateway %s", awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId))
+		spinner.UpdateText(spinnerMsg)
+		logging.Logger.Debugf(spinnerMsg)
 		_, err = v.svc.DeleteInternetGateway(
 			&ec2.DeleteInternetGatewayInput{
 				InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
@@ -240,13 +244,14 @@ func (v Vpc) nukeInternetGateway() error {
 			return errors.WithStackTrace(err)
 		}
 	} else {
-		logging.Logger.Debugf("...no Internet Gateway found")
+		spinnerMsg := "...no Internet Gateway found"
+		logging.Logger.Debug(spinnerMsg)
 	}
 
 	return nil
 }
 
-func (v Vpc) nukeSubnets() error {
+func (v Vpc) nukeSubnets(spinner *pterm.SpinnerPrinter) error {
 	subnets, _ := v.svc.DescribeSubnets(
 		&ec2.DescribeSubnetsInput{
 			Filters: []*ec2.Filter{
@@ -259,7 +264,9 @@ func (v Vpc) nukeSubnets() error {
 	)
 	if len(subnets.Subnets) > 0 {
 		for _, subnet := range subnets.Subnets {
-			logging.Logger.Debugf("...deleting subnet %s", awsgo.StringValue(subnet.SubnetId))
+			msg := fmt.Sprintf("...deleting subnet %s", awsgo.StringValue(subnet.SubnetId))
+			spinner.UpdateText(msg)
+			logging.Logger.Debug(msg)
 			_, err := v.svc.DeleteSubnet(
 				&ec2.DeleteSubnetInput{
 					SubnetId: subnet.SubnetId,
@@ -270,12 +277,13 @@ func (v Vpc) nukeSubnets() error {
 			}
 		}
 	} else {
-		logging.Logger.Debugf("...no subnets found")
+		msg := "...no subnets found"
+		logging.Logger.Debug(msg)
 	}
 	return nil
 }
 
-func (v Vpc) nukeRouteTables() error {
+func (v Vpc) nukeRouteTables(spinner *pterm.SpinnerPrinter) error {
 	routeTables, _ := v.svc.DescribeRouteTables(
 		&ec2.DescribeRouteTablesInput{
 			Filters: []*ec2.Filter{
@@ -292,7 +300,9 @@ func (v Vpc) nukeRouteTables() error {
 			continue
 		}
 
-		logging.Logger.Debugf("...deleting route table %s", awsgo.StringValue(routeTable.RouteTableId))
+		msg := fmt.Sprintf("...deleting route table %s", awsgo.StringValue(routeTable.RouteTableId))
+		spinner.UpdateText(msg)
+		logging.Logger.Debug(msg)
 		_, err := v.svc.DeleteRouteTable(
 			&ec2.DeleteRouteTableInput{
 				RouteTableId: routeTable.RouteTableId,
@@ -305,7 +315,7 @@ func (v Vpc) nukeRouteTables() error {
 	return nil
 }
 
-func (v Vpc) nukeNacls() error {
+func (v Vpc) nukeNacls(spinner *pterm.SpinnerPrinter) error {
 	networkACLs, _ := v.svc.DescribeNetworkAcls(
 		&ec2.DescribeNetworkAclsInput{
 			Filters: []*ec2.Filter{
@@ -321,7 +331,9 @@ func (v Vpc) nukeNacls() error {
 		},
 	)
 	for _, networkACL := range networkACLs.NetworkAcls {
-		logging.Logger.Debugf("...deleting Network ACL %s", awsgo.StringValue(networkACL.NetworkAclId))
+		msg := fmt.Sprintf("...deleting Network ACL %s", awsgo.StringValue(networkACL.NetworkAclId))
+		spinner.UpdateText(msg)
+		logging.Logger.Debug(msg)
 		_, err := v.svc.DeleteNetworkAcl(
 			&ec2.DeleteNetworkAclInput{
 				NetworkAclId: networkACL.NetworkAclId,
@@ -334,7 +346,7 @@ func (v Vpc) nukeNacls() error {
 	return nil
 }
 
-func (v Vpc) nukeSecurityGroups() error {
+func (v Vpc) nukeSecurityGroups(spinner *pterm.SpinnerPrinter) error {
 	securityGroups, _ := v.svc.DescribeSecurityGroups(
 		&ec2.DescribeSecurityGroupsInput{
 			Filters: []*ec2.Filter{
@@ -358,7 +370,9 @@ func (v Vpc) nukeSecurityGroups() error {
 			},
 		)
 		for _, securityGroupRule := range securityGroupRules.SecurityGroupRules {
-			logging.Logger.Debugf("...deleting Security Group Rule %s", awsgo.StringValue(securityGroupRule.SecurityGroupRuleId))
+			msg := fmt.Sprintf("...deleting Security Group Rule %s", awsgo.StringValue(securityGroupRule.SecurityGroupRuleId))
+			spinner.UpdateText(msg)
+			logging.Logger.Debug(msg)
 			if *securityGroupRule.IsEgress {
 				_, err := v.svc.RevokeSecurityGroupEgress(
 					&ec2.RevokeSecurityGroupEgressInput{
@@ -384,7 +398,9 @@ func (v Vpc) nukeSecurityGroups() error {
 	}
 
 	for _, securityGroup := range securityGroups.SecurityGroups {
-		logging.Logger.Debugf("...deleting Security Group %s", awsgo.StringValue(securityGroup.GroupId))
+		msg := fmt.Sprintf("...deleting Security Group %s", awsgo.StringValue(securityGroup.GroupId))
+		spinner.UpdateText(msg)
+		logging.Logger.Debug(msg)
 		if *securityGroup.GroupName != "default" {
 			_, err := v.svc.DeleteSecurityGroup(
 				&ec2.DeleteSecurityGroupInput{
@@ -399,7 +415,7 @@ func (v Vpc) nukeSecurityGroups() error {
 	return nil
 }
 
-func (v Vpc) nukeEndpoints() error {
+func (v Vpc) nukeEndpoints(spinner *pterm.SpinnerPrinter) error {
 	endpoints, _ := v.svc.DescribeVpcEndpoints(
 		&ec2.DescribeVpcEndpointsInput{
 			Filters: []*ec2.Filter{
@@ -415,11 +431,15 @@ func (v Vpc) nukeEndpoints() error {
 
 	for _, endpoint := range endpoints.VpcEndpoints {
 		endpointIds = append(endpointIds, endpoint.VpcEndpointId)
-		logging.Logger.Debugf("...deleting VPC endpoint %s", awsgo.StringValue(endpoint.VpcEndpointId))
+		msg := fmt.Sprintf("...deleting VPC endpoint %s", awsgo.StringValue(endpoint.VpcEndpointId))
+		spinner.UpdateText(msg)
+		logging.Logger.Debugf(msg)
 	}
 
 	if len(endpointIds) == 0 {
-		logging.Logger.Debugf("...no endpoints found")
+		msg := "...no endpoints found"
+		spinner.UpdateText(msg)
+		logging.Logger.Debug(msg)
 		return nil
 	}
 
@@ -437,9 +457,11 @@ func (v Vpc) nukeEndpoints() error {
 	return nil
 }
 
-func (v Vpc) nukeEgressOnlyGateways() error {
+func (v Vpc) nukeEgressOnlyGateways(spinner *pterm.SpinnerPrinter) error {
 	allEgressGateways := []*string{}
-	logging.Logger.Debugf("Finding Egress Only Internet Gateways to Nuke")
+	msg := "Finding Egress Only Internet Gateways to Nuke"
+	spinner.UpdateText(msg)
+	logging.Logger.Debug(msg)
 	err := v.svc.DescribeEgressOnlyInternetGatewaysPages(
 		&ec2.DescribeEgressOnlyInternetGatewaysInput{},
 		func(page *ec2.DescribeEgressOnlyInternetGatewaysOutput, lastPage bool) bool {
@@ -457,7 +479,9 @@ func (v Vpc) nukeEgressOnlyGateways() error {
 	if err != nil {
 		return err
 	}
-	logging.Logger.Debugf("Found %d Egress Only Internet Gateways to Nuke.", len(allEgressGateways))
+	finalMsg := fmt.Sprintf("Found %d Egress Only Internet Gateways to Nuke.", len(allEgressGateways))
+	spinner.UpdateText(finalMsg)
+	logging.Logger.Debug(finalMsg)
 
 	var allErrs *multierror.Error
 	for _, gateway := range allEgressGateways {
@@ -467,9 +491,11 @@ func (v Vpc) nukeEgressOnlyGateways() error {
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
 }
 
-func (v Vpc) nukeNetworkInterfaces() error {
+func (v Vpc) nukeNetworkInterfaces(spinner *pterm.SpinnerPrinter) error {
 	allNetworkInterfaces := []*string{}
-	logging.Logger.Debugf("Finding Elastic Network Interfaces to Nuke")
+	msg := "Finding Elastic Network Interfaces to Nuke"
+	spinner.UpdateText(msg)
+	logging.Logger.Debug(msg)
 	vpcIds := []string{v.VpcId}
 	filters := []*ec2.Filter{{Name: awsgo.String("vpc-id"), Values: awsgo.StringSlice(vpcIds)}}
 	err := v.svc.DescribeNetworkInterfacesPages(
@@ -486,7 +512,10 @@ func (v Vpc) nukeNetworkInterfaces() error {
 	if err != nil {
 		return err
 	}
-	logging.Logger.Debugf("Found %d ELastic Network Interfaces to Nuke.", len(allNetworkInterfaces))
+
+	finalMsg := fmt.Sprintf("Found %d ELastic Network Interfaces to Nuke.", len(allNetworkInterfaces))
+	spinner.UpdateText(finalMsg)
+	logging.Logger.Debug(finalMsg)
 
 	var allErrs *multierror.Error
 	for _, netInterface := range allNetworkInterfaces {
@@ -496,7 +525,9 @@ func (v Vpc) nukeNetworkInterfaces() error {
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
 }
 
-func (v Vpc) dissociateDhcpOptions() error {
+func (v Vpc) dissociateDhcpOptions(spinner *pterm.SpinnerPrinter) error {
+	msg := "Dissociating DHCP Options"
+	spinner.UpdateText(msg)
 	_, err := v.svc.AssociateDhcpOptions(&ec2.AssociateDhcpOptionsInput{
 		DhcpOptionsId: awsgo.String("default"),
 		VpcId:         awsgo.String(v.VpcId),
@@ -541,8 +572,10 @@ func (e VPCEndpointDeleteTimeoutError) Error() string {
 	return "Timed out waiting for VPC endpoints to be successfully deleted"
 }
 
-func (v Vpc) nukeVpc() error {
-	logging.Logger.Debugf("...deleting VPC %s", v.VpcId)
+func (v Vpc) nukeVpc(spinner *pterm.SpinnerPrinter) error {
+	msg := fmt.Sprintf("Deleting VPC %s", v.VpcId)
+	spinner.UpdateText(msg)
+	logging.Logger.Debug(msg)
 	input := &ec2.DeleteVpcInput{
 		VpcId: awsgo.String(v.VpcId),
 	}
@@ -553,65 +586,65 @@ func (v Vpc) nukeVpc() error {
 	return nil
 }
 
-func (v Vpc) nuke(p *pterm.SpinnerPrinter) error {
+func (v Vpc) nuke(spinner *pterm.SpinnerPrinter) error {
 	logging.Logger.Debugf("Nuking VPC %s in region %s", v.VpcId, v.Region)
-	p.UpdateText(fmt.Sprintf("Nuking VPC %s in region %s", v.VpcId, v.Region))
+	spinner.UpdateText(fmt.Sprintf("Nuking VPC %s in region %s", v.VpcId, v.Region))
 
-	err := v.nukeInternetGateway()
+	err := v.nukeInternetGateway(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Internet Gateway for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeEgressOnlyGateways()
+	err = v.nukeEgressOnlyGateways(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Egress Only Internet Gateways for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeNetworkInterfaces()
+	err = v.nukeNetworkInterfaces(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Elastic Network Interfaces for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeEndpoints()
+	err = v.nukeEndpoints(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeSubnets()
+	err = v.nukeSubnets(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Subnets for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeRouteTables()
+	err = v.nukeRouteTables(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Route Tables for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeNacls()
+	err = v.nukeNacls(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Network ACLs for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeSecurityGroups()
+	err = v.nukeSecurityGroups(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Security Groups for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.dissociateDhcpOptions()
+	err = v.dissociateDhcpOptions(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up DHCP Options for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
-	err = v.nukeVpc()
+	err = v.nukeVpc(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error deleting VPC %s: %s ", v.VpcId, err)
 		return err
