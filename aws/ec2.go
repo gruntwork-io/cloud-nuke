@@ -2,8 +2,10 @@ package aws
 
 import (
 	"fmt"
-	"github.com/hashicorp/go-multierror"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
+	"github.com/pterm/pterm"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -551,8 +553,9 @@ func (v Vpc) nukeVpc() error {
 	return nil
 }
 
-func (v Vpc) nuke() error {
+func (v Vpc) nuke(p *pterm.SpinnerPrinter) error {
 	logging.Logger.Debugf("Nuking VPC %s in region %s", v.VpcId, v.Region)
+	p.UpdateText(fmt.Sprintf("Nuking VPC %s in region %s", v.VpcId, v.Region))
 
 	err := v.nukeInternetGateway()
 	if err != nil {
@@ -617,9 +620,20 @@ func (v Vpc) nuke() error {
 }
 
 func NukeVpcs(vpcs []Vpc) error {
-	for _, vpc := range vpcs {
-		err := vpc.nuke()
+	logging.Logger.Debugf("Deleting the following VPCs:%+v\n", vpcs)
 
+	spinnerMsg := fmt.Sprintf("Nuking the following vpcs: %+v\n", vpcs)
+	// Start a simple spinner to track progress reading all relevant AWS resources
+	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
+		WithRemoveWhenDone(true).
+		Start(spinnerMsg)
+
+	if spinnerErr != nil {
+		return errors.WithStackTrace(spinnerErr)
+	}
+
+	for _, vpc := range vpcs {
+		err := vpc.nuke(spinnerSuccess)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   vpc.VpcId,

@@ -2,14 +2,12 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/shell"
@@ -161,7 +159,7 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 	return &excludeAfter, nil
 }
 
-func awsNuke(c *cli.Context) error {
+func parseLogLevel(c *cli.Context) error {
 	logLevel := c.String("log-level")
 
 	parsedLogLevel, err := logrus.ParseLevel(logLevel)
@@ -169,6 +167,14 @@ func awsNuke(c *cli.Context) error {
 		return fmt.Errorf("Invalid log level - %s - %s", logLevel, err)
 	}
 	logging.Logger.Level = parsedLogLevel
+	return nil
+}
+
+func awsNuke(c *cli.Context) error {
+	parseErr := parseLogLevel(c)
+	if parseErr != nil {
+		return errors.WithStackTrace(parseErr)
+	}
 
 	configObj := config.Config{}
 	configFilePath := c.String("config")
@@ -306,24 +312,17 @@ func awsNuke(c *cli.Context) error {
 		}
 	}
 
-	// Remove the progressbar, now that we're ready to display the table report
-	p := progressbar.GetProgressbar()
-	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up before the
-	// final run report table is printed
-	fmt.Print("\r")
-	p.Stop()
-	pterm.Println()
-
-	// Conditionally print the general error report, if in fact there were errors
-	ui.PrintGeneralErrorReport(os.Stdout)
-
-	// Print the report showing the user what happened with each resource
-	ui.PrintRunReport(os.Stdout)
+	ui.RenderRunReport()
 
 	return nil
 }
 
 func awsDefaults(c *cli.Context) error {
+	parseErr := parseLogLevel(c)
+	if parseErr != nil {
+		return errors.WithStackTrace(parseErr)
+	}
+
 	logging.Logger.Infoln("Identifying enabled regions")
 	regions, err := aws.GetEnabledRegions()
 	if err != nil {
@@ -357,19 +356,7 @@ func awsDefaults(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	// Remove the progressbar, now that we're ready to display the table report
-	p := progressbar.GetProgressbar()
-	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up before the
-	// final run report table is printed
-	fmt.Print("\r")
-	p.Stop()
-	pterm.Println()
-
-	// Conditionally print the general error report, if in fact there were errors
-	ui.PrintGeneralErrorReport(os.Stdout)
-
-	// Print the report showing the user what happened with each resource
-	ui.PrintRunReport(os.Stdout)
+	ui.RenderRunReport()
 
 	return nil
 }
@@ -421,14 +408,19 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C): "
-		proceed, err = confirmationPrompt(prompt, 2)
+		confirmPrompt := pterm.DefaultInteractiveConfirm.WithDefaultText("\nAre you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C): ")
+		pterm.Println()
+		proceed, err = confirmPrompt.Show()
+		// prompt := "\nAre you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C): "
+		// proceed, err = confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
 	}
 
 	if proceed || c.Bool("force") {
+		// Start nuke progress bar with correct number of items
+		aws.StartProgressBarWithLength(len(targetedRegionList))
 		err := aws.NukeVpcs(vpcPerRegion)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
@@ -453,6 +445,11 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	spinnerSuccess.Stop()
 	if err != nil {
 		return errors.WithStackTrace(err)
+	}
+
+	if len(defaultSgs) == 0 {
+		logging.Logger.Info("No default security groups found.")
+		return nil
 	}
 
 	targetedRegionList := []pterm.BulletListItem{}
@@ -506,7 +503,7 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 			return false, errors.WithStackTrace(err)
 		}
 
-		if strings.ToLower(input) == "nuke" {
+		if strings.ToLower(strings.TrimSpace(input)) == "nuke" {
 			return true, nil
 		}
 

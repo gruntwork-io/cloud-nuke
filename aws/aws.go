@@ -1153,7 +1153,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Users
 
-		//IAM Groups
+		// IAM Groups
 		iamGroups := IAMGroups{}
 		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
 			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
@@ -1165,9 +1165,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				globalResources.Resources = append(globalResources.Resources, iamGroups)
 			}
 		}
-		//END IAM Groups
+		// END IAM Groups
 
-		//IAM Policies
+		// IAM Policies
 		iamPolicies := IAMPolicies{}
 		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
 			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
@@ -1179,7 +1179,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				globalResources.Resources = append(globalResources.Resources, iamPolicies)
 			}
 		}
-		//End IAM Policies
+		// End IAM Policies
 
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
@@ -1333,15 +1333,19 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 	}
 }
 
+// StartProgressBarWithLength - Starts the progress bar with the correct number of items
+func StartProgressBarWithLength(length int) {
+	// Update the progress bar to have the correct width based on the total number of unique resource targteds
+	progressbar.WithTotal(length)
+	p := progressbar.GetProgressbar()
+	p.Start()
+}
+
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	// Set the progressbar width to the total number of nukeable resources found
 	// across all regions
-
-	// Update the progress bar to have the correct width based on the total number of unique resource targteds
-	progressbar.WithTotal(account.TotalResourceCount())
-	p := progressbar.GetProgressbar()
-	p.Start()
+	StartProgressBarWithLength(account.TotalResourceCount())
 
 	defaultRegion := regions[0]
 	for _, region := range regions {
