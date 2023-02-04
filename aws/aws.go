@@ -1156,6 +1156,24 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Config service recorders
 
+		// ElasticBeanstalk Environments
+		elasticBeanstalkEnvs := ElasticBeanstalkEnvironments{}
+		if IsNukeable(elasticBeanstalkEnvs.ResourceName(), resourceTypes) {
+			elasticBeanstalkEnvArns, err := getAllElasticBeanstalkEnvironments(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ElasticBeanstalk Environments",
+					ResourceType: ecrRepositories.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(elasticBeanstalkEnvArns) > 0 {
+				elasticBeanstalkEnvs.EnvironmentArns = elasticBeanstalkEnvArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticBeanstalkEnvs)
+			}
+		}
+		// End ElasticBeanstalk Environments
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -1324,6 +1342,7 @@ func ListResourceTypes() []string {
 		LaunchTemplates{}.ResourceName(),
 		ConfigServiceRule{}.ResourceName(),
 		ConfigServiceRecorders{}.ResourceName(),
+		ElasticBeanstalkEnvironments{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
@@ -1413,6 +1432,8 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 
 	return nil
 }
+
+// write a function to delete a neptune database
 
 func newAWSSession(awsRegion string) (*session.Session, error) {
 	sessionOptions := session.Options{
