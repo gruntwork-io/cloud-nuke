@@ -34,6 +34,48 @@ func TestListElasticBeanstalkEnvironments(t *testing.T) {
 	assert.Contains(t, environments, environmentName)
 }
 
+func TestNukeElasticBeanstalkEnvironmentOne(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	environmentName, createEnvironmentErr := createElasticBeanstalkEnvironment(t, region)
+	require.NoError(t, createEnvironmentErr)
+
+	defer deleteElasticBeanstalkEnvironment(t, aws.String(region), aws.String(environmentName), false)
+
+	identifiers := []string{environmentName}
+
+	require.NoError(t, nukeAllElasticBeanstalkEnvironments(session, aws.StringSlice(identifiers)))
+	assertElasticBeanstalkEnvironmentDeleted(t, session, environmentName)
+}
+
+func TestNukeElasticBeanstalkEnvironmentMultiple(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	environmentName1, createEnvironmentErr1 := createElasticBeanstalkEnvironment(t, region)
+	require.NoError(t, createEnvironmentErr1)
+
+	environmentName2, createEnvironmentErr2 := createElasticBeanstalkEnvironment(t, region)
+	require.NoError(t, createEnvironmentErr2)
+
+	identifiers := []string{environmentName1, environmentName2}
+
+	require.NoError(t, nukeAllElasticBeanstalkEnvironments(session, aws.StringSlice(identifiers)))
+	assertElasticBeanstalkEnvironmentDeleted(t, session, environmentName1)
+	assertElasticBeanstalkEnvironmentDeleted(t, session, environmentName2)
+}
+
 // Test helpers
 
 func createElasticBeanstalkApplication(t *testing.T, region string) (string, error) {
@@ -66,12 +108,6 @@ func createElasticBeanstalkEnvironment(t *testing.T, region string) (string, err
 	testApplicationName, creatAppErr := createElasticBeanstalkApplication(t, region)
 	require.NoError(t, creatAppErr)
 
-	// Wait on the new Elastic Beanstalk environment to come up
-	waitErr := ebsService.WaitUntilEnvironmentExists(&elasticbeanstalk.DescribeEnvironmentsInput{
-		EnvironmentNames: []*string{aws.String(name)},
-	})
-	require.NoError(t, waitErr)
-
 	param := &elasticbeanstalk.CreateEnvironmentInput{
 		ApplicationName:   aws.String(testApplicationName),
 		Description:       aws.String("Test environment created by cloud-nuke - probably safe to delete"),
@@ -83,6 +119,12 @@ func createElasticBeanstalkEnvironment(t *testing.T, region string) (string, err
 
 	output, createEnvironmentErr := ebsService.CreateEnvironment(param)
 	require.NoError(t, createEnvironmentErr)
+
+	// Wait on the new Elastic Beanstalk environment to come up
+	waitErr := ebsService.WaitUntilEnvironmentExists(&elasticbeanstalk.DescribeEnvironmentsInput{
+		EnvironmentNames: []*string{aws.String(name)},
+	})
+	require.NoError(t, waitErr)
 
 	return aws.StringValue(output.EnvironmentName), nil
 }
@@ -101,4 +143,10 @@ func deleteElasticBeanstalkEnvironment(t *testing.T, region *string, environment
 
 	_, deleteEnvironmentErr := ebsService.TerminateEnvironment(param)
 	require.NoError(t, deleteEnvironmentErr)
+}
+
+func assertElasticBeanstalkEnvironmentDeleted(t *testing.T, session *session.Session, environmentName string) {
+	environments, err := getAllElasticBeanstalkEnvironments(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, environments, environmentName)
 }
