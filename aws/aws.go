@@ -797,7 +797,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			bucketNamesPerRegion, ok := resourcesCache["S3"]
 
 			if !ok {
-				bucketNamesPerRegion, err = getAllS3Buckets(cloudNukeSession, excludeAfter, targetRegions, "", s3Buckets.MaxConcurrentGetSize(), configObj)
+				bucketNamesPerRegion, err = getAllS3Buckets(
+					cloudNukeSession,
+					excludeAfter,
+					targetRegions,
+					"",
+					s3Buckets.MaxConcurrentGetSize(),
+					configObj,
+				)
 				if err != nil {
 					ge := report.GeneralError{
 						Error:        err,
@@ -913,7 +920,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if len(keys) > 0 {
 				customerKeys.KeyAliases = aliases
 				customerKeys.KeyIds = awsgo.StringValueSlice(keys)
-
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, customerKeys)
 			}
 
@@ -936,7 +942,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				guardDutyDetectors.detectorIds = detectors
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, guardDutyDetectors)
 			}
-
 		}
 		// End GuardDuty detectors
 
@@ -1113,6 +1118,44 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End ECR Repositories
 
+		// Config Service Rules
+		configServiceRules := ConfigServiceRule{}
+		if IsNukeable(configServiceRules.ResourceName(), resourceTypes) {
+			configServiceRuleNames, err := getAllConfigRules(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Config service rules",
+					ResourceType: configServiceRules.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(configServiceRuleNames) > 0 {
+				configServiceRules.RuleNames = configServiceRuleNames
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, configServiceRules)
+			}
+		}
+		// End Config service rules
+
+		// Config Service recorders
+		configServiceRecorders := ConfigServiceRecorders{}
+		if IsNukeable(configServiceRecorders.ResourceName(), resourceTypes) {
+			configServiceRecorderNames, err := getAllConfigRecorders(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Config service recorders",
+					ResourceType: configServiceRecorders.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(configServiceRecorderNames) > 0 {
+				configServiceRecorders.RecorderNames = configServiceRecorderNames
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, configServiceRecorders)
+			}
+		}
+		// End Config service recorders
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -1153,7 +1196,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Users
 
-		//IAM Groups
+		// IAM Groups
 		iamGroups := IAMGroups{}
 		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
 			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
@@ -1165,9 +1208,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				globalResources.Resources = append(globalResources.Resources, iamGroups)
 			}
 		}
-		//END IAM Groups
+		// END IAM Groups
 
-		//IAM Policies
+		// IAM Policies
 		iamPolicies := IAMPolicies{}
 		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
 			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
@@ -1179,7 +1222,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				globalResources.Resources = append(globalResources.Resources, iamPolicies)
 			}
 		}
-		//End IAM Policies
+		// End IAM Policies
 
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
@@ -1279,6 +1322,8 @@ func ListResourceTypes() []string {
 		EC2KeyPairs{}.ResourceName(),
 		ECR{}.ResourceName(),
 		LaunchTemplates{}.ResourceName(),
+		ConfigServiceRule{}.ResourceName(),
+		ConfigServiceRecorders{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
@@ -1314,7 +1359,9 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 			if err := resources.Nuke(session, batch); err != nil {
 				// TODO: Figure out actual error type
 				if strings.Contains(err.Error(), "RequestLimitExceeded") {
-					logging.Logger.Debug("Request limit reached. Waiting 1 minute before making new requests")
+					logging.Logger.Debug(
+						"Request limit reached. Waiting 1 minute before making new requests",
+					)
 					time.Sleep(1 * time.Minute)
 					continue
 				}

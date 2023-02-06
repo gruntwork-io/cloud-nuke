@@ -47,6 +47,8 @@ type Config struct {
 	ECRRepository         ResourceType `yaml:"ECRRepository"`
 	DBInstances           ResourceType `yaml:"DBInstances"`
 	LaunchTemplate        ResourceType `yaml:"LaunchTemplate"`
+	ConfigServiceRule     ResourceType `yaml:"ConfigServiceRule"`
+	ConfigServiceRecorder ResourceType `yaml:"ConfigServiceRecorder"`
 }
 
 type ResourceType struct {
