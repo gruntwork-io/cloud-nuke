@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/gruntwork-io/go-commons/shell"
 	"github.com/pterm/pterm"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -290,8 +289,8 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C): "
-		proceed, err := confirmationPrompt(prompt, 2)
+		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C) "
+		proceed, err := confirmationPrompt(prompt)
 		if err != nil {
 			return err
 		}
@@ -344,16 +343,15 @@ func awsDefaults(c *cli.Context) error {
 
 	if c.Bool("sg-only") {
 		logging.Logger.Info("Not removing default VPCs.")
+		err = nukeDefaultSecurityGroups(c, targetRegions)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
 	} else {
 		err = nukeDefaultVpcs(c, targetRegions)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
-	}
-
-	err = nukeDefaultSecurityGroups(c, targetRegions)
-	if err != nil {
-		return errors.WithStackTrace(err)
 	}
 
 	ui.RenderRunReport()
@@ -408,11 +406,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		confirmPrompt := pterm.DefaultInteractiveConfirm.WithDefaultText("\nAre you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C): ")
-		pterm.Println()
-		proceed, err = confirmPrompt.Show()
-		// prompt := "\nAre you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C): "
-		// proceed, err = confirmationPrompt(prompt, 2)
+		proceed, err = confirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C):")
 		if err != nil {
 			return err
 		}
@@ -474,7 +468,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	var proceed bool
 	if !c.Bool("force") {
 		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C): "
-		proceed, err = confirmationPrompt(prompt, 2)
+		proceed, err = confirmationPrompt(prompt)
 		if err != nil {
 			return err
 		}
@@ -490,28 +484,27 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	return nil
 }
 
-func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
+func confirmationPrompt(prompt string) (bool, error) {
 	ui.UrgentMessage("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
-	shellOptions := shell.ShellOptions{Logger: logging.Logger}
-
-	// retry prompt on invalid input so user can avoid rescanning all resources
-	prompts := 0
-	for prompts < maxPrompts {
-		input, err := shell.PromptUserForInput(prompt, &shellOptions)
-		if err != nil {
-			return false, errors.WithStackTrace(err)
-		}
-
-		if strings.ToLower(strings.TrimSpace(input)) == "nuke" {
-			return true, nil
-		}
-
-		fmt.Printf("Invalid value '%s' was entered.\n", input)
-		prompts++
+	confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
+	pterm.Println()
+	rawResp, err := confirmPrompt.Show(prompt)
+	if err != nil {
+		logging.Logger.Errorf("[Failed to render prompt] %s", err)
+	}
+	var userConfirmedNuke = false
+	response := strings.ToLower(strings.TrimSpace(rawResp))
+	if response == "nuke" {
+		userConfirmedNuke = true
 	}
 
-	return false, nil
+	if !userConfirmedNuke {
+		pterm.Println()
+		logging.Logger.Infof("You did not enter '%s', so exiting without nuking anything.", "nuke")
+	}
+
+	return userConfirmedNuke, nil
 }
 
 func awsInspect(c *cli.Context) error {

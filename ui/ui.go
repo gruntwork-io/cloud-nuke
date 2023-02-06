@@ -73,6 +73,13 @@ func PrintRunReport(w io.Writer) {
 
 	data := make([][]string, len(records))
 	entriesToDisplay := []report.Entry{}
+
+	// Short-circuit if there are no entries to display
+	if len(records) == 0 {
+		pterm.Info.Println("No resources touched in this run.")
+		return
+	}
+
 	for _, entry := range records {
 		entriesToDisplay = append(entriesToDisplay, entry)
 	}
