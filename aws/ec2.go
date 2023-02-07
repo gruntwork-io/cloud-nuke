@@ -806,6 +806,7 @@ func (sg DefaultSecurityGroup) nuke() error {
 
 func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 	for _, sg := range sgs {
+
 		err := sg.nuke()
 
 		// Record status of this resource

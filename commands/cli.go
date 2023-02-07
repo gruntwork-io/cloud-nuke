@@ -467,7 +467,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C): "
+		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C)"
 		proceed, err = confirmationPrompt(prompt)
 		if err != nil {
 			return err
