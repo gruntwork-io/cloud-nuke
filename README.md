@@ -586,6 +586,10 @@ When nuking VPCs cloud-nuke will attempt to remove dependency resources undernea
 
 All other resources that get created within VPCs must be cleaned up prior to running cloud-nuke on VPC resources.
 
+> VPC resources may not be entirely cleaned up on the first run. We believe this is caused by an eventual consistency error in AWS.
+> 
+> If you see errors like `InvalidParameterValue: Network interface is currently in use.` We recommend waiting 30 minutes and trying again.
+
 Happy Nuking!!!
 
 ## Credentials
