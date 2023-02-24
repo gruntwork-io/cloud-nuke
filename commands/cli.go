@@ -290,7 +290,7 @@ func awsNuke(c *cli.Context) error {
 
 	if !c.Bool("force") {
 		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C) "
-		proceed, err := confirmationPrompt(prompt)
+		proceed, err := confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
@@ -406,7 +406,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		proceed, err = confirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C):")
+		proceed, err = confirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C):", 2)
 		if err != nil {
 			return err
 		}
@@ -468,7 +468,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	var proceed bool
 	if !c.Bool("force") {
 		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C)"
-		proceed, err = confirmationPrompt(prompt)
+		proceed, err = confirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
@@ -484,27 +484,29 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	return nil
 }
 
-func confirmationPrompt(prompt string) (bool, error) {
+func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
+	prompts := 0
+
 	ui.UrgentMessage("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
 
-	confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
-	pterm.Println()
-	rawResp, err := confirmPrompt.Show(prompt)
-	if err != nil {
-		logging.Logger.Errorf("[Failed to render prompt] %s", err)
-	}
-	var userConfirmedNuke = false
-	response := strings.ToLower(strings.TrimSpace(rawResp))
-	if response == "nuke" {
-		userConfirmedNuke = true
-	}
-
-	if !userConfirmedNuke {
+	for prompts < maxPrompts {
+		confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
 		pterm.Println()
-		logging.Logger.Infof("You did not enter '%s', so exiting without nuking anything.", "nuke")
+		input, err := confirmPrompt.Show(prompt)
+		if err != nil {
+			logging.Logger.Errorf("[Failed to render prompt] %s", err)
+			return false, errors.WithStackTrace(err)
+		}
+		response := strings.ToLower(strings.TrimSpace(input))
+		if response == "nuke" {
+			return true, nil
+		}
+		fmt.Printf("Invalid value '%s' was entered.\n", input)
+		prompts++
+		pterm.Println()
 	}
 
-	return userConfirmedNuke, nil
+	return false, nil
 }
 
 func awsInspect(c *cli.Context) error {
