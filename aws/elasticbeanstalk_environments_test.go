@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupElasticBeanstalkTest(t *testing.T) (string, *session.Session) {
+func setupEbEnvironmentTest(t *testing.T) (string, *session.Session) {
 	t.Helper()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func setupElasticBeanstalkTest(t *testing.T) (string, *session.Session) {
 func TestListElasticBeanstalkEnvironments(t *testing.T) {
 	t.Parallel()
 
-	region, session := setupElasticBeanstalkTest(t)
+	region, session := setupEbEnvironmentTest(t)
 
 	environmentName, createEnvironmentErr := createElasticBeanstalkEnvironment(t, region)
 	require.NoError(t, createEnvironmentErr)
@@ -44,7 +44,7 @@ func TestListElasticBeanstalkEnvironments(t *testing.T) {
 func TestNukeElasticBeanstalkEnvironmentOne(t *testing.T) {
 	t.Parallel()
 
-	region, session := setupElasticBeanstalkTest(t)
+	region, session := setupEbEnvironmentTest(t)
 
 	environmentName, createEnvironmentErr := createElasticBeanstalkEnvironment(t, region)
 	require.NoError(t, createEnvironmentErr)
@@ -60,7 +60,7 @@ func TestNukeElasticBeanstalkEnvironmentOne(t *testing.T) {
 func TestNukeElasticBeanstalkEnvironmentMultiple(t *testing.T) {
 	t.Parallel()
 
-	region, session := setupElasticBeanstalkTest(t)
+	region, session := setupEbEnvironmentTest(t)
 
 	environmentName1, createEnvironmentErr1 := createElasticBeanstalkEnvironment(t, region)
 	require.NoError(t, createEnvironmentErr1)

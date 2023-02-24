@@ -35,31 +35,31 @@ func getAllElasticBeanstalkApplications(sess *session.Session, excludeAfter time
 func shouldIncludeElasticBeanstalkApplication(application *elasticbeanstalk.ApplicationDescription, excludeAfter time.Time, configObj config.Config) bool {
 	return config.ShouldInclude(
 		aws.StringValue(application.ApplicationName),
-		configObj.ElasticBeanstalkEnvironment.IncludeRule.NamesRegExp,
-		configObj.ElasticBeanstalkEnvironment.ExcludeRule.NamesRegExp,
+		configObj.ElasticBeanstalkApplication.IncludeRule.NamesRegExp,
+		configObj.ElasticBeanstalkApplication.ExcludeRule.NamesRegExp,
 	)
 }
 
-func nukeAllElasticBeanstalkApplications(session *session.Session, arns []*string) error {
+func nukeAllElasticBeanstalkApplications(session *session.Session, names []*string) error {
 	svc := elasticbeanstalk.New(session)
 
-	if len(arns) == 0 {
+	if len(names) == 0 {
 		logging.Logger.Debugf("No Elastic Beanstalk Applications to nuke in region %s", *session.Config.Region)
 
 		return nil
 	}
 
-	var deletedArns []*string
-	for _, arn := range arns {
+	var deletedNames []*string
+	for _, name := range names {
 		params := &elasticbeanstalk.DeleteApplicationInput{
-			ApplicationName:     arn,
+			ApplicationName:     name,
 			TerminateEnvByForce: aws.Bool(true),
 		}
 		_, err := svc.DeleteApplication(params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(arn),
+			Identifier:   aws.StringValue(name),
 			ResourceType: "ElasticBeanstalk Application",
 			Error:        err,
 		}
@@ -68,11 +68,11 @@ func nukeAllElasticBeanstalkApplications(session *session.Session, arns []*strin
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
-			deletedArns = append(deletedArns, arn)
-			logging.Logger.Debugf("Deleted Elastic Beanstalk Application: %s", aws.StringValue(arn))
+			deletedNames = append(deletedNames, name)
+			logging.Logger.Debugf("Deleted Elastic Beanstalk Application: %s", aws.StringValue(name))
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Elastic Beanstalk Applications(s) deleted in %s", len(deletedArns), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Elastic Beanstalk Applications(s) deleted in %s", len(deletedNames), *session.Config.Region)
 	return nil
 }

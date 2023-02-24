@@ -7,7 +7,7 @@ import (
 )
 
 type ElasticBeanstalkApplications struct {
-	ApplicationArns []string
+	ApplicationNames []string
 }
 
 func (e ElasticBeanstalkApplications) ResourceName() string {
@@ -15,7 +15,7 @@ func (e ElasticBeanstalkApplications) ResourceName() string {
 }
 
 func (e ElasticBeanstalkApplications) ResourceIdentifiers() []string {
-	return e.ApplicationArns
+	return e.ApplicationNames
 }
 
 func (e ElasticBeanstalkApplications) MaxBatchSize() int {

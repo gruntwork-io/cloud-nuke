@@ -57,6 +57,8 @@ The currently supported functionality includes:
 - Inspecting and deleting all ECR Repositories in an AWS account
 - Inspecting and deleting all Config service recorders in an AWS account
 - Inspecting and deleting all Config service rules in an AWS account
+- Inspecting and deleting all ElasticBeanstalk applications in an AWS account
+- Inspecting and deleting all ElasticBeanstalk environments in an AWS account
 
 ### BEWARE!
 
@@ -405,9 +407,12 @@ The following resources support the Config file:
 - Launch Templates
   - Resource type: `lt`
   - Config key: `LaunchTemplate`
-
-
-
+- ElasticBeanstalk Applications
+	- Resource type: `elasticbeanstalk-applications`
+	- Config key: `ElasticBeanstalkApplication`
+- ElasticBeanstalk Environments
+	- Resource type: `elasticbeanstalk-environements`
+	- Config key: `ElasticBeanstalkEnvironment`
 
 
 Notes:

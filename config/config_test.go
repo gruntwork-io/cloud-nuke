@@ -49,10 +49,8 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
-<<<<<<< HEAD
 		ResourceType{FilterRule{}, FilterRule{}},
-=======
->>>>>>> 56ccaec (Implement support for elasticbeanstalk envs)
+		ResourceType{FilterRule{}, FilterRule{}},
 	}
 }
 

@@ -50,6 +50,7 @@ type Config struct {
 	ConfigServiceRule           ResourceType `yaml:"ConfigServiceRule"`
 	ConfigServiceRecorder       ResourceType `yaml:"ConfigServiceRecorder"`
 	ElasticBeanstalkEnvironment ResourceType `yaml:"ElasticBeanstalkEnvironment"`
+	ElasticBeanstalkApplication ResourceType `yaml:"ElasticBeanstalkApplication"`
 }
 
 type ResourceType struct {
