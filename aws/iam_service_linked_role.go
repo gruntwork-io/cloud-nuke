@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -11,7 +13,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	gruntworkerrors "github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -32,18 +34,51 @@ func getAllIamServiceLinkedRoles(session *session.Session, excludeAfter time.Tim
 		},
 	)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, gruntworkerrors.WithStackTrace(err)
 	}
 	return allIAMServiceLinkedRoles, nil
 }
 
 func deleteIamServiceLinkedRole(svc *iam.IAM, roleName *string) error {
-	_, err := svc.DeleteServiceLinkedRole(&iam.DeleteServiceLinkedRoleInput{
+	// Deletion ID looks like this: "
+	//{
+	//	DeletionTaskId: "task/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_2/d3c4c9fc-7fd3-4a36-974a-afb0eb78f102"
+	//}
+	deletionData, err := svc.DeleteServiceLinkedRole(&iam.DeleteServiceLinkedRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return gruntworkerrors.WithStackTrace(err)
 	}
+
+	// Wait for the deletion to complete
+	time.Sleep(3 * time.Second)
+
+	var deletionStatus *iam.GetServiceLinkedRoleDeletionStatusOutput
+
+	done := false
+	for !done {
+		done = true
+		// Check if the deletion is complete
+		deletionStatus, err = svc.GetServiceLinkedRoleDeletionStatus(&iam.GetServiceLinkedRoleDeletionStatusInput{
+			DeletionTaskId: deletionData.DeletionTaskId,
+		})
+		if err != nil {
+			return gruntworkerrors.WithStackTrace(err)
+		}
+		if aws.StringValue(deletionStatus.Status) == "IN_PROGRESS" {
+			logging.Logger.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.StringValue(roleName))
+			done = false
+			time.Sleep(3 * time.Second)
+		}
+
+	}
+
+	if aws.StringValue(deletionStatus.Status) != "SUCCEEDED" {
+		err := fmt.Sprintf("Deletion of IAM ServiceLinked Role %s failed with status %s", aws.StringValue(roleName), aws.StringValue(deletionStatus.Status))
+		return gruntworkerrors.WithStackTrace(errors.New(err))
+	}
+
 	logging.Logger.Infof("Successfully Deleted IAM ServiceLinked Role %s", aws.StringValue(roleName))
 	return nil
 }
@@ -88,7 +123,7 @@ func nukeAllIamServiceLinkedRoles(session *session.Session, roleNames []*string)
 	}
 	finalErr := allErrs.ErrorOrNil()
 	if finalErr != nil {
-		return errors.WithStackTrace(finalErr)
+		return gruntworkerrors.WithStackTrace(finalErr)
 	}
 
 	for _, roleName := range roleNames {
