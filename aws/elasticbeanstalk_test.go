@@ -15,14 +15,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListElasticBeanstalkEnvironments(t *testing.T) {
-	t.Parallel()
-
+func setupElasticBeanstalkTest(t *testing.T) (string, *session.Session) {
+	t.Helper()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
+
+	return region, session
+}
+
+func TestListElasticBeanstalkEnvironments(t *testing.T) {
+	t.Parallel()
+
+	region, session := setupElasticBeanstalkTest(t)
 
 	environmentName, createEnvironmentErr := createElasticBeanstalkEnvironment(t, region)
 	require.NoError(t, createEnvironmentErr)
@@ -37,11 +44,7 @@ func TestListElasticBeanstalkEnvironments(t *testing.T) {
 func TestNukeElasticBeanstalkEnvironmentOne(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
+	region, session := setupElasticBeanstalkTest(t)
 
 	environmentName, createEnvironmentErr := createElasticBeanstalkEnvironment(t, region)
 	require.NoError(t, createEnvironmentErr)
@@ -57,11 +60,7 @@ func TestNukeElasticBeanstalkEnvironmentOne(t *testing.T) {
 func TestNukeElasticBeanstalkEnvironmentMultiple(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
+	region, session := setupElasticBeanstalkTest(t)
 
 	environmentName1, createEnvironmentErr1 := createElasticBeanstalkEnvironment(t, region)
 	require.NoError(t, createEnvironmentErr1)
@@ -77,26 +76,6 @@ func TestNukeElasticBeanstalkEnvironmentMultiple(t *testing.T) {
 }
 
 // Test helpers
-
-func createElasticBeanstalkApplication(t *testing.T, region string) (string, error) {
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	ebsService := elasticbeanstalk.New(session)
-
-	applicationName := strings.ToLower(fmt.Sprintf("cloud-nuke-test-app-%s-%s", util.UniqueID(), util.UniqueID()))
-
-	input := &elasticbeanstalk.CreateApplicationInput{
-		ApplicationName: aws.String(applicationName),
-		Description:     aws.String("Test application created by cloud-nuke - probably safe to delete"),
-	}
-
-	appDescriptionMsg, err := ebsService.CreateApplication(input)
-	require.NoError(t, err)
-
-	return aws.StringValue(appDescriptionMsg.Application.ApplicationName), nil
-}
-
 func createElasticBeanstalkEnvironment(t *testing.T, region string) (string, error) {
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
@@ -105,8 +84,8 @@ func createElasticBeanstalkEnvironment(t *testing.T, region string) (string, err
 
 	name := strings.ToLower(fmt.Sprintf("cloud-nuke-test-%s-%s", util.UniqueID(), util.UniqueID()))
 
-	testApplicationName, creatAppErr := createElasticBeanstalkApplication(t, region)
-	require.NoError(t, creatAppErr)
+	testApplicationName, createAppErr := createElasticBeanstalkApplication(t, region)
+	require.NoError(t, createAppErr)
 
 	param := &elasticbeanstalk.CreateEnvironmentInput{
 		ApplicationName:   aws.String(testApplicationName),
@@ -122,7 +101,7 @@ func createElasticBeanstalkEnvironment(t *testing.T, region string) (string, err
 
 	// Wait on the new Elastic Beanstalk environment to come up
 	waitErr := ebsService.WaitUntilEnvironmentExists(&elasticbeanstalk.DescribeEnvironmentsInput{
-		EnvironmentNames: []*string{aws.String(name)},
+		ApplicationName: aws.String(testApplicationName),
 	})
 	require.NoError(t, waitErr)
 
