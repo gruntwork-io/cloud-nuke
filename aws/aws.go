@@ -1263,6 +1263,25 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Roles
 
+		// IAM Service Linked Roles
+		iamServiceLinkedRoles := IAMServiceLinkedRoles{}
+		if IsNukeable(iamServiceLinkedRoles.ResourceName(), resourceTypes) {
+			roleNames, err := getAllIamServiceLinkedRoles(session, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve IAM roles",
+					ResourceType: iamServiceLinkedRoles.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(roleNames) > 0 {
+				iamServiceLinkedRoles.RoleNames = awsgo.StringValueSlice(roleNames)
+				globalResources.Resources = append(globalResources.Resources, iamServiceLinkedRoles)
+			}
+		}
+		// End IAM Service Linked Roles
+
 		if len(globalResources.Resources) > 0 {
 			account.Resources[GlobalRegion] = globalResources
 		}
@@ -1299,6 +1318,7 @@ func ListResourceTypes() []string {
 		IAMRoles{}.ResourceName(),
 		IAMGroups{}.ResourceName(),
 		IAMPolicies{}.ResourceName(),
+		IAMServiceLinkedRoles{}.ResourceName(),
 		SecretsManagerSecrets{}.ResourceName(),
 		NatGateways{}.ResourceName(),
 		OpenSearchDomains{}.ResourceName(),

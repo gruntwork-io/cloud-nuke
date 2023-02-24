@@ -186,10 +186,9 @@ func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj c
 		return false
 	}
 
-	// The arns of AWS-managed IAM roles, which can only be modified or deleted by AWS, contain "aws-service-role", so we can filter them out
+	// The ARNs of AWS-reserved IAM roles, which can only be modified or deleted by AWS, contain "aws-reserved", so we can filter them out
 	// of the Roles found and managed by cloud-nuke
-	// The same general rule applies with roles whose arn contains "aws-reserved"
-	if strings.Contains(aws.StringValue(iamRole.Arn), "aws-service-role") || strings.Contains(aws.StringValue(iamRole.Arn), "aws-reserved") {
+	if strings.Contains(aws.StringValue(iamRole.Arn), "aws-reserved") {
 		return false
 	}
 
