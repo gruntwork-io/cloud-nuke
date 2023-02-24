@@ -1164,7 +1164,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				ge := report.GeneralError{
 					Error:        err,
 					Description:  "Unable to retrieve ElasticBeanstalk Environments",
-					ResourceType: ecrRepositories.ResourceName(),
+					ResourceType: elasticBeanstalkEnvs.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
@@ -1174,6 +1174,26 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 		// End ElasticBeanstalk Environments
+
+		// ElasticBeanstalk Applications
+		elasticBeanstalkApps := ElasticBeanstalkApplications{}
+		if IsNukeable(elasticBeanstalkApps.ResourceName(), resourceTypes) {
+			elasticBeanstalkAppNames, err := getAllElasticBeanstalkApplications(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ElasticBeanstalk Applications",
+					ResourceType: elasticBeanstalkApps.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(elasticBeanstalkAppNames) > 0 {
+				elasticBeanstalkApps.ApplicationNames = elasticBeanstalkAppNames
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticBeanstalkApps)
+			}
+		}
+		// End ElasticBeanstalk Applications
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
