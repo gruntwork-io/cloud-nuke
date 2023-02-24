@@ -42,14 +42,12 @@ jobs:
             # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
             # the AWS account we use at Gruntwork for testing (Phx DevOps) (e.g., S3)
             go run main.go aws \
-              --older-than 1h \
+              --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
               --exclude-resource-type iam-group \
               --exclude-resource-type iam-policy \
-              --exclude-resource-type vpc \
-              --exclude-resource-type kmscustomerkeys \
               --exclude-resource-type ecr \
               --exclude-resource-type config-recorders \
               --exclude-resource-type config-rules 

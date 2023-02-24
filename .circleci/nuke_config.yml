@@ -125,3 +125,7 @@ IAMRoles:
   include: 
     names_regex: 
       - "^cloud-nuke-Test*"
+KMSCustomerKeys:
+  include:
+    names_regex:
+      - "^cloud-nuke-test-.*$"
