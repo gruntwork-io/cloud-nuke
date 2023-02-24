@@ -18,21 +18,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListCloudTrailTrails(t *testing.T) {
-	t.Parallel()
+func createTestCloudtrail(t *testing.T) string {
+	t.Helper()
+
+	t.Cleanup(func() {
+		deleteCloudTrailTrail(t, region, trailARN, true)
+	})
 
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
+	trailARN := createCloudTrailTrail(t, region)
 
-	trailArn := createCloudTrailTrail(t, region)
-	defer deleteCloudTrailTrail(t, region, trailArn, false)
+	return aws.StringValue(trailARN)
+}
 
+func TestGetAllCloudtrailTrails_ReturnsARecentlyCreatedTrail(t *testing.T) {
+	t.Parallel()
+
+	trailARN := createTestCloudtrail(t)
+
+	// Is the trail in the list of trails?
 	trailArns, err := getAllCloudtrailTrails(session, time.Now(), config.Config{})
 	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(trailArns), aws.StringValue(trailArn))
+	assert.Contains(t, aws.StringValueSlice(trailArns), aws.StringValue(trailARN))
 }
 
 func deleteCloudTrailTrail(t *testing.T, region string, trailARN *string, checkErr bool) {
