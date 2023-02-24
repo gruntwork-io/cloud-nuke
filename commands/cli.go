@@ -343,17 +343,16 @@ func awsDefaults(c *cli.Context) error {
 
 	if c.Bool("sg-only") {
 		logging.Logger.Info("Not removing default VPCs.")
-		err = nukeDefaultSecurityGroups(c, targetRegions)
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
 	} else {
 		err = nukeDefaultVpcs(c, targetRegions)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 	}
-
+	err = nukeDefaultSecurityGroups(c, targetRegions)
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
 	ui.RenderRunReport()
 
 	return nil
@@ -406,7 +405,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		proceed, err = confirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C):", 2)
+		proceed, err = confirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C)", 2)
 		if err != nil {
 			return err
 		}
