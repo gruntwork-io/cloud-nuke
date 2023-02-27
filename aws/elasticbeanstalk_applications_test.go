@@ -27,13 +27,21 @@ func setupEbApplicationTest(t *testing.T) (string, *session.Session) {
 	return region, session
 }
 
-func TestListElasticBeanstalkApplications(t *testing.T) {
-	t.Parallel()
+func setupEbApplicationTestWithCreation(t *testing.T) (string, *session.Session, string) {
+	t.Helper()
 
 	region, session := setupEbApplicationTest(t)
 
 	applicationName, createApplicationErr := createElasticBeanstalkApplication(t, region)
 	require.NoError(t, createApplicationErr)
+
+	return region, session, applicationName
+}
+
+func TestListElasticBeanstalkApplications(t *testing.T) {
+	t.Parallel()
+
+	region, session, applicationName := setupEbApplicationTestWithCreation(t)
 
 	defer deleteElasticBeanstalkApplication(t, aws.String(region), aws.String(applicationName), false)
 
@@ -45,10 +53,7 @@ func TestListElasticBeanstalkApplications(t *testing.T) {
 func TestNukeElasticBeanstalkApplicationOne(t *testing.T) {
 	t.Parallel()
 
-	region, session := setupEbApplicationTest(t)
-
-	applicationName, createApplicationErr := createElasticBeanstalkApplication(t, region)
-	require.NoError(t, createApplicationErr)
+	region, session, applicationName := setupEbApplicationTestWithCreation(t)
 
 	defer deleteElasticBeanstalkApplication(t, aws.String(region), aws.String(applicationName), true)
 
