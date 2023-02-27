@@ -1453,8 +1453,6 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	return nil
 }
 
-// write a function to delete a neptune database
-
 func newAWSSession(awsRegion string) (*session.Session, error) {
 	sessionOptions := session.Options{
 		SharedConfigState: session.SharedConfigEnable,
