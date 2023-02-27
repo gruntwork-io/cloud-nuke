@@ -137,10 +137,6 @@ func shouldIncludeIAMServiceLinkedRole(iamServiceLinkedRole *iam.Role, excludeAf
 		return false
 	}
 
-	if strings.Contains(aws.StringValue(iamServiceLinkedRole.RoleName), "OrganizationAccountAccessRole") {
-		return false
-	}
-
 	if !strings.Contains(aws.StringValue(iamServiceLinkedRole.Arn), "aws-service-role") {
 		return false
 	}

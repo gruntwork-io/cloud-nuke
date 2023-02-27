@@ -182,6 +182,9 @@ func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj c
 		return false
 	}
 
+	// The OrganizationAccountAccessRole is a special role that is created by AWS Organizations, and is used to allow
+	// users to access the AWS account. We should not delete this role, so we can filter it out of the Roles found and
+	// managed by cloud-nuke.
 	if strings.Contains(aws.StringValue(iamRole.RoleName), "OrganizationAccountAccessRole") {
 		return false
 	}
