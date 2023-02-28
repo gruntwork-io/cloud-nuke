@@ -93,6 +93,11 @@ func TestNukeIamServiceLinkedRoles(t *testing.T) {
 
 	err = nukeAllIamServiceLinkedRoles(session, []*string{&iamServiceLinkedRoleName})
 	require.NoError(t, err)
+
+	roleNames, err := getAllIamServiceLinkedRoles(session, time.Now(), config.Config{})
+	require.NoError(t, err)
+
+	assert.NotContains(t, awsgo.StringValueSlice(roleNames), iamServiceLinkedRoleName)
 }
 
 func TestTimeFilterExclusionNewlyCreatedIamServiceLinkedRole(t *testing.T) {
