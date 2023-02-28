@@ -33,6 +33,7 @@ The currently supported functionality includes:
 - Deleting VPCs in an AWS Account (along with any dependency resources such as ENIs, Egress Only Gateways, and Security Groups. except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
 - Inspecting and deleting all IAM users in an AWS account
 - Inspecting and deleting all IAM roles (and any associated EC2 instance profiles) in an AWS account
+- Inspecting and deleting all IAM service-linked roles in an AWS account
 - Inspecting and deleting all IAM groups in an AWS account
 - Inspecting and deleting all IAM policies in an AWS account
 - Inspecting and deleting all customer managed IAM policies in an AWS account
@@ -315,6 +316,12 @@ The following resources support the Config file:
 - IAM Users
     - Resource type: `iam`
     - Config key: `IAMUsers`
+- IAM Roles
+    - Resource type: `iam-role`
+    - Config key: `IAMRoles`
+- IAM Service-Linked Roles
+    - Resource type: `iam-service-linked-role`
+    - Config key: `IAMServiceLinkedRoles`
 - Secrets Manager Secrets
     - Resource type: `secretsmanager`
     - Config key: `SecretsManager`
@@ -530,6 +537,7 @@ To find out what we options are supported in the config file today, consult this
 | efs                           | none  | ✅           | none | none       |
 | acmpca                        | none  | none         | none | none       |
 | iam role                      | none  | ✅           | none | none       |
+| iam service-linked role       | none  | ✅           | none | none       |
 | iam policy                    | none  | ✅           | none | none       |
 | sagemaker-notebook-instances  | none  | ✅           | none | none       |
 | ecr                           | none  | ✅           | none | none       |

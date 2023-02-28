@@ -14,6 +14,7 @@ type Config struct {
 	IAMUsers              ResourceType `yaml:"IAMUsers"`
 	IAMGroups             ResourceType `yaml:"IAMGroups"`
 	IAMPolicies           ResourceType `yaml:"IAMPolicies"`
+	IAMServiceLinkedRoles ResourceType `yaml:"IAMServiceLinkedRoles"`
 	IAMRoles              ResourceType `yaml:"IAMRoles"`
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
 	NatGateway            ResourceType `yaml:"NatGateway"`
