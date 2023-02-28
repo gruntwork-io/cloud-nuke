@@ -79,7 +79,6 @@ func deleteIamServiceLinkedRole(svc *iam.IAM, roleName *string) error {
 		return gruntworkerrors.WithStackTrace(errors.New(err))
 	}
 
-	logging.Logger.Infof("Successfully Deleted IAM ServiceLinked Role %s", aws.StringValue(roleName))
 	return nil
 }
 
