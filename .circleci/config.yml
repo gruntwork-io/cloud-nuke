@@ -48,7 +48,6 @@ jobs:
               --exclude-resource-type iam \
               --exclude-resource-type iam-group \
               --exclude-resource-type iam-service-linked-role \
-              --exclude-resource-type iam-policy \
               --exclude-resource-type ecr \
               --exclude-resource-type config-recorders \
               --exclude-resource-type config-rules 
@@ -70,7 +69,6 @@ jobs:
               --exclude-resource-type iam \
               --exclude-resource-type iam-group \
               --exclude-resource-type iam-service-linked-role \
-              --exclude-resource-type iam-policy \
               --exclude-resource-type vpc \
               --exclude-resource-type kmscustomerkeys \
               --exclude-resource-type ecr \

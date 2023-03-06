@@ -23,7 +23,7 @@ func (p IAMPolicies) ResourceIdentifiers() []string {
 
 // MaxBatchSize Tentative batch size to ensure AWS doesn't throttle
 func (p IAMPolicies) MaxBatchSize() int {
-	return 49
+	return 20
 }
 
 // Nuke - Destroy every group in this collection
