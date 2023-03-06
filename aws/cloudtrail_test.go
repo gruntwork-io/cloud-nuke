@@ -21,24 +21,19 @@ import (
 func TestListCloudTrailTrails(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	session, err := getAwsSession(false)
+
 	require.NoError(t, err)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	trailArn := createCloudTrailTrail(t, region)
-	defer deleteCloudTrailTrail(t, region, trailArn, false)
+	trailArn := createCloudTrailTrail(t, session)
+	defer deleteCloudTrailTrail(t, session, trailArn, false)
 
 	trailArns, err := getAllCloudtrailTrails(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(trailArns), aws.StringValue(trailArn))
 }
 
-func deleteCloudTrailTrail(t *testing.T, region string, trailARN *string, checkErr bool) {
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
+func deleteCloudTrailTrail(t *testing.T, session *session.Session, trailARN *string, checkErr bool) {
 	cloudtrailSvc := cloudtrail.New(session)
 
 	param := &cloudtrail.DeleteTrailInput{
@@ -51,10 +46,7 @@ func deleteCloudTrailTrail(t *testing.T, region string, trailARN *string, checkE
 	}
 }
 
-func createCloudTrailTrail(t *testing.T, region string) *string {
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
+func createCloudTrailTrail(t *testing.T, session *session.Session) *string {
 	cloudtrailSvc := cloudtrail.New(session)
 	s3Svc := s3.New(session)
 	stsSvc := sts.New(session)
@@ -121,12 +113,12 @@ func createCloudTrailTrail(t *testing.T, region string) *string {
 	renderedJson := fmt.Sprintf(
 		policyJson,
 		name,
-		region,
+		*session.Config.Region,
 		aws.StringValue(result.Account),
 		name,
 		name,
 		aws.StringValue(result.Account),
-		region,
+		*session.Config.Region,
 		aws.StringValue(result.Account),
 		name,
 	)
@@ -154,15 +146,12 @@ func createCloudTrailTrail(t *testing.T, region string) *string {
 
 func TestNukeCloudTrailOne(t *testing.T) {
 	t.Parallel()
+	session, err := getAwsSession(false)
 
-	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	trailArn := createCloudTrailTrail(t, region)
-	defer deleteCloudTrailTrail(t, region, trailArn, false)
+	trailArn := createCloudTrailTrail(t, session)
+	defer deleteCloudTrailTrail(t, session, trailArn, false)
 
 	identifiers := []*string{trailArn}
 
@@ -171,23 +160,21 @@ func TestNukeCloudTrailOne(t *testing.T) {
 		nukeAllCloudTrailTrails(session, identifiers),
 	)
 
-	assertCloudTrailTrailsDeleted(t, region, identifiers)
+	assertCloudTrailTrailsDeleted(t, session, identifiers)
 }
 
 func TestNukeCloudTrailTrailMoreThanOne(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	session, err := getAwsSession(false)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
 	trailArns := []*string{}
 	for i := 0; i < 3; i++ {
 		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		trailArn := createCloudTrailTrail(t, region)
-		defer deleteCloudTrailTrail(t, region, trailArn, false)
+		trailArn := createCloudTrailTrail(t, session)
+		defer deleteCloudTrailTrail(t, session, trailArn, false)
 		trailArns = append(trailArns, trailArn)
 	}
 
@@ -196,12 +183,10 @@ func TestNukeCloudTrailTrailMoreThanOne(t *testing.T) {
 		nukeAllCloudTrailTrails(session, trailArns),
 	)
 
-	assertCloudTrailTrailsDeleted(t, region, trailArns)
+	assertCloudTrailTrailsDeleted(t, session, trailArns)
 }
 
-func assertCloudTrailTrailsDeleted(t *testing.T, region string, identifiers []*string) {
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
+func assertCloudTrailTrailsDeleted(t *testing.T, session *session.Session, identifiers []*string) {
 	svc := cloudtrail.New(session)
 
 	resp, err := svc.DescribeTrails(&cloudtrail.DescribeTrailsInput{

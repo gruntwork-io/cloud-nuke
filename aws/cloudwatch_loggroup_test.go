@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -18,10 +17,7 @@ import (
 func TestListCloudWatchLogGroups(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	session, err := getAwsSession(false)
 	require.NoError(t, err)
 
 	svc := cloudwatchlogs.New(session)
@@ -37,10 +33,7 @@ func TestListCloudWatchLogGroups(t *testing.T) {
 func TestTimeFilterExclusionNewlyCreatedCloudWatchLogGroup(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	session, err := getAwsSession(false)
 	require.NoError(t, err)
 	svc := cloudwatchlogs.New(session)
 
@@ -61,11 +54,8 @@ func TestTimeFilterExclusionNewlyCreatedCloudWatchLogGroup(t *testing.T) {
 
 func TestNukeCloudWatchLogGroupOne(t *testing.T) {
 	t.Parallel()
+	session, err := getAwsSession(false)
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 	svc := cloudwatchlogs.New(session)
 
@@ -85,11 +75,7 @@ func TestNukeCloudWatchLogGroupOne(t *testing.T) {
 
 func TestNukeCloudWatchLogGroupMoreThanOne(t *testing.T) {
 	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	session, err := getAwsSession(false)
 	require.NoError(t, err)
 	svc := cloudwatchlogs.New(session)
 

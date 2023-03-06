@@ -63,13 +63,7 @@ func createTestElasticacheReplicationGroup(t *testing.T, session *session.Sessio
 func TestListElasticacheClusters(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	},
-	)
+	session, err := getAwsSession(false)
 
 	require.NoError(t, err)
 
@@ -79,7 +73,7 @@ func TestListElasticacheClusters(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElasticacheClusters(session, []*string{&clusterId})
 
-	clusterIds, err := getAllElasticacheClusters(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	clusterIds, err := getAllElasticacheClusters(session, *session.Config.Region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
 	assert.Contains(t, awsgo.StringValueSlice(clusterIds), clusterId)
@@ -88,13 +82,7 @@ func TestListElasticacheClusters(t *testing.T) {
 func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	},
-	)
+	session, err := getAwsSession(false)
 
 	require.NoError(t, err)
 
@@ -108,7 +96,7 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 	// clean up after this test
 	defer nukeAllElasticacheClusters(session, []*string{&includedClusterId, &excludedClusterId})
 
-	clusterIds, err := getAllElasticacheClusters(session, region, time.Now().Add(1*time.Hour), config.Config{
+	clusterIds, err := getAllElasticacheClusters(session, *session.Config.Region, time.Now().Add(1*time.Hour), config.Config{
 		Elasticache: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
@@ -123,6 +111,7 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 	assert.Contains(t, awsgo.StringValueSlice(clusterIds), includedClusterId)
 }
 
+// TODO make work with localstack
 func TestNukeElasticacheClusters(t *testing.T) {
 	t.Parallel()
 

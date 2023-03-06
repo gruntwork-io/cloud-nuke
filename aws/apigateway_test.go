@@ -43,13 +43,8 @@ func createTestAPIGateway(t *testing.T, session *session.Session, name string) (
 
 func TestListAPIGateways(t *testing.T) {
 	t.Parallel()
+	session, err := getAwsSession(false)
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	},
-	)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -71,10 +66,7 @@ func TestListAPIGateways(t *testing.T) {
 func TestTimeFilterExclusionNewlyCreatedAPIGateway(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	session, err := getAwsSession(false)
 	require.NoError(t, err)
 
 	apigwName := "aws-nuke-test-" + util.UniqueID()
@@ -98,10 +90,7 @@ func TestTimeFilterExclusionNewlyCreatedAPIGateway(t *testing.T) {
 func TestNukeAPIGatewayOne(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	session, err := getAwsSession(false)
 	require.NoError(t, err)
 
 	apigwName := "aws-nuke-test-" + util.UniqueID()
@@ -122,10 +111,7 @@ func TestNukeAPIGatewayOne(t *testing.T) {
 func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	session, err := getAwsSession(false)
 	require.NoError(t, err)
 
 	apigwName := "aws-nuke-test-" + util.UniqueID()

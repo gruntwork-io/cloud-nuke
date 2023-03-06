@@ -2,7 +2,9 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"math/rand"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -92,6 +94,31 @@ func GetEnabledRegions() ([]string, error) {
 	}
 
 	return regionNames, nil
+}
+
+func getAwsSession(forceNotLocal bool) (*session.Session, error) {
+	_, present := os.LookupEnv("LOCAL_STACK")
+	var region = "us-east-1"
+	var err error = nil
+	if forceNotLocal || !present {
+		region, err = getRandomRegion()
+	}
+	if err != nil {
+		return nil, err
+	}
+	awsconf := &awsgo.Config{
+		Region: awsgo.String(region),
+	}
+	if present && !forceNotLocal {
+		//Use Localstack
+		awsconf = &awsgo.Config{
+			Region:           aws.String(region),
+			Credentials:      credentials.NewStaticCredentials("test", "test", ""),
+			S3ForcePathStyle: aws.Bool(true),
+			Endpoint:         aws.String("http://localhost:4566"),
+		}
+	}
+	return session.NewSession(awsconf)
 }
 
 func getRandomRegion() (string, error) {

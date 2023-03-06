@@ -44,12 +44,7 @@ func createTestAPIGatewayV2(t *testing.T, session *session.Session, name string)
 func TestListAPIGatewaysV2(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	},
-	)
+	session, err := getAwsSession(false)
 	if err != nil {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
@@ -68,6 +63,7 @@ func TestListAPIGatewaysV2(t *testing.T) {
 	assert.Contains(t, awsgo.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
 }
 
+// TODO add localstack
 func TestTimeFilterExclusionNewlyCreatedAPIGatewayV2(t *testing.T) {
 	t.Parallel()
 
@@ -98,10 +94,8 @@ func TestTimeFilterExclusionNewlyCreatedAPIGatewayV2(t *testing.T) {
 func TestNukeAPIGatewayV2One(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	session, err := getAwsSession(false)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
 	apigwName := "aws-nuke-test-" + util.UniqueID()
@@ -122,10 +116,8 @@ func TestNukeAPIGatewayV2One(t *testing.T) {
 func TestNukeAPIGatewayV2MoreThanOne(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	session, err := getAwsSession(false)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
 	apigwName := "aws-nuke-test-" + util.UniqueID()
