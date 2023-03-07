@@ -1362,6 +1362,7 @@ func ListResourceTypes() []string {
 		LaunchTemplates{}.ResourceName(),
 		ConfigServiceRule{}.ResourceName(),
 		ConfigServiceRecorders{}.ResourceName(),
+		ElasticBeanstalkApplications{}.ResourceName(),
 		ElasticBeanstalkEnvironments{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
