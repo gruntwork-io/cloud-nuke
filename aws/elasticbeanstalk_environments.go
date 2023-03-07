@@ -9,6 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/hashicorp/go-multierror"
 )
 
 func getAllElasticBeanstalkEnvironments(sess *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
@@ -40,37 +41,52 @@ func shouldIncludeElasticBeanstalkEnvironment(environment *elasticbeanstalk.Envi
 	)
 }
 
-func nukeAllElasticBeanstalkEnvironments(session *session.Session, names []*string) error {
+func nukeAllElasticBeanstalkEnvironments(session *session.Session, environmentNamesonmentNames []*string) error {
 	svc := elasticbeanstalk.New(session)
 
-	if len(names) == 0 {
+	if len(environmentNamesonmentNames) == 0 {
 		logging.Logger.Debugf("No Elastic Beanstalk Environments to nuke in region %s", *session.Config.Region)
 
 		return nil
 	}
 
+	var allErrs *multierror.Error
+
 	var deletedNames []*string
-	for _, name := range names {
+	for _, environmentName := range environmentNamesonmentNames {
 		params := &elasticbeanstalk.TerminateEnvironmentInput{
-			EnvironmentName:    name,
+			EnvironmentName:    environmentName,
 			TerminateResources: aws.Bool(true),
 			ForceTerminate:     aws.Bool(true),
 		}
 		_, err := svc.TerminateEnvironment(params)
+		if err != nil {
+			allErrs = multierror.Append(allErrs, err)
+		}
+
+		// Wait on deletion of the environment. This is slow, but it will reduce the likelihood of
+		// propagation delays causing the environment to be deleted but the resources to still exist (leading to test failure)
+		waitErr := svc.WaitUntilEnvironmentTerminated(&elasticbeanstalk.DescribeEnvironmentsInput{
+			EnvironmentNames: []*string{environmentName},
+		})
+
+		if waitErr != nil {
+			allErrs = multierror.Append(allErrs, waitErr)
+		}
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   *name,
+			Identifier:   *environmentName,
 			ResourceType: "ElasticBeanstalk Environment",
-			Error:        err,
+			Error:        allErrs.ErrorOrNil(),
 		}
 		report.Record(e)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted Elastic Beanstalk Environment: %s", *name)
+			deletedNames = append(deletedNames, environmentName)
+			logging.Logger.Debugf("Deleted Elastic Beanstalk Environment: %s", *environmentName)
 		}
 	}
 
