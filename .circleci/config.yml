@@ -1,7 +1,7 @@
 defaults: &defaults
   resource_class: medium+
   docker:
-    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.17-tf1.2-tg37.4-pck1.8-ci50.1
+    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.18-tf1.3-tg39.1-pck1.8-ci50.7
 version: 2.1
 jobs:
   test:
