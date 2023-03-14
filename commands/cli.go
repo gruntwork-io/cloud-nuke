@@ -15,64 +15,66 @@ import (
 	"github.com/gruntwork-io/go-commons/shell"
 	"github.com/pterm/pterm"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // CreateCli - Create the CLI app with all commands, flags, and usage text configured.
 func CreateCli(version string) *cli.App {
 	app := cli.NewApp()
-
+	logging.InitLogger("cloud-nuke", version)
 	app.Name = "cloud-nuke"
 	app.HelpName = app.Name
-	app.Author = "Gruntwork <www.gruntwork.io>"
+	app.Authors = []*cli.Author{
+		{Name: "Gruntwork", Email: "www.gruntwork.io"},
+	}
 	app.Version = version
 	app.Usage = "A CLI tool to nuke (delete) cloud resources."
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		{
 			Name:   "aws",
 			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots, Elastic IP, RDS, Lambda Function).",
 			Action: errors.WithPanicHandling(awsNuke),
 			Flags: []cli.Flag{
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "region",
 					Usage: "Regions to include. Include multiple times if more than one.",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "exclude-region",
 					Usage: "Regions to exclude. Include multiple times if more than one.",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "resource-type",
 					Usage: "Resource types to nuke. Include multiple times if more than one.",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "exclude-resource-type",
 					Usage: "Resource types to exclude from nuking. Include multiple times if more than one.",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "list-resource-types",
 					Usage: "List available resource types",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "older-than",
 					Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 					Value: "0s",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "dry-run",
 					Usage: "Dry run without taking any action.",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "force",
 					Usage: "Skip nuke confirmation prompt. WARNING: this will automatically delete all targeted resources without any confirmation. It will not modify resource selections made via the --resource-type flag or an optional config file.",
 				},
-				cli.StringFlag{
-					Name:   "log-level",
-					Value:  "info",
-					Usage:  "Set log level",
-					EnvVar: "LOG_LEVEL",
+				&cli.StringFlag{
+					Name:    "log-level",
+					Value:   "info",
+					Usage:   "Set log level",
+					EnvVars: []string{"LOG_LEVEL"},
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "config",
 					Usage: "YAML file specifying matching rules.",
 				},
@@ -82,27 +84,27 @@ func CreateCli(version string) *cli.App {
 			Usage:  "Nukes AWS default VPCs and permissive default security group rules. Optionally include/exclude specified regions, or just nuke security group rules (not default VPCs).",
 			Action: errors.WithPanicHandling(awsDefaults),
 			Flags: []cli.Flag{
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "region",
 					Usage: "regions to include",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "exclude-region",
 					Usage: "regions to exclude",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "sg-only",
 					Usage: "Destroy default security group rules only. Do not destroy default VPCs.",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "force",
 					Usage: "Skip confirmation prompt. WARNING: this will automatically delete defaults without any confirmation",
 				},
-				cli.StringFlag{
-					Name:   "log-level",
-					Value:  "info",
-					Usage:  "Set log level",
-					EnvVar: "LOG_LEVEL",
+				&cli.StringFlag{
+					Name:    "log-level",
+					Value:   "info",
+					Usage:   "Set log level",
+					EnvVars: []string{"LOG_LEVEL"},
 				},
 			},
 		}, {
@@ -110,36 +112,36 @@ func CreateCli(version string) *cli.App {
 			Usage:  "Non-destructive inspection of target resources only",
 			Action: errors.WithPanicHandling(awsInspect),
 			Flags: []cli.Flag{
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "region",
 					Usage: "regions to include",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "exclude-region",
 					Usage: "regions to exclude",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "list-resource-types",
 					Usage: "List available resource types",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "resource-type",
 					Usage: "Resource types to inspect. Include multiple times if more than one.",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "exclude-resource-type",
 					Usage: "Resource types to exclude from inspection. Include multiple times if more than one.",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "older-than",
 					Usage: "Only inspect resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 					Value: "0s",
 				},
-				cli.StringFlag{
-					Name:   "log-level",
-					Value:  "info",
-					Usage:  "Set log level",
-					EnvVar: "LOG_LEVEL",
+				&cli.StringFlag{
+					Name:    "log-level",
+					Value:   "info",
+					Usage:   "Set log level",
+					EnvVars: []string{"LOG_LEVEL"},
 				},
 			},
 		},
