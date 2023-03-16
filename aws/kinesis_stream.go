@@ -1,14 +1,17 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"context"
 	"sync"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -17,20 +20,28 @@ import (
 )
 
 func getAllKinesisStreams(session *session.Session, configObj config.Config) ([]*string, error) {
-	svc := kinesis.New(session)
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	if err != nil {
+		return []*string{}, errors.WithStackTrace(err)
+	}
+	svc := kinesis.NewFromConfig(cfg)
 
 	allStreams := []*string{}
-	err := svc.ListStreamsPages(
-		&kinesis.ListStreamsInput{},
-		func(page *kinesis.ListStreamsOutput, lastPage bool) bool {
-			for _, streamName := range page.StreamNames {
-				if shouldIncludeKinesisStream(streamName, configObj) {
-					allStreams = append(allStreams, streamName)
-				}
+
+	paginator := kinesis.NewListStreamsPaginator(svc, nil)
+
+	for paginator.HasMorePages() {
+		resp, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			return []*string{}, errors.WithStackTrace(err)
+		}
+		for _, stream := range resp.StreamNames {
+			if shouldIncludeKinesisStream(aws.String(stream), configObj) {
+				allStreams = append(allStreams, aws.String(stream))
 			}
-			return !lastPage
-		},
-	)
+		}
+	}
+
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -51,7 +62,11 @@ func shouldIncludeKinesisStream(streamName *string, configObj config.Config) boo
 
 func nukeAllKinesisStreams(session *session.Session, identifiers []*string) error {
 	region := aws.StringValue(session.Config.Region)
-	svc := kinesis.New(session)
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	if err != nil {
+		return err
+	}
+	svc := kinesis.NewFromConfig(cfg)
 
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No Kinesis Streams to nuke in region: %s", region)
@@ -104,13 +119,13 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 func deleteKinesisStreamAsync(
 	wg *sync.WaitGroup,
 	errChan chan error,
-	svc *kinesis.Kinesis,
+	svc *kinesis.Client,
 	streamName *string,
 	region string,
 ) {
 	defer wg.Done()
 	input := &kinesis.DeleteStreamInput{StreamName: streamName}
-	_, err := svc.DeleteStream(input)
+	_, err := svc.DeleteStream(context.TODO(), input)
 
 	// Record status of this resource
 	e := report.Entry{
