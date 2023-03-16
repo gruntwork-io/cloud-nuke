@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.154
 	github.com/aws/aws-sdk-go-v2/config v1.17.1
 	github.com/aws/aws-sdk-go-v2/service/efs v1.17.10
+	github.com/aws/aws-sdk-go-v2/service/kinesis v1.17.7
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.13
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/golang/mock v1.6.0
