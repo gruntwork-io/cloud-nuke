@@ -3,12 +3,34 @@ package ui
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/pterm/pterm"
 )
+
+// RenderRunReport should be called at the end of a support cloud-nuke function
+// It will print a table showing resources were deleted, and what errors occurred
+// Note that certain functions don't support the report table, such as aws-inspect,
+// which prints its own findings out directly to os.Stdout
+func RenderRunReport() {
+	// Remove the progressbar, now that we're ready to display the table report
+	p := progressbar.GetProgressbar()
+	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up before the
+	// final run report table is printed
+	fmt.Print("\r")
+	p.Stop()
+	pterm.Println()
+
+	// Conditionally print the general error report, if in fact there were errors
+	PrintGeneralErrorReport(os.Stdout)
+
+	// Print the report showing the user what happened with each resource
+	PrintRunReport(os.Stdout)
+}
 
 func PrintGeneralErrorReport(w io.Writer) {
 	// generalErrors is a map[string]GeneralError from the report package. This map contains
@@ -51,6 +73,13 @@ func PrintRunReport(w io.Writer) {
 
 	data := make([][]string, len(records))
 	entriesToDisplay := []report.Entry{}
+
+	// Short-circuit if there are no entries to display
+	if len(records) == 0 {
+		pterm.Info.Println("No resources touched in this run.")
+		return
+	}
+
 	for _, entry := range records {
 		entriesToDisplay = append(entriesToDisplay, entry)
 	}

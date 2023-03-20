@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -11,6 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
+	"github.com/pterm/pterm"
 )
 
 func setFirstSeenVpcTag(svc *ec2.EC2, vpc ec2.Vpc, key string, value time.Time) error {
@@ -121,13 +123,24 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 		return nil
 	}
 
+	spinnerMsg := fmt.Sprintf("Deleting the following VPCs: %+v\n", vpcIds)
+
+	// Start a simple spinner to track progress reading all relevant AWS resources
+	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
+		WithRemoveWhenDone(true).
+		Start(spinnerMsg)
+
+	if spinnerErr != nil {
+		return errors.WithStackTrace(spinnerErr)
+	}
+
 	logging.Logger.Debug("Deleting all VPCs")
 
 	deletedVPCs := 0
 	multiErr := new(multierror.Error)
 
 	for _, vpc := range vpcs {
-		err := vpc.nuke()
+		err := vpc.nuke(spinnerSuccess)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   vpc.VpcId,
