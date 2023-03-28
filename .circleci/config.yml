@@ -95,13 +95,15 @@ workflows:
             tags:
               only: /^v.*/
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
       - build:
           filters:
             tags:
               only: /^v.*/
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
       - deploy:
           requires:
             - build
@@ -111,7 +113,8 @@ workflows:
             branches:
               ignore: /.*/
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
   nuke_phxdevops:
     when:
       and:
@@ -120,7 +123,8 @@ workflows:
     jobs:
       - nuke_phx_devops:
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
   nuke_sandbox:
     when:
       and:
@@ -129,5 +133,7 @@ workflows:
     jobs:
       - nuke_sandbox:
           context:
-            - Gruntwork Admin
-            - Gruntwork Sandbox
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
+            - AWS__SANDBOX__circle-ci
+            - GITHUB__PAT__gruntwork-ci
