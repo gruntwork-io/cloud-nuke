@@ -136,4 +136,3 @@ workflows:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
             - AWS__SANDBOX__circle-ci
-            - GITHUB__PAT__gruntwork-ci
