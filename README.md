@@ -58,6 +58,7 @@ The currently supported functionality includes:
 - Inspecting and deleting all ECR Repositories in an AWS account
 - Inspecting and deleting all Config service recorders in an AWS account
 - Inspecting and deleting all Config service rules in an AWS account
+- Inspecting and deleting all CloudWatch Alarms in an AWS Account
 
 ### BEWARE!
 
@@ -386,33 +387,35 @@ The following resources support the Config file:
     - Resource type: `ec2-dedicated-hosts`
     - Config key: `EC2DedicatedHosts`
 - EC2 Key Pairs
-  - Resource type: `ec2-keypairs`
-  - Config key: `EC2KeyPairs`
+    - Resource type: `ec2-keypairs`
+    - Config key: `EC2KeyPairs`
 - EKS Clusters
     - Resource type: `ekscluster`
     - Config key: `EKSCluster`
 - SageMaker Notebook Instances
-  - Resource type: `sagemaker-notebook-instances`
-  - Config key: `SageMakerNotebook`
+    - Resource type: `sagemaker-notebook-instances`
+    - Config key: `SageMakerNotebook`
 - API Gateways (v1)
-  - Resource type: `apigateway`
-  - Config key: `APIGateway`
+    - Resource type: `apigateway`
+    - Config key: `APIGateway`
 - API Gateways (v2)
-  - Resource type: `apigatewayv2`
-  - Config key: `APIGatewayV2`
+    - Resource type: `apigatewayv2`
+    - Config key: `APIGatewayV2`
 - Elastic FileSystems (efs)
-  - Resource type: `efs`
-  - Config key: `ElasticFileSystem`
+    - Resource type: `efs`
+    - Config key: `ElasticFileSystem`
 - ECR Repositories
-  - Resource type: `ecr`
-  - Config key: `ECRRepository`
+    - Resource type: `ecr`
+    - Config key: `ECRRepository`
 - RDS, Neptune, and Document DB Resources
-  - Resource type: `rds`
-  - Config key: `DBInstances`
+    - Resource type: `rds`
+    - Config key: `DBInstances`
 - Launch Templates
-  - Resource type: `lt`
-  - Config key: `LaunchTemplate`
-
+    - Resource type: `lt`
+    - Config key: `LaunchTemplate`
+- CloudWatch Alarms
+    - Resource type: `cloudwatch-alarm`
+    - Config key: `CloudWatchAlarm`
 
 
 
@@ -545,6 +548,7 @@ To find out what we options are supported in the config file today, consult this
 | lt                            | none  | ✅           | none | none       |
 | config-recorders              | none  | ✅           | none | none       |
 | config-rules                  | none  | ✅           | none | none       |
+| cloudwatch-alarm              | none  | ✅           | none | none       |
 | ... (more to come)            | none  | none         | none | none       |
 
 
