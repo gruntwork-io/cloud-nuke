@@ -50,6 +50,7 @@ type Config struct {
 	LaunchTemplate        ResourceType `yaml:"LaunchTemplate"`
 	ConfigServiceRule     ResourceType `yaml:"ConfigServiceRule"`
 	ConfigServiceRecorder ResourceType `yaml:"ConfigServiceRecorder"`
+	CloudWatchAlarm       ResourceType `yaml:"CloudWatchAlarm"`
 }
 
 type ResourceType struct {
