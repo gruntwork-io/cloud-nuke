@@ -328,7 +328,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		templates := LaunchTemplates{}
 		if IsNukeable(templates.ResourceName(), resourceTypes) {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Launch Tempaltes",
+				EventName: "Listing Launch Templates",
 			}, map[string]interface{}{
 				"region": region,
 			})
@@ -343,7 +343,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing Launch Tempaltes",
+				EventName: "Done Listing Launch Templates",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(templateNames),
@@ -1741,6 +1741,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				}
 				report.RecordError(ge)
 			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing IAM Users",
+			}, map[string]interface{}{
+				"region":      "global",
+				"recordCount": len(userNames),
+			})
 			if len(userNames) > 0 {
 				iamUsers.UserNames = awsgo.StringValueSlice(userNames)
 				globalResources.Resources = append(globalResources.Resources, iamUsers)
@@ -1760,6 +1766,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing IAM Groups",
+			}, map[string]interface{}{
+				"region":      "global",
+				"recordCount": len(groupNames),
+			})
 			if len(groupNames) > 0 {
 				iamGroups.GroupNames = awsgo.StringValueSlice(groupNames)
 				globalResources.Resources = append(globalResources.Resources, iamGroups)
@@ -1779,6 +1791,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing IAM Policies",
+			}, map[string]interface{}{
+				"region":      "global",
+				"recordCount": len(policyArns),
+			})
 			if len(policyArns) > 0 {
 				iamPolicies.PolicyArns = awsgo.StringValueSlice(policyArns)
 				globalResources.Resources = append(globalResources.Resources, iamPolicies)
@@ -1804,6 +1822,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				report.RecordError(ge)
 			}
 
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing OIDC Providers",
+			}, map[string]interface{}{
+				"region":      "global",
+				"recordCount": len(providerARNs),
+			})
 			if len(providerARNs) > 0 {
 				oidcProviders.ProviderARNs = awsgo.StringValueSlice(providerARNs)
 				globalResources.Resources = append(globalResources.Resources, oidcProviders)
@@ -1828,6 +1852,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				}
 				report.RecordError(ge)
 			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing IAM Roles",
+			}, map[string]interface{}{
+				"region":      "global",
+				"recordCount": len(roleNames),
+			})
 			if len(roleNames) > 0 {
 				iamRoles.RoleNames = awsgo.StringValueSlice(roleNames)
 				globalResources.Resources = append(globalResources.Resources, iamRoles)
@@ -1852,6 +1882,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				}
 				report.RecordError(ge)
 			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing IAM Service Linked Roles",
+			}, map[string]interface{}{
+				"region":      "global",
+				"recordCount": len(roleNames),
+			})
 			if len(roleNames) > 0 {
 				iamServiceLinkedRoles.RoleNames = awsgo.StringValueSlice(roleNames)
 				globalResources.Resources = append(globalResources.Resources, iamServiceLinkedRoles)
