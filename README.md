@@ -2,7 +2,7 @@
 
 # cloud-nuke
 
-This repo contains a CLI tool to delete all resources in an AWS account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
+This repo contains a CLI tool to delete all resources . cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
 
 In addition, cloud-nuke offers non-destructive inspecting functionality that can either be called via the command-line interface, or consumed as library methods, for scripting purposes.
 
@@ -10,55 +10,61 @@ The currently supported functionality includes:
 
 ## AWS
 
-- Inspecting and deleting all ACM Private CA in an AWS account
-- Inspecting and deleting all Auto scaling groups in an AWS account
-- Inspecting and deleting all Elastic Load Balancers (v1 and v2) in an AWS account
-- Inspecting and deleting all Transit Gateways in an AWS account
-- Inspecting and deleting all EBS Volumes in an AWS account
-- Inspecting and deleting all unprotected EC2 instances in an AWS account
-- Inspecting and deleting all AMIs in an AWS account
-- Inspecting and deleting all Snapshots in an AWS account
-- Inspecting and deleting all Elastic IPs in an AWS account
-- Inspecting and deleting all Elasticache clusters in an AWS account
-- Inspecting and deleting all Launch Configurations in an AWS account
-- Inspecting and deleting all ECS services in an AWS account
-- Inspecting and deleting all ECS clusters in an AWS account
-- Inspecting and deleting all EKS clusters in an AWS account
-- Inspecting and deleting all RDS, Neptune, and Document DB instances in an AWS account
+Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS resources:
+
+| Resource Family | Resource type 
+| --------------- | ---------- 
+| EC2 | Auto scaling groups |
+| EC2 | Elastic Load Balancers (v1 and v2) |
+| EC2 | EBS Volumes | 
+| EC2 | Unprotected EC2 instances |
+| EC2 | AMIS | 
+| EC2 | Snapshots |
+| EC2 | Elastic IPs |
+| EC2 | Launch Configurations |
+| Certificate Manager | ACM Private CA |
+| Direct Connect | Transit Gateways |
+| Elasticache | Clusters |
+| ECS | Services | 
+| ECS | Clusters | 
+| EKS | Clusters | 
+| RDS | RDS databases | 
+| RDS | Neptune |
+| RDS | Document DB instances | 
+| DynamoDB | Tables | 
+| Lambda | Functions | 
+| SQS | Queues | 
+| S3 | Buckets |
+| VPC | Default VPCs | 
+| VPC | Default rules in the un-deletable default security group | 
+| VPC | NAT Gateways | 
+| IAM | Users | 
+| IAM | Roles (and any associated EC2 instance profiles)|
+| IAM | Service-linked-roles | 
+| IAM | Groups | 
+| IAM | Policies | 
+| IAM | Customer-managed policies | 
+| IAM | Access analyzers | 
+| IAM | OpenID Connect providers |
+| Secrets Manager | Secrets | 
+| CloudWatch | Dashboard |
+| CloudWatch | Log groups | 
+| CloudWatch | Alarms | 
+| OpenSearch | Domains |
+| KMS | Custgomer managed keys (and associated key aliases) | 
+| GuardDuty | Detectors | 
+| Macie | Member accounts | 
+| SageMaker | Notebook instances | 
+| Kinesis | Streams | 
+| API Gateway | Gateways (v1 and v2) | 
+| EFS |  File systems | 
+| SNS | Topics | 
+| CloudTrail | Trails | 
+| ECR | Repositories | 
+| Config | Service recorders | 
+| Config | Service rules | 
+
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
-- Inspecting and deleting all Lambda Functions in an AWS account
-- Inspecting and deleting all SQS queues in an AWS account
-- Inspecting and deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all default VPCs in an AWS account
-- Deleting VPCs in an AWS Account (along with any dependency resources such as ENIs, Egress Only Gateways, and Security Groups. except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
-- Inspecting and deleting all IAM users in an AWS account
-- Inspecting and deleting all IAM roles (and any associated EC2 instance profiles) in an AWS account
-- Inspecting and deleting all IAM service-linked roles in an AWS account
-- Inspecting and deleting all IAM groups in an AWS account
-- Inspecting and deleting all IAM policies in an AWS account
-- Inspecting and deleting all customer managed IAM policies in an AWS account
-- Inspecting and deleting all Secrets Manager Secrets in an AWS account
-- Inspecting and deleting all NAT Gateways in an AWS account
-- Inspecting and deleting all IAM Access Analyzers in an AWS account
-- Revoking the default rules in the un-deletable default security group of a VPC
-- Inspecting and deleting all DynamoDB tables in an AWS account
-- Inspecting and deleting all CloudWatch Dashboards in an AWS account
-- Inspecting and deleting all OpenSearch Domains in an AWS account
-- Inspecting and deleting all IAM OpenID Connect Providers
-- Inspecting and deleting all Customer managed keys (and associated key aliases) from Key Management Service in an AWS account
-- Inspecting and deleting all CloudWatch Log Groups in an AWS Account
-- Inspecting and deleting all GuardDuty Detectors in an AWS Account
-- Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
-- Inspecting and deleting all SageMaker Notebook Instances in an AWS account
-- Inspecting and deleting all Kinesis Streams in an AWS account
-- Inspecting and deleting all API Gateways (v1 and v2) in an AWS account
-- Inspecting and deleting all Elastic FileSystems (efs) in an AWS account
-- Inspecting and deleting all SNS Topics in an AWS account
-- Inspecting and deleting all CloudTrail Trails in an AWS account
-- Inspecting and deleting all ECR Repositories in an AWS account
-- Inspecting and deleting all Config service recorders in an AWS account
-- Inspecting and deleting all Config service rules in an AWS account
-- Inspecting and deleting all CloudWatch Alarms in an AWS Account
 
 ### BEWARE!
 
