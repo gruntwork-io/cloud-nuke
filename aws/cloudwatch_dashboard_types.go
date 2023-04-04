@@ -16,7 +16,7 @@ func (cwdb CloudWatchDashboards) ResourceName() string {
 	return "cloudwatch-dashboard"
 }
 
-// ResourceIdentifiers - The instance ids of the ec2 instances
+// ResourceIdentifiers - The dashboard names of the cloudwatch dashboards
 func (cwdb CloudWatchDashboards) ResourceIdentifiers() []string {
 	return cwdb.DashboardNames
 }

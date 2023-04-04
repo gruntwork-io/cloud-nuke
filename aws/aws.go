@@ -1156,6 +1156,25 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Config service recorders
 
+		// CloudWatchAlarm
+		cloudwatchAlarms := CloudWatchAlarms{}
+		if IsNukeable(cloudwatchAlarms.ResourceName(), resourceTypes) {
+			cwalNames, err := getAllCloudWatchAlarms(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve CloudWatch alarms",
+					ResourceType: cloudwatchAlarms.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			if len(cwalNames) > 0 {
+				cloudwatchAlarms.AlarmNames = awsgo.StringValueSlice(cwalNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchAlarms)
+			}
+		}
+		// End CloudWatchAlarm
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -1344,6 +1363,7 @@ func ListResourceTypes() []string {
 		LaunchTemplates{}.ResourceName(),
 		ConfigServiceRule{}.ResourceName(),
 		ConfigServiceRecorders{}.ResourceName(),
+		CloudWatchAlarms{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
