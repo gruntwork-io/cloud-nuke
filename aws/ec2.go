@@ -602,15 +602,15 @@ func (v Vpc) nuke(spinner *pterm.SpinnerPrinter) error {
 		return err
 	}
 
-	err = v.nukeNetworkInterfaces(spinner)
-	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Elastic Network Interfaces for VPC %s: %s", v.VpcId, err.Error())
-		return err
-	}
-
 	err = v.nukeEndpoints(spinner)
 	if err != nil {
 		logging.Logger.Debugf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
+		return err
+	}
+
+	err = v.nukeNetworkInterfaces(spinner)
+	if err != nil {
+		logging.Logger.Debugf("Error cleaning up Elastic Network Interfaces for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
