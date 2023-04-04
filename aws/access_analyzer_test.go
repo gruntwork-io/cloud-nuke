@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 )
 
 func TestListAccessAnalyzers(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	// We hard code the region here to avoid the tests colliding with each other, since we can only have one account

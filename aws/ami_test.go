@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -74,6 +75,7 @@ func createTestAMI(t *testing.T, session *session.Session, name string) (*ec2.Im
 }
 
 func TestListAMIs(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -122,6 +124,7 @@ func TestListAMIs(t *testing.T) {
 }
 
 func TestNukeAMIs(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

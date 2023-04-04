@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 // Test that we can list IAM groups in an AWS account
 func TestListIamGroups(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -152,6 +154,7 @@ func deleteGroupExtraResources(session *session.Session, info *groupInfo) {
 
 // Test that we can nuke iam groups.
 func TestNukeIamGroups(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

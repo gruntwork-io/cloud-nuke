@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"math/rand"
 	"testing"
 	"time"
@@ -64,6 +65,7 @@ func createTestSNSTopic(t *testing.T, session *session.Session, name string) (*T
 }
 
 func TestListSNSTopics(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -91,6 +93,7 @@ func TestListSNSTopics(t *testing.T) {
 }
 
 func TestNukeSNSTopicOne(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

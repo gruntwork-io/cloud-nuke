@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 
 // Test that we can find ECS services that are running Fargate tasks
 func TestListECSFargateServices(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region := getRandomFargateSupportedRegion()
@@ -63,6 +65,7 @@ func TestListECSFargateServices(t *testing.T) {
 
 // Test that we can successfully nuke ECS services running Fargate tasks
 func TestNukeECSFargateServices(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region := getRandomFargateSupportedRegion()
@@ -103,6 +106,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 
 // Test that we can find ECS services running EC2 tasks
 func TestListECSEC2Services(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region := getRandomFargateSupportedRegion()
@@ -168,6 +172,7 @@ func TestListECSEC2Services(t *testing.T) {
 
 // Test that we can successfully nuke ECS services running EC2 tasks
 func TestNukeECSEC2Services(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region := getRandomFargateSupportedRegion()
@@ -224,6 +229,7 @@ func TestNukeECSEC2Services(t *testing.T) {
 
 // Test the config file filtering works as expected
 func TestShouldIncludeECSService(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockService := &ecs.Service{
 		ServiceName: awsgo.String("cloud-nuke-test"),
 		CreatedAt:   awsgo.Time(time.Now()),

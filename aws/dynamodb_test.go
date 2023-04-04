@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"log"
 	"regexp"
 	"testing"
@@ -75,6 +76,7 @@ func getTableStatus(TableName string, region string) *string {
 }
 
 func TestShouldIncludeTable(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockTable := &dynamodb.TableDescription{
 		TableName:        aws.String("cloud-nuke-test"),
 		CreationDateTime: aws.Time(time.Now()),
@@ -148,6 +150,7 @@ func TestShouldIncludeTable(t *testing.T) {
 }
 
 func TestGetTablesDynamo(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
@@ -163,6 +166,7 @@ func TestGetTablesDynamo(t *testing.T) {
 }
 
 func TestNukeAllDynamoDBTables(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 	db := DynamoDB{}
 

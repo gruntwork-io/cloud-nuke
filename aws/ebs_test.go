@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -85,6 +86,7 @@ func findEBSVolumesByNameTag(t *testing.T, session *session.Session, name string
 }
 
 func TestListEBSVolumes(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -121,6 +123,7 @@ func TestListEBSVolumes(t *testing.T) {
 }
 
 func TestListEBSVolumesWithConfigFile(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -155,6 +158,7 @@ func TestListEBSVolumesWithConfigFile(t *testing.T) {
 }
 
 func TestNukeEBSVolumes(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -192,6 +196,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 }
 
 func TestNukeEBSVolumesInUse(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

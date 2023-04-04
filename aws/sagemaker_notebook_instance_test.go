@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"strings"
 	"testing"
 	"time"
@@ -60,6 +61,7 @@ func createTestNotebookInstance(t *testing.T, session *session.Session, name str
 }
 
 func TestNukeNotebookInstance(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

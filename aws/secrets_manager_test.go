@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 )
 
 func TestListSecretsManagerSecrets(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

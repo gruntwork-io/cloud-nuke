@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 )
 
 func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	type TestCase struct {
 		Name                 string
 		Regions              []string
