@@ -2,6 +2,8 @@ package commands
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 	"time"
 
@@ -16,9 +18,13 @@ import (
 )
 
 // CreateCli - Create the CLI app with all commands, flags, and usage text configured.
-func CreateCli(version string) *cli.App {
+func CreateCli(version string, mixPanelClientId string) *cli.App {
 	app := cli.NewApp()
 	logging.InitLogger("cloud-nuke", version)
+	telemetry.InitTelemetry("cloud-nuke", version, mixPanelClientId)
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "initialized",
+	}, map[string]interface{}{})
 	app.Name = "cloud-nuke"
 	app.HelpName = app.Name
 	app.Authors = []*cli.Author{
@@ -172,6 +178,13 @@ func parseLogLevel(c *cli.Context) error {
 }
 
 func awsNuke(c *cli.Context) error {
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Start aws",
+	}, map[string]interface{}{})
+	defer telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "End aws",
+	}, map[string]interface{}{})
+
 	parseErr := parseLogLevel(c)
 	if parseErr != nil {
 		return errors.WithStackTrace(parseErr)
@@ -181,8 +194,14 @@ func awsNuke(c *cli.Context) error {
 	configFilePath := c.String("config")
 
 	if configFilePath != "" {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Reading config file",
+		}, map[string]interface{}{})
 		configObjPtr, err := config.GetConfig(configFilePath)
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error reading config file",
+			}, map[string]interface{}{})
 			return fmt.Errorf("Error reading config - %s - %s", configFilePath, err)
 		}
 		configObj = *configObjPtr
@@ -199,6 +218,9 @@ func awsNuke(c *cli.Context) error {
 	// resourceTypes
 	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-type"), c.StringSlice("exclude-resource-type"))
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Bad Resource Types",
+		}, map[string]interface{}{})
 		return err
 	}
 
@@ -222,6 +244,9 @@ func awsNuke(c *cli.Context) error {
 
 	regions, err := aws.GetEnabledRegions()
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error getting regions",
+		}, map[string]interface{}{})
 		return errors.WithStackTrace(err)
 	}
 
@@ -235,11 +260,17 @@ func awsNuke(c *cli.Context) error {
 	// target region slice.
 	targetRegions, err := aws.GetTargetRegions(regions, selectedRegions, excludedRegions)
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error targeting regions",
+		}, map[string]interface{}{})
 		return fmt.Errorf("Failed to select regions: %s", err)
 	}
 
 	excludeAfter, err := parseDurationParam(c.String("older-than"))
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error parsing duration",
+		}, map[string]interface{}{})
 		return errors.WithStackTrace(err)
 	}
 
@@ -258,15 +289,27 @@ func awsNuke(c *cli.Context) error {
 	// Stop the spinner
 	spinnerSuccess.Stop()
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error getting resources",
+		}, map[string]interface{}{})
 		return errors.WithStackTrace(err)
 	}
 
 	if len(account.Resources) == 0 {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "No resources to nuke",
+		}, map[string]interface{}{})
 		pterm.Info.Println("Nothing to nuke, you're all good!")
 		return nil
 	}
 
 	nukableResources := aws.ExtractResourcesForPrinting(account)
+
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Found resources to nuke",
+	}, map[string]interface{}{
+		"totalResourceCount": len(nukableResources),
+	})
 
 	ui.WarningMessage(fmt.Sprintf("The following %d AWS resources will be nuked:\n", len(nukableResources)))
 
@@ -286,22 +329,38 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	if c.Bool("dry-run") {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Skipping nuke, dryrun set",
+		}, map[string]interface{}{})
 		logging.Logger.Infoln("Not taking any action as dry-run set to true.")
 		return nil
 	}
 
 	if !c.Bool("force") {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Awaiting nuke confirmation",
+		}, map[string]interface{}{})
 		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C) "
 		proceed, err := confirmationPrompt(prompt, 2)
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error confirming nuke",
+			}, map[string]interface{}{})
 			return err
 		}
 		if proceed {
 			if err := aws.NukeAllResources(account, regions); err != nil {
 				return err
 			}
+		} else {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "User aborted nuke",
+			}, map[string]interface{}{})
 		}
 	} else {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Forcing nuke in 10 seconds",
+		}, map[string]interface{}{})
 		logging.Logger.Infoln("The --force flag is set, so waiting for 10 seconds before proceeding to nuke everything in your account. If you don't want to proceed, hit CTRL+C now!!")
 		for i := 10; i > 0; i-- {
 			fmt.Printf("%d...", i)

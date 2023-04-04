@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -83,6 +85,11 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() != "OperationAbortedException" {
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking Kinesis Stream",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+				})
 				allErrs = multierror.Append(allErrs, err)
 			}
 		}

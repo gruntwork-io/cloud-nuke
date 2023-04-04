@@ -4,7 +4,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -98,6 +100,11 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 	})
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking Cloudwatch Alarm Dependency",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
 	}
 
 	for _, compositeAlarm := range alarms.CompositeAlarms {
@@ -107,6 +114,11 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 		})
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Cloudwatch Composite Alarm",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		}
 	}
 
@@ -123,6 +135,11 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking Cloudwatch Alarm",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
 		return errors.WithStackTrace(err)
 	}
 

@@ -2,6 +2,8 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -92,6 +94,11 @@ func nukeAllEc2DedicatedHosts(session *session.Session, hostIds []*string) error
 
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking EC2 Dedicated Hosts",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
 		return errors.WithStackTrace(err)
 	}
 
@@ -106,6 +113,11 @@ func nukeAllEc2DedicatedHosts(session *session.Session, hostIds []*string) error
 	}
 
 	for _, hostFailed := range releaseResult.Unsuccessful {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking EC2 Dedicated Host",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
 		logging.Logger.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), *session.Config.Region, aws.StringValue(hostFailed.Error.Message))
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostFailed.ResourceId),

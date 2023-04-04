@@ -2,6 +2,8 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -152,6 +154,11 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 		if err != nil {
 
 			logging.Logger.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking VPC",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			multierror.Append(multiErr, err)
 		} else {
 			deletedVPCs++

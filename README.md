@@ -610,6 +610,29 @@ Happy Nuking!!!
 
 In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can use one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
 
+## Telemetry
+
+As of version `v0.29.0` cloud-nuke sends telemetry back to Gruntwork to help us better prioritize bug fixes and feature 
+improvements. The following metrics are included:
+
+- Command and Arguments
+- Version Number
+- Timestamps
+- Resource Types
+- Resource Counts
+- A randomly generated Run ID
+- AWS Account ID
+
+We never collect
+
+- IP Addresses
+- Resource Names
+
+Telemetry can be disabled entirely by setting the `DISABLE_TELEMETRY` environment variable on the command line.
+
+As an open source tool, you can see the exact statistics being collected by searching the code for 
+`telemetry.TrackEvent(...)`
+
 ## Running Tests
 
 ```shell

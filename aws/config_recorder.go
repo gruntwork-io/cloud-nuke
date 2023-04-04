@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -72,6 +74,11 @@ func nukeAllConfigRecorders(session *session.Session, configRecorderNames []stri
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Config Recorder",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedNames = append(deletedNames, aws.String(configRecorderName))
 			logging.Logger.Debugf("Deleted Config Recorder: %s", configRecorderName)

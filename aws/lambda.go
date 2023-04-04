@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -99,6 +101,11 @@ func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Lambda Function",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Logger.Debugf("Deleted Lambda Function: %s", awsgo.StringValue(name))

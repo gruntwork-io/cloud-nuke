@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -64,6 +66,11 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking EBS Snapshot",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
 			logging.Logger.Debugf("Deleted Snapshot: %s", *snapshotID)

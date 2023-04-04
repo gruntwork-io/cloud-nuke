@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.13
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/golang/mock v1.6.0
-	github.com/gruntwork-io/go-commons v0.15.0
+	github.com/gruntwork-io/go-commons v0.16.1
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/gruntwork-io/terratest v0.41.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -67,4 +67,5 @@ require (
 	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	vizzlo.com/mixpanel v1.2.0 // indirect
 )
