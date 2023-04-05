@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	terraws "github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/gruntwork-io/terratest/modules/random"
@@ -128,6 +129,30 @@ func TestNukeSecretMoreThanOne(t *testing.T) {
 	}
 }
 
+func TestNukeSecretReplica(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	secretName := fmt.Sprintf("test-cloud-nuke-secretsmanager-one-%s", random.UniqueId())
+	// We use the E version and ignore the error, as this is meant to be a stop gap deletion in case nuke has a bug.
+	defer terraws.DeleteSecretE(t, region, secretName, true)
+	arn := createSecretStringReplicaWithDefaultKey(t, region, secretName)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	require.NoError(
+		t,
+		nukeAllSecretsManagerSecrets(session, aws.StringSlice([]string{arn})),
+	)
+
+	// Make sure the secret is deleted.
+	_, err = terraws.GetSecretValueE(t, region, arn)
+	assert.Error(t, err)
+}
+
 // Helper functions for driving the secrets manager tests
 
 // createSecretStringWithDefaultKey creates a new secret with a random value in Secrets Manager using the default
@@ -140,6 +165,53 @@ func createSecretStringWithDefaultKey(t *testing.T, awsRegion string, name strin
 	// https://github.com/gruntwork-io/cloud-nuke/issues/227
 	awsSession, err := session.NewSession(&aws.Config{Region: aws.String(awsRegion)})
 	require.NoError(t, err)
+	err = retry.DoWithRetry(
+		logging.Logger,
+		"Check if created secret is available",
+		4,
+		15*time.Second,
+		func() error {
+			secretARNPtrs, err := getAllSecretsManagerSecrets(awsSession, time.Now(), config.Config{})
+			if err != nil {
+				return err
+			}
+			if collections.ListContainsElement(aws.StringValueSlice(secretARNPtrs), arn) {
+				return nil
+			}
+			return fmt.Errorf("not found secret %s", arn)
+		},
+	)
+	require.NoError(t, err)
+	return arn
+}
+
+// createSecretStringReplicaWithDefaultKey creates a new secret and replicate other random region with a random value in
+// Secrets Manager using the default "aws/secretsmanager" KMS key and returns the secret ARN
+func createSecretStringReplicaWithDefaultKey(t *testing.T, awsRegion string, name string) string {
+	description := "Random secret created for cloud-nuke testing."
+	secretVal := random.UniqueId()
+	arn := terraws.CreateSecretStringWithDefaultKey(t, awsRegion, description, name, secretVal)
+	// Check if created secret is available by checking secret ARN in list of all secrets
+	// https://github.com/gruntwork-io/cloud-nuke/issues/227
+	awsSession, err := session.NewSession(&aws.Config{Region: aws.String(awsRegion)})
+	require.NoError(t, err)
+
+	// Replicate other random region
+	svc := secretsmanager.New(awsSession)
+	replicaRegion, err := getRandomRegion()
+	require.NoError(t, err)
+
+	_, err = svc.ReplicateSecretToRegions(&secretsmanager.ReplicateSecretToRegionsInput{
+		AddReplicaRegions: []*secretsmanager.ReplicaRegionType{
+			{
+				Region: aws.String(replicaRegion),
+			},
+		},
+		SecretId:                    aws.String(arn),
+		ForceOverwriteReplicaSecret: aws.Bool(true),
+	})
+	require.NoError(t, err)
+
 	err = retry.DoWithRetry(
 		logging.Logger,
 		"Check if created secret is available",
