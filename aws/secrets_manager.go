@@ -95,11 +95,32 @@ func nukeAllSecretsManagerSecrets(session *session.Session, identifiers []*strin
 func deleteSecretAsync(wg *sync.WaitGroup, errChan chan error, svc *secretsmanager.SecretsManager, secretID *string) {
 	defer wg.Done()
 
+	// If this region's secret is primary, and it has replicated secrets, remove replication first.
+	// Get replications
+	secret, err := svc.DescribeSecret(&secretsmanager.DescribeSecretInput{
+		SecretId: secretID,
+	})
+
+	// Delete replications
+	if len(secret.ReplicationStatus) > 0 {
+		replicationRegion := make([]*string, 0)
+
+		// Get replicas' region
+		for _, replicationStatus := range secret.ReplicationStatus {
+			replicationRegion = append(replicationRegion, replicationStatus.Region)
+		}
+
+		_, err = svc.RemoveRegionsFromReplication(&secretsmanager.RemoveRegionsFromReplicationInput{
+			SecretId:             secretID,
+			RemoveReplicaRegions: replicationRegion,
+		})
+	}
+
 	input := &secretsmanager.DeleteSecretInput{
 		ForceDeleteWithoutRecovery: aws.Bool(true),
 		SecretId:                   secretID,
 	}
-	_, err := svc.DeleteSecret(input)
+	_, err = svc.DeleteSecret(input)
 
 	// Record status of this resource
 	e := report.Entry{
