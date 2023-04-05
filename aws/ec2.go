@@ -2,6 +2,8 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -112,6 +114,11 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 	_, err := svc.TerminateInstances(params)
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking EC2 Instance",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
 		return errors.WithStackTrace(err)
 	}
 
@@ -130,6 +137,11 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking EC2 Instance",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
 		return errors.WithStackTrace(err)
 	}
 

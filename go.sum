@@ -78,6 +78,8 @@ github.com/gookit/color v1.5.0 h1:1Opow3+BWDwqor78DcJkJCIwnkviFi+rrOANki9BUFw=
 github.com/gookit/color v1.5.0/go.mod h1:43aQb+Zerm/BWh2GnrgOQm7ffz7tvQXEKV6BFMl7wAo=
 github.com/gruntwork-io/go-commons v0.15.0 h1:fB7T4wO/JWQEGBnpVg4PfrNYnNtqRSUHJgf2pTaVe/0=
 github.com/gruntwork-io/go-commons v0.15.0/go.mod h1:AlYVzB6p6d8IYakGPNq/pspRjI7da7FeAIffISO9878=
+github.com/gruntwork-io/go-commons v0.16.1 h1:EhrTKRg5XK/wDL/s99zisjL9+zhTaEcepEkJeyvj3s8=
+github.com/gruntwork-io/go-commons v0.16.1/go.mod h1:/nnLMhO4HpItt43K+8ACM66g67iMy3oo2nnwq59n3wg=
 github.com/gruntwork-io/gruntwork-cli v0.7.0 h1:YgSAmfCj9c61H+zuvHwKfYUwlMhu5arnQQLM4RH+CYs=
 github.com/gruntwork-io/gruntwork-cli v0.7.0/go.mod h1:jp6Z7NcLF2avpY8v71fBx6hds9eOFPELSuD/VPv7w00=
 github.com/gruntwork-io/terratest v0.41.0 h1:QKFK6m0EMVnrV7lw2L06TlG+Ha3t0CcOXuBVywpeNRU=
@@ -242,3 +244,5 @@ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C
 gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+vizzlo.com/mixpanel v1.2.0 h1:ip0yFM9mIgAKDB0yIkUB2y+C2n+6MXaQ0KQk3DyISjE=
+vizzlo.com/mixpanel v1.2.0/go.mod h1:bmKnyCOO+/6SRhjujPG6ARtNJdTRepmA/TH+Nt/1GyU=

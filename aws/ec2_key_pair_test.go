@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,6 +32,7 @@ func createTestEc2KeyPair(t *testing.T, svc *ec2.EC2) *ec2.CreateKeyPairOutput {
 }
 
 func TestEc2KeyPairListAndNuke(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -60,6 +62,7 @@ func TestEc2KeyPairListAndNuke(t *testing.T) {
 }
 
 func TestEc2KeyPairListWithConfig(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -42,6 +43,7 @@ func createTestAPIGatewayV2(t *testing.T, session *session.Session, name string)
 }
 
 func TestListAPIGatewaysV2(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

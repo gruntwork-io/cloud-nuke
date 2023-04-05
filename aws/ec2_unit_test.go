@@ -9,6 +9,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -37,6 +38,7 @@ func getTestVpcs(mockEC2 *mock_ec2iface.MockEC2API) []Vpc {
 }
 
 func TestGetDefaultVpcs(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	mockCtrl := gomock.NewController(t)
@@ -98,6 +100,7 @@ func getTestVpcsWithIds(mockEC2 *mock_ec2iface.MockEC2API) []Vpc {
 }
 
 func TestNukeMockVpcs(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -200,6 +203,7 @@ func TestNukeMockVpcs(t *testing.T) {
 }
 
 func TestNukeDefaultSecurityGroups(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 

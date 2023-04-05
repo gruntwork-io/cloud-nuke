@@ -1,12 +1,14 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSplit(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	testCases := []struct {
@@ -28,6 +30,7 @@ func TestSplit(t *testing.T) {
 }
 
 func TestGetTargetRegions(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	actualEnabledRegions, _ := GetEnabledRegions()

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -41,6 +42,7 @@ func createTestAutoScalingGroup(t *testing.T, session *session.Session, name str
 }
 
 func TestListAutoScalingGroups(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -77,6 +79,7 @@ func TestListAutoScalingGroups(t *testing.T) {
 }
 
 func TestNukeAutoScalingGroups(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -120,6 +123,7 @@ func TestNukeAutoScalingGroups(t *testing.T) {
 
 // Test config file filtering works as expected
 func TestShouldIncludeAutoScalingGroup(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockAutoScalingGroup := &autoscaling.Group{
 		AutoScalingGroupName: awsgo.String("cloud-nuke-test"),
 		CreatedTime:          awsgo.Time(time.Now()),

@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -74,6 +76,11 @@ func nukeAllConfigServiceRules(session *session.Session, configRuleNames []strin
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Config Service Rule",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedConfigRuleNames = append(deletedConfigRuleNames, aws.String(configRuleName))
 			logging.Logger.Debugf("Deleted Config service rule: %s", configRuleName)

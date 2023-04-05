@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -123,6 +125,12 @@ func drainEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsS
 		_, err := svc.UpdateService(params)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": *svc.Config.Region,
+				"reason": "Unable to drain",
+			})
 		} else {
 			requestedDrains = append(requestedDrains, ecsServiceArn)
 		}
@@ -144,6 +152,12 @@ func waitUntilServicesDrained(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 		err := svc.WaitUntilServicesStable(params)
 		if err != nil {
 			logging.Logger.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": *svc.Config.Region,
+				"reason": "Failed Waiting for Drain",
+			})
 		} else {
 			logging.Logger.Debugf("Drained service: %s", *ecsServiceArn)
 			successfullyDrained = append(successfullyDrained, ecsServiceArn)
@@ -164,6 +178,12 @@ func deleteEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecs
 		_, err := svc.DeleteService(params)
 		if err != nil {
 			logging.Logger.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": *svc.Config.Region,
+				"reason": "Unable to Delete",
+			})
 		} else {
 			requestedDeletes = append(requestedDeletes, ecsServiceArn)
 		}
@@ -193,6 +213,12 @@ func waitUntilServicesDeleted(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": *svc.Config.Region,
+				"reason": "Failed Waiting for Delete",
+			})
 		} else {
 			logging.Logger.Debugf("Deleted service: %s", *ecsServiceArn)
 			successfullyDeleted = append(successfullyDeleted, ecsServiceArn)
@@ -203,7 +229,9 @@ func waitUntilServicesDeleted(svc *ecs.ECS, ecsServiceClusterMap map[string]stri
 
 // Deletes all provided ECS Services. At a high level this involves two steps:
 // 1.) Drain all tasks from the service so that nothing is
-//     running.
+//
+//	running.
+//
 // 2.) Delete service object once no tasks are running.
 // Note that this will swallow failed deletes and continue along, logging the
 // service ARN so that we can find it later.

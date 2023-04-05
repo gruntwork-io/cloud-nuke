@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"sync"
 	"testing"
@@ -40,6 +41,7 @@ func createTestEIPAddress(t *testing.T, session *session.Session) ec2.Address {
 }
 
 func TestSetFirstSeenTag(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	const key = "cloud-nuke-first-seen"
@@ -84,6 +86,7 @@ func TestSetFirstSeenTag(t *testing.T) {
 }
 
 func TestGetFirstSeenTag(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	const key = "cloud-nuke-first-seen"
@@ -140,6 +143,7 @@ func TestGetFirstSeenTag(t *testing.T) {
 }
 
 func TestListEIPAddress(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -173,6 +177,7 @@ func TestListEIPAddress(t *testing.T) {
 }
 
 func TestNukeEIPAddress(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -203,6 +208,7 @@ func TestNukeEIPAddress(t *testing.T) {
 
 // Test config file filtering works as expected
 func TestShouldIncludeElasticIP(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 
 	mockAddress := &ec2.Address{
 		Tags: []*ec2.Tag{

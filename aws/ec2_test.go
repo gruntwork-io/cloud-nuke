@@ -3,6 +3,7 @@ package aws
 import (
 	"errors"
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -183,6 +184,7 @@ func findEC2InstancesByNameTag(t *testing.T, session *session.Session, name stri
 }
 
 func TestListInstances(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -226,6 +228,7 @@ func TestListInstances(t *testing.T) {
 }
 
 func TestNukeInstances(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -261,6 +264,7 @@ func TestNukeInstances(t *testing.T) {
 }
 
 func TestGetEC2ResourceNameTagValue(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	cases := []struct {
 		Name          string
 		Tags          []*ec2.Tag
@@ -314,6 +318,7 @@ func TestGetEC2ResourceNameTagValue(t *testing.T) {
 
 // Test config file filtering works as expected
 func TestShouldIncludeInstanceId(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 
 	mockInstance := &ec2.Instance{
 		LaunchTime: awsgo.Time(time.Now()),

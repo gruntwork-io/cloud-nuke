@@ -3,6 +3,8 @@ package aws
 import (
 	"errors"
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +120,11 @@ func nukeAllIamServiceLinkedRoles(session *session.Session, roleNames []*string)
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking IAM Service Linked Role",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

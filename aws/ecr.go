@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -81,6 +83,11 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 		report.Record(e)
 
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECR Repo",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 

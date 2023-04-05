@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -76,6 +78,11 @@ func nukeAllLaunchConfigurations(session *session.Session, configNames []*string
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Launch Configuration",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedConfigNames = append(deletedConfigNames, configName)
 			logging.Logger.Debugf("Deleted Launch configuration: %s", *configName)

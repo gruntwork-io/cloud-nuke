@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 )
 
 func TestListIamServiceLinkedRoles(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -47,6 +49,7 @@ func createTestServiceLinkedRole(t *testing.T, session *session.Session, name, a
 }
 
 func TestCreateIamServiceLinkedRole(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -74,6 +77,7 @@ func TestCreateIamServiceLinkedRole(t *testing.T) {
 }
 
 func TestNukeIamServiceLinkedRoles(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -101,6 +105,7 @@ func TestNukeIamServiceLinkedRoles(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedIamServiceLinkedRole(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

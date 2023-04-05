@@ -2,6 +2,7 @@ package aws
 
 import (
 	"errors"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ const (
 )
 
 func TestListDedicatedHosts(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -52,6 +54,7 @@ func TestListDedicatedHosts(t *testing.T) {
 }
 
 func TestNukeDedicatedHosts(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
