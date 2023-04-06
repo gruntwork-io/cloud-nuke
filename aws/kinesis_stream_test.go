@@ -1,16 +1,19 @@
 package aws
 
 import (
+	"context"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"strings"
 	"testing"
 	"time"
 
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +29,11 @@ func TestListKinesisStreams(t *testing.T) {
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
-	svc := kinesis.New(session)
+
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	require.NoError(t, err)
+
+	svc := kinesis.NewFromConfig(cfg)
 
 	sName := createKinesisStream(t, svc)
 	defer deleteKinesisStream(t, svc, sName, true)
@@ -45,7 +52,11 @@ func TestNukeKinesisStreamOne(t *testing.T) {
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
-	svc := kinesis.New(session)
+
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	require.NoError(t, err)
+
+	svc := kinesis.NewFromConfig(cfg)
 
 	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
 	sName := createKinesisStream(t, svc)
@@ -69,7 +80,11 @@ func TestNukeKinesisStreamMoreThanOne(t *testing.T) {
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
-	svc := kinesis.New(session)
+
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	require.NoError(t, err)
+
+	svc := kinesis.NewFromConfig(cfg)
 
 	sNames := []*string{}
 	for i := 0; i < 3; i++ {
@@ -87,12 +102,12 @@ func TestNukeKinesisStreamMoreThanOne(t *testing.T) {
 	assertKinesisStreamsDeleted(t, svc, sNames)
 }
 
-func createKinesisStream(t *testing.T, svc *kinesis.Kinesis) *string {
+func createKinesisStream(t *testing.T, svc *kinesis.Client) *string {
 	uniqueID := util.UniqueID()
 	name := fmt.Sprintf("cloud-nuke-test-%s", strings.ToLower(uniqueID))
 
-	_, err := svc.CreateStream(&kinesis.CreateStreamInput{
-		ShardCount: aws.Int64(1),
+	_, err := svc.CreateStream(context.TODO(), &kinesis.CreateStreamInput{
+		ShardCount: aws.Int32(1),
 		StreamName: aws.String(name),
 	})
 	require.NoError(t, err)
@@ -102,8 +117,8 @@ func createKinesisStream(t *testing.T, svc *kinesis.Kinesis) *string {
 	return &name
 }
 
-func deleteKinesisStream(t *testing.T, svc *kinesis.Kinesis, name *string, checkErr bool) {
-	_, err := svc.DeleteStream(&kinesis.DeleteStreamInput{
+func deleteKinesisStream(t *testing.T, svc *kinesis.Client, name *string, checkErr bool) {
+	_, err := svc.DeleteStream(context.TODO(), &kinesis.DeleteStreamInput{
 		StreamName: name,
 	})
 	if checkErr {
@@ -111,9 +126,9 @@ func deleteKinesisStream(t *testing.T, svc *kinesis.Kinesis, name *string, check
 	}
 }
 
-func assertKinesisStreamsDeleted(t *testing.T, svc *kinesis.Kinesis, identifiers []*string) {
+func assertKinesisStreamsDeleted(t *testing.T, svc *kinesis.Client, identifiers []*string) {
 	for _, name := range identifiers {
-		stream, err := svc.DescribeStream(&kinesis.DescribeStreamInput{
+		stream, err := svc.DescribeStream(context.TODO(), &kinesis.DescribeStreamInput{
 			StreamName: name,
 		})
 
@@ -124,7 +139,7 @@ func assertKinesisStreamsDeleted(t *testing.T, svc *kinesis.Kinesis, identifiers
 				t.Fatalf("Stream %s is not deleted", aws.StringValue(name))
 			}
 		} else {
-			require.Equal(t, "DELETING", *stream.StreamDescription.StreamStatus)
+			require.Equal(t, types.StreamStatusDeleting, stream.StreamDescription.StreamStatus)
 		}
 	}
 }
