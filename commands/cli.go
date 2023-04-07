@@ -349,7 +349,7 @@ func awsNuke(c *cli.Context) error {
 			return err
 		}
 		if proceed {
-			if err := aws.NukeAllResources(account, regions); err != nil {
+			if err := aws.NukeAllResources(account, targetRegions); err != nil {
 				return err
 			}
 		} else {
@@ -367,7 +367,7 @@ func awsNuke(c *cli.Context) error {
 			time.Sleep(1 * time.Second)
 		}
 
-		if err := aws.NukeAllResources(account, regions); err != nil {
+		if err := aws.NukeAllResources(account, targetRegions); err != nil {
 			return err
 		}
 	}
