@@ -378,6 +378,12 @@ func awsNuke(c *cli.Context) error {
 }
 
 func awsDefaults(c *cli.Context) error {
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Start aws-defaults",
+	}, map[string]interface{}{})
+	defer telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "End aws-defaults",
+	}, map[string]interface{}{})
 	parseErr := parseLogLevel(c)
 	if parseErr != nil {
 		return errors.WithStackTrace(parseErr)
@@ -399,19 +405,34 @@ func awsDefaults(c *cli.Context) error {
 	// target region slice.
 	targetRegions, err := aws.GetTargetRegions(regions, selectedRegions, excludedRegions)
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error getting target regions",
+		}, map[string]interface{}{})
 		return fmt.Errorf("Failed to select regions: %s", err)
 	}
 
 	if c.Bool("sg-only") {
 		logging.Logger.Info("Not removing default VPCs.")
 	} else {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Nuking default VPCs",
+		}, map[string]interface{}{})
 		err = nukeDefaultVpcs(c, targetRegions)
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error nuking default vpcs",
+			}, map[string]interface{}{})
 			return errors.WithStackTrace(err)
 		}
 	}
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Nuking default security groups",
+	}, map[string]interface{}{})
 	err = nukeDefaultSecurityGroups(c, targetRegions)
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error nuking default security groups",
+		}, map[string]interface{}{})
 		return errors.WithStackTrace(err)
 	}
 	ui.RenderRunReport()
@@ -570,6 +591,12 @@ func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
 }
 
 func awsInspect(c *cli.Context) error {
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Start aws-inspect",
+	}, map[string]interface{}{})
+	defer telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "End aws-inspect",
+	}, map[string]interface{}{})
 	logging.Logger.Infoln("Identifying enabled regions")
 	regions, err := aws.GetEnabledRegions()
 	if err != nil {
@@ -588,6 +615,9 @@ func awsInspect(c *cli.Context) error {
 
 	excludeAfter, err := parseDurationParam(c.String("older-than"))
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error parsing duration",
+		}, map[string]interface{}{})
 		return errors.WithStackTrace(err)
 	}
 
@@ -604,11 +634,19 @@ func awsInspect(c *cli.Context) error {
 
 	accountResources, err := aws.InspectResources(query)
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error inspecting resources",
+		}, map[string]interface{}{})
 		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
 	foundResources := aws.ExtractResourcesForPrinting(accountResources)
 
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Found resources with aws-inspect",
+	}, map[string]interface{}{
+		"resourceCount": len(foundResources),
+	})
 	for _, resource := range foundResources {
 		logging.Logger.Infoln(resource)
 	}
