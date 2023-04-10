@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -20,6 +21,14 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 
 	params := &ec2.DescribeImagesInput{
 		Owners: []*string{awsgo.String("self")},
+		// Filters: []*ec2.Filter{
+		// 	{
+		// 		Name: awsgo.String("tag-key"),
+		// 		Values: []*string{
+		// 			awsgo.String("!aws2:backup:source-resource"),
+		// 		},
+		// 	},
+		// },
 	}
 
 	output, err := svc.DescribeImages(params)
@@ -35,12 +44,27 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 			return nil, err
 		}
 
-		if excludeAfter.After(createdTime) {
+		//isAWSBackupImage := ImageHasAWSBackupTag(image.Tags)
+
+		if excludeAfter.After(createdTime) && !ImageHasAWSBackupTag(image.Tags) {
 			imageIds = append(imageIds, image.ImageId)
 		}
 	}
 
 	return imageIds, nil
+}
+
+func ImageHasAWSBackupTag(tags []*ec2.Tag) bool {
+	t := make(map[string]string)
+
+	for _, v := range tags {
+		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
+	}
+
+	if _, ok := t["aws:backup:source-resource"]; ok {
+		return true
+	}
+	return false
 }
 
 // Deletes all AMIs
