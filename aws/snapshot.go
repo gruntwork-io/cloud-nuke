@@ -23,7 +23,7 @@ func getAllSnapshots(session *session.Session, region string, excludeAfter time.
 	// Since the output of this function is used to delete the returned snapshots
 	// We only want to list EBS Snapshots with a status of "completed"
 	// Since that is the only status that is eligible for deletion
-	status_filter := ec2.Filter{Name: awsgo.String("status"), Values: []*string{awsgo.String("completed")}}
+	status_filter := ec2.Filter{Name: awsgo.String("status"), Values: []*string{awsgo.String("completed"), awsgo.String("error")}}
 
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{awsgo.String("self")},

@@ -24,7 +24,7 @@ func getAllEbsVolumes(session *session.Session, region string, excludeAfter time
 	// Since the output of this function is used to delete the returned volumes
 	// We want to only list EBS volumes with a status of "available" or "creating"
 	// Since those are the only statuses that are eligible for deletion
-	status_filter := ec2.Filter{Name: aws.String("status"), Values: []*string{aws.String("available"), aws.String("creating")}}
+	status_filter := ec2.Filter{Name: aws.String("status"), Values: []*string{aws.String("available"), aws.String("creating"), aws.String("error")}}
 
 	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{
 		Filters: []*ec2.Filter{&status_filter},
