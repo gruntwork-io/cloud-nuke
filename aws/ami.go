@@ -21,14 +21,6 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 
 	params := &ec2.DescribeImagesInput{
 		Owners: []*string{awsgo.String("self")},
-		// Filters: []*ec2.Filter{
-		// 	{
-		// 		Name: awsgo.String("tag-key"),
-		// 		Values: []*string{
-		// 			awsgo.String("!aws2:backup:source-resource"),
-		// 		},
-		// 	},
-		// },
 	}
 
 	output, err := svc.DescribeImages(params)
@@ -44,8 +36,6 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 			return nil, err
 		}
 
-		//isAWSBackupImage := ImageHasAWSBackupTag(image.Tags)
-
 		if excludeAfter.After(createdTime) && !ImageHasAWSBackupTag(image.Tags) {
 			imageIds = append(imageIds, image.ImageId)
 		}
@@ -54,6 +44,9 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 	return imageIds, nil
 }
 
+// Check if the image has an AWS Backup tag
+// Resources created by AWS Backup are listed as owned by self, but are actually
+// AWS managed resources and cannot be deleted here.
 func ImageHasAWSBackupTag(tags []*ec2.Tag) bool {
 	t := make(map[string]string)
 
