@@ -93,7 +93,7 @@ func findallEBSVolumesByStatus(t *testing.T, session *session.Session, status st
 		Filters: []*ec2.Filter{&statusFilter},
 	})
 	if err != nil {
-		return []*string{}, err
+		return nil, err
 	}
 
 	var volumeIds []*string
