@@ -2,10 +2,11 @@ package aws
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -32,14 +33,14 @@ func TestListKmsUserKeys(t *testing.T) {
 	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias)
 
 	// test if listing of keys will return new key and alias
-	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, false)
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.Contains(t, aliases[createdKeyId], keyAlias)
 
 	// test if time shift works
 	olderThan := time.Now().Add(-1 * time.Hour)
-	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{})
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{}, false)
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.NotContains(t, aliases[createdKeyId], keyAlias)
@@ -53,7 +54,7 @@ func TestListKmsUserKeys(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.Contains(t, aliases[createdKeyId], keyAlias)
@@ -68,7 +69,7 @@ func TestListKmsUserKeys(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.NotContains(t, aliases[createdKeyId], keyAlias)
@@ -91,7 +92,7 @@ func TestRemoveKmsUserKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	// test if key is not included for removal second time, after being marked for deletion
-	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, false)
 
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)

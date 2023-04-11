@@ -2,13 +2,14 @@ package aws
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"math/rand"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -205,7 +206,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 }
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string, configObj config.Config) (*AwsAccountResources, error) {
+func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string, configObj config.Config, allowDeleteUnaliasedKeys bool) (*AwsAccountResources, error) {
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
@@ -1287,7 +1288,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region": region,
 			})
-			keys, aliases, err := getAllKmsUserKeys(cloudNukeSession, customerKeys.MaxBatchSize(), excludeAfter, configObj)
+			keys, aliases, err := getAllKmsUserKeys(cloudNukeSession, customerKeys.MaxBatchSize(), excludeAfter, configObj, allowDeleteUnaliasedKeys)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

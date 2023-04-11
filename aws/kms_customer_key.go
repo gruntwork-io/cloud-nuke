@@ -1,10 +1,11 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -17,21 +18,36 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time, configObj config.Config) ([]*string, map[string][]string, error) {
+func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter time.Time, configObj config.Config, allowDeleteUnaliasedKeys bool) ([]*string, map[string][]string, error) {
 	svc := kms.New(session)
-	// collect all aliases for each key
-	keyAliases, err := listKeyAliases(svc, batchSize)
+	// Collect all keys in the account
+	// AWS managed keys are filtered out in shouldIncludeKmsUserKey
+	keys, err := listKeys(svc, batchSize)
 	if err != nil {
 		return nil, nil, errors.WithStackTrace(err)
 	}
+
+	// Create an empty map for storing the mapping between aliases and keys
+	keyAliases := map[string][]string{}
+
 	// checking in parallel if keys can be considered for removal
 	var wg sync.WaitGroup
-	wg.Add(len(keyAliases))
-	resultsChan := make([]chan *KmsCheckIncludeResult, len(keyAliases))
+	wg.Add(len(keys))
+	resultsChan := make([]chan *KmsCheckIncludeResult, len(keys))
 	id := 0
-	for key, aliases := range keyAliases {
+
+	for _, keyId := range keys {
 		resultsChan[id] = make(chan *KmsCheckIncludeResult, 1)
-		go shouldIncludeKmsUserKey(&wg, resultsChan[id], svc, key, aliases, excludeAfter, configObj)
+
+		aliasesForKey, err := listKeyAliases(svc, keyId, batchSize)
+		keyAliases[keyId] = aliasesForKey[keyId]
+
+		if err != nil {
+			logging.Logger.Debugf("Can't read KMS key %s", err.Error)
+			continue
+		}
+
+		go shouldIncludeKmsUserKey(&wg, resultsChan[id], svc, keyId, aliasesForKey[keyId], excludeAfter, configObj, allowDeleteUnaliasedKeys)
 		id++
 	}
 	wg.Wait()
@@ -61,7 +77,7 @@ type KmsCheckIncludeResult struct {
 }
 
 func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckIncludeResult, svc *kms.KMS, key string,
-	aliases []string, excludeAfter time.Time, configObj config.Config,
+	aliases []string, excludeAfter time.Time, configObj config.Config, allowDeleteUnaliasedKeys bool,
 ) {
 	defer wg.Done()
 	includedByName := false
@@ -75,6 +91,15 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckInclu
 			break
 		}
 	}
+
+	// Only delete keys without aliases if the user explicitly says so
+	if len(aliases) == 0 {
+		if !allowDeleteUnaliasedKeys {
+			resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
+			return
+		}
+	}
+
 	if !includedByName {
 		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
@@ -109,13 +134,14 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckInclu
 	resultsChan <- &KmsCheckIncludeResult{KeyId: key}
 }
 
-func listKeyAliases(svc *kms.KMS, batchSize int) (map[string][]string, error) {
+func listKeyAliases(svc *kms.KMS, keyId string, batchSize int) (map[string][]string, error) {
 	// map key - KMS key id, value list of aliases
 	aliases := map[string][]string{}
 	var next *string
 
 	for {
 		list, err := svc.ListAliases(&kms.ListAliasesInput{
+			KeyId:  &keyId,
 			Marker: next,
 			Limit:  aws.Int64(int64(batchSize)),
 		})
@@ -143,6 +169,33 @@ func listKeyAliases(svc *kms.KMS, batchSize int) (map[string][]string, error) {
 		next = list.NextMarker
 	}
 	return aliases, nil
+}
+
+func listKeys(svc *kms.KMS, batchSize int) ([]string, error) {
+	var keyIds []string
+	var next *string
+
+	for {
+		list, err := svc.ListKeys(&kms.ListKeysInput{
+			Marker: next,
+			Limit:  aws.Int64(int64(batchSize)),
+		})
+
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, key := range list.Keys {
+			keyIds = append(keyIds, *key.KeyId)
+		}
+
+		if list.NextMarker == nil || len(*list.NextMarker) == 0 {
+			break
+		}
+		next = list.NextMarker
+	}
+
+	return keyIds, nil
 }
 
 func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string, keyAliases map[string][]string) error {
