@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -19,7 +20,15 @@ import (
 func getAllEbsVolumes(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 
-	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
+	// Available statuses: (creating | available | in-use | deleting | deleted | error).
+	// Since the output of this function is used to delete the returned volumes
+	// We want to only list EBS volumes with a status of "available" or "creating"
+	// Since those are the only statuses that are eligible for deletion
+	statusFilter := ec2.Filter{Name: aws.String("status"), Values: aws.StringSlice([]string{"available", "creating", "error"})}
+
+	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{
+		Filters: []*ec2.Filter{&statusFilter},
+	})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}

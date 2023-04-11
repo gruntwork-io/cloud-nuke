@@ -1,10 +1,11 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -83,6 +84,24 @@ func findEBSVolumesByNameTag(t *testing.T, session *session.Session, name string
 	}
 
 	return volumeIds
+}
+
+func findallEBSVolumesByStatus(t *testing.T, session *session.Session, status string) ([]*string, error) {
+	statusFilter := ec2.Filter{Name: aws.String("status"), Values: aws.StringSlice([]string{status})}
+
+	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{
+		Filters: []*ec2.Filter{&statusFilter},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var volumeIds []*string
+	for _, volume := range output.Volumes {
+		volumeIds = append(volumeIds, volume.VolumeId)
+	}
+
+	return volumeIds, nil
 }
 
 func TestListEBSVolumes(t *testing.T) {
@@ -250,8 +269,9 @@ func TestNukeEBSVolumesInUse(t *testing.T) {
 		assert.Fail(t, errors.WithStackTrace(err).Error())
 	}
 
-	volumeIds, err = getAllEbsVolumes(session, region, time.Now().Add(1*time.Hour), config.Config{})
+	volumeIds, err = findallEBSVolumesByStatus(t, session, "in-use")
 	if err != nil {
+		assert.Fail(t, errors.WithStackTrace(err).Error())
 		assert.Fail(t, "Unable to fetch list of EBS Volumes")
 	}
 

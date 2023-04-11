@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -18,8 +19,15 @@ import (
 func getAllSnapshots(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
+	// status - The status of the snapshot (pending | completed | error).
+	// Since the output of this function is used to delete the returned snapshots
+	// We only want to list EBS Snapshots with a status of "completed"
+	// Since that is the only status that is eligible for deletion
+	status_filter := ec2.Filter{Name: awsgo.String("status"), Values: aws.StringSlice([]string{"completed", "error"})}
+
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{awsgo.String("self")},
+		Filters:  []*ec2.Filter{&status_filter},
 	}
 
 	output, err := svc.DescribeSnapshots(params)
@@ -29,12 +37,28 @@ func getAllSnapshots(session *session.Session, region string, excludeAfter time.
 
 	var snapshotIds []*string
 	for _, snapshot := range output.Snapshots {
-		if excludeAfter.After(*snapshot.StartTime) {
+		if excludeAfter.After(*snapshot.StartTime) && !SnapshotHasAWSBackupTag(snapshot.Tags) {
 			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
 		}
 	}
 
 	return snapshotIds, nil
+}
+
+// Check if the image has an AWS Backup tag
+// Resources created by AWS Backup are listed as owned by self, but are actually
+// AWS managed resources and cannot be deleted here.
+func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
+	t := make(map[string]string)
+
+	for _, v := range tags {
+		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
+	}
+
+	if _, ok := t["aws:backup:source-resource"]; ok {
+		return true
+	}
+	return false
 }
 
 // Deletes all Snapshots
