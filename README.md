@@ -66,6 +66,8 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
 
+> **NOTE: AWS Backup Resource:** Resources (such as AMIs) created by AWS Backup, while owned by your AWS account, are managed specifically by AWS Backup and cannot be deleted through standard APIs calls for that resource. These resources are tagged by AWS Backup and are filtered out so that `cloud-nuke` does not fail when trying to delete resources it cannot delete.
+
 ### BEWARE!
 
 When executed as `cloud-nuke aws`, this tool is **HIGHLY DESTRUCTIVE** and deletes all resources! This mode should never be used in a production environment!

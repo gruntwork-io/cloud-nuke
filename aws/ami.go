@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -36,28 +37,13 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 			return nil, err
 		}
 
-		if excludeAfter.After(createdTime) && !ImageHasAWSBackupTag(image.Tags) {
+		// Test for time exclusion and check if resource is managed by AWS Backup (see note in README)
+		if excludeAfter.After(createdTime) && !util.HasAWSBackupTag(image.Tags) {
 			imageIds = append(imageIds, image.ImageId)
 		}
 	}
 
 	return imageIds, nil
-}
-
-// Check if the image has an AWS Backup tag
-// Resources created by AWS Backup are listed as owned by self, but are actually
-// AWS managed resources and cannot be deleted here.
-func ImageHasAWSBackupTag(tags []*ec2.Tag) bool {
-	t := make(map[string]string)
-
-	for _, v := range tags {
-		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
-	}
-
-	if _, ok := t["aws:backup:source-resource"]; ok {
-		return true
-	}
-	return false
 }
 
 // Deletes all AMIs
