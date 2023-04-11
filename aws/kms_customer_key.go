@@ -43,7 +43,7 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 		keyAliases[keyId] = aliasesForKey[keyId]
 
 		if err != nil {
-			logging.Logger.Debugf("Can't read KMS key %s", err.Error)
+			logging.Logger.Debugf("Can't read KMS key %s", err.Error())
 			continue
 		}
 
