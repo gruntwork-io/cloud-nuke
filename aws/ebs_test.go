@@ -87,7 +87,7 @@ func findEBSVolumesByNameTag(t *testing.T, session *session.Session, name string
 }
 
 func findallEBSVolumesByStatus(t *testing.T, session *session.Session, status string) ([]*string, error) {
-	statusFilter := ec2.Filter{Name: aws.String("status"), Values: []*string{aws.String(status)}}
+	statusFilter := ec2.Filter{Name: aws.String("status"), Values: aws.StringSlice([]string{status})}
 
 	output, err := ec2.New(session).DescribeVolumes(&ec2.DescribeVolumesInput{
 		Filters: []*ec2.Filter{&statusFilter},
