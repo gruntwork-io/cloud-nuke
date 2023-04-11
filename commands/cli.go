@@ -146,7 +146,7 @@ func CreateCli(version string, mixPanelClientId string) *cli.App {
 					Value: "0s",
 				},
 				&cli.BoolFlag{
-					Name:  "delete-unaliased-kms-keys",
+					Name:  "list-unaliased-kms-keys",
 					Usage: "Delete KMS keys that do not have aliases associated with them.",
 				},
 				&cli.StringFlag{
@@ -641,7 +641,7 @@ func awsInspect(c *cli.Context) error {
 		return aws.QueryCreationError{Underlying: err}
 	}
 
-	accountResources, err := aws.InspectResources(query)
+	accountResources, err := aws.InspectResources(query, c.Bool("list-unaliased-kms-keys"))
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
