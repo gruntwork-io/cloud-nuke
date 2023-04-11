@@ -1,9 +1,11 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -35,7 +37,8 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 			return nil, err
 		}
 
-		if excludeAfter.After(createdTime) {
+		// Test for time exclusion and check if resource is managed by AWS Backup (see note in README)
+		if excludeAfter.After(createdTime) && !util.HasAWSBackupTag(image.Tags) {
 			imageIds = append(imageIds, image.ImageId)
 		}
 	}
