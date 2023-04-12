@@ -28,7 +28,10 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	}
 
 	// Create an empty map for storing the mapping between aliases and keys
-	keyAliases := map[string][]string{}
+	keyAliases, err := listKeyAliases(svc, batchSize)
+	if err != nil {
+		return nil, nil, errors.WithStackTrace(err)
+	}
 
 	// checking in parallel if keys can be considered for removal
 	var wg sync.WaitGroup
@@ -39,15 +42,15 @@ func getAllKmsUserKeys(session *session.Session, batchSize int, excludeAfter tim
 	for _, keyId := range keys {
 		resultsChan[id] = make(chan *KmsCheckIncludeResult, 1)
 
-		aliasesForKey, err := listKeyAliases(svc, keyId, batchSize)
-		keyAliases[keyId] = aliasesForKey[keyId]
-
 		if err != nil {
 			logging.Logger.Debugf("Can't read KMS key %s", err.Error())
 			continue
 		}
 
-		go shouldIncludeKmsUserKey(&wg, resultsChan[id], svc, keyId, aliasesForKey[keyId], excludeAfter, configObj, allowDeleteUnaliasedKeys)
+		// If the keyId isn't found in the map, this returns an empty array
+		aliasesForKey := keyAliases[keyId]
+
+		go shouldIncludeKmsUserKey(&wg, resultsChan[id], svc, keyId, aliasesForKey, excludeAfter, configObj, allowDeleteUnaliasedKeys)
 		id++
 	}
 	wg.Wait()
@@ -134,14 +137,13 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckInclu
 	resultsChan <- &KmsCheckIncludeResult{KeyId: key}
 }
 
-func listKeyAliases(svc *kms.KMS, keyId string, batchSize int) (map[string][]string, error) {
+func listKeyAliases(svc *kms.KMS, batchSize int) (map[string][]string, error) {
 	// map key - KMS key id, value list of aliases
 	aliases := map[string][]string{}
 	var next *string
 
 	for {
 		list, err := svc.ListAliases(&kms.ListAliasesInput{
-			KeyId:  &keyId,
 			Marker: next,
 			Limit:  aws.Int64(int64(batchSize)),
 		})
