@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"reflect"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 )
 
 func TestHandleResourceTypeSelectionsRejectsInvalid(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	type TestCase struct {
 		Name                 string
 		ResourceTypes        []string

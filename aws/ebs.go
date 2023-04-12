@@ -3,6 +3,9 @@ package aws
 import (
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -17,7 +20,15 @@ import (
 func getAllEbsVolumes(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 
-	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
+	// Available statuses: (creating | available | in-use | deleting | deleted | error).
+	// Since the output of this function is used to delete the returned volumes
+	// We want to only list EBS volumes with a status of "available" or "creating"
+	// Since those are the only statuses that are eligible for deletion
+	statusFilter := ec2.Filter{Name: aws.String("status"), Values: aws.StringSlice([]string{"available", "creating", "error"})}
+
+	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{
+		Filters: []*ec2.Filter{&statusFilter},
+	})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -98,10 +109,27 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "VolumeInUse" {
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking EBS Volume",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+					"reason": "VolumeInUse",
+				})
 				logging.Logger.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
 			} else if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidVolume.NotFound" {
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking EBS Volume",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+					"reason": "InvalidVolume.NotFound",
+				})
 				logging.Logger.Debugf("EBS volume %s has already been deleted", *volumeID)
 			} else {
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking EBS Volume",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+				})
 				logging.Logger.Debugf("[Failed] %s", err)
 			}
 		} else {
@@ -116,6 +144,11 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 		})
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking EBS Volume",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			return errors.WithStackTrace(err)
 		}
 	}

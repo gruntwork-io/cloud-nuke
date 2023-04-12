@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -146,8 +148,19 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "AuthFailure" {
 				// TODO: Figure out why we get an AuthFailure
 				logging.Logger.Debugf("EIP %s can't be deleted, it is still attached to an active resource", *allocationID)
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking EIP",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+					"reason": "Still Attached to an Active Resource",
+				})
 			} else {
 				logging.Logger.Debugf("[Failed] %s", err)
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking EIP",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+				})
 			}
 		} else {
 			deletedAllocationIDs = append(deletedAllocationIDs, allocationID)

@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strconv"
 	"time"
 
@@ -88,6 +90,11 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking SQS Queue",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedUrls = append(deletedUrls, url)
 			logging.Logger.Debugf("Deleted SQS Queue: %s", *url)

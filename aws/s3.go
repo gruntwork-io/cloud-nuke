@@ -2,6 +2,8 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"math"
 	"strings"
 	"sync"
@@ -500,6 +502,11 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		err = nukeAllS3BucketObjects(svc, bucketName, objectBatchSize)
 		if err != nil {
 			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking S3 Bucket Objects",
+			}, map[string]interface{}{
+				"region": *awsSession.Config.Region,
+			})
 			multierror.Append(multiErr, err)
 			continue
 		}
@@ -507,6 +514,11 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		err = nukeS3BucketPolicy(svc, bucketName)
 		if err != nil {
 			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket policy cleanup error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking S3 Bucket Polikcy",
+			}, map[string]interface{}{
+				"region": *awsSession.Config.Region,
+			})
 			multierror.Append(multiErr, err)
 			continue
 		}
@@ -514,6 +526,11 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		err = nukeEmptyS3Bucket(svc, bucketName, verifyBucketDeletion)
 		if err != nil {
 			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking S3 Bucket",
+			}, map[string]interface{}{
+				"region": *awsSession.Config.Region,
+			})
 			multierror.Append(multiErr, err)
 			continue
 		}

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -91,6 +92,7 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 }
 
 func TestListELBv2(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -116,6 +118,7 @@ func TestListELBv2(t *testing.T) {
 }
 
 func TestNukeELBv2(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -156,6 +159,7 @@ func TestNukeELBv2(t *testing.T) {
 
 // Test config file filtering works as expected
 func TestShouldIncludeELBv2(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockELBv2 := &elbv2.LoadBalancer{
 		LoadBalancerName: awsgo.String("cloud-nuke-test"),
 		CreatedTime:      awsgo.Time(time.Now()),

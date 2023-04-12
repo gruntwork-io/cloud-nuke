@@ -2,6 +2,8 @@ package aws
 
 import (
 	goerror "errors"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -73,6 +75,11 @@ func nukeAllMacieMemberAccounts(session *session.Session, identifiers []string) 
 		_, disassociateErr := svc.DisassociateFromAdministratorAccount(&macie2.DisassociateFromAdministratorAccountInput{})
 
 		if disassociateErr != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking MACIE",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			return errors.WithStackTrace(disassociateErr)
 		}
 
@@ -87,6 +94,11 @@ func nukeAllMacieMemberAccounts(session *session.Session, identifiers []string) 
 		report.Record(e)
 
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking MACIE",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			return errors.WithStackTrace(err)
 		}
 

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -45,6 +46,7 @@ func createTestQueue(t *testing.T, session *session.Session, name string) *strin
 }
 
 func TestListSqsQueue(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -88,6 +90,7 @@ func TestListSqsQueue(t *testing.T) {
 }
 
 func TestNukeSqsQueue(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

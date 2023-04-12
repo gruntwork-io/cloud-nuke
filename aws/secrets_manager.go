@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
@@ -85,6 +87,11 @@ func nukeAllSecretsManagerSecrets(session *session.Session, identifiers []*strin
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Logger.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Secrets Manager Secret",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		}
 	}
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
@@ -95,11 +102,32 @@ func nukeAllSecretsManagerSecrets(session *session.Session, identifiers []*strin
 func deleteSecretAsync(wg *sync.WaitGroup, errChan chan error, svc *secretsmanager.SecretsManager, secretID *string) {
 	defer wg.Done()
 
+	// If this region's secret is primary, and it has replicated secrets, remove replication first.
+	// Get replications
+	secret, err := svc.DescribeSecret(&secretsmanager.DescribeSecretInput{
+		SecretId: secretID,
+	})
+
+	// Delete replications
+	if len(secret.ReplicationStatus) > 0 {
+		replicationRegion := make([]*string, 0)
+
+		// Get replicas' region
+		for _, replicationStatus := range secret.ReplicationStatus {
+			replicationRegion = append(replicationRegion, replicationStatus.Region)
+		}
+
+		_, err = svc.RemoveRegionsFromReplication(&secretsmanager.RemoveRegionsFromReplicationInput{
+			SecretId:             secretID,
+			RemoveReplicaRegions: replicationRegion,
+		})
+	}
+
 	input := &secretsmanager.DeleteSecretInput{
 		ForceDeleteWithoutRecovery: aws.Bool(true),
 		SecretId:                   secretID,
 	}
-	_, err := svc.DeleteSecret(input)
+	_, err = svc.DeleteSecret(input)
 
 	// Record status of this resource
 	e := report.Entry{

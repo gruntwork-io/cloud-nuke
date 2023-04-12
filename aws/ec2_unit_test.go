@@ -9,6 +9,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -37,6 +38,7 @@ func getTestVpcs(mockEC2 *mock_ec2iface.MockEC2API) []Vpc {
 }
 
 func TestGetDefaultVpcs(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	mockCtrl := gomock.NewController(t)
@@ -98,6 +100,7 @@ func getTestVpcsWithIds(mockEC2 *mock_ec2iface.MockEC2API) []Vpc {
 }
 
 func TestNukeMockVpcs(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -173,10 +176,10 @@ func TestNukeMockVpcs(t *testing.T) {
 			mockEC2.EXPECT().DetachInternetGateway(detachInternetGatewayInput),
 			mockEC2.EXPECT().DeleteInternetGateway(deleteInternetGatewayInput),
 			mockEC2.EXPECT().DescribeEgressOnlyInternetGatewaysPages(egressOnlyInternetGatewaysInput, gomock.Any()),
-			mockEC2.EXPECT().DescribeNetworkInterfacesPages(describeNetworkInterfacesInput, gomock.Any()),
 			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsInput).DoAndReturn(describeEndpointsFunc),
 			mockEC2.EXPECT().DeleteVpcEndpoints(deleteEndpointInput),
 			mockEC2.EXPECT().DescribeVpcEndpoints(describeEndpointsWaitForDeletionInput).DoAndReturn(describeEndpointsWaitForDeletionFunc),
+			mockEC2.EXPECT().DescribeNetworkInterfacesPages(describeNetworkInterfacesInput, gomock.Any()),
 			mockEC2.EXPECT().DescribeSubnets(describeSubnetsInput).DoAndReturn(describeSubnetsFunc),
 			mockEC2.EXPECT().DeleteSubnet(deleteSubnetInputOne),
 			mockEC2.EXPECT().DeleteSubnet(deleteSubnetInputTwo),
@@ -200,6 +203,7 @@ func TestNukeMockVpcs(t *testing.T) {
 }
 
 func TestNukeDefaultSecurityGroups(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 

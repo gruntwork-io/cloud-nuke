@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"log"
 	"time"
 
@@ -102,6 +104,11 @@ func nukeAllDynamoDBTables(session *session.Session, tables []*string) error {
 
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking DynamoDB Table",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+				})
 				switch aerr.Error() {
 				case dynamodb.ErrCodeInternalServerError:
 					return errors.WithStackTrace(aerr)

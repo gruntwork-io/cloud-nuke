@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
@@ -176,6 +178,11 @@ func nukeAllCustomerManagedKmsKeys(session *session.Session, keyIds []*string, k
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking KMS Key",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		}
 	}
 	return errors.WithStackTrace(allErrs.ErrorOrNil())

@@ -2,6 +2,8 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -211,6 +213,11 @@ func nukeAllElasticacheClusters(session *session.Session, clusterIds []*string) 
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Elasticache Cluster",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedClusterIds = append(deletedClusterIds, clusterId)
 			logging.Logger.Debugf("Deleted Elasticache cluster: %s", *clusterId)

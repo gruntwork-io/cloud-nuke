@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,6 +40,7 @@ const fakePolicy string = `{
 	}`
 
 func TestListIamPolicies(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
@@ -169,6 +171,7 @@ func deletePolicyExtraResources(session *session.Session, entityInfo *entityInfo
 }
 
 func TestNukeIamPolicies(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

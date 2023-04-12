@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -81,6 +83,11 @@ func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string
 
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking Cloudwatch Dashboard",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
 		return errors.WithStackTrace(err)
 	}
 

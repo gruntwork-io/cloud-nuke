@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 	"sync"
 	"time"
@@ -164,6 +166,11 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking IAM Role",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -182,14 +189,16 @@ func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj c
 		return false
 	}
 
+	// The OrganizationAccountAccessRole is a special role that is created by AWS Organizations, and is used to allow
+	// users to access the AWS account. We should not delete this role, so we can filter it out of the Roles found and
+	// managed by cloud-nuke.
 	if strings.Contains(aws.StringValue(iamRole.RoleName), "OrganizationAccountAccessRole") {
 		return false
 	}
 
-	// The arns of AWS-managed IAM roles, which can only be modified or deleted by AWS, contain "aws-service-role", so we can filter them out
+	// The ARNs of AWS-reserved IAM roles, which can only be modified or deleted by AWS, contain "aws-reserved", so we can filter them out
 	// of the Roles found and managed by cloud-nuke
-	// The same general rule applies with roles whose arn contains "aws-reserved"
-	if strings.Contains(aws.StringValue(iamRole.Arn), "aws-service-role") || strings.Contains(aws.StringValue(iamRole.Arn), "aws-reserved") {
+	if strings.Contains(aws.StringValue(iamRole.Arn), "aws-reserved") {
 		return false
 	}
 

@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -49,6 +50,7 @@ func createTestElasticFileSystem(t *testing.T, session *session.Session, name st
 }
 
 func TestListElasticFileSystems(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

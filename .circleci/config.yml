@@ -1,7 +1,7 @@
 defaults: &defaults
   resource_class: medium+
   docker:
-    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.17-tf1.2-tg37.4-pck1.8-ci50.1
+    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.18-tf1.3-tg39.1-pck1.8-ci50.7
 version: 2.1
 jobs:
   test:
@@ -14,7 +14,7 @@ jobs:
             # Run the tests. Note that we set the "-p 1" flag to tell Go to run tests in each package sequentially. Without
             # this, Go buffers all log output until all packages are done, which with slower running tests can cause CircleCI
             # to kill the build after more than 45 minutes without log output.
-            run-go-tests --extra-flags '-p 1' --timeout 45m | tee /tmp/logs/all.log
+            DISABLE_TELEMETRY=true run-go-tests --extra-flags '-p 1' --timeout 45m | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
           name: parse test output
@@ -29,7 +29,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: build-go-binaries --parallel 2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
+      - run: build-go-binaries --parallel 2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG -X 'main.MixPanelClientId=$MIXPANEL_CLIENT_ID'"
       - persist_to_workspace:
           root: .
           paths: bin
@@ -41,16 +41,16 @@ jobs:
           command: |
             # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
             # the AWS account we use at Gruntwork for testing (Phx DevOps) (e.g., S3)
-            go run main.go aws \
-              --older-than 1h \
+            go run  -ldflags="-X 'main.VERSION=$CIRCLE_SHA1' -X 'main.MixPanelClientId=$MIXPANEL_CLIENT_ID'" main.go aws \
+              --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
               --exclude-resource-type iam-group \
-              --exclude-resource-type iam-policy \
-              --exclude-resource-type vpc \
-              --exclude-resource-type kmscustomerkeys \
-              --exclude-resource-type ecr
+              --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type ecr \
+              --exclude-resource-type config-recorders \
+              --exclude-resource-type config-rules 
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -62,16 +62,18 @@ jobs:
             export AWS_SECRET_ACCESS_KEY=$SANDBOX_AWS_SECRET_ACCESS_KEY
             # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
             # the AWS account we use at Gruntwork for testing (Sandbox) (e.g., S3)
-            go run main.go aws \
+            go run -ldflags="-X 'main.VERSION=$CIRCLE_SHA1' -X 'main.MixPanelClientId=$MIXPANEL_CLIENT_ID'" main.go aws \
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
               --exclude-resource-type iam-group \
-              --exclude-resource-type iam-policy \
+              --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type vpc \
               --exclude-resource-type kmscustomerkeys \
-              --exclude-resource-type ecr
+              --exclude-resource-type ecr \
+              --exclude-resource-type config-recorders \
+              --exclude-resource-type config-rules 
           no_output_timeout: 1h
   deploy:
     <<: *defaults
@@ -93,13 +95,16 @@ workflows:
             tags:
               only: /^v.*/
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
       - build:
           filters:
             tags:
               only: /^v.*/
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
+            - MIXPANEL__TOKEN__gruntwork
       - deploy:
           requires:
             - build
@@ -109,7 +114,9 @@ workflows:
             branches:
               ignore: /.*/
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
+            - MIXPANEL__TOKEN__gruntwork
   nuke_phxdevops:
     when:
       and:
@@ -118,7 +125,9 @@ workflows:
     jobs:
       - nuke_phx_devops:
           context:
-            - Gruntwork Admin
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
+            - MIXPANEL__TOKEN__gruntwork
   nuke_sandbox:
     when:
       and:
@@ -127,5 +136,7 @@ workflows:
     jobs:
       - nuke_sandbox:
           context:
-            - Gruntwork Admin
-            - Gruntwork Sandbox
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
+            - AWS__SANDBOX__circle-ci
+            - MIXPANEL__TOKEN__gruntwork

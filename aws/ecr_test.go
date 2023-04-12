@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 )
 
 func TestListECRRepositories(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -68,10 +70,10 @@ func createECRRepository(t *testing.T, region string) *string {
 	require.NoError(t, createRepositoryErr)
 
 	return output.Repository.RepositoryName
-
 }
 
 func TestNukeECRRepositoryOne(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -94,6 +96,7 @@ func TestNukeECRRepositoryOne(t *testing.T) {
 }
 
 func TestNukeECRRepositoryMoreThanOne(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -127,7 +130,6 @@ func assertECRRepositoriesDeleted(t *testing.T, region string, repositoryNames [
 	}
 
 	resp, err := svc.DescribeRepositories(param)
-
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -137,7 +139,6 @@ func assertECRRepositoriesDeleted(t *testing.T, region string, repositoryNames [
 			default:
 				require.NoError(t, err)
 				if len(resp.Repositories) > 0 {
-					t.Logf("Repository: %+v\n", resp.Repositories)
 					t.Fatalf("At least one of the following ECR Repositories was not deleted: %+v\n", aws.StringValueSlice(repositoryNames))
 				}
 			}

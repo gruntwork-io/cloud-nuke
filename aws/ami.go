@@ -3,6 +3,10 @@ package aws
 import (
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -33,7 +37,8 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 			return nil, err
 		}
 
-		if excludeAfter.After(createdTime) {
+		// Test for time exclusion and check if resource is managed by AWS Backup (see note in README)
+		if excludeAfter.After(createdTime) && !util.HasAWSBackupTag(image.Tags) {
 			imageIds = append(imageIds, image.ImageId)
 		}
 	}
@@ -70,6 +75,11 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking AMI",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedCount++
 			logging.Logger.Debugf("Deleted AMI: %s", *imageID)

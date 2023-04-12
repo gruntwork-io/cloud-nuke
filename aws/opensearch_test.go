@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ var ExcludedOpenSearchDomains = []string{
 
 // Test we can create an OpenSearch Domain, tag it, and then find the tag
 func TestCanTagOpenSearchDomains(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegionWithExclusions(ExcludedOpenSearchDomains)
@@ -54,6 +56,7 @@ func TestCanTagOpenSearchDomains(t *testing.T) {
 
 // Test we can get all OpenSearch domains younger than < X time based on tags
 func TestCanListAllOpenSearchDomainsOlderThan24hours(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegionWithExclusions(ExcludedOpenSearchDomains)
@@ -88,6 +91,7 @@ func TestCanListAllOpenSearchDomainsOlderThan24hours(t *testing.T) {
 
 // Test we can nuke OpenSearch Domains
 func TestCanNukeOpenSearchDomain(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegionWithExclusions(ExcludedOpenSearchDomains)

@@ -4,6 +4,10 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
+	"github.com/gruntwork-io/cloud-nuke/config"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -84,6 +88,11 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 		_, err := svc.DeleteDBInstance(params)
 
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking RDS Instance",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
@@ -107,6 +116,11 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 			report.Record(e)
 
 			if err != nil {
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking RDS Instance",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+				})
 				logging.Logger.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}

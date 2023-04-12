@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -93,6 +95,11 @@ func nukeAllRdsClusters(session *session.Session, names []*string) error {
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking RDS Cluster",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Logger.Debugf("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))

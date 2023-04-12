@@ -2,7 +2,7 @@
 
 # cloud-nuke
 
-This repo contains a CLI tool to delete all resources in an AWS account. cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
+This repo contains a CLI tool to delete all resources . cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
 
 In addition, cloud-nuke offers non-destructive inspecting functionality that can either be called via the command-line interface, or consumed as library methods, for scripting purposes.
 
@@ -10,51 +10,63 @@ The currently supported functionality includes:
 
 ## AWS
 
-- Inspecting and deleting all ACM Private CA in an AWS account
-- Inspecting and deleting all Auto scaling groups in an AWS account - except for ASGs tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all Elastic Load Balancers (v1 and v2) in an AWS account - except for ELBs tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all Transit Gateways in an AWS account
-- Inspecting and deleting all EBS Volumes in an AWS account - except for volumes tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all unprotected EC2 instances in an AWS account - except for EC2s tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all AMIs in an AWS account
-- Inspecting and deleting all Snapshots in an AWS account
-- Inspecting and deleting all Elastic IPs in an AWS account - except for EIPs tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all Elasticache clusters in an AWS account
-- Inspecting and deleting all Launch Configurations in an AWS account
-- Inspecting and deleting all ECS services in an AWS account
-- Inspecting and deleting all ECS clusters in an AWS account
-- Inspecting and deleting all EKS clusters in an AWS account - except for clusters tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all RDS (except for RDSs tagged with Key=cloud-nuke-excluded Value=true), Neptune, and Document DB instances in an AWS account
+Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS resources:
+
+| Resource Family | Resource type 
+| --------------- | ---------- 
+| EC2 | Auto scaling groups |
+| EC2 | Elastic Load Balancers (v1 and v2) |
+| EC2 | EBS Volumes | 
+| EC2 | Unprotected EC2 instances |
+| EC2 | AMIS | 
+| EC2 | Snapshots |
+| EC2 | Elastic IPs |
+| EC2 | Launch Configurations |
+| Certificate Manager | ACM Private CA |
+| Direct Connect | Transit Gateways |
+| Elasticache | Clusters |
+| ECS | Services | 
+| ECS | Clusters | 
+| EKS | Clusters | 
+| RDS | RDS databases | 
+| RDS | Neptune |
+| RDS | Document DB instances | 
+| DynamoDB | Tables | 
+| Lambda | Functions | 
+| SQS | Queues | 
+| S3 | Buckets |
+| VPC | Default VPCs | 
+| VPC | Default rules in the un-deletable default security group | 
+| VPC | NAT Gateways | 
+| IAM | Users | 
+| IAM | Roles (and any associated EC2 instance profiles)|
+| IAM | Service-linked-roles | 
+| IAM | Groups | 
+| IAM | Policies | 
+| IAM | Customer-managed policies | 
+| IAM | Access analyzers | 
+| IAM | OpenID Connect providers |
+| Secrets Manager | Secrets | 
+| CloudWatch | Dashboard |
+| CloudWatch | Log groups | 
+| CloudWatch | Alarms | 
+| OpenSearch | Domains |
+| KMS | Custgomer managed keys (and associated key aliases) | 
+| GuardDuty | Detectors | 
+| Macie | Member accounts | 
+| SageMaker | Notebook instances | 
+| Kinesis | Streams | 
+| API Gateway | Gateways (v1 and v2) | 
+| EFS |  File systems | 
+| SNS | Topics | 
+| CloudTrail | Trails | 
+| ECR | Repositories | 
+| Config | Service recorders | 
+| Config | Service rules | 
+
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
-- Inspecting and deleting all Lambda Functions in an AWS account
-- Inspecting and deleting all SQS queues in an AWS account
-- Inspecting and deleting all S3 buckets in an AWS account - except for buckets tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all default VPCs in an AWS account
-- Deleting VPCs in an AWS Account (along with any dependency resources such as ENIs, Egress Only Gateways, and Security Groups. except for default VPCs which is handled by the dedicated `defaults-aws` subcommand)
-- Inspecting and deleting all IAM users in an AWS account - except for users tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all IAM roles (and any associated EC2 instance profiles) in an AWS account
-- Inspecting and deleting all IAM groups in an AWS account
-- Inspecting and deleting all IAM policies in an AWS account
-- Inspecting and deleting all customer managed IAM policies in an AWS account
-- Inspecting and deleting all Secrets Manager Secrets in an AWS account
-- Inspecting and deleting all NAT Gateways in an AWS account - except for gateways tagged with Key=cloud-nuke-excluded Value=true
-- Inspecting and deleting all IAM Access Analyzers in an AWS account
-- Revoking the default rules in the un-deletable default security group of a VPC
-- Inspecting and deleting all DynamoDB tables in an AWS account
-- Inspecting and deleting all CloudWatch Dashboards in an AWS account
-- Inspecting and deleting all OpenSearch Domains in an AWS account
-- Inspecting and deleting all IAM OpenID Connect Providers
-- Inspecting and deleting all Customer managed keys (and associated key aliases) from Key Management Service in an AWS account
-- Inspecting and deleting all CloudWatch Log Groups in an AWS Account
-- Inspecting and deleting all GuardDuty Detectors in an AWS Account
-- Inspecting and deleting all Macie member accounts in an AWS account - as long as those accounts were created by Invitation - and not via AWS Organizations
-- Inspecting and deleting all SageMaker Notebook Instances in an AWS account
-- Inspecting and deleting all Kinesis Streams in an AWS account
-- Inspecting and deleting all API Gateways (v1 and v2) in an AWS account
-- Inspecting and deleting all Elastic FileSystems (efs) in an AWS account
-- Inspecting and deleting all SNS Topics in an AWS account
-- Inspecting and deleting all CloudTrail Trails in an AWS account
-- Inspecting and deleting all ECR Repositories in an AWS account
+
+> **NOTE: AWS Backup Resource:** Resources (such as AMIs) created by AWS Backup, while owned by your AWS account, are managed specifically by AWS Backup and cannot be deleted through standard APIs calls for that resource. These resources are tagged by AWS Backup and are filtered out so that `cloud-nuke` does not fail when trying to delete resources it cannot delete.
 
 ### BEWARE!
 
@@ -313,6 +325,12 @@ The following resources support the Config file:
 - IAM Users
     - Resource type: `iam`
     - Config key: `IAMUsers`
+- IAM Roles
+    - Resource type: `iam-role`
+    - Config key: `IAMRoles`
+- IAM Service-Linked Roles
+    - Resource type: `iam-service-linked-role`
+    - Config key: `IAMServiceLinkedRoles`
 - Secrets Manager Secrets
     - Resource type: `secretsmanager`
     - Config key: `SecretsManager`
@@ -377,33 +395,35 @@ The following resources support the Config file:
     - Resource type: `ec2-dedicated-hosts`
     - Config key: `EC2DedicatedHosts`
 - EC2 Key Pairs
-  - Resource type: `ec2-keypairs`
-  - Config key: `EC2KeyPairs`
+    - Resource type: `ec2-keypairs`
+    - Config key: `EC2KeyPairs`
 - EKS Clusters
     - Resource type: `ekscluster`
     - Config key: `EKSCluster`
 - SageMaker Notebook Instances
-  - Resource type: `sagemaker-notebook-instances`
-  - Config key: `SageMakerNotebook`
+    - Resource type: `sagemaker-notebook-instances`
+    - Config key: `SageMakerNotebook`
 - API Gateways (v1)
-  - Resource type: `apigateway`
-  - Config key: `APIGateway`
+    - Resource type: `apigateway`
+    - Config key: `APIGateway`
 - API Gateways (v2)
-  - Resource type: `apigatewayv2`
-  - Config key: `APIGatewayV2`
+    - Resource type: `apigatewayv2`
+    - Config key: `APIGatewayV2`
 - Elastic FileSystems (efs)
-  - Resource type: `efs`
-  - Config key: `ElasticFileSystem`
+    - Resource type: `efs`
+    - Config key: `ElasticFileSystem`
 - ECR Repositories
-  - Resource type: `ecr`
-  - Config key: `ECRRepository`
+    - Resource type: `ecr`
+    - Config key: `ECRRepository`
 - RDS, Neptune, and Document DB Resources
-  - Resource type: `rds`
-  - Config key: `DBInstances`
+    - Resource type: `rds`
+    - Config key: `DBInstances`
 - Launch Templates
-  - Resource type: `lt`
-  - Config key: `LaunchTemplate`
-
+    - Resource type: `lt`
+    - Config key: `LaunchTemplate`
+- CloudWatch Alarms
+    - Resource type: `cloudwatch-alarm`
+    - Config key: `CloudWatchAlarm`
 
 
 
@@ -528,11 +548,15 @@ To find out what we options are supported in the config file today, consult this
 | efs                           | none  | ✅           | none | none       |
 | acmpca                        | none  | none         | none | none       |
 | iam role                      | none  | ✅           | none | none       |
+| iam service-linked role       | none  | ✅           | none | none       |
 | iam policy                    | none  | ✅           | none | none       |
 | sagemaker-notebook-instances  | none  | ✅           | none | none       |
 | ecr                           | none  | ✅           | none | none       |
 | rds (+neptune and documentdb) | none  | ✅           | none | none       |
 | lt                            | none  | ✅           | none | none       |
+| config-recorders              | none  | ✅           | none | none       |
+| config-rules                  | none  | ✅           | none | none       |
+| cloudwatch-alarm              | none  | ✅           | none | none       |
 | ... (more to come)            | none  | none         | none | none       |
 
 
@@ -582,6 +606,10 @@ When nuking VPCs cloud-nuke will attempt to remove dependency resources undernea
 
 All other resources that get created within VPCs must be cleaned up prior to running cloud-nuke on VPC resources.
 
+> VPC resources may not be entirely cleaned up on the first run. We believe this is caused by an eventual consistency error in AWS.
+> 
+> If you see errors like `InvalidParameterValue: Network interface is currently in use.` We recommend waiting 30 minutes and trying again.
+
 Happy Nuking!!!
 
 ## Credentials
@@ -589,6 +617,29 @@ Happy Nuking!!!
 ### AWS
 
 In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can use one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+
+## Telemetry
+
+As of version `v0.29.0` cloud-nuke sends telemetry back to Gruntwork to help us better prioritize bug fixes and feature 
+improvements. The following metrics are included:
+
+- Command and Arguments
+- Version Number
+- Timestamps
+- Resource Types
+- Resource Counts
+- A randomly generated Run ID
+- AWS Account ID
+
+We never collect
+
+- IP Addresses
+- Resource Names
+
+Telemetry can be disabled entirely by setting the `DISABLE_TELEMETRY` environment variable on the command line.
+
+As an open source tool, you can see the exact statistics being collected by searching the code for 
+`telemetry.TrackEvent(...)`
 
 ## Running Tests
 

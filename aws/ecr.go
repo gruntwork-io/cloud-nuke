@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -31,7 +33,6 @@ func getAllECRRepositories(session *session.Session, excludeAfter time.Time, con
 	err := svc.DescribeRepositoriesPages(param, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
-
 	}
 
 	return repositoryNames, nil
@@ -53,7 +54,6 @@ func shouldIncludeECRRepository(repository *ecr.Repository, excludeAfter time.Ti
 		configObj.ECRRepository.IncludeRule.NamesRegExp,
 		configObj.ECRRepository.ExcludeRule.NamesRegExp,
 	)
-
 }
 
 func nukeAllECRRepositories(session *session.Session, repositoryNames []string) error {
@@ -83,6 +83,11 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 		report.Record(e)
 
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECR Repo",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
 
@@ -94,5 +99,4 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 	logging.Logger.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), *session.Config.Region)
 
 	return nil
-
 }

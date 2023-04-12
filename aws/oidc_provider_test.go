@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ const (
 // NOTE: OpenID Connect Provider is a global resource, so we use the default region for the tests.
 
 func TestListOIDCProviders(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})

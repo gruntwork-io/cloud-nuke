@@ -2,6 +2,8 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
@@ -183,6 +185,11 @@ func nukeAllOpenSearchDomains(session *session.Session, identifiers []*string) e
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Logger.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Opensearch",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

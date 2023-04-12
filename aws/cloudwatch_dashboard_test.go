@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 )
 
 func TestListCloudWatchDashboards(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -34,6 +36,7 @@ func TestListCloudWatchDashboards(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedCloudWatchDashboard(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -59,6 +62,7 @@ func TestTimeFilterExclusionNewlyCreatedCloudWatchDashboard(t *testing.T) {
 }
 
 func TestNukeCloudWatchDashboardOne(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -83,6 +87,7 @@ func TestNukeCloudWatchDashboardOne(t *testing.T) {
 }
 
 func TestNukeCloudWatchDashboardsMoreThanOne(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

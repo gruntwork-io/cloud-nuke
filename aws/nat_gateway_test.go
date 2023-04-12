@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 )
 
 func TestListNatGateways(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -39,7 +41,7 @@ func createNatGatewayWithName(t *testing.T, svc *ec2.EC2, region string, name st
 
 	err := setTagsToResource(t, svc, ngwID, []*ec2.Tag{
 		{
-			Key: aws.String("Name"),
+			Key:   aws.String("Name"),
 			Value: aws.String(name),
 		},
 	})
@@ -160,7 +162,7 @@ func TestNukeNatGatewayMoreThanOne(t *testing.T) {
 func setTagsToResource(t *testing.T, svc *ec2.EC2, resourceId *string, tags []*ec2.Tag) error {
 	_, err := svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{resourceId},
-		Tags: tags,
+		Tags:      tags,
 	})
 	return err
 }

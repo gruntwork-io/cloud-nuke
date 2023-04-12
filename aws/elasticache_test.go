@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"strings"
 	"testing"
@@ -61,6 +62,7 @@ func createTestElasticacheReplicationGroup(t *testing.T, session *session.Sessio
 }
 
 func TestListElasticacheClusters(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -86,6 +88,7 @@ func TestListElasticacheClusters(t *testing.T) {
 }
 
 func TestListElasticacheClustersWithConfigFile(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -124,6 +127,7 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 }
 
 func TestNukeElasticacheClusters(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

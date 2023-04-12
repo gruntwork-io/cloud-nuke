@@ -14,6 +14,7 @@ type Config struct {
 	IAMUsers              ResourceType `yaml:"IAMUsers"`
 	IAMGroups             ResourceType `yaml:"IAMGroups"`
 	IAMPolicies           ResourceType `yaml:"IAMPolicies"`
+	IAMServiceLinkedRoles ResourceType `yaml:"IAMServiceLinkedRoles"`
 	IAMRoles              ResourceType `yaml:"IAMRoles"`
 	SecretsManagerSecrets ResourceType `yaml:"SecretsManager"`
 	NatGateway            ResourceType `yaml:"NatGateway"`
@@ -47,6 +48,9 @@ type Config struct {
 	ECRRepository         ResourceType `yaml:"ECRRepository"`
 	DBInstances           ResourceType `yaml:"DBInstances"`
 	LaunchTemplate        ResourceType `yaml:"LaunchTemplate"`
+	ConfigServiceRule     ResourceType `yaml:"ConfigServiceRule"`
+	ConfigServiceRecorder ResourceType `yaml:"ConfigServiceRecorder"`
+	CloudWatchAlarm       ResourceType `yaml:"CloudWatchAlarm"`
 }
 
 type ResourceType struct {

@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
@@ -266,6 +268,11 @@ func nukeAllEksClusters(awsSession *session.Session, eksClusterNames []*string) 
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking EKS Cluster",
+			}, map[string]interface{}{
+				"region": *awsSession.Config.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

@@ -3,6 +3,9 @@ package aws
 import (
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,8 +19,15 @@ import (
 func getAllSnapshots(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
+	// status - The status of the snapshot (pending | completed | error).
+	// Since the output of this function is used to delete the returned snapshots
+	// We only want to list EBS Snapshots with a status of "completed"
+	// Since that is the only status that is eligible for deletion
+	status_filter := ec2.Filter{Name: awsgo.String("status"), Values: aws.StringSlice([]string{"completed", "error"})}
+
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{awsgo.String("self")},
+		Filters:  []*ec2.Filter{&status_filter},
 	}
 
 	output, err := svc.DescribeSnapshots(params)
@@ -27,7 +37,7 @@ func getAllSnapshots(session *session.Session, region string, excludeAfter time.
 
 	var snapshotIds []*string
 	for _, snapshot := range output.Snapshots {
-		if excludeAfter.After(*snapshot.StartTime) && !hasEBSSnapExcludeTag(snapshot) {
+		if excludeAfter.After(*snapshot.StartTime) && !hasEBSSnapExcludeTag(snapshot) && !SnapshotHasAWSBackupTag(snapshot.Tags) {
 			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
 		} else if !hasEBSSnapExcludeTag(snapshot) {
 			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
@@ -44,6 +54,22 @@ func hasEBSSnapExcludeTag(snapshot *ec2.Snapshot) bool {
 		if *tag.Key == AwsResourceExclusionTagKey && *tag.Value == "true" {
 			return true
 		}
+	}
+	return false
+}
+
+// Check if the image has an AWS Backup tag
+// Resources created by AWS Backup are listed as owned by self, but are actually
+// AWS managed resources and cannot be deleted here.
+func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
+	t := make(map[string]string)
+
+	for _, v := range tags {
+		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
+	}
+
+	if _, ok := t["aws:backup:source-resource"]; ok {
+		return true
 	}
 	return false
 }
@@ -77,6 +103,11 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking EBS Snapshot",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
 			logging.Logger.Debugf("Deleted Snapshot: %s", *snapshotID)

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -32,6 +33,7 @@ func createTestLaunchTemplate(t *testing.T, session *session.Session, name strin
 }
 
 func TestListLaunchTemplates(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -65,6 +67,7 @@ func TestListLaunchTemplates(t *testing.T) {
 }
 
 func TestNukeLaunchTemplates(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -94,6 +97,7 @@ func TestNukeLaunchTemplates(t *testing.T) {
 }
 
 func TestShouldIncludeLaunchTemplate(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	mockLaunchTemplate := &ec2.LaunchTemplate{
 		LaunchTemplateName: awsgo.String("cloud-nuke-test"),
 		CreateTime:         awsgo.Time(time.Now()),

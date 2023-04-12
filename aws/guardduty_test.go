@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -45,6 +46,7 @@ func createTestGuardDutyDetector(t *testing.T, session *session.Session) string 
 }
 
 func TestListGuardDutyDetectors(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -77,6 +79,7 @@ func TestListGuardDutyDetectors(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedGuardDutyDetector(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -102,6 +105,7 @@ func TestTimeFilterExclusionNewlyCreatedGuardDutyDetector(t *testing.T) {
 }
 
 func TestNukeGuardDutyDetectorOne(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -133,6 +137,7 @@ func TestNukeGuardDutyDetectorOne(t *testing.T) {
 
 // TestNukeGuardDutyDetectorMoreThanOne verifies that you can create and nuke multiple detectors in different regions simultaneously
 func TestNukeGuardDutyDetectorMoreThanOne(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region1, err := getRandomRegion()

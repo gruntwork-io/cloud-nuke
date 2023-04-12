@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -91,6 +93,11 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ASG",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, groupName)
 			logging.Logger.Debugf("Deleted Auto Scaling Group: %s", *groupName)
@@ -103,6 +110,11 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 		})
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ASG",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			return errors.WithStackTrace(err)
 		}
 	}

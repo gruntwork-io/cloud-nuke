@@ -2,6 +2,7 @@ package aws
 
 import (
 	"archive/zip"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"io"
 	"io/ioutil"
 	"os"
@@ -129,6 +130,7 @@ func createTestLambdaFunction(t *testing.T, session *session.Session, name strin
 }
 
 func TestLambdaFunctionConfigFile(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -163,6 +165,7 @@ func TestLambdaFunctionConfigFile(t *testing.T) {
 }
 
 func TestNukeLambdaFunction(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

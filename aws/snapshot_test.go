@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ func createTestSnapshot(t *testing.T, session *session.Session, name string) ec2
 }
 
 func TestListSnapshots(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -76,6 +78,7 @@ func TestListSnapshots(t *testing.T) {
 }
 
 func TestNukeSnapshots(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

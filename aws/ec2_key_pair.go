@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -75,6 +77,11 @@ func nukeAllEc2KeyPairs(session *session.Session, keypairIds []*string) error {
 	var multiErr *multierror.Error
 	for _, keypair := range keypairIds {
 		if err := deleteKeyPair(svc, keypair); err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking EC2 Key Pair",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 			logging.Logger.Errorf("[Failed] %s", err)
 			multiErr = multierror.Append(multiErr, err)
 		} else {

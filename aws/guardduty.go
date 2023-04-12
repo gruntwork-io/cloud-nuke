@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -121,6 +123,11 @@ func nukeAllGuardDutyDetectors(session *session.Session, detectorIds []string) e
 
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s: %s", detectorId, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking GuardDuty Detector",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
 		} else {
 			deletedIds = append(deletedIds, detectorId)
 			logging.Logger.Debugf("Deleted GuardDuty detector: %s", detectorId)

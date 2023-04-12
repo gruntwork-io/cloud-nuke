@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -60,6 +62,12 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 		})
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Sagemaker Notebook Instance",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+				"reason": "Failed to Stop Notebook",
+			})
 		}
 
 		err = svc.WaitUntilNotebookInstanceStopped(&sagemaker.DescribeNotebookInstanceInput{
@@ -68,12 +76,24 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Sagemaker Notebook Instance",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+				"reason": "Failed waiting for notebook to stop",
+			})
 		}
 
 		_, err = svc.DeleteNotebookInstance(params)
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Sagemaker Notebook Instance",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+				"reason": "Failed to Delete Notebook",
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Logger.Debugf("Deleted Sagemaker Notebook Instance: %s", awsgo.StringValue(name))
@@ -97,6 +117,12 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 
 			if err != nil {
 				logging.Logger.Errorf("[Failed] %s", err)
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking Sagemaker Notebook Instance",
+				}, map[string]interface{}{
+					"region": *session.Config.Region,
+					"reason": "Failed waiting for notebook instance to delete",
+				})
 				return errors.WithStackTrace(err)
 			}
 		}
