@@ -147,7 +147,7 @@ func CreateCli(version string, mixPanelClientId string) *cli.App {
 				},
 				&cli.BoolFlag{
 					Name:  "list-unaliased-kms-keys",
-					Usage: "Delete KMS keys that do not have aliases associated with them.",
+					Usage: "List KMS keys that do not have aliases associated with them.",
 				},
 				&cli.StringFlag{
 					Name:    "log-level",
