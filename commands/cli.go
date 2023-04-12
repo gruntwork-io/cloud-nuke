@@ -636,12 +636,13 @@ func awsInspect(c *cli.Context) error {
 		c.StringSlice("resource-type"),
 		c.StringSlice("exclude-resource-type"),
 		*excludeAfter,
+		c.Bool("list-unaliased-kms-keys"),
 	)
 	if err != nil {
 		return aws.QueryCreationError{Underlying: err}
 	}
 
-	accountResources, err := aws.InspectResources(query, c.Bool("list-unaliased-kms-keys"))
+	accountResources, err := aws.InspectResources(query)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",

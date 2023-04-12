@@ -78,7 +78,7 @@ func HandleResourceTypeSelections(
 	return resourceTypes, nil
 }
 
-func InspectResources(q *Query, listUnaliasedKMSKeys bool) (*AwsAccountResources, error) {
+func InspectResources(q *Query) (*AwsAccountResources, error) {
 	// Log which resource types will be inspected
 	logging.Logger.Info("The following resource types will be inspected:")
 	if len(q.ResourceTypes) > 0 {
@@ -92,5 +92,5 @@ func InspectResources(q *Query, listUnaliasedKMSKeys bool) (*AwsAccountResources
 	}
 
 	// NOTE: The inspect functionality currently does not support config file, so we short circuit the logic with an empty struct.
-	return GetAllResources(q.Regions, q.ExcludeAfter, q.ResourceTypes, config.Config{}, listUnaliasedKMSKeys)
+	return GetAllResources(q.Regions, q.ExcludeAfter, q.ResourceTypes, config.Config{}, q.ListUnaliasedKMSKeys)
 }
