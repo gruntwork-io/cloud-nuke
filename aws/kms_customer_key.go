@@ -100,6 +100,10 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckInclu
 		if !allowDeleteUnaliasedKeys {
 			resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 			return
+		} else {
+			// Set this to true so keys w/o aliases dont bail out
+			// On the !includedByName check
+			includedByName = true
 		}
 	}
 
