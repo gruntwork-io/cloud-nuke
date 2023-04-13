@@ -2,10 +2,11 @@ package aws
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -29,17 +30,18 @@ func TestListKmsUserKeys(t *testing.T) {
 
 	aliasName := "cloud-nuke-test-" + util.UniqueID()
 	keyAlias := fmt.Sprintf("alias/%s", aliasName)
-	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias)
+	createdKeyId := createKmsCustomerManagedKey(t, session)
+	_ = createKmsCustomerManagedKeyAlias(t, session, createdKeyId, keyAlias)
 
 	// test if listing of keys will return new key and alias
-	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, false)
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.Contains(t, aliases[createdKeyId], keyAlias)
 
 	// test if time shift works
 	olderThan := time.Now().Add(-1 * time.Hour)
-	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{})
+	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{}, false)
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.NotContains(t, aliases[createdKeyId], keyAlias)
@@ -53,7 +55,7 @@ func TestListKmsUserKeys(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.Contains(t, aliases[createdKeyId], keyAlias)
@@ -68,7 +70,7 @@ func TestListKmsUserKeys(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
 	assert.NotContains(t, aliases[createdKeyId], keyAlias)
@@ -85,13 +87,14 @@ func TestRemoveKmsUserKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	keyAlias := "alias/cloud-nuke-test-" + util.UniqueID()
-	createdKeyId := createKmsCustomerManagedKey(t, session, keyAlias)
+	createdKeyId := createKmsCustomerManagedKey(t, session)
+	_ = createKmsCustomerManagedKeyAlias(t, session, createdKeyId, keyAlias)
 
 	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{"keyid": {keyAlias}})
 	require.NoError(t, err)
 
 	// test if key is not included for removal second time, after being marked for deletion
-	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{})
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, false)
 
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
@@ -104,18 +107,47 @@ func TestRemoveKmsUserKeys(t *testing.T) {
 	assert.Empty(t, listedAliases)
 }
 
-func createKmsCustomerManagedKey(t *testing.T, session *session.Session, alias string) string {
+func TestRemoveKmsUserKeysAllowUnaliased(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	createdKeyId := createKmsCustomerManagedKey(t, session)
+
+	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{})
+	require.NoError(t, err)
+
+	// test if key is not included for removal second time, after being marked for deletion
+	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, true)
+
+	require.NoError(t, err)
+	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
+	assert.NotContains(t, aliases, createdKeyId)
+}
+
+func createKmsCustomerManagedKey(t *testing.T, session *session.Session) string {
 	svc := kms.New(session)
 	input := &kms.CreateKeyInput{}
 	result, err := svc.CreateKey(input)
 	require.NoError(t, err)
 	createdKeyId := *result.KeyMetadata.KeyId
 
-	aliasInput := &kms.CreateAliasInput{AliasName: &alias, TargetKeyId: &createdKeyId}
-	_, err = svc.CreateAlias(aliasInput)
+	return createdKeyId
+}
+
+func createKmsCustomerManagedKeyAlias(t *testing.T, session *session.Session, keyId string, alias string) string {
+	svc := kms.New(session)
+
+	aliasInput := &kms.CreateAliasInput{AliasName: &alias, TargetKeyId: &keyId}
+	_, err := svc.CreateAlias(aliasInput)
 	require.NoError(t, err)
 
-	return createdKeyId
+	return *aliasInput.AliasName
 }
 
 func listAliasesForKey(session *session.Session, keyId *string) ([]string, error) {

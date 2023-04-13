@@ -92,5 +92,5 @@ func InspectResources(q *Query) (*AwsAccountResources, error) {
 	}
 
 	// NOTE: The inspect functionality currently does not support config file, so we short circuit the logic with an empty struct.
-	return GetAllResources(q.Regions, q.ExcludeAfter, q.ResourceTypes, config.Config{})
+	return GetAllResources(q.Regions, q.ExcludeAfter, q.ResourceTypes, config.Config{}, q.ListUnaliasedKMSKeys)
 }

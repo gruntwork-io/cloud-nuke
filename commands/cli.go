@@ -2,10 +2,11 @@ package commands
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -77,6 +78,10 @@ func CreateCli(version string, mixPanelClientId string) *cli.App {
 					Usage:   "Set log level",
 					EnvVars: []string{"LOG_LEVEL"},
 				},
+				&cli.BoolFlag{
+					Name:  "delete-unaliased-kms-keys",
+					Usage: "Delete KMS keys that do not have aliases associated with them.",
+				},
 				&cli.StringFlag{
 					Name:  "config",
 					Usage: "YAML file specifying matching rules.",
@@ -139,6 +144,10 @@ func CreateCli(version string, mixPanelClientId string) *cli.App {
 					Name:  "older-than",
 					Usage: "Only inspect resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 					Value: "0s",
+				},
+				&cli.BoolFlag{
+					Name:  "list-unaliased-kms-keys",
+					Usage: "List KMS keys that do not have aliases associated with them.",
 				},
 				&cli.StringFlag{
 					Name:    "log-level",
@@ -285,7 +294,7 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(spinnerErr)
 	}
 
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj)
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj, c.Bool("delete-unaliased-kms-keys"))
 	// Stop the spinner
 	spinnerSuccess.Stop()
 	if err != nil {
@@ -627,6 +636,7 @@ func awsInspect(c *cli.Context) error {
 		c.StringSlice("resource-type"),
 		c.StringSlice("exclude-resource-type"),
 		*excludeAfter,
+		c.Bool("list-unaliased-kms-keys"),
 	)
 	if err != nil {
 		return aws.QueryCreationError{Underlying: err}
