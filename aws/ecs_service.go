@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -117,22 +118,41 @@ func getAllEcsServices(awsSession *session.Session, ecsClusterArns []*string, ex
 func drainEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsServiceArns []*string) []*string {
 	var requestedDrains []*string
 	for _, ecsServiceArn := range ecsServiceArns {
-		params := &ecs.UpdateServiceInput{
-			Cluster:      awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
-			Service:      ecsServiceArn,
-			DesiredCount: awsgo.Int64(0),
+
+		describeParams := &ecs.DescribeServicesInput{
+			Cluster:  awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
+			Services: []*string{ecsServiceArn},
 		}
-		_, err := svc.UpdateService(params)
+		describeServicesOutput, err := svc.DescribeServices(describeParams)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
+			logging.Logger.Errorf("[Failed] Failed to describe service %s: %s", *ecsServiceArn, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ECS Service",
 			}, map[string]interface{}{
 				"region": *svc.Config.Region,
-				"reason": "Unable to drain",
+				"reason": "Unable to describe",
 			})
 		} else {
-			requestedDrains = append(requestedDrains, ecsServiceArn)
+			schedulingStrategy := *describeServicesOutput.Services[0].SchedulingStrategy
+			if schedulingStrategy != "DAEMON" {
+				params := &ecs.UpdateServiceInput{
+					Cluster:      awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
+					Service:      ecsServiceArn,
+					DesiredCount: awsgo.Int64(0),
+				}
+				_, err := svc.UpdateService(params)
+				if err != nil {
+					logging.Logger.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
+					telemetry.TrackEvent(commonTelemetry.EventContext{
+						EventName: "Error Nuking ECS Service",
+					}, map[string]interface{}{
+						"region": *svc.Config.Region,
+						"reason": "Unable to drain",
+					})
+				}
+			} else {
+				requestedDrains = append(requestedDrains, ecsServiceArn)
+			}
 		}
 	}
 	return requestedDrains
