@@ -50,7 +50,8 @@ jobs:
               --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type ecr \
               --exclude-resource-type config-recorders \
-              --exclude-resource-type config-rules 
+              --exclude-resource-type config-rules \
+              --delete-unaliased-kms-keys
           no_output_timeout: 1h
   nuke_sandbox:
     <<: *defaults
@@ -73,7 +74,7 @@ jobs:
               --exclude-resource-type kmscustomerkeys \
               --exclude-resource-type ecr \
               --exclude-resource-type config-recorders \
-              --exclude-resource-type config-rules 
+              --exclude-resource-type config-rules
           no_output_timeout: 1h
   deploy:
     <<: *defaults
