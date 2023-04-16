@@ -1097,6 +1097,66 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End CloudWatchLogGroup
 
+		// S3 Object Lambda Access Points
+		s3ObjectLambdaAccessPoints := S3ObjectLambdaAccessPoints{}
+		if IsNukeable(s3ObjectLambdaAccessPoints.ResourceName(), resourceTypes) {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Listing S3 Object Lambda Access Points",
+			}, map[string]interface{}{
+				"region": region,
+			})
+			s3OlapNames, err := getAllS3ObjectLambdaAccessPoints(cloudNukeSession, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve S3 object lambda access points",
+					ResourceType: s3ObjectLambdaAccessPoints.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing S3 Object Lambda Access Points",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(s3OlapNames),
+			})
+			if len(s3OlapNames) > 0 {
+				s3ObjectLambdaAccessPoints.ObjectLambdaAccessPoints = awsgo.StringValueSlice(s3OlapNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, s3ObjectLambdaAccessPoints)
+			}
+		}
+		// End S3 Object Lambda Access Points
+
+		// S3 Access Points
+		s3AccessPoints := S3AccessPoints{}
+		if IsNukeable(s3AccessPoints.ResourceName(), resourceTypes) {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Listing S3 Access Points",
+			}, map[string]interface{}{
+				"region": region,
+			})
+			s3Ap, err := getAllS3AccessPoints(cloudNukeSession, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve S3 access points",
+					ResourceType: s3AccessPoints.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing S3 Access Points",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(s3Ap),
+			})
+			if len(s3Ap) > 0 {
+				s3AccessPoints.AccessPointNames = awsgo.StringValueSlice(s3Ap)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, s3AccessPoints)
+			}
+		}
+		// End S3 Access Points
+
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
@@ -1895,6 +1955,36 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End IAM Service Linked Roles
 
+		// S3 Multi Region Access Points
+		s3MultiRegionAccessPoints := S3MultiRegionAccessPoints{}
+		if IsNukeable(s3MultiRegionAccessPoints.ResourceName(), resourceTypes) {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Listing S3 Multi Region Access Points",
+			}, map[string]interface{}{
+				"region": "global",
+			})
+			s3MrapNames, err := getAllS3MultiRegionAccessPoints(session, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve S3 multi region access points",
+					ResourceType: s3MultiRegionAccessPoints.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing S3 Multi Region Access Points",
+			}, map[string]interface{}{
+				"region":      "global",
+				"recordCount": len(s3MrapNames),
+			})
+			if len(s3MrapNames) > 0 {
+				s3MultiRegionAccessPoints.MultiRegionAccessPoints = awsgo.StringValueSlice(s3MrapNames)
+				globalResources.Resources = append(globalResources.Resources, s3MultiRegionAccessPoints)
+			}
+		}
+		// End S3 Multi Region Access Points
+
 		if len(globalResources.Resources) > 0 {
 			account.Resources[GlobalRegion] = globalResources
 		}
@@ -1958,6 +2048,9 @@ func ListResourceTypes() []string {
 		ConfigServiceRule{}.ResourceName(),
 		ConfigServiceRecorders{}.ResourceName(),
 		CloudWatchAlarms{}.ResourceName(),
+		S3AccessPoints{}.ResourceName(),
+		S3ObjectLambdaAccessPoints{}.ResourceName(),
+		S3MultiRegionAccessPoints{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

@@ -10,7 +10,7 @@ The currently supported functionality includes:
 
 ## AWS
 
-Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS resources:
+Cloud-nuke supports 🔎 inspecting and 🔥💀 deleting the following AWS resources:
 
 | Resource Family | Resource type 
 | --------------- | ---------- 
@@ -35,6 +35,9 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Lambda | Functions | 
 | SQS | Queues | 
 | S3 | Buckets |
+| S3 | Access Points |
+| S3 | Object Lambda Access Points |
+| S3 | Multi Region Access Points |
 | VPC | Default VPCs | 
 | VPC | Default rules in the un-deletable default security group | 
 | VPC | NAT Gateways | 
@@ -424,7 +427,15 @@ The following resources support the Config file:
 - CloudWatch Alarms
     - Resource type: `cloudwatch-alarm`
     - Config key: `CloudWatchAlarm`
-
+- S3 Access Points
+    - Resource type: `s3-ap`
+    - Config key: `S3AccessPoint`
+- S3 Object Lambda Access Points
+    - Resource type: `s3-olap`
+    - Config key: `S3ObjectLambdaAccessPoint`
+- S3 Multi Region Access Points
+    - Resource type: `s3-mrap`
+    - Config key: `S3MultiRegionAccessPoint`
 
 
 
@@ -557,6 +568,9 @@ To find out what we options are supported in the config file today, consult this
 | config-recorders              | none  | ✅           | none | none       |
 | config-rules                  | none  | ✅           | none | none       |
 | cloudwatch-alarm              | none  | ✅           | none | none       |
+| s3-ap                         | none  | ✅           | none | none       |
+| s3-olap                       | none  | ✅           | none | none       |
+| s3-mrap                       | none  | ✅           | none | none       |
 | ... (more to come)            | none  | none         | none | none       |
 
 
