@@ -70,11 +70,10 @@ jobs:
               --exclude-resource-type iam \
               --exclude-resource-type iam-group \
               --exclude-resource-type iam-service-linked-role \
-              --exclude-resource-type vpc \
-              --exclude-resource-type kmscustomerkeys \
               --exclude-resource-type ecr \
               --exclude-resource-type config-recorders \
-              --exclude-resource-type config-rules
+              --exclude-resource-type config-rules \
+              --delete-unaliased-kms-keys
           no_output_timeout: 1h
   deploy:
     <<: *defaults
@@ -89,7 +88,7 @@ workflows:
     # Make sure this pipeline doesn't run when a schedule is triggered
     when:
       not:
-        equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        equal: [scheduled_pipeline, << pipeline.trigger_source >>]
     jobs:
       - test:
           filters:
@@ -121,8 +120,8 @@ workflows:
   nuke_phxdevops:
     when:
       and:
-        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
-        - equal: [ "every 3 hours", << pipeline.schedule.name >> ]
+        - equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+        - equal: ["every 3 hours", << pipeline.schedule.name >>]
     jobs:
       - nuke_phx_devops:
           context:
@@ -132,8 +131,8 @@ workflows:
   nuke_sandbox:
     when:
       and:
-        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
-        - equal: [ "nightly", << pipeline.schedule.name >> ]
+        - equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+        - equal: ["nightly", << pipeline.schedule.name >>]
     jobs:
       - nuke_sandbox:
           context:
