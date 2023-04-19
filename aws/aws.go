@@ -239,11 +239,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ACMPCA arns
 		acmpca := ACMPCA{}
 		if IsNukeable(acmpca.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing ACMPA arns",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			arns, err := getAllACMPCA(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -257,6 +253,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				EventName: "Done Listing ACMPA arns",
 			}, map[string]interface{}{
 				"recordCount": len(arns),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(arns) > 0 {
 				acmpca.ARNs = awsgo.StringValueSlice(arns)
@@ -268,11 +265,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ASG Names
 		asGroups := ASGroups{}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing ASGs",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			groupNames, err := getAllAutoScalingGroups(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -287,6 +280,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(groupNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(groupNames) > 0 {
 				asGroups.GroupNames = awsgo.StringValueSlice(groupNames)
@@ -298,11 +292,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Launch Configuration Names
 		configs := LaunchConfigs{}
 		if IsNukeable(configs.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Launch Configurations",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			configNames, err := getAllLaunchConfigurations(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -317,6 +307,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(configNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(configNames) > 0 {
 				configs.LaunchConfigurationNames = awsgo.StringValueSlice(configNames)
@@ -328,11 +319,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Launch Template Names
 		templates := LaunchTemplates{}
 		if IsNukeable(templates.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Launch Templates",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			templateNames, err := getAllLaunchTemplates(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -348,6 +335,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(templateNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(templateNames) > 0 {
 				templates.LaunchTemplateNames = awsgo.StringValueSlice(templateNames)
@@ -359,11 +347,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancer Names
 		loadBalancers := LoadBalancers{}
 		if IsNukeable(loadBalancers.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing ELBs",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			elbNames, err := getAllElbInstances(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -378,6 +362,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(elbNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(elbNames) > 0 {
 				loadBalancers.Names = awsgo.StringValueSlice(elbNames)
@@ -389,11 +374,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// LoadBalancerV2 Arns
 		loadBalancersV2 := LoadBalancersV2{}
 		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing ELBV2s",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			elbv2Arns, err := getAllElbv2Instances(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -408,6 +389,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(elbv2Arns),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(elbv2Arns) > 0 {
 				loadBalancersV2.Arns = awsgo.StringValueSlice(elbv2Arns)
@@ -419,11 +401,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// SQS Queues
 		sqsQueue := SqsQueue{}
 		if IsNukeable(sqsQueue.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing SQS Queues",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			queueUrls, err := getAllSqsQueue(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -438,6 +416,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(queueUrls),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(queueUrls) > 0 {
 				sqsQueue.QueueUrls = awsgo.StringValueSlice(queueUrls)
@@ -458,11 +437,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			report.RecordError(ge)
 		}
 		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Transit Gateway VPC Attachments",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -477,6 +452,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(transitGatewayVpcAttachmentIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(transitGatewayVpcAttachmentIds) > 0 {
 				transitGatewayVpcAttachments.Ids = awsgo.StringValueSlice(transitGatewayVpcAttachmentIds)
@@ -488,11 +464,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// TransitGatewayRouteTable
 		transitGatewayRouteTables := TransitGatewaysRouteTables{}
 		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Transit Gateway Route Tables",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -507,6 +479,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(transitGatewayRouteTableIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(transitGatewayRouteTableIds) > 0 {
 				transitGatewayRouteTables.Ids = awsgo.StringValueSlice(transitGatewayRouteTableIds)
@@ -518,11 +491,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// TransitGateway
 		transitGateways := TransitGateways{}
 		if IsNukeable(transitGateways.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Transit Gateway Instances",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			transitGatewayIds, err := getAllTransitGatewayInstances(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -537,6 +506,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(transitGatewayIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(transitGatewayIds) > 0 {
 				transitGateways.Ids = awsgo.StringValueSlice(transitGatewayIds)
@@ -548,11 +518,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// NATGateway
 		natGateways := NatGateways{}
 		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing NAT Gateways",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			ngwIDs, err := getAllNatGateways(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -567,6 +533,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(ngwIDs),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(ngwIDs) > 0 {
 				natGateways.NatGatewayIDs = awsgo.StringValueSlice(ngwIDs)
@@ -578,11 +545,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// OpenSearch Domains
 		domains := OpenSearchDomains{}
 		if IsNukeable(domains.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Opensearch Domains",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			domainNames, err := getOpenSearchDomainsToNuke(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -597,6 +560,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(domainNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(domainNames) > 0 {
 				domains.DomainNames = awsgo.StringValueSlice(domainNames)
@@ -608,11 +572,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 Instances
 		ec2Instances := EC2Instances{}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing EC2 Instances",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			instanceIds, err := getAllEc2Instances(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -627,6 +587,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(instanceIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(instanceIds) > 0 {
 				ec2Instances.InstanceIds = awsgo.StringValueSlice(instanceIds)
@@ -638,11 +599,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 Dedicated Hosts
 		ec2DedicatedHosts := EC2DedicatedHosts{}
 		if IsNukeable(ec2DedicatedHosts.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing EC2 Dedicated Hosts",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			hostIds, err := getAllEc2DedicatedHosts(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -657,6 +614,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(hostIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(hostIds) > 0 {
 				ec2DedicatedHosts.HostIds = awsgo.StringValueSlice(hostIds)
@@ -669,11 +627,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EBS Volumes
 		ebsVolumes := EBSVolumes{}
 		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing EBS Volumes",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			volumeIds, err := getAllEbsVolumes(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -688,6 +642,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(volumeIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(volumeIds) > 0 {
 				ebsVolumes.VolumeIds = awsgo.StringValueSlice(volumeIds)
@@ -699,11 +654,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EIP Addresses
 		eipAddresses := EIPAddresses{}
 		if IsNukeable(eipAddresses.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing EIPs",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			allocationIds, err := getAllEIPAddresses(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -718,6 +669,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(allocationIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(allocationIds) > 0 {
 				eipAddresses.AllocationIds = awsgo.StringValueSlice(allocationIds)
@@ -729,11 +681,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// AMIs
 		amis := AMIs{}
 		if IsNukeable(amis.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing AMIs",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			imageIds, err := getAllAMIs(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -748,6 +696,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(imageIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(imageIds) > 0 {
 				amis.ImageIds = awsgo.StringValueSlice(imageIds)
@@ -759,11 +708,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Snapshots
 		snapshots := Snapshots{}
 		if IsNukeable(snapshots.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Snapshots",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			snapshotIds, err := getAllSnapshots(cloudNukeSession, region, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -778,6 +723,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(snapshotIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(snapshotIds) > 0 {
 				snapshots.SnapshotIds = awsgo.StringValueSlice(snapshotIds)
@@ -789,11 +735,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ECS resources
 		ecsServices := ECSServices{}
 		if IsNukeable(ecsServices.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing ECS Services",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			clusterArns, err := getAllEcsClusters(cloudNukeSession)
 			if err != nil {
 				ge := report.GeneralError{
@@ -817,16 +759,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(clusterArns),
+				"time":        time.Since(start).Seconds(),
 			})
 		}
 
 		ecsClusters := ECSClusters{}
 		if IsNukeable(ecsClusters.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing ECS Clusters",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			ecsClusterArns, err := getAllEcsClustersOlderThan(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -841,6 +780,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(ecsClusterArns),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(ecsClusterArns) > 0 {
 				ecsClusters.ClusterArns = awsgo.StringValueSlice(ecsClusterArns)
@@ -852,11 +792,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EKS resources
 		eksClusters := EKSClusters{}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing EKS Clusters",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			eksClusterNames, err := getAllEksClusters(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -871,6 +807,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(eksClusterNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(eksClusterNames) > 0 {
 				eksClusters.Clusters = awsgo.StringValueSlice(eksClusterNames)
@@ -882,11 +819,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Instances
 		dbInstances := DBInstances{}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing RDS Instances",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			instanceNames, err := getAllRdsInstances(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -902,6 +835,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(instanceNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(instanceNames) > 0 {
 				dbInstances.InstanceNames = awsgo.StringValueSlice(instanceNames)
@@ -915,11 +849,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// has different abstractions for each.
 		dbClusters := DBClusters{}
 		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing RDS Clusters",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			clustersNames, err := getAllRdsClusters(cloudNukeSession, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
@@ -935,6 +865,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(clustersNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(clustersNames) > 0 {
 				dbClusters.InstanceNames = awsgo.StringValueSlice(clustersNames)
@@ -946,11 +877,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Lambda Functions
 		lambdaFunctions := LambdaFunctions{}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Lambda Functions",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			lambdaFunctionNames, err := getAllLambdaFunctions(cloudNukeSession, excludeAfter, configObj, lambdaFunctions.MaxBatchSize())
 			if err != nil {
 				ge := report.GeneralError{
@@ -966,6 +893,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(lambdaFunctionNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(lambdaFunctionNames) > 0 {
 				lambdaFunctions.LambdaFunctionNames = awsgo.StringValueSlice(lambdaFunctionNames)
@@ -977,11 +905,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Secrets Manager Secrets
 		secretsManagerSecrets := SecretsManagerSecrets{}
 		if IsNukeable(secretsManagerSecrets.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Secrets Manager Secrets",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			secrets, err := getAllSecretsManagerSecrets(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -997,6 +921,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(secrets),
+				"time":        time.Since(start).Seconds(),
 			})
 
 			if len(secrets) > 0 {
@@ -1009,11 +934,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// AccessAnalyzer
 		accessAnalyzer := AccessAnalyzer{}
 		if IsNukeable(accessAnalyzer.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Access Analyzers",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			analyzerNames, err := getAllAccessAnalyzers(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1029,6 +950,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(analyzerNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(analyzerNames) > 0 {
 				accessAnalyzer.AnalyzerNames = awsgo.StringValueSlice(analyzerNames)
@@ -1040,11 +962,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// CloudWatchDashboard
 		cloudwatchDashboards := CloudWatchDashboards{}
 		if IsNukeable(cloudwatchDashboards.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Cloudwatch Dashboards",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			cwdbNames, err := getAllCloudWatchDashboards(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1060,6 +978,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(cwdbNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(cwdbNames) > 0 {
 				cloudwatchDashboards.DashboardNames = awsgo.StringValueSlice(cwdbNames)
@@ -1071,11 +990,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// CloudWatchLogGroup
 		cloudwatchLogGroups := CloudWatchLogGroups{}
 		if IsNukeable(cloudwatchLogGroups.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Cloudwatch Log Groups",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			lgNames, err := getAllCloudWatchLogGroups(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1090,6 +1005,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(lgNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(lgNames) > 0 {
 				cloudwatchLogGroups.Names = awsgo.StringValueSlice(lgNames)
@@ -1101,11 +1017,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// S3 Buckets
 		s3Buckets := S3Buckets{}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing S3 Buckets",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			var bucketNamesPerRegion map[string][]*string
 
 			// AWS S3 buckets list operation lists all buckets irrespective of regions.
@@ -1153,6 +1065,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(bucketNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if ok && len(bucketNames) > 0 {
 				s3Buckets.Names = aws.StringValueSlice(bucketNames)
@@ -1163,11 +1076,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		DynamoDB := DynamoDB{}
 		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing DynamoDB Tables",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			tablenames, err := getAllDynamoTables(cloudNukeSession, excludeAfter, configObj, DynamoDB)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1183,6 +1092,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(tablenames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(tablenames) > 0 {
 				DynamoDB.DynamoTableNames = awsgo.StringValueSlice(tablenames)
@@ -1194,11 +1104,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// EC2 VPCS
 		ec2Vpcs := EC2VPCs{}
 		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing EC2 VPCs",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			vpcids, vpcs, err := getAllVpcs(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1214,6 +1120,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(vpcids),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(vpcids) > 0 {
 				ec2Vpcs.VPCIds = awsgo.StringValueSlice(vpcids)
@@ -1226,11 +1133,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Start EC2 KeyPairs
 		KeyPairs := EC2KeyPairs{}
 		if IsNukeable(KeyPairs.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing EC2 Keypairs",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			keyPairIds, err := getAllEc2KeyPairs(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -1241,6 +1144,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(keyPairIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(keyPairIds) > 0 {
 				KeyPairs.KeyPairIds = awsgo.StringValueSlice(keyPairIds)
@@ -1252,11 +1156,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Elasticaches
 		elasticaches := Elasticaches{}
 		if IsNukeable(elasticaches.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Elasticache Clusters",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			clusterIds, err := getAllElasticacheClusters(cloudNukeSession, region, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1272,6 +1172,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(clusterIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(clusterIds) > 0 {
 				elasticaches.ClusterIds = awsgo.StringValueSlice(clusterIds)
@@ -1283,11 +1184,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// KMS Customer managed keys
 		customerKeys := KmsCustomerKeys{}
 		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing KMS Keys",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			keys, aliases, err := getAllKmsUserKeys(cloudNukeSession, customerKeys.MaxBatchSize(), excludeAfter, configObj, allowDeleteUnaliasedKeys)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1302,6 +1199,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(keys),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(keys) > 0 {
 				customerKeys.KeyAliases = aliases
@@ -1315,11 +1213,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// GuardDuty detectors
 		guardDutyDetectors := GuardDuty{}
 		if IsNukeable(guardDutyDetectors.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Guard Duty Detectors",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			detectors, err := getAllGuardDutyDetectors(cloudNukeSession, excludeAfter, configObj, guardDutyDetectors.MaxBatchSize())
 			if err != nil {
 				ge := report.GeneralError{
@@ -1334,6 +1228,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(detectors),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(detectors) > 0 {
 				guardDutyDetectors.detectorIds = detectors
@@ -1345,11 +1240,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Macie member accounts
 		macieAccounts := MacieMember{}
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing MACIE Member Accounts",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			// Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the excludeAfter or configObj patterns
 			accountIds, err := getAllMacieMemberAccounts(cloudNukeSession)
 			if err != nil {
@@ -1365,6 +1256,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(accountIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(accountIds) > 0 {
 				macieAccounts.AccountIds = accountIds
@@ -1377,11 +1269,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Start SageMaker Notebook Instances
 		notebookInstances := SageMakerNotebookInstances{}
 		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Sagemaker Notebook Instances",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			instances, err := getAllNotebookInstances(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1396,6 +1284,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(instances),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(instances) > 0 {
 				notebookInstances.InstanceNames = awsgo.StringValueSlice(instances)
@@ -1407,11 +1296,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Kinesis Streams
 		kinesisStreams := KinesisStreams{}
 		if IsNukeable(kinesisStreams.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Kinesis Streams",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			streams, err := getAllKinesisStreams(cloudNukeSession, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1426,6 +1311,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(streams),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(streams) > 0 {
 				kinesisStreams.Names = awsgo.StringValueSlice(streams)
@@ -1437,11 +1323,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// API Gateways (v1)
 		apiGateways := ApiGateway{}
 		if IsNukeable(apiGateways.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing API Gateways",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			gatewayIds, err := getAllAPIGateways(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1456,6 +1338,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(gatewayIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(gatewayIds) > 0 {
 				apiGateways.Ids = awsgo.StringValueSlice(gatewayIds)
@@ -1467,11 +1350,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// API Gateways (v2)
 		apiGatewaysV2 := ApiGatewayV2{}
 		if IsNukeable(apiGatewaysV2.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing API Gateway V2s",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			gatewayV2Ids, err := getAllAPIGatewaysV2(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1486,6 +1365,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(gatewayV2Ids),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(gatewayV2Ids) > 0 {
 				apiGatewaysV2.Ids = awsgo.StringValueSlice(gatewayV2Ids)
@@ -1497,11 +1377,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Elastic FileSystems (efs)
 		elasticFileSystems := ElasticFileSystem{}
 		if IsNukeable(elasticFileSystems.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Elastic File Systems",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			elasticFileSystemsIds, err := getAllElasticFileSystems(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1516,6 +1392,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(elasticFileSystemsIds),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(elasticFileSystemsIds) > 0 {
 				elasticFileSystems.Ids = awsgo.StringValueSlice(elasticFileSystemsIds)
@@ -1527,11 +1404,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// SNS Topics
 		snsTopics := SNSTopic{}
 		if IsNukeable(snsTopics.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing SNS Topics",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			snsTopicArns, err := getAllSNSTopics(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1546,6 +1419,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(snsTopicArns),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(snsTopicArns) > 0 {
 				snsTopics.Arns = awsgo.StringValueSlice(snsTopicArns)
@@ -1557,11 +1431,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Cloudtrail Trails
 		cloudtrailTrails := CloudtrailTrail{}
 		if IsNukeable(cloudtrailTrails.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing CloudTrails",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			cloudtrailArns, err := getAllCloudtrailTrails(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1576,6 +1446,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(cloudtrailArns),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(cloudtrailArns) > 0 {
 				cloudtrailTrails.Arns = awsgo.StringValueSlice(cloudtrailArns)
@@ -1587,11 +1458,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// ECR Repositories
 		ecrRepositories := ECR{}
 		if IsNukeable(ecrRepositories.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing ECR Repos",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			ecrRepositoryArns, err := getAllECRRepositories(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1606,6 +1473,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(ecrRepositoryArns),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(ecrRepositoryArns) > 0 {
 				ecrRepositories.RepositoryNames = ecrRepositoryArns
@@ -1617,11 +1485,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Config Service Rules
 		configServiceRules := ConfigServiceRule{}
 		if IsNukeable(configServiceRules.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Config Service rules",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			configServiceRuleNames, err := getAllConfigRules(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1636,6 +1500,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(configServiceRuleNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(configServiceRuleNames) > 0 {
 				configServiceRules.RuleNames = configServiceRuleNames
@@ -1647,11 +1512,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// Config Service recorders
 		configServiceRecorders := ConfigServiceRecorders{}
 		if IsNukeable(configServiceRecorders.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Config Service rules",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			configServiceRecorderNames, err := getAllConfigRecorders(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1666,6 +1527,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(configServiceRecorderNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(configServiceRecorderNames) > 0 {
 				configServiceRecorders.RecorderNames = configServiceRecorderNames
@@ -1677,11 +1539,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// CloudWatchAlarm
 		cloudwatchAlarms := CloudWatchAlarms{}
 		if IsNukeable(cloudwatchAlarms.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing Cloudwatch Alarms",
-			}, map[string]interface{}{
-				"region": region,
-			})
+			start := time.Now()
 			cwalNames, err := getAllCloudWatchAlarms(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1696,6 +1554,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(cwalNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(cwalNames) > 0 {
 				cloudwatchAlarms.AlarmNames = awsgo.StringValueSlice(cwalNames)
@@ -1728,11 +1587,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// IAM Users
 		iamUsers := IAMUsers{}
 		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing IAM Users",
-			}, map[string]interface{}{
-				"region": "global",
-			})
+			start := time.Now()
 			userNames, err := getAllIamUsers(session, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1747,6 +1602,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      "global",
 				"recordCount": len(userNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(userNames) > 0 {
 				iamUsers.UserNames = awsgo.StringValueSlice(userNames)
@@ -1758,11 +1614,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// IAM Groups
 		iamGroups := IAMGroups{}
 		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing IAM Groups",
-			}, map[string]interface{}{
-				"region": "global",
-			})
+			start := time.Now()
 			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -1772,6 +1624,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      "global",
 				"recordCount": len(groupNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(groupNames) > 0 {
 				iamGroups.GroupNames = awsgo.StringValueSlice(groupNames)
@@ -1783,11 +1636,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// IAM Policies
 		iamPolicies := IAMPolicies{}
 		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing IAM Policies",
-			}, map[string]interface{}{
-				"region": "global",
-			})
+			start := time.Now()
 			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
@@ -1797,6 +1646,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      "global",
 				"recordCount": len(policyArns),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(policyArns) > 0 {
 				iamPolicies.PolicyArns = awsgo.StringValueSlice(policyArns)
@@ -1808,11 +1658,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// IAM OpenID Connect Providers
 		oidcProviders := OIDCProviders{}
 		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing OIDC Providers",
-			}, map[string]interface{}{
-				"region": "global",
-			})
+			start := time.Now()
 			providerARNs, err := getAllOIDCProviders(session, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1828,6 +1674,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      "global",
 				"recordCount": len(providerARNs),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(providerARNs) > 0 {
 				oidcProviders.ProviderARNs = awsgo.StringValueSlice(providerARNs)
@@ -1839,11 +1686,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// IAM Roles
 		iamRoles := IAMRoles{}
 		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing IAM Roles",
-			}, map[string]interface{}{
-				"region": "global",
-			})
+			start := time.Now()
 			roleNames, err := getAllIamRoles(session, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1858,6 +1701,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      "global",
 				"recordCount": len(roleNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(roleNames) > 0 {
 				iamRoles.RoleNames = awsgo.StringValueSlice(roleNames)
@@ -1869,11 +1713,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// IAM Service Linked Roles
 		iamServiceLinkedRoles := IAMServiceLinkedRoles{}
 		if IsNukeable(iamServiceLinkedRoles.ResourceName(), resourceTypes) {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Listing IAM Service Linked Roles",
-			}, map[string]interface{}{
-				"region": "global",
-			})
+			start := time.Now()
 			roleNames, err := getAllIamServiceLinkedRoles(session, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
@@ -1888,6 +1728,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}, map[string]interface{}{
 				"region":      "global",
 				"recordCount": len(roleNames),
+				"time":        time.Since(start).Seconds(),
 			})
 			if len(roleNames) > 0 {
 				iamServiceLinkedRoles.RoleNames = awsgo.StringValueSlice(roleNames)
