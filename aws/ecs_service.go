@@ -133,14 +133,17 @@ func drainEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsS
 				"reason": "Unable to describe",
 			})
 		} else {
+
 			schedulingStrategy := *describeServicesOutput.Services[0].SchedulingStrategy
-			if schedulingStrategy != "DAEMON" {
+			if schedulingStrategy == "DAEMON" {
+				requestedDrains = append(requestedDrains, ecsServiceArn)
+			} else {
 				params := &ecs.UpdateServiceInput{
 					Cluster:      awsgo.String(ecsServiceClusterMap[*ecsServiceArn]),
 					Service:      ecsServiceArn,
 					DesiredCount: awsgo.Int64(0),
 				}
-				_, err := svc.UpdateService(params)
+				_, err = svc.UpdateService(params)
 				if err != nil {
 					logging.Logger.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
 					telemetry.TrackEvent(commonTelemetry.EventContext{
@@ -149,9 +152,9 @@ func drainEcsServices(svc *ecs.ECS, ecsServiceClusterMap map[string]string, ecsS
 						"region": *svc.Config.Region,
 						"reason": "Unable to drain",
 					})
+				} else {
+					requestedDrains = append(requestedDrains, ecsServiceArn)
 				}
-			} else {
-				requestedDrains = append(requestedDrains, ecsServiceArn)
 			}
 		}
 	}
