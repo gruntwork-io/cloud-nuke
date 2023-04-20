@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.13
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/golang/mock v1.6.0
-	github.com/gruntwork-io/go-commons v0.16.1
+	github.com/gruntwork-io/go-commons v0.16.2
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/gruntwork-io/terratest v0.41.0
 	github.com/hashicorp/go-multierror v1.1.1

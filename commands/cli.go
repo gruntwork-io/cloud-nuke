@@ -25,7 +25,7 @@ func CreateCli(version string, mixPanelClientId string) *cli.App {
 	logging.InitLogger("cloud-nuke", version)
 	_, disableTelemetryFlag := os.LookupEnv("DISABLE_TELEMETRY")
 	if !disableTelemetryFlag {
-		logging.Logger.Error("This program sends telemetry to Gruntwork. To disable, set DISABLE_TELEMETRY=true as an environment variable")
+		ui.WarningMessage("This program sends telemetry to Gruntwork. To disable, set DISABLE_TELEMETRY=true as an environment variable")
 	}
 	telemetry.InitTelemetry("cloud-nuke", version, mixPanelClientId)
 	telemetry.TrackEvent(commonTelemetry.EventContext{
