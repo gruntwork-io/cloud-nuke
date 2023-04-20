@@ -90,7 +90,7 @@ func createEcsEC2Cluster(t *testing.T, awsSession *session.Session, name string,
 	}
 	params := &ec2.RunInstancesInput{
 		ImageId:               awsgo.String(imageID),
-		InstanceType:          awsgo.String("t3.micro"),
+		InstanceType:          awsgo.String("t3.small"),
 		MinCount:              awsgo.Int64(1),
 		MaxCount:              awsgo.Int64(1),
 		DisableApiTermination: awsgo.Bool(false),
@@ -117,15 +117,20 @@ func deleteEcsCluster(awsSession *session.Session, cluster ecs.Cluster) error {
 	return nil
 }
 
-func createEcsService(t *testing.T, awsSession *session.Session, serviceName string, cluster ecs.Cluster, launchType string, taskDefinition ecs.TaskDefinition) ecs.Service {
+func createEcsService(t *testing.T, awsSession *session.Session, serviceName string, cluster ecs.Cluster, launchType string, taskDefinition ecs.TaskDefinition, schedulingStrategy string) ecs.Service {
 	svc := ecs.New(awsSession)
 	createServiceParams := &ecs.CreateServiceInput{
 		Cluster:        cluster.ClusterArn,
-		DesiredCount:   awsgo.Int64(1),
 		LaunchType:     awsgo.String(launchType),
 		ServiceName:    awsgo.String(serviceName),
 		TaskDefinition: taskDefinition.TaskDefinitionArn,
 	}
+	if launchType == "EC2" && schedulingStrategy == "DAEMON" {
+		createServiceParams.SetSchedulingStrategy(schedulingStrategy)
+	} else {
+		createServiceParams.SetDesiredCount(1)
+	}
+
 	if launchType == "FARGATE" {
 		vpcConfiguration, err := getVpcConfiguration(awsSession)
 		if err != nil {

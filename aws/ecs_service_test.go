@@ -1,10 +1,11 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -42,7 +43,7 @@ func TestListECSFargateServices(t *testing.T) {
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "FARGATE")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
 
-	service := createEcsService(t, awsSession, serviceName, cluster, "FARGATE", taskDefinition)
+	service := createEcsService(t, awsSession, serviceName, cluster, "FARGATE", taskDefinition, "REPLICA")
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
 	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 
@@ -88,7 +89,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "FARGATE")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
 
-	service := createEcsService(t, awsSession, serviceName, cluster, "FARGATE", taskDefinition)
+	service := createEcsService(t, awsSession, serviceName, cluster, "FARGATE", taskDefinition, "REPLICA")
 
 	ecsServiceClusterMap := map[string]string{}
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
@@ -148,7 +149,7 @@ func TestListECSEC2Services(t *testing.T) {
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
 
-	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition)
+	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition, "REPLICA")
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
 	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 	// END prepare resources
@@ -188,7 +189,9 @@ func TestNukeECSEC2Services(t *testing.T) {
 	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
 	clusterName := uniqueTestID + "-cluster"
 	serviceName := uniqueTestID + "-service"
+	daemonServiceName := uniqueTestID + "-daemon-service"
 	taskFamilyName := uniqueTestID + "-task"
+	taskDaemonFamilyName := uniqueTestID + "-daemon-task"
 	roleName := uniqueTestID + "-role"
 	instanceProfileName := uniqueTestID + "-instance-profile"
 
@@ -214,17 +217,25 @@ func TestNukeECSEC2Services(t *testing.T) {
 	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
 
-	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition)
+	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition, "REPLICA")
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
+
+	taskDaemonDefinition := createEcsTaskDefinition(t, awsSession, taskDaemonFamilyName, "EC2")
+	defer deleteEcsTaskDefinition(awsSession, taskDaemonDefinition)
+
+	daemonService := createEcsService(t, awsSession, daemonServiceName, cluster, "EC2", taskDaemonDefinition, "DAEMON")
+	ecsServiceClusterMap[*daemonService.ServiceArn] = *cluster.ClusterArn
+
 	// END prepare resources
 
-	err = nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
+	err = nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn, daemonService.ServiceArn})
 
 	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
 		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
 	}
 	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
+	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *daemonService.ServiceArn)
 }
 
 // Test the config file filtering works as expected
