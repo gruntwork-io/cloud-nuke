@@ -3,7 +3,6 @@ package telemetry
 import (
 	"github.com/gruntwork-io/go-commons/telemetry"
 	"os"
-	"strings"
 )
 
 var sendTelemetry = true
@@ -18,7 +17,7 @@ func InitTelemetry(name string, version string, clientId string) {
 	clientIdExists := clientId != ""
 	sendTelemetry = !disableTelemetryFlag && clientIdExists
 	if sendTelemetry {
-		cmd = strings.Join(os.Args[1:], " ")
+		cmd = os.Args[1]
 		telemetryClient = telemetry.NewMixPanelTelemetryClient(clientId, name, version)
 	}
 }

@@ -100,6 +100,14 @@ github.com/gruntwork-io/go-commons v0.15.0 h1:fB7T4wO/JWQEGBnpVg4PfrNYnNtqRSUHJg
 github.com/gruntwork-io/go-commons v0.15.0/go.mod h1:AlYVzB6p6d8IYakGPNq/pspRjI7da7FeAIffISO9878=
 github.com/gruntwork-io/go-commons v0.16.1 h1:EhrTKRg5XK/wDL/s99zisjL9+zhTaEcepEkJeyvj3s8=
 github.com/gruntwork-io/go-commons v0.16.1/go.mod h1:/nnLMhO4HpItt43K+8ACM66g67iMy3oo2nnwq59n3wg=
+github.com/gruntwork-io/go-commons v0.16.2-0.20230420155317-508d68dfa335 h1:K2cjf/h6LY/n0bTzvvFOk5m1ftCa0jR2orvX0NoGkmc=
+github.com/gruntwork-io/go-commons v0.16.2-0.20230420155317-508d68dfa335/go.mod h1:/nnLMhO4HpItt43K+8ACM66g67iMy3oo2nnwq59n3wg=
+github.com/gruntwork-io/go-commons v0.16.2-0.20230420160245-9448bca80495 h1:htRD5zber0tFzi5cycXqzejgm63dFmsiAqDVXxa8OX0=
+github.com/gruntwork-io/go-commons v0.16.2-0.20230420160245-9448bca80495/go.mod h1:/nnLMhO4HpItt43K+8ACM66g67iMy3oo2nnwq59n3wg=
+github.com/gruntwork-io/go-commons v0.16.2-0.20230420160823-7d744d15fd40 h1:TriO7slE8LrP3olE8RmR6NDPVkwYegTxQ56J/0iJxGo=
+github.com/gruntwork-io/go-commons v0.16.2-0.20230420160823-7d744d15fd40/go.mod h1:/nnLMhO4HpItt43K+8ACM66g67iMy3oo2nnwq59n3wg=
+github.com/gruntwork-io/go-commons v0.16.2 h1:EmkS8344ggtQopFq6YJ5Nh3ohBF03AB7cxrgDiJ7C3Q=
+github.com/gruntwork-io/go-commons v0.16.2/go.mod h1:/nnLMhO4HpItt43K+8ACM66g67iMy3oo2nnwq59n3wg=
 github.com/gruntwork-io/gruntwork-cli v0.7.0 h1:YgSAmfCj9c61H+zuvHwKfYUwlMhu5arnQQLM4RH+CYs=
 github.com/gruntwork-io/gruntwork-cli v0.7.0/go.mod h1:jp6Z7NcLF2avpY8v71fBx6hds9eOFPELSuD/VPv7w00=
 github.com/gruntwork-io/terratest v0.41.0 h1:QKFK6m0EMVnrV7lw2L06TlG+Ha3t0CcOXuBVywpeNRU=
