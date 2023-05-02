@@ -1181,6 +1181,38 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Elasticaches
 
+		//Elasticache Parameter Groups
+		elasticacheParameterGroups := ElasticacheParameterGroups{}
+		if IsNukeable(elasticacheParameterGroups.ResourceName(), resourceTypes) {
+			start := time.Now()
+			groupNames, err := getAllElasticacheParameterGroups(cloudNukeSession, region, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Elasticache Parameter Groups",
+					ResourceType: elasticacheParameterGroups.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing Elasticache Parameter Groups",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(groupNames),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(groupNames) > 0 {
+				elasticacheParameterGroups.GroupNames = awsgo.StringValueSlice(groupNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheParameterGroups)
+			}
+		}
+		//End Elasticache Parameter Groups
+
+		//Elasticache Subnet Groups
+
+		//End Elasticache Subnet Groups
+
 		// KMS Customer managed keys
 		customerKeys := KmsCustomerKeys{}
 		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
@@ -1782,6 +1814,7 @@ func ListResourceTypes() []string {
 		DynamoDB{}.ResourceName(),
 		EC2VPCs{}.ResourceName(),
 		Elasticaches{}.ResourceName(),
+		ElasticacheParameterGroups{}.ResourceName(),
 		OIDCProviders{}.ResourceName(),
 		KmsCustomerKeys{}.ResourceName(),
 		CloudWatchLogGroups{}.ResourceName(),

@@ -156,3 +156,48 @@ func TestNukeElasticacheClusters(t *testing.T) {
 
 	assert.NotContains(t, awsgo.StringValueSlice(clusterIds), clusterId)
 }
+
+func createParameterGroup(t *testing.T, session *session.Session) string {
+	svc := elasticache.New(session)
+	name := "test-" + strings.ToLower(util.UniqueID())
+	input := elasticache.CreateCacheParameterGroupInput{
+		CacheParameterGroupName:   awsgo.String(name),
+		CacheParameterGroupFamily: awsgo.String("redis7"),
+		Description:               awsgo.String("A test parameter group"),
+	}
+	_, err := svc.CreateCacheParameterGroup(&input)
+	require.NoError(t, err)
+	return name
+}
+
+func deleteParameterGroup(session *session.Session, groupName string) {
+	svc := elasticache.New(session)
+	svc.DeleteCacheParameterGroup(&elasticache.DeleteCacheParameterGroupInput{
+		CacheParameterGroupName: awsgo.String(groupName),
+	})
+}
+
+func TestNukeElasticacheParameterGroups(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "", "")
+	t.Parallel()
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+	session, err := session.NewSession(&awsgo.Config{
+		Region: awsgo.String(region),
+	})
+	require.NoError(t, err)
+	//create parameter group
+	paramGroup := createParameterGroup(t, session)
+	defer deleteParameterGroup(session, paramGroup)
+	//list parameter groups
+	groups, err := getAllElasticacheParameterGroups(session, region, time.Now(), config.Config{})
+	require.NoError(t, err)
+	//Ensure our group exists
+	assert.Contains(t, awsgo.StringValueSlice(groups), paramGroup)
+	//nuke parameter groups
+	nukeAllElasticacheParameterGroups(session, awsgo.StringSlice([]string{paramGroup}))
+	//check the group no longer exists
+	groups, err = getAllElasticacheParameterGroups(session, region, time.Now(), config.Config{})
+	require.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(groups), paramGroup)
+}
