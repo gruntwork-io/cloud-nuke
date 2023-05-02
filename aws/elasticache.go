@@ -313,3 +313,65 @@ func nukeAllElasticacheParameterGroups(session *session.Session, paramGroupNames
 /*
 Elasticache Subnet Groups
 */
+func getAllElasticacheSubnetGroups(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+	svc := elasticache.New(session)
+	var subnetGroupNames []*string
+	err := svc.DescribeCacheSubnetGroupsPages(
+		&elasticache.DescribeCacheSubnetGroupsInput{},
+		func(page *elasticache.DescribeCacheSubnetGroupsOutput, lastPage bool) bool {
+			for _, subnetGroup := range page.CacheSubnetGroups {
+				if shouldIncludeElasticacheSubnetGroup(subnetGroup, configObj) {
+					subnetGroupNames = append(subnetGroupNames, subnetGroup.CacheSubnetGroupName)
+				}
+			}
+			return !lastPage
+		},
+	)
+
+	return subnetGroupNames, errors.WithStackTrace(err)
+}
+
+func shouldIncludeElasticacheSubnetGroup(subnetGroup *elasticache.CacheSubnetGroup, configObj config.Config) bool {
+	if subnetGroup == nil {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(subnetGroup.CacheSubnetGroupName),
+		configObj.Elasticache.IncludeRule.NamesRegExp,
+		configObj.Elasticache.ExcludeRule.NamesRegExp,
+	)
+}
+
+func nukeAllElasticacheSubnetGroups(session *session.Session, subnetGroupNames []*string) error {
+	svc := elasticache.New(session)
+	if len(subnetGroupNames) == 0 {
+		logging.Logger.Debugf("No Elasticache subnet groups to nuke in region %s", *session.Config.Region)
+		return nil
+	}
+	var deletedGroupNames []*string
+	for _, sgName := range subnetGroupNames {
+		_, err := svc.DeleteCacheSubnetGroup(&elasticache.DeleteCacheSubnetGroupInput{CacheSubnetGroupName: sgName})
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(sgName),
+			ResourceType: "Elasticache Subnet Group",
+			Error:        err,
+		}
+		report.Record(e)
+		if err != nil {
+			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Elasticache Subnet Group",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
+		} else {
+			deletedGroupNames = append(deletedGroupNames, sgName)
+			logging.Logger.Debugf("Deleted Elasticache subnet group: %s", aws.StringValue(sgName))
+		}
+	}
+	logging.Logger.Debugf("[OK] %d Elasticache subnet groups deleted in %s", len(deletedGroupNames), *session.Config.Region)
+	return nil
+}

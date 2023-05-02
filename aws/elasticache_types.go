@@ -70,8 +70,13 @@ func (pg ElasticacheParameterGroups) Nuke(session *session.Session, identifiers 
 /*
 Elasticache Subnet Groups
 */
+
 type ElasticacheSubnetGroups struct {
 	GroupNames []string
+}
+
+func (sg ElasticacheSubnetGroups) ResourceName() string {
+	return "elasticacheSubnetGroups"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
@@ -86,9 +91,9 @@ func (sg ElasticacheSubnetGroups) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (sg ElasticacheSubnetGroups) Nuke(session *session.Session, identifiers []string) error {
-	//if err := nukeAllElasticacheClusters(session, awsgo.StringSlice(identifiers)); err != nil {
-	//	return errors.WithStackTrace(err)
-	//}
-	//
+	if err := nukeAllElasticacheSubnetGroups(session, awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	return nil
 }

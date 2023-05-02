@@ -1210,7 +1210,31 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		//End Elasticache Parameter Groups
 
 		//Elasticache Subnet Groups
+		elasticacheSubnetGroups := ElasticacheSubnetGroups{}
+		if IsNukeable(elasticacheSubnetGroups.ResourceName(), resourceTypes) {
+			start := time.Now()
+			groupNames, err := getAllElasticacheSubnetGroups(cloudNukeSession, region, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve Elasticache Subnet Groups",
+					ResourceType: elasticacheSubnetGroups.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
 
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing Elasticache Subnet Groups",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(groupNames),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(groupNames) > 0 {
+				elasticacheSubnetGroups.GroupNames = awsgo.StringValueSlice(groupNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheSubnetGroups)
+			}
+		}
 		//End Elasticache Subnet Groups
 
 		// KMS Customer managed keys
@@ -1815,6 +1839,7 @@ func ListResourceTypes() []string {
 		EC2VPCs{}.ResourceName(),
 		Elasticaches{}.ResourceName(),
 		ElasticacheParameterGroups{}.ResourceName(),
+		ElasticacheSubnetGroups{}.ResourceName(),
 		OIDCProviders{}.ResourceName(),
 		KmsCustomerKeys{}.ResourceName(),
 		CloudWatchLogGroups{}.ResourceName(),

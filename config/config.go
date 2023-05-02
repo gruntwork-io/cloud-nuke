@@ -29,6 +29,7 @@ type Config struct {
 	ECSCluster                 ResourceType `yaml:"ECSCluster"`
 	Elasticache                ResourceType `yaml:"Elasticache"`
 	ElasticacheParameterGroups ResourceType `yaml:"ElasticacheParameterGroups"`
+	ElasticacheSubnetGroups    ResourceType `yaml:"ElasticacheSubnetGroups"`
 	VPC                        ResourceType `yaml:"VPC"`
 	OIDCProvider               ResourceType `yaml:"OIDCProvider"`
 	AutoScalingGroup           ResourceType `yaml:"AutoScalingGroup"`

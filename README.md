@@ -36,57 +36,59 @@ The currently supported functionality includes:
 
 Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS resources:
 
-| Resource Family | Resource type 
-| --------------- | ---------- 
-| EC2 | Auto scaling groups |
-| EC2 | Elastic Load Balancers (v1 and v2) |
-| EC2 | EBS Volumes | 
-| EC2 | Unprotected EC2 instances |
-| EC2 | AMIS | 
-| EC2 | Snapshots |
-| EC2 | Elastic IPs |
-| EC2 | Launch Configurations |
-| Certificate Manager | ACM Private CA |
-| Direct Connect | Transit Gateways |
-| Elasticache | Clusters |
-| ECS | Services | 
-| ECS | Clusters | 
-| EKS | Clusters | 
-| RDS | RDS databases | 
-| RDS | Neptune |
-| RDS | Document DB instances | 
-| DynamoDB | Tables | 
-| Lambda | Functions | 
-| SQS | Queues | 
-| S3 | Buckets |
-| VPC | Default VPCs | 
+| Resource Family | Resource type                                            
+| --------------- |----------------------------------------------------------
+| EC2 | Auto scaling groups                                      |
+| EC2 | Elastic Load Balancers (v1 and v2)                       |
+| EC2 | EBS Volumes                                              | 
+| EC2 | Unprotected EC2 instances                                |
+| EC2 | AMIS                                                     | 
+| EC2 | Snapshots                                                |
+| EC2 | Elastic IPs                                              |
+| EC2 | Launch Configurations                                    |
+| Certificate Manager | ACM Private CA                                           |
+| Direct Connect | Transit Gateways                                         |
+| Elasticache | Clusters                                                 |
+| Elasticache | Parameter Groups                                         |
+| Elasticache | Subnet Groups                                            |
+| ECS | Services                                                 | 
+| ECS | Clusters                                                 | 
+| EKS | Clusters                                                 | 
+| RDS | RDS databases                                            | 
+| RDS | Neptune                                                  |
+| RDS | Document DB instances                                    | 
+| DynamoDB | Tables                                                   | 
+| Lambda | Functions                                                | 
+| SQS | Queues                                                   | 
+| S3 | Buckets                                                  |
+| VPC | Default VPCs                                             | 
 | VPC | Default rules in the un-deletable default security group | 
-| VPC | NAT Gateways | 
-| IAM | Users | 
-| IAM | Roles (and any associated EC2 instance profiles)|
-| IAM | Service-linked-roles | 
-| IAM | Groups | 
-| IAM | Policies | 
-| IAM | Customer-managed policies | 
-| IAM | Access analyzers | 
-| IAM | OpenID Connect providers |
-| Secrets Manager | Secrets | 
-| CloudWatch | Dashboard |
-| CloudWatch | Log groups | 
-| CloudWatch | Alarms | 
-| OpenSearch | Domains |
-| KMS | Custgomer managed keys (and associated key aliases) | 
-| GuardDuty | Detectors | 
-| Macie | Member accounts | 
-| SageMaker | Notebook instances | 
-| Kinesis | Streams | 
-| API Gateway | Gateways (v1 and v2) | 
-| EFS |  File systems | 
-| SNS | Topics | 
-| CloudTrail | Trails | 
-| ECR | Repositories | 
-| Config | Service recorders | 
-| Config | Service rules | 
+| VPC | NAT Gateways                                             | 
+| IAM | Users                                                    | 
+| IAM | Roles (and any associated EC2 instance profiles)         |
+| IAM | Service-linked-roles                                     | 
+| IAM | Groups                                                   | 
+| IAM | Policies                                                 | 
+| IAM | Customer-managed policies                                | 
+| IAM | Access analyzers                                         | 
+| IAM | OpenID Connect providers                                 |
+| Secrets Manager | Secrets                                                  | 
+| CloudWatch | Dashboard                                                |
+| CloudWatch | Log groups                                               | 
+| CloudWatch | Alarms                                                   | 
+| OpenSearch | Domains                                                  |
+| KMS | Custgomer managed keys (and associated key aliases)      | 
+| GuardDuty | Detectors                                                | 
+| Macie | Member accounts                                          | 
+| SageMaker | Notebook instances                                       | 
+| Kinesis | Streams                                                  | 
+| API Gateway | Gateways (v1 and v2)                                     | 
+| EFS | File systems                                             | 
+| SNS | Topics                                                   | 
+| CloudTrail | Trails                                                   | 
+| ECR | Repositories                                             | 
+| Config | Service recorders                                        | 
+| Config | Service rules                                            | 
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
 
@@ -391,6 +393,12 @@ The following resources support the Config file:
 - Elasticache
     - Resource type: `elasticache`
     - Config key: `Elasticache`
+- Elasticache Parameter Groups
+  - Resource type: `elasticacheParameterGroup`
+  - Config key: `ElasticacheParameterGroup`
+- Elasticache Subnet Group
+  - Resource type: `elasticacheSubnetGroup`
+  - Config key: `ElasticacheSubnetGroup`
 - VPCs
     - Resource type: `vpc`
     - Config key: `VPC`
@@ -557,6 +565,8 @@ To find out what we options are supported in the config file today, consult this
 | elbv2                         | none  | ✅           | none | none       |
 | ecs                           | none  | ✅           | none | none       |
 | elasticache                   | none  | ✅           | none | none       |
+| elasticache parameter group   | none  | ✅           | none | none       |
+| elasticache subnet group      | none  | ✅           | none | none       |
 | vpc                           | none  | ✅           | none | none       |
 | oidcprovider                  | none  | ✅           | none | none       |
 | cloudwatch-loggroup           | none  | ✅           | none | none       |
