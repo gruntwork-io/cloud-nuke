@@ -456,6 +456,9 @@ The following resources support the Config file:
 - CloudWatch Alarms
     - Resource type: `cloudwatch-alarm`
     - Config key: `CloudWatchAlarm`
+- Redshift
+  - Resource type: `redshift`
+  - Config key: `Redshift`
 
 
 
@@ -591,6 +594,7 @@ To find out what we options are supported in the config file today, consult this
 | config-recorders              | none  | ✅           | none | none       |
 | config-rules                  | none  | ✅           | none | none       |
 | cloudwatch-alarm              | none  | ✅           | none | none       |
+| redshift                      | none  | ✅           | none | none       |
 | ... (more to come)            | none  | none         | none | none       |
 
 
