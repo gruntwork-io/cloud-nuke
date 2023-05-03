@@ -54,7 +54,7 @@ func getAllSecurityHubMembers(svc *securityhub.SecurityHub) ([]*string, error) {
 			hubMemberAccountIds = append(hubMemberAccountIds, member.AccountId)
 		}
 	}
-	logging.Logger.Debugf("Found %s member accounts attached to security hub", len(hubMemberAccountIds))
+	logging.Logger.Debugf("Found %d member accounts attached to security hub", len(hubMemberAccountIds))
 	return hubMemberAccountIds, nil
 }
 
@@ -72,7 +72,7 @@ func removeMembersFromHub(svc *securityhub.SecurityHub, accountIds []*string) {
 		})
 		return
 	}
-	logging.Logger.Debugf("%s member accounts disassociated", len(accountIds))
+	logging.Logger.Debugf("%d member accounts disassociated", len(accountIds))
 
 	// Once disassociated, member accounts can be deleted
 	_, err = svc.DeleteMembers(&securityhub.DeleteMembersInput{AccountIds: accountIds})
@@ -86,7 +86,7 @@ func removeMembersFromHub(svc *securityhub.SecurityHub, accountIds []*string) {
 		})
 		return
 	}
-	logging.Logger.Debugf("%s member accounts deleted", len(accountIds))
+	logging.Logger.Debugf("%d member accounts deleted", len(accountIds))
 }
 
 func disassociateAdministratorAccount(svc *securityhub.SecurityHub) {
