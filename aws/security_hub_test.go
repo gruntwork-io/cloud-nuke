@@ -3,6 +3,7 @@ package aws
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -50,12 +51,12 @@ func TestSecurityHub(t *testing.T) {
 		logging.Logger.Infof("Security Hub already enabled")
 	}
 
-	hubArns, err := getAllSecurityHubArns(session)
+	hubArns, err := getAllSecurityHubArns(session, time.Now())
 	require.NoError(t, err)
 
 	nukeSecurityHub(session, hubArns)
 
-	hubArns, err = getAllSecurityHubArns(session)
+	hubArns, err = getAllSecurityHubArns(session, time.Now())
 	require.NoError(t, err)
 	assert.Empty(t, hubArns)
 }
