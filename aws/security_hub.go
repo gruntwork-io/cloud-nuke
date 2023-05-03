@@ -2,6 +2,7 @@ package aws
 
 import (
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -14,7 +15,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllSecurityHubArns(session *session.Session) ([]string, error) {
+func getAllSecurityHubArns(session *session.Session, excludeAfter time.Time) ([]string, error) {
 	svc := securityhub.New(session)
 	var securityHubArns []string
 
@@ -30,13 +31,25 @@ func getAllSecurityHubArns(session *session.Session) ([]string, error) {
 		return nil, errors.WithStackTrace(err)
 	}
 
-	securityHubArns = append(securityHubArns, *output.HubArn)
+	if shouldIncludeHub(output, excludeAfter) {
+		securityHubArns = append(securityHubArns, *output.HubArn)
+	}
 
 	return securityHubArns, nil
 }
 
+func shouldIncludeHub(hub *securityhub.DescribeHubOutput, excludeAfter time.Time) bool {
+	subscribedAt, _ := time.Parse(time.RFC3339, *hub.SubscribedAt)
+	if excludeAfter.Before(subscribedAt) {
+		return false
+	}
+	return true
+}
+
 func getAllSecurityHubMembers(svc *securityhub.SecurityHub) ([]*string, error) {
 	var hubMemberAccountIds []*string
+
+	// OnlyAssociated=false input parameter includes "pending" invite members
 	members, err := svc.ListMembers(&securityhub.ListMembersInput{OnlyAssociated: aws.Bool(false)})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

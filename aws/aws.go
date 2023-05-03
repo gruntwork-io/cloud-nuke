@@ -1650,7 +1650,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		securityHub := SecurityHub{}
 		if IsNukeable(securityHub.ResourceName(), resourceTypes) {
 			start := time.Now()
-			hubArns, err := getAllSecurityHubArns(cloudNukeSession)
+			hubArns, err := getAllSecurityHubArns(cloudNukeSession, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
