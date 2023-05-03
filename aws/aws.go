@@ -1376,6 +1376,33 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Kinesis Streams
 
+		// Redshift Clusters
+		redshiftClusters := RedshiftClusters{}
+		if IsNukeable(redshiftClusters.ResourceName(), resourceTypes) {
+			start := time.Now()
+			clusters, err := getAllRedshiftClusters(cloudNukeSession, region, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve redshift clusters",
+					ResourceType: redshiftClusters.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing Redshift Clusters",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(clusters),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(clusters) > 0 {
+				redshiftClusters.ClusterIdentifiers = awsgo.StringValueSlice(clusters)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, redshiftClusters)
+			}
+		}
+		// End Redshift Clusters
+
 		// API Gateways (v1)
 		apiGateways := ApiGateway{}
 		if IsNukeable(apiGateways.ResourceName(), resourceTypes) {
@@ -1847,6 +1874,7 @@ func ListResourceTypes() []string {
 		MacieMember{}.ResourceName(),
 		SageMakerNotebookInstances{}.ResourceName(),
 		KinesisStreams{}.ResourceName(),
+		RedshiftClusters{}.ResourceName(),
 		ApiGateway{}.ResourceName(),
 		ApiGatewayV2{}.ResourceName(),
 		ElasticFileSystem{}.ResourceName(),
