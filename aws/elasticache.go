@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -236,4 +237,141 @@ type CouldNotLookupCacheClusterErr struct {
 
 func (err CouldNotLookupCacheClusterErr) Error() string {
 	return fmt.Sprintf("Failed to lookup clusterId: %s", aws.StringValue(err.ClusterId))
+}
+
+/*
+Elasticache Parameter Groups
+*/
+
+func getAllElasticacheParameterGroups(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+	svc := elasticache.New(session)
+	var paramGroupNames []*string
+	err := svc.DescribeCacheParameterGroupsPages(
+		&elasticache.DescribeCacheParameterGroupsInput{},
+		func(page *elasticache.DescribeCacheParameterGroupsOutput, lastPage bool) bool {
+			for _, paramGroup := range page.CacheParameterGroups {
+				if shouldIncludeElasticacheParameterGroup(paramGroup, configObj) {
+					paramGroupNames = append(paramGroupNames, paramGroup.CacheParameterGroupName)
+				}
+			}
+			return !lastPage
+		},
+	)
+
+	return paramGroupNames, errors.WithStackTrace(err)
+}
+
+func shouldIncludeElasticacheParameterGroup(paramGroup *elasticache.CacheParameterGroup, configObj config.Config) bool {
+	if paramGroup == nil {
+		return false
+	}
+	//Exclude AWS managed resources. user defined resources are unable to begin with "default."
+	if strings.HasPrefix(aws.StringValue(paramGroup.CacheParameterGroupName), "default.") {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(paramGroup.CacheParameterGroupName),
+                configObj.ElasticacheParameterGroup.IncludeRule.NamesRegExp,
+		configObj.ElasticacheParameterGroup.ExcludeRule.NamesRegExp,
+	)
+}
+
+func nukeAllElasticacheParameterGroups(session *session.Session, paramGroupNames []*string) error {
+	svc := elasticache.New(session)
+	if len(paramGroupNames) == 0 {
+		logging.Logger.Debugf("No Elasticache parameter groups to nuke in region %s", *session.Config.Region)
+		return nil
+	}
+	var deletedGroupNames []*string
+	for _, pgName := range paramGroupNames {
+		_, err := svc.DeleteCacheParameterGroup(&elasticache.DeleteCacheParameterGroupInput{CacheParameterGroupName: pgName})
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(pgName),
+			ResourceType: "Elasticache Parameter Group",
+			Error:        err,
+		}
+		report.Record(e)
+		if err != nil {
+			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Elasticache Parameter Group",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
+		} else {
+			deletedGroupNames = append(deletedGroupNames, pgName)
+			logging.Logger.Debugf("Deleted Elasticache parameter group: %s", aws.StringValue(pgName))
+		}
+	}
+	logging.Logger.Debugf("[OK] %d Elasticache parameter groups deleted in %s", len(deletedGroupNames), *session.Config.Region)
+	return nil
+}
+
+/*
+Elasticache Subnet Groups
+*/
+func getAllElasticacheSubnetGroups(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+	svc := elasticache.New(session)
+	var subnetGroupNames []*string
+	err := svc.DescribeCacheSubnetGroupsPages(
+		&elasticache.DescribeCacheSubnetGroupsInput{},
+		func(page *elasticache.DescribeCacheSubnetGroupsOutput, lastPage bool) bool {
+			for _, subnetGroup := range page.CacheSubnetGroups {
+				if shouldIncludeElasticacheSubnetGroup(subnetGroup, configObj) {
+					subnetGroupNames = append(subnetGroupNames, subnetGroup.CacheSubnetGroupName)
+				}
+			}
+			return !lastPage
+		},
+	)
+
+	return subnetGroupNames, errors.WithStackTrace(err)
+}
+
+func shouldIncludeElasticacheSubnetGroup(subnetGroup *elasticache.CacheSubnetGroup, configObj config.Config) bool {
+	if subnetGroup == nil {
+		return false
+	}
+
+	return config.ShouldInclude(
+		aws.StringValue(subnetGroup.CacheSubnetGroupName),
+		configObj.ElasticacheSubnetGroup.IncludeRule.NamesRegExp,
+		configObj.ElasticacheSubnetGroup.ExcludeRule.NamesRegExp,
+	)
+}
+
+func nukeAllElasticacheSubnetGroups(session *session.Session, subnetGroupNames []*string) error {
+	svc := elasticache.New(session)
+	if len(subnetGroupNames) == 0 {
+		logging.Logger.Debugf("No Elasticache subnet groups to nuke in region %s", *session.Config.Region)
+		return nil
+	}
+	var deletedGroupNames []*string
+	for _, sgName := range subnetGroupNames {
+		_, err := svc.DeleteCacheSubnetGroup(&elasticache.DeleteCacheSubnetGroupInput{CacheSubnetGroupName: sgName})
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(sgName),
+			ResourceType: "Elasticache Subnet Group",
+			Error:        err,
+		}
+		report.Record(e)
+		if err != nil {
+			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Elasticache Subnet Group",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
+		} else {
+			deletedGroupNames = append(deletedGroupNames, sgName)
+			logging.Logger.Debugf("Deleted Elasticache subnet group: %s", aws.StringValue(sgName))
+		}
+	}
+	logging.Logger.Debugf("[OK] %d Elasticache subnet groups deleted in %s", len(deletedGroupNames), *session.Config.Region)
+	return nil
 }
