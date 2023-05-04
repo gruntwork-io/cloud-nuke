@@ -1654,7 +1654,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to check if Security Hub is enabled",
+					Description:  "Unable to retrieve security hub status",
 					ResourceType: securityHub.ResourceName(),
 				}
 				report.RecordError(ge)
