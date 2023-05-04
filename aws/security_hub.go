@@ -139,6 +139,11 @@ func disassociateAdministratorAccount(svc *securityhub.SecurityHub) {
 func nukeSecurityHub(session *session.Session, securityHubArns []string) error {
 	svc := securityhub.New(session)
 
+	if len(securityHubArns) == 0 {
+		logging.Logger.Debugf("No security hub resources to nuke in region %s", *session.Config.Region)
+		return nil
+	}
+
 	// Check for and remove any member accounts in security hub
 	// Security Hub cannot be disabled with active member accounts
 	memberAccountIds, err := getAllSecurityHubMembers(svc)
