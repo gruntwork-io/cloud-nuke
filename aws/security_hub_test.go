@@ -54,6 +54,7 @@ func TestSecurityHub(t *testing.T) {
 	hubArns, err := getAllSecurityHubArns(session, time.Now())
 	require.NoError(t, err)
 
+	logging.Logger.Infof("Nuking security hub")
 	nukeSecurityHub(session, hubArns)
 
 	hubArns, err = getAllSecurityHubArns(session, time.Now())
