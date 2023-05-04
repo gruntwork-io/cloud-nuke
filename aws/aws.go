@@ -1660,7 +1660,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Checking if Security Hub is enabled",
+				EventName: "Done Listing Security Hub",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(hubArns),

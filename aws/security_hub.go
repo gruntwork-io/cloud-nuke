@@ -39,7 +39,11 @@ func getAllSecurityHubArns(session *session.Session, excludeAfter time.Time) ([]
 }
 
 func shouldIncludeHub(hub *securityhub.DescribeHubOutput, excludeAfter time.Time) bool {
-	subscribedAt, _ := time.Parse(time.RFC3339, *hub.SubscribedAt)
+	subscribedAt, err := time.Parse(time.RFC3339, *hub.SubscribedAt)
+	if err != nil {
+		logging.Logger.Debugf("Could not parse last modified timestamp (%s) of security hub. Excluding from delete.", *hub.SubscribedAt)
+		return false
+	}
 	if excludeAfter.Before(subscribedAt) {
 		return false
 	}
