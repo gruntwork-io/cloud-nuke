@@ -75,65 +75,46 @@ func getAllSecurityHubMembers(svc *securityhub.SecurityHub) ([]*string, error) {
 	return hubMemberAccountIds, nil
 }
 
-func removeMembersFromHub(svc *securityhub.SecurityHub, accountIds []*string) {
+func removeMembersFromHub(svc *securityhub.SecurityHub, accountIds []*string) error {
 
 	// Member accounts must first be disassociated
 	_, err := svc.DisassociateMembers(&securityhub.DisassociateMembersInput{AccountIds: accountIds})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] Failed to disassociate members from security hub")
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error disassociating members from security hub",
-		}, map[string]interface{}{
-			"region": *svc.Config.Region,
-			"reason": "Unable to disassociate",
-		})
-		return
+		return err
 	}
 	logging.Logger.Debugf("%d member accounts disassociated", len(accountIds))
 
 	// Once disassociated, member accounts can be deleted
 	_, err = svc.DeleteMembers(&securityhub.DeleteMembersInput{AccountIds: accountIds})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] Failed to delete members from security hub")
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error deleting members from security hub",
-		}, map[string]interface{}{
-			"region": *svc.Config.Region,
-			"reason": "Unable to delete",
-		})
-		return
+		return err
 	}
 	logging.Logger.Debugf("%d member accounts deleted", len(accountIds))
+
+	return nil
 }
 
-func disassociateAdministratorAccount(svc *securityhub.SecurityHub) {
-
+func checkForAdministratorAccount(svc *securityhub.SecurityHub) (bool, error) {
 	// Check for an associated admin account as it must be disassociated before disabling security hub
 	adminAccount, err := svc.GetAdministratorAccount(&securityhub.GetAdministratorAccountInput{})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] Failed to check for administrator account")
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error checking for administrator account in security hub",
-		}, map[string]interface{}{
-			"region": *svc.Config.Region,
-			"reason": "Unable to find admin account",
-		})
+		return false, err
 	}
-	// Disassociate if one exists
+
 	if adminAccount.Administrator != nil {
-		_, err := svc.DisassociateFromAdministratorAccount(&securityhub.DisassociateFromAdministratorAccountInput{})
-		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to disassociate from administrator account")
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error disassociating administrator account in security hub",
-			}, map[string]interface{}{
-				"region": *svc.Config.Region,
-				"reason": "Unable to disassociate admin account",
-			})
-		} else {
-			logging.Logger.Debugf("Successfully disassociated from administrator account")
-		}
+		return true, nil
 	}
+	return false, nil
+}
+
+func disassociateAdministratorAccount(svc *securityhub.SecurityHub) error {
+
+	_, err := svc.DisassociateFromAdministratorAccount(&securityhub.DisassociateFromAdministratorAccountInput{})
+	if err != nil {
+		return err
+	}
+	logging.Logger.Debugf("Successfully disassociated from administrator account")
+	return nil
 }
 
 func nukeSecurityHub(session *session.Session, securityHubArns []string) error {
@@ -144,7 +125,7 @@ func nukeSecurityHub(session *session.Session, securityHubArns []string) error {
 		return nil
 	}
 
-	// Check for and remove any member accounts in security hub
+	// Check for any member accounts in security hub
 	// Security Hub cannot be disabled with active member accounts
 	memberAccountIds, err := getAllSecurityHubMembers(svc)
 	if err != nil {
@@ -155,13 +136,47 @@ func nukeSecurityHub(session *session.Session, securityHubArns []string) error {
 			"reason": "Error finding security hub member accounts",
 		})
 	}
+
+	// Remove any member accounts if they exist
 	if err == nil && len(memberAccountIds) > 0 {
-		removeMembersFromHub(svc, memberAccountIds)
+		err = removeMembersFromHub(svc, memberAccountIds)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed to disassociate members from security hub")
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error disassociating members from security hub",
+			}, map[string]interface{}{
+				"region": *svc.Config.Region,
+				"reason": "Unable to disassociate",
+			})
+		}
 	}
 
-	// Disassociate account from any administrator accounts
-	// Security hub cannot be disable with an active administrator account
-	disassociateAdministratorAccount(svc)
+	// Check for an administrator account
+	// Security hub cannot be disabled with an active administrator account
+	hasAdministratorAccount, err := checkForAdministratorAccount(svc)
+	if err != nil {
+		logging.Logger.Errorf("[Failed] Failed to check for administrator account")
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error checking for administrator account in security hub",
+		}, map[string]interface{}{
+			"region": *svc.Config.Region,
+			"reason": "Unable to find admin account",
+		})
+	}
+
+	// Disassociate administrator account if it exists
+	if hasAdministratorAccount {
+		err = disassociateAdministratorAccount(svc)
+		if err != nil {
+			logging.Logger.Errorf("[Failed] Failed to disassociate from administrator account")
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error disassociating administrator account in security hub",
+			}, map[string]interface{}{
+				"region": *svc.Config.Region,
+				"reason": "Unable to disassociate admin account",
+			})
+		}
+	}
 
 	// Disable security hub
 	_, err = svc.DisableSecurityHub(&securityhub.DisableSecurityHubInput{})
