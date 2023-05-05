@@ -94,29 +94,6 @@ func removeMembersFromHub(svc *securityhub.SecurityHub, accountIds []*string) er
 	return nil
 }
 
-func checkForAdministratorAccount(svc *securityhub.SecurityHub) (bool, error) {
-	// Check for an associated admin account as it must be disassociated before disabling security hub
-	adminAccount, err := svc.GetAdministratorAccount(&securityhub.GetAdministratorAccountInput{})
-	if err != nil {
-		return false, err
-	}
-
-	if adminAccount.Administrator != nil {
-		return true, nil
-	}
-	return false, nil
-}
-
-func disassociateAdministratorAccount(svc *securityhub.SecurityHub) error {
-
-	_, err := svc.DisassociateFromAdministratorAccount(&securityhub.DisassociateFromAdministratorAccountInput{})
-	if err != nil {
-		return err
-	}
-	logging.Logger.Debugf("Successfully disassociated from administrator account")
-	return nil
-}
-
 func nukeSecurityHub(session *session.Session, securityHubArns []string) error {
 	svc := securityhub.New(session)
 
@@ -153,7 +130,7 @@ func nukeSecurityHub(session *session.Session, securityHubArns []string) error {
 
 	// Check for an administrator account
 	// Security hub cannot be disabled with an active administrator account
-	hasAdministratorAccount, err := checkForAdministratorAccount(svc)
+	adminAccount, err := svc.GetAdministratorAccount(&securityhub.GetAdministratorAccountInput{})
 	if err != nil {
 		logging.Logger.Errorf("[Failed] Failed to check for administrator account")
 		telemetry.TrackEvent(commonTelemetry.EventContext{
@@ -165,8 +142,8 @@ func nukeSecurityHub(session *session.Session, securityHubArns []string) error {
 	}
 
 	// Disassociate administrator account if it exists
-	if hasAdministratorAccount {
-		err = disassociateAdministratorAccount(svc)
+	if adminAccount.Administrator != nil {
+		_, err := svc.DisassociateFromAdministratorAccount(&securityhub.DisassociateFromAdministratorAccountInput{})
 		if err != nil {
 			logging.Logger.Errorf("[Failed] Failed to disassociate from administrator account")
 			telemetry.TrackEvent(commonTelemetry.EventContext{
