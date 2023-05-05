@@ -27,8 +27,6 @@ func TestMacie(t *testing.T) {
 	require.NoError(t, err)
 	logging.Logger.Infof("Region: %s", region)
 
-	region = "us-east-1"
-
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 

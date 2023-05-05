@@ -164,10 +164,10 @@ func nukeMacie(session *session.Session, identifier []string) error {
 	if err != nil {
 		logging.Logger.Errorf("[Failed] Failed to disable macie.")
 		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error disabling macie",
+			EventName: "Error Nuking MACIE",
 		}, map[string]interface{}{
 			"region": *svc.Config.Region,
-			"reason": "Error disabling macie",
+			"reason": "Error Nuking MACIE",
 		})
 		e := report.Entry{
 			Identifier:   aws.StringValue(&identifier[0]),
@@ -176,9 +176,9 @@ func nukeMacie(session *session.Session, identifier []string) error {
 		}
 		report.Record(e)
 	} else {
-		logging.Logger.Debugf("[OK] Macie %s disabled", identifier[0])
+		logging.Logger.Debugf("[OK] Macie disabled in %s", *svc.Config.Region)
 		e := report.Entry{
-			Identifier:   aws.StringValue(&identifier[0]),
+			Identifier:   *svc.Config.Region,
 			ResourceType: "Macie",
 		}
 		report.Record(e)
