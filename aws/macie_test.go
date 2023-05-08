@@ -53,7 +53,7 @@ func TestMacie(t *testing.T) {
 	require.NoError(t, err)
 
 	logging.Logger.Infof("Nuking Macie")
-	nukeMacie(session, macieEnabled)
+	require.NoError(t, nukeMacie(session, macieEnabled))
 
 	macieEnabled, err = getMacie(session, time.Now())
 	require.NoError(t, err)
