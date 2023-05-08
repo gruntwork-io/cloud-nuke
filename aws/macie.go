@@ -133,7 +133,7 @@ func nukeMacie(session *session.Session, identifier []string) error {
 	adminAccount, err := svc.GetAdministratorAccount(&macie2.GetAdministratorAccountInput{})
 	if err != nil {
 		if strings.Contains(err.Error(), "there isn't a delegated Macie administrator") {
-			logging.Logger.Infof("No delegated Macie administrator found to remove.")
+			logging.Logger.Debugf("No delegated Macie administrator found to remove.")
 		} else {
 			logging.Logger.Errorf("[Failed] Failed to check for administrator account")
 			telemetry.TrackEvent(commonTelemetry.EventContext{
