@@ -27,10 +27,10 @@ func TestMacie(t *testing.T) {
 	require.NoError(t, err)
 	logging.Logger.Infof("Region: %s", region)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	awsSession, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
-	svc := macie2.New(session)
+	svc := macie2.New(awsSession)
 
 	// Check if Macie is enabled
 	_, err = svc.GetMacieSession(&macie2.GetMacieSessionInput{})
@@ -49,13 +49,13 @@ func TestMacie(t *testing.T) {
 		logging.Logger.Infof("Macie already enabled")
 	}
 
-	macieEnabled, err := getMacie(session, time.Now())
+	macieEnabled, err := getMacie(awsSession, time.Now())
 	require.NoError(t, err)
 
 	logging.Logger.Infof("Nuking Macie")
-	require.NoError(t, nukeMacie(session, macieEnabled))
+	require.NoError(t, nukeMacie(awsSession, macieEnabled))
 
-	macieEnabled, err = getMacie(session, time.Now())
+	macieEnabled, err = getMacie(awsSession, time.Now())
 	require.NoError(t, err)
 	assert.Empty(t, macieEnabled)
 }
