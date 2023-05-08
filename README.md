@@ -89,6 +89,9 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | ECR | Repositories                                             | 
 | Config | Service recorders                                        | 
 | Config | Service rules                                            | 
+| Security Hub | Hubs |
+| Security Hub | Members |
+| Security Hub | Administrators |
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
 

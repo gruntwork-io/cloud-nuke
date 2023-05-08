@@ -1646,6 +1646,33 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End CloudWatchAlarm
 
+		//Security Hub
+		securityHub := SecurityHub{}
+		if IsNukeable(securityHub.ResourceName(), resourceTypes) {
+			start := time.Now()
+			hubArns, err := getAllSecurityHubArns(cloudNukeSession, excludeAfter)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve security hub status",
+					ResourceType: securityHub.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing Security Hub",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(hubArns),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(hubArns) > 0 {
+				securityHub.HubArns = hubArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, securityHub)
+			}
+		}
+		//End Security Hub
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -1885,6 +1912,7 @@ func ListResourceTypes() []string {
 		LaunchTemplates{}.ResourceName(),
 		ConfigServiceRule{}.ResourceName(),
 		ConfigServiceRecorders{}.ResourceName(),
+		SecurityHub{}.ResourceName(),
 		CloudWatchAlarms{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
