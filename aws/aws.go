@@ -1298,7 +1298,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
 			start := time.Now()
 			// Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the excludeAfter or configObj patterns
-			accountIds, err := getAllMacieMemberAccounts(cloudNukeSession)
+			accountIds, err := getMacie(cloudNukeSession, excludeAfter)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
