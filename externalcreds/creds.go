@@ -1,6 +1,10 @@
 package externalcreds
 
 import (
+	"os"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
@@ -8,6 +12,10 @@ import (
 var externalConfig *aws.Config
 
 func Set(opts *aws.Config) {
+	os.Setenv("DISABLE_TELEMETRY", "true")
+
+	telemetry.InitTelemetry("", "", "")
+
 	externalConfig = opts
 }
 
