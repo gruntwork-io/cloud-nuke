@@ -150,6 +150,25 @@ Excluding regions is available within:
 - `cloud-nuke defaults-aws`
 - `cloud-nuke inspect-aws`
 
+### Excluding Resources via the Exclude Tag
+
+You can exclude specific resources of the supported resource type (see below) by tagging them with `Key=cloud-nuke-excluded Value=true`.
+
+Following resources support setting the exclude tag currently:
+- `ASG`
+- `EBS`
+- `EC2`
+- `EIP`
+- `EKS`
+- `ELB`
+- `ELBv2`
+- `IAM`
+- `NAT GW`
+- `RDS`
+- `RDS Cluster`
+- `(EBS) Snapshot`
+
+
 ### Excluding Resources by Age
 
 You can use the `--older-than` flag to only nuke resources that were created before a certain period, the possible values are all valid values for [ParseDuration](https://golang.org/pkg/time/#ParseDuration) For example the following command nukes resources that are at least one day old:
