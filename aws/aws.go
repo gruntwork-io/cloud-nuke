@@ -1686,12 +1686,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		logging.Logger.Debugf("Checking region [%d/%d]: %s", count, totalRegions, GlobalRegion)
 
 		// As there is no actual region named global we have to pick a valid one just to create the session
-		sessionRegion := defaultRegion
-		session, err := newAWSSession(sessionRegion)
-		if err != nil {
-			return nil, err
-		}
-
+		session := newSession(defaultRegion)
 		globalResources := AwsRegionResource{}
 
 		// IAM Users
@@ -2003,16 +1998,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		}, map[string]interface{}{
 			"region": region,
 		})
-		session, err := newAWSSession(sessionRegion)
-		if err != nil {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error creating session",
-			}, map[string]interface{}{
-				"region":        region,
-				"sessionRegion": sessionRegion,
-			})
-			return err
-		}
+		session := newSession(sessionRegion)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Nuking Region",
 		}, map[string]interface{}{
@@ -2033,16 +2019,4 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	}
 
 	return nil
-}
-
-func newAWSSession(awsRegion string) (*session.Session, error) {
-	sessionOptions := session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}
-	sess, err := session.NewSessionWithOptions(sessionOptions)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-	sess.Config.Region = aws.String(awsRegion)
-	return sess, nil
 }
