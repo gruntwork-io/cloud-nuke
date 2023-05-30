@@ -1181,7 +1181,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Elasticaches
 
-		//Elasticache Parameter Groups
+		// Elasticache Parameter Groups
 		elasticacheParameterGroups := ElasticacheParameterGroups{}
 		if IsNukeable(elasticacheParameterGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
@@ -1207,9 +1207,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheParameterGroups)
 			}
 		}
-		//End Elasticache Parameter Groups
+		// End Elasticache Parameter Groups
 
-		//Elasticache Subnet Groups
+		// Elasticache Subnet Groups
 		elasticacheSubnetGroups := ElasticacheSubnetGroups{}
 		if IsNukeable(elasticacheSubnetGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
@@ -1235,7 +1235,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheSubnetGroups)
 			}
 		}
-		//End Elasticache Subnet Groups
+		// End Elasticache Subnet Groups
 
 		// KMS Customer managed keys
 		customerKeys := KmsCustomerKeys{}
@@ -1646,7 +1646,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End CloudWatchAlarm
 
-		//Security Hub
+		// Security Hub
 		securityHub := SecurityHub{}
 		if IsNukeable(securityHub.ResourceName(), resourceTypes) {
 			start := time.Now()
@@ -1671,7 +1671,33 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, securityHub)
 			}
 		}
-		//End Security Hub
+		// End Security Hub
+
+		// ACM
+		acm := ACM{}
+		if IsNukeable(acm.ResourceName(), resourceTypes) {
+			start := time.Now()
+			acmArns, err := getAllACMs(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ACM status",
+					ResourceType: acm.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing ACM Certificates",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(acmArns),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(acmArns) > 0 {
+				acm.ARNs = acmArns
+			}
+		}
+		// End Security Hub
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
@@ -1914,6 +1940,7 @@ func ListResourceTypes() []string {
 		ConfigServiceRecorders{}.ResourceName(),
 		SecurityHub{}.ResourceName(),
 		CloudWatchAlarms{}.ResourceName(),
+		ACM{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

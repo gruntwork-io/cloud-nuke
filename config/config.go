@@ -54,6 +54,7 @@ type Config struct {
 	ConfigServiceRecorder      ResourceType `yaml:"ConfigServiceRecorder"`
 	CloudWatchAlarm            ResourceType `yaml:"CloudWatchAlarm"`
 	Redshift                   ResourceType `yaml:"Redshift"`
+	ACM                        ResourceType `yaml:"ACM"`
 }
 
 type ResourceType struct {
