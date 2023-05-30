@@ -1697,7 +1697,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				acm.ARNs = acmArns
 			}
 		}
-		// End Security Hub
+		// End ACM
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
