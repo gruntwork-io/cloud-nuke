@@ -122,25 +122,26 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 		}
 	}
 
-	input := cloudwatch.DeleteAlarmsInput{AlarmNames: identifiers}
-	_, err = svc.DeleteAlarms(&input)
+	for _, alarm := range identifiers {
+		_, err = svc.DeleteAlarms(&cloudwatch.DeleteAlarmsInput{AlarmNames: []*string{alarm}})
 
-	// Record status of this resource
-	e := report.BatchEntry{
-		Identifiers:  aws.StringValueSlice(identifiers),
-		ResourceType: "CloudWatch Alarm",
-		Error:        err,
-	}
-	report.RecordBatch(e)
+		// Record status of this resource
+		e := report.BatchEntry{
+			Identifiers:  aws.StringValueSlice(identifiers),
+			ResourceType: "CloudWatch Alarm",
+			Error:        err,
+		}
+		report.RecordBatch(e)
 
-	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking Cloudwatch Alarm",
-		}, map[string]interface{}{
-			"region": *session.Config.Region,
-		})
-		return errors.WithStackTrace(err)
+		if err != nil {
+			logging.Logger.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Cloudwatch Alarm",
+			}, map[string]interface{}{
+				"region": *session.Config.Region,
+			})
+			return errors.WithStackTrace(err)
+		}
 	}
 
 	for _, alarmName := range identifiers {
