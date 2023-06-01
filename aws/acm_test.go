@@ -227,11 +227,12 @@ func TestGetAllACMsError(t *testing.T) {
 }
 
 func TestShouldIncludeACM(t *testing.T) {
-	certSummary := func(domainName string, createdAt time.Time) *acm.CertificateSummary {
+	certSummary := func(domainName string, createdAt time.Time, inUse bool) *acm.CertificateSummary {
 		return &acm.CertificateSummary{
 			CertificateArn: aws.String("arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"),
 			DomainName:     aws.String(domainName),
 			CreatedAt:      aws.Time(createdAt),
+			InUse:          aws.Bool(inUse),
 		}
 	}
 
@@ -242,7 +243,7 @@ func TestShouldIncludeACM(t *testing.T) {
 		expected     bool
 	}{
 		"include on domain name": {
-			acm:          certSummary("example.com", time.Now()),
+			acm:          certSummary("example.com", time.Now(), false),
 			excludeAfter: time.Now(),
 			configObj: config.Config{
 				ACM: config.ResourceType{
@@ -258,7 +259,7 @@ func TestShouldIncludeACM(t *testing.T) {
 			expected: true,
 		},
 		"exclude on domain name": {
-			acm:          certSummary("example.com", time.Now()),
+			acm:          certSummary("example.com", time.Now(), false),
 			excludeAfter: time.Now(),
 			configObj: config.Config{
 				ACM: config.ResourceType{
@@ -274,7 +275,7 @@ func TestShouldIncludeACM(t *testing.T) {
 			expected: false,
 		},
 		"include on domain name, exclude on created at": {
-			acm:          certSummary("example.com", time.Now()),
+			acm:          certSummary("example.com", time.Now(), false),
 			excludeAfter: time.Now().Add(-1 * time.Hour),
 			configObj: config.Config{
 				ACM: config.ResourceType{
@@ -289,6 +290,34 @@ func TestShouldIncludeACM(t *testing.T) {
 			},
 			expected: false,
 		},
+		"exclude on domain name, include on created at": {
+			acm:          certSummary("example.com", time.Now(), false),
+			excludeAfter: time.Now().Add(-1 * time.Hour),
+			configObj: config.Config{
+				ACM: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{
+							{
+								RE: *regexp.MustCompile("example.com"),
+							},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		"in use": {
+			acm:          certSummary("example.com", time.Now(), true),
+			excludeAfter: time.Now(),
+			configObj:    config.Config{},
+			expected:     false,
+		},
+		"not in use": {
+			acm:          certSummary("example.com", time.Now(), false),
+			excludeAfter: time.Now(),
+			configObj:    config.Config{},
+			expected:     true,
+		},
 		"nil cert summary": {
 			acm:          nil,
 			excludeAfter: time.Now(),
@@ -296,7 +325,7 @@ func TestShouldIncludeACM(t *testing.T) {
 			expected:     false,
 		},
 		"nil created at": {
-			acm:          certSummary("example.com", time.Time{}),
+			acm:          certSummary("example.com", time.Time{}, false),
 			excludeAfter: time.Now(),
 			configObj:    config.Config{},
 			expected:     true,

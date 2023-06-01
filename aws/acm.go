@@ -42,6 +42,11 @@ func shouldIncludeACM(acm *acm.CertificateSummary, excludeAfter time.Time, confi
 		return false
 	}
 
+	if acm.InUse != nil && *acm.InUse {
+		logging.Logger.Debugf("Skipping ACM %s as it is in use", *acm.CertificateArn)
+		return false
+	}
+
 	if acm.CreatedAt != nil {
 		if excludeAfter.Before(*acm.CreatedAt) {
 			return false
