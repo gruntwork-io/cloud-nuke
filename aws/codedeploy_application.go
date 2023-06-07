@@ -70,15 +70,6 @@ func batchDescribeAndFilterCodeDeployApplications(session *session.Session, iden
 	return applicationNames, nil
 }
 
-func describeCodeDeployApplication(svc *codedeploy.CodeDeploy, identifier *string) (*codedeploy.ApplicationInfo, error) {
-	resp, err := svc.GetApplication(&codedeploy.GetApplicationInput{ApplicationName: identifier})
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Application, nil
-}
-
 func nukeAllCodeDeployApplications(session *session.Session, identifiers []*string) error {
 	svc := codedeploy.New(session)
 
