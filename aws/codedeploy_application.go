@@ -61,7 +61,7 @@ func batchDescribeAndFilterCodeDeployApplications(session *session.Session, iden
 
 		// Check if the CodeDeploy Application should be excluded by CreationDate.
 		for j := range resp.ApplicationsInfo {
-			if resp.ApplicationsInfo[j] != nil && resp.ApplicationsInfo[j].CreateTime != nil && excludeAfter.Before(*resp.ApplicationsInfo[j].CreateTime) {
+			if resp.ApplicationsInfo[j] != nil && resp.ApplicationsInfo[j].CreateTime != nil && resp.ApplicationsInfo[j].CreateTime.Before(excludeAfter) {
 				applicationNames = append(applicationNames, resp.ApplicationsInfo[j].ApplicationName)
 			}
 		}
