@@ -1,7 +1,6 @@
 package aws
 
 import (
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -28,7 +27,7 @@ func (c CodeDeployApplications) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (c CodeDeployApplications) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllCodeDeployApplications(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := nukeAllCodeDeployApplications(session, identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
