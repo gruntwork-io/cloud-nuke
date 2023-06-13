@@ -58,7 +58,7 @@ func TestEc2KeyPairListAndNuke(t *testing.T) {
 	// Check whether the key still exist or not.
 	keyPairIds, err = getAllEc2KeyPairs(testSession, testExcludeAfterTime, config.Config{})
 	require.NoError(t, err)
-	require.Empty(t, keyPairIds)
+	require.NotContains(t, awsgo.StringValueSlice(keyPairIds), *createdKeyPair.KeyPairId)
 }
 
 func TestEc2KeyPairListWithConfig(t *testing.T) {
