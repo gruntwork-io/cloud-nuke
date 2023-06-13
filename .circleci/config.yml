@@ -46,7 +46,6 @@ jobs:
               --force \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
-              --exclude-resource-type iam-group \
               --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type ecr \
               --exclude-resource-type config-recorders \
@@ -68,7 +67,6 @@ jobs:
               --force \
               --config ./.circleci/nuke_config.yml \
               --exclude-resource-type iam \
-              --exclude-resource-type iam-group \
               --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type ecr \
               --exclude-resource-type config-recorders \
