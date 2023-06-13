@@ -47,7 +47,7 @@ func createTestElasticacheReplicationGroup(t *testing.T, session *session.Sessio
 		ReplicationGroupDescription: awsgo.String(name),
 		ReplicationGroupId:          awsgo.String(name),
 		Engine:                      awsgo.String("Redis"),
-		CacheNodeType:               awsgo.String("cache.r6g.large"),
+		CacheNodeType:               awsgo.String("cache.r5.large"),
 	}
 
 	validationErr := params.Validate()
