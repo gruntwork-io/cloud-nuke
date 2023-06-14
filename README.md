@@ -454,7 +454,7 @@ The following resources support the Config file:
     - Resource type: `rds`
     - Config key: `DBInstances`
 - RDS DB Subnet Groups
-  - Resource type: `rds`
+  - Resource type: `rds-subnet-group`
   - Config key: `DBSubnetGroups`
 - Launch Templates
     - Resource type: `lt`

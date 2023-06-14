@@ -2,18 +2,19 @@ package aws
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"strings"
-	"testing"
 )
 
 func createTestRDSSubnetGroup(t *testing.T, session *session.Session, name string) {
@@ -52,7 +53,7 @@ func TestNukeRDSSubnetGroup(t *testing.T) {
 
 	defer func() {
 		nukeAllRdsDbSubnetGroups(session, []*string{&subnetGroupName})
-		subnetGroupNames, _ := getAllRdsDbSubnetGroups(session)
+		subnetGroupNames, _ := getAllRdsDbSubnetGroups(session, config.Config{})
 		assert.NotContains(t, awsgo.StringValueSlice(subnetGroupNames), strings.ToLower(subnetGroupName))
 	}()
 }

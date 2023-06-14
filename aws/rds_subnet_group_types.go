@@ -11,7 +11,7 @@ type DBSubnetGroups struct {
 }
 
 func (instance DBSubnetGroups) ResourceName() string {
-	return "rds"
+	return "rds-subnet-group"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances

@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -34,7 +35,15 @@ func waitUntilRdsDbSubnetGroupDeleted(svc *rds.RDS, name *string) error {
 	return RdsDeleteError{name: *name}
 }
 
-func getAllRdsDbSubnetGroups(session *session.Session) ([]*string, error) {
+func shouldIncludeDbSubnetGroup(subnetGroup *rds.DBSubnetGroup, configObj config.Config) bool {
+	return config.ShouldInclude(
+		aws.StringValue(subnetGroup.DBSubnetGroupName),
+		configObj.DBSubnetGroups.IncludeRule.NamesRegExp,
+		configObj.DBSubnetGroups.ExcludeRule.NamesRegExp,
+	)
+}
+
+func getAllRdsDbSubnetGroups(session *session.Session, configObj config.Config) ([]*string, error) {
 	svc := rds.New(session)
 
 	var names []*string
@@ -42,7 +51,9 @@ func getAllRdsDbSubnetGroups(session *session.Session) ([]*string, error) {
 		&rds.DescribeDBSubnetGroupsInput{},
 		func(page *rds.DescribeDBSubnetGroupsOutput, lastPage bool) bool {
 			for _, subnetGroup := range page.DBSubnetGroups {
-				names = append(names, subnetGroup.DBSubnetGroupName)
+				if shouldIncludeDbSubnetGroup(subnetGroup, configObj) {
+					names = append(names, subnetGroup.DBSubnetGroupName)
+				}
 			}
 
 			return !lastPage

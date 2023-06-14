@@ -851,7 +851,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 			// Note: the `DescribeDBSubnetGroups` API response does not contain any information
 			// about when the subnet group was created, so we cannot apply the `excludeAfter` filter
-			subnetGroups, err := getAllRdsDbSubnetGroups(cloudNukeSession)
+			subnetGroups, err := getAllRdsDbSubnetGroups(cloudNukeSession, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
