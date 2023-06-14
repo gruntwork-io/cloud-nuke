@@ -37,15 +37,18 @@ func waitUntilRdsDbSubnetGroupDeleted(svc *rds.RDS, name *string) error {
 func getAllRdsDbSubnetGroups(session *session.Session) ([]*string, error) {
 	svc := rds.New(session)
 
-	result, err := svc.DescribeDBSubnetGroups(&rds.DescribeDBSubnetGroupsInput{})
+	var names []*string
+	err := svc.DescribeDBSubnetGroupsPages(
+		&rds.DescribeDBSubnetGroupsInput{},
+		func(page *rds.DescribeDBSubnetGroupsOutput, lastPage bool) bool {
+			for _, subnetGroup := range page.DBSubnetGroups {
+				names = append(names, subnetGroup.DBSubnetGroupName)
+			}
+
+			return !lastPage
+		})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
-	}
-
-	var names []*string
-
-	for _, sg := range result.DBSubnetGroups {
-		names = append(names, sg.DBSubnetGroupName)
 	}
 
 	return names, nil
