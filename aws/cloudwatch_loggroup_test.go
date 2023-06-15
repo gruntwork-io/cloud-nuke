@@ -17,7 +17,7 @@ import (
 )
 
 func TestListCloudWatchLogGroups(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -37,7 +37,7 @@ func TestListCloudWatchLogGroups(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedCloudWatchLogGroup(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -63,7 +63,7 @@ func TestTimeFilterExclusionNewlyCreatedCloudWatchLogGroup(t *testing.T) {
 }
 
 func TestNukeCloudWatchLogGroupOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -88,7 +88,7 @@ func TestNukeCloudWatchLogGroupOne(t *testing.T) {
 }
 
 func TestNukeCloudWatchLogGroupMoreThanOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

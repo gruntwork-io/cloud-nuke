@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	type TestCase struct {
 		Name                 string
 		Regions              []string

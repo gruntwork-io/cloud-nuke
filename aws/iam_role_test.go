@@ -16,7 +16,7 @@ import (
 )
 
 func TestListIamRoles(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -80,7 +80,7 @@ func createAndAttachInstanceProfile(t *testing.T, session *session.Session, name
 }
 
 func TestCreateIamRole(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -109,7 +109,7 @@ func TestCreateIamRole(t *testing.T) {
 }
 
 func TestNukeIamRoles(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -132,7 +132,7 @@ func TestNukeIamRoles(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedIamRole(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

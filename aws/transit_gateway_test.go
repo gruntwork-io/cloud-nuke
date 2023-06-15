@@ -45,7 +45,7 @@ func createTestTransitGateway(t *testing.T, session *session.Session, name strin
 }
 
 func TestGetAllTransitGatewayInstances(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -71,7 +71,7 @@ func TestGetAllTransitGatewayInstances(t *testing.T) {
 }
 
 func TestNukeTransitGateway(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -138,7 +138,7 @@ func createTestTransitGatewayRouteTable(t *testing.T, session *session.Session, 
 }
 
 func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -165,7 +165,7 @@ func TestGetAllTransitGatewayRouteTableInstances(t *testing.T) {
 }
 
 func TestNukeTransitGatewayRouteTable(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -249,7 +249,7 @@ func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Sessio
 }
 
 func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -276,7 +276,7 @@ func TestGetAllTransitGatewayVpcAttachment(t *testing.T) {
 }
 
 func TestNukeTransitGatewayVpcAttachment(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

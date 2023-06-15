@@ -17,7 +17,7 @@ import (
 
 // Test that we can list IAM groups in an AWS account
 func TestListIamGroups(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -154,7 +154,7 @@ func deleteGroupExtraResources(session *session.Session, info *groupInfo) {
 
 // Test that we can nuke iam groups.
 func TestNukeIamGroups(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

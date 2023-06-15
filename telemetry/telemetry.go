@@ -11,14 +11,13 @@ var cmd = ""
 var isCircleCi = false
 var account = ""
 
-func InitTelemetry(name string, version string, clientId string) {
+func InitTelemetry(name string, version string) {
 	_, disableTelemetryFlag := os.LookupEnv("DISABLE_TELEMETRY")
 	isCircleCi = os.Getenv("CIRCLECI") == "true"
-	clientIdExists := clientId != ""
-	sendTelemetry = !disableTelemetryFlag && clientIdExists
+	sendTelemetry = !disableTelemetryFlag
 	if sendTelemetry {
 		cmd = os.Args[1]
-		telemetryClient = telemetry.NewMixPanelTelemetryClient(clientId, name, version)
+		telemetryClient = telemetry.NewMixPanelTelemetryClient("https://t.gruntwork.io/", name, version)
 	}
 }
 

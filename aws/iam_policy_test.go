@@ -40,7 +40,7 @@ const fakePolicy string = `{
 	}`
 
 func TestListIamPolicies(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
@@ -171,7 +171,7 @@ func deletePolicyExtraResources(session *session.Session, entityInfo *entityInfo
 }
 
 func TestNukeIamPolicies(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

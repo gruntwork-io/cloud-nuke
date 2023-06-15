@@ -105,7 +105,7 @@ func findallEBSVolumesByStatus(t *testing.T, session *session.Session, status st
 }
 
 func TestListEBSVolumes(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -142,7 +142,7 @@ func TestListEBSVolumes(t *testing.T) {
 }
 
 func TestListEBSVolumesWithConfigFile(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -177,7 +177,7 @@ func TestListEBSVolumesWithConfigFile(t *testing.T) {
 }
 
 func TestNukeEBSVolumes(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -215,7 +215,7 @@ func TestNukeEBSVolumes(t *testing.T) {
 }
 
 func TestNukeEBSVolumesInUse(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

@@ -18,7 +18,7 @@ import (
 
 // Test we can create a cluster, tag it, and then find the tag
 func TestCanTagEcsClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	region := getRandomFargateSupportedRegion()
 
@@ -50,7 +50,7 @@ func TestCanTagEcsClusters(t *testing.T) {
 
 // Test we can get all ECS clusters younger than < X time based on tags
 func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	region := getRandomFargateSupportedRegion()
 
@@ -82,7 +82,7 @@ func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
 
 // Test we can nuke all ECS clusters older than 24hrs
 func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	region := getRandomFargateSupportedRegion()
 
@@ -139,7 +139,7 @@ func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
 
 // Test the config file filtering works as expected
 func TestShouldIncludeECSCluster(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	mockCluster := &ecs.Cluster{
 		ClusterName: awsgo.String("cloud-nuke-test"),
 		Status:      awsgo.String("ACTIVE"),

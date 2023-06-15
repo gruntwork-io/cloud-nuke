@@ -29,7 +29,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: build-go-binaries --parallel 2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG -X 'main.MixPanelClientId=$MIXPANEL_CLIENT_ID'"
+      - run: build-go-binaries --parallel 2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
       - persist_to_workspace:
           root: .
           paths: bin
@@ -41,7 +41,7 @@ jobs:
           command: |
             # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
             # the AWS account we use at Gruntwork for testing (Phx DevOps) (e.g., S3)
-            go run  -ldflags="-X 'main.VERSION=$CIRCLE_SHA1' -X 'main.MixPanelClientId=$MIXPANEL_CLIENT_ID'" main.go aws \
+            go run  -ldflags="-X 'main.VERSION=$CIRCLE_SHA1'" main.go aws \
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
@@ -62,7 +62,7 @@ jobs:
             export AWS_SECRET_ACCESS_KEY=$SANDBOX_AWS_SECRET_ACCESS_KEY
             # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
             # the AWS account we use at Gruntwork for testing (Sandbox) (e.g., S3)
-            go run -ldflags="-X 'main.VERSION=$CIRCLE_SHA1' -X 'main.MixPanelClientId=$MIXPANEL_CLIENT_ID'" main.go aws \
+            go run -ldflags="-X 'main.VERSION=$CIRCLE_SHA1'" main.go aws \
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
@@ -102,7 +102,6 @@ workflows:
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
-            - MIXPANEL__TOKEN__gruntwork
       - deploy:
           requires:
             - build
@@ -114,7 +113,6 @@ workflows:
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
-            - MIXPANEL__TOKEN__gruntwork
   nuke_phxdevops:
     when:
       and:
@@ -125,7 +123,6 @@ workflows:
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
-            - MIXPANEL__TOKEN__gruntwork
   nuke_sandbox:
     when:
       and:
@@ -137,4 +134,3 @@ workflows:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
             - AWS__SANDBOX__circle-ci
-            - MIXPANEL__TOKEN__gruntwork

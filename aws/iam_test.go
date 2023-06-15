@@ -32,7 +32,7 @@ import (
 )
 
 func TestListIamUsers(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -62,7 +62,7 @@ func createTestUser(t *testing.T, session *session.Session, name string) error {
 }
 
 func TestCreateIamUser(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -88,7 +88,7 @@ func TestCreateIamUser(t *testing.T) {
 }
 
 func TestNukeIamUsers(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -108,7 +108,7 @@ func TestNukeIamUsers(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedIamUser(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -460,7 +460,7 @@ func deleteUserExtraResources(infos *userInfos, session *session.Session) error 
 
 // Validate that a user, with all the required and optional, items can be deleted
 func TestDeleteFullIamUser(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
