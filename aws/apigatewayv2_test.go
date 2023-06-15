@@ -43,7 +43,7 @@ func createTestAPIGatewayV2(t *testing.T, session *session.Session, name string)
 }
 
 func TestListAPIGatewaysV2(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

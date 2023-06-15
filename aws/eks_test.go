@@ -23,7 +23,7 @@ var (
 // Test that we can successfully list clusters by manually creating a cluster, and then using the list function to find
 // it.
 func TestListEksClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
@@ -58,7 +58,7 @@ func TestListEksClusters(t *testing.T) {
 // Test that we can successfully nuke EKS clusters by manually creating a cluster, and then using the nuke function to
 // delete it.
 func TestNukeEksClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
@@ -85,7 +85,7 @@ func TestNukeEksClusters(t *testing.T) {
 
 // Test that we can successfully nuke EKS clusters with Node Groups and Fargate Profiles.
 func TestNukeEksClustersWithCompute(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)

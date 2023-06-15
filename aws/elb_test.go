@@ -37,7 +37,7 @@ func createTestELB(t *testing.T, session *session.Session, name string) {
 }
 
 func TestListELBs(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -74,7 +74,7 @@ func TestListELBs(t *testing.T) {
 }
 
 func TestNukeELBs(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

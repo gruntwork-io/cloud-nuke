@@ -21,7 +21,7 @@ import (
 )
 
 func TestListKinesisStreams(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -44,7 +44,7 @@ func TestListKinesisStreams(t *testing.T) {
 }
 
 func TestNukeKinesisStreamOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -72,7 +72,7 @@ func TestNukeKinesisStreamOne(t *testing.T) {
 }
 
 func TestNukeKinesisStreamMoreThanOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

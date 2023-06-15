@@ -32,7 +32,7 @@ func createTestEc2KeyPair(t *testing.T, svc *ec2.EC2) *ec2.CreateKeyPairOutput {
 }
 
 func TestEc2KeyPairListAndNuke(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -62,7 +62,7 @@ func TestEc2KeyPairListAndNuke(t *testing.T) {
 }
 
 func TestEc2KeyPairListWithConfig(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 

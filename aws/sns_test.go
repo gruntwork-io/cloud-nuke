@@ -65,7 +65,7 @@ func createTestSNSTopic(t *testing.T, session *session.Session, name string) (*T
 }
 
 func TestListSNSTopics(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -93,7 +93,7 @@ func TestListSNSTopics(t *testing.T) {
 }
 
 func TestNukeSNSTopicOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
