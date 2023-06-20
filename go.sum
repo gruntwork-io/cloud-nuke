@@ -77,8 +77,6 @@ github.com/google/uuid v1.2.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/gookit/color v1.4.2/go.mod h1:fqRyamkC1W8uxl+lxCQxOT09l/vYfZ+QeiX3rKQHCoQ=
 github.com/gookit/color v1.5.0 h1:1Opow3+BWDwqor78DcJkJCIwnkviFi+rrOANki9BUFw=
 github.com/gookit/color v1.5.0/go.mod h1:43aQb+Zerm/BWh2GnrgOQm7ffz7tvQXEKV6BFMl7wAo=
-github.com/gruntwork-io/go-commons v0.16.3-0.20230614150403-91eaa9f0db2c h1:vekjcdlMVRQQxJxICTdlbY0t6v/sry+HGW72AtMHRtI=
-github.com/gruntwork-io/go-commons v0.16.3-0.20230614150403-91eaa9f0db2c/go.mod h1:S98JcR7irPD1bcruSvnqupg+WSJEJ6xaM89fpUZVISk=
 github.com/gruntwork-io/go-commons v0.17.0 h1:ZwCO7P+NAdH1/NcLmf0kK/SZ/egqWIgHujlbmSzFDX4=
 github.com/gruntwork-io/go-commons v0.17.0/go.mod h1:S98JcR7irPD1bcruSvnqupg+WSJEJ6xaM89fpUZVISk=
 github.com/gruntwork-io/gruntwork-cli v0.7.0 h1:YgSAmfCj9c61H+zuvHwKfYUwlMhu5arnQQLM4RH+CYs=
