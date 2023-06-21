@@ -38,7 +38,7 @@ func createTestRDSSubnetGroup(t *testing.T, session *session.Session, name strin
 }
 
 func TestNukeRDSSubnetGroup(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
