@@ -3,10 +3,12 @@ package aws
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"math/rand"
+	"regexp"
 	"testing"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
@@ -84,7 +86,7 @@ func TestListSNSTopics(t *testing.T) {
 	// clean up after this test
 	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn})
 
-	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
+	snsTopicArns, err := getAllSNSTopics(session, config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of SNS Topics")
 	}
@@ -111,7 +113,7 @@ func TestNukeSNSTopicOne(t *testing.T) {
 	require.NoError(t, nukeErr)
 
 	// Make sure the SNS Topic was deleted
-	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
+	snsTopicArns, err := getAllSNSTopics(session, config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, aws.StringValueSlice(snsTopicArns), aws.StringValue(testSNSTopic.Arn))
@@ -138,9 +140,43 @@ func TestNukeSNSTopicMoreThanOne(t *testing.T) {
 	require.NoError(t, nukeErr)
 
 	// Make sure the SNS topics were deleted
-	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
+	snsTopicArns, err := getAllSNSTopics(session, config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, aws.StringValueSlice(snsTopicArns), aws.StringValue(testSNSTopic.Arn))
 	assert.NotContains(t, aws.StringValueSlice(snsTopicArns), aws.StringValue(testSNSTopic2.Arn))
+}
+
+func TestNukeSNSTopicWithFilter(t *testing.T) {
+	t.Parallel()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	testSNSTopicName := "aws-nuke-test-" + util.UniqueID()
+	testSNSTopicName2 := "aws-do-not-nuke-test-" + util.UniqueID()
+
+	testSNSTopic, createTestErr := createTestSNSTopic(t, session, testSNSTopicName)
+	require.NoError(t, createTestErr)
+
+	testSNSTopic2, createTestErr2 := createTestSNSTopic(t, session, testSNSTopicName2)
+	require.NoError(t, createTestErr2)
+
+	topics, err := getAllSNSTopics(session, config.Config{
+		SNS: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("aws-do-not-nuke-test-.*")}},
+			},
+		},
+	},
+	)
+	require.NoError(t, err)
+
+	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn, testSNSTopic2.Arn})
+
+	assert.NotContains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic2.Arn))
+	assert.Contains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic.Arn))
 }

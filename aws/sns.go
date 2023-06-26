@@ -2,10 +2,11 @@ package aws
 
 import (
 	"context"
+	"strings"
+	"sync"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"sync"
-	"time"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
@@ -18,14 +19,17 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllSNSTopics(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+// getAllSNSTopics returns a list of all SNS topics in the region, filtering the name by the config
+// It is not possible to filter the SNS Topics by creation time, as there are no SQS APIs that support returning the
+// creation time of the topic.
+func getAllSNSTopics(session *session.Session, configObj config.Config) ([]*string, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
 	}
 	svc := sns.NewFromConfig(cfg)
 
-	allSNSTopics := []*string{}
+	snsTopics := []*string{}
 
 	paginator := sns.NewListTopicsPaginator(svc, nil)
 
@@ -35,10 +39,22 @@ func getAllSNSTopics(session *session.Session, excludeAfter time.Time, configObj
 			return []*string{}, errors.WithStackTrace(err)
 		}
 		for _, topic := range resp.Topics {
-			allSNSTopics = append(allSNSTopics, topic.TopicArn)
+			if shouldIncludeSNS(aws.StringValue(topic.TopicArn), configObj) {
+				snsTopics = append(snsTopics, topic.TopicArn)
+			}
 		}
 	}
-	return allSNSTopics, nil
+	return snsTopics, nil
+}
+
+// shouldIncludeSNS checks if the SNS topic should be included in the nuke list based on the config
+func shouldIncludeSNS(topicArn string, configObj config.Config) bool {
+	// a topic arn is of the form arn:aws:sns:us-east-1:123456789012:MyTopic
+	// so we can search for the index of the last colon, then slice the string to get the topic name
+	nameIndex := strings.LastIndex(topicArn, ":")
+	topicName := topicArn[nameIndex+1:]
+
+	return config.ShouldInclude(topicName, configObj.SNS.IncludeRule.NamesRegExp, configObj.SNS.ExcludeRule.NamesRegExp)
 }
 
 func nukeAllSNSTopics(session *session.Session, identifiers []*string) error {
