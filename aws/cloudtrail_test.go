@@ -20,7 +20,7 @@ import (
 )
 
 func TestListCloudTrailTrails(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -155,7 +155,7 @@ func createCloudTrailTrail(t *testing.T, region string) *string {
 }
 
 func TestNukeCloudTrailOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -178,7 +178,7 @@ func TestNukeCloudTrailOne(t *testing.T) {
 }
 
 func TestNukeCloudTrailTrailMoreThanOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

@@ -45,7 +45,7 @@ func createTestAPIGateway(t *testing.T, session *session.Session, name string) (
 }
 
 func TestListAPIGateways(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -73,7 +73,7 @@ func TestListAPIGateways(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedAPIGateway(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -101,7 +101,7 @@ func TestTimeFilterExclusionNewlyCreatedAPIGateway(t *testing.T) {
 }
 
 func TestNukeAPIGatewayOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -126,7 +126,7 @@ func TestNukeAPIGatewayOne(t *testing.T) {
 }
 
 func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

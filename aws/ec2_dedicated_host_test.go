@@ -24,7 +24,7 @@ const (
 )
 
 func TestListDedicatedHosts(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -54,7 +54,7 @@ func TestListDedicatedHosts(t *testing.T) {
 }
 
 func TestNukeDedicatedHosts(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

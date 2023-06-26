@@ -14,7 +14,7 @@ var externalConfig *aws.Config
 func Set(opts *aws.Config) {
 	os.Setenv("DISABLE_TELEMETRY", "true")
 
-	telemetry.InitTelemetry("", "", "")
+	telemetry.InitTelemetry("", "")
 
 	externalConfig = opts
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func TestNukeRedshiftClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)

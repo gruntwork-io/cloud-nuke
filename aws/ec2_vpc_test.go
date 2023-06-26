@@ -67,7 +67,7 @@ func createTestNetworkInterface(t *testing.T, awsSession *session.Session, vpcId
 }
 
 func TestCanTagVpc(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -122,7 +122,7 @@ func TestCanTagVpc(t *testing.T) {
 }
 
 func TestListVpcs(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -155,7 +155,7 @@ func TestListVpcs(t *testing.T) {
 }
 
 func TestNukeVpcs(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -190,7 +190,7 @@ func TestNukeVpcs(t *testing.T) {
 }
 
 func TestNukeVpcsWithEgressGateway(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -225,7 +225,7 @@ func TestNukeVpcsWithEgressGateway(t *testing.T) {
 }
 
 func TestNukeVpcsWithNetworkInterface(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -261,7 +261,7 @@ func TestNukeVpcsWithNetworkInterface(t *testing.T) {
 
 // Test config file filtering works as expected
 func TestShouldIncludeVpc(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 
 	mockVpc := &ec2.Vpc{
 		Tags: []*ec2.Tag{

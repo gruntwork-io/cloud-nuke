@@ -8,7 +8,7 @@ import (
 )
 
 func TestSplit(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testCases := []struct {
@@ -30,7 +30,7 @@ func TestSplit(t *testing.T) {
 }
 
 func TestGetTargetRegions(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	actualEnabledRegions, _ := GetEnabledRegions()

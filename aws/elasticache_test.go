@@ -47,7 +47,7 @@ func createTestElasticacheReplicationGroup(t *testing.T, session *session.Sessio
 		ReplicationGroupDescription: awsgo.String(name),
 		ReplicationGroupId:          awsgo.String(name),
 		Engine:                      awsgo.String("Redis"),
-		CacheNodeType:               awsgo.String("cache.r6g.large"),
+		CacheNodeType:               awsgo.String("cache.r5.large"),
 	}
 
 	validationErr := params.Validate()
@@ -66,7 +66,7 @@ func createTestElasticacheReplicationGroup(t *testing.T, session *session.Sessio
 }
 
 func TestListElasticacheClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -92,7 +92,7 @@ func TestListElasticacheClusters(t *testing.T) {
 }
 
 func TestListElasticacheClustersWithConfigFile(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -131,7 +131,7 @@ func TestListElasticacheClustersWithConfigFile(t *testing.T) {
 }
 
 func TestNukeElasticacheClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -182,7 +182,7 @@ func deleteParameterGroup(session *session.Session, groupName string) {
 }
 
 func TestNukeElasticacheParameterGroups(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)
@@ -267,7 +267,7 @@ func deleteSubnetGroup(session *session.Session, groupName string) {
 }
 
 func TestNukeElasticacheSubnetGroups(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	region, err := getRandomRegion()
 	require.NoError(t, err)

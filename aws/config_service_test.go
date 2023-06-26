@@ -19,7 +19,7 @@ import (
 )
 
 func TestListConfigServiceRules(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -37,7 +37,7 @@ func TestListConfigServiceRules(t *testing.T) {
 }
 
 func TestNukeConfigServiceRuleOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -60,7 +60,7 @@ func TestNukeConfigServiceRuleOne(t *testing.T) {
 }
 
 func TestNukeConfigServiceRuleMoreThanOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

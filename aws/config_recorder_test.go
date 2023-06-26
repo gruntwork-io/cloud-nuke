@@ -14,7 +14,7 @@ import (
 )
 
 func TestListConfigRecorders(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -38,7 +38,7 @@ func TestListConfigRecorders(t *testing.T) {
 }
 
 func TestNukeConfigRecorderOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

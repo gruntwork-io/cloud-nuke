@@ -17,7 +17,7 @@ import (
 )
 
 func TestListCloudWatchAlarms(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -37,7 +37,7 @@ func TestListCloudWatchAlarms(t *testing.T) {
 }
 
 func TestTimeFilterExclusionNewlyCreatedCloudWatchAlarm(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -63,7 +63,7 @@ func TestTimeFilterExclusionNewlyCreatedCloudWatchAlarm(t *testing.T) {
 }
 
 func TestNukeCloudWatchAlarmOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -88,7 +88,7 @@ func TestNukeCloudWatchAlarmOne(t *testing.T) {
 }
 
 func TestNukeCloudWatchAlarmsMoreThanOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

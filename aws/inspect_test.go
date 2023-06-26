@@ -9,7 +9,7 @@ import (
 )
 
 func TestHandleResourceTypeSelectionsRejectsInvalid(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	type TestCase struct {
 		Name                 string
 		ResourceTypes        []string

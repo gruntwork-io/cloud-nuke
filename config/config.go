@@ -49,6 +49,7 @@ type Config struct {
 	CloudtrailTrail            ResourceType `yaml:"CloudtrailTrail"`
 	ECRRepository              ResourceType `yaml:"ECRRepository"`
 	DBInstances                ResourceType `yaml:"DBInstances"`
+	DBSubnetGroups             ResourceType `yaml:"DBSubnetGroups"`
 	LaunchTemplate             ResourceType `yaml:"LaunchTemplate"`
 	ConfigServiceRule          ResourceType `yaml:"ConfigServiceRule"`
 	ConfigServiceRecorder      ResourceType `yaml:"ConfigServiceRecorder"`
