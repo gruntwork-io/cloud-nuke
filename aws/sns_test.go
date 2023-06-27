@@ -27,18 +27,14 @@ type TestSNSTopic struct {
 	Arn  *string
 }
 
-func createTestSNSTopic(t *testing.T, session *session.Session, name string) (*TestSNSTopic, error) {
+func createTestSNSTopic(t *testing.T, session *session.Session, name string, setFirstSeenTag bool) (*TestSNSTopic, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
 	require.NoError(t, err)
 
 	svc := sns.NewFromConfig(cfg)
 
-	testSNSTopic := &TestSNSTopic{
-		Name: aws.String(name),
-	}
-
 	param := &sns.CreateTopicInput{
-		Name: testSNSTopic.Name,
+		Name: &name,
 	}
 
 	// Do a coin-flip to choose either a FIFO or Standard SNS Topic
@@ -61,19 +57,28 @@ func createTestSNSTopic(t *testing.T, session *session.Session, name string) (*T
 		assert.Failf(t, "Could not create test SNS Topic: %s", errors.WithStackTrace(err).Error())
 	}
 
-	testSNSTopic.Arn = output.TopicArn
+	if setFirstSeenTag {
+		// Set the first seen tag on the SNS Topic
+		err := setFirstSeenSNSTopicTag(context.TODO(), svc, *output.TopicArn, firstSeenTagKey, time.Now())
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return testSNSTopic, nil
+	return &TestSNSTopic{
+		Name: param.Name,
+		Arn:  output.TopicArn,
+	}, nil
 }
 
 func TestListSNSTopics(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	// region, err := getRandomRegion()
+	// require.NoError(t, err)
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
+		Region: awsgo.String("us-east-1"),
 	},
 	)
 	if err != nil {
@@ -81,7 +86,7 @@ func TestListSNSTopics(t *testing.T) {
 	}
 
 	snsTopicName := "aws-nuke-test-" + util.UniqueID()
-	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName)
+	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName, true)
 	require.NoError(t, createTestSNSTopicErr)
 	// clean up after this test
 	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn})
@@ -106,7 +111,7 @@ func TestNukeSNSTopicOne(t *testing.T) {
 
 	snsTopicName := "aws-nuke-test-" + util.UniqueID()
 
-	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName)
+	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName, true)
 	require.NoError(t, createTestSNSTopicErr)
 
 	nukeErr := nukeAllSNSTopics(session, []*string{testSNSTopic.Arn})
@@ -131,9 +136,9 @@ func TestNukeSNSTopicMoreThanOne(t *testing.T) {
 	testSNSTopicName := "aws-nuke-test-" + util.UniqueID()
 	testSNSTopicName2 := "aws-nuke-test-" + util.UniqueID()
 
-	testSNSTopic, createTestErr := createTestSNSTopic(t, session, testSNSTopicName)
+	testSNSTopic, createTestErr := createTestSNSTopic(t, session, testSNSTopicName, true)
 	require.NoError(t, createTestErr)
-	testSNSTopic2, createTestErr2 := createTestSNSTopic(t, session, testSNSTopicName2)
+	testSNSTopic2, createTestErr2 := createTestSNSTopic(t, session, testSNSTopicName2, true)
 	require.NoError(t, createTestErr2)
 
 	nukeErr := nukeAllSNSTopics(session, []*string{testSNSTopic.Arn, testSNSTopic2.Arn})
@@ -148,8 +153,6 @@ func TestNukeSNSTopicMoreThanOne(t *testing.T) {
 }
 
 func TestNukeSNSTopicWithFilter(t *testing.T) {
-	t.Parallel()
-
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
@@ -159,10 +162,10 @@ func TestNukeSNSTopicWithFilter(t *testing.T) {
 	testSNSTopicName := "aws-nuke-test-" + util.UniqueID()
 	testSNSTopicName2 := "aws-do-not-nuke-test-" + util.UniqueID()
 
-	testSNSTopic, createTestErr := createTestSNSTopic(t, session, testSNSTopicName)
+	testSNSTopic, createTestErr := createTestSNSTopic(t, session, testSNSTopicName, true)
 	require.NoError(t, createTestErr)
 
-	testSNSTopic2, createTestErr2 := createTestSNSTopic(t, session, testSNSTopicName2)
+	testSNSTopic2, createTestErr2 := createTestSNSTopic(t, session, testSNSTopicName2, true)
 	require.NoError(t, createTestErr2)
 
 	// as sns topics are online, lets clean up after this test
@@ -183,8 +186,6 @@ func TestNukeSNSTopicWithFilter(t *testing.T) {
 }
 
 func TestSNSFirstSeenTagLogicIsCorrect(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 
 	region, err := getRandomRegion()
@@ -194,7 +195,7 @@ func TestSNSFirstSeenTagLogicIsCorrect(t *testing.T) {
 	require.NoError(t, err)
 
 	snsTopicName := "aws-nuke-test-" + util.UniqueID()
-	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName)
+	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName, false)
 	require.NoError(t, createTestSNSTopicErr)
 
 	// clean up after this test
@@ -225,8 +226,6 @@ func TestSNSFirstSeenTagLogicIsCorrect(t *testing.T) {
 }
 
 func TestNukeSNSTopicWithTimeExclusion(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 
 	region, err := getRandomRegion()
@@ -236,7 +235,7 @@ func TestNukeSNSTopicWithTimeExclusion(t *testing.T) {
 	require.NoError(t, err)
 
 	snsTopicName := "aws-nuke-test-" + util.UniqueID()
-	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName)
+	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName, true)
 	require.NoError(t, createTestSNSTopicErr)
 
 	// clean up after this test
