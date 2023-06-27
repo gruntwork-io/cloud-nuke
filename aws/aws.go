@@ -1519,7 +1519,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		snsTopics := SNSTopic{}
 		if IsNukeable(snsTopics.ResourceName(), resourceTypes) {
 			start := time.Now()
-			snsTopicArns, err := getAllSNSTopics(cloudNukeSession, configObj)
+			snsTopicArns, err := getAllSNSTopics(cloudNukeSession, excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
