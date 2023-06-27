@@ -4,12 +4,14 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,10 +22,12 @@ import (
 )
 
 // getAllSNSTopics returns a list of all SNS topics in the region, filtering the name by the config
-// It is not possible to filter the SNS Topics by creation time, as there are no SQS APIs that support returning the
-// creation time of the topic.
-func getAllSNSTopics(session *session.Session, configObj config.Config) ([]*string, error) {
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+// The SQS APIs do not return a creation date, therefore we tag the resources with a first seen time when the topic first appears. We then
+// use that tag to measure the excludeAfter time duration, and determine whether to nuke the resource based on that.
+func getAllSNSTopics(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+	ctx := context.TODO()
+
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
 	}
@@ -34,12 +38,27 @@ func getAllSNSTopics(session *session.Session, configObj config.Config) ([]*stri
 	paginator := sns.NewListTopicsPaginator(svc, nil)
 
 	for paginator.HasMorePages() {
-		resp, err := paginator.NextPage(context.TODO())
+		resp, err := paginator.NextPage(ctx)
 		if err != nil {
 			return []*string{}, errors.WithStackTrace(err)
 		}
 		for _, topic := range resp.Topics {
-			if shouldIncludeSNS(aws.StringValue(topic.TopicArn), configObj) {
+			firstSeenTime, err := getFirstSeenSNSTopicTag(ctx, svc, *topic.TopicArn, firstSeenTagKey)
+			if err != nil {
+				logging.Logger.Errorf("Unable to retrieve tags for SNS Topic: %s, with error: %s", *topic.TopicArn, err)
+				return nil, err
+			}
+
+			if firstSeenTime == nil {
+				now := time.Now().UTC()
+				firstSeenTime = &now
+				if err := setFirstSeenSNSTopicTag(ctx, svc, *topic.TopicArn, firstSeenTagKey, now); err != nil {
+					logging.Logger.Errorf("Unable to apply first seen tag SNS Topic: %s, with error: %s", *topic.TopicArn, err)
+					return nil, err
+				}
+			}
+
+			if shouldIncludeSNS(*topic.TopicArn, excludeAfter, *firstSeenTime, configObj) {
 				snsTopics = append(snsTopics, topic.TopicArn)
 			}
 		}
@@ -47,12 +66,63 @@ func getAllSNSTopics(session *session.Session, configObj config.Config) ([]*stri
 	return snsTopics, nil
 }
 
+// getFirstSeenSNSTopicTag will retrive the time that the topic was first seen, otherwise returning nil if the topic has not been
+// seen before.
+func getFirstSeenSNSTopicTag(ctx context.Context, svc *sns.Client, topicArn, key string) (*time.Time, error) {
+	response, err := svc.ListTagsForResource(ctx, &sns.ListTagsForResourceInput{
+		ResourceArn: &topicArn,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range response.Tags {
+		if *response.Tags[i].Key == key {
+			firstSeenTime, err := time.Parse(time.RFC3339, *response.Tags[i].Value)
+			if err != nil {
+				return nil, err
+			}
+
+			return &firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// setFirstSeenSNSTopic will append a tag to the SNS Topic that details the first seen time.
+func setFirstSeenSNSTopicTag(ctx context.Context, svc *sns.Client, topicArn, key string, value time.Time) error {
+	timeValue := value.Format(time.RFC3339)
+
+	_, err := svc.TagResource(
+		ctx,
+		&sns.TagResourceInput{
+			ResourceArn: &topicArn,
+			Tags: []types.Tag{
+				{
+					Key:   &key,
+					Value: &timeValue,
+				},
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // shouldIncludeSNS checks if the SNS topic should be included in the nuke list based on the config
-func shouldIncludeSNS(topicArn string, configObj config.Config) bool {
+func shouldIncludeSNS(topicArn string, excludeAfter, firstSeenTime time.Time, configObj config.Config) bool {
 	// a topic arn is of the form arn:aws:sns:us-east-1:123456789012:MyTopic
 	// so we can search for the index of the last colon, then slice the string to get the topic name
 	nameIndex := strings.LastIndex(topicArn, ":")
 	topicName := topicArn[nameIndex+1:]
+
+	if excludeAfter.Before(firstSeenTime) {
+		return false
+	}
 
 	return config.ShouldInclude(topicName, configObj.SNS.IncludeRule.NamesRegExp, configObj.SNS.ExcludeRule.NamesRegExp)
 }

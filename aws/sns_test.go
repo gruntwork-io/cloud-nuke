@@ -86,7 +86,7 @@ func TestListSNSTopics(t *testing.T) {
 	// clean up after this test
 	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn})
 
-	snsTopicArns, err := getAllSNSTopics(session, config.Config{})
+	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
 	if err != nil {
 		assert.Fail(t, "Unable to fetch list of SNS Topics")
 	}
@@ -113,7 +113,7 @@ func TestNukeSNSTopicOne(t *testing.T) {
 	require.NoError(t, nukeErr)
 
 	// Make sure the SNS Topic was deleted
-	snsTopicArns, err := getAllSNSTopics(session, config.Config{})
+	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, aws.StringValueSlice(snsTopicArns), aws.StringValue(testSNSTopic.Arn))
@@ -140,7 +140,7 @@ func TestNukeSNSTopicMoreThanOne(t *testing.T) {
 	require.NoError(t, nukeErr)
 
 	// Make sure the SNS topics were deleted
-	snsTopicArns, err := getAllSNSTopics(session, config.Config{})
+	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 
 	assert.NotContains(t, aws.StringValueSlice(snsTopicArns), aws.StringValue(testSNSTopic.Arn))
@@ -168,17 +168,94 @@ func TestNukeSNSTopicWithFilter(t *testing.T) {
 	// as sns topics are online, lets clean up after this test
 	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn, testSNSTopic2.Arn})
 
-	topics, err := getAllSNSTopics(session, config.Config{
+	topics, err := getAllSNSTopics(session, time.Now(), config.Config{
 		SNS: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("aws-do-not-nuke-test-.*")}},
 			},
 		},
-	},
-	)
+	})
 	require.NoError(t, err)
 
 	// with the filters, we expect to only see the testSNSTopic in the findings, and not the testSNSTopic2
 	assert.NotContains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic2.Arn))
 	assert.Contains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic.Arn))
+}
+
+func TestSNSFirstSeenTagLogicIsCorrect(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	snsTopicName := "aws-nuke-test-" + util.UniqueID()
+	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName)
+	require.NoError(t, createTestSNSTopicErr)
+
+	// clean up after this test
+	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn})
+
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	require.NoError(t, err)
+
+	svc := sns.NewFromConfig(cfg)
+
+	// check that the first seen tag is not present
+	firstSeen, err := getFirstSeenSNSTopicTag(ctx, svc, *testSNSTopic.Arn, firstSeenTagKey)
+	require.NoError(t, err)
+	assert.Nil(t, firstSeen)
+
+	// update the first seen tag
+	now := time.Now().UTC()
+	err = setFirstSeenSNSTopicTag(ctx, svc, *testSNSTopic.Arn, firstSeenTagKey, now)
+	require.NoError(t, err)
+
+	// check that the first seen tag was updated
+	firstSeen, err = getFirstSeenSNSTopicTag(ctx, svc, *testSNSTopic.Arn, firstSeenTagKey)
+	require.NoError(t, err)
+
+	// We lose some precision when we tag the resource with the time due to the format, so to compare like for like,
+	// cast both to the same string format, which is also the same format used by the firstSeenSNSTopicTag function
+	assert.Equal(t, now.Format(time.RFC3339), firstSeen.Format(time.RFC3339))
+}
+
+func TestNukeSNSTopicWithTimeExclusion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	region, err := getRandomRegion()
+	require.NoError(t, err)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	snsTopicName := "aws-nuke-test-" + util.UniqueID()
+	testSNSTopic, createTestSNSTopicErr := createTestSNSTopic(t, session, snsTopicName)
+	require.NoError(t, createTestSNSTopicErr)
+
+	// clean up after this test
+	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn})
+
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
+	require.NoError(t, err)
+	svc := sns.NewFromConfig(cfg)
+
+	// update the tag on the sns topic to be 1 in the future
+	oneHourAgo := time.Now().UTC().Add(-1 * time.Hour)
+	err = setFirstSeenSNSTopicTag(ctx, svc, *testSNSTopic.Arn, firstSeenTagKey, oneHourAgo)
+	require.NoError(t, err)
+
+	// ensure the sns topic is not found when we search for sns topics created, with a time exclusion
+	// that is 2 hours ago
+	twoHoursAgo := oneHourAgo.Add(-1 * time.Hour)
+	topics, err := getAllSNSTopics(session, twoHoursAgo, config.Config{})
+	require.NoError(t, err)
+
+	assert.NotContains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic.Arn))
 }
