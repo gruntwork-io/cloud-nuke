@@ -165,6 +165,9 @@ func TestNukeSNSTopicWithFilter(t *testing.T) {
 	testSNSTopic2, createTestErr2 := createTestSNSTopic(t, session, testSNSTopicName2)
 	require.NoError(t, createTestErr2)
 
+	// as sns topics are online, lets clean up after this test
+	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn, testSNSTopic2.Arn})
+
 	topics, err := getAllSNSTopics(session, config.Config{
 		SNS: config.ResourceType{
 			ExcludeRule: config.FilterRule{
@@ -175,8 +178,7 @@ func TestNukeSNSTopicWithFilter(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	defer nukeAllSNSTopics(session, []*string{testSNSTopic.Arn, testSNSTopic2.Arn})
-
+	// with the filters, we expect to only see the testSNSTopic in the findings, and not the testSNSTopic2
 	assert.NotContains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic2.Arn))
 	assert.Contains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic.Arn))
 }
