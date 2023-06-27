@@ -75,10 +75,10 @@ func TestListSNSTopics(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	// region, err := getRandomRegion()
-	// require.NoError(t, err)
+	region, err := getRandomRegion()
+	require.NoError(t, err)
 	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String("us-east-1"),
+		Region: awsgo.String(region),
 	},
 	)
 	if err != nil {
