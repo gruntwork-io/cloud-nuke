@@ -259,3 +259,90 @@ func TestNukeSNSTopicWithTimeExclusion(t *testing.T) {
 
 	assert.NotContains(t, aws.StringValueSlice(topics), aws.StringValue(testSNSTopic.Arn))
 }
+
+func TestShouldIncludeSNS(t *testing.T) {
+	topic_name := func(name string) string {
+		return "arn:aws:sns:us-east-1:123456789012:" + name
+	}
+
+	tests := map[string]struct {
+		excludeAfter  time.Time
+		firstSeenTime time.Time
+		config        config.Config
+		TopicArn      string
+		Expected      bool
+	}{
+		"should include sns topic when no config is provided": {
+			TopicArn: topic_name("test-topic"),
+			Expected: true,
+		},
+		"should not include sns topic when name matches excludes": {
+			TopicArn: topic_name("test-topic"),
+			config: config.Config{
+				SNS: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test-topic")}},
+					},
+				},
+			},
+			Expected: false,
+		},
+		"should include sns topic when name matches includes": {
+			TopicArn: topic_name("test-topic"),
+			config: config.Config{
+				SNS: config.ResourceType{
+					IncludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test-topic")}},
+					},
+				},
+			},
+			Expected: true,
+		},
+		"should not include sns topic when name matches excludes and includes": {
+			TopicArn: topic_name("test-topic"),
+			config: config.Config{
+				SNS: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test-topic")}},
+					},
+					IncludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test-topic")}},
+					},
+				},
+			},
+			Expected: false,
+		},
+		"should not include sns topic when excludes after is before first seen time": {
+			TopicArn:      topic_name("test-topic"),
+			excludeAfter:  time.Now().UTC().Add(-1 * time.Hour),
+			firstSeenTime: time.Now().UTC(),
+			Expected:      false,
+		},
+		"should include sns topic when excludes after is after first seen time": {
+			TopicArn:      topic_name("test-topic"),
+			excludeAfter:  time.Now().UTC().Add(1 * time.Hour),
+			firstSeenTime: time.Now().UTC(),
+			Expected:      true,
+		},
+		"should not include sns topic when excludes after is before first seen, but config includes the name": {
+			TopicArn:      topic_name("test-topic"),
+			excludeAfter:  time.Now().UTC().Add(-1 * time.Hour),
+			firstSeenTime: time.Now().UTC(),
+			config: config.Config{
+				SNS: config.ResourceType{
+					IncludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test-topic")}},
+					},
+				},
+			},
+			Expected: false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			shouldInclude := shouldIncludeSNS(test.TopicArn, test.excludeAfter, test.firstSeenTime, test.config)
+			assert.Equal(t, test.Expected, shouldInclude)
+		})
+	}
+}
