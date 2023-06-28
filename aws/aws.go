@@ -1212,7 +1212,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Elasticaches
 
-		//Elasticache Parameter Groups
+		// Elasticache Parameter Groups
 		elasticacheParameterGroups := ElasticacheParameterGroups{}
 		if IsNukeable(elasticacheParameterGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
@@ -1238,9 +1238,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheParameterGroups)
 			}
 		}
-		//End Elasticache Parameter Groups
+		// End Elasticache Parameter Groups
 
-		//Elasticache Subnet Groups
+		// Elasticache Subnet Groups
 		elasticacheSubnetGroups := ElasticacheSubnetGroups{}
 		if IsNukeable(elasticacheSubnetGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
@@ -1266,7 +1266,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheSubnetGroups)
 			}
 		}
-		//End Elasticache Subnet Groups
+		// End Elasticache Subnet Groups
 
 		// KMS Customer managed keys
 		customerKeys := KmsCustomerKeys{}
@@ -1677,7 +1677,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End CloudWatchAlarm
 
-		//Security Hub
+		// Security Hub
 		securityHub := SecurityHub{}
 		if IsNukeable(securityHub.ResourceName(), resourceTypes) {
 			start := time.Now()
@@ -1702,7 +1702,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, securityHub)
 			}
 		}
-		//End Security Hub
+		// End Security Hub
 
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
