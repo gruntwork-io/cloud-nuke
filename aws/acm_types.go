@@ -16,7 +16,7 @@ func (acm ACM) ResourceName() string {
 	return "acm"
 }
 
-// ResourceIdentifiers - The volume ids of the ebs volumes
+// ResourceIdentifiers - the arns of the aws certificate manager certificates
 func (acm ACM) ResourceIdentifiers() []string {
 	return acm.ARNs
 }
