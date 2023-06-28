@@ -1,14 +1,12 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -132,21 +130,7 @@ func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 
-	session, err := session.NewSession(
-		&aws.Config{
-			Region: aws.String(region),
-
-			// The defaultretryer is overridden here as the default values for MinRetryDelay and MinThrottleDelay
-			// are too low for the API Gateway API.
-			// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.44.274/aws/client#DefaultRetryer
-			Retryer: client.DefaultRetryer{
-				NumMaxRetries:    3,
-				MinRetryDelay:    1 * time.Second,
-				MaxRetryDelay:    300 * time.Second,
-				MinThrottleDelay: 1 * time.Second,
-				MaxThrottleDelay: 300 * time.Second,
-			},
-		})
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
 	apigwName := "aws-nuke-test-" + util.UniqueID()
