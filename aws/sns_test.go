@@ -222,7 +222,7 @@ func TestSNSFirstSeenTagLogicIsCorrect(t *testing.T) {
 
 	// We lose some precision when we tag the resource with the time due to the format, so to compare like for like,
 	// cast both to the same string format, which is also the same format used by the firstSeenSNSTopicTag function
-	assert.Equal(t, now.Format(time.RFC3339), firstSeen.Format(time.RFC3339))
+	assert.Equal(t, now.Format(firstSeenTimeFormat), firstSeen.Format(firstSeenTimeFormat))
 }
 
 func TestNukeSNSTopicWithTimeExclusion(t *testing.T) {

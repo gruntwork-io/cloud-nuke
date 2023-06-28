@@ -78,7 +78,7 @@ func getFirstSeenSNSTopicTag(ctx context.Context, svc *sns.Client, topicArn, key
 
 	for i := range response.Tags {
 		if *response.Tags[i].Key == key {
-			firstSeenTime, err := time.Parse(time.RFC3339, *response.Tags[i].Value)
+			firstSeenTime, err := time.Parse(firstSeenTimeFormat, *response.Tags[i].Value)
 			if err != nil {
 				return nil, err
 			}
@@ -92,7 +92,7 @@ func getFirstSeenSNSTopicTag(ctx context.Context, svc *sns.Client, topicArn, key
 
 // setFirstSeenSNSTopic will append a tag to the SNS Topic that details the first seen time.
 func setFirstSeenSNSTopicTag(ctx context.Context, svc *sns.Client, topicArn, key string, value time.Time) error {
-	timeValue := value.Format(time.RFC3339)
+	timeValue := value.Format(firstSeenTimeFormat)
 
 	_, err := svc.TagResource(
 		ctx,
