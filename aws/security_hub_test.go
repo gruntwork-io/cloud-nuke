@@ -20,7 +20,7 @@ import (
 // ability to send and accept invitations within those accounts.
 
 func TestSecurityHub(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

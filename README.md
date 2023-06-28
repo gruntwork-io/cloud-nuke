@@ -454,6 +454,9 @@ The following resources support the Config file:
 - RDS, Neptune, and Document DB Resources
     - Resource type: `rds`
     - Config key: `DBInstances`
+- RDS DB Subnet Groups
+  - Resource type: `rds-subnet-group`
+  - Config key: `DBSubnetGroups`
 - Launch Templates
     - Resource type: `lt`
     - Config key: `LaunchTemplate`
@@ -594,6 +597,7 @@ To find out what we options are supported in the config file today, consult this
 | sagemaker-notebook-instances  | none  | ✅           | none | none       |
 | ecr                           | none  | ✅           | none | none       |
 | rds (+neptune and documentdb) | none  | ✅           | none | none       |
+| rds subnet groups             | none  | ✅           | none | none       |
 | lt                            | none  | ✅           | none | none       |
 | config-recorders              | none  | ✅           | none | none       |
 | config-rules                  | none  | ✅           | none | none       |

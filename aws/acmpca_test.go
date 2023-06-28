@@ -88,7 +88,7 @@ func createTestACMPCA(t *testing.T, session *session.Session, name string) *stri
 }
 
 func TestListACMPCA(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	runOrSkip(t)
 	t.Parallel()
 
@@ -124,7 +124,7 @@ func TestListACMPCA(t *testing.T) {
 }
 
 func TestNukeACMPCA(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	runOrSkip(t)
 	t.Parallel()
 

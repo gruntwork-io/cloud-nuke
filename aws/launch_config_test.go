@@ -36,7 +36,7 @@ func createTestLaunchConfiguration(t *testing.T, session *session.Session, name 
 }
 
 func TestListLaunchConfigurations(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -75,7 +75,7 @@ func TestListLaunchConfigurations(t *testing.T) {
 }
 
 func TestNukeLaunchConfigurations(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -119,7 +119,7 @@ func TestNukeLaunchConfigurations(t *testing.T) {
 }
 
 func TestShouldIncludeLaunchConfiguration(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	mockLaunchConfiguration := &autoscaling.LaunchConfiguration{
 		LaunchConfigurationName: awsgo.String("cloud-nuke-test"),
 		CreatedTime:             awsgo.Time(time.Now()),

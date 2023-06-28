@@ -49,12 +49,14 @@ type Config struct {
 	CloudtrailTrail            ResourceType `yaml:"CloudtrailTrail"`
 	ECRRepository              ResourceType `yaml:"ECRRepository"`
 	DBInstances                ResourceType `yaml:"DBInstances"`
+	DBSubnetGroups             ResourceType `yaml:"DBSubnetGroups"`
 	LaunchTemplate             ResourceType `yaml:"LaunchTemplate"`
 	ConfigServiceRule          ResourceType `yaml:"ConfigServiceRule"`
 	ConfigServiceRecorder      ResourceType `yaml:"ConfigServiceRecorder"`
 	CloudWatchAlarm            ResourceType `yaml:"CloudWatchAlarm"`
 	Redshift                   ResourceType `yaml:"Redshift"`
 	CodeDeployApplications     ResourceType `yaml:"CodeDeployApplications"`
+	SNS                        ResourceType `yaml:"SNS"`
 }
 
 type ResourceType struct {

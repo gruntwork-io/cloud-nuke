@@ -213,7 +213,7 @@ func createPrivateSubnetE(t *testing.T, session *session.Session) (privateSubnet
 	subnet.routeTableID = createRouteTableOutput.RouteTable.RouteTableId
 
 	createSubnetOutput, err := svc.CreateSubnet(&ec2.CreateSubnetInput{
-		CidrBlock: awsgo.String("172.31.172.0/24"),
+		CidrBlock: awsgo.String("172.31.173.0/24"),
 		VpcId:     awsgo.String(defaultVPC.Id),
 		TagSpecifications: []*ec2.TagSpecification{
 			{

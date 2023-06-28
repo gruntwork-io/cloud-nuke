@@ -7,9 +7,8 @@ import (
 
 // VERSION - Set at build time
 var VERSION string
-var MixPanelClientId string
 
 func main() {
-	app := commands.CreateCli(VERSION, MixPanelClientId)
+	app := commands.CreateCli(VERSION)
 	entrypoint.RunApp(app)
 }

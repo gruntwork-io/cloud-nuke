@@ -46,7 +46,7 @@ func createTestQueue(t *testing.T, session *session.Session, name string) *strin
 }
 
 func TestListSqsQueue(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -90,7 +90,7 @@ func TestListSqsQueue(t *testing.T) {
 }
 
 func TestNukeSqsQueue(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()

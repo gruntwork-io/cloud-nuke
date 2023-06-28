@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.13
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/golang/mock v1.6.0
-	github.com/gruntwork-io/go-commons v0.16.2
+	github.com/gruntwork-io/go-commons v0.17.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/gruntwork-io/terratest v0.41.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -37,12 +37,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.11.17 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.13 // indirect
 	github.com/aws/smithy-go v1.13.5 // indirect
-	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/uuid v1.2.0 // indirect
@@ -51,7 +49,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.5 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mattn/go-zglob v0.0.3 // indirect
@@ -69,5 +66,4 @@ require (
 	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	vizzlo.com/mixpanel v1.2.0 // indirect
 )

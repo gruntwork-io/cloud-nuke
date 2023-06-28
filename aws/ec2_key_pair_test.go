@@ -32,7 +32,7 @@ func createTestEc2KeyPair(t *testing.T, svc *ec2.EC2) *ec2.CreateKeyPairOutput {
 }
 
 func TestEc2KeyPairListAndNuke(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	region, err := getRandomRegion()
@@ -58,11 +58,11 @@ func TestEc2KeyPairListAndNuke(t *testing.T) {
 	// Check whether the key still exist or not.
 	keyPairIds, err = getAllEc2KeyPairs(testSession, testExcludeAfterTime, config.Config{})
 	require.NoError(t, err)
-	require.Empty(t, keyPairIds)
+	require.NotContains(t, awsgo.StringValueSlice(keyPairIds), *createdKeyPair.KeyPairId)
 }
 
 func TestEc2KeyPairListWithConfig(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	region, err := getRandomRegion()
 	require.NoError(t, err)
 

@@ -121,6 +121,36 @@ IAMUsers:
     names_regex:
       # We want to make sure the main circle-ci-test user is never deleted
       - "^circle-ci-test$"
+IAMGroups:
+  include:
+    names_regex:
+      - "^[a-zA-Z0-9]{6}-billing"
+      - "^[a-zA-Z0-9]{6}-developers"
+      - "^[a-zA-Z0-9]{6}-logs"
+      - "^[a-zA-Z0-9]{6}-read-only"
+      - "^[a-zA-Z0-9]{6}-iam-admin"
+      - "^[a-zA-Z0-9]{6}-ssh-grunt-sudo-users"
+      - "^[a-zA-Z0-9]{6}-ssh-grunt-users"
+      - "^[a-zA-Z0-9]{6}-support"
+      - "^[a-zA-Z0-9]{6}-full-access"
+      - "^[a-zA-Z0-9]{6}-use-existing-iam-roles"
+      - "^[a-zA-Z0-9]{6}-iam-user-self-mgmt"
+      - "^[a-zA-Z0-9]{6}-test-group-number-[0-9]"
+      - "^access-all-[a-zA-Z0-9]{6}"
+      - "^auto-deploy-[a-zA-Z0-9]{6}"
+      - "^cloud-nuke-test[a-zA-Z0-9]{6}"
+      - "^developers-[a-zA-Z0-9]{6}"
+      - "^full-access-[a-zA-Z0-9]{6}"
+      - "^group-cloud-nuke-test-full-user-[a-zA-Z0-9]{6}"
+      - "^iam-users-test-[0-9]-[a-zA-Z0-9]{6}"
+      - "^openvpn-server-[a-zA-Z0-9]{6}-Admins"
+      - "^openvpn-server-[a-zA-Z0-9]{6}-Users"
+      - "^read-only-[a-zA-Z0-9]{6}"
+      - "^test-group-[a-zA-Z0-9]{6}"
+      - "^test-group-[a-z]-[a-zA-Z0-9]{6}"
+      - "^test-iam-group-[a-zA-Z0-9]{6}"
+      - "^test-sudo-group-[a-z]-[a-zA-Z0-9]{6}"
+      - "^tst-openvpn-host-[a-zA-Z0-9]{6}-.*"
 IAMRoles:
   include:
     names_regex:

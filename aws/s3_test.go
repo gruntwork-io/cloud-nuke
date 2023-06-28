@@ -25,7 +25,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	logLevel := os.Getenv("LOG_LEVEL")
 	if len(logLevel) > 0 {
 		parsedLogLevel, err := logrus.ParseLevel(logLevel)
@@ -242,7 +242,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 // TestListS3Bucket tests listing S3 bucket operation
 func TestListS3Bucket(t *testing.T) {
 	t.Parallel()
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 
 	var testCases = []struct {
 		name string
@@ -405,7 +405,7 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 func TestNukeS3Bucket(t *testing.T) {
 	t.Parallel()
 
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	type testCaseStruct struct {
 		name string
 		args TestNukeS3BucketArgs
@@ -544,7 +544,7 @@ func bucketNamesForConfigTests(id string) []string {
 func TestFilterS3Bucket_Config(t *testing.T) {
 	t.Parallel()
 
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	testId := S3TestGenBucketName()
 	logging.Logger.Debugf("Generated test id %v", testId)
 
@@ -656,7 +656,7 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 
 // TestNukeS3BucketWithBucketPolicy tests deletion of S3 buckets with a policy that denies deletion
 func TestNukeS3BucketWithBucketPolicy(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "", "")
+	telemetry.InitTelemetry("cloud-nuke", "")
 	awsParams, err := newS3TestAWSParams("")
 	require.NoError(t, err, "Failed to setup AWS params")
 

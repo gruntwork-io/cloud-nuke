@@ -25,19 +25,15 @@ func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj 
 
 	var userNames []*string
 
-	// TODO: Probably use ListUsers together with ListUsersPages in case there are lots of users
-	output, err := svc.ListUsers(input)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	for _, user := range output.Users {
-		if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRegExp, configObj.IAMUsers.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) {
-			userNames = append(userNames, user.UserName)
+	err := svc.ListUsersPages(input, func(page *iam.ListUsersOutput, lastPage bool) bool {
+		for _, user := range page.Users {
+			if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRegExp, configObj.IAMUsers.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) {
+				userNames = append(userNames, user.UserName)
+			}
 		}
-	}
-
-	return userNames, nil
+		return !lastPage
+	})
+	return userNames, errors.WithStackTrace(err)
 }
 
 func detachUserPolicies(svc *iam.IAM, userName *string) error {

@@ -844,6 +844,37 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End RDS DB Instances
 
+		// RDS DB Subnet Groups
+		dbSubnetGroups := DBSubnetGroups{}
+		if IsNukeable(dbSubnetGroups.ResourceName(), resourceTypes) {
+			start := time.Now()
+
+			// Note: the `DescribeDBSubnetGroups` API response does not contain any information
+			// about when the subnet group was created, so we cannot apply the `excludeAfter` filter
+			subnetGroups, err := getAllRdsDbSubnetGroups(cloudNukeSession, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve DB subnet groups",
+					ResourceType: dbSubnetGroups.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing RDS Subnet Groups",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(subnetGroups),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(subnetGroups) > 0 {
+				dbSubnetGroups.InstanceNames = awsgo.StringValueSlice(subnetGroups)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, dbSubnetGroups)
+			}
+		}
+		// End RDS DB Subnet Groups
+
 		// RDS DB Clusters
 		// These reference the Aurora Clusters, for the use it's the same resource (rds), but AWS
 		// has different abstractions for each.
