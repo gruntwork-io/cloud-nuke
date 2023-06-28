@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -89,6 +90,13 @@ func nukeAllACMs(session *session.Session, acmArns []*string) error {
 			deletedCount++
 			logging.Logger.Debugf("Deleted ACM: %s", *acmArn)
 		}
+
+		e := report.Entry{
+			Identifier:   *acmArn,
+			ResourceType: "ACM",
+			Error:        err,
+		}
+		report.Record(e)
 	}
 
 	logging.Logger.Debugf("[OK] %d ACM(s) terminated in %s", deletedCount, *session.Config.Region)
