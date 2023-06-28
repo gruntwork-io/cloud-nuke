@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 )
 
@@ -42,33 +43,59 @@ func getAllCodeDeployApplications(session *session.Session, excludeAfter time.Ti
 func batchDescribeAndFilterCodeDeployApplications(session *session.Session, identifiers []string, excludeAfter time.Time) ([]string, error) {
 	svc := codedeploy.New(session)
 
+	// BatchGetApplications can only take 100 identifiers at a time, so we have to break up the identifiers into chunks of 100.
+	batchSize := 100
 	applicationNames := []string{}
 
-	// BatchGetApplications can only take 100 identifiers at a time, so we have to break up the identifiers into chunks of 100.
-	for i := 0; i < len(identifiers); i += 100 {
-
-		// Determine the end index of the identifiers slice.
-		var end int
-		if len(identifiers)-i < 100 {
-			end = len(identifiers)
-		} else {
-			end = i + 100
+	for {
+		// if there are no identifiers left, then break out of the loop
+		if len(identifiers) == 0 {
+			break
 		}
 
-		resp, err := svc.BatchGetApplications(&codedeploy.BatchGetApplicationsInput{ApplicationNames: aws.StringSlice(identifiers[i:end])})
+		// if the batch size is larger than the number of identifiers left, then set the batch size to the number of identifiers left
+		if len(identifiers) < batchSize {
+			batchSize = len(identifiers)
+		}
+
+		// get the next batch of identifiers
+		batch := aws.StringSlice(identifiers[:batchSize])
+		// then using that batch of identifiers, get the applicationsinfo
+		resp, err := svc.BatchGetApplications(
+			&codedeploy.BatchGetApplicationsInput{ApplicationNames: batch},
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		// Check if the CodeDeploy Application should be excluded by CreationDate.
+		// for each applicationsinfo, check if it should be excluded by creation date
 		for j := range resp.ApplicationsInfo {
-			if resp.ApplicationsInfo[j] != nil && resp.ApplicationsInfo[j].CreateTime != nil && excludeAfter.Before(*resp.ApplicationsInfo[j].CreateTime) {
+			if shouldNukeByCreationTime(resp.ApplicationsInfo[j], excludeAfter) {
 				applicationNames = append(applicationNames, *resp.ApplicationsInfo[j].ApplicationName)
 			}
 		}
+
+		// reduce the identifiers by the batch size we just processed, note that the slice header is mutated here
+		identifiers = identifiers[batchSize:]
 	}
 
 	return applicationNames, nil
+}
+
+// shouldNukeByCreationTime - Check if the CodeDeploy Application should be excluded by CreationDate.
+func shouldNukeByCreationTime(applicationInfo *codedeploy.ApplicationInfo, excludeAfter time.Time) bool {
+	// If the CreationDate is nil, then we can't filter by it, so we return false as a precaution.
+	if applicationInfo == nil || applicationInfo.CreateTime == nil {
+		return false
+	}
+
+	// If the excludeAfter date is before the CreationDate, then we should not nuke the resource.
+	if excludeAfter.Before(*applicationInfo.CreateTime) {
+		return false
+	}
+
+	// Otherwise, the resource can be safely nuked.
+	return true
 }
 
 func nukeAllCodeDeployApplications(session *session.Session, identifiers []string) error {
@@ -79,12 +106,12 @@ func nukeAllCodeDeployApplications(session *session.Session, identifiers []strin
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting all CodeDeploy Applications in region %s", *session.Config.Region)
+	logging.Logger.Infof("Deleting CodeDeploy Applications in region %s", *session.Config.Region)
 
 	for _, identifier := range identifiers {
 		_, err := svc.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
 		if err != nil {
-			logging.Logger.Errorf("Error deleting CodeDeploy Application %s: %s", identifier, err)
+			logging.Logger.Errorf("[Failed] Error deleting CodeDeploy Application %s: %s", identifier, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking CodeDeploy Application",
 			}, map[string]interface{}{
@@ -93,6 +120,14 @@ func nukeAllCodeDeployApplications(session *session.Session, identifiers []strin
 		} else {
 			logging.Logger.Debugf("[OK] Deleted CodeDeploy Application: %s", identifier)
 		}
+
+		// record the status of the nuke attempt
+		e := report.Entry{
+			Identifier:   identifier,
+			ResourceType: "CodeDeploy Application",
+			Error:        err,
+		}
+		report.Record(e)
 	}
 
 	return nil

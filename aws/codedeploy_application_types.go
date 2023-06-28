@@ -7,7 +7,7 @@ import (
 
 // CodeDeployApplications - represents all codedeploy applications
 type CodeDeployApplications struct {
-	AppNames []*string
+	AppNames []string
 }
 
 // ResourceName - the simple name of the aws resource
@@ -15,9 +15,9 @@ func (c CodeDeployApplications) ResourceName() string {
 	return "codedeploy-application"
 }
 
-// ResourceIdentifiers - The instance ids of the ec2 instances
+// ResourceIdentifiers - The instance ids of the code deploy applications
 func (c CodeDeployApplications) ResourceIdentifiers() []string {
-	return awsgo.StringValueSlice(c.AppNames)
+	return c.AppNames
 }
 
 func (c CodeDeployApplications) MaxBatchSize() int {

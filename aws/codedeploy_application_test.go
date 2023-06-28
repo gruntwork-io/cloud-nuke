@@ -163,19 +163,36 @@ func TestGetAllCodeDeployApplicationsExcludedByName(t *testing.T) {
 
 func TestNukeAllCodeDeployApplications(t *testing.T) {
 	namePostfix := randomString()
-	session, identifiers, err := createCodeDeployTestEnvironment(105, namePostfix)
+
+	// note we set 105 applications here to ensure pagination and batching is working.
+	applicationCount := 105
+
+	session, identifiers, err := createCodeDeployTestEnvironment(applicationCount, namePostfix)
 	if err != nil {
 		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
 	}
 
-	// Test that we can nuke all CodeDeploy Applications
-	err = nukeAllCodeDeployApplications(session, identifiers)
+	// ensure we leave the test environment clean
+	defer nukeAllCodeDeployApplications(session, identifiers)
+
+	// Test that all CodeDeploy Applications are found
+	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{})
+	if err != nil {
+		t.Errorf("Failed to get CodeDeploy Applications: %v", err)
+	}
+
+	if len(applicationNames) != applicationCount {
+		t.Errorf("Expected %d CodeDeploy Applications, got %d: %v", applicationCount, len(applicationNames), applicationNames)
+	}
+
+	// Nuke all CodeDeploy Applications
+	err = nukeAllCodeDeployApplications(session, applicationNames)
 	if err != nil {
 		t.Errorf("Failed to nuke CodeDeploy Applications: %v", err)
 	}
 
 	// Test that all CodeDeploy Applications are gone
-	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{})
+	applicationNames, err = getAllCodeDeployApplications(session, time.Now(), config.Config{})
 	if err != nil {
 		t.Errorf("Failed to get CodeDeploy Applications: %v", err)
 	}
