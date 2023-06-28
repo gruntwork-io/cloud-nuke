@@ -11,11 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/terratest/modules/random"
 )
-
-func randomString() string {
-	return time.Now().Format("20060102150405")
-}
 
 func createSession(region string) (*session.Session, error) {
 	return session.NewSession(&aws.Config{
@@ -66,7 +63,7 @@ func createCodeDeployTestEnvironment(numberOfApplications int, namePostfix strin
 }
 
 func TestGetAllCodeDeployApplicationsSimple(t *testing.T) {
-	namePostfix := randomString()
+	namePostfix := random.UniqueId()
 	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
 	if err != nil {
 		t.Fatalf("Failed to create CodeDeploy test environment: %v", err)
@@ -85,7 +82,7 @@ func TestGetAllCodeDeployApplicationsSimple(t *testing.T) {
 }
 
 func TestGetAllCodeDeployApplicationsFilteredCreationDate(t *testing.T) {
-	namePostfix := randomString()
+	namePostfix := random.UniqueId()
 	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
 	if err != nil {
 		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
@@ -104,7 +101,7 @@ func TestGetAllCodeDeployApplicationsFilteredCreationDate(t *testing.T) {
 }
 
 func TestGetAllCodeDeployApplicationsIncludedByName(t *testing.T) {
-	namePostfix := randomString()
+	namePostfix := random.UniqueId()
 	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
 	if err != nil {
 		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
@@ -133,7 +130,7 @@ func TestGetAllCodeDeployApplicationsIncludedByName(t *testing.T) {
 }
 
 func TestGetAllCodeDeployApplicationsExcludedByName(t *testing.T) {
-	namePostfix := randomString()
+	namePostfix := random.UniqueId()
 	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
 	if err != nil {
 		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
@@ -162,7 +159,7 @@ func TestGetAllCodeDeployApplicationsExcludedByName(t *testing.T) {
 }
 
 func TestNukeMoreThanOneCodeDeployApplications(t *testing.T) {
-	namePostfix := randomString()
+	namePostfix := random.UniqueId()
 
 	applicationCount := 5
 	session, identifiers, err := createCodeDeployTestEnvironment(applicationCount, namePostfix)
