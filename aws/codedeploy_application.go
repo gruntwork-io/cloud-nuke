@@ -1,9 +1,8 @@
 package aws
 
 import (
+	"sync"
 	"time"
-
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -12,6 +11,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"github.com/hashicorp/go-multierror"
 )
 
 func getAllCodeDeployApplications(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
@@ -108,27 +110,56 @@ func nukeAllCodeDeployApplications(session *session.Session, identifiers []strin
 
 	logging.Logger.Infof("Deleting CodeDeploy Applications in region %s", *session.Config.Region)
 
-	for _, identifier := range identifiers {
-		_, err := svc.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
-		if err != nil {
-			logging.Logger.Errorf("[Failed] Error deleting CodeDeploy Application %s: %s", identifier, err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking CodeDeploy Application",
-			}, map[string]interface{}{
-				"region": *session.Config.Region,
-			})
-		} else {
-			logging.Logger.Debugf("[OK] Deleted CodeDeploy Application: %s", identifier)
-		}
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(identifiers))
 
-		// record the status of the nuke attempt
-		e := report.Entry{
-			Identifier:   identifier,
-			ResourceType: "CodeDeploy Application",
-			Error:        err,
-		}
-		report.Record(e)
+	for _, identifier := range identifiers {
+		wg.Add(1)
+		go nukeCodeDeployApplicationAsync(svc, &wg, errChan, identifier)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	var allErrors *multierror.Error
+	for err := range errChan {
+		allErrors = multierror.Append(allErrors, err)
+
+		logging.Logger.Errorf("[Failed] Error deleting CodeDeploy Application: %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking CodeDeploy Application",
+		}, map[string]interface{}{
+			"region": *session.Config.Region,
+		})
+	}
+
+	finalErr := allErrors.ErrorOrNil()
+	if finalErr != nil {
+		return errors.WithStackTrace(finalErr)
 	}
 
 	return nil
+}
+
+func nukeCodeDeployApplicationAsync(svc *codedeploy.CodeDeploy, wg *sync.WaitGroup, errChan chan<- error, identifier string) {
+	defer wg.Done()
+
+	_, err := svc.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
+	if err != nil {
+		errChan <- err
+	}
+
+	// record the status of the nuke attempt
+	e := report.Entry{
+		Identifier:   identifier,
+		ResourceType: "CodeDeploy Application",
+		Error:        err,
+	}
+	report.Record(e)
+
+	if err == nil {
+		logging.Logger.Debugf("[OK] Deleted CodeDeploy Application: %s", identifier)
+	} else {
+		logging.Logger.Debugf("[Failed] Error deleting CodeDeploy Application %s: %s", identifier, err)
+	}
 }

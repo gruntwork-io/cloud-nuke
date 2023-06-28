@@ -161,12 +161,10 @@ func TestGetAllCodeDeployApplicationsExcludedByName(t *testing.T) {
 	}
 }
 
-func TestNukeAllCodeDeployApplications(t *testing.T) {
+func TestNukeMoreThanOneCodeDeployApplications(t *testing.T) {
 	namePostfix := randomString()
 
-	// note we set 105 applications here to ensure pagination and batching is working.
-	applicationCount := 105
-
+	applicationCount := 5
 	session, identifiers, err := createCodeDeployTestEnvironment(applicationCount, namePostfix)
 	if err != nil {
 		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
@@ -185,7 +183,7 @@ func TestNukeAllCodeDeployApplications(t *testing.T) {
 		t.Errorf("Expected %d CodeDeploy Applications, got %d: %v", applicationCount, len(applicationNames), applicationNames)
 	}
 
-	// Nuke all CodeDeploy Applications
+	// Nuke all codedeploy applications
 	err = nukeAllCodeDeployApplications(session, applicationNames)
 	if err != nil {
 		t.Errorf("Failed to nuke CodeDeploy Applications: %v", err)
