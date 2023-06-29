@@ -2,9 +2,10 @@ package aws
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -24,7 +25,7 @@ func setFirstSeenVpcTag(svc *ec2.EC2, vpc ec2.Vpc, key string, value time.Time) 
 		Tags: []*ec2.Tag{
 			{
 				Key:   awsgo.String(key),
-				Value: awsgo.String(value.Format(time.RFC3339)),
+				Value: awsgo.String(value.Format(firstSeenTimeFormat)),
 			},
 		},
 	})
@@ -39,7 +40,7 @@ func getFirstSeenVpcTag(vpc ec2.Vpc, key string) (*time.Time, error) {
 	tags := vpc.Tags
 	for _, tag := range tags {
 		if *tag.Key == key {
-			firstSeenTime, err := time.Parse(time.RFC3339, *tag.Value)
+			firstSeenTime, err := time.Parse(firstSeenTimeFormat, *tag.Value)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

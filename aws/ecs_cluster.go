@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -208,7 +209,7 @@ func getFirstSeenEcsClusterTag(awsSession *session.Session, clusterArn *string) 
 }
 
 func parseTimestampTag(timestamp string) (time.Time, error) {
-	parsed, err := time.Parse(time.RFC3339, timestamp)
+	parsed, err := time.Parse(firstSeenTimeFormat, timestamp)
 	if err != nil {
 		logging.Logger.Debugf("Error parsing the timestamp into a `RFC3339` Time format")
 		return parsed, errors.WithStackTrace(err)
@@ -218,5 +219,5 @@ func parseTimestampTag(timestamp string) (time.Time, error) {
 }
 
 func formatTimestampTag(timestamp time.Time) string {
-	return timestamp.Format(time.RFC3339)
+	return timestamp.Format(firstSeenTimeFormat)
 }
