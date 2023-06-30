@@ -1741,6 +1741,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 					Error:        err,
 					Description:  "Unable to retrieve ACM status",
 					ResourceType: acm.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Done Listing ACM Certificates",
 			}, map[string]interface{}{
 				"region":      region,
@@ -1996,7 +2000,7 @@ func ListResourceTypes() []string {
 		CloudWatchAlarms{}.ResourceName(),
 		ACM{}.ResourceName(),
 		CodeDeployApplications{}.ResourceName(),
-  }
+	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
 }
