@@ -56,6 +56,7 @@ type Config struct {
 	CloudWatchAlarm            ResourceType `yaml:"CloudWatchAlarm"`
 	Redshift                   ResourceType `yaml:"Redshift"`
 	CodeDeployApplications     ResourceType `yaml:"CodeDeployApplications"`
+	ACM                        ResourceType `yaml:"ACM"`
 	SNS                        ResourceType `yaml:"SNS"`
 }
 

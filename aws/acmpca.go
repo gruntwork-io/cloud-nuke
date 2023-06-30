@@ -2,10 +2,11 @@ package aws
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
