@@ -1704,6 +1704,32 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Security Hub
 
+		// ACM
+		acm := ACM{}
+		if IsNukeable(acm.ResourceName(), resourceTypes) {
+			start := time.Now()
+			acmArns, err := getAllACMs(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve ACM status",
+					ResourceType: acm.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing ACM Certificates",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(acmArns),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(acmArns) > 0 {
+				acm.ARNs = acmArns
+			}
+		}
+		// End ACM
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -1945,6 +1971,7 @@ func ListResourceTypes() []string {
 		ConfigServiceRecorders{}.ResourceName(),
 		SecurityHub{}.ResourceName(),
 		CloudWatchAlarms{}.ResourceName(),
+		ACM{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
