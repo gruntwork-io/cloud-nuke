@@ -93,6 +93,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Security Hub            | Members                                                  |
 | Security Hub            | Administrators                                           |
 | AWS Certificate Manager | Certificates                                             |
+| CodeDeploy              | Applications                                             |
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
 
@@ -469,9 +470,9 @@ The following resources support the Config file:
 - AWS Certificate Manager
   - Resource type: `acm`
   - Config key: `ACM`
-
-
-
+- CodeDeploy
+  - Resource type: `codedeploy-application`
+  - Config key: `Codedeploy`
 
 Notes:
   * no configuration options for KMS customer keys, since keys are created with auto-generated identifier

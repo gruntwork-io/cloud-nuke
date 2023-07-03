@@ -1704,6 +1704,33 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Security Hub
 
+		// CodeDeploy Applications
+		codeDeployApplications := CodeDeployApplications{}
+		if IsNukeable(codeDeployApplications.ResourceName(), resourceTypes) {
+			start := time.Now()
+			applications, err := getAllCodeDeployApplications(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve CodeDeploy applications",
+					ResourceType: codeDeployApplications.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing CodeDeploy Applications",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(applications),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(applications) > 0 {
+				codeDeployApplications.AppNames = applications
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, codeDeployApplications)
+			}
+		}
+		// End CodeDeploy Applications
+
 		// ACM
 		acm := ACM{}
 		if IsNukeable(acm.ResourceName(), resourceTypes) {
@@ -1972,6 +1999,7 @@ func ListResourceTypes() []string {
 		SecurityHub{}.ResourceName(),
 		CloudWatchAlarms{}.ResourceName(),
 		ACM{}.ResourceName(),
+		CodeDeployApplications{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes
