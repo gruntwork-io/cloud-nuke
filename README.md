@@ -473,6 +473,9 @@ The following resources support the Config file:
 - CodeDeploy
   - Resource type: `codedeploy-application`
   - Config key: `Codedeploy`
+- CodeDeploy
+  - Resource type: `backup-vault`
+  - Config key: `Backupvault`
 
 Notes:
   * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
@@ -565,7 +568,7 @@ Be careful when nuking and append the `--dry-run` option if you're unsure. Even 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
 
 | resource type                 | names | names_regex | tags | tags_regex |
-| ----------------------------- | ----- | ----------- | ---- | ---------- |
+|-------------------------------| ----- | ----------- | ---- | ---------- |
 | s3                            | none  | ✅           | none | none       |
 | iam user                      | none  | ✅           | none | none       |
 | ecsserv                       | none  | ✅           | none | none       |
@@ -607,6 +610,7 @@ To find out what we options are supported in the config file today, consult this
 | config-rules                  | none  | ✅           | none | none       |
 | cloudwatch-alarm              | none  | ✅           | none | none       |
 | redshift                      | none  | ✅           | none | none       |
+| backup-vault                  | none  | ✅           | none | none       |
 | ... (more to come)            | none  | none        | none | none       |
 
 

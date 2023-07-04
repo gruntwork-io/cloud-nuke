@@ -905,6 +905,34 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End RDS DB Clusters
 
+		// Backup Vaults
+		backupVault := BackupVault{}
+		if IsNukeable(backupVault.ResourceName(), resourceTypes) {
+			start := time.Now()
+			backupVaultNames, err := getAllBackupVault(cloudNukeSession, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve backup vaults",
+					ResourceType: backupVault.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing backup vaults",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(backupVaultNames),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(backupVaultNames) > 0 {
+				backupVault.Names = awsgo.StringValueSlice(backupVaultNames)
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, backupVault)
+			}
+		}
+		// End backup vaults
+
 		// Lambda Functions
 		lambdaFunctions := LambdaFunctions{}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
