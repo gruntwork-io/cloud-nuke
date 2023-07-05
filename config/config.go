@@ -58,6 +58,7 @@ type Config struct {
 	CodeDeployApplications     ResourceType `yaml:"CodeDeployApplications"`
 	ACM                        ResourceType `yaml:"ACM"`
 	SNS                        ResourceType `yaml:"SNS"`
+	BackupVault                ResourceType `yaml:"BackupVault"`
 }
 
 type ResourceType struct {
