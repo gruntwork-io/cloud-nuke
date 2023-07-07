@@ -1785,6 +1785,34 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End ACM
 
+		// MSK Clusters
+		mskClusters := MSKCluster{}
+		if IsNukeable(mskClusters.ResourceName(), resourceTypes) {
+			start := time.Now()
+
+			mskArns, err := getAllMSKClusters(cloudNukeSession, excludeAfter, configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve MSK status",
+					ResourceType: mskClusters.ResourceName(),
+				}
+				report.RecordError(ge)
+			}
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Listing MSK Clusters",
+			}, map[string]interface{}{
+				"region":      region,
+				"recordCount": len(mskArns),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+			if len(mskArns) > 0 {
+				mskClusters.ClusterArns = mskArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, mskClusters)
+			}
+		}
+		// End MSK
+
 		if len(resourcesInRegion.Resources) > 0 {
 			account.Resources[region] = resourcesInRegion
 		}
@@ -2023,6 +2051,7 @@ func ListResourceTypes() []string {
 		CloudWatchAlarms{}.ResourceName(),
 		ACM{}.ResourceName(),
 		CodeDeployApplications{}.ResourceName(),
+		MSKCluster{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

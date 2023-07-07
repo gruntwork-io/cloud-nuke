@@ -59,6 +59,7 @@ type Config struct {
 	ACM                        ResourceType `yaml:"ACM"`
 	SNS                        ResourceType `yaml:"SNS"`
 	BackupVault                ResourceType `yaml:"BackupVault"`
+	MSKCluster                 ResourceType `yaml:"MSKCluster"`
 }
 
 type ResourceType struct {
