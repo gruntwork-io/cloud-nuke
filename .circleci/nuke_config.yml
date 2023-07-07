@@ -235,3 +235,7 @@ KMSCustomerKeys:
   include:
     names_regex:
       - "^cloud-nuke-test-.*$"
+VPC:
+  exclude:
+    names_regex:
+      - "^mgmt"
