@@ -1781,6 +1781,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			})
 			if len(acmArns) > 0 {
 				acm.ARNs = acmArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, acm)
 			}
 		}
 		// End ACM
