@@ -12,6 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	terratestaws "github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,8 +47,7 @@ func TestListAPIGatewaysV2(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
 	session, err := session.NewSession(&awsgo.Config{
 		Region: awsgo.String(region),
 	},
@@ -73,9 +73,7 @@ func TestListAPIGatewaysV2(t *testing.T) {
 func TestTimeFilterExclusionNewlyCreatedAPIGatewayV2(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
+	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
 
@@ -100,8 +98,7 @@ func TestTimeFilterExclusionNewlyCreatedAPIGatewayV2(t *testing.T) {
 func TestNukeAPIGatewayV2One(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
@@ -124,8 +121,7 @@ func TestNukeAPIGatewayV2One(t *testing.T) {
 func TestNukeAPIGatewayV2MoreThanOne(t *testing.T) {
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
 
 	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
 	require.NoError(t, err)
