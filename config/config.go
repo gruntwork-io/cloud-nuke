@@ -68,6 +68,7 @@ type ResourceType struct {
 
 type FilterRule struct {
 	NamesRegExp []Expression `yaml:"names_regex"`
+	// TODO(james): consider adding time filter rule here instead of passing in as function argument in other place.
 }
 
 type Expression struct {

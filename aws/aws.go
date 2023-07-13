@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/apigateway"
 	"math/rand"
 	"sort"
 	"strings"
@@ -1463,10 +1464,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Redshift Clusters
 
 		// API Gateways (v1)
-		apiGateways := ApiGateway{}
+		apiGateways := ApiGateway{
+			Client: apigateway.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(apiGateways.ResourceName(), resourceTypes) {
 			start := time.Now()
-			gatewayIds, err := getAllAPIGateways(cloudNukeSession, excludeAfter, configObj)
+			gatewayIds, err := apiGateways.getAll(excludeAfter, configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
