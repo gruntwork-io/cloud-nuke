@@ -1,12 +1,12 @@
 package config
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
 	"reflect"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -431,7 +431,7 @@ func TestConfigDynamoDB_IncludeNames(t *testing.T) {
 	}
 
 	if len(configObj.DynamoDB.IncludeRule.NamesRegExp) == 0 {
-		assert.Fail(t, "ConfigObj should contain DynamoDB table Name regexes, %+v\n", configObj)
+		assert.Fail(t, "ConfigObj should contain DynamoDB table name regexes, %+v\n", configObj)
 	}
 
 	return
@@ -448,7 +448,7 @@ func TestConfigDynamoDB_ExcludeNames(t *testing.T) {
 	}
 
 	if len(configObj.DynamoDB.ExcludeRule.NamesRegExp) == 0 {
-		assert.Fail(t, "ConfigObj should contain DynamoDB table Name regexes, %+v\n", configObj)
+		assert.Fail(t, "ConfigObj should contain DynamoDB table name regexes, %+v\n", configObj)
 	}
 
 	return
@@ -466,7 +466,7 @@ func TestConfigDynamoDB_FilterNames(t *testing.T) {
 
 	if len(configObj.DynamoDB.IncludeRule.NamesRegExp) == 0 ||
 		len(configObj.DynamoDB.ExcludeRule.NamesRegExp) == 0 {
-		assert.Fail(t, "ConfigObj should contain DynamoDB table Name regexes, %+v\n", configObj)
+		assert.Fail(t, "ConfigObj should contain DynamoDB table name regexes, %+v\n", configObj)
 	}
 
 	return

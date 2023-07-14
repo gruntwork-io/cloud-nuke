@@ -1,8 +1,9 @@
 package aws
 
 import (
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
+
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/apigateway"
