@@ -1470,7 +1470,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(apiGateways.ResourceName(), resourceTypes) {
 			start := time.Now()
-			gatewayIds, err := apiGateways.getAll(excludeAfter, configObj)
+			gatewayIds, err := apiGateways.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

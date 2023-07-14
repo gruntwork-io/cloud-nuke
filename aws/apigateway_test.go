@@ -47,7 +47,7 @@ func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
 		},
 	}
 
-	apis, err := apiGateway.getAll(time.Now(), config.Config{})
+	apis, err := apiGateway.getAll(config.Config{})
 	require.NoError(t, err)
 	require.Contains(t, awsgo.StringValueSlice(apis), testApiID)
 
@@ -73,12 +73,24 @@ func TestAPIGatewayGetAllTimeFilter(t *testing.T) {
 	}
 
 	// test API is not excluded from the filter
-	IDs, err := apiGateway.getAll(now.Add(1), config.Config{})
+	IDs, err := apiGateway.getAll(config.Config{
+		APIGateway: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: aws.Time(now.Add(1)),
+			},
+		},
+	})
 	require.NoError(t, err)
 	assert.Contains(t, aws.StringValueSlice(IDs), testApiID)
 
 	// test API being excluded from the filter
-	apiGwIdsOlder, err := apiGateway.getAll(now.Add(-1), config.Config{})
+	apiGwIdsOlder, err := apiGateway.getAll(config.Config{
+		APIGateway: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: aws.Time(now.Add(-1)),
+			},
+		},
+	})
 	require.NoError(t, err)
 	assert.NotContains(t, aws.StringValueSlice(apiGwIdsOlder), testApiID)
 }
@@ -101,7 +113,7 @@ func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 		},
 	}
 
-	apis, err := apiGateway.getAll(time.Now(), config.Config{})
+	apis, err := apiGateway.getAll(config.Config{})
 	require.NoError(t, err)
 	require.Contains(t, awsgo.StringValueSlice(apis), testApiID1)
 	require.Contains(t, awsgo.StringValueSlice(apis), testApiID2)

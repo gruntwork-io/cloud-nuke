@@ -1,10 +1,8 @@
 package aws
 
 import (
-	"sync"
-	"time"
-
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/apigateway"
@@ -16,8 +14,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (gateway ApiGateway) getAll(
-	excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func (gateway ApiGateway) getAll(configObj config.Config) ([]*string, error) {
 	result, err := gateway.Client.GetRestApis(&apigateway.GetRestApisInput{})
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
@@ -25,31 +22,15 @@ func (gateway ApiGateway) getAll(
 
 	var IDs []*string
 	for _, api := range result.Items {
-		if gateway.shouldInclude(api, excludeAfter, configObj) {
+		if configObj.APIGateway.ShouldInclude(config.ResourceValue{
+			Name: api.Name,
+			Time: api.CreatedDate,
+		}) {
 			IDs = append(IDs, api.Id)
 		}
 	}
 
 	return IDs, nil
-}
-
-func (gateway ApiGateway) shouldInclude(
-	apigw *apigateway.RestApi, excludeAfter time.Time, configObj config.Config) bool {
-	if apigw == nil {
-		return false
-	}
-
-	if apigw.CreatedDate != nil {
-		if excludeAfter.Before(aws.TimeValue(apigw.CreatedDate)) {
-			return false
-		}
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(apigw.Name),
-		configObj.APIGateway.IncludeRule.NamesRegExp,
-		configObj.APIGateway.ExcludeRule.NamesRegExp,
-	)
 }
 
 func (gateway ApiGateway) nukeAll(identifiers []*string) error {

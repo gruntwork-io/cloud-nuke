@@ -1,9 +1,11 @@
 package config
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +42,7 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
-		ResourceType{FilterRule{}, FilterRule{}},
+		KMSCustomerKeyResourceType{false, ResourceType{FilterRule{}, FilterRule{}}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
@@ -429,7 +431,7 @@ func TestConfigDynamoDB_IncludeNames(t *testing.T) {
 	}
 
 	if len(configObj.DynamoDB.IncludeRule.NamesRegExp) == 0 {
-		assert.Fail(t, "ConfigObj should contain DynamoDB table name regexes, %+v\n", configObj)
+		assert.Fail(t, "ConfigObj should contain DynamoDB table Name regexes, %+v\n", configObj)
 	}
 
 	return
@@ -446,7 +448,7 @@ func TestConfigDynamoDB_ExcludeNames(t *testing.T) {
 	}
 
 	if len(configObj.DynamoDB.ExcludeRule.NamesRegExp) == 0 {
-		assert.Fail(t, "ConfigObj should contain DynamoDB table name regexes, %+v\n", configObj)
+		assert.Fail(t, "ConfigObj should contain DynamoDB table Name regexes, %+v\n", configObj)
 	}
 
 	return
@@ -464,7 +466,7 @@ func TestConfigDynamoDB_FilterNames(t *testing.T) {
 
 	if len(configObj.DynamoDB.IncludeRule.NamesRegExp) == 0 ||
 		len(configObj.DynamoDB.ExcludeRule.NamesRegExp) == 0 {
-		assert.Fail(t, "ConfigObj should contain DynamoDB table name regexes, %+v\n", configObj)
+		assert.Fail(t, "ConfigObj should contain DynamoDB table Name regexes, %+v\n", configObj)
 	}
 
 	return
@@ -988,4 +990,74 @@ func TestShouldInclude_WhenMatchesIncludeAndExclude(t *testing.T) {
 		"Should not include when matches 'exclude' list")
 	assert.False(t, ShouldInclude("terraform-tf-state", includeREs, excludeREs),
 		"Should not include when doesn't matches 'include' list")
+}
+
+func TestShouldIncludeBasedOnTime_IncludeTimeBefore(t *testing.T) {
+	now := time.Now()
+
+	r := ResourceType{
+		IncludeRule: FilterRule{TimeBefore: &now},
+	}
+	assert.True(t, r.ShouldIncludeBasedOnTime(now.Add(-1)))
+	assert.False(t, r.ShouldIncludeBasedOnTime(now.Add(1)))
+}
+
+func TestShouldIncludeBasedOnTime_IncludeTimeAfter(t *testing.T) {
+	now := time.Now()
+
+	r := ResourceType{
+		IncludeRule: FilterRule{TimeAfter: &now},
+	}
+	assert.False(t, r.ShouldIncludeBasedOnTime(now.Add(-1)))
+	assert.True(t, r.ShouldIncludeBasedOnTime(now.Add(1)))
+}
+
+func TestShouldIncludeBasedOnTime_ExcludeTimeBefore(t *testing.T) {
+	now := time.Now()
+
+	r := ResourceType{
+		ExcludeRule: FilterRule{TimeBefore: &now},
+	}
+	assert.False(t, r.ShouldIncludeBasedOnTime(now.Add(-1)))
+	assert.True(t, r.ShouldIncludeBasedOnTime(now.Add(1)))
+}
+
+func TestShouldIncludeBasedOnTime_ExcludeTimeAfter(t *testing.T) {
+	now := time.Now()
+
+	r := ResourceType{
+		ExcludeRule: FilterRule{TimeAfter: &now},
+	}
+	assert.False(t, r.ShouldIncludeBasedOnTime(now.Add(1)))
+	assert.True(t, r.ShouldIncludeBasedOnTime(now.Add(-1)))
+}
+
+func TestShouldInclude_NameAndTimeFilter(t *testing.T) {
+	now := time.Now()
+
+	exclude, err := regexp.Compile(`test.*`)
+	require.NoError(t, err)
+	excludeREs := []Expression{{RE: *exclude}}
+	r := ResourceType{
+		ExcludeRule: FilterRule{
+			NamesRegExp: excludeREs,
+			TimeAfter:   &now,
+		},
+	}
+
+	// Filter by Time
+	assert.False(t, r.ShouldInclude(ResourceValue{
+		Name: aws.String("hello_world"),
+		Time: aws.Time(now.Add(1)),
+	}))
+	// Filter by Name
+	assert.False(t, r.ShouldInclude(ResourceValue{
+		Name: aws.String("test_hello_world"),
+		Time: aws.Time(now.Add(1)),
+	}))
+	// Pass filters
+	assert.True(t, r.ShouldInclude(ResourceValue{
+		Name: aws.String("hello_world"),
+		Time: aws.Time(now.Add(-1)),
+	}))
 }
