@@ -3,10 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type DBClusters struct {
+	Client        rdsiface.RDSAPI
+	Region        string
 	InstanceNames []string
 }
 
@@ -26,7 +29,7 @@ func (instance DBClusters) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (instance DBClusters) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllRdsClusters(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := instance.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
