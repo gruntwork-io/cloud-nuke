@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/apigateway"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"math/rand"
 	"sort"
 	"strings"
@@ -791,10 +792,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ECS resources
 
 		// EKS resources
-		eksClusters := EKSClusters{}
+		eksClusters := EKSClusters{
+			Client: eks.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
-			eksClusterNames, err := getAllEksClusters(cloudNukeSession, excludeAfter, configObj)
+			eksClusterNames, err := eksClusters.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

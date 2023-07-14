@@ -1,137 +1,126 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"sync"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/terratest/modules/logger"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	// Exclude ap-southeast-1, which currently has a ghost EKS cluster that messes cloud-nuke up.
-	excludeRegionsForEKSTest = []string{"ap-southeast-1"}
-)
+type mockedEKSCluster struct {
+	eksiface.EKSAPI
 
-// Test that we can successfully list clusters by manually creating a cluster, and then using the list function to find
-// it.
-func TestListEksClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
+	ListClustersOutput    eks.ListClustersOutput
+	DescribeClusterOutput eks.DescribeClusterOutput
+	DeleteClusterOutput   eks.DeleteClusterOutput
 
-	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
-	require.NoError(t, err)
+	ListFargateProfilesOutput  eks.ListFargateProfilesOutput
+	DeleteFargateProfileOutput eks.DeleteFargateProfileOutput
 
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
-
-	uniqueID := util.UniqueID()
-
-	role := createEKSClusterRole(t, awsSession, uniqueID)
-	defer deleteRole(awsSession, role)
-
-	cluster := createEKSCluster(t, awsSession, uniqueID, *role.Arn)
-	defer nukeAllEksClusters(awsSession, []*string{cluster.Name})
-
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of clusters: %s", err.Error())
-	}
-	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
-
-	eksClusterNames, err = getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of clusters: %s", err.Error())
-	}
-	assert.Contains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
+	DescribeNodegroupOutput eks.DescribeNodegroupOutput
+	ListNodegroupsOutput    eks.ListNodegroupsOutput
+	DeleteNodegroupOutput   eks.DeleteNodegroupOutput
 }
 
-// Test that we can successfully nuke EKS clusters by manually creating a cluster, and then using the nuke function to
-// delete it.
-func TestNukeEksClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
-	require.NoError(t, err)
-
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
-
-	uniqueID := util.UniqueID()
-
-	role := createEKSClusterRole(t, awsSession, uniqueID)
-	defer deleteRole(awsSession, role)
-
-	cluster := createEKSCluster(t, awsSession, uniqueID, *role.Arn)
-	err = nukeAllEksClusters(awsSession, []*string{cluster.Name})
-	require.NoError(t, err)
-
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
+func (m mockedEKSCluster) ListClusters(*eks.ListClustersInput) (*eks.ListClustersOutput, error) {
+	// Only need to return mocked response output
+	return &m.ListClustersOutput, nil
 }
 
-// Test that we can successfully nuke EKS clusters with Node Groups and Fargate Profiles.
-func TestNukeEksClustersWithCompute(t *testing.T) {
+func (m mockedEKSCluster) DescribeCluster(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
+	// Only need to return mocked response output
+	return &m.DescribeClusterOutput, nil
+}
+
+func (m mockedEKSCluster) ListNodegroupsPages(
+	input *eks.ListNodegroupsInput, fn func(*eks.ListNodegroupsOutput, bool) bool) error {
+	// Only need to return mocked response output
+	fn(&m.ListNodegroupsOutput, true)
+	return nil
+}
+
+func (m mockedEKSCluster) DeleteNodegroup(*eks.DeleteNodegroupInput) (*eks.DeleteNodegroupOutput, error) {
+	// Only need to return mocked response output
+	return &m.DeleteNodegroupOutput, nil
+}
+
+func (m mockedEKSCluster) WaitUntilNodegroupDeleted(input *eks.DescribeNodegroupInput) error {
+	return nil
+}
+
+func (m mockedEKSCluster) ListFargateProfilesPages(
+	input *eks.ListFargateProfilesInput, fn func(*eks.ListFargateProfilesOutput, bool) bool) error {
+	// Only need to return mocked response output
+	fn(&m.ListFargateProfilesOutput, true)
+	return nil
+}
+
+func (m mockedEKSCluster) DeleteFargateProfile(input *eks.DeleteFargateProfileInput) (*eks.DeleteFargateProfileOutput, error) {
+	// Only need to return mocked response output
+	return &m.DeleteFargateProfileOutput, nil
+}
+
+func (m mockedEKSCluster) WaitUntilFargateProfileDeleted(input *eks.DescribeFargateProfileInput) error {
+	return nil
+}
+
+func (m mockedEKSCluster) WaitUntilClusterDeleted(input *eks.DescribeClusterInput) error {
+	return nil
+}
+
+func (m mockedEKSCluster) DeleteCluster(input *eks.DeleteClusterInput) (*eks.DeleteClusterOutput, error) {
+	return &m.DeleteClusterOutput, nil
+}
+
+func TestEKSClusterGetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegionWithExclusions(excludeRegionsForEKSTest)
+	testClusterName := "test_cluster1"
+	now := time.Now()
+	eksCluster := EKSClusters{
+		Client: mockedEKSCluster{
+			ListClustersOutput: eks.ListClustersOutput{
+				Clusters: []*string{awsgo.String(testClusterName)},
+			},
+			DescribeClusterOutput: eks.DescribeClusterOutput{
+				Cluster: &eks.Cluster{CreatedAt: &now},
+			},
+		},
+	}
+
+	clusters, err := eksCluster.getAll(config.Config{})
 	require.NoError(t, err)
+	require.Contains(t, awsgo.StringValueSlice(clusters), testClusterName)
+}
 
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
+func TestEKSClusterNukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testClusterName := "test_cluster1"
+	testFargateProfileName := "test_fargate_profile1"
+	testNodeGroupName := "test_nodegroup1"
+	eksCluster := EKSClusters{
+		Client: mockedEKSCluster{
+			ListNodegroupsOutput: eks.ListNodegroupsOutput{
+				Nodegroups: []*string{&testNodeGroupName},
+			},
+			DescribeClusterOutput: eks.DescribeClusterOutput{},
+			ListFargateProfilesOutput: eks.ListFargateProfilesOutput{
+				FargateProfileNames: []*string{&testFargateProfileName},
+			},
+			DeleteFargateProfileOutput: eks.DeleteFargateProfileOutput{},
+			DeleteClusterOutput:        eks.DeleteClusterOutput{},
+		},
+	}
+
+	err := eksCluster.nukeAll([]*string{&testClusterName})
 	require.NoError(t, err)
-
-	uniqueID := util.UniqueID()
-
-	privateSubnet, err := createPrivateSubnetE(t, awsSession)
-	defer deletePrivateSubnet(t, awsSession, privateSubnet)
-	require.NoError(t, err)
-	logger.Logf(t, "Created subnet %s in default VPC", awsgo.StringValue(privateSubnet.subnetID))
-
-	role := createEKSClusterRole(t, awsSession, uniqueID)
-	defer deleteRole(awsSession, role)
-	podRole := createEKSClusterPodExecutionRole(t, awsSession, uniqueID)
-	defer deleteRole(awsSession, podRole)
-	nodegroupRole := createEKSNodeGroupRole(t, awsSession, uniqueID)
-	defer deleteRole(awsSession, nodegroupRole)
-
-	logger.Logf(t, "Creating test EKS cluster (this may take a while)")
-	cluster := createEKSCluster(t, awsSession, uniqueID, awsgo.StringValue(role.Arn))
-
-	// Concurrently provision fargate profile and node group as both take time to provision
-	wg := new(sync.WaitGroup)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		logger.Logf(t, "Creating test Fargate Profile (this may take a while)")
-		createEKSFargateProfile(t, awsSession, cluster.Name, uniqueID, podRole.Arn, privateSubnet)
-	}()
-	go func() {
-		defer wg.Done()
-		logger.Logf(t, "Creating test Node Group (this may take a while)")
-		createEKSNodeGroup(t, awsSession, cluster.Name, uniqueID, nodegroupRole.Arn)
-	}()
-	wg.Wait()
-
-	err = nukeAllEksClusters(awsSession, []*string{cluster.Name})
-	require.NoError(t, err)
-
-	eksClusterNames, err := getAllEksClusters(awsSession, time.Now().Add(1*time.Hour), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(eksClusterNames), *cluster.Name)
 }

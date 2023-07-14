@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EKSClusters - Represents all EKS clusters found in a region
 type EKSClusters struct {
+	Client   eksiface.EKSAPI
+	Region   string
 	Clusters []string
 }
 
@@ -30,7 +33,7 @@ func (clusters EKSClusters) MaxBatchSize() int {
 
 // Nuke - nuke all EKS Cluster resources
 func (clusters EKSClusters) Nuke(awsSession *session.Session, identifiers []string) error {
-	if err := nukeAllEksClusters(awsSession, awsgo.StringSlice(identifiers)); err != nil {
+	if err := clusters.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil
