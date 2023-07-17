@@ -69,7 +69,6 @@ func (instance DBClusters) nukeAll(names []*string) error {
 			SkipFinalSnapshot:   awsgo.Bool(true),
 		}
 
-		print("deleting1")
 		_, err := instance.Client.DeleteDBCluster(params)
 
 		// Record status of this resource
@@ -93,23 +92,19 @@ func (instance DBClusters) nukeAll(names []*string) error {
 		}
 	}
 
-	print("deleting2")
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			print("deleting3")
 			err := instance.waitUntilRdsClusterDeleted(&rds.DescribeDBClustersInput{
 				DBClusterIdentifier: name,
 			})
-			print("deleting4")
 			if err != nil {
 				logging.Logger.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}
 		}
 	}
-	//
-	//print("deleting5")
-	//logging.Logger.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), instance.Region)
+
+	logging.Logger.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), instance.Region)
 	return nil
 }
