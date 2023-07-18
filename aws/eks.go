@@ -1,68 +1,64 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"sync"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
+	"sync"
 )
 
-// getAllEksClusters returns a list of strings of EKS Cluster Names that uniquely identify each cluster.
-func getAllEksClusters(awsSession *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := eks.New(awsSession)
-	result, err := svc.ListClusters(&eks.ListClustersInput{})
+// getAll returns a list of strings of EKS Cluster Names that uniquely identify each cluster.
+func (clusters EKSClusters) getAll(configObj config.Config) ([]*string, error) {
+	result, err := clusters.Client.ListClusters(&eks.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
-	filteredClusters, err := filterOutEksClusters(svc, result.Clusters, excludeAfter, configObj)
+
+	filteredClusters, err := clusters.filter(result.Clusters, configObj)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 	return filteredClusters, nil
 }
 
-// filterOutEksClusters will take in the list of clusters and filter out any clusters that were created after
+// filter will take in the list of clusters and filter out any clusters that were created after
 // `excludeAfter`, and those that are excluded by the config file.
-func filterOutEksClusters(svc *eks.EKS, clusterNames []*string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func (clusters EKSClusters) filter(clusterNames []*string, configObj config.Config) ([]*string, error) {
 	var filteredEksClusterNames []*string
 	for _, clusterName := range clusterNames {
-		// Since we already have the name here, avoid an extra API call by applying the name based config filter first.
-		shouldInclude := config.ShouldInclude(
-			aws.StringValue(clusterName),
-			configObj.EKSCluster.IncludeRule.NamesRegExp,
-			configObj.EKSCluster.ExcludeRule.NamesRegExp,
-		)
-		if !shouldInclude {
+		// Since we already have the name here, avoid an extra API call by applying
+		// the name based config filter first.
+		if !configObj.EKSCluster.ShouldInclude(config.ResourceValue{Name: clusterName}) {
 			continue
 		}
 
-		describeResult, err := svc.DescribeCluster(&eks.DescribeClusterInput{
-			Name: clusterName,
-		})
+		describeResult, err := clusters.Client.DescribeCluster(
+			&eks.DescribeClusterInput{Name: clusterName})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
-		cluster := describeResult.Cluster
-		if excludeAfter.After(*cluster.CreatedAt) {
-			filteredEksClusterNames = append(filteredEksClusterNames, cluster.Name)
+
+		// TODO: use resourceType function for shouldInclude
+		if !configObj.EKSCluster.ShouldInclude(config.ResourceValue{Time: describeResult.Cluster.CreatedAt}) {
+			continue
 		}
+
+		filteredEksClusterNames = append(filteredEksClusterNames, clusterName)
 	}
+
 	return filteredEksClusterNames, nil
 }
 
-// deleteEKSClusterAsync deletes the provided EKS Cluster asynchronously in a goroutine, using wait groups for
+// deleteAsync deletes the provided EKS Cluster asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors. Note that this routine attempts to delete all managed compute
 // resources associated with the EKS cluster (Managed Node Groups and Fargate Profiles).
-func deleteEKSClusterAsync(wg *sync.WaitGroup, errChan chan error, svc *eks.EKS, eksClusterName string) {
+func (clusters EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error, eksClusterName string) {
 	defer wg.Done()
 
 	// Aggregate errors for each subresource being deleted
@@ -71,18 +67,18 @@ func deleteEKSClusterAsync(wg *sync.WaitGroup, errChan chan error, svc *eks.EKS,
 	// Since deleting node groups can take some time, we first schedule the deletion of them, and then move on to
 	// deleting the Fargate profiles so that they can be done in parallel, before waiting for the node groups to be
 	// deleted.
-	deletedNodeGroups, err := scheduleDeleteEKSClusterManagedNodeGroup(svc, eksClusterName)
+	deletedNodeGroups, err := clusters.scheduleDeleteEKSClusterManagedNodeGroup(eksClusterName)
 	if err != nil {
 		allSubResourceErrs = multierror.Append(allSubResourceErrs, err)
 	}
 
-	if err := deleteEKSClusterFargateProfiles(svc, eksClusterName); err != nil {
+	if err := clusters.deleteEKSClusterFargateProfiles(eksClusterName); err != nil {
 		allSubResourceErrs = multierror.Append(allSubResourceErrs, err)
 	}
 
 	// Make sure the node groups are actually deleted before returning.
 	for _, nodeGroup := range deletedNodeGroups {
-		err := svc.WaitUntilNodegroupDeleted(&eks.DescribeNodegroupInput{
+		err := clusters.Client.WaitUntilNodegroupDeleted(&eks.DescribeNodegroupInput{
 			ClusterName:   aws.String(eksClusterName),
 			NodegroupName: nodeGroup,
 		})
@@ -100,7 +96,7 @@ func deleteEKSClusterAsync(wg *sync.WaitGroup, errChan chan error, svc *eks.EKS,
 
 	// At this point, all the sub resources of the EKS cluster has been confirmed to be deleted, so we can go ahead to
 	// request to delete the EKS cluster.
-	_, deleteErr := svc.DeleteCluster(&eks.DeleteClusterInput{Name: aws.String(eksClusterName)})
+	_, deleteErr := clusters.Client.DeleteCluster(&eks.DeleteClusterInput{Name: aws.String(eksClusterName)})
 	if deleteErr != nil {
 		logging.Logger.Debugf("[Failed] Failed deleting EKS cluster %s: %s", eksClusterName, deleteErr)
 	}
@@ -110,9 +106,9 @@ func deleteEKSClusterAsync(wg *sync.WaitGroup, errChan chan error, svc *eks.EKS,
 // scheduleDeleteEKSClusterManagedNodeGroup looks up all the associated Managed Node Group resources on the EKS cluster
 // and requests each one to be deleted. Note that this function will not wait for the Node Groups to be deleted. This
 // will return the list of Node Groups that were successfully scheduled for deletion.
-func scheduleDeleteEKSClusterManagedNodeGroup(svc *eks.EKS, eksClusterName string) ([]*string, error) {
+func (clusters EKSClusters) scheduleDeleteEKSClusterManagedNodeGroup(eksClusterName string) ([]*string, error) {
 	allNodeGroups := []*string{}
-	err := svc.ListNodegroupsPages(
+	err := clusters.Client.ListNodegroupsPages(
 		&eks.ListNodegroupsInput{ClusterName: aws.String(eksClusterName)},
 		func(page *eks.ListNodegroupsOutput, lastPage bool) bool {
 			allNodeGroups = append(allNodeGroups, page.Nodegroups...)
@@ -130,7 +126,7 @@ func scheduleDeleteEKSClusterManagedNodeGroup(svc *eks.EKS, eksClusterName strin
 	var allDeleteErrs error
 	deletedNodeGroups := []*string{}
 	for _, nodeGroup := range allNodeGroups {
-		_, err := svc.DeleteNodegroup(&eks.DeleteNodegroupInput{
+		_, err := clusters.Client.DeleteNodegroup(&eks.DeleteNodegroupInput{
 			ClusterName:   aws.String(eksClusterName),
 			NodegroupName: nodeGroup,
 		})
@@ -147,9 +143,9 @@ func scheduleDeleteEKSClusterManagedNodeGroup(svc *eks.EKS, eksClusterName strin
 // deleteEKSClusterFargateProfiles looks up all the associated Fargate Profile resources on the EKS cluster and requests
 // each one to be deleted. Since only one Fargate Profile can be deleted at a time, this function will wait until the
 // Fargate Profile is actually deleted for each one before moving on to the next one.
-func deleteEKSClusterFargateProfiles(svc *eks.EKS, eksClusterName string) error {
+func (clusters EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName string) error {
 	allFargateProfiles := []*string{}
-	err := svc.ListFargateProfilesPages(
+	err := clusters.Client.ListFargateProfilesPages(
 		&eks.ListFargateProfilesInput{ClusterName: aws.String(eksClusterName)},
 		func(page *eks.ListFargateProfilesOutput, lastPage bool) bool {
 			allFargateProfiles = append(allFargateProfiles, page.FargateProfileNames...)
@@ -168,7 +164,7 @@ func deleteEKSClusterFargateProfiles(svc *eks.EKS, eksClusterName string) error 
 	// Note that we aggregate deletion errors so that we at least attempt to delete all of them once.
 	var allDeleteErrs error
 	for _, fargateProfile := range allFargateProfiles {
-		_, err := svc.DeleteFargateProfile(&eks.DeleteFargateProfileInput{
+		_, err := clusters.Client.DeleteFargateProfile(&eks.DeleteFargateProfileInput{
 			ClusterName:        aws.String(eksClusterName),
 			FargateProfileName: fargateProfile,
 		})
@@ -178,7 +174,7 @@ func deleteEKSClusterFargateProfiles(svc *eks.EKS, eksClusterName string) error 
 			continue
 		}
 
-		waitErr := svc.WaitUntilFargateProfileDeleted(&eks.DescribeFargateProfileInput{
+		waitErr := clusters.Client.WaitUntilFargateProfileDeleted(&eks.DescribeFargateProfileInput{
 			ClusterName:        aws.String(eksClusterName),
 			FargateProfileName: fargateProfile,
 		})
@@ -194,10 +190,10 @@ func deleteEKSClusterFargateProfiles(svc *eks.EKS, eksClusterName string) error 
 
 // waitUntilEksClustersDeleted waits until the EKS cluster has been actually deleted from AWS. Returns a list of EKS
 // cluster names that have been successfully deleted.
-func waitUntilEksClustersDeleted(svc *eks.EKS, eksClusterNames []*string) []*string {
+func (clusters EKSClusters) waitUntilEksClustersDeleted(eksClusterNames []*string) []*string {
 	var successfullyDeleted []*string
 	for _, eksClusterName := range eksClusterNames {
-		err := svc.WaitUntilClusterDeleted(&eks.DescribeClusterInput{Name: eksClusterName})
+		err := clusters.Client.WaitUntilClusterDeleted(&eks.DescribeClusterInput{Name: eksClusterName})
 
 		// Record status of this resource
 		e := report.Entry{
@@ -217,13 +213,11 @@ func waitUntilEksClustersDeleted(svc *eks.EKS, eksClusterNames []*string) []*str
 	return successfullyDeleted
 }
 
-// nukeAllEksClusters deletes all provided EKS clusters, waiting for them to be deleted before returning.
-func nukeAllEksClusters(awsSession *session.Session, eksClusterNames []*string) error {
+// nukeAll deletes all provided EKS clusters, waiting for them to be deleted before returning.
+func (clusters EKSClusters) nukeAll(eksClusterNames []*string) error {
 	numNuking := len(eksClusterNames)
-	svc := eks.New(awsSession)
-
 	if numNuking == 0 {
-		logging.Logger.Debugf("No EKS clusters to nuke in region %s", *awsSession.Config.Region)
+		logging.Logger.Debugf("No EKS clusters to nuke in region %s", clusters.Region)
 		return nil
 	}
 
@@ -238,13 +232,13 @@ func nukeAllEksClusters(awsSession *session.Session, eksClusterNames []*string) 
 
 	// We need to delete subresources associated with the EKS Cluster before being able to delete the cluster, so we
 	// spawn goroutines to drive the deletion of each EKS cluster.
-	logging.Logger.Debugf("Deleting %d EKS clusters in region %s", numNuking, *awsSession.Config.Region)
+	logging.Logger.Debugf("Deleting %d EKS clusters in region %s", numNuking, clusters.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(numNuking)
 	errChans := make([]chan error, numNuking)
 	for i, eksClusterName := range eksClusterNames {
 		errChans[i] = make(chan error, 1)
-		go deleteEKSClusterAsync(wg, errChans[i], svc, aws.StringValue(eksClusterName))
+		go clusters.deleteAsync(wg, errChans[i], aws.StringValue(eksClusterName))
 	}
 	wg.Wait()
 
@@ -257,7 +251,7 @@ func nukeAllEksClusters(awsSession *session.Session, eksClusterNames []*string) 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking EKS Cluster",
 			}, map[string]interface{}{
-				"region": *awsSession.Config.Region,
+				"region": clusters.Region,
 			})
 		}
 	}
@@ -267,9 +261,9 @@ func nukeAllEksClusters(awsSession *session.Session, eksClusterNames []*string) 
 	}
 
 	// Now wait until the EKS Clusters are deleted
-	successfullyDeleted := waitUntilEksClustersDeleted(svc, eksClusterNames)
+	successfullyDeleted := clusters.waitUntilEksClustersDeleted(eksClusterNames)
 	numNuked := len(successfullyDeleted)
-	logging.Logger.Debugf("[OK] %d of %d EKS cluster(s) deleted in %s", numNuked, numNuking, *awsSession.Config.Region)
+	logging.Logger.Debugf("[OK] %d of %d EKS cluster(s) deleted in %s", numNuked, numNuking, clusters.Region)
 	return nil
 }
 
