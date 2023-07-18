@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/acmpca"
 	"math/rand"
 	"sort"
 	"strings"
@@ -241,10 +242,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// because of dependencies between resources
 
 		// ACMPCA arns
-		acmpca := ACMPCA{}
+		acmpca := ACMPCA{
+			Client: acmpca.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(acmpca.ResourceName(), resourceTypes) {
 			start := time.Now()
-			arns, err := getAllACMPCA(cloudNukeSession, region, excludeAfter)
+			arns, err := acmpca.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

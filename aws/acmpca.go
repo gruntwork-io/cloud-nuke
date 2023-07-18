@@ -9,7 +9,6 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acmpca"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -18,31 +17,33 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// getAllACMPCA returns a list of all arns of ACMPCA, which can be deleted.
-func getAllACMPCA(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
-	svc := acmpca.New(session)
+// getAll returns a list of all arns of ACMPCA, which can be deleted.
+func (ap ACMPCA) getAll(configObj config.Config) ([]*string, error) {
 	var arns []*string
-	if paginationErr := svc.ListCertificateAuthoritiesPages(&acmpca.ListCertificateAuthoritiesInput{}, func(p *acmpca.ListCertificateAuthoritiesOutput, lastPage bool) bool {
-		for _, ca := range p.CertificateAuthorities {
-			if shouldIncludeACMPCA(ca, excludeAfter) {
-				arns = append(arns, ca.Arn)
+	paginationErr := ap.Client.ListCertificateAuthoritiesPages(
+		&acmpca.ListCertificateAuthoritiesInput{},
+		func(p *acmpca.ListCertificateAuthoritiesOutput, lastPage bool) bool {
+			for _, ca := range p.CertificateAuthorities {
+				if ap.shouldInclude(ca, configObj) {
+					arns = append(arns, ca.Arn)
+				}
 			}
-		}
-		return !lastPage
-	}); paginationErr != nil {
+			return !lastPage
+		})
+	if paginationErr != nil {
 		return nil, errors.WithStackTrace(paginationErr)
 	}
+
 	return arns, nil
 }
 
-func shouldIncludeACMPCA(ca *acmpca.CertificateAuthority, excludeAfter time.Time) bool {
+func (ap ACMPCA) shouldInclude(ca *acmpca.CertificateAuthority, configObj config.Config) bool {
 	if ca == nil {
 		return false
 	}
 
 	statusSafe := aws.StringValue(ca.Status)
-	isAlreadyDeleted := statusSafe == acmpca.CertificateAuthorityStatusDeleted
-	if isAlreadyDeleted {
+	if statusSafe == acmpca.CertificateAuthorityStatusDeleted {
 		return false
 	}
 
@@ -54,33 +55,25 @@ func shouldIncludeACMPCA(ca *acmpca.CertificateAuthority, excludeAfter time.Time
 	} else {
 		referenceTime = aws.TimeValue(ca.LastStateChangeAt)
 	}
-	if excludeAfter.Before(referenceTime) {
-		return false
-	}
 
-	return config.ShouldInclude(
-		aws.StringValue(ca.Arn),
-		nil,
-		nil,
-	)
+	return configObj.ACMPCA.ShouldInclude(config.ResourceValue{Time: &referenceTime})
 }
 
-// nukeAllACMPCA will delete all ACMPCA, which are given by a list of arns.
-func nukeAllACMPCA(session *session.Session, arns []*string) error {
+// nukeAll will delete all ACMPCA, which are given by a list of arns.
+func (ap ACMPCA) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
-		logging.Logger.Debugf("No ACMPCA to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No ACMPCA to nuke in region %s", ap.Region)
 		return nil
 	}
-	svc := acmpca.New(session)
 
-	logging.Logger.Debugf("Deleting all ACMPCA in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all ACMPCA in region %s", ap.Region)
 	// There is no bulk delete acmpca API, so we delete the batch of ARNs concurrently using go routines.
 	wg := new(sync.WaitGroup)
 	wg.Add(len(arns))
 	errChans := make([]chan error, len(arns))
 	for i, arn := range arns {
 		errChans[i] = make(chan error, 1)
-		go deleteACMPCAASync(wg, errChans[i], svc, arn, aws.StringValue(session.Config.Region))
+		go ap.deleteAsync(wg, errChans[i], arn)
 	}
 	wg.Wait()
 
@@ -93,20 +86,22 @@ func nukeAllACMPCA(session *session.Session, arns []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ACMPCA",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": ap.Region,
 			})
 		}
 	}
+
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
 }
 
-// deleteACMPCAASync deletes the provided ACMPCA arn. Intended to be run in a goroutine, using wait groups
+// deleteAsync deletes the provided ACMPCA arn. Intended to be run in a goroutine, using wait groups
 // and a return channel for errors.
-func deleteACMPCAASync(wg *sync.WaitGroup, errChan chan error, svc *acmpca.ACMPCA, arn *string, region string) {
+func (ap ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *string) {
 	defer wg.Done()
 
-	logging.Logger.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, region)
-	details, detailsErr := svc.DescribeCertificateAuthority(&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
+	logging.Logger.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, ap.Region)
+	details, detailsErr := ap.Client.DescribeCertificateAuthority(
+		&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
 	if detailsErr != nil {
 		errChan <- detailsErr
 		return
@@ -128,18 +123,19 @@ func deleteACMPCAASync(wg *sync.WaitGroup, errChan chan error, svc *acmpca.ACMPC
 		statusSafe != acmpca.CertificateAuthorityStatusDeleted
 
 	if shouldUpdateStatus {
-		logging.Logger.Debugf("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, region)
-		if _, updateStatusErr := svc.UpdateCertificateAuthority(&acmpca.UpdateCertificateAuthorityInput{
+		logging.Logger.Debugf("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, ap.Region)
+		if _, updateStatusErr := ap.Client.UpdateCertificateAuthority(&acmpca.UpdateCertificateAuthorityInput{
 			CertificateAuthorityArn: arn,
 			Status:                  aws.String(acmpca.CertificateAuthorityStatusDisabled),
 		}); updateStatusErr != nil {
 			errChan <- updateStatusErr
 			return
 		}
-		logging.Logger.Debugf("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, region)
+
+		logging.Logger.Debugf("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, ap.Region)
 	}
 
-	_, deleteErr := svc.DeleteCertificateAuthority(&acmpca.DeleteCertificateAuthorityInput{
+	_, deleteErr := ap.Client.DeleteCertificateAuthority(&acmpca.DeleteCertificateAuthorityInput{
 		CertificateAuthorityArn: arn,
 		// the range is 7 to 30 days.
 		// since cloud-nuke should not be used in production,

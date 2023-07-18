@@ -58,6 +58,7 @@ type Config struct {
 	Redshift                   ResourceType               `yaml:"Redshift"`
 	CodeDeployApplications     ResourceType               `yaml:"CodeDeployApplications"`
 	ACM                        ResourceType               `yaml:"ACM"`
+	ACMPCA                     ResourceType               `yaml:"ACMPCA"`
 	SNS                        ResourceType               `yaml:"SNS"`
 	BackupVault                ResourceType               `yaml:"BackupVault"`
 	DBClusters                 ResourceType               `yaml:"DBClusters"`
