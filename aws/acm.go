@@ -19,7 +19,7 @@ func (a ACM) getAll(configObj config.Config) ([]string, error) {
 	err := a.Client.ListCertificatesPages(params,
 		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
 			for i := range page.CertificateSummaryList {
-				if shouldInclude(page.CertificateSummaryList[i], configObj) {
+				if a.shouldInclude(page.CertificateSummaryList[i], configObj) {
 					acmArns = append(acmArns, *page.CertificateSummaryList[i].CertificateArn)
 				}
 			}
@@ -34,7 +34,7 @@ func (a ACM) getAll(configObj config.Config) ([]string, error) {
 	return acmArns, nil
 }
 
-func shouldInclude(acm *acm.CertificateSummary, configObj config.Config) bool {
+func (a ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config) bool {
 	if acm == nil {
 		return false
 	}
