@@ -1,16 +1,16 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/service/acm/acmiface"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/acm/acmiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 )
 
 type mockedACM struct {
