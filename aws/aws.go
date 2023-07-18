@@ -2,6 +2,9 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/apigateway"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"math/rand"
 	"sort"
 	"strings"
