@@ -3,12 +3,15 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/acm/acmiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ACMPA - represents all ACMPA
 type ACM struct {
-	ARNs []string
+	Client acmiface.ACMAPI
+	Region string
+	ARNs   []string
 }
 
 // ResourceName - the simple name of the aws resource
@@ -28,7 +31,7 @@ func (acm ACM) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (acm ACM) Nuke(session *session.Session, arns []string) error {
-	if err := nukeAllACMs(session, awsgo.StringSlice(arns)); err != nil {
+	if err := acm.nukeAll(awsgo.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

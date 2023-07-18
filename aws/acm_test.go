@@ -1,344 +1,119 @@
 package aws
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"github.com/aws/aws-sdk-go/service/acm/acmiface"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
-func createHTTPListenerFromListCertificatesOutput(t *testing.T, listCertificatesOutput *acm.ListCertificatesOutput, responseCode int) *httptest.Server {
-	response, err := json.Marshal(listCertificatesOutput)
-	if err != nil {
-		t.Fatalf("Could not marshal certificate summary: %s", err)
+type mockedACM struct {
+	acmiface.ACMAPI
+	ListCertificatesOutput  acm.ListCertificatesOutput
+	DeleteCertificateOutput acm.DeleteCertificateOutput
+}
+
+func (m mockedACM) ListCertificatesPages(
+	input *acm.ListCertificatesInput, fn func(*acm.ListCertificatesOutput, bool) bool) error {
+	// Only need to return mocked response output
+	fn(&m.ListCertificatesOutput, true)
+	return nil
+}
+
+func (m mockedACM) DeleteCertificate(input *acm.DeleteCertificateInput) (*acm.DeleteCertificateOutput, error) {
+	return &m.DeleteCertificateOutput, nil
+}
+
+func TestACMGetAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testDomainName := "test-domain-name"
+	testArn := "test-arn"
+	now := time.Now()
+	acm := ACM{
+		Client: mockedACM{
+			ListCertificatesOutput: acm.ListCertificatesOutput{
+				CertificateSummaryList: []*acm.CertificateSummary{
+					{
+						DomainName:     &testDomainName,
+						CreatedAt:      &now,
+						CertificateArn: &testArn,
+					},
+				},
+			},
+		},
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(responseCode)
-		w.Write(response)
+	// without any filters
+	acms, err := acm.getAll(config.Config{})
+	require.NoError(t, err)
+	require.Contains(t, acms, testArn)
+
+	// filtering domain names
+	acms, err = acm.getAll(config.Config{
+		ACM: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{{
+					RE: *regexp.MustCompile("test-domain"),
+				}}}},
 	})
+	require.NoError(t, err)
+	require.NotContains(t, acms, testArn)
 
-	return httptest.NewServer(mux)
-}
-
-func createTestSession(t *testing.T, url string) *session.Session {
-	session, err := session.NewSession(&aws.Config{
-		Region: aws.String("no-region"),
-		Credentials: credentials.NewStaticCredentials(
-			"test",
-			"test",
-			"test",
-		),
-		DisableSSL: aws.Bool(true),
-		Endpoint:   aws.String(url),
+	// filtering with time
+	acms, err = acm.getAll(config.Config{
+		ACM: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: aws.Time(now.Add(-1)),
+			}},
 	})
-	if err != nil {
-		t.Fatalf("Could not create test session: %s", err)
-	}
-
-	return session
+	require.NoError(t, err)
+	require.NotContains(t, acms, testArn)
 }
 
-func TestGetAllACMs(t *testing.T) {
-	createListCertitificatesOutput := func(certArns []string, domainNames []string, createdTimes []time.Time) *acm.ListCertificatesOutput {
-		certificates := []*acm.CertificateSummary{}
-		for i := range certArns {
-			certificates = append(certificates, &acm.CertificateSummary{
-				CertificateArn: aws.String(certArns[i]),
-				DomainName:     aws.String(domainNames[i]),
-				CreatedAt:      aws.Time(createdTimes[i]),
-			})
-		}
+func TestACMGetAll_FilterInUse(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
 
-		return &acm.ListCertificatesOutput{
-			CertificateSummaryList: certificates,
-		}
-	}
-
-	tests := map[string]struct {
-		listCertificatesOutput *acm.ListCertificatesOutput
-		excludeAfter           time.Time
-		configObj              config.Config
-		expected               []string
-	}{
-		"no acms": {
-			listCertificatesOutput: &acm.ListCertificatesOutput{
-				CertificateSummaryList: []*acm.CertificateSummary{},
-			},
-			excludeAfter: time.Now(),
-			configObj:    config.Config{},
-			expected:     []string{},
-		},
-		"single acm": {
-			listCertificatesOutput: createListCertitificatesOutput(
-				[]string{"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"},
-				[]string{"example.com"},
-				[]time.Time{time.Now()},
-			),
-			excludeAfter: time.Now(),
-			configObj:    config.Config{},
-			expected: []string{
-				"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-			},
-		},
-		"multiple acms": {
-			listCertificatesOutput: createListCertitificatesOutput(
-				[]string{
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789013",
-				},
-				[]string{
-					"example.com",
-					"example.org",
-				},
-				[]time.Time{
-					time.Now(),
-					time.Now(),
-				},
-			),
-			excludeAfter: time.Now(),
-			configObj:    config.Config{},
-			expected: []string{
-				"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-				"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789013",
-			},
-		},
-		"exclude after": {
-			listCertificatesOutput: createListCertitificatesOutput(
-				[]string{
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789013",
-				},
-				[]string{
-					"example.com",
-					"example.org",
-				},
-				[]time.Time{
-					time.Now(),
-					time.Now(),
-				},
-			),
-			excludeAfter: time.Now().Add(-1 * time.Hour),
-			configObj:    config.Config{},
-			expected:     []string{},
-		},
-		"include on domain name": {
-			listCertificatesOutput: createListCertitificatesOutput(
-				[]string{
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789013",
-				},
-				[]string{
-					"example.com",
-					"example.org",
-				},
-				[]time.Time{
-					time.Now(),
-					time.Now(),
-				},
-			),
-			excludeAfter: time.Now(),
-			configObj: config.Config{
-				ACM: config.ResourceType{
-					IncludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("example.com"),
-							},
-						},
+	testDomainName := "test-domain-name"
+	testArn := "test-arn"
+	acm := ACM{
+		Client: mockedACM{
+			ListCertificatesOutput: acm.ListCertificatesOutput{
+				CertificateSummaryList: []*acm.CertificateSummary{
+					{
+						DomainName:     &testDomainName,
+						InUse:          aws.Bool(true),
+						CertificateArn: &testArn,
 					},
 				},
 			},
-			expected: []string{
-				"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-			},
-		},
-		"exclude on domain name": {
-			listCertificatesOutput: createListCertitificatesOutput(
-				[]string{
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
-					"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789013",
-				},
-				[]string{
-					"example.com",
-					"example.org",
-				},
-				[]time.Time{
-					time.Now(),
-					time.Now(),
-				},
-			),
-			excludeAfter: time.Now(),
-			configObj: config.Config{
-				ACM: config.ResourceType{
-					ExcludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("example.com"),
-							},
-						},
-					},
-				},
-			},
-			expected: []string{
-				"arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789013",
-			},
 		},
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			httpServer := createHTTPListenerFromListCertificatesOutput(t, test.listCertificatesOutput, http.StatusOK)
-			defer httpServer.Close()
-
-			session := createTestSession(t, httpServer.URL)
-
-			actual, err := getAllACMs(session, test.excludeAfter, test.configObj)
-			if err != nil {
-				t.Errorf("Expected no error, but got %s", err)
-			}
-
-			if len(actual) != len(test.expected) {
-				t.Errorf("Expected %d, but got %d", len(test.expected), len(actual))
-			}
-		})
-	}
+	acms, err := acm.getAll(config.Config{})
+	require.NoError(t, err)
+	require.NotContains(t, acms, testArn)
 }
 
-func TestGetAllACMsError(t *testing.T) {
-	httpServer := createHTTPListenerFromListCertificatesOutput(t, &acm.ListCertificatesOutput{}, http.StatusInternalServerError)
-	defer httpServer.Close()
+func TestACMNukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
 
-	session := createTestSession(t, httpServer.URL)
-
-	_, err := getAllACMs(session, time.Now(), config.Config{})
-	if err == nil {
-		t.Errorf("Expected error, but got none")
-	}
-}
-
-func TestShouldIncludeACM(t *testing.T) {
-	certSummary := func(domainName string, createdAt time.Time, inUse bool) *acm.CertificateSummary {
-		return &acm.CertificateSummary{
-			CertificateArn: aws.String("arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"),
-			DomainName:     aws.String(domainName),
-			CreatedAt:      aws.Time(createdAt),
-			InUse:          aws.Bool(inUse),
-		}
-	}
-
-	tests := map[string]struct {
-		acm          *acm.CertificateSummary
-		excludeAfter time.Time
-		configObj    config.Config
-		expected     bool
-	}{
-		"include on domain name": {
-			acm:          certSummary("example.com", time.Now(), false),
-			excludeAfter: time.Now(),
-			configObj: config.Config{
-				ACM: config.ResourceType{
-					IncludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("example.com"),
-							},
-						},
-					},
-				},
-			},
-			expected: true,
-		},
-		"exclude on domain name": {
-			acm:          certSummary("example.com", time.Now(), false),
-			excludeAfter: time.Now(),
-			configObj: config.Config{
-				ACM: config.ResourceType{
-					ExcludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("example.com"),
-							},
-						},
-					},
-				},
-			},
-			expected: false,
-		},
-		"include on domain name, exclude on created at": {
-			acm:          certSummary("example.com", time.Now(), false),
-			excludeAfter: time.Now().Add(-1 * time.Hour),
-			configObj: config.Config{
-				ACM: config.ResourceType{
-					IncludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("example.com"),
-							},
-						},
-					},
-				},
-			},
-			expected: false,
-		},
-		"exclude on domain name, include on created at": {
-			acm:          certSummary("example.com", time.Now(), false),
-			excludeAfter: time.Now().Add(-1 * time.Hour),
-			configObj: config.Config{
-				ACM: config.ResourceType{
-					ExcludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("example.com"),
-							},
-						},
-					},
-				},
-			},
-			expected: false,
-		},
-		"in use": {
-			acm:          certSummary("example.com", time.Now(), true),
-			excludeAfter: time.Now(),
-			configObj:    config.Config{},
-			expected:     false,
-		},
-		"not in use": {
-			acm:          certSummary("example.com", time.Now(), false),
-			excludeAfter: time.Now(),
-			configObj:    config.Config{},
-			expected:     true,
-		},
-		"nil cert summary": {
-			acm:          nil,
-			excludeAfter: time.Now(),
-			configObj:    config.Config{},
-			expected:     false,
-		},
-		"nil created at": {
-			acm:          certSummary("example.com", time.Time{}, false),
-			excludeAfter: time.Now(),
-			configObj:    config.Config{},
-			expected:     true,
+	testDomainName := "test-domain-name"
+	acm := ACM{
+		Client: mockedACM{
+			DeleteCertificateOutput: acm.DeleteCertificateOutput{},
 		},
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			actual := shouldIncludeACM(test.acm, test.excludeAfter, test.configObj)
-
-			if actual != test.expected {
-				t.Errorf("Expected %t, but got %t", test.expected, actual)
-			}
-		})
-	}
+	err := acm.nukeAll([]*string{&testDomainName})
+	require.NoError(t, err)
 }
