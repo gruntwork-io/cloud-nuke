@@ -65,7 +65,7 @@ func shouldIncludeMSKCluster(clusterInfo types.Cluster, excludeAfter time.Time, 
 	)
 }
 
-func nukeAllMSKClusters(session *session.Session, identifiers []*string) error {
+func nukeAllMSKClusters(session *session.Session, identifiers []string) error {
 	region := session.Config.Region
 	ctx := context.TODO()
 
@@ -78,7 +78,7 @@ func nukeAllMSKClusters(session *session.Session, identifiers []*string) error {
 
 	for _, clusterArn := range identifiers {
 		_, err := svc.DeleteCluster(ctx, &kafka.DeleteClusterInput{
-			ClusterArn: clusterArn,
+			ClusterArn: &clusterArn,
 		})
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
@@ -86,7 +86,7 @@ func nukeAllMSKClusters(session *session.Session, identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   *clusterArn,
+			Identifier:   clusterArn,
 			ResourceType: "MSKCluster",
 			Error:        err,
 		}

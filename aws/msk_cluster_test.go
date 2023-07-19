@@ -1,28 +1,91 @@
 package aws
 
 import (
+	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/kafka/types"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	kafkatypes "github.com/aws/aws-sdk-go-v2/service/kafka/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/terratest/modules/random"
+	"github.com/stretchr/testify/require"
 )
+
+func deferMSKTerminateWithTestResult(t *testing.T, cluster *TestMSKCluster) {
+	if err := cluster.terminate(context.Background()); err != nil {
+		t.Fatalf("failed to terminate test MSK cluster: %v", err)
+	}
+}
+
+func TestGetAllMSKClusters(t *testing.T) {
+	ctx := context.Background()
+
+	region, err := getRandomRegion()
+	if err != nil {
+		t.Fatalf("failed to get random region: %v", err)
+	}
+
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
+	if err != nil {
+		t.Fatalf("failed to load AWS config: %v", err)
+	}
+
+	clusterName := fmt.Sprintf("cloud-nuke-msk-test-%s", random.UniqueId())
+	cluster, err := createTestMSKCluster(ctx, cfg, clusterName, 1)
+	if err != nil {
+		t.Fatalf("failed to create test MSK cluster: %v", err)
+	}
+	defer deferMSKTerminateWithTestResult(t, &cluster)
+
+	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	require.NoError(t, err)
+
+	// test that we can find the cluster
+	clusterInfo, err := getAllMSKClusters(session, time.Now(), config.Config{})
+	if err != nil {
+		t.Fatalf("failed to get all MSK clusters: %v", err)
+	}
+
+	if len(clusterInfo) != 1 {
+		t.Fatalf("expected 1 cluster, got %d", len(clusterInfo))
+	}
+
+	// test that we can then delete the cluster
+	err = nukeAllMSKClusters(session, clusterInfo)
+	if err != nil {
+		t.Fatalf("failed to nuke MSK clusters: %v", err)
+	}
+
+	// test that we can't find the cluster anymore
+	clusterInfo, err = getAllMSKClusters(session, time.Now(), config.Config{})
+	if err != nil {
+		t.Fatalf("failed to get all MSK clusters: %v", err)
+	}
+
+	if len(clusterInfo) != 0 {
+		t.Fatalf("expected 0 clusters, got %d", len(clusterInfo))
+	}
+}
 
 func TestShouldIncludeMSKCluster(t *testing.T) {
 	clusterName := "test-cluster"
 	creationTime := time.Now()
 
 	tests := map[string]struct {
-		clusterInfo  types.Cluster
+		clusterInfo  kafkatypes.Cluster
 		excludeAfter time.Time
 		configObj    config.Config
 		expected     bool
 	}{
 		"cluster is in deleting state": {
-			clusterInfo: types.Cluster{
+			clusterInfo: kafkatypes.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateDeleting,
+				State:        kafkatypes.ClusterStateDeleting,
 				CreationTime: &creationTime,
 			},
 			excludeAfter: time.Now(),
@@ -30,9 +93,9 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 			expected:     false,
 		},
 		"cluster is in creating state": {
-			clusterInfo: types.Cluster{
+			clusterInfo: kafkatypes.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateCreating,
+				State:        kafkatypes.ClusterStateCreating,
 				CreationTime: &creationTime,
 			},
 			excludeAfter: time.Now(),
@@ -40,9 +103,9 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 			expected:     false,
 		},
 		"cluster is in active state": {
-			clusterInfo: types.Cluster{
+			clusterInfo: kafkatypes.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateActive,
+				State:        kafkatypes.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
 			excludeAfter: time.Now(),
@@ -50,9 +113,9 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 			expected:     true,
 		},
 		"cluster created before excludeAfter": {
-			clusterInfo: types.Cluster{
+			clusterInfo: kafkatypes.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateActive,
+				State:        kafkatypes.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
 			excludeAfter: time.Now().Add(1 * time.Hour),
@@ -60,9 +123,9 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 			expected:     true,
 		},
 		"cluster created after excludeAfter": {
-			clusterInfo: types.Cluster{
+			clusterInfo: kafkatypes.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateActive,
+				State:        kafkatypes.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
 			excludeAfter: time.Now().Add(-1 * time.Hour),
@@ -70,9 +133,9 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 			expected:     false,
 		},
 		"cluster excluded by name": {
-			clusterInfo: types.Cluster{
+			clusterInfo: kafkatypes.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateActive,
+				State:        kafkatypes.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
 			excludeAfter: time.Now(),
@@ -90,9 +153,9 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 			expected: false,
 		},
 		"cluster included by name": {
-			clusterInfo: types.Cluster{
+			clusterInfo: kafkatypes.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateActive,
+				State:        kafkatypes.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
 			excludeAfter: time.Now(),
