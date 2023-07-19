@@ -2,26 +2,27 @@ package aws
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/apigateway"
-	"github.com/aws/aws-sdk-go/service/eks"
 	"math/rand"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -1768,10 +1769,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End CodeDeploy Applications
 
 		// ACM
-		acm := ACM{}
+		acm := ACM{
+			Client: acm.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(acm.ResourceName(), resourceTypes) {
 			start := time.Now()
-			acmArns, err := getAllACMs(cloudNukeSession, excludeAfter, configObj)
+			acmArns, err := acm.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
