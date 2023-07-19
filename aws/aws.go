@@ -12,10 +12,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/acm"
-	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
@@ -884,10 +882,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Clusters
 		// These reference the Aurora Clusters, for the use it's the same resource (rds), but AWS
 		// has different abstractions for each.
-		dbClusters := DBClusters{}
+		dbClusters := DBClusters{
+			Client: rds.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
-			clustersNames, err := getAllRdsClusters(cloudNukeSession, excludeAfter)
+			clustersNames, err := dbClusters.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
