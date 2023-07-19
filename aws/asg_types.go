@@ -15,23 +15,23 @@ type ASGroups struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (group ASGroups) ResourceName() string {
+func (ag ASGroups) ResourceName() string {
 	return "asg"
 }
 
-func (group ASGroups) MaxBatchSize() int {
+func (ag ASGroups) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // ResourceIdentifiers - The group names of the auto scaling groups
-func (group ASGroups) ResourceIdentifiers() []string {
-	return group.GroupNames
+func (ag ASGroups) ResourceIdentifiers() []string {
+	return ag.GroupNames
 }
 
 // Nuke - nuke 'em all!!!
-func (group ASGroups) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllAutoScalingGroups(session, awsgo.StringSlice(identifiers)); err != nil {
+func (ag ASGroups) Nuke(session *session.Session, identifiers []string) error {
+	if err := ag.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

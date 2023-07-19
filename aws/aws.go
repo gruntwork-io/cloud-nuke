@@ -306,7 +306,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
-			groupNames, err := getAllAutoScalingGroups(cloudNukeSession, region, excludeAfter, configObj)
+			groupNames, err := asGroups.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
