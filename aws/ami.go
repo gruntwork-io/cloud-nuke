@@ -3,28 +3,25 @@ package aws
 import (
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of AMI Image ids
-func getAllAMIs(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
-	svc := ec2.New(session)
-
+func (ami AMI) getAll(configObj config.Config) ([]*string, error) {
 	params := &ec2.DescribeImagesInput{
 		Owners: []*string{awsgo.String("self")},
 	}
 
-	output, err := svc.DescribeImages(params)
+	output, err := ami.Client.DescribeImages(params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -37,8 +34,10 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 			return nil, err
 		}
 
-		// Test for time exclusion and check if resource is managed by AWS Backup (see note in README)
-		if excludeAfter.After(createdTime) && !util.HasAWSBackupTag(image.Tags) {
+		if configObj.AMI.ShouldInclude(config.ResourceValue{
+			Name: image.Name,
+			Time: &createdTime,
+		}) {
 			imageIds = append(imageIds, image.ImageId)
 		}
 	}
@@ -46,16 +45,14 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 	return imageIds, nil
 }
 
-// Deletes all AMIs
-func nukeAllAMIs(session *session.Session, imageIds []*string) error {
-	svc := ec2.New(session)
-
+// Deletes all AMI
+func (ami AMI) nukeAll(imageIds []*string) error {
 	if len(imageIds) == 0 {
-		logging.Logger.Debugf("No AMIs to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No AMI to nuke in region %s", ami.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all AMIs in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all AMI in region %s", ami.Region)
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
@@ -63,7 +60,7 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 			ImageId: imageID,
 		}
 
-		_, err := svc.DeregisterImage(params)
+		_, err := ami.Client.DeregisterImage(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -78,7 +75,7 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking AMI",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": ami.Region,
 			})
 		} else {
 			deletedCount++
@@ -86,6 +83,6 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, ami.Region)
 	return nil
 }

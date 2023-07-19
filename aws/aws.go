@@ -764,7 +764,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(amis.ResourceName(), resourceTypes) {
 			start := time.Now()
-			imageIds, err := getAllAMIs(cloudNukeSession, region, excludeAfter)
+			imageIds, err := amis.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

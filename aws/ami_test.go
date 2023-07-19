@@ -1,178 +1,86 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/assert"
+	"regexp"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
 )
 
-func waitUntilImageAvailable(svc *ec2.EC2, input *ec2.DescribeImagesInput) error {
-	for i := 0; i < 70; i++ {
-		output, err := svc.DescribeImages(input)
-		if err != nil {
-			return err
-		}
-
-		if *output.Images[0].State == "available" {
-			return nil
-		}
-
-		logging.Logger.Debug("Waiting for ELB to be available")
-		time.Sleep(10 * time.Second)
-	}
-
-	return ImageAvailableError{}
+type mockedAMI struct {
+	ec2iface.EC2API
+	DescribeImagesOutput  ec2.DescribeImagesOutput
+	DeregisterImageOutput ec2.DeregisterImageOutput
 }
 
-func createTestAMI(t *testing.T, session *session.Session, name string) (*ec2.Image, error) {
-	svc := ec2.New(session)
-	instance := createTestEC2Instance(t, session, name, false)
-	output, err := svc.CreateImage(&ec2.CreateImageInput{
-		InstanceId: instance.InstanceId,
-		Name:       awsgo.String(name),
-	})
-
-	if err != nil {
-		assert.Failf(t, "Could not create test AMI", errors.WithStackTrace(err).Error())
-	}
-
-	params := &ec2.DescribeImagesInput{
-		Owners:   []*string{awsgo.String("self")},
-		ImageIds: []*string{output.ImageId},
-	}
-
-	err = svc.WaitUntilImageExists(params)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	err = svc.WaitUntilImageAvailable(params)
-
-	if err != nil {
-		// clean this up since we won't use it again
-		defer nukeAllAMIs(session, []*string{output.ImageId})
-		return nil, errors.WithStackTrace(err)
-	}
-
-	images, err := svc.DescribeImages(&ec2.DescribeImagesInput{
-		ImageIds: []*string{output.ImageId},
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	return images.Images[0], nil
+func (m mockedAMI) DescribeImages(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
+	return &m.DescribeImagesOutput, nil
 }
 
-func TestListAMIs(t *testing.T) {
+func (m mockedAMI) DeregisterImage(input *ec2.DeregisterImageInput) (*ec2.DeregisterImageOutput, error) {
+	return &m.DeregisterImageOutput, nil
+}
+
+func TestAMIGetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	image, err := createTestAMI(t, session, uniqueTestID)
-	attempts := 0
-
-	for err != nil && attempts <= 10 {
-		// Image didn't become availabe in time, try again
-		image, err = createTestAMI(t, session, uniqueTestID)
-		attempts++
+	testName := "test-ami"
+	testImageId := "test-image-id"
+	now := time.Now()
+	acm := AMI{
+		Client: mockedAMI{
+			DescribeImagesOutput: ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{{
+					ImageId:      &testImageId,
+					Name:         &testName,
+					CreationDate: awsgo.String(now.Format("2006-01-02T15:04:05.000Z")),
+				}},
+			},
+		},
 	}
 
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	// without filters
+	amis, err := acm.getAll(config.Config{})
+	assert.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(amis), testImageId)
 
-	// clean up after this test
-	defer nukeAllAMIs(session, []*string{image.ImageId})
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
+	// with name filter
+	amis, err = acm.getAll(config.Config{
+		AMI: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{{
+					RE: *regexp.MustCompile("test-ami"),
+				}}}}})
+	assert.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(amis), testImageId)
 
-	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMIs")
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(amis), *image.ImageId)
-
-	amis, err = getAllAMIs(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMIs")
-	}
-
-	assert.Contains(t, awsgo.StringValueSlice(amis), *image.ImageId)
+	// with time filter
+	amis, err = acm.getAll(config.Config{
+		AMI: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: awsgo.Time(now.Add(-12 * time.Hour))}}})
+	assert.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(amis), testImageId)
 }
 
-func TestNukeAMIs(t *testing.T) {
+func TestAMINukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	svc := ec2.New(session)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+	testName := "test-ami"
+	acm := AMI{
+		Client: mockedAMI{
+			DeregisterImageOutput: ec2.DeregisterImageOutput{},
+		},
 	}
 
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	image, err := createTestAMI(t, session, uniqueTestID)
-	attempts := 0
-
-	for err != nil && attempts <= 10 {
-		// Image didn't become availabe in time, try again
-		image, err = createTestAMI(t, session, uniqueTestID)
-		attempts++
-	}
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	// clean up ec2 instance created by the above call
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
-
-	_, err = svc.DescribeImages(&ec2.DescribeImagesInput{
-		ImageIds: []*string{image.ImageId},
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	if err := nukeAllAMIs(session, []*string{image.ImageId}); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMIs")
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(amis), *image.ImageId)
+	err := acm.nukeAll([]*string{&testName})
+	assert.NoError(t, err)
 }
