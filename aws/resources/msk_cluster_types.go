@@ -1,7 +1,6 @@
 package resources
 
 import (
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -30,7 +29,7 @@ func (msk MSKCluster) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (ngw MSKCluster) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllMSKClusters(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := nukeAllMSKClusters(session, identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
