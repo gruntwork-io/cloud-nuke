@@ -1,147 +1,90 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"regexp"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	terratestaws "github.com/gruntwork-io/terratest/modules/aws"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
+	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-type TestAPIGatewayV2 struct {
-	ID   *string
-	Name *string
+type mockedApiGatewayV2 struct {
+	apigatewayv2iface.ApiGatewayV2API
+	GetApisOutput   apigatewayv2.GetApisOutput
+	DeleteApiOutput apigatewayv2.DeleteApiOutput
 }
 
-func createTestAPIGatewayV2(t *testing.T, session *session.Session, name string) (*TestAPIGatewayV2, error) {
-	svc := apigatewayv2.New(session)
-
-	testGw := &TestAPIGatewayV2{
-		Name: aws.String(name),
-	}
-
-	param := &apigatewayv2.CreateApiInput{
-		Name:         aws.String(name),
-		ProtocolType: aws.String("HTTP"),
-	}
-
-	output, err := svc.CreateApi(param)
-	if err != nil {
-		assert.Failf(t, "Could not create test API Gateway (v2): %s", errors.WithStackTrace(err).Error())
-	}
-
-	testGw.ID = output.ApiId
-	return testGw, nil
+func (m mockedApiGatewayV2) GetApis(*apigatewayv2.GetApisInput) (*apigatewayv2.GetApisOutput, error) {
+	// Only need to return mocked response output
+	return &m.GetApisOutput, nil
 }
 
-func TestListAPIGatewaysV2(t *testing.T) {
+func (m mockedApiGatewayV2) DeleteApi(*apigatewayv2.DeleteApiInput) (*apigatewayv2.DeleteApiOutput, error) {
+	// Only need to return mocked response output
+	return &m.DeleteApiOutput, nil
+}
+
+func TestApiGatewayV2GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	},
-	)
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+	testApiID := "test-api-id"
+	testApiName := "test-api-name"
+	now := time.Now()
+	gw := ApiGatewayV2{
+		Client: mockedApiGatewayV2{
+			GetApisOutput: apigatewayv2.GetApisOutput{
+				Items: []*apigatewayv2.Api{
+					{
+						ApiId:       aws.String(testApiID),
+						Name:        aws.String(testApiName),
+						CreatedDate: aws.Time(now),
+					},
+				},
+			},
+		},
 	}
 
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-	testGw, createTestGwErr := createTestAPIGatewayV2(t, session, apigwName)
-	require.NoError(t, createTestGwErr)
-	// clean up after this test
-	defer nukeAllAPIGatewaysV2(session, []*string{testGw.ID})
+	// empty filter
+	apis, err := gw.getAll(config.Config{})
+	assert.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(apis), testApiID)
 
-	apigwIds, err := getAllAPIGatewaysV2(session, time.Now(), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of API Gateways (v2)")
+	// filter by name
+	apis, err = gw.getAll(config.Config{
+		APIGatewayV2: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				NamesRegExp: []config.Expression{{
+					RE: *regexp.MustCompile("test-api-name"),
+				}}}}})
+	assert.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(apis), testApiID)
+
+	// filter by date
+	apis, err = gw.getAll(config.Config{
+		APIGatewayV2: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: awsgo.Time(now.Add(-1))}}})
+	assert.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(apis), testApiID)
+}
+
+func TestApiGatewayV2NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	gw := ApiGatewayV2{
+		Client: mockedApiGatewayV2{
+			DeleteApiOutput: apigatewayv2.DeleteApiOutput{},
+		},
 	}
-
-	assert.Contains(t, awsgo.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
-}
-
-func TestTimeFilterExclusionNewlyCreatedAPIGatewayV2(t *testing.T) {
-	t.Parallel()
-
-	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-
-	testGw, createTestGwErr := createTestAPIGatewayV2(t, session, apigwName)
-	require.NoError(t, createTestGwErr)
-	defer nukeAllAPIGatewaysV2(session, []*string{testGw.ID})
-
-	// Assert API Gateway is picked up without filters
-	apigwIds, err := getAllAPIGatewaysV2(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
-
-	// Assert API Gateway doesn't appear when we look at API Gateways older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	apiGwIdsOlder, err := getAllAPIGatewaysV2(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(apiGwIdsOlder), aws.StringValue(testGw.ID))
-}
-
-func TestNukeAPIGatewayV2One(t *testing.T) {
-	t.Parallel()
-
-	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	testGw, createTestErr := createTestAPIGatewayV2(t, session, apigwName)
-	require.NoError(t, createTestErr)
-
-	nukeErr := nukeAllAPIGatewaysV2(session, []*string{testGw.ID})
-	require.NoError(t, nukeErr)
-
-	// Make sure the API Gateway was deleted
-	apigwIds, err := getAllAPIGatewaysV2(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotContains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
-}
-
-func TestNukeAPIGatewayV2MoreThanOne(t *testing.T) {
-	t.Parallel()
-
-	region := terratestaws.GetRandomStableRegion(t, []string{"us-east-1", "us-east-2", "us-west-1"}, nil)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-	apigwName2 := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	testGw, createTestErr := createTestAPIGatewayV2(t, session, apigwName)
-	require.NoError(t, createTestErr)
-	testGw2, createTestErr2 := createTestAPIGatewayV2(t, session, apigwName2)
-	require.NoError(t, createTestErr2)
-
-	nukeErr := nukeAllAPIGatewaysV2(session, []*string{testGw.ID, testGw2.ID})
-	require.NoError(t, nukeErr)
-
-	// Make sure the API Gateway was deleted
-	apigwIds, err := getAllAPIGatewaysV2(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotContains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
-	assert.NotContains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw2.ID))
+	err := gw.nukeAll([]*string{aws.String("test-api-id")})
+	assert.NoError(t, err)
 }
