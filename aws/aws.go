@@ -8,19 +8,23 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/apigateway"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/kafka"
+	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -1800,16 +1804,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ACM
 
 		// MSK Clusters
-		mskClusters := MSKCluster{}
-		if IsNukeable(mskClusters.ResourceName(), resourceTypes) {
+		mskCluster := MSKCluster{
+			Client: kafka.New(cloudNukeSession),
+			Region: region,
+		}
+
+		if IsNukeable(mskCluster.ResourceName(), resourceTypes) {
 			start := time.Now()
 
-			mskArns, err := getAllMSKClusters(cloudNukeSession, excludeAfter, configObj)
+			mskArns, err := mskCluster.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
 					Description:  "Unable to retrieve MSK status",
-					ResourceType: mskClusters.ResourceName(),
+					ResourceType: mskCluster.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
@@ -1821,8 +1829,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(mskArns) > 0 {
-				mskClusters.ClusterArns = mskArns
-				resourcesInRegion.Resources = append(resourcesInRegion.Resources, mskClusters)
+				mskCluster.ClusterArns = mskArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, mskCluster)
 			}
 		}
 		// End MSK

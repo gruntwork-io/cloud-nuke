@@ -3,7 +3,7 @@ module github.com/gruntwork-io/cloud-nuke
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go v1.44.154
+	github.com/aws/aws-sdk-go v1.44.304
 	github.com/aws/aws-sdk-go-v2/config v1.17.1
 	github.com/aws/aws-sdk-go-v2/service/efs v1.17.10
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.17.8

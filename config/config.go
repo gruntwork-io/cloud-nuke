@@ -61,6 +61,7 @@ type Config struct {
 	SNS                        ResourceType               `yaml:"SNS"`
 	BackupVault                ResourceType               `yaml:"BackupVault"`
 	DBClusters                 ResourceType               `yaml:"DBClusters"`
+	MSKCluster                 ResourceType               `yaml:"MSKCluster"`
 }
 
 type KMSCustomerKeyResourceType struct {
