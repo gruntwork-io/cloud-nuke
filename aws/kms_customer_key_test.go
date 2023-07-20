@@ -6,14 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,10 +46,12 @@ func TestListKmsUserKeys(t *testing.T) {
 
 	// test if matching by regexp works
 	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
-		KMSCustomerKeys: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{RE: *regexp.MustCompile(fmt.Sprintf("^%s", keyAlias))},
+		KMSCustomerKeys: config.KMSCustomerKeyResourceType{
+			ResourceType: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{
+						{RE: *regexp.MustCompile(fmt.Sprintf("^%s", keyAlias))},
+					},
 				},
 			},
 		},
@@ -63,10 +63,12 @@ func TestListKmsUserKeys(t *testing.T) {
 
 	// test if exclusion by regexp works
 	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
-		KMSCustomerKeys: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{RE: *regexp.MustCompile(fmt.Sprintf("^%s", keyAlias))},
+		KMSCustomerKeys: config.KMSCustomerKeyResourceType{
+			ResourceType: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{
+						{RE: *regexp.MustCompile(fmt.Sprintf("^%s", keyAlias))},
+					},
 				},
 			},
 		},

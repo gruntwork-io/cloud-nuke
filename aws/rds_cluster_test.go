@@ -1,66 +1,85 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
-
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func createTestRDSCluster(t *testing.T, session *session.Session, name string) {
-	t.Logf("Creating RDS Cluster in region %s", aws.StringValue(session.Config.Region))
-
-	svc := rds.New(session)
-	params := &rds.CreateDBClusterInput{
-		DBClusterIdentifier: awsgo.String(name),
-		Engine:              awsgo.String("aurora-mysql"),
-		MasterUsername:      awsgo.String("gruntwork"),
-		MasterUserPassword:  awsgo.String("password"),
-	}
-
-	_, err := svc.CreateDBCluster(params)
-	require.NoError(t, err)
+type mockedDBClusters struct {
+	rdsiface.RDSAPI
+	DescribeDBClustersOutput rds.DescribeDBClustersOutput
+	DescribeDBClustersError  error
+	DeleteDBClusterOutput    rds.DeleteDBClusterOutput
 }
 
-func TestNukeRDSCluster(t *testing.T) {
+func (m mockedDBClusters) waitUntilRdsClusterDeleted(*rds.DescribeDBClustersInput) error {
+	return nil
+}
+
+func (m mockedDBClusters) DeleteDBCluster(input *rds.DeleteDBClusterInput) (*rds.DeleteDBClusterOutput, error) {
+	return &m.DeleteDBClusterOutput, nil
+}
+
+func (m mockedDBClusters) DescribeDBClusters(input *rds.DescribeDBClustersInput) (*rds.DescribeDBClustersOutput, error) {
+	return &m.DescribeDBClustersOutput, m.DescribeDBClustersError
+}
+
+func TestRDSClusterGetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, errors.WithStackTrace(err))
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	rdsName := "cloud-nuke-test" + util.UniqueID()
-	excludeAfter := time.Now().Add(1 * time.Hour)
-
-	createTestRDSCluster(t, session, rdsName)
-
-	defer func() {
-		nukeAllRdsClusters(session, []*string{&rdsName})
-
-		rdsNames, _ := getAllRdsClusters(session, excludeAfter)
-
-		assert.NotContains(t, awsgo.StringValueSlice(rdsNames), strings.ToLower(rdsName))
-	}()
-
-	rds, err := getAllRdsClusters(session, excludeAfter)
-
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of RDS DB Clusters", errors.WithStackTrace(err).Error())
+	testName := "test-db-cluster"
+	now := time.Now()
+	dbCluster := DBClusters{
+		Client: mockedDBClusters{
+			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{
+				DBClusters: []*rds.DBCluster{{
+					DBClusterIdentifier: &testName,
+					ClusterCreateTime:   &now,
+				}},
+			},
+		},
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(rds), strings.ToLower(rdsName))
+	// Testing empty config
+	clusters, err := dbCluster.getAll(config.Config{DBClusters: config.ResourceType{}})
+	assert.NoError(t, err)
+	assert.Contains(t, awsgo.StringValueSlice(clusters), strings.ToLower(testName))
+
+	// Testing db cluster exclusion
+	clusters, err = dbCluster.getAll(config.Config{
+		DBClusters: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: awsgo.Time(now.Add(-1)),
+			},
+		},
+	})
+	assert.NoError(t, err)
+	assert.NotContains(t, awsgo.StringValueSlice(clusters), strings.ToLower(testName))
+}
+
+func TestRDSClusterNukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testName := "test-db-cluster"
+	dbCluster := DBClusters{
+		Client: mockedDBClusters{
+			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{},
+			DescribeDBClustersError:  awserr.New(rds.ErrCodeDBClusterNotFoundFault, "", nil),
+			DeleteDBClusterOutput:    rds.DeleteDBClusterOutput{},
+		},
+	}
+
+	err := dbCluster.nukeAll([]*string{&testName})
+	assert.NoError(t, err)
 }

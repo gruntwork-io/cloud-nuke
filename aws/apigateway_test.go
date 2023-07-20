@@ -1,153 +1,123 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/apigateway"
+	"github.com/aws/aws-sdk-go/service/apigateway/apigatewayiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type TestAPIGateway struct {
-	ID   *string
-	Name *string
+type mockedApiGateway struct {
+	apigatewayiface.APIGatewayAPI
+	GetRestApisResp   apigateway.GetRestApisOutput
+	DeleteRestApiResp apigateway.DeleteRestApiOutput
 }
 
-func createTestAPIGateway(t *testing.T, session *session.Session, name string) (*TestAPIGateway, error) {
-	svc := apigateway.New(session)
-
-	testGw := &TestAPIGateway{
-		Name: aws.String(name),
-	}
-
-	param := &apigateway.CreateRestApiInput{
-		Name: aws.String(name),
-	}
-
-	output, err := svc.CreateRestApi(param)
-	if err != nil {
-		assert.Failf(t, "Could not create test API Gateway: %s", errors.WithStackTrace(err).Error())
-	}
-
-	testGw.ID = output.Id
-
-	return testGw, nil
+func (m mockedApiGateway) GetRestApis(*apigateway.GetRestApisInput) (*apigateway.GetRestApisOutput, error) {
+	// Only need to return mocked response output
+	return &m.GetRestApisResp, nil
 }
 
-func TestListAPIGateways(t *testing.T) {
+func (m mockedApiGateway) DeleteRestApi(*apigateway.DeleteRestApiInput) (*apigateway.DeleteRestApiOutput, error) {
+	// Only need to return mocked response output
+	return &m.DeleteRestApiResp, nil
+}
+
+func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	testApiID := "aws-nuke-test-" + util.UniqueID()
+	apiGateway := ApiGateway{
+		Client: mockedApiGateway{
+			GetRestApisResp: apigateway.GetRestApisOutput{
+				Items: []*apigateway.RestApi{
+					{Id: aws.String(testApiID)},
+				},
+			},
+			DeleteRestApiResp: apigateway.DeleteRestApiOutput{},
+		},
+	}
+
+	apis, err := apiGateway.getAll(config.Config{})
 	require.NoError(t, err)
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	},
-	)
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+	require.Contains(t, awsgo.StringValueSlice(apis), testApiID)
 
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-	testGw, createTestGwErr := createTestAPIGateway(t, session, apigwName)
-	require.NoError(t, createTestGwErr)
-	// clean up after this test
-	defer nukeAllAPIGateways(session, []*string{testGw.ID})
-
-	apigwIds, err := getAllAPIGateways(session, time.Now(), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of API Gateways (v1)")
-	}
-
-	assert.Contains(t, awsgo.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
+	err = apiGateway.nukeAll([]*string{aws.String(testApiID)})
+	require.NoError(t, err)
 }
 
-func TestTimeFilterExclusionNewlyCreatedAPIGateway(t *testing.T) {
+func TestAPIGatewayGetAllTimeFilter(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	testApiID := "aws-nuke-test-" + util.UniqueID()
+	now := time.Now()
+	apiGateway := ApiGateway{
+		Client: mockedApiGateway{
+			GetRestApisResp: apigateway.GetRestApisOutput{
+				Items: []*apigateway.RestApi{{
+					Id:          aws.String(testApiID),
+					CreatedDate: aws.Time(now),
+				}},
+			},
+		},
+	}
+
+	// test API is not excluded from the filter
+	IDs, err := apiGateway.getAll(config.Config{
+		APIGateway: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: aws.Time(now.Add(1)),
+			},
+		},
+	})
 	require.NoError(t, err)
+	assert.Contains(t, aws.StringValueSlice(IDs), testApiID)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	// test API being excluded from the filter
+	apiGwIdsOlder, err := apiGateway.getAll(config.Config{
+		APIGateway: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: aws.Time(now.Add(-1)),
+			},
+		},
+	})
 	require.NoError(t, err)
-
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-
-	testGw, createTestGwErr := createTestAPIGateway(t, session, apigwName)
-	require.NoError(t, createTestGwErr)
-	defer nukeAllAPIGateways(session, []*string{testGw.ID})
-
-	// Assert API Gateway is picked up without filters
-	apigwIds, err := getAllAPIGateways(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
-
-	// Assert API Gateway doesn't appear when we look at API Gateways older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	apiGwIdsOlder, err := getAllAPIGateways(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(apiGwIdsOlder), aws.StringValue(testGw.ID))
-}
-
-func TestNukeAPIGatewayOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	testGw, createTestErr := createTestAPIGateway(t, session, apigwName)
-	require.NoError(t, createTestErr)
-
-	nukeErr := nukeAllAPIGateways(session, []*string{testGw.ID})
-	require.NoError(t, nukeErr)
-
-	// Make sure the API Gateway was deleted
-	apigwIds, err := getAllAPIGateways(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotContains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
+	assert.NotContains(t, aws.StringValueSlice(apiGwIdsOlder), testApiID)
 }
 
 func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	testApiID1 := "aws-nuke-test-" + util.UniqueID()
+	testApiID2 := "aws-nuke-test-" + util.UniqueID()
+	apiGateway := ApiGateway{
+		Client: mockedApiGateway{
+			GetRestApisResp: apigateway.GetRestApisOutput{
+				Items: []*apigateway.RestApi{
+					{Id: aws.String(testApiID1)},
+					{Id: aws.String(testApiID2)},
+				},
+			},
+			DeleteRestApiResp: apigateway.DeleteRestApiOutput{},
+		},
+	}
+
+	apis, err := apiGateway.getAll(config.Config{})
 	require.NoError(t, err)
+	require.Contains(t, awsgo.StringValueSlice(apis), testApiID1)
+	require.Contains(t, awsgo.StringValueSlice(apis), testApiID2)
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	err = apiGateway.nukeAll([]*string{aws.String(testApiID1), aws.String(testApiID2)})
 	require.NoError(t, err)
-
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-	apigwName2 := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	testGw, createTestErr := createTestAPIGateway(t, session, apigwName)
-	require.NoError(t, createTestErr)
-	testGw2, createTestErr2 := createTestAPIGateway(t, session, apigwName2)
-	require.NoError(t, createTestErr2)
-
-	nukeErr := nukeAllAPIGateways(session, []*string{testGw.ID, testGw2.ID})
-	require.NoError(t, nukeErr)
-
-	// Make sure the API Gateway was deleted
-	apigwIds, err := getAllAPIGateways(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotContains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw.ID))
-	assert.NotContains(t, aws.StringValueSlice(apigwIds), aws.StringValue(testGw2.ID))
 }

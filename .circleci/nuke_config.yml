@@ -115,7 +115,6 @@ CloudWatchLogGroup:
       - "openvpn-server-[a-zA-Z0-9]{6}_log_group$"
       - "vpc-test-[a-zA-Z0-9]{6}.*"
       - "cloud-nuke-test-[a-zA-Z0-9]{6}"
-
 IAMUsers:
   exclude:
     names_regex:
@@ -235,3 +234,15 @@ KMSCustomerKeys:
   include:
     names_regex:
       - "^cloud-nuke-test-.*$"
+VPC:
+  exclude:
+    names_regex:
+      - "^mgmt"
+ECSCluster:
+  exclude:
+    names_regex:
+      - "^ecs-deploy-runner"
+LambdaFunction:
+  exclude:
+    names_regex:
+      - "^ecs-deploy-runner-invoker"

@@ -1,9 +1,6 @@
 package aws
 
 import (
-	"time"
-
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -14,16 +11,15 @@ import (
 )
 
 // Returns a list of strings of ACM ARNs
-func getAllACMs(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
-	svc := acm.New(session)
+func (a ACM) getAll(configObj config.Config) ([]string, error) {
 
 	params := &acm.ListCertificatesInput{}
 
 	acmArns := []string{}
-	err := svc.ListCertificatesPages(params,
+	err := a.Client.ListCertificatesPages(params,
 		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
 			for i := range page.CertificateSummaryList {
-				if shouldIncludeACM(page.CertificateSummaryList[i], excludeAfter, configObj) {
+				if a.shouldInclude(page.CertificateSummaryList[i], configObj) {
 					acmArns = append(acmArns, *page.CertificateSummaryList[i].CertificateArn)
 				}
 			}
@@ -38,7 +34,7 @@ func getAllACMs(session *session.Session, excludeAfter time.Time, configObj conf
 	return acmArns, nil
 }
 
-func shouldIncludeACM(acm *acm.CertificateSummary, excludeAfter time.Time, configObj config.Config) bool {
+func (a ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config) bool {
 	if acm == nil {
 		return false
 	}
@@ -48,43 +44,34 @@ func shouldIncludeACM(acm *acm.CertificateSummary, excludeAfter time.Time, confi
 		return false
 	}
 
-	if acm.CreatedAt != nil {
-		if excludeAfter.Before(*acm.CreatedAt) {
-			return false
-		}
-	}
-
-	return config.ShouldInclude(
-		*acm.DomainName,
-		configObj.ACM.IncludeRule.NamesRegExp,
-		configObj.ACM.ExcludeRule.NamesRegExp,
-	)
+	return configObj.ACM.ShouldInclude(config.ResourceValue{
+		Name: acm.DomainName,
+		Time: acm.CreatedAt,
+	})
 }
 
 // Deletes all ACMs
-func nukeAllACMs(session *session.Session, acmArns []*string) error {
-	svc := acm.New(session)
-
-	if len(acmArns) == 0 {
-		logging.Logger.Debugf("No ACMs to nuke in region %s", *session.Config.Region)
+func (a ACM) nukeAll(arns []*string) error {
+	if len(arns) == 0 {
+		logging.Logger.Debugf("No ACMs to nuke in region %s", a.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all ACMs in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all ACMs in region %s", a.Region)
 
 	deletedCount := 0
-	for _, acmArn := range acmArns {
+	for _, acmArn := range arns {
 		params := &acm.DeleteCertificateInput{
 			CertificateArn: acmArn,
 		}
 
-		_, err := svc.DeleteCertificate(params)
+		_, err := a.Client.DeleteCertificate(params)
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ACM",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": a.Region,
 			})
 		} else {
 			deletedCount++
@@ -99,7 +86,6 @@ func nukeAllACMs(session *session.Session, acmArns []*string) error {
 		report.Record(e)
 	}
 
-	logging.Logger.Debugf("[OK] %d ACM(s) terminated in %s", deletedCount, *session.Config.Region)
-
+	logging.Logger.Debugf("[OK] %d ACM(s) terminated in %s", deletedCount, a.Region)
 	return nil
 }

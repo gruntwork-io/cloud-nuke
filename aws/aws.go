@@ -7,19 +7,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -790,10 +791,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ECS resources
 
 		// EKS resources
-		eksClusters := EKSClusters{}
+		eksClusters := EKSClusters{
+			Client: eks.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(eksClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
-			eksClusterNames, err := getAllEksClusters(cloudNukeSession, excludeAfter, configObj)
+			eksClusterNames, err := eksClusters.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -878,10 +882,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Clusters
 		// These reference the Aurora Clusters, for the use it's the same resource (rds), but AWS
 		// has different abstractions for each.
-		dbClusters := DBClusters{}
+		dbClusters := DBClusters{
+			Client: rds.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(dbClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
-			clustersNames, err := getAllRdsClusters(cloudNukeSession, excludeAfter)
+			clustersNames, err := dbClusters.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1463,10 +1470,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Redshift Clusters
 
 		// API Gateways (v1)
-		apiGateways := ApiGateway{}
+		apiGateways := ApiGateway{
+			Client: apigateway.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(apiGateways.ResourceName(), resourceTypes) {
 			start := time.Now()
-			gatewayIds, err := getAllAPIGateways(cloudNukeSession, excludeAfter, configObj)
+			gatewayIds, err := apiGateways.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1760,10 +1770,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End CodeDeploy Applications
 
 		// ACM
-		acm := ACM{}
+		acm := ACM{
+			Client: acm.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(acm.ResourceName(), resourceTypes) {
 			start := time.Now()
-			acmArns, err := getAllACMs(cloudNukeSession, excludeAfter, configObj)
+			acmArns, err := acm.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1781,6 +1794,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			})
 			if len(acmArns) > 0 {
 				acm.ARNs = acmArns
+				resourcesInRegion.Resources = append(resourcesInRegion.Resources, acm)
 			}
 		}
 		// End ACM

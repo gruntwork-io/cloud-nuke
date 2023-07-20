@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -288,6 +289,20 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
+	// exclude after filter has been applied to all resources via `older-than` flag, we are
+	// setting this rule across all resource types.
+	//
+	// TODO: after refactoring all the code, we can remove having excludeAfter in config and
+	//  passing in as additional argument to GetAllResources.
+	v := reflect.ValueOf(configObj)
+	for i := 0; i < v.NumField(); i++ {
+		excludeRule := v.Field(i).FieldByName("ExcludeRule").Interface().(config.FilterRule)
+		excludeRule.TimeAfter = excludeAfter
+	}
+
+	deleteUnaliasedKmsKeys := c.Bool("delete-unaliased-kms-keys")
+	configObj.KMSCustomerKeys.DeleteUnaliasedKeys = deleteUnaliasedKmsKeys
+
 	spinnerMsg := fmt.Sprintf("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
 
 	// Start a simple spinner to track progress reading all relevant AWS resources
@@ -299,7 +314,7 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(spinnerErr)
 	}
 
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj, c.Bool("delete-unaliased-kms-keys"))
+	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj, deleteUnaliasedKmsKeys)
 	// Stop the spinner
 	spinnerSuccess.Stop()
 	if err != nil {
