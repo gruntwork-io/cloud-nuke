@@ -1,157 +1,125 @@
 package aws
 
 import (
-	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/retry"
-
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+
 	"github.com/aws/aws-sdk-go/service/acmpca"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
+	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 )
 
-// enableACMPCAExpensiveEnv is used to control whether to run
-// the following test or not. The idea is that the test are disabled
-// per default and one has to opt-in to enable the test as creating
-// and destroying a ACM PCA is expensive.
-// Upper bound, worst case: $400 / month per single CA create/delete.
-const enableACMPCAExpensiveEnv = "TEST_ACMPCA_EXPENSIVE_ENABLE"
-
-// runOrSkip decides whether to run or skip the test depending
-// whether the env-var `TEST_ACMPCA_EXPENSIVE_ENABLE` is set or not.
-func runOrSkip(t *testing.T) {
-	if _, isSet := os.LookupEnv(enableACMPCAExpensiveEnv); !isSet {
-		t.Skipf("Skipping the integration test for acmpca. Set the env-var '%s' to enable this expensive test.", enableACMPCAExpensiveEnv)
-	}
+type mockedACMPCA struct {
+	acmpcaiface.ACMPCAAPI
+	ListCertificateAuthoritiesOutput   acmpca.ListCertificateAuthoritiesOutput
+	DescribeCertificateAuthorityOutput acmpca.DescribeCertificateAuthorityOutput
+	UpdateCertificateAuthorityOutput   acmpca.UpdateCertificateAuthorityOutput
+	DeleteCertificateAuthorityOutput   acmpca.DeleteCertificateAuthorityOutput
 }
 
-// createTestACMPCA will create am ACMPCA and return its ARN.
-func createTestACMPCA(t *testing.T, session *session.Session, name string) *string {
-	// As an additional safety guard, we are adding another check here
-	// to decide whether to run the test or not.
-	runOrSkip(t)
+func (m mockedACMPCA) ListCertificateAuthoritiesPages(
+	input *acmpca.ListCertificateAuthoritiesInput, fn func(*acmpca.ListCertificateAuthoritiesOutput, bool) bool) error {
+	// Only need to return mocked response output
+	fn(&m.ListCertificateAuthoritiesOutput, true)
+	return nil
+}
 
-	svc := acmpca.New(session)
-	ca, err := svc.CreateCertificateAuthority(&acmpca.CreateCertificateAuthorityInput{
-		CertificateAuthorityConfiguration: &acmpca.CertificateAuthorityConfiguration{
-			KeyAlgorithm:     awsgo.String(acmpca.KeyAlgorithmRsa2048),
-			SigningAlgorithm: awsgo.String(acmpca.SigningAlgorithmSha256withrsa),
-			Subject: &acmpca.ASN1Subject{
-				CommonName: awsgo.String(name),
+func (m mockedACMPCA) DescribeCertificateAuthority(
+	input *acmpca.DescribeCertificateAuthorityInput) (*acmpca.DescribeCertificateAuthorityOutput, error) {
+	return &m.DescribeCertificateAuthorityOutput, nil
+}
+
+func (m mockedACMPCA) UpdateCertificateAuthority(
+	input *acmpca.UpdateCertificateAuthorityInput) (*acmpca.UpdateCertificateAuthorityOutput, error) {
+	return &m.UpdateCertificateAuthorityOutput, nil
+}
+
+func (m mockedACMPCA) DeleteCertificateAuthority(
+	input *acmpca.DeleteCertificateAuthorityInput) (*acmpca.DeleteCertificateAuthorityOutput, error) {
+	return &m.DeleteCertificateAuthorityOutput, nil
+}
+
+func TestAcmPcaGetAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testArn := "test-arn"
+	now := time.Now()
+	acmPca := ACMPCA{
+		Client: mockedACMPCA{
+			ListCertificateAuthoritiesOutput: acmpca.ListCertificateAuthoritiesOutput{
+				CertificateAuthorities: []*acmpca.CertificateAuthority{
+					{
+						CreatedAt: &now,
+						Arn:       &testArn,
+					},
+				},
 			},
 		},
-		CertificateAuthorityType: awsgo.String("ROOT"),
-		Tags: []*acmpca.Tag{
-			{
-				Key:   awsgo.String("Name"),
-				Value: awsgo.String(name),
-			},
-		},
+	}
+
+	// without filters
+	arns, err := acmPca.getAll(config.Config{})
+	require.NoError(t, err)
+	require.Contains(t, awsgo.StringValueSlice(arns), testArn)
+
+	// with exclude after filter
+	arns, err = acmPca.getAll(config.Config{
+		ACMPCA: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				TimeAfter: awsgo.Time(now.Add(-1))}},
 	})
-	if err != nil {
-		assert.Failf(t, "Could not create ACMPCA", errors.WithStackTrace(err).Error())
-	}
+	require.NoError(t, err)
+	require.NotContains(t, awsgo.StringValueSlice(arns), testArn)
+}
 
-	// Wait for the ACMPCA to be ready (i.e. not CREATING).
-	// Ready does not mean "ACTIVE".
-	if err := retry.DoWithRetry(
-		logging.Logger,
-		fmt.Sprintf("Waiting for ACMPCA %s to be stable", awsgo.StringValue(ca.CertificateAuthorityArn)),
-		10,
-		1*time.Second,
-		func() error {
-			details, detailsErr := svc.DescribeCertificateAuthority(&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: ca.CertificateAuthorityArn})
-			if detailsErr != nil {
-				return detailsErr
-			}
-			if details.CertificateAuthority == nil {
-				return fmt.Errorf("no CA instance found")
-			}
-			if awsgo.StringValue(details.CertificateAuthority.Status) != acmpca.CertificateAuthorityStatusPendingCertificate {
-				return fmt.Errorf("CA not ready, status %s", awsgo.StringValue(details.CertificateAuthority.Status))
-			}
-			return nil
+func TestAcmPcaNukeAll_DisabledCA(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testArn := "test-arn"
+	now := time.Now()
+	acmPca := ACMPCA{
+		Client: mockedACMPCA{
+			DescribeCertificateAuthorityOutput: acmpca.DescribeCertificateAuthorityOutput{
+				CertificateAuthority: &acmpca.CertificateAuthority{
+					Status:    awsgo.String(acmpca.CertificateAuthorityStatusDisabled),
+					CreatedAt: &now,
+					Arn:       &testArn,
+				},
+			},
+			DeleteCertificateAuthorityOutput: acmpca.DeleteCertificateAuthorityOutput{},
 		},
-	); err != nil {
-		assert.Failf(t, "WARNING: ACMPCA is in some unfinished state. Delete manually inside the test-runner.", errors.WithStackTrace(err).Error())
 	}
 
-	return ca.CertificateAuthorityArn
+	err := acmPca.nukeAll([]*string{&testArn})
+	require.NoError(t, err)
 }
 
-func TestListACMPCA(t *testing.T) {
+func TestAcmPcaNukeAll_EnabledCA(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
-	runOrSkip(t)
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	arn := createTestACMPCA(t, session, uniqueTestID)
-	// clean up after this test
-	defer nukeAllACMPCA(session, []*string{arn})
-
-	newARNs, err := getAllACMPCA(session, region, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of ACMPCA arns")
-	}
-	assert.NotContains(t, awsgo.StringValueSlice(newARNs), awsgo.StringValue(arn))
-
-	allARNs, err := getAllACMPCA(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of ACMPCA arns")
+	testArn := "test-arn"
+	now := time.Now()
+	acmPca := ACMPCA{
+		Client: mockedACMPCA{
+			DescribeCertificateAuthorityOutput: acmpca.DescribeCertificateAuthorityOutput{
+				CertificateAuthority: &acmpca.CertificateAuthority{
+					Status:    awsgo.String(acmpca.CertificateAuthorityStatusActive),
+					CreatedAt: &now,
+					Arn:       &testArn,
+				},
+			},
+			UpdateCertificateAuthorityOutput: acmpca.UpdateCertificateAuthorityOutput{},
+			DeleteCertificateAuthorityOutput: acmpca.DeleteCertificateAuthorityOutput{},
+		},
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(allARNs), awsgo.StringValue(arn))
-}
-
-func TestNukeACMPCA(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	runOrSkip(t)
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	arn := createTestACMPCA(t, session, uniqueTestID)
-
-	if err := nukeAllACMPCA(session, []*string{arn}); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	arns, err := getAllACMPCA(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of ACMPCA arns")
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(arns), awsgo.StringValue(arn))
+	err := acmPca.nukeAll([]*string{&testArn})
+	require.NoError(t, err)
 }
