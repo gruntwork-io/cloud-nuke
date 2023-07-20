@@ -11,7 +11,7 @@ import (
 // must be between 7 and 30, inclusive
 const kmsRemovalWindow = 7
 
-type KmsCustomerKey struct {
+type KmsCustomerKeys struct {
 	Client     kmsiface.KMSAPI
 	Region     string
 	KeyIds     []string
@@ -19,22 +19,22 @@ type KmsCustomerKey struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (c KmsCustomerKey) ResourceName() string {
+func (c KmsCustomerKeys) ResourceName() string {
 	return "kms-customer-keys"
 }
 
 // ResourceIdentifiers - The KMS Key IDs
-func (c KmsCustomerKey) ResourceIdentifiers() []string {
+func (c KmsCustomerKeys) ResourceIdentifiers() []string {
 	return c.KeyIds
 }
 
 // MaxBatchSize - Requests batch size
-func (r KmsCustomerKey) MaxBatchSize() int {
+func (r KmsCustomerKeys) MaxBatchSize() int {
 	return 49
 }
 
 // Nuke - remove all customer managed keys
-func (c KmsCustomerKey) Nuke(session *session.Session, keyIds []string) error {
+func (c KmsCustomerKeys) Nuke(session *session.Session, keyIds []string) error {
 	if err := nukeAllCustomerManagedKmsKeys(session, awsgo.StringSlice(keyIds), c.KeyAliases); err != nil {
 		return errors.WithStackTrace(err)
 	}

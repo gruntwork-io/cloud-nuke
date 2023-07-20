@@ -79,7 +79,7 @@ func createTestELBv2(t *testing.T, session *session.Session, name string) elbv2.
 
 	result, err := svc.CreateLoadBalancer(param)
 	require.NoError(t, err)
-	require.True(t, len(result.LoadBalancers) > 0, "Could not create test ELBv2")
+	require.True(t, len(result.LoadBalancers) > 0, "Could not create test LoadBalancersV2")
 
 	balancer := *result.LoadBalancers[0]
 

@@ -39,7 +39,7 @@ func TestRDSClusterGetAll(t *testing.T) {
 
 	testName := "test-db-cluster"
 	now := time.Now()
-	dbCluster := DBCluster{
+	dbCluster := DBClusters{
 		Client: mockedDBClusters{
 			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{
 				DBClusters: []*rds.DBCluster{{
@@ -72,7 +72,7 @@ func TestRDSClusterNukeAll(t *testing.T) {
 	t.Parallel()
 
 	testName := "test-db-cluster"
-	dbCluster := DBCluster{
+	dbCluster := DBClusters{
 		Client: mockedDBClusters{
 			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{},
 			DescribeDBClustersError:  awserr.New(rds.ErrCodeDBClusterNotFoundFault, "", nil),

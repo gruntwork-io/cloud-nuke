@@ -37,7 +37,7 @@ func createTestSNSTopic(t *testing.T, session *session.Session, name string, set
 		Name: &name,
 	}
 
-	// Do a coin-flip to choose either a FIFO or Standard SNS Topic
+	// Do a coin-flip to choose either a FIFO or Standard SNSTopic Topic
 	coin := []string{
 		"true",
 		"false",
@@ -54,11 +54,11 @@ func createTestSNSTopic(t *testing.T, session *session.Session, name string, set
 
 	output, err := svc.CreateTopic(context.TODO(), param)
 	if err != nil {
-		assert.Failf(t, "Could not create test SNS Topic: %s", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not create test SNSTopic Topic: %s", errors.WithStackTrace(err).Error())
 	}
 
 	if setFirstSeenTag {
-		// Set the first seen tag on the SNS Topic
+		// Set the first seen tag on the SNSTopic Topic
 		err := setFirstSeenSNSTopicTag(context.TODO(), svc, *output.TopicArn, firstSeenTagKey, time.Now())
 		if err != nil {
 			return nil, err
@@ -93,7 +93,7 @@ func TestListSNSTopics(t *testing.T) {
 
 	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of SNS Topics")
+		assert.Fail(t, "Unable to fetch list of SNSTopic Topics")
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(snsTopicArns), aws.StringValue(testSNSTopic.Arn))
@@ -117,7 +117,7 @@ func TestNukeSNSTopicOne(t *testing.T) {
 	nukeErr := nukeAllSNSTopics(session, []*string{testSNSTopic.Arn})
 	require.NoError(t, nukeErr)
 
-	// Make sure the SNS Topic was deleted
+	// Make sure the SNSTopic Topic was deleted
 	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 
@@ -144,7 +144,7 @@ func TestNukeSNSTopicMoreThanOne(t *testing.T) {
 	nukeErr := nukeAllSNSTopics(session, []*string{testSNSTopic.Arn, testSNSTopic2.Arn})
 	require.NoError(t, nukeErr)
 
-	// Make sure the SNS topics were deleted
+	// Make sure the SNSTopic topics were deleted
 	snsTopicArns, err := getAllSNSTopics(session, time.Now(), config.Config{})
 	require.NoError(t, err)
 

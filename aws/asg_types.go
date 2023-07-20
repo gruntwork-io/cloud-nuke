@@ -7,30 +7,30 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// AutoScalingGroup - represents all auto scaling groups
-type AutoScalingGroup struct {
+// ASGroups - represents all auto scaling groups
+type ASGroups struct {
 	Client     autoscalingiface.AutoScalingAPI
 	Region     string
 	GroupNames []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (group AutoScalingGroup) ResourceName() string {
+func (group ASGroups) ResourceName() string {
 	return "asg"
 }
 
-func (group AutoScalingGroup) MaxBatchSize() int {
+func (group ASGroups) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // ResourceIdentifiers - The group names of the auto scaling groups
-func (group AutoScalingGroup) ResourceIdentifiers() []string {
+func (group ASGroups) ResourceIdentifiers() []string {
 	return group.GroupNames
 }
 
 // Nuke - nuke 'em all!!!
-func (group AutoScalingGroup) Nuke(session *session.Session, identifiers []string) error {
+func (group ASGroups) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllAutoScalingGroups(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

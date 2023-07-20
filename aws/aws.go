@@ -301,7 +301,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ACMPCA arns
 
 		// ASG Names
-		asGroups := AutoScalingGroup{
+		asGroups := ASGroups{
 			Client: autoscaling.New(cloudNukeSession),
 			Region: region,
 		}
@@ -331,7 +331,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ASG Names
 
 		// Launch Configuration Names
-		configs := LaunchConfiguration{
+		configs := LaunchConfigs{
 			Client: autoscaling.New(cloudNukeSession),
 			Region: region,
 		}
@@ -391,8 +391,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Launch Template Names
 
-		// ELBv1 Names
-		loadBalancers := ELBv1{
+		// LoadBalancers Names
+		loadBalancers := LoadBalancers{
 			Client: elb.New(cloudNukeSession),
 			Region: region,
 		}
@@ -419,10 +419,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, loadBalancers)
 			}
 		}
-		// End ELBv1 Names
+		// End LoadBalancers Names
 
 		// LoadBalancerV2 Arns
-		loadBalancersV2 := ELBv2{
+		loadBalancersV2 := LoadBalancersV2{
 			Client: elbv2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -451,8 +451,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End LoadBalancerV2 Arns
 
-		// SQS Queues
-		sqsQueue := SQS{
+		// SqsQueue Queues
+		sqsQueue := SqsQueue{
 			Client: sqs.New(cloudNukeSession),
 			Region: region,
 		}
@@ -462,13 +462,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve SQS queues",
+					Description:  "Unable to retrieve SqsQueue queues",
 					ResourceType: sqsQueue.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing SQS Queues",
+				EventName: "Done Listing SqsQueue Queues",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(queueUrls),
@@ -479,10 +479,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, sqsQueue)
 			}
 		}
-		// End SQS Queue
+		// End SqsQueue Queue
 
-		// TransitGatewayVpcAttachment
-		transitGatewayVpcAttachments := TransitGatewayVpcAttachment{
+		// TransitGatewaysVpcAttachment
+		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -507,7 +507,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing Transit Gateway EC2VPC Attachments",
+				EventName: "Done Listing Transit Gateway VPC Attachments",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(transitGatewayVpcAttachmentIds),
@@ -518,10 +518,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGatewayVpcAttachments)
 			}
 		}
-		// End TransitGatewayVpcAttachment
+		// End TransitGatewaysVpcAttachment
 
-		// TransitGatewayRouteTable
-		transitGatewayRouteTables := TransitGatewayRouteTable{
+		// TransitGatewaysRouteTables
+		transitGatewayRouteTables := TransitGatewaysRouteTables{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -548,10 +548,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGatewayRouteTables)
 			}
 		}
-		// End TransitGatewayRouteTable
+		// End TransitGatewaysRouteTables
 
-		// TransitGateway
-		transitGateways := TransitGateway{
+		// TransitGateways
+		transitGateways := TransitGateways{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -578,10 +578,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, transitGateways)
 			}
 		}
-		// End TransitGateway
+		// End TransitGateways
 
 		// NATGateway
-		natGateways := NatGateway{
+		natGateways := NatGateways{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -611,7 +611,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End NATGateway
 
 		// OpenSearch Domains
-		domains := OpenSearchDomain{
+		domains := OpenSearchDomains{
 			Client: iam.New(cloudNukeSession),
 			Region: region,
 		}
@@ -638,10 +638,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, domains)
 			}
 		}
-		// End OpenSearchDomain
+		// End OpenSearchDomains
 
-		// EC2Instance Instances
-		ec2Instances := EC2Instance{
+		// EC2Instances Instances
+		ec2Instances := EC2Instances{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -651,13 +651,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve EC2Instance instances",
+					Description:  "Unable to retrieve EC2Instances instances",
 					ResourceType: ec2Instances.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing EC2Instance Instances",
+				EventName: "Done Listing EC2Instances Instances",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(instanceIds),
@@ -668,10 +668,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Instances)
 			}
 		}
-		// End EC2Instance Instances
+		// End EC2Instances Instances
 
-		// EC2Instance Dedicated Hosts
-		ec2DedicatedHosts := EC2DedicatedHost{
+		// EC2Instances Dedicated Hosts
+		ec2DedicatedHosts := EC2DedicatedHosts{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -681,13 +681,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve EC2Instance dedicated hosts",
+					Description:  "Unable to retrieve EC2Instances dedicated hosts",
 					ResourceType: ec2DedicatedHosts.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing EC2Instance Dedicated Hosts",
+				EventName: "Done Listing EC2Instances Dedicated Hosts",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(hostIds),
@@ -699,10 +699,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 		}
 
-		// End EC2Instance Dedicated Hosts
+		// End EC2Instances Dedicated Hosts
 
 		// EBS Volumes
-		ebsVolumes := EBSVolume{
+		ebsVolumes := EBSVolumes{
 			Client: ebs.New(cloudNukeSession),
 			Region: region,
 		}
@@ -732,7 +732,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EBS Volumes
 
 		// EIP Addresses
-		eipAddresses := ElasticIP{
+		eipAddresses := EIPAddresses{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -761,8 +761,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End EIP Addresses
 
-		// AMI
-		amis := AMI{
+		// AMIs
+		amis := AMIs{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -772,13 +772,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve AMI",
+					Description:  "Unable to retrieve AMIs",
 					ResourceType: amis.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing AMI",
+				EventName: "Done Listing AMIs",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(imageIds),
@@ -789,10 +789,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, amis)
 			}
 		}
-		// End AMI
+		// End AMIs
 
-		// EC2Snapshot
-		snapshots := EC2Snapshot{
+		// Snapshots
+		snapshots := Snapshots{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -802,13 +802,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve EC2Snapshot",
+					Description:  "Unable to retrieve Snapshots",
 					ResourceType: snapshots.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing EC2Snapshot",
+				EventName: "Done Listing Snapshots",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(snapshotIds),
@@ -819,10 +819,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, snapshots)
 			}
 		}
-		// End EC2Snapshot
+		// End Snapshots
 
 		// ECS resources
-		ecsServices := ECSService{
+		ecsServices := ECSServices{
 			Client: ecs.New(cloudNukeSession),
 			Region: region,
 		}
@@ -855,7 +855,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			})
 		}
 
-		ecsClusters := ECSCluster{
+		ecsClusters := ECSClusters{
 			Client: ecs.New(cloudNukeSession),
 			Region: region,
 		}
@@ -885,7 +885,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ECS resources
 
 		// EKS resources
-		eksClusters := EKSCluster{
+		eksClusters := EKSClusters{
 			Client: eks.New(cloudNukeSession),
 			Region: region,
 		}
@@ -915,7 +915,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EKS resources
 
 		// RDS DB Instances
-		dbInstances := DBInstance{
+		dbInstances := DBInstances{
 			Client: rds.New(cloudNukeSession),
 			Region: region,
 		}
@@ -946,7 +946,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End RDS DB Instances
 
 		// RDS DB Subnet Groups
-		dbSubnetGroups := DBSubnetGroup{
+		dbSubnetGroups := DBSubnetGroups{
 			Client: rds.New(cloudNukeSession),
 			Region: region,
 		}
@@ -982,7 +982,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// RDS DB Clusters
 		// These reference the Aurora Clusters, for the use it's the same resource (rds), but AWS
 		// has different abstractions for each.
-		dbClusters := DBCluster{
+		dbClusters := DBClusters{
 			Client: rds.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1044,7 +1044,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End backup vaults
 
 		// Lambda Functions
-		lambdaFunctions := LambdaFunction{
+		lambdaFunctions := LambdaFunctions{
 			Client: lambda.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1075,7 +1075,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Lambda Functions
 
 		// Secrets Manager Secrets
-		secretsManagerSecrets := SecretsManagerSecret{
+		secretsManagerSecrets := SecretsManagerSecrets{
 			Client: secretsmanager.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1137,8 +1137,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End AccessAnalyzer
 
-		// CloudWatchDashboard
-		cloudwatchDashboards := CloudWatchDashboard{
+		// CloudWatchDashboards
+		cloudwatchDashboards := CloudWatchDashboards{
 			Client: cloudwatch.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1166,10 +1166,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchDashboards)
 			}
 		}
-		// End CloudWatchDashboard
+		// End CloudWatchDashboards
 
-		// CloudWatchLogGroup
-		cloudwatchLogGroups := CloudWatchLogGroup{
+		// CloudWatchLogGroups
+		cloudwatchLogGroups := CloudWatchLogGroups{
 			Client: cloudwatchlogs.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1196,10 +1196,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchLogGroups)
 			}
 		}
-		// End CloudWatchLogGroup
+		// End CloudWatchLogGroups
 
-		// S3 Buckets
-		s3Buckets := S3{
+		// S3Buckets Buckets
+		s3Buckets := S3Buckets{
 			Client: s3.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1207,7 +1207,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			start := time.Now()
 			var bucketNamesPerRegion map[string][]*string
 
-			// AWS S3 buckets list operation lists all buckets irrespective of regions.
+			// AWS S3Buckets buckets list operation lists all buckets irrespective of regions.
 			// For each bucket we have to make a separate call to find the bucket region.
 			// Hence for x buckets and a total of y target regions - we need to make:
 			// (x + 1) * y calls i.e. 1 call to list all x buckets, x calls to find out
@@ -1218,7 +1218,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			// followed by a cache lookup for rest of the regions.
 
 			// Cache lookup to check if we already obtained bucket names per region
-			bucketNamesPerRegion, ok := resourcesCache["S3"]
+			bucketNamesPerRegion, ok := resourcesCache["S3Buckets"]
 
 			if !ok {
 				bucketNamesPerRegion, err = getAllS3Buckets(
@@ -1232,23 +1232,23 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				if err != nil {
 					ge := report.GeneralError{
 						Error:        err,
-						Description:  "Unable to retrieve S3 buckets",
+						Description:  "Unable to retrieve S3Buckets buckets",
 						ResourceType: s3Buckets.ResourceName(),
 					}
 					report.RecordError(ge)
 				}
 
-				resourcesCache["S3"] = make(map[string][]*string)
+				resourcesCache["S3Buckets"] = make(map[string][]*string)
 
 				for bucketRegion := range bucketNamesPerRegion {
-					resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
+					resourcesCache["S3Buckets"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
 				}
 			}
 
-			bucketNames, ok := resourcesCache["S3"][region]
+			bucketNames, ok := resourcesCache["S3Buckets"][region]
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing S3 Buckets",
+				EventName: "Done Listing S3Buckets Buckets",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(bucketNames),
@@ -1259,7 +1259,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, s3Buckets)
 			}
 		}
-		// End S3 Buckets
+		// End S3Buckets Buckets
 
 		DynamoDB := DynamoDB{
 			Client: dynamodb.New(cloudNukeSession),
@@ -1291,8 +1291,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Dynamo DB tables
 
-		// EC2Instance VPCS
-		ec2Vpcs := EC2VPC{
+		// EC2Instances VPCS
+		ec2Vpcs := VPC{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1309,7 +1309,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing EC2Instance VPCs",
+				EventName: "Done Listing EC2Instances VPCs",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(vpcids),
@@ -1321,10 +1321,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Vpcs)
 			}
 		}
-		// End EC2Instance VPCS
+		// End EC2Instances VPCS
 
-		// Start EC2Instance KeyPairs
-		KeyPairs := EC2KeyPair{
+		// Start EC2Instances KeyPairs
+		KeyPairs := EC2KeyPairs{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1336,7 +1336,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			}
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing EC2Instance Keypairs",
+				EventName: "Done Listing EC2Instances Keypairs",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(keyPairIds),
@@ -1347,10 +1347,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, KeyPairs)
 			}
 		}
-		// End EC2Instance KeyPairs
+		// End EC2Instances KeyPairs
 
-		// Elasticache
-		elasticaches := Elasticache{
+		// Elasticaches
+		elasticaches := Elasticaches{
 			Client: elasticache.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1360,14 +1360,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve Elasticache",
+					Description:  "Unable to retrieve Elasticaches",
 					ResourceType: elasticaches.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing Elasticache Clusters",
+				EventName: "Done Listing Elasticaches Clusters",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(clusterIds),
@@ -1378,10 +1378,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticaches)
 			}
 		}
-		// End Elasticache
+		// End Elasticaches
 
-		// Elasticache Parameter Groups
-		elasticacheParameterGroups := ElasticacheParameterGroup{
+		// Elasticaches Parameter Groups
+		elasticacheParameterGroups := ElasticacheParameterGroups{
 			Client: elasticache.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1391,14 +1391,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve Elasticache Parameter Groups",
+					Description:  "Unable to retrieve Elasticaches Parameter Groups",
 					ResourceType: elasticacheParameterGroups.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing Elasticache Parameter Groups",
+				EventName: "Done Listing Elasticaches Parameter Groups",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(groupNames),
@@ -1409,10 +1409,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheParameterGroups)
 			}
 		}
-		// End Elasticache Parameter Groups
+		// End Elasticaches Parameter Groups
 
-		// Elasticache Subnet Groups
-		elasticacheSubnetGroups := ElasticacheSubnetGroup{
+		// Elasticaches Subnet Groups
+		elasticacheSubnetGroups := ElasticacheSubnetGroups{
 			Client: elasticache.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1422,14 +1422,14 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve Elasticache Subnet Groups",
+					Description:  "Unable to retrieve Elasticaches Subnet Groups",
 					ResourceType: elasticacheSubnetGroups.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing Elasticache Subnet Groups",
+				EventName: "Done Listing Elasticaches Subnet Groups",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(groupNames),
@@ -1440,10 +1440,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, elasticacheSubnetGroups)
 			}
 		}
-		// End Elasticache Subnet Groups
+		// End Elasticaches Subnet Groups
 
 		// KMS Customer managed keys
-		customerKeys := KmsCustomerKey{
+		customerKeys := KmsCustomerKeys{
 			Client: kms.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1537,7 +1537,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Macie member accounts
 
 		// Start SageMaker Notebook Instances
-		notebookInstances := SageMakerNotebookInstance{
+		notebookInstances := SageMakerNotebookInstances{
 			Client: sagemaker.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1567,7 +1567,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End SageMaker Notebook Instances
 
 		// Kinesis Streams
-		kinesisStreams := KinesisStream{
+		kinesisStreams := KinesisStreams{
 			Client: kinesis.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1597,7 +1597,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Kinesis Streams
 
 		// Redshift Clusters
-		redshiftClusters := RedshiftCluster{
+		redshiftClusters := RedshiftClusters{
 			Client: redshift.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1716,8 +1716,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Elastic FileSystems (efs)
 
-		// SNS Topics
-		snsTopics := SNS{
+		// SNSTopic Topics
+		snsTopics := SNSTopic{
 			Client: sns.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1727,13 +1727,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
-					Description:  "Unable to retrieve SNS topics",
+					Description:  "Unable to retrieve SNSTopic topics",
 					ResourceType: snsTopics.ResourceName(),
 				}
 				report.RecordError(ge)
 			}
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Listing SNS Topics",
+				EventName: "Done Listing SNSTopic Topics",
 			}, map[string]interface{}{
 				"region":      region,
 				"recordCount": len(snsTopicArns),
@@ -1744,10 +1744,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, snsTopics)
 			}
 		}
-		// End SNS Topics
+		// End SNSTopic Topics
 
 		// Cloudtrail Trails
-		cloudtrailTrails := CloudTrail{
+		cloudtrailTrails := CloudtrailTrail{
 			Client: cloudtrail.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1837,7 +1837,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Config service rules
 
 		// Config Service recorders
-		configServiceRecorders := ConfigServiceRecorder{
+		configServiceRecorders := ConfigServiceRecorders{
 			Client: configservice.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1866,8 +1866,8 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Config service recorders
 
-		// CloudWatchAlarm
-		cloudwatchAlarms := CloudWatchAlarm{
+		// CloudWatchAlarms
+		cloudwatchAlarms := CloudWatchAlarms{
 			Client: cloudwatch.New(cloudNukeSession),
 			Region: region,
 		}
@@ -1894,7 +1894,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, cloudwatchAlarms)
 			}
 		}
-		// End CloudWatchAlarm
+		// End CloudWatchAlarms
 
 		// Security Hub
 		securityHub := SecurityHub{
@@ -1927,7 +1927,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Security Hub
 
 		// CodeDeploy Applications
-		codeDeployApplications := CodeDeployApplication{
+		codeDeployApplications := CodeDeployApplications{
 			Client: codedeploy.New(cloudNukeSession),
 			Region: region,
 		}
@@ -2167,63 +2167,63 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 func ListResourceTypes() []string {
 	resourceTypes := []string{
 		ACMPCA{}.ResourceName(),
-		AutoScalingGroup{}.ResourceName(),
-		LaunchConfiguration{}.ResourceName(),
-		ELBv1{}.ResourceName(),
-		ELBv2{}.ResourceName(),
-		SQS{}.ResourceName(),
-		TransitGatewayVpcAttachment{}.ResourceName(),
-		TransitGatewayRouteTable{}.ResourceName(),
-		TransitGateway{}.ResourceName(),
-		EC2Instance{}.ResourceName(),
-		EC2DedicatedHost{}.ResourceName(),
-		EBSVolume{}.ResourceName(),
-		ElasticIP{}.ResourceName(),
-		AMI{}.ResourceName(),
-		EC2Snapshot{}.ResourceName(),
-		ECSCluster{}.ResourceName(),
-		ECSService{}.ResourceName(),
-		EKSCluster{}.ResourceName(),
-		DBInstance{}.ResourceName(),
-		LambdaFunction{}.ResourceName(),
-		S3{}.ResourceName(),
+		ASGroups{}.ResourceName(),
+		LaunchConfigs{}.ResourceName(),
+		LoadBalancers{}.ResourceName(),
+		LoadBalancersV2{}.ResourceName(),
+		SqsQueue{}.ResourceName(),
+		TransitGatewaysVpcAttachment{}.ResourceName(),
+		TransitGatewaysRouteTables{}.ResourceName(),
+		TransitGateways{}.ResourceName(),
+		EC2Instances{}.ResourceName(),
+		EC2DedicatedHosts{}.ResourceName(),
+		EBSVolumes{}.ResourceName(),
+		EIPAddresses{}.ResourceName(),
+		AMIs{}.ResourceName(),
+		Snapshots{}.ResourceName(),
+		ECSClusters{}.ResourceName(),
+		ECSServices{}.ResourceName(),
+		EKSClusters{}.ResourceName(),
+		DBInstances{}.ResourceName(),
+		LambdaFunctions{}.ResourceName(),
+		S3Buckets{}.ResourceName(),
 		IAMUsers{}.ResourceName(),
 		IAMRoles{}.ResourceName(),
 		IAMGroups{}.ResourceName(),
 		IAMPolicies{}.ResourceName(),
 		IAMServiceLinkedRoles{}.ResourceName(),
-		SecretsManagerSecret{}.ResourceName(),
-		NatGateway{}.ResourceName(),
-		OpenSearchDomain{}.ResourceName(),
-		CloudWatchDashboard{}.ResourceName(),
+		SecretsManagerSecrets{}.ResourceName(),
+		NatGateways{}.ResourceName(),
+		OpenSearchDomains{}.ResourceName(),
+		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
-		EC2VPC{}.ResourceName(),
-		Elasticache{}.ResourceName(),
-		ElasticacheParameterGroup{}.ResourceName(),
-		ElasticacheSubnetGroup{}.ResourceName(),
+		VPC{}.ResourceName(),
+		Elasticaches{}.ResourceName(),
+		ElasticacheParameterGroups{}.ResourceName(),
+		ElasticacheSubnetGroups{}.ResourceName(),
 		OIDCProviders{}.ResourceName(),
-		KmsCustomerKey{}.ResourceName(),
-		CloudWatchLogGroup{}.ResourceName(),
+		KmsCustomerKeys{}.ResourceName(),
+		CloudWatchLogGroups{}.ResourceName(),
 		GuardDuty{}.ResourceName(),
 		MacieMember{}.ResourceName(),
-		SageMakerNotebookInstance{}.ResourceName(),
-		KinesisStream{}.ResourceName(),
-		RedshiftCluster{}.ResourceName(),
+		SageMakerNotebookInstances{}.ResourceName(),
+		KinesisStreams{}.ResourceName(),
+		RedshiftClusters{}.ResourceName(),
 		ApiGateway{}.ResourceName(),
 		ApiGatewayV2{}.ResourceName(),
 		ElasticFileSystem{}.ResourceName(),
-		SNS{}.ResourceName(),
-		CloudTrail{}.ResourceName(),
-		EC2KeyPair{}.ResourceName(),
+		SNSTopic{}.ResourceName(),
+		CloudtrailTrail{}.ResourceName(),
+		EC2KeyPairs{}.ResourceName(),
 		ECR{}.ResourceName(),
 		LaunchTemplate{}.ResourceName(),
 		ConfigServiceRule{}.ResourceName(),
-		ConfigServiceRecorder{}.ResourceName(),
+		ConfigServiceRecorders{}.ResourceName(),
 		SecurityHub{}.ResourceName(),
-		CloudWatchAlarm{}.ResourceName(),
+		CloudWatchAlarms{}.ResourceName(),
 		ACM{}.ResourceName(),
-		CodeDeployApplication{}.ResourceName(),
+		CodeDeployApplications{}.ResourceName(),
 	}
 	sort.Strings(resourceTypes)
 	return resourceTypes

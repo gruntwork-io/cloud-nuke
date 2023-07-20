@@ -7,8 +7,8 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// ECSService - Represents all ECS services found in a region
-type ECSService struct {
+// ECSServices - Represents all ECS services found in a region
+type ECSServices struct {
 	Client            ecsiface.ECSAPI
 	Region            string
 	Services          []string
@@ -16,21 +16,21 @@ type ECSService struct {
 }
 
 // ResourceName - The simple name of the aws resource
-func (services ECSService) ResourceName() string {
+func (services ECSServices) ResourceName() string {
 	return "ecs-service"
 }
 
 // ResourceIdentifiers - The ARNs of the collected ECS services
-func (services ECSService) ResourceIdentifiers() []string {
+func (services ECSServices) ResourceIdentifiers() []string {
 	return services.Services
 }
 
-func (services ECSService) MaxBatchSize() int {
+func (services ECSServices) MaxBatchSize() int {
 	return 49
 }
 
 // Nuke - nuke all ECS service resources
-func (services ECSService) Nuke(awsSession *session.Session, identifiers []string) error {
+func (services ECSServices) Nuke(awsSession *session.Session, identifiers []string) error {
 	if err := nukeAllEcsServices(awsSession, services.ServiceClusterMap, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

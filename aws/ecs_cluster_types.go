@@ -14,29 +14,29 @@ import (
 // Therefore this `maxBatchSize` here is set to 49 as a safe maximum.
 const maxBatchSize = 49
 
-// ECSCluster - Represents all ECS clusters found in a region
-type ECSCluster struct {
+// ECSClusters - Represents all ECS clusters found in a region
+type ECSClusters struct {
 	Client      ecsiface.ECSAPI
 	Region      string
 	ClusterArns []string
 }
 
 // ResourceName - The simple name of the aws resource
-func (clusters ECSCluster) ResourceName() string {
+func (clusters ECSClusters) ResourceName() string {
 	return "ecs-cluster"
 }
 
 // ResourceIdentifiers - the collected ECS clusters
-func (clusters ECSCluster) ResourceIdentifiers() []string {
+func (clusters ECSClusters) ResourceIdentifiers() []string {
 	return clusters.ClusterArns
 }
 
-func (clusters ECSCluster) MaxBatchSize() int {
+func (clusters ECSClusters) MaxBatchSize() int {
 	return maxBatchSize
 }
 
 // Nuke - nuke all ECS Cluster resources
-func (clusters ECSCluster) Nuke(awsSession *session.Session, identifiers []string) error {
+func (clusters ECSClusters) Nuke(awsSession *session.Session, identifiers []string) error {
 	if err := nukeEcsClusters(awsSession, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

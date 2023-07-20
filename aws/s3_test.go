@@ -67,7 +67,7 @@ type S3TestAWSParams struct {
 	svc        *s3.S3
 }
 
-// newS3TestAWSParams sets up common operations for nuke S3 tests.
+// newS3TestAWSParams sets up common operations for nuke S3Buckets tests.
 func newS3TestAWSParams(region string) (S3TestAWSParams, error) {
 	var params S3TestAWSParams
 
@@ -150,7 +150,7 @@ func S3TestCreateBucket(svc *s3.S3, bucketName string, tags []map[string]string,
 	return nil
 }
 
-// S3TestBucketAddObject adds an object ot an S3 bucket.
+// S3TestBucketAddObject adds an object ot an S3Buckets bucket.
 func S3TestBucketAddObject(awsParams S3TestAWSParams, bucketName string, fileName string, fileBody string) error {
 	logging.Logger.Debugf("Bucket: %s - adding object: %s - content: %s", bucketName, fileName, fileBody)
 
@@ -212,7 +212,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 		return
 	}
 
-	require.NoError(t, err, "Failed to list S3 Buckets")
+	require.NoError(t, err, "Failed to list S3Buckets Buckets")
 
 	// Validate test bucket does not exist before creation
 	require.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucketName))
@@ -228,7 +228,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	require.NoError(t, err, "Failed to create test buckets")
 
 	bucketNamesPerRegion, err = getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), targetRegions, bucketName, args.batchSize, config.Config{})
-	require.NoError(t, err, "Failed to list S3 Buckets")
+	require.NoError(t, err, "Failed to list S3Buckets Buckets")
 
 	if args.shouldMatch {
 		require.Contains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucketName))
@@ -239,7 +239,7 @@ func testListS3Bucket(t *testing.T, args TestListS3BucketArgs) {
 	}
 }
 
-// TestListS3Bucket tests listing S3 bucket operation
+// TestListS3Bucket tests listing S3Buckets bucket operation
 func TestListS3Bucket(t *testing.T) {
 	t.Parallel()
 	telemetry.InitTelemetry("cloud-nuke", "")
@@ -368,7 +368,7 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 	}
 
 	// Don't remove this.
-	// It ensures that all S3 buckets created as part of this test will be nuked after the test has run.
+	// It ensures that all S3Buckets buckets created as part of this test will be nuked after the test has run.
 	// This is necessary, as some test cases are expected to fail & test that the buckets with invalid args are not nuked.
 	// For more details, look at Github issue-140: https://github.com/gruntwork-io/cloud-nuke/issues/140
 	defer nukeAllS3Buckets(awsParams.awsSession, []*string{aws.String(bucketName)}, 1000)
@@ -396,12 +396,12 @@ func testNukeS3Bucket(t *testing.T, args TestNukeS3BucketArgs) {
 
 	// Verify that - after nuking test bucket - it should not exist
 	bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, bucketName, 100, *configObj)
-	require.NoError(t, err, "Failed to list S3 Buckets")
+	require.NoError(t, err, "Failed to list S3Buckets Buckets")
 	require.NotContains(t, bucketNamesPerRegion[awsParams.region], aws.String(bucketName))
 	logging.Logger.Debugf("SUCCESS: Nuked bucket - %s", bucketName)
 }
 
-// TestNukeS3Bucket tests S3 bucket deletion
+// TestNukeS3Bucket tests S3Buckets bucket deletion
 func TestNukeS3Bucket(t *testing.T) {
 	t.Parallel()
 
@@ -540,7 +540,7 @@ func bucketNamesForConfigTests(id string) []string {
 	}
 }
 
-// TestFilterS3Bucket_Config tests listing only S3 buckets that match config file
+// TestFilterS3Bucket_Config tests listing only S3Buckets buckets that match config file
 func TestFilterS3Bucket_Config(t *testing.T) {
 	t.Parallel()
 
@@ -559,7 +559,7 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 
 	// Verify that only filtered buckets are listed
 	cleanupBuckets, err := getAllS3Buckets(awsParams.awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
-	require.NoError(t, err, "Failed to list S3 Buckets in ca-central-1")
+	require.NoError(t, err, "Failed to list S3Buckets Buckets in ca-central-1")
 
 	_, err = nukeAllS3Buckets(awsParams.awsSession, cleanupBuckets[awsParams.region], 1000)
 	require.NoError(t, err)
@@ -641,7 +641,7 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 				// Verify that only filtered buckets are listed (use random region)
 				bucketNamesPerRegion, err := getAllS3Buckets(awsSession, time.Now().Add(1*time.Hour), []string{awsParams.region}, "", 100, *configObj)
 
-				require.NoError(t, err, "Failed to list S3 Buckets")
+				require.NoError(t, err, "Failed to list S3Buckets Buckets")
 				if tc.args.exactMatch {
 					require.Equal(t, len(tc.args.matches), len(bucketNamesPerRegion[awsParams.region]))
 				} else {
@@ -654,7 +654,7 @@ func TestFilterS3Bucket_Config(t *testing.T) {
 	})
 }
 
-// TestNukeS3BucketWithBucketPolicy tests deletion of S3 buckets with a policy that denies deletion
+// TestNukeS3BucketWithBucketPolicy tests deletion of S3Buckets buckets with a policy that denies deletion
 func TestNukeS3BucketWithBucketPolicy(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	awsParams, err := newS3TestAWSParams("")

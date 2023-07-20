@@ -7,24 +7,24 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// KinesisStream - represents all Kinesis streams
-type KinesisStream struct {
+// KinesisStreams - represents all Kinesis streams
+type KinesisStreams struct {
 	Client kinesisiface.KinesisAPI
 	Region string
 	Names  []string
 }
 
 // ResourceName - The simple name of the AWS resource
-func (k KinesisStream) ResourceName() string {
+func (k KinesisStreams) ResourceName() string {
 	return "kinesis-stream"
 }
 
 // ResourceIdentifiers - The names of the Kinesis Streams
-func (k KinesisStream) ResourceIdentifiers() []string {
+func (k KinesisStreams) ResourceIdentifiers() []string {
 	return k.Names
 }
 
-func (k KinesisStream) MaxBatchSize() int {
+func (k KinesisStreams) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that Kinesis Streams does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We pick 35 here, which is half of what the AWS web
 	// console will do. We pick a conservative number here to avoid hitting AWS API rate limits.
@@ -32,7 +32,7 @@ func (k KinesisStream) MaxBatchSize() int {
 }
 
 // Nuke - nuke 'em all!!!
-func (k KinesisStream) Nuke(session *session.Session, identifiers []string) error {
+func (k KinesisStreams) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllKinesisStreams(session, aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

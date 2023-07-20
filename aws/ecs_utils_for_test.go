@@ -125,7 +125,7 @@ func createEcsService(t *testing.T, awsSession *session.Session, serviceName str
 		ServiceName:    awsgo.String(serviceName),
 		TaskDefinition: taskDefinition.TaskDefinitionArn,
 	}
-	if launchType == "EC2Instance" && schedulingStrategy == "DAEMON" {
+	if launchType == "EC2Instances" && schedulingStrategy == "DAEMON" {
 		createServiceParams.SetSchedulingStrategy(schedulingStrategy)
 	} else {
 		createServiceParams.SetDesiredCount(1)
@@ -316,7 +316,7 @@ func getVpcConfiguration(awsSession *session.Session) (ecs.AwsVpcConfiguration, 
 		return ecs.AwsVpcConfiguration{}, gruntworkerrors.WithStackTrace(err)
 	}
 	if len(vpcs.Vpcs) == 0 {
-		err := errors.New(fmt.Sprintf("Could not find any default EC2VPC in region %s", *awsSession.Config.Region))
+		err := errors.New(fmt.Sprintf("Could not find any default VPC in region %s", *awsSession.Config.Region))
 		return ecs.AwsVpcConfiguration{}, gruntworkerrors.WithStackTrace(err)
 	}
 	defaultVpc := vpcs.Vpcs[0]
@@ -334,7 +334,7 @@ func getVpcConfiguration(awsSession *session.Session) (ecs.AwsVpcConfiguration, 
 		return ecs.AwsVpcConfiguration{}, gruntworkerrors.WithStackTrace(err)
 	}
 	if len(subnets.Subnets) == 0 {
-		err := errors.New(fmt.Sprintf("Could not find any subnets for default EC2VPC in region %s", *awsSession.Config.Region))
+		err := errors.New(fmt.Sprintf("Could not find any subnets for default VPC in region %s", *awsSession.Config.Region))
 		return ecs.AwsVpcConfiguration{}, gruntworkerrors.WithStackTrace(err)
 	}
 	var subnetIds []*string

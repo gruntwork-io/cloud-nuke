@@ -20,7 +20,7 @@ func sleepWithMessage(duration time.Duration, whySleepMessage string) {
 	time.Sleep(duration)
 }
 
-// Returns a formatted string of TransitGateway IDs
+// Returns a formatted string of TransitGateways IDs
 func getAllTransitGatewayInstances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 	result, err := svc.DescribeTransitGateways(&ec2.DescribeTransitGatewaysInput{})
@@ -38,7 +38,7 @@ func getAllTransitGatewayInstances(session *session.Session, region string, excl
 	return ids, nil
 }
 
-// Delete all TransitGateway
+// Delete all TransitGateways
 func nukeAllTransitGatewayInstances(session *session.Session, ids []*string) error {
 	svc := ec2.New(session)
 
@@ -86,7 +86,7 @@ func nukeAllTransitGatewayInstances(session *session.Session, ids []*string) err
 func getAllTransitGatewayRouteTables(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
-	// Remove defalt route table, that will be deleted along with its TransitGateway
+	// Remove defalt route table, that will be deleted along with its TransitGateways
 	param := &ec2.DescribeTransitGatewayRouteTablesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -143,7 +143,7 @@ func nukeAllTransitGatewayRouteTables(session *session.Session, ids []*string) e
 	return nil
 }
 
-// Returns a formated string of TransitGatewayVpcAttachment IDs
+// Returns a formated string of TransitGatewaysVpcAttachment IDs
 func getAllTransitGatewayVpcAttachments(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 	result, err := svc.DescribeTransitGatewayVpcAttachments(&ec2.DescribeTransitGatewayVpcAttachmentsInput{})
@@ -196,7 +196,7 @@ func nukeAllTransitGatewayVpcAttachments(session *session.Session, ids []*string
 		}
 	}
 
-	sleepMessage := "TransitGateway Vpc Attachments takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepMessage := "TransitGateways Vpc Attachments takes some time to create, and since there is no waiter available, we sleep instead."
 	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 

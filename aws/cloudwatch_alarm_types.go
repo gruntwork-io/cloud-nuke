@@ -7,29 +7,29 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// CloudWatchAlarm - represents all CloudWatchAlarm that should be deleted.
-type CloudWatchAlarm struct {
+// CloudWatchAlarms - represents all CloudWatchAlarms that should be deleted.
+type CloudWatchAlarms struct {
 	Client     cloudwatchiface.CloudWatchAPI
 	Region     string
 	AlarmNames []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (cwal CloudWatchAlarm) ResourceName() string {
+func (cwal CloudWatchAlarms) ResourceName() string {
 	return "cloudwatch-alarm"
 }
 
 // ResourceIdentifiers - The name of cloudwatch alarms
-func (cwal CloudWatchAlarm) ResourceIdentifiers() []string {
+func (cwal CloudWatchAlarms) ResourceIdentifiers() []string {
 	return cwal.AlarmNames
 }
 
-func (cwal CloudWatchAlarm) MaxBatchSize() int {
+func (cwal CloudWatchAlarms) MaxBatchSize() int {
 	return 99
 }
 
 // Nuke - nuke 'em all!!!
-func (cwal CloudWatchAlarm) Nuke(session *session.Session, identifiers []string) error {
+func (cwal CloudWatchAlarms) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllCloudWatchAlarms(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

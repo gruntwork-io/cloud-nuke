@@ -147,7 +147,7 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   vpc.VpcId,
-			ResourceType: "EC2VPC",
+			ResourceType: "VPC",
 			Error:        err,
 		}
 		report.Record(e)
@@ -156,18 +156,18 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 
 			logging.Logger.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking EC2VPC",
+				EventName: "Error Nuking VPC",
 			}, map[string]interface{}{
 				"region": *session.Config.Region,
 			})
 			multierror.Append(multiErr, err)
 		} else {
 			deletedVPCs++
-			logging.Logger.Debugf("Deleted EC2VPC: %s", vpc.VpcId)
+			logging.Logger.Debugf("Deleted VPC: %s", vpc.VpcId)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d EC2VPC terminated", deletedVPCs)
+	logging.Logger.Debugf("[OK] %d VPC terminated", deletedVPCs)
 
 	return nil
 }

@@ -7,24 +7,24 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// NatGateway - represents all AWS secrets manager secrets that should be deleted.
-type NatGateway struct {
+// NatGateways - represents all AWS secrets manager secrets that should be deleted.
+type NatGateways struct {
 	Client        ec2iface.EC2API
 	Region        string
 	NatGatewayIDs []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (ngw NatGateway) ResourceName() string {
+func (ngw NatGateways) ResourceName() string {
 	return "nat-gateway"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (ngw NatGateway) ResourceIdentifiers() []string {
+func (ngw NatGateways) ResourceIdentifiers() []string {
 	return ngw.NatGatewayIDs
 }
 
-func (secret NatGateway) MaxBatchSize() int {
+func (secret NatGateways) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that nat gateway does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
 	// overloading the runtime and to avoid AWS throttling with many API calls.
@@ -32,7 +32,7 @@ func (secret NatGateway) MaxBatchSize() int {
 }
 
 // Nuke - nuke 'em all!!!
-func (ngw NatGateway) Nuke(session *session.Session, identifiers []string) error {
+func (ngw NatGateways) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllNatGateways(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -38,8 +38,8 @@ const (
 	ExampleEndpointId           = "vpce-" + ExampleId
 )
 
-// getAMIIdByName - Retrieves an AMI ImageId given the name of the Id. Used for
-// retrieving a standard AMI across AWS regions.
+// getAMIIdByName - Retrieves an AMIs ImageId given the name of the Id. Used for
+// retrieving a standard AMIs across AWS regions.
 func getAMIIdByName(svc *ec2.EC2, name string) (string, error) {
 	imagesResult, err := svc.DescribeImages(&ec2.DescribeImagesInput{
 		Owners: []*string{awsgo.String("self"), awsgo.String("amazon")},
@@ -73,7 +73,7 @@ func runAndWaitForInstance(svc *ec2.EC2, name string, params *ec2.RunInstancesIn
 	}
 
 	if len(runResult.Instances) == 0 {
-		err := errors.New("Could not create test EC2Instance instance")
+		err := errors.New("Could not create test EC2Instances instance")
 		return ec2.Instance{}, gruntworkerrors.WithStackTrace(err)
 	}
 
@@ -105,7 +105,7 @@ func runAndWaitForInstance(svc *ec2.EC2, name string, params *ec2.RunInstancesIn
 		return ec2.Instance{}, gruntworkerrors.WithStackTrace(err)
 	}
 
-	// EC2Instance Instance must be in a running before this function returns
+	// EC2Instances Instance must be in a running before this function returns
 	err = svc.WaitUntilInstanceRunning(&ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
@@ -208,7 +208,7 @@ func TestListInstances(t *testing.T) {
 
 	instanceIds, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of EC2Instance Instances")
+		assert.Fail(t, "Unable to fetch list of EC2Instances Instances")
 	}
 
 	assert.NotContains(t, instanceIds, instance.InstanceId)
@@ -216,7 +216,7 @@ func TestListInstances(t *testing.T) {
 
 	instanceIds, err = getAllEc2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of EC2Instance Instances")
+		assert.Fail(t, "Unable to fetch list of EC2Instances Instances")
 	}
 
 	assert.Contains(t, instanceIds, instance.InstanceId)
@@ -255,7 +255,7 @@ func TestNukeInstances(t *testing.T) {
 	instances, err := getAllEc2Instances(session, region, time.Now().Add(1*time.Hour), config.Config{})
 
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of EC2Instance Instances")
+		assert.Fail(t, "Unable to fetch list of EC2Instances Instances")
 	}
 
 	for _, instanceID := range instanceIds {

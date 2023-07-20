@@ -79,7 +79,7 @@ func createCloudTrailTrail(t *testing.T, region string) *string {
 
 	require.NoError(t, waitErr)
 
-	// Create and attach the expected S3 bucket policy that CloudTrail requires
+	// Create and attach the expected S3Buckets bucket policy that CloudtrailTrail requires
 	policyJson := `
 {
     "Version": "2012-10-17",
@@ -113,7 +113,7 @@ func createCloudTrailTrail(t *testing.T, region string) *string {
 }
 `
 
-	// Look up the current account ID so that we can interpolate it in the S3 bucket policy
+	// Look up the current account ID so that we can interpolate it in the S3Buckets bucket policy
 	callerIdInput := &sts.GetCallerIdentityInput{}
 
 	result, err := stsSvc.GetCallerIdentity(callerIdInput)
@@ -213,6 +213,6 @@ func assertCloudTrailTrailsDeleted(t *testing.T, region string, identifiers []*s
 	})
 	require.NoError(t, err)
 	if len(resp.TrailList) > 0 {
-		t.Fatalf("At least one of the following CloudTrail Trails was not deleted: %+v\n", aws.StringValueSlice(identifiers))
+		t.Fatalf("At least one of the following CloudtrailTrail Trails was not deleted: %+v\n", aws.StringValueSlice(identifiers))
 	}
 }

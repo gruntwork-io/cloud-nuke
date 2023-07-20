@@ -7,28 +7,28 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type SageMakerNotebookInstance struct {
+type SageMakerNotebookInstances struct {
 	Client        sagemakeriface.SageMakerAPI
 	Region        string
 	InstanceNames []string
 }
 
-func (instance SageMakerNotebookInstance) ResourceName() string {
+func (instance SageMakerNotebookInstances) ResourceName() string {
 	return "sagemaker-notebook-instance"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances
-func (instance SageMakerNotebookInstance) ResourceIdentifiers() []string {
+func (instance SageMakerNotebookInstances) ResourceIdentifiers() []string {
 	return instance.InstanceNames
 }
 
-func (instance SageMakerNotebookInstance) MaxBatchSize() int {
+func (instance SageMakerNotebookInstances) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (instance SageMakerNotebookInstance) Nuke(session *session.Session, identifiers []string) error {
+func (instance SageMakerNotebookInstances) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllNotebookInstances(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

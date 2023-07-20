@@ -61,7 +61,7 @@ func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string
 	}
 
 	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
-	// based on CloudWatchDashboard.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
+	// based on CloudWatchDashboards.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {

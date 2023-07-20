@@ -167,7 +167,7 @@ func setTagsToResource(t *testing.T, svc *ec2.EC2, resourceId *string, tags []*e
 	return err
 }
 
-// createNatGateway will create a new NAT gateway in the default EC2VPC
+// createNatGateway will create a new NAT gateway in the default VPC
 func createNatGateway(t *testing.T, svc *ec2.EC2, region string) *string {
 	defaultVpc := terraws.GetDefaultVpc(t, region)
 	subnet := defaultVpc.Subnets[0]

@@ -7,29 +7,29 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// CloudWatchDashboard - represents all CloudWatch Dashboards that should be deleted.
-type CloudWatchDashboard struct {
+// CloudWatchDashboards - represents all CloudWatch Dashboards that should be deleted.
+type CloudWatchDashboards struct {
 	Client         cloudwatchiface.CloudWatchAPI
 	Region         string
 	DashboardNames []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (cwdb CloudWatchDashboard) ResourceName() string {
+func (cwdb CloudWatchDashboards) ResourceName() string {
 	return "cloudwatch-dashboard"
 }
 
 // ResourceIdentifiers - The dashboard names of the cloudwatch dashboards
-func (cwdb CloudWatchDashboard) ResourceIdentifiers() []string {
+func (cwdb CloudWatchDashboards) ResourceIdentifiers() []string {
 	return cwdb.DashboardNames
 }
 
-func (cwdb CloudWatchDashboard) MaxBatchSize() int {
+func (cwdb CloudWatchDashboards) MaxBatchSize() int {
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (cwdb CloudWatchDashboard) Nuke(session *session.Session, identifiers []string) error {
+func (cwdb CloudWatchDashboards) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllCloudWatchDashboards(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

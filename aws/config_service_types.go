@@ -13,7 +13,7 @@ type ConfigServiceRule struct {
 }
 
 func (c ConfigServiceRule) ResourceName() string {
-	return "config-rule"
+	return "config-rules"
 }
 
 func (c ConfigServiceRule) ResourceIdentifiers() []string {

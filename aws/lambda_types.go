@@ -7,28 +7,28 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type LambdaFunction struct {
+type LambdaFunctions struct {
 	Client              lambdaiface.LambdaAPI
 	Region              string
 	LambdaFunctionNames []string
 }
 
-func (lambda LambdaFunction) ResourceName() string {
+func (lambda LambdaFunctions) ResourceName() string {
 	return "lambda"
 }
 
 // ResourceIdentifiers - The names of the lambda functions
-func (lambda LambdaFunction) ResourceIdentifiers() []string {
+func (lambda LambdaFunctions) ResourceIdentifiers() []string {
 	return lambda.LambdaFunctionNames
 }
 
-func (lambda LambdaFunction) MaxBatchSize() int {
+func (lambda LambdaFunctions) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (lambda LambdaFunction) Nuke(session *session.Session, identifiers []string) error {
+func (lambda LambdaFunctions) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllLambdaFunctions(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

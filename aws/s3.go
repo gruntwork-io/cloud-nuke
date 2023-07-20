@@ -22,7 +22,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-// getS3BucketRegion returns S3 Bucket region.
+// getS3BucketRegion returns S3Buckets Bucket region.
 func getS3BucketRegion(svc *s3.S3, bucketName string) (string, error) {
 	input := &s3.GetBucketLocationInput{
 		Bucket: aws.String(bucketName),
@@ -41,7 +41,7 @@ func getS3BucketRegion(svc *s3.S3, bucketName string) (string, error) {
 	return *result.LocationConstraint, nil
 }
 
-// getS3BucketTags returns S3 Bucket tags.
+// getS3BucketTags returns S3Buckets Bucket tags.
 func getS3BucketTags(svc *s3.S3, bucketName string) ([]map[string]string, error) {
 	input := &s3.GetBucketTaggingInput{
 		Bucket: aws.String(bucketName),
@@ -84,7 +84,7 @@ func hasValidTags(bucketTags []map[string]string) bool {
 	return true
 }
 
-// S3Bucket - represents S3 bucket
+// S3Bucket - represents S3Buckets bucket
 type S3Bucket struct {
 	Name          string
 	CreationDate  time.Time
@@ -95,7 +95,7 @@ type S3Bucket struct {
 	InvalidReason string
 }
 
-// getAllS3Buckets returns a map of per region AWS S3 buckets which were created before excludeAfter
+// getAllS3Buckets returns a map of per region AWS S3Buckets buckets which were created before excludeAfter
 func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 	targetRegions []string, bucketNameSubStr string, batchSize int, configObj config.Config,
 ) (map[string][]*string, error) {
@@ -149,7 +149,7 @@ func getAllS3Buckets(awsSession *session.Session, excludeAfter time.Time,
 func getRegionClients(regions []string) (map[string]*s3.S3, error) {
 	regionClients := make(map[string]*s3.S3)
 	for _, region := range regions {
-		logging.Logger.Debugf("S3 - creating session - region %s", region)
+		logging.Logger.Debugf("S3Buckets - creating session - region %s", region)
 
 		awsSession := newSession(region)
 
@@ -263,7 +263,7 @@ func getBucketInfo(svc *s3.S3, bucket *s3.Bucket, excludeAfter time.Time, region
 	bucketCh <- &bucketData
 }
 
-// emptyBucket will empty the given S3 bucket by deleting all the objects that are in the bucket. For versioned buckets,
+// emptyBucket will empty the given S3Buckets bucket by deleting all the objects that are in the bucket. For versioned buckets,
 // this includes all the versions and deletion markers in the bucket.
 // NOTE: In the progress logs, we deliberately do not report how many pages or objects are left. This is because aws
 // does not provide any API for getting the object count, and the only way to do that is to iterate through all the
@@ -417,7 +417,7 @@ func deleteDeletionMarkers(svc *s3.S3, bucketName *string, objectDelMarkers []*s
 	return err
 }
 
-// nukeAllS3BucketObjects batch deletes all objects in an S3 bucket
+// nukeAllS3BucketObjects batch deletes all objects in an S3Buckets bucket
 func nukeAllS3BucketObjects(svc *s3.S3, bucketName *string, batchSize int) error {
 	versioningResult, err := svc.GetBucketVersioning(&s3.GetBucketVersioningInput{
 		Bucket: bucketName,
@@ -440,7 +440,7 @@ func nukeAllS3BucketObjects(svc *s3.S3, bucketName *string, batchSize int) error
 	return nil
 }
 
-// nukeEmptyS3Bucket deletes an empty S3 bucket
+// nukeEmptyS3Bucket deletes an empty S3Buckets bucket
 func nukeEmptyS3Bucket(svc *s3.S3, bucketName *string, verifyBucketDeletion bool) error {
 	_, err := svc.DeleteBucket(&s3.DeleteBucketInput{
 		Bucket: bucketName,
@@ -453,7 +453,7 @@ func nukeEmptyS3Bucket(svc *s3.S3, bucketName *string, verifyBucketDeletion bool
 		return err
 	}
 
-	// The wait routine will try for up to 100 seconds, but that is not long enough for all circumstances of S3. As
+	// The wait routine will try for up to 100 seconds, but that is not long enough for all circumstances of S3Buckets. As
 	// such, we retry this routine up to 3 times for a total of 300 seconds.
 	const maxRetries = 3
 	for i := 0; i < maxRetries; i++ {
@@ -479,19 +479,19 @@ func nukeS3BucketPolicy(svc *s3.S3, bucketName *string) error {
 	return err
 }
 
-// nukeAllS3Buckets deletes all S3 buckets passed as input
+// nukeAllS3Buckets deletes all S3Buckets buckets passed as input
 func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, objectBatchSize int) (delCount int, err error) {
 	svc := s3.New(awsSession)
 	verifyBucketDeletion := true
 
 	if len(bucketNames) == 0 {
-		logging.Logger.Debugf("No S3 Buckets to nuke in region %s", *awsSession.Config.Region)
+		logging.Logger.Debugf("No S3Buckets Buckets to nuke in region %s", *awsSession.Config.Region)
 		return 0, nil
 	}
 
 	totalCount := len(bucketNames)
 
-	logging.Logger.Debugf("Deleting - %d S3 Buckets in region %s", totalCount, *awsSession.Config.Region)
+	logging.Logger.Debugf("Deleting - %d S3Buckets Buckets in region %s", totalCount, *awsSession.Config.Region)
 
 	multiErr := new(multierror.Error)
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
@@ -503,7 +503,7 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		if err != nil {
 			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking S3 Bucket Objects",
+				EventName: "Error Nuking S3Buckets Bucket Objects",
 			}, map[string]interface{}{
 				"region": *awsSession.Config.Region,
 			})
@@ -515,7 +515,7 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		if err != nil {
 			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket policy cleanup error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking S3 Bucket Polikcy",
+				EventName: "Error Nuking S3Buckets Bucket Polikcy",
 			}, map[string]interface{}{
 				"region": *awsSession.Config.Region,
 			})
@@ -527,7 +527,7 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		if err != nil {
 			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking S3 Bucket",
+				EventName: "Error Nuking S3Buckets Bucket",
 			}, map[string]interface{}{
 				"region": *awsSession.Config.Region,
 			})
@@ -538,7 +538,7 @@ func nukeAllS3Buckets(awsSession *session.Session, bucketNames []*string, object
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(bucketName),
-			ResourceType: "S3 Bucket",
+			ResourceType: "S3Buckets Bucket",
 			Error:        multiErr.ErrorOrNil(),
 		}
 		report.Record(e)

@@ -19,7 +19,7 @@ type Config struct {
 	AccessAnalyzer               ResourceType               `yaml:"AccessAnalyzer"`
 	AutoScalingGroup             ResourceType               `yaml:"AutoScalingGroup"`
 	BackupVault                  ResourceType               `yaml:"BackupVault"`
-	CloudTrail                   ResourceType               `yaml:"CloudTrail"`
+	CloudtrailTrail              ResourceType               `yaml:"CloudtrailTrail"`
 	CloudWatchAlarm              ResourceType               `yaml:"CloudWatchAlarm"`
 	CloudWatchDashboard          ResourceType               `yaml:"CloudWatchDashboard"`
 	CloudWatchLogGroup           ResourceType               `yaml:"CloudWatchLogGroup"`

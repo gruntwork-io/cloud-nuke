@@ -56,7 +56,7 @@ func nukeAllRedshiftClusters(session *session.Session, identifiers []*string) er
 		_, err := svc.DeleteCluster(&redshift.DeleteClusterInput{ClusterIdentifier: id, SkipFinalClusterSnapshot: aws.Bool(true)})
 		if err != nil {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking RedshiftCluster",
+				EventName: "Error Nuking RedshiftClusters",
 			}, map[string]interface{}{
 				"region": *session.Config.Region,
 			})

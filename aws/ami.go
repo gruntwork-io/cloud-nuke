@@ -16,7 +16,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of AMI Image ids
+// Returns a formatted string of AMIs Image ids
 func getAllAMIs(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
@@ -46,16 +46,16 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 	return imageIds, nil
 }
 
-// Deletes all AMI
+// Deletes all AMIs
 func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(imageIds) == 0 {
-		logging.Logger.Debugf("No AMI to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No AMIs to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all AMI in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all AMIs in region %s", *session.Config.Region)
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
@@ -68,7 +68,7 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(imageID),
-			ResourceType: "Amazon Machine Image (AMI)",
+			ResourceType: "Amazon Machine Image (AMIs)",
 			Error:        err,
 		}
 		report.Record(e)
@@ -76,16 +76,16 @@ func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking AMI",
+				EventName: "Error Nuking AMIs",
 			}, map[string]interface{}{
 				"region": *session.Config.Region,
 			})
 		} else {
 			deletedCount++
-			logging.Logger.Debugf("Deleted AMI: %s", *imageID)
+			logging.Logger.Debugf("Deleted AMIs: %s", *imageID)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d AMIs(s) terminated in %s", deletedCount, *session.Config.Region)
 	return nil
 }

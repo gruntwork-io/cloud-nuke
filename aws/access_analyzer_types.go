@@ -16,7 +16,7 @@ type AccessAnalyzer struct {
 
 // ResourceName - the simple name of the aws resource
 func (analyzer AccessAnalyzer) ResourceName() string {
-	return "access-analyzer"
+	return "accessanalyzer"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances

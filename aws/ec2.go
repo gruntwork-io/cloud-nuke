@@ -43,7 +43,7 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 	return filteredIds, nil
 }
 
-// Returns a formatted string of EC2Instance instance ids
+// Returns a formatted string of EC2Instances instance ids
 func getAllEc2Instances(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := ec2.New(session)
 
@@ -96,16 +96,16 @@ func shouldIncludeInstanceId(instance *ec2.Instance, excludeAfter time.Time, pro
 	)
 }
 
-// Deletes all non protected EC2Instance instances
+// Deletes all non protected EC2Instances instances
 func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(instanceIds) == 0 {
-		logging.Logger.Debugf("No EC2Instance instances to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No EC2Instances instances to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Terminating all EC2Instance instances in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Terminating all EC2Instances instances in region %s", *session.Config.Region)
 
 	params := &ec2.TerminateInstancesInput{
 		InstanceIds: instanceIds,
@@ -115,7 +115,7 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2Instance Instance",
+			EventName: "Error Nuking EC2Instances Instance",
 		}, map[string]interface{}{
 			"region": *session.Config.Region,
 		})
@@ -132,13 +132,13 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 	})
 
 	for _, instanceID := range instanceIds {
-		logging.Logger.Debugf("Terminated EC2Instance Instance: %s", *instanceID)
+		logging.Logger.Debugf("Terminated EC2Instances Instance: %s", *instanceID)
 	}
 
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2Instance Instance",
+			EventName: "Error Nuking EC2Instances Instance",
 		}, map[string]interface{}{
 			"region": *session.Config.Region,
 		})
@@ -159,7 +159,7 @@ type Vpc struct {
 	svc    ec2iface.EC2API
 }
 
-// NewVpcPerRegion merely assigns a service client and region to a EC2VPC object
+// NewVpcPerRegion merely assigns a service client and region to a VPC object
 // The CLI calls this, but the tests don't because the tests need to use a
 // mocked service client.
 func NewVpcPerRegion(regions []string) []Vpc {
@@ -191,11 +191,11 @@ func GetDefaultVpcId(vpc Vpc) (string, error) {
 	if len(vpcs.Vpcs) == 1 {
 		return awsgo.StringValue(vpcs.Vpcs[0].VpcId), nil
 	} else if len(vpcs.Vpcs) > 1 {
-		// More than one EC2VPC in a region should never happen
-		err = fmt.Errorf("Impossible - more than one default EC2VPC found in region %s", vpc.Region)
+		// More than one VPC in a region should never happen
+		err = fmt.Errorf("Impossible - more than one default VPC found in region %s", vpc.Region)
 		return "", errors.WithStackTrace(err)
 	}
-	// No default EC2VPC
+	// No default VPC
 	return "", nil
 }
 
@@ -443,7 +443,7 @@ func (v Vpc) nukeEndpoints(spinner *pterm.SpinnerPrinter) error {
 
 	for _, endpoint := range endpoints.VpcEndpoints {
 		endpointIds = append(endpointIds, endpoint.VpcEndpointId)
-		msg := fmt.Sprintf("...deleting EC2VPC endpoint %s", awsgo.StringValue(endpoint.VpcEndpointId))
+		msg := fmt.Sprintf("...deleting VPC endpoint %s", awsgo.StringValue(endpoint.VpcEndpointId))
 		spinner.UpdateText(msg)
 		logging.Logger.Debugf(msg)
 	}
@@ -572,7 +572,7 @@ func waitForVPCEndpointsToBeDeleted(v Vpc) error {
 		}
 
 		time.Sleep(20 * time.Second)
-		logging.Logger.Debug("Waiting for EC2VPC endpoints to be deleted...")
+		logging.Logger.Debug("Waiting for VPC endpoints to be deleted...")
 	}
 
 	return VPCEndpointDeleteTimeoutError{}
@@ -581,11 +581,11 @@ func waitForVPCEndpointsToBeDeleted(v Vpc) error {
 type VPCEndpointDeleteTimeoutError struct{}
 
 func (e VPCEndpointDeleteTimeoutError) Error() string {
-	return "Timed out waiting for EC2VPC endpoints to be successfully deleted"
+	return "Timed out waiting for VPC endpoints to be successfully deleted"
 }
 
 func (v Vpc) nukeVpc(spinner *pterm.SpinnerPrinter) error {
-	msg := fmt.Sprintf("Deleting EC2VPC %s", v.VpcId)
+	msg := fmt.Sprintf("Deleting VPC %s", v.VpcId)
 	spinner.UpdateText(msg)
 	logging.Logger.Debug(msg)
 	input := &ec2.DeleteVpcInput{
@@ -599,66 +599,66 @@ func (v Vpc) nukeVpc(spinner *pterm.SpinnerPrinter) error {
 }
 
 func (v Vpc) nuke(spinner *pterm.SpinnerPrinter) error {
-	logging.Logger.Debugf("Nuking EC2VPC %s in region %s", v.VpcId, v.Region)
-	spinner.UpdateText(fmt.Sprintf("Nuking EC2VPC %s in region %s", v.VpcId, v.Region))
+	logging.Logger.Debugf("Nuking VPC %s in region %s", v.VpcId, v.Region)
+	spinner.UpdateText(fmt.Sprintf("Nuking VPC %s in region %s", v.VpcId, v.Region))
 
 	err := v.nukeInternetGateway(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Internet Gateway for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Internet Gateway for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeEgressOnlyGateways(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Egress Only Internet Gateways for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Egress Only Internet Gateways for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeEndpoints(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Endpoints for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeNetworkInterfaces(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Elastic Network Interfaces for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Elastic Network Interfaces for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeSubnets(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Subnets for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Subnets for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeRouteTables(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Route Tables for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Route Tables for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeNacls(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Network ACLs for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Network ACLs for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeSecurityGroups(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Security Groups for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up Security Groups for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.dissociateDhcpOptions(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up DHCP Options for EC2VPC %s: %s", v.VpcId, err.Error())
+		logging.Logger.Debugf("Error cleaning up DHCP Options for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeVpc(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error deleting EC2VPC %s: %s ", v.VpcId, err)
+		logging.Logger.Debugf("Error deleting VPC %s: %s ", v.VpcId, err)
 		return err
 	}
 	return nil
@@ -682,13 +682,13 @@ func NukeVpcs(vpcs []Vpc) error {
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   vpc.VpcId,
-			ResourceType: "EC2VPC",
+			ResourceType: "VPC",
 			Error:        err,
 		}
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("Skipping to the next default EC2VPC")
+			logging.Logger.Debugf("Skipping to the next default VPC")
 			continue
 		}
 	}

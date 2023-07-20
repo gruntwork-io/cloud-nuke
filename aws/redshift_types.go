@@ -7,28 +7,28 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type RedshiftCluster struct {
+type RedshiftClusters struct {
 	Client             redshiftiface.RedshiftAPI
 	Region             string
 	ClusterIdentifiers []string
 }
 
-func (cluster RedshiftCluster) ResourceName() string {
+func (cluster RedshiftClusters) ResourceName() string {
 	return "redshift"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances
-func (cluster RedshiftCluster) ResourceIdentifiers() []string {
+func (cluster RedshiftClusters) ResourceIdentifiers() []string {
 	return cluster.ClusterIdentifiers
 }
 
-func (cluster RedshiftCluster) MaxBatchSize() int {
+func (cluster RedshiftClusters) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (cluster RedshiftCluster) Nuke(session *session.Session, identifiers []string) error {
+func (cluster RedshiftClusters) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllRedshiftClusters(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -35,9 +35,9 @@ func createTestTransitGateway(t *testing.T, session *session.Session, name strin
 
 	result, err := svc.CreateTransitGateway(param)
 	require.NoError(t, err)
-	require.True(t, len(aws.StringValue(result.TransitGateway.TransitGatewayId)) > 0, "Could not create test TransitGateway")
+	require.True(t, len(aws.StringValue(result.TransitGateway.TransitGatewayId)) > 0, "Could not create test TransitGateways")
 
-	sleepMessage := "TransitGateway takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepMessage := "TransitGateways takes some time to create, and since there is no waiter available, we sleep instead."
 	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 
@@ -128,9 +128,9 @@ func createTestTransitGatewayRouteTable(t *testing.T, session *session.Session, 
 
 	result, err := svc.CreateTransitGatewayRouteTable(param)
 	require.NoError(t, err)
-	require.True(t, len(aws.StringValue(result.TransitGatewayRouteTable.TransitGatewayRouteTableId)) > 0, "Could not create test TransitGateway Route Table")
+	require.True(t, len(aws.StringValue(result.TransitGatewayRouteTable.TransitGatewayRouteTableId)) > 0, "Could not create test TransitGateways Route Table")
 
-	sleepMessage := "TransitGateway Route Tables takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepMessage := "TransitGateways Route Tables takes some time to create, and since there is no waiter available, we sleep instead."
 	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 
@@ -241,7 +241,7 @@ func createTestTransitGatewayVpcAttachment(t *testing.T, session *session.Sessio
 	require.NoError(t, err)
 	require.True(t, len(aws.StringValue(result.TransitGatewayVpcAttachment.TransitGatewayAttachmentId)) > 0, "Could not create test Transitgateway Vpc Attachment")
 
-	sleepMessage := "TransitGateway Vpc Attachment takes some time to create, and since there is no waiter available, we sleep instead."
+	sleepMessage := "TransitGateways Vpc Attachment takes some time to create, and since there is no waiter available, we sleep instead."
 	sleepFor := 180 * time.Second
 	sleepWithMessage(sleepFor, sleepMessage)
 

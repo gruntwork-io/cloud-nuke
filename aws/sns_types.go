@@ -7,25 +7,25 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type SNS struct {
+type SNSTopic struct {
 	Client snsiface.SNSAPI
 	Region string
 	Arns   []string
 }
 
-func (s SNS) ResourceName() string {
+func (s SNSTopic) ResourceName() string {
 	return "sns"
 }
 
-func (s SNS) ResourceIdentifiers() []string {
+func (s SNSTopic) ResourceIdentifiers() []string {
 	return s.Arns
 }
 
-func (s SNS) MaxBatchSize() int {
+func (s SNSTopic) MaxBatchSize() int {
 	return 50
 }
 
-func (s SNS) Nuke(session *session.Session, identifiers []string) error {
+func (s SNSTopic) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllSNSTopics(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -37,5 +37,5 @@ func (s SNS) Nuke(session *session.Session, identifiers []string) error {
 type TooManySNSTopicsErr struct{}
 
 func (err TooManySNSTopicsErr) Error() string {
-	return "Too many SNS Topics requested at once."
+	return "Too many SNSTopic Topics requested at once."
 }

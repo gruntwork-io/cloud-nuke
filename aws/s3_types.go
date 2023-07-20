@@ -8,51 +8,51 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// S3 - represents all S3 Buckets
-type S3 struct {
+// S3Buckets - represents all S3Buckets Buckets
+type S3Buckets struct {
 	Client s3iface.S3API
 	Region string
 	Names  []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (bucket S3) ResourceName() string {
+func (bucket S3Buckets) ResourceName() string {
 	return "s3"
 }
 
-// MaxBatchSize decides how many S3 buckets to delete in one call.
-func (bucket S3) MaxBatchSize() int {
+// MaxBatchSize decides how many S3Buckets buckets to delete in one call.
+func (bucket S3Buckets) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 500
 }
 
-// MaxConcurrentGetSize decides how many S3 buckets to fetch in one call.
-func (bucket S3) MaxConcurrentGetSize() int {
+// MaxConcurrentGetSize decides how many S3Buckets buckets to fetch in one call.
+func (bucket S3Buckets) MaxConcurrentGetSize() int {
 	// To speed up bucket fetch part.
 	return 100
 }
 
-// ObjectMaxBatchSize decides how many unique objects of an S3 bucket (object + version = unique object) to delete in one call.
-func (bucket S3) ObjectMaxBatchSize() int {
+// ObjectMaxBatchSize decides how many unique objects of an S3Buckets bucket (object + version = unique object) to delete in one call.
+func (bucket S3Buckets) ObjectMaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 1000
 }
 
-// ResourceIdentifiers - The names of the S3 buckets
-func (bucket S3) ResourceIdentifiers() []string {
+// ResourceIdentifiers - The names of the S3Buckets buckets
+func (bucket S3Buckets) ResourceIdentifiers() []string {
 	return bucket.Names
 }
 
 // Nuke - nuke 'em all!!!
-func (bucket S3) Nuke(session *session.Session, identifiers []string) error {
+func (bucket S3Buckets) Nuke(session *session.Session, identifiers []string) error {
 	delCount, err := nukeAllS3Buckets(session, aws.StringSlice(identifiers), bucket.ObjectMaxBatchSize())
 
 	totalCount := len(identifiers)
 	if delCount > 0 {
-		logging.Logger.Debugf("[OK] - %d/%d - S3 bucket(s) deleted in %s", delCount, totalCount, *session.Config.Region)
+		logging.Logger.Debugf("[OK] - %d/%d - S3Buckets bucket(s) deleted in %s", delCount, totalCount, *session.Config.Region)
 	}
 	if delCount != totalCount {
-		logging.Logger.Debugf("[Failed] - %d/%d - S3 bucket(s) failed deletion in %s", totalCount-delCount, totalCount, *session.Config.Region)
+		logging.Logger.Debugf("[Failed] - %d/%d - S3Buckets bucket(s) failed deletion in %s", totalCount-delCount, totalCount, *session.Config.Region)
 	}
 
 	if err != nil {

@@ -7,30 +7,30 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// EBSVolume - represents all ebs volumes
-type EBSVolume struct {
+// EBSVolumes - represents all ebs volumes
+type EBSVolumes struct {
 	Client    ebsiface.EBSAPI
 	Region    string
 	VolumeIds []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (volume EBSVolume) ResourceName() string {
+func (volume EBSVolumes) ResourceName() string {
 	return "ebs"
 }
 
 // ResourceIdentifiers - The volume ids of the ebs volumes
-func (volume EBSVolume) ResourceIdentifiers() []string {
+func (volume EBSVolumes) ResourceIdentifiers() []string {
 	return volume.VolumeIds
 }
 
-func (volume EBSVolume) MaxBatchSize() int {
+func (volume EBSVolumes) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (volume EBSVolume) Nuke(session *session.Session, identifiers []string) error {
+func (volume EBSVolumes) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllEbsVolumes(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

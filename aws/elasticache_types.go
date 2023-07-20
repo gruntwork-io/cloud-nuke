@@ -7,30 +7,30 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Elasticache - represents all Elasticache clusters
-type Elasticache struct {
+// Elasticaches - represents all Elasticaches clusters
+type Elasticaches struct {
 	Client     elasticacheiface.ElastiCacheAPI
 	Region     string
 	ClusterIds []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (cache Elasticache) ResourceName() string {
+func (cache Elasticaches) ResourceName() string {
 	return "elasticache"
 }
 
 // ResourceIdentifiers - The instance ids of the elasticache clusters
-func (cache Elasticache) ResourceIdentifiers() []string {
+func (cache Elasticaches) ResourceIdentifiers() []string {
 	return cache.ClusterIds
 }
 
-func (cache Elasticache) MaxBatchSize() int {
+func (cache Elasticaches) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (cache Elasticache) Nuke(session *session.Session, identifiers []string) error {
+func (cache Elasticaches) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllElasticacheClusters(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -39,32 +39,32 @@ func (cache Elasticache) Nuke(session *session.Session, identifiers []string) er
 }
 
 /*
-Elasticache Parameter Groups
+Elasticaches Parameter Groups
 */
 
-type ElasticacheParameterGroup struct {
+type ElasticacheParameterGroups struct {
 	Client     elasticacheiface.ElastiCacheAPI
 	Region     string
 	GroupNames []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (pg ElasticacheParameterGroup) ResourceName() string {
+func (pg ElasticacheParameterGroups) ResourceName() string {
 	return "elasticache-parameter-group"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (pg ElasticacheParameterGroup) ResourceIdentifiers() []string {
+func (pg ElasticacheParameterGroups) ResourceIdentifiers() []string {
 	return pg.GroupNames
 }
 
-func (pg ElasticacheParameterGroup) MaxBatchSize() int {
+func (pg ElasticacheParameterGroups) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (pg ElasticacheParameterGroup) Nuke(session *session.Session, identifiers []string) error {
+func (pg ElasticacheParameterGroups) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllElasticacheParameterGroups(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -73,31 +73,31 @@ func (pg ElasticacheParameterGroup) Nuke(session *session.Session, identifiers [
 }
 
 /*
-Elasticache Subnet Groups
+Elasticaches Subnet Groups
 */
 
-type ElasticacheSubnetGroup struct {
+type ElasticacheSubnetGroups struct {
 	Client     elasticacheiface.ElastiCacheAPI
 	Region     string
 	GroupNames []string
 }
 
-func (sg ElasticacheSubnetGroup) ResourceName() string {
+func (sg ElasticacheSubnetGroups) ResourceName() string {
 	return "elasticache-subnet-group"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (sg ElasticacheSubnetGroup) ResourceIdentifiers() []string {
+func (sg ElasticacheSubnetGroups) ResourceIdentifiers() []string {
 	return sg.GroupNames
 }
 
-func (sg ElasticacheSubnetGroup) MaxBatchSize() int {
+func (sg ElasticacheSubnetGroups) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (sg ElasticacheSubnetGroup) Nuke(session *session.Session, identifiers []string) error {
+func (sg ElasticacheSubnetGroups) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllElasticacheSubnetGroups(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

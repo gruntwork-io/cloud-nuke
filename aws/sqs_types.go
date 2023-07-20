@@ -7,30 +7,30 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// SQS - represents all sqs queues
-type SQS struct {
+// SqsQueue - represents all sqs queues
+type SqsQueue struct {
 	Client    sqsiface.SQSAPI
 	Region    string
 	QueueUrls []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (queue SQS) ResourceName() string {
+func (queue SqsQueue) ResourceName() string {
 	return "sqs"
 }
 
-func (queue SQS) MaxBatchSize() int {
+func (queue SqsQueue) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // ResourceIdentifiers - The arns of the sqs queues
-func (queue SQS) ResourceIdentifiers() []string {
+func (queue SqsQueue) ResourceIdentifiers() []string {
 	return queue.QueueUrls
 }
 
 // Nuke - nuke 'em all!!!
-func (queue SQS) Nuke(session *session.Session, identifiers []string) error {
+func (queue SqsQueue) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllSqsQueues(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

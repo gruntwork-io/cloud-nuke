@@ -82,11 +82,11 @@ func nukeAllEc2DedicatedHosts(session *session.Session, hostIds []*string) error
 	svc := ec2.New(session)
 
 	if len(hostIds) == 0 {
-		logging.Logger.Debugf("No EC2Instance dedicated hosts to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No EC2Instances dedicated hosts to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Releasing all EC2Instance dedicated host allocations in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Releasing all EC2Instances dedicated host allocations in region %s", *session.Config.Region)
 
 	input := &ec2.ReleaseHostsInput{HostIds: hostIds}
 
@@ -95,7 +95,7 @@ func nukeAllEc2DedicatedHosts(session *session.Session, hostIds []*string) error
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2Instance Dedicated Hosts",
+			EventName: "Error Nuking EC2Instances Dedicated Hosts",
 		}, map[string]interface{}{
 			"region": *session.Config.Region,
 		})
@@ -107,21 +107,21 @@ func nukeAllEc2DedicatedHosts(session *session.Session, hostIds []*string) error
 		logging.Logger.Debugf("[OK] Dedicated host %s was released in %s", aws.StringValue(hostSuccess), *session.Config.Region)
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostSuccess),
-			ResourceType: "EC2Instance Dedicated Host",
+			ResourceType: "EC2Instances Dedicated Host",
 		}
 		report.Record(e)
 	}
 
 	for _, hostFailed := range releaseResult.Unsuccessful {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2Instance Dedicated Host",
+			EventName: "Error Nuking EC2Instances Dedicated Host",
 		}, map[string]interface{}{
 			"region": *session.Config.Region,
 		})
 		logging.Logger.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), *session.Config.Region, aws.StringValue(hostFailed.Error.Message))
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostFailed.ResourceId),
-			ResourceType: "EC2Instance Dedicated Host",
+			ResourceType: "EC2Instances Dedicated Host",
 			Error:        fmt.Errorf(*hostFailed.Error.Message),
 		}
 		report.Record(e)

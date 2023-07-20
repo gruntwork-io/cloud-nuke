@@ -7,30 +7,30 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// ELBv1 - represents all load balancers
-type ELBv1 struct {
+// LoadBalancers - represents all load balancers
+type LoadBalancers struct {
 	Client elbiface.ELBAPI
 	Region string
 	Names  []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (balancer ELBv1) ResourceName() string {
+func (balancer LoadBalancers) ResourceName() string {
 	return "elbv1"
 }
 
 // ResourceIdentifiers - The names of the load balancers
-func (balancer ELBv1) ResourceIdentifiers() []string {
+func (balancer LoadBalancers) ResourceIdentifiers() []string {
 	return balancer.Names
 }
 
-func (balancer ELBv1) MaxBatchSize() int {
+func (balancer LoadBalancers) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (balancer ELBv1) Nuke(session *session.Session, identifiers []string) error {
+func (balancer LoadBalancers) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllElbInstances(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

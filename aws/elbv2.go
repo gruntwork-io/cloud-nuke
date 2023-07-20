@@ -15,7 +15,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of ELBv2 Arns
+// Returns a formatted string of LoadBalancersV2 Arns
 func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
 	svc := elbv2.New(session)
 	result, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
@@ -85,7 +85,7 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 			})
 		} else {
 			deletedArns = append(deletedArns, arn)
-			logging.Logger.Debugf("Deleted ELBv2: %s", *arn)
+			logging.Logger.Debugf("Deleted LoadBalancersV2: %s", *arn)
 		}
 	}
 

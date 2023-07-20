@@ -41,7 +41,7 @@ func createTestAMI(t *testing.T, session *session.Session, name string) (*ec2.Im
 	})
 
 	if err != nil {
-		assert.Failf(t, "Could not create test AMI", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not create test AMIs", errors.WithStackTrace(err).Error())
 	}
 
 	params := &ec2.DescribeImagesInput{
@@ -110,14 +110,14 @@ func TestListAMIs(t *testing.T) {
 
 	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMI")
+		assert.Fail(t, "Unable to fetch list of AMIs")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(amis), *image.ImageId)
 
 	amis, err = getAllAMIs(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMI")
+		assert.Fail(t, "Unable to fetch list of AMIs")
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(amis), *image.ImageId)
@@ -171,7 +171,7 @@ func TestNukeAMIs(t *testing.T) {
 
 	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMI")
+		assert.Fail(t, "Unable to fetch list of AMIs")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(amis), *image.ImageId)

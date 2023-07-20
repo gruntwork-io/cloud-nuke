@@ -15,7 +15,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of SQS Queue URLs
+// Returns a formatted string of SqsQueue Queue URLs
 func getAllSqsQueue(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := sqs.New(session)
 
@@ -66,11 +66,11 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 	svc := sqs.New(session)
 
 	if len(urls) == 0 {
-		logging.Logger.Debugf("No SQS Queues to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No SqsQueue Queues to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all SQS Queues in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all SqsQueue Queues in region %s", *session.Config.Region)
 	var deletedUrls []*string
 
 	for _, url := range urls {
@@ -83,7 +83,7 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(url),
-			ResourceType: "SQS Queue",
+			ResourceType: "SqsQueue Queue",
 			Error:        err,
 		}
 		report.Record(e)
@@ -91,17 +91,17 @@ func nukeAllSqsQueues(session *session.Session, urls []*string) error {
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking SQS Queue",
+				EventName: "Error Nuking SqsQueue Queue",
 			}, map[string]interface{}{
 				"region": *session.Config.Region,
 			})
 		} else {
 			deletedUrls = append(deletedUrls, url)
-			logging.Logger.Debugf("Deleted SQS Queue: %s", *url)
+			logging.Logger.Debugf("Deleted SqsQueue Queue: %s", *url)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d SqsQueue Queue(s) deleted in %s", len(deletedUrls), *session.Config.Region)
 
 	return nil
 }
