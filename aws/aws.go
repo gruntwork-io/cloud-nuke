@@ -2200,7 +2200,7 @@ func ListResourceTypes() []string {
 		CloudWatchDashboards{}.ResourceName(),
 		AccessAnalyzer{}.ResourceName(),
 		DynamoDB{}.ResourceName(),
-		VPC{}.ResourceName(),
+		EC2VPCs{}.ResourceName(),
 		Elasticaches{}.ResourceName(),
 		ElasticacheParameterGroups{}.ResourceName(),
 		ElasticacheSubnetGroups{}.ResourceName(),
