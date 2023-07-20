@@ -6,7 +6,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type VPC struct {
+type EC2VPCs struct {
 	Client ec2iface.EC2API
 	Region string
 	VPCIds []string
@@ -14,22 +14,22 @@ type VPC struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (v VPC) ResourceName() string {
+func (v EC2VPCs) ResourceName() string {
 	return "vpc"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (v VPC) ResourceIdentifiers() []string {
+func (v EC2VPCs) ResourceIdentifiers() []string {
 	return v.VPCIds
 }
 
-func (v VPC) MaxBatchSize() int {
+func (v EC2VPCs) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (v VPC) Nuke(session *session.Session, identifiers []string) error {
+func (v EC2VPCs) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllVPCs(session, identifiers, v.VPCs); err != nil {
 		return errors.WithStackTrace(err)
 	}

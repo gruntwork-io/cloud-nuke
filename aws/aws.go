@@ -1285,7 +1285,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Dynamo DB tables
 
 		// EC2 VPCS
-		ec2Vpcs := VPC{
+		ec2Vpcs := EC2VPCs{
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
