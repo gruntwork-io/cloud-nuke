@@ -42,8 +42,21 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
-		KMSCustomerKeyResourceType{false, ResourceType{FilterRule{}, FilterRule{}}},
 		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
+		KMSCustomerKeyResourceType{false, ResourceType{FilterRule{}, FilterRule{}}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
@@ -203,7 +216,7 @@ func TestConfigIAM_Users_Empty(t *testing.T) {
 	require.NoError(t, err)
 
 	if !reflect.DeepEqual(configObj, emptyConfig()) {
-		assert.Fail(t, "Config should be empty, %+v\n", configObj.IAMUsers)
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.IAMUser)
 	}
 
 	return
@@ -245,7 +258,7 @@ func TestConfigIAM_Users_IncludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.IAMUsers.IncludeRule.NamesRegExp) == 0 {
+	if len(configObj.IAMUser.IncludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
 	}
 
@@ -262,7 +275,7 @@ func TestConfigIAM_Users_ExcludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.IAMUsers.ExcludeRule.NamesRegExp) == 0 {
+	if len(configObj.IAMUser.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
 	}
 
@@ -279,8 +292,8 @@ func TestConfigIAM_Users_FilterNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.IAMUsers.IncludeRule.NamesRegExp) == 0 ||
-		len(configObj.IAMUsers.ExcludeRule.NamesRegExp) == 0 {
+	if len(configObj.IAMUser.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.IAMUser.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain IAM names regexes, %+v\n", configObj)
 	}
 
@@ -296,7 +309,7 @@ func TestConfigSecretsManager_Empty(t *testing.T) {
 	require.NoError(t, err)
 
 	if !reflect.DeepEqual(configObj, emptyConfig()) {
-		assert.Fail(t, "Config should be empty, %+v\n", configObj.SecretsManagerSecrets)
+		assert.Fail(t, "Config should be empty, %+v\n", configObj.SecretsManagerSecret)
 	}
 
 	return
@@ -338,7 +351,7 @@ func TestConfigSecretsManager_IncludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.SecretsManagerSecrets.IncludeRule.NamesRegExp) == 0 {
+	if len(configObj.SecretsManagerSecret.IncludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain secrets regexes, %+v\n", configObj)
 	}
 
@@ -355,7 +368,7 @@ func TestConfigSecretsManager_ExcludeNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.SecretsManagerSecrets.ExcludeRule.NamesRegExp) == 0 {
+	if len(configObj.SecretsManagerSecret.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain secrets regexes, %+v\n", configObj)
 	}
 
@@ -372,8 +385,8 @@ func TestConfigSecretsManager_FilterNames(t *testing.T) {
 		assert.Fail(t, "Config should not be empty, %+v\n", configObj)
 	}
 
-	if len(configObj.SecretsManagerSecrets.IncludeRule.NamesRegExp) == 0 ||
-		len(configObj.SecretsManagerSecrets.ExcludeRule.NamesRegExp) == 0 {
+	if len(configObj.SecretsManagerSecret.IncludeRule.NamesRegExp) == 0 ||
+		len(configObj.SecretsManagerSecret.ExcludeRule.NamesRegExp) == 0 {
 		assert.Fail(t, "ConfigObj should contain secrets regexes, %+v\n", configObj)
 	}
 

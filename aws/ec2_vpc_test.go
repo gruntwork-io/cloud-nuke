@@ -143,11 +143,11 @@ func TestListVpcs(t *testing.T) {
 		svc:    ec2.New(session),
 	}})
 
-	// First run gives us a chance to tag the VPC
+	// First run gives us a chance to tag the EC2VPC
 	_, _, err = getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
-	// VPC should be tagged at this point
+	// EC2VPC should be tagged at this point
 	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
@@ -178,11 +178,11 @@ func TestNukeVpcs(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// First run gives us a chance to tag the VPC
+	// First run gives us a chance to tag the EC2VPC
 	_, _, err = getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
-	// VPC should be tagged at this point
+	// EC2VPC should be tagged at this point
 	vpcIds, _, err := getAllVpcs(session, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
@@ -213,11 +213,11 @@ func TestNukeVpcsWithEgressGateway(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// First run gives us a chance to tag the VPC
+	// First run gives us a chance to tag the EC2VPC
 	_, _, err = getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
-	// VPC should be tagged at this point
+	// EC2VPC should be tagged at this point
 	vpcIds, _, err := getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
@@ -248,11 +248,11 @@ func TestNukeVpcsWithNetworkInterface(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// First run gives us a chance to tag the VPC
+	// First run gives us a chance to tag the EC2VPC
 	_, _, err = getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
-	// VPC should be tagged at this point
+	// EC2VPC should be tagged at this point
 	vpcIds, _, err := getAllVpcs(awsSession, region, time.Now().Add(1*time.Hour), config.Config{})
 	require.NoError(t, err)
 
@@ -282,7 +282,7 @@ func TestShouldIncludeVpc(t *testing.T) {
 	}
 
 	mockExcludeConfig := config.Config{
-		VPC: config.ResourceType{
+		EC2VPC: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
 					{
@@ -294,7 +294,7 @@ func TestShouldIncludeVpc(t *testing.T) {
 	}
 
 	mockIncludeConfig := config.Config{
-		VPC: config.ResourceType{
+		EC2VPC: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
 					{

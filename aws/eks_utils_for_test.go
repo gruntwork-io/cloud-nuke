@@ -181,7 +181,7 @@ func attachRolePolicy(t *testing.T, svc *iam.IAM, roleName string, policyArn str
 	}
 }
 
-// createPrivateSubnetE will create a private subnet into the default VPC. To create a private subnet, we need to first
+// createPrivateSubnetE will create a private subnet into the default EC2VPC. To create a private subnet, we need to first
 // create a route table that has no internet gateway associated with it. This function will return the RouteTable and
 // Subnet that it creates so that it can be deleted later. This returns the error so that we can cleanup any partial
 // resources that are created if downstream resources error.
@@ -237,7 +237,7 @@ func createPrivateSubnetE(t *testing.T, session *session.Session) (privateSubnet
 	return subnet, err
 }
 
-// deletePrivateSubnet deletes the subnet and associated private route table for the VPC.
+// deletePrivateSubnet deletes the subnet and associated private route table for the EC2VPC.
 func deletePrivateSubnet(t *testing.T, session *session.Session, subnet privateSubnet) {
 	svc := ec2.New(session)
 	if subnet.routeTableAssociationID != nil {

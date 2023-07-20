@@ -3,31 +3,34 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// TransitGatewaysVpcAttachment - represents all transit gateways vpc attachments
-type TransitGatewaysVpcAttachment struct {
-	Ids []string
+// TransitGatewayVpcAttachment - represents all transit gateways vpc attachments
+type TransitGatewayVpcAttachment struct {
+	Client ec2iface.EC2API
+	Region string
+	Ids    []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (tgw TransitGatewaysVpcAttachment) ResourceName() string {
+func (tgw TransitGatewayVpcAttachment) ResourceName() string {
 	return "transit-gateway-attachment"
 }
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
-func (tgw TransitGatewaysVpcAttachment) MaxBatchSize() int {
+func (tgw TransitGatewayVpcAttachment) MaxBatchSize() int {
 	return maxBatchSize
 }
 
 // ResourceIdentifiers - The Ids of the transit gateways
-func (tgw TransitGatewaysVpcAttachment) ResourceIdentifiers() []string {
+func (tgw TransitGatewayVpcAttachment) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw TransitGatewaysVpcAttachment) Nuke(session *session.Session, identifiers []string) error {
+func (tgw TransitGatewayVpcAttachment) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllTransitGatewayVpcAttachments(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -35,28 +38,30 @@ func (tgw TransitGatewaysVpcAttachment) Nuke(session *session.Session, identifie
 	return nil
 }
 
-// TransitGatewaysRouteTables - represents all transit gateways route tables
-type TransitGatewaysRouteTables struct {
-	Ids []string
+// TransitGatewayRouteTable - represents all transit gateways route tables
+type TransitGatewayRouteTable struct {
+	Client ec2iface.EC2API
+	Region string
+	Ids    []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (tgw TransitGatewaysRouteTables) ResourceName() string {
+func (tgw TransitGatewayRouteTable) ResourceName() string {
 	return "transit-gateway-route-table"
 }
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
-func (tgw TransitGatewaysRouteTables) MaxBatchSize() int {
+func (tgw TransitGatewayRouteTable) MaxBatchSize() int {
 	return maxBatchSize
 }
 
 // ResourceIdentifiers - The arns of the transit gateways route tables
-func (tgw TransitGatewaysRouteTables) ResourceIdentifiers() []string {
+func (tgw TransitGatewayRouteTable) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw TransitGatewaysRouteTables) Nuke(session *session.Session, identifiers []string) error {
+func (tgw TransitGatewayRouteTable) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllTransitGatewayRouteTables(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -64,28 +69,30 @@ func (tgw TransitGatewaysRouteTables) Nuke(session *session.Session, identifiers
 	return nil
 }
 
-// TransitGateways - represents all transit gateways
-type TransitGateways struct {
-	Ids []string
+// TransitGateway - represents all transit gateways
+type TransitGateway struct {
+	Client ec2iface.EC2API
+	Region string
+	Ids    []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (tgw TransitGateways) ResourceName() string {
+func (tgw TransitGateway) ResourceName() string {
 	return "transit-gateway"
 }
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
-func (tgw TransitGateways) MaxBatchSize() int {
+func (tgw TransitGateway) MaxBatchSize() int {
 	return maxBatchSize
 }
 
 // ResourceIdentifiers - The Ids of the transit gateways
-func (tgw TransitGateways) ResourceIdentifiers() []string {
+func (tgw TransitGateway) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw TransitGateways) Nuke(session *session.Session, identifiers []string) error {
+func (tgw TransitGateway) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllTransitGatewayInstances(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

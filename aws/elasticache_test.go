@@ -220,7 +220,7 @@ func createSubnetGroup(t *testing.T, session *session.Session) string {
 	vpcs, err := ec2Svc.DescribeVpcs(describeVpcsParams)
 	require.NoError(t, err)
 	if len(vpcs.Vpcs) == 0 {
-		err = errors.New(fmt.Sprintf("Could not find any default VPC in region %s", *session.Config.Region))
+		err = errors.New(fmt.Sprintf("Could not find any default EC2VPC in region %s", *session.Config.Region))
 	}
 	require.NoError(t, err)
 
@@ -237,7 +237,7 @@ func createSubnetGroup(t *testing.T, session *session.Session) string {
 	subnets, err := ec2Svc.DescribeSubnets(describeSubnetsParams)
 	require.NoError(t, err)
 	if len(subnets.Subnets) == 0 {
-		err = errors.New(fmt.Sprintf("Could not find any subnets for default VPC in region %s", *session.Config.Region))
+		err = errors.New(fmt.Sprintf("Could not find any subnets for default EC2VPC in region %s", *session.Config.Region))
 	}
 	require.NoError(t, err)
 	var subnetIds []*string

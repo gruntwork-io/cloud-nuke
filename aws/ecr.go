@@ -51,8 +51,8 @@ func shouldIncludeECRRepository(repository *ecr.Repository, excludeAfter time.Ti
 
 	return config.ShouldInclude(
 		aws.StringValue(repository.RepositoryName),
-		configObj.ECRRepository.IncludeRule.NamesRegExp,
-		configObj.ECRRepository.ExcludeRule.NamesRegExp,
+		configObj.ECR.IncludeRule.NamesRegExp,
+		configObj.ECR.ExcludeRule.NamesRegExp,
 	)
 }
 

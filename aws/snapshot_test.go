@@ -23,7 +23,7 @@ func createTestSnapshot(t *testing.T, session *session.Session, name string) ec2
 	})
 
 	if err != nil {
-		assert.Failf(t, "Could not create test Snapshot", errors.WithStackTrace(err).Error())
+		assert.Failf(t, "Could not create test EC2Snapshot", errors.WithStackTrace(err).Error())
 	}
 
 	err = svc.WaitUntilSnapshotCompleted(&ec2.DescribeSnapshotsInput{
@@ -64,14 +64,14 @@ func TestListSnapshots(t *testing.T) {
 
 	snapshots, err := getAllSnapshots(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Snapshots")
+		assert.Fail(t, "Unable to fetch list of EC2Snapshot")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(snapshots), *snapshot.SnapshotId)
 
 	snapshots, err = getAllSnapshots(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Snapshots")
+		assert.Fail(t, "Unable to fetch list of EC2Snapshot")
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(snapshots), *snapshot.SnapshotId)
@@ -115,7 +115,7 @@ func TestNukeSnapshots(t *testing.T) {
 
 	snapshots, err := getAllSnapshots(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Snapshots")
+		assert.Fail(t, "Unable to fetch list of EC2Snapshot")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(snapshots), *snapshot.SnapshotId)

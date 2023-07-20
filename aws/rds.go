@@ -45,8 +45,8 @@ func shouldIncludeDbInstance(database *rds.DBInstance, excludeAfter time.Time, c
 
 	return config.ShouldInclude(
 		aws.StringValue(database.DBName),
-		configObj.DBInstances.IncludeRule.NamesRegExp,
-		configObj.DBInstances.ExcludeRule.NamesRegExp,
+		configObj.DBInstance.IncludeRule.NamesRegExp,
+		configObj.DBInstance.ExcludeRule.NamesRegExp,
 	)
 }
 

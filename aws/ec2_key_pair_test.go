@@ -79,7 +79,7 @@ func TestEc2KeyPairListWithConfig(t *testing.T) {
 	// Regex expression to not include first key pair
 	nameRegexExp, err := regexp.Compile(fmt.Sprintf("^%s*", *createdKeyPair.KeyName))
 	excludeConfig := config.Config{
-		EC2KeyPairs: config.ResourceType{
+		EC2KeyPair: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
 					{

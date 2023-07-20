@@ -3,45 +3,48 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// S3Buckets - represents all S3 Buckets
-type S3Buckets struct {
-	Names []string
+// S3 - represents all S3 Buckets
+type S3 struct {
+	Client s3iface.S3API
+	Region string
+	Names  []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (bucket S3Buckets) ResourceName() string {
+func (bucket S3) ResourceName() string {
 	return "s3"
 }
 
 // MaxBatchSize decides how many S3 buckets to delete in one call.
-func (bucket S3Buckets) MaxBatchSize() int {
+func (bucket S3) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 500
 }
 
 // MaxConcurrentGetSize decides how many S3 buckets to fetch in one call.
-func (bucket S3Buckets) MaxConcurrentGetSize() int {
+func (bucket S3) MaxConcurrentGetSize() int {
 	// To speed up bucket fetch part.
 	return 100
 }
 
 // ObjectMaxBatchSize decides how many unique objects of an S3 bucket (object + version = unique object) to delete in one call.
-func (bucket S3Buckets) ObjectMaxBatchSize() int {
+func (bucket S3) ObjectMaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 1000
 }
 
 // ResourceIdentifiers - The names of the S3 buckets
-func (bucket S3Buckets) ResourceIdentifiers() []string {
+func (bucket S3) ResourceIdentifiers() []string {
 	return bucket.Names
 }
 
 // Nuke - nuke 'em all!!!
-func (bucket S3Buckets) Nuke(session *session.Session, identifiers []string) error {
+func (bucket S3) Nuke(session *session.Session, identifiers []string) error {
 	delCount, err := nukeAllS3Buckets(session, aws.StringSlice(identifiers), bucket.ObjectMaxBatchSize())
 
 	totalCount := len(identifiers)

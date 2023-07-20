@@ -46,16 +46,16 @@ func getAllAMIs(session *session.Session, region string, excludeAfter time.Time)
 	return imageIds, nil
 }
 
-// Deletes all AMIs
+// Deletes all AMI
 func nukeAllAMIs(session *session.Session, imageIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(imageIds) == 0 {
-		logging.Logger.Debugf("No AMIs to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No AMI to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all AMIs in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all AMI in region %s", *session.Config.Region)
 
 	deletedCount := 0
 	for _, imageID := range imageIds {

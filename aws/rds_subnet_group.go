@@ -38,8 +38,8 @@ func waitUntilRdsDbSubnetGroupDeleted(svc *rds.RDS, name *string) error {
 func shouldIncludeDbSubnetGroup(subnetGroup *rds.DBSubnetGroup, configObj config.Config) bool {
 	return config.ShouldInclude(
 		aws.StringValue(subnetGroup.DBSubnetGroupName),
-		configObj.DBSubnetGroups.IncludeRule.NamesRegExp,
-		configObj.DBSubnetGroups.ExcludeRule.NamesRegExp,
+		configObj.DBSubnetGroup.IncludeRule.NamesRegExp,
+		configObj.DBSubnetGroup.ExcludeRule.NamesRegExp,
 	)
 }
 

@@ -14,7 +14,7 @@ import (
 )
 
 // getAll returns a list of strings of EKS Cluster Names that uniquely identify each cluster.
-func (clusters EKSClusters) getAll(configObj config.Config) ([]*string, error) {
+func (clusters EKSCluster) getAll(configObj config.Config) ([]*string, error) {
 	result, err := clusters.Client.ListClusters(&eks.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -29,7 +29,7 @@ func (clusters EKSClusters) getAll(configObj config.Config) ([]*string, error) {
 
 // filter will take in the list of clusters and filter out any clusters that were created after
 // `excludeAfter`, and those that are excluded by the config file.
-func (clusters EKSClusters) filter(clusterNames []*string, configObj config.Config) ([]*string, error) {
+func (clusters EKSCluster) filter(clusterNames []*string, configObj config.Config) ([]*string, error) {
 	var filteredEksClusterNames []*string
 	for _, clusterName := range clusterNames {
 		// Since we already have the name here, avoid an extra API call by applying
@@ -58,7 +58,7 @@ func (clusters EKSClusters) filter(clusterNames []*string, configObj config.Conf
 // deleteAsync deletes the provided EKS Cluster asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors. Note that this routine attempts to delete all managed compute
 // resources associated with the EKS cluster (Managed Node Groups and Fargate Profiles).
-func (clusters EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error, eksClusterName string) {
+func (clusters EKSCluster) deleteAsync(wg *sync.WaitGroup, errChan chan error, eksClusterName string) {
 	defer wg.Done()
 
 	// Aggregate errors for each subresource being deleted
@@ -106,7 +106,7 @@ func (clusters EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error, 
 // scheduleDeleteEKSClusterManagedNodeGroup looks up all the associated Managed Node Group resources on the EKS cluster
 // and requests each one to be deleted. Note that this function will not wait for the Node Groups to be deleted. This
 // will return the list of Node Groups that were successfully scheduled for deletion.
-func (clusters EKSClusters) scheduleDeleteEKSClusterManagedNodeGroup(eksClusterName string) ([]*string, error) {
+func (clusters EKSCluster) scheduleDeleteEKSClusterManagedNodeGroup(eksClusterName string) ([]*string, error) {
 	allNodeGroups := []*string{}
 	err := clusters.Client.ListNodegroupsPages(
 		&eks.ListNodegroupsInput{ClusterName: aws.String(eksClusterName)},
@@ -143,7 +143,7 @@ func (clusters EKSClusters) scheduleDeleteEKSClusterManagedNodeGroup(eksClusterN
 // deleteEKSClusterFargateProfiles looks up all the associated Fargate Profile resources on the EKS cluster and requests
 // each one to be deleted. Since only one Fargate Profile can be deleted at a time, this function will wait until the
 // Fargate Profile is actually deleted for each one before moving on to the next one.
-func (clusters EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName string) error {
+func (clusters EKSCluster) deleteEKSClusterFargateProfiles(eksClusterName string) error {
 	allFargateProfiles := []*string{}
 	err := clusters.Client.ListFargateProfilesPages(
 		&eks.ListFargateProfilesInput{ClusterName: aws.String(eksClusterName)},
@@ -190,7 +190,7 @@ func (clusters EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName strin
 
 // waitUntilEksClustersDeleted waits until the EKS cluster has been actually deleted from AWS. Returns a list of EKS
 // cluster names that have been successfully deleted.
-func (clusters EKSClusters) waitUntilEksClustersDeleted(eksClusterNames []*string) []*string {
+func (clusters EKSCluster) waitUntilEksClustersDeleted(eksClusterNames []*string) []*string {
 	var successfullyDeleted []*string
 	for _, eksClusterName := range eksClusterNames {
 		err := clusters.Client.WaitUntilClusterDeleted(&eks.DescribeClusterInput{Name: eksClusterName})
@@ -214,7 +214,7 @@ func (clusters EKSClusters) waitUntilEksClustersDeleted(eksClusterNames []*strin
 }
 
 // nukeAll deletes all provided EKS clusters, waiting for them to be deleted before returning.
-func (clusters EKSClusters) nukeAll(eksClusterNames []*string) error {
+func (clusters EKSCluster) nukeAll(eksClusterNames []*string) error {
 	numNuking := len(eksClusterNames)
 	if numNuking == 0 {
 		logging.Logger.Debugf("No EKS clusters to nuke in region %s", clusters.Region)

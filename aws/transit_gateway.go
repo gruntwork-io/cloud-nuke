@@ -38,7 +38,7 @@ func getAllTransitGatewayInstances(session *session.Session, region string, excl
 	return ids, nil
 }
 
-// Delete all TransitGateways
+// Delete all TransitGateway
 func nukeAllTransitGatewayInstances(session *session.Session, ids []*string) error {
 	svc := ec2.New(session)
 

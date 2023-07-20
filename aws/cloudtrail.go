@@ -45,8 +45,8 @@ func shouldIncludeCloudtrailTrail(trail *cloudtrail.TrailInfo, configObj config.
 
 	return config.ShouldInclude(
 		aws.StringValue(trail.Name),
-		configObj.CloudtrailTrail.IncludeRule.NamesRegExp,
-		configObj.CloudtrailTrail.ExcludeRule.NamesRegExp,
+		configObj.CloudTrail.IncludeRule.NamesRegExp,
+		configObj.CloudTrail.ExcludeRule.NamesRegExp,
 	)
 }
 

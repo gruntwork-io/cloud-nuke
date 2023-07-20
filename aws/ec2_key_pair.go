@@ -43,8 +43,8 @@ func shouldIncludeEc2KeyPair(keyPairInfo *ec2.KeyPairInfo, excludeAfter time.Tim
 
 	return config.ShouldInclude(
 		*keyPairInfo.KeyName,
-		configObj.EC2KeyPairs.IncludeRule.NamesRegExp,
-		configObj.EC2KeyPairs.ExcludeRule.NamesRegExp,
+		configObj.EC2KeyPair.IncludeRule.NamesRegExp,
+		configObj.EC2KeyPair.ExcludeRule.NamesRegExp,
 	)
 }
 
@@ -67,18 +67,18 @@ func nukeAllEc2KeyPairs(session *session.Session, keypairIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(keypairIds) == 0 {
-		logging.Logger.Infof("No EC2 key pairs to nuke in region %s", *session.Config.Region)
+		logging.Logger.Infof("No EC2Instance key pairs to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Terminating all EC2 key pairs in region %s", *session.Config.Region)
+	logging.Logger.Infof("Terminating all EC2Instance key pairs in region %s", *session.Config.Region)
 
 	deletedKeyPairs := 0
 	var multiErr *multierror.Error
 	for _, keypair := range keypairIds {
 		if err := deleteKeyPair(svc, keypair); err != nil {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking EC2 Key Pair",
+				EventName: "Error Nuking EC2Instance Key Pair",
 			}, map[string]interface{}{
 				"region": *session.Config.Region,
 			})
@@ -86,10 +86,10 @@ func nukeAllEc2KeyPairs(session *session.Session, keypairIds []*string) error {
 			multiErr = multierror.Append(multiErr, err)
 		} else {
 			deletedKeyPairs++
-			logging.Logger.Infof("Deleted EC2 KeyPair: %s", *keypair)
+			logging.Logger.Infof("Deleted EC2Instance KeyPair: %s", *keypair)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d EC2 KeyPair(s) terminated", deletedKeyPairs)
+	logging.Logger.Infof("[OK] %d EC2Instance KeyPair(s) terminated", deletedKeyPairs)
 	return multiErr.ErrorOrNil()
 }

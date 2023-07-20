@@ -272,8 +272,8 @@ func shouldIncludeElasticacheParameterGroup(paramGroup *elasticache.CacheParamet
 
 	return config.ShouldInclude(
 		aws.StringValue(paramGroup.CacheParameterGroupName),
-		configObj.ElasticacheParameterGroups.IncludeRule.NamesRegExp,
-		configObj.ElasticacheParameterGroups.ExcludeRule.NamesRegExp,
+		configObj.ElasticacheParameterGroup.IncludeRule.NamesRegExp,
+		configObj.ElasticacheParameterGroup.ExcludeRule.NamesRegExp,
 	)
 }
 
@@ -338,8 +338,8 @@ func shouldIncludeElasticacheSubnetGroup(subnetGroup *elasticache.CacheSubnetGro
 
 	return config.ShouldInclude(
 		aws.StringValue(subnetGroup.CacheSubnetGroupName),
-		configObj.ElasticacheSubnetGroups.IncludeRule.NamesRegExp,
-		configObj.ElasticacheSubnetGroups.ExcludeRule.NamesRegExp,
+		configObj.ElasticacheSubnetGroup.IncludeRule.NamesRegExp,
+		configObj.ElasticacheSubnetGroup.ExcludeRule.NamesRegExp,
 	)
 }
 

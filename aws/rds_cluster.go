@@ -16,7 +16,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (instance DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClustersInput) error {
+func (instance DBCluster) waitUntilRdsClusterDeleted(input *rds.DescribeDBClustersInput) error {
 	// wait up to 15 minutes
 	for i := 0; i < 90; i++ {
 		_, err := instance.Client.DescribeDBClusters(input)
@@ -35,7 +35,7 @@ func (instance DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClust
 	return RdsDeleteError{name: *input.DBClusterIdentifier}
 }
 
-func (instance DBClusters) getAll(configObj config.Config) ([]*string, error) {
+func (instance DBCluster) getAll(configObj config.Config) ([]*string, error) {
 	result, err := instance.Client.DescribeDBClusters(&rds.DescribeDBClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -43,7 +43,7 @@ func (instance DBClusters) getAll(configObj config.Config) ([]*string, error) {
 
 	var names []*string
 	for _, database := range result.DBClusters {
-		if configObj.DBClusters.ShouldInclude(config.ResourceValue{
+		if configObj.DBCluster.ShouldInclude(config.ResourceValue{
 			Name: database.DBClusterIdentifier,
 			Time: database.ClusterCreateTime,
 		}) {
@@ -54,7 +54,7 @@ func (instance DBClusters) getAll(configObj config.Config) ([]*string, error) {
 	return names, nil
 }
 
-func (instance DBClusters) nukeAll(names []*string) error {
+func (instance DBCluster) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No RDS DB Cluster to nuke in region %s", instance.Region)
 		return nil

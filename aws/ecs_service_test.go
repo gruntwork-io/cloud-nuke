@@ -105,7 +105,7 @@ func TestNukeECSFargateServices(t *testing.T) {
 	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
 }
 
-// Test that we can find ECS services running EC2 tasks
+// Test that we can find ECS services running EC2Instance tasks
 func TestListECSEC2Services(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
@@ -128,7 +128,7 @@ func TestListECSEC2Services(t *testing.T) {
 	instanceProfileName := uniqueTestID + "-instance-profile"
 
 	// Prepare resources
-	// Create the IAM roles for ECS EC2 container instances
+	// Create the IAM roles for ECS EC2Instance container instances
 	role := createEcsRole(t, awsSession, roleName)
 	defer deleteRole(awsSession, role)
 
@@ -146,10 +146,10 @@ func TestListECSEC2Services(t *testing.T) {
 	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
 
 	// Finally, define the task and service
-	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")
+	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2Instance")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
 
-	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition, "REPLICA")
+	service := createEcsService(t, awsSession, serviceName, cluster, "EC2Instance", taskDefinition, "REPLICA")
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
 	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
 	// END prepare resources
@@ -171,7 +171,7 @@ func TestListECSEC2Services(t *testing.T) {
 	assert.True(t, exists)
 }
 
-// Test that we can successfully nuke ECS services running EC2 tasks
+// Test that we can successfully nuke ECS services running EC2Instance tasks
 func TestNukeECSEC2Services(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
@@ -196,7 +196,7 @@ func TestNukeECSEC2Services(t *testing.T) {
 	instanceProfileName := uniqueTestID + "-instance-profile"
 
 	// Prepare resources
-	// Create the IAM roles for ECS EC2 container instances
+	// Create the IAM roles for ECS EC2Instance container instances
 	role := createEcsRole(t, awsSession, roleName)
 	defer deleteRole(awsSession, role)
 
@@ -214,16 +214,16 @@ func TestNukeECSEC2Services(t *testing.T) {
 	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
 
 	// Finally, define the task and service
-	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")
+	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2Instance")
 	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
 
-	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition, "REPLICA")
+	service := createEcsService(t, awsSession, serviceName, cluster, "EC2Instance", taskDefinition, "REPLICA")
 	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
 
-	taskDaemonDefinition := createEcsTaskDefinition(t, awsSession, taskDaemonFamilyName, "EC2")
+	taskDaemonDefinition := createEcsTaskDefinition(t, awsSession, taskDaemonFamilyName, "EC2Instance")
 	defer deleteEcsTaskDefinition(awsSession, taskDaemonDefinition)
 
-	daemonService := createEcsService(t, awsSession, daemonServiceName, cluster, "EC2", taskDaemonDefinition, "DAEMON")
+	daemonService := createEcsService(t, awsSession, daemonServiceName, cluster, "EC2Instance", taskDaemonDefinition, "DAEMON")
 	ecsServiceClusterMap[*daemonService.ServiceArn] = *cluster.ClusterArn
 
 	// END prepare resources

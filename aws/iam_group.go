@@ -176,8 +176,8 @@ func shouldIncludeIamGroup(iamGroup *iam.Group, excludeAfter time.Time, configOb
 
 	return config.ShouldInclude(
 		aws.StringValue(iamGroup.GroupName),
-		configObj.IAMGroups.IncludeRule.NamesRegExp,
-		configObj.IAMGroups.ExcludeRule.NamesRegExp,
+		configObj.IAMGroup.IncludeRule.NamesRegExp,
+		configObj.IAMGroup.ExcludeRule.NamesRegExp,
 	)
 }
 

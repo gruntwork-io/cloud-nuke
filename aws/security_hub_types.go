@@ -2,10 +2,13 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type SecurityHub struct {
+	Client  securityhubiface.SecurityHubAPI
+	Region  string
 	HubArns []string
 }
 

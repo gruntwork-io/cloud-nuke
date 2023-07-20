@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // IAMPolicies - represents all IAM Policies on the AWS account
 type IAMPolicies struct {
+	Client     iamiface.IAMAPI
+	Region     string
 	PolicyArns []string
 }
 

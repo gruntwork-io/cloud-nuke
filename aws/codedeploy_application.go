@@ -26,7 +26,7 @@ func getAllCodeDeployApplications(session *session.Session, excludeAfter time.Ti
 			// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
 			// CreationDate is not available in the ListApplications API call, so we can't filter by that here, but we do filter by it later.
 			// By filtering the name here, we can reduce the number of BatchGetApplication API calls we have to make.
-			if config.ShouldInclude(*application, configObj.CodeDeployApplications.IncludeRule.NamesRegExp, configObj.CodeDeployApplications.ExcludeRule.NamesRegExp) {
+			if config.ShouldInclude(*application, configObj.CodeDeployApplication.IncludeRule.NamesRegExp, configObj.CodeDeployApplication.ExcludeRule.NamesRegExp) {
 				codeDeployApplicationsFilteredByName = append(codeDeployApplicationsFilteredByName, *application)
 			}
 		}

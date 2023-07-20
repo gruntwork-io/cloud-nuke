@@ -7,28 +7,28 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type DBClusters struct {
+type DBCluster struct {
 	Client        rdsiface.RDSAPI
 	Region        string
 	InstanceNames []string
 }
 
-func (instance DBClusters) ResourceName() string {
-	return "rds"
+func (instance DBCluster) ResourceName() string {
+	return "rds-cluster"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances
-func (instance DBClusters) ResourceIdentifiers() []string {
+func (instance DBCluster) ResourceIdentifiers() []string {
 	return instance.InstanceNames
 }
 
-func (instance DBClusters) MaxBatchSize() int {
+func (instance DBCluster) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (instance DBClusters) Nuke(session *session.Session, identifiers []string) error {
+func (instance DBCluster) Nuke(session *session.Session, identifiers []string) error {
 	if err := instance.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

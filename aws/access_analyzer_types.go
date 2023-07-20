@@ -3,17 +3,20 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/accessanalyzer/accessanalyzeriface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // AccessAnalyzer - represents all AWS secrets manager secrets that should be deleted.
 type AccessAnalyzer struct {
+	Client        accessanalyzeriface.AccessAnalyzerAPI
+	Region        string
 	AnalyzerNames []string
 }
 
 // ResourceName - the simple name of the aws resource
 func (analyzer AccessAnalyzer) ResourceName() string {
-	return "accessanalyzer"
+	return "access-analyzer"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances

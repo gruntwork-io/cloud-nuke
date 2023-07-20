@@ -110,14 +110,14 @@ func TestListAMIs(t *testing.T) {
 
 	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour*-1))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMIs")
+		assert.Fail(t, "Unable to fetch list of AMI")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(amis), *image.ImageId)
 
 	amis, err = getAllAMIs(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMIs")
+		assert.Fail(t, "Unable to fetch list of AMI")
 	}
 
 	assert.Contains(t, awsgo.StringValueSlice(amis), *image.ImageId)
@@ -171,7 +171,7 @@ func TestNukeAMIs(t *testing.T) {
 
 	amis, err := getAllAMIs(session, region, time.Now().Add(1*time.Hour))
 	if err != nil {
-		assert.Fail(t, "Unable to fetch list of AMIs")
+		assert.Fail(t, "Unable to fetch list of AMI")
 	}
 
 	assert.NotContains(t, awsgo.StringValueSlice(amis), *image.ImageId)

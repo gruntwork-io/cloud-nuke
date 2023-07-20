@@ -15,13 +15,13 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of Snapshot snapshot ids
+// Returns a formatted string of EC2Snapshot snapshot ids
 func getAllSnapshots(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
 	svc := ec2.New(session)
 
 	// status - The status of the snapshot (pending | completed | error).
 	// Since the output of this function is used to delete the returned snapshots
-	// We only want to list EBS Snapshots with a status of "completed"
+	// We only want to list EBS EC2Snapshot with a status of "completed"
 	// Since that is the only status that is eligible for deletion
 	status_filter := ec2.Filter{Name: awsgo.String("status"), Values: aws.StringSlice([]string{"completed", "error"})}
 
@@ -61,16 +61,16 @@ func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
 	return false
 }
 
-// Deletes all Snapshots
+// Deletes all EC2Snapshot
 func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 	svc := ec2.New(session)
 
 	if len(snapshotIds) == 0 {
-		logging.Logger.Debugf("No Snapshots to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No EC2Snapshot to nuke in region %s", *session.Config.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Snapshots in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all EC2Snapshot in region %s", *session.Config.Region)
 	var deletedSnapshotIDs []*string
 
 	for _, snapshotID := range snapshotIds {
@@ -83,7 +83,7 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(snapshotID),
-			ResourceType: "EBS Snapshot",
+			ResourceType: "EBS EC2Snapshot",
 			Error:        err,
 		}
 		report.Record(e)
@@ -91,16 +91,16 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 		if err != nil {
 			logging.Logger.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking EBS Snapshot",
+				EventName: "Error Nuking EBS EC2Snapshot",
 			}, map[string]interface{}{
 				"region": *session.Config.Region,
 			})
 		} else {
 			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
-			logging.Logger.Debugf("Deleted Snapshot: %s", *snapshotID)
+			logging.Logger.Debugf("Deleted EC2Snapshot: %s", *snapshotID)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d EC2Snapshot(s) terminated in %s", len(deletedSnapshotIDs), *session.Config.Region)
 	return nil
 }

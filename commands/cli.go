@@ -42,7 +42,7 @@ func CreateCli(version string) *cli.App {
 	app.Commands = []*cli.Command{
 		{
 			Name:   "aws",
-			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes AWS resources (ASG, ELB, ELBv2, EBS, EC2, AMI, Snapshots, Elastic IP, RDS, Lambda Function).",
+			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes AWS resources (ASG, ELB, ELBv2, EBS, EC2Instance, AMI, EC2Snapshot, Elastic IP, RDS, Lambda Function).",
 			Action: errors.WithPanicHandling(awsNuke),
 			Flags: []cli.Flag{
 				&cli.StringSliceFlag{
@@ -301,7 +301,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	deleteUnaliasedKmsKeys := c.Bool("delete-unaliased-kms-keys")
-	configObj.KMSCustomerKeys.DeleteUnaliasedKeys = deleteUnaliasedKmsKeys
+	configObj.KMSCustomerKey.DeleteUnaliasedKeys = deleteUnaliasedKmsKeys
 
 	spinnerMsg := fmt.Sprintf("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
 
@@ -498,7 +498,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 	targetedRegionList := []pterm.BulletListItem{}
 
 	for _, vpc := range vpcPerRegion {
-		vpcDetailString := fmt.Sprintf("Default VPC %s %s", vpc.VpcId, vpc.Region)
+		vpcDetailString := fmt.Sprintf("Default EC2VPC %s %s", vpc.VpcId, vpc.Region)
 		targetedRegionList = append(targetedRegionList, pterm.BulletListItem{Level: 0, Text: vpcDetailString})
 	}
 

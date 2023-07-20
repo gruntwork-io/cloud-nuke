@@ -115,8 +115,8 @@ func shouldIncludeVpc(vpc *ec2.Vpc, excludeAfter time.Time, firstSeenTime time.T
 
 	return config.ShouldInclude(
 		vpcName,
-		configObj.VPC.IncludeRule.NamesRegExp,
-		configObj.VPC.ExcludeRule.NamesRegExp,
+		configObj.EC2VPC.IncludeRule.NamesRegExp,
+		configObj.EC2VPC.ExcludeRule.NamesRegExp,
 	)
 }
 
@@ -147,7 +147,7 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   vpc.VpcId,
-			ResourceType: "VPC",
+			ResourceType: "EC2VPC",
 			Error:        err,
 		}
 		report.Record(e)
@@ -156,18 +156,18 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 
 			logging.Logger.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking VPC",
+				EventName: "Error Nuking EC2VPC",
 			}, map[string]interface{}{
 				"region": *session.Config.Region,
 			})
 			multierror.Append(multiErr, err)
 		} else {
 			deletedVPCs++
-			logging.Logger.Debugf("Deleted VPC: %s", vpc.VpcId)
+			logging.Logger.Debugf("Deleted EC2VPC: %s", vpc.VpcId)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d VPC terminated", deletedVPCs)
+	logging.Logger.Debugf("[OK] %d EC2VPC terminated", deletedVPCs)
 
 	return nil
 }

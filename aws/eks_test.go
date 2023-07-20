@@ -84,7 +84,7 @@ func TestEKSClusterGetAll(t *testing.T) {
 
 	testClusterName := "test_cluster1"
 	now := time.Now()
-	eksCluster := EKSClusters{
+	eksCluster := EKSCluster{
 		Client: mockedEKSCluster{
 			ListClustersOutput: eks.ListClustersOutput{
 				Clusters: []*string{awsgo.String(testClusterName)},
@@ -107,7 +107,7 @@ func TestEKSClusterNukeAll(t *testing.T) {
 	testClusterName := "test_cluster1"
 	testFargateProfileName := "test_fargate_profile1"
 	testNodeGroupName := "test_nodegroup1"
-	eksCluster := EKSClusters{
+	eksCluster := EKSCluster{
 		Client: mockedEKSCluster{
 			ListNodegroupsOutput: eks.ListNodegroupsOutput{
 				Nodegroups: []*string{&testNodeGroupName},

@@ -205,8 +205,8 @@ func shouldIncludeIamPolicy(iamPolicy *iam.Policy, excludeAfter time.Time, confi
 
 	return config.ShouldInclude(
 		aws.StringValue(iamPolicy.PolicyName),
-		configObj.IAMPolicies.IncludeRule.NamesRegExp,
-		configObj.IAMPolicies.ExcludeRule.NamesRegExp,
+		configObj.IAMPolicy.IncludeRule.NamesRegExp,
+		configObj.IAMPolicy.ExcludeRule.NamesRegExp,
 	)
 }
 

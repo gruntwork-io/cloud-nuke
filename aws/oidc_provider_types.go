@@ -13,7 +13,7 @@ type OIDCProviders struct {
 
 // ResourceName - the simple name of the aws resource
 func (oidcprovider OIDCProviders) ResourceName() string {
-	return "oidcprovider"
+	return "oidc-provider"
 }
 
 // ResourceIdentifiers - The ARNs of the OIDC providers.

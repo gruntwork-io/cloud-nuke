@@ -55,8 +55,8 @@ func shouldIncludeSecret(secret *secretsmanager.SecretListEntry, excludeAfter ti
 
 	return config.ShouldInclude(
 		aws.StringValue(secret.Name),
-		configObj.SecretsManagerSecrets.IncludeRule.NamesRegExp,
-		configObj.SecretsManagerSecrets.ExcludeRule.NamesRegExp,
+		configObj.SecretsManagerSecret.IncludeRule.NamesRegExp,
+		configObj.SecretsManagerSecret.ExcludeRule.NamesRegExp,
 	)
 }
 

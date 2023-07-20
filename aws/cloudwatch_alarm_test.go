@@ -137,7 +137,7 @@ func createCloudWatchAlarm(t *testing.T, svc *cloudwatch.CloudWatch, region stri
 		EvaluationPeriods:       aws.Int64(60),
 		InsufficientDataActions: aws.StringSlice([]string{}),
 		MetricName:              aws.String(`CPUUtilization`),
-		Namespace:               aws.String(`AWS/EC2`),
+		Namespace:               aws.String(`AWS/EC2Instance`),
 		OKActions:               aws.StringSlice([]string{}),
 		Period:                  aws.Int64(60),
 		Statistic:               aws.String(cloudwatch.StatisticAverage),

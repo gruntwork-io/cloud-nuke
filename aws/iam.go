@@ -27,7 +27,7 @@ func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj 
 
 	err := svc.ListUsersPages(input, func(page *iam.ListUsersOutput, lastPage bool) bool {
 		for _, user := range page.Users {
-			if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRegExp, configObj.IAMUsers.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) {
+			if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUser.IncludeRule.NamesRegExp, configObj.IAMUser.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) {
 				userNames = append(userNames, user.UserName)
 			}
 		}

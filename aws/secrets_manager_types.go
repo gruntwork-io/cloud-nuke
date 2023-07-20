@@ -3,25 +3,28 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// SecretsManagerSecrets - represents all AWS secrets manager secrets that should be deleted.
-type SecretsManagerSecrets struct {
+// SecretsManagerSecret - represents all AWS secrets manager secrets that should be deleted.
+type SecretsManagerSecret struct {
+	Client    secretsmanageriface.SecretsManagerAPI
+	Region    string
 	SecretIDs []string
 }
 
 // ResourceName - the simple name of the aws resource
-func (secret SecretsManagerSecrets) ResourceName() string {
-	return "secretsmanager"
+func (secret SecretsManagerSecret) ResourceName() string {
+	return "secrets-manager"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (secret SecretsManagerSecrets) ResourceIdentifiers() []string {
+func (secret SecretsManagerSecret) ResourceIdentifiers() []string {
 	return secret.SecretIDs
 }
 
-func (secret SecretsManagerSecrets) MaxBatchSize() int {
+func (secret SecretsManagerSecret) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that secrets manager does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
 	// overloading the runtime and to avoid AWS throttling with many API calls.
@@ -29,7 +32,7 @@ func (secret SecretsManagerSecrets) MaxBatchSize() int {
 }
 
 // Nuke - nuke 'em all!!!
-func (secret SecretsManagerSecrets) Nuke(session *session.Session, identifiers []string) error {
+func (secret SecretsManagerSecret) Nuke(session *session.Session, identifiers []string) error {
 	if err := nukeAllSecretsManagerSecrets(session, awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

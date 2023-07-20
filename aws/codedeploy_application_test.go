@@ -110,7 +110,7 @@ func TestGetAllCodeDeployApplicationsIncludedByName(t *testing.T) {
 
 	// Test that we can get all CodeDeploy Applications
 	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{
-		CodeDeployApplications: config.ResourceType{
+		CodeDeployApplication: config.ResourceType{
 			IncludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
 					{
@@ -139,7 +139,7 @@ func TestGetAllCodeDeployApplicationsExcludedByName(t *testing.T) {
 
 	// Test that we can get all CodeDeploy Applications
 	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{
-		CodeDeployApplications: config.ResourceType{
+		CodeDeployApplication: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{
 					{

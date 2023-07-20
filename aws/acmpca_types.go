@@ -3,12 +3,15 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ACMPA - represents all ACMPA
 type ACMPCA struct {
-	ARNs []string
+	Client acmpcaiface.ACMPCAAPI
+	Region string
+	ARNs   []string
 }
 
 // ResourceName - the simple name of the aws resource

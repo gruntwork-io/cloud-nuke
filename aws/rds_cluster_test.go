@@ -39,7 +39,7 @@ func TestRDSClusterGetAll(t *testing.T) {
 
 	testName := "test-db-cluster"
 	now := time.Now()
-	dbCluster := DBClusters{
+	dbCluster := DBCluster{
 		Client: mockedDBClusters{
 			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{
 				DBClusters: []*rds.DBCluster{{
@@ -51,13 +51,13 @@ func TestRDSClusterGetAll(t *testing.T) {
 	}
 
 	// Testing empty config
-	clusters, err := dbCluster.getAll(config.Config{DBClusters: config.ResourceType{}})
+	clusters, err := dbCluster.getAll(config.Config{DBCluster: config.ResourceType{}})
 	assert.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(clusters), strings.ToLower(testName))
 
 	// Testing db cluster exclusion
 	clusters, err = dbCluster.getAll(config.Config{
-		DBClusters: config.ResourceType{
+		DBCluster: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: awsgo.Time(now.Add(-1)),
 			},
@@ -72,7 +72,7 @@ func TestRDSClusterNukeAll(t *testing.T) {
 	t.Parallel()
 
 	testName := "test-db-cluster"
-	dbCluster := DBClusters{
+	dbCluster := DBCluster{
 		Client: mockedDBClusters{
 			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{},
 			DescribeDBClustersError:  awserr.New(rds.ErrCodeDBClusterNotFoundFault, "", nil),

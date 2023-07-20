@@ -119,7 +119,7 @@ func TestCanNukeOpenSearchDomain(t *testing.T) {
 
 // Helper functions for driving the OpenSearch Domains tests
 
-// createOpenSearchDomain will create a new OpenSearch Domain in the default VPC
+// createOpenSearchDomain will create a new OpenSearch Domain in the default EC2VPC
 func createOpenSearchDomain(t *testing.T, awsSession *session.Session, region string, name string) *opensearchservice.DomainStatus {
 	svc := opensearchservice.New(awsSession)
 	resp, err := svc.CreateDomain(&opensearchservice.CreateDomainInput{

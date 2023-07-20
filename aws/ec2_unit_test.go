@@ -1,8 +1,8 @@
-// These tests use GoMock and the ec2iface to provide a mock framework for testing the EC2 API
+// These tests use GoMock and the ec2iface to provide a mock framework for testing the EC2Instance API
 // Unlike other tests in cloud-nuke, nuking the default VPCs and security groups is not an option.
 // Other tests within cloud-nuke depend on the default VPCs/SGs to function, and other projects
 // may be using the same AWS account at the same time. Deleting the default VPCs would break things.
-// Therefore, the default VPC/SG nuke testing is mocked as unit tests.
+// Therefore, the default EC2VPC/SG nuke testing is mocked as unit tests.
 // To generate the EC2API mock, install https://github.com/golang/mock, then use the following:
 // mockgen -source vendor/github.com/aws/aws-sdk-go/service/ec2/ec2iface/interface.go -destination aws/mocks/EC2API.go
 

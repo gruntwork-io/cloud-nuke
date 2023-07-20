@@ -86,8 +86,8 @@ func shouldIncludeKmsUserKey(wg *sync.WaitGroup, resultsChan chan *KmsCheckInclu
 	includedByName := false
 	// verify if key aliases matches configurations
 	for _, alias := range aliases {
-		v := config.ShouldInclude(alias, configObj.KMSCustomerKeys.IncludeRule.NamesRegExp,
-			configObj.KMSCustomerKeys.ExcludeRule.NamesRegExp)
+		v := config.ShouldInclude(alias, configObj.KMSCustomerKey.IncludeRule.NamesRegExp,
+			configObj.KMSCustomerKey.ExcludeRule.NamesRegExp)
 		if v {
 			includedByName = true
 
