@@ -2,11 +2,14 @@ package resources
 
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kafka/kafkaiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // MSKCluster - represents all AWS Managed Streaming for Kafka clusters that should be deleted.
 type MSKCluster struct {
+	Client      kafkaiface.KafkaAPI
+	Region      string
 	ClusterArns []string
 }
 
@@ -28,8 +31,8 @@ func (msk MSKCluster) MaxBatchSize() int {
 }
 
 // Nuke - nuke 'em all!!!
-func (ngw MSKCluster) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllMSKClusters(session, identifiers); err != nil {
+func (msk MSKCluster) Nuke(_ *session.Session, identifiers []string) error {
+	if err := msk.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -1,83 +1,50 @@
 package resources
 
 import (
-	"context"
-	"time"
-
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/kafka"
-	"github.com/aws/aws-sdk-go-v2/service/kafka/types"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kafka"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllMSKClusters(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
-	region := session.Config.Region
-	ctx := context.TODO()
-
-	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(*region))
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	svc := kafka.NewFromConfig(cfg)
-
+func (m MSKCluster) getAll(configObj config.Config) ([]string, error) {
 	clusterIDs := []string{}
-	paginator := kafka.NewListClustersV2Paginator(svc, &kafka.ListClustersV2Input{})
-	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(ctx)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
 
-		for _, cluster := range output.ClusterInfoList {
-			if shouldIncludeMSKCluster(cluster, excludeAfter, configObj) {
+	err := m.Client.ListClustersV2Pages(&kafka.ListClustersV2Input{}, func(page *kafka.ListClustersV2Output, lastPage bool) bool {
+		for _, cluster := range page.ClusterInfoList {
+			if m.shouldInclude(cluster, configObj) {
 				clusterIDs = append(clusterIDs, *cluster.ClusterArn)
 			}
 		}
+		return !lastPage
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return clusterIDs, nil
 }
 
-func shouldIncludeMSKCluster(clusterInfo types.Cluster, excludeAfter time.Time, configObj config.Config) bool {
-	if clusterInfo.State == types.ClusterStateDeleting {
+func (m MSKCluster) shouldInclude(cluster *kafka.Cluster, configObj config.Config) bool {
+	if *cluster.State == kafka.ClusterStateDeleting {
 		return false
 	}
 
 	// if cluster is still creating, skip it as it will only throw an error when attempting to delete it
 	// BadRequestException: You can't delete cluster in CREATING state.
-	if clusterInfo.State == types.ClusterStateCreating {
+	if *cluster.State == kafka.ClusterStateCreating {
 		return false
 	}
 
-	if clusterInfo.CreationTime != nil && excludeAfter.Before(*clusterInfo.CreationTime) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		*clusterInfo.ClusterName,
-		configObj.MSKCluster.IncludeRule.NamesRegExp,
-		configObj.MSKCluster.ExcludeRule.NamesRegExp,
-	)
+	return configObj.MSKCluster.ShouldInclude(config.ResourceValue{
+		Name: cluster.ClusterName,
+		Time: cluster.CreationTime,
+	})
 }
 
-func nukeAllMSKClusters(session *session.Session, identifiers []string) error {
-	region := session.Config.Region
-	ctx := context.TODO()
-
-	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(*region))
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	svc := kafka.NewFromConfig(cfg)
-
+func (m MSKCluster) nukeAll(identifiers []string) error {
 	for _, clusterArn := range identifiers {
-		_, err := svc.DeleteCluster(ctx, &kafka.DeleteClusterInput{
+		_, err := m.Client.DeleteCluster(&kafka.DeleteClusterInput{
 			ClusterArn: &clusterArn,
 		})
 		if err != nil {
@@ -91,7 +58,6 @@ func nukeAllMSKClusters(session *session.Session, identifiers []string) error {
 			Error:        err,
 		}
 		report.Record(e)
-
 	}
 
 	return nil
