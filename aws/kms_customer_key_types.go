@@ -3,6 +3,7 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -11,6 +12,8 @@ import (
 const kmsRemovalWindow = 7
 
 type KmsCustomerKeys struct {
+	Client     kmsiface.KMSAPI
+	Region     string
 	KeyIds     []string
 	KeyAliases map[string][]string
 }

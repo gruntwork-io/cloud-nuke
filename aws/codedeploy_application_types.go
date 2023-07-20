@@ -2,11 +2,14 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // CodeDeployApplications - represents all codedeploy applications
 type CodeDeployApplications struct {
+	Client   codedeployiface.CodeDeployAPI
+	Region   string
 	AppNames []string
 }
 

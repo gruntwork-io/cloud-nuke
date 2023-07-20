@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ECSServices - Represents all ECS services found in a region
 type ECSServices struct {
+	Client            ecsiface.ECSAPI
+	Region            string
 	Services          []string
 	ServiceClusterMap map[string]string
 }

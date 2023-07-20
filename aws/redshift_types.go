@@ -3,10 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/redshift/redshiftiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type RedshiftClusters struct {
+	Client             redshiftiface.RedshiftAPI
+	Region             string
 	ClusterIdentifiers []string
 }
 

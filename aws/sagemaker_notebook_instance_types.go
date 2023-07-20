@@ -3,10 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sagemaker/sagemakeriface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type SageMakerNotebookInstances struct {
+	Client        sagemakeriface.SageMakerAPI
+	Region        string
 	InstanceNames []string
 }
 

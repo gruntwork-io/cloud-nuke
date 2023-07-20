@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/efs/efsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type ElasticFileSystem struct {
-	Ids []string
+	Client efsiface.EFSAPI
+	Region string
+	Ids    []string
 }
 
 func (efs ElasticFileSystem) ResourceName() string {

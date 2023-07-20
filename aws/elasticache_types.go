@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/elasticache/elasticacheiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // Elasticaches - represents all Elasticache clusters
 type Elasticaches struct {
+	Client     elasticacheiface.ElastiCacheAPI
+	Region     string
 	ClusterIds []string
 }
 
@@ -40,6 +43,8 @@ Elasticache Parameter Groups
 */
 
 type ElasticacheParameterGroups struct {
+	Client     elasticacheiface.ElastiCacheAPI
+	Region     string
 	GroupNames []string
 }
 
@@ -72,6 +77,8 @@ Elasticache Subnet Groups
 */
 
 type ElasticacheSubnetGroups struct {
+	Client     elasticacheiface.ElastiCacheAPI
+	Region     string
 	GroupNames []string
 }
 

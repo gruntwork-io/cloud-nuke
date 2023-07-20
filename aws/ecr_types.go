@@ -2,10 +2,13 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type ECR struct {
+	Client          ecriface.ECRAPI
+	Region          string
 	RepositoryNames []string
 }
 

@@ -3,13 +3,16 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // S3Buckets - represents all S3 Buckets
 type S3Buckets struct {
-	Names []string
+	Client s3iface.S3API
+	Region string
+	Names  []string
 }
 
 // ResourceName - the simple name of the aws resource

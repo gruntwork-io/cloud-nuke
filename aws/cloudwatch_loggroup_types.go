@@ -3,12 +3,15 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // CloudWatchLogGroup - represents all ec2 instances
 type CloudWatchLogGroups struct {
-	Names []string
+	Client cloudwatchlogsiface.CloudWatchLogsAPI
+	Region string
+	Names  []string
 }
 
 // ResourceName - the simple name of the aws resource

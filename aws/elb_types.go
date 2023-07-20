@@ -3,12 +3,15 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/elb/elbiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // LoadBalancers - represents all load balancers
 type LoadBalancers struct {
-	Names []string
+	Client elbiface.ELBAPI
+	Region string
+	Names  []string
 }
 
 // ResourceName - the simple name of the aws resource
