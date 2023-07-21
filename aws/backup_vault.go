@@ -2,7 +2,6 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/backup"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -12,13 +11,14 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllBackupVault(session *session.Session, configObj config.Config) ([]*string, error) {
-	svc := backup.New(session)
-
+func (bv BackupVault) getAll(configObj config.Config) ([]*string, error) {
 	names := []*string{}
 	paginator := func(output *backup.ListBackupVaultsOutput, lastPage bool) bool {
 		for _, backupVault := range output.BackupVaultList {
-			if shouldIncludeBackupVault(backupVault, configObj) {
+			if configObj.BackupVault.ShouldInclude(config.ResourceValue{
+				Name: backupVault.BackupVaultName,
+				Time: backupVault.CreationDate,
+			}) {
 				names = append(names, backupVault.BackupVaultName)
 			}
 		}
@@ -26,7 +26,7 @@ func getAllBackupVault(session *session.Session, configObj config.Config) ([]*st
 		return !lastPage
 	}
 
-	err := svc.ListBackupVaultsPages(&backup.ListBackupVaultsInput{}, paginator)
+	err := bv.Client.ListBackupVaultsPages(&backup.ListBackupVaultsInput{}, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -34,31 +34,17 @@ func getAllBackupVault(session *session.Session, configObj config.Config) ([]*st
 	return names, nil
 }
 
-func shouldIncludeBackupVault(vault *backup.VaultListMember, configObj config.Config) bool {
-	if vault == nil {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(vault.BackupVaultName),
-		configObj.BackupVault.IncludeRule.NamesRegExp,
-		configObj.BackupVault.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllBackupVaults(session *session.Session, names []*string) error {
-	svc := backup.New(session)
-
+func (bv BackupVault) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No backup vaults to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No backup vaults to nuke in region %s", bv.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all backup vaults in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all backup vaults in region %s", bv.Region)
 	var deletedNames []*string
 
 	for _, name := range names {
-		_, err := svc.DeleteBackupVault(&backup.DeleteBackupVaultInput{
+		_, err := bv.Client.DeleteBackupVault(&backup.DeleteBackupVaultInput{
 			BackupVaultName: name,
 		})
 
@@ -75,7 +61,7 @@ func nukeAllBackupVaults(session *session.Session, names []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking BackupVault",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": bv.Region,
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
@@ -83,7 +69,7 @@ func nukeAllBackupVaults(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d backup vault deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d backup vault deleted in %s", len(deletedNames), bv.Region)
 
 	return nil
 }

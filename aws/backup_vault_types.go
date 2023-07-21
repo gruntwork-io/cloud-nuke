@@ -14,22 +14,22 @@ type BackupVault struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (ct BackupVault) ResourceName() string {
+func (bv BackupVault) ResourceName() string {
 	return "backup-vault"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (ct BackupVault) ResourceIdentifiers() []string {
-	return ct.Names
+func (bv BackupVault) ResourceIdentifiers() []string {
+	return bv.Names
 }
 
-func (ct BackupVault) MaxBatchSize() int {
+func (bv BackupVault) MaxBatchSize() int {
 	return 50
 }
 
 // Nuke - nuke 'em all!!!
-func (ct BackupVault) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllBackupVaults(session, awsgo.StringSlice(identifiers)); err != nil {
+func (bv BackupVault) Nuke(session *session.Session, identifiers []string) error {
+	if err := bv.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
