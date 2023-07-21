@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type ApiGatewayV2 struct {
-	Ids []string
+	Client apigatewayv2iface.ApiGatewayV2API
+	Region string
+	Ids    []string
 }
 
 func (apigateway ApiGatewayV2) ResourceName() string {

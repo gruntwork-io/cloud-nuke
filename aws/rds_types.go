@@ -3,10 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type DBInstances struct {
+	Client        rdsiface.RDSAPI
+	Region        string
 	InstanceNames []string
 }
 

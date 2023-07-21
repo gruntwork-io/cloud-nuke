@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2DedicatedHosts - represents all host allocation IDs
 type EC2DedicatedHosts struct {
+	Client  ec2iface.EC2API
+	Region  string
 	HostIds []string
 }
 

@@ -3,12 +3,15 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // TransitGatewaysVpcAttachment - represents all transit gateways vpc attachments
 type TransitGatewaysVpcAttachment struct {
-	Ids []string
+	Client ec2iface.EC2API
+	Region string
+	Ids    []string
 }
 
 // ResourceName - the simple name of the aws resource
@@ -37,7 +40,9 @@ func (tgw TransitGatewaysVpcAttachment) Nuke(session *session.Session, identifie
 
 // TransitGatewaysRouteTables - represents all transit gateways route tables
 type TransitGatewaysRouteTables struct {
-	Ids []string
+	Client ec2iface.EC2API
+	Region string
+	Ids    []string
 }
 
 // ResourceName - the simple name of the aws resource
@@ -66,7 +71,9 @@ func (tgw TransitGatewaysRouteTables) Nuke(session *session.Session, identifiers
 
 // TransitGateways - represents all transit gateways
 type TransitGateways struct {
-	Ids []string
+	Client ec2iface.EC2API
+	Region string
+	Ids    []string
 }
 
 // ResourceName - the simple name of the aws resource

@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // OpenSearchDomains represents all OpenSearch domains found in a region
 type OpenSearchDomains struct {
+	Client      iamiface.IAMAPI
+	Region      string
 	DomainNames []string
 }
 

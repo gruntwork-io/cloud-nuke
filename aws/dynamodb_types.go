@@ -3,10 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
 type DynamoDB struct {
+	Client           dynamodbiface.DynamoDBAPI
+	Region           string
 	DynamoTableNames []string
 }
 

@@ -3,6 +3,7 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -15,6 +16,8 @@ const maxBatchSize = 49
 
 // ECSClusters - Represents all ECS clusters found in a region
 type ECSClusters struct {
+	Client      ecsiface.ECSAPI
+	Region      string
 	ClusterArns []string
 }
 

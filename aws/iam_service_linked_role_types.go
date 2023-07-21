@@ -3,11 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // IAMServiceLinkedRoles - represents all IAMServiceLinkedRoles on the AWS Account
 type IAMServiceLinkedRoles struct {
+	Client    iamiface.IAMAPI
 	RoleNames []string
 }
 

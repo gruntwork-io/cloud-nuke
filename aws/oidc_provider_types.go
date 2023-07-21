@@ -3,11 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // OIDCProviders - represents all AWS OpenID Connect providers that should be deleted.
 type OIDCProviders struct {
+	Client       iamiface.IAMAPI
 	ProviderARNs []string
 }
 

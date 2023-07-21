@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // CloudWatchDashboards - represents all CloudWatch Dashboards that should be deleted.
 type CloudWatchDashboards struct {
+	Client         cloudwatchiface.CloudWatchAPI
+	Region         string
 	DashboardNames []string
 }
 

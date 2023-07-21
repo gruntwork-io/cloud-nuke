@@ -3,12 +3,15 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // KinesisStreams - represents all Kinesis streams
 type KinesisStreams struct {
-	Names []string
+	Client kinesisiface.KinesisAPI
+	Region string
+	Names  []string
 }
 
 // ResourceName - The simple name of the AWS resource

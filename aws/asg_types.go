@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ASGroups - represents all auto scaling groups
 type ASGroups struct {
+	Client     autoscalingiface.AutoScalingAPI
+	Region     string
 	GroupNames []string
 }
 

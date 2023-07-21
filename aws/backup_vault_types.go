@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/backup/backupiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type BackupVault struct {
-	Names []string
+	Client backupiface.BackupAPI
+	Region string
+	Names  []string
 }
 
 // ResourceName - the simple name of the aws resource

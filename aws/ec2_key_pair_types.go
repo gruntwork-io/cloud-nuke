@@ -3,10 +3,13 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type EC2KeyPairs struct {
+	Client     ec2iface.EC2API
+	Region     string
 	KeyPairIds []string
 }
 
