@@ -30,7 +30,7 @@ func (ct CloudtrailTrail) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (ct CloudtrailTrail) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllCloudTrailTrails(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := ct.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
