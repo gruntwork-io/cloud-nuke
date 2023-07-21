@@ -1,169 +1,101 @@
 package aws
 
 import (
-	"fmt"
+	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"strings"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestListCloudWatchDashboards(t *testing.T) {
+type mockedCloudWatchDashboard struct {
+	cloudwatchiface.CloudWatchAPI
+	ListDashboardsOutput   cloudwatch.ListDashboardsOutput
+	DeleteDashboardsOutput cloudwatch.DeleteDashboardsOutput
+}
+
+func (m mockedCloudWatchDashboard) ListDashboardsPages(input *cloudwatch.ListDashboardsInput, fn func(*cloudwatch.ListDashboardsOutput, bool) bool) error {
+	fn(&m.ListDashboardsOutput, true)
+	return nil
+}
+
+func (m mockedCloudWatchDashboard) DeleteDashboards(input *cloudwatch.DeleteDashboardsInput) (*cloudwatch.DeleteDashboardsOutput, error) {
+	return &m.DeleteDashboardsOutput, nil
+}
+
+func TestCloudWatchDashboard_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	testName1 := "test-name1"
+	testName2 := "test-name2"
+	now := time.Now()
+	cw := CloudWatchDashboards{
+		Client: mockedCloudWatchDashboard{
+			ListDashboardsOutput: cloudwatch.ListDashboardsOutput{
+				DashboardEntries: []*cloudwatch.DashboardEntry{
+					{
+						DashboardName: aws.String(testName1),
+						LastModified:  &now,
+					},
+					{
+						DashboardName: aws.String(testName2),
+						LastModified:  aws.Time(now.Add(1)),
+					},
+				}},
+		}}
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := cloudwatch.New(session)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1)),
+				}},
+			expected: []string{},
+		},
+	}
 
-	cwdbName := createCloudWatchDashboard(t, svc, region)
-	defer deleteCloudWatchDashboard(t, svc, cwdbName, true)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := cw.getAll(config.Config{
+				CloudWatchDashboard: tc.configObj,
+			})
 
-	cwdbNames, err := getAllCloudWatchDashboards(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(cwdbNames), aws.StringValue(cwdbName))
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
 }
 
-func TestTimeFilterExclusionNewlyCreatedCloudWatchDashboard(t *testing.T) {
+func TestCloudWatchDashboard_NukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
+	cw := CloudWatchDashboards{
+		Client: mockedCloudWatchDashboard{
+			DeleteDashboardsOutput: cloudwatch.DeleteDashboardsOutput{},
+		}}
 
-	region, err := getRandomRegion()
+	err := cw.nukeAll([]*string{aws.String("test-name1"), aws.String("test-name2")})
 	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := cloudwatch.New(session)
-
-	cwdbName := createCloudWatchDashboard(t, svc, region)
-	defer deleteCloudWatchDashboard(t, svc, cwdbName, true)
-
-	// Assert CloudWatch Dashboard is picked up without filters
-	cwdbNamesNewer, err := getAllCloudWatchDashboards(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(cwdbNamesNewer), aws.StringValue(cwdbName))
-
-	// Assert user doesn't appear when we look at users older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	cwdbNamesOlder, err := getAllCloudWatchDashboards(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(cwdbNamesOlder), aws.StringValue(cwdbName))
 }
-
-func TestNukeCloudWatchDashboardOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := cloudwatch.New(session)
-
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	cwdbName := createCloudWatchDashboard(t, svc, region)
-	defer deleteCloudWatchDashboard(t, svc, cwdbName, false)
-	identifiers := []*string{cwdbName}
-
-	require.NoError(
-		t,
-		nukeAllCloudWatchDashboards(session, identifiers),
-	)
-
-	// Make sure the CloudWatch Dashboard is deleted.
-	assertCloudWatchDashboardsDeleted(t, svc, identifiers)
-}
-
-func TestNukeCloudWatchDashboardsMoreThanOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := cloudwatch.New(session)
-
-	cwdbNames := []*string{}
-	for i := 0; i < 3; i++ {
-		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		cwdbName := createCloudWatchDashboard(t, svc, region)
-		defer deleteCloudWatchDashboard(t, svc, cwdbName, false)
-		cwdbNames = append(cwdbNames, cwdbName)
-	}
-
-	require.NoError(
-		t,
-		nukeAllCloudWatchDashboards(session, cwdbNames),
-	)
-
-	// Make sure the CloudWatch Dashboard is deleted.
-	assertCloudWatchDashboardsDeleted(t, svc, cwdbNames)
-}
-
-// Helper functions for driving the CloudWatch Dashboard tests
-
-// createCloudWatchDashboard will create a new CloudWatch Dashboard with a single text widget.
-func createCloudWatchDashboard(t *testing.T, svc *cloudwatch.CloudWatch, region string) *string {
-	uniqueID := util.UniqueID()
-	name := fmt.Sprintf("cloud-nuke-test-%s", strings.ToLower(uniqueID))
-
-	resp, err := svc.PutDashboard(&cloudwatch.PutDashboardInput{
-		DashboardBody: aws.String(helloWorldCloudWatchDashboardWidget),
-		DashboardName: aws.String(name),
-	})
-	require.NoError(t, err)
-	if len(resp.DashboardValidationMessages) > 0 {
-		t.Fatalf("Error creating Dashboard %v", resp.DashboardValidationMessages)
-	}
-	// Add an arbitrary sleep to account for eventual consistency
-	time.Sleep(15 * time.Second)
-	return &name
-}
-
-// deleteCloudWatchDashboard is a function to delete the given CloudWatch Dashboard.
-func deleteCloudWatchDashboard(t *testing.T, svc *cloudwatch.CloudWatch, name *string, checkErr bool) {
-	input := &cloudwatch.DeleteDashboardsInput{DashboardNames: []*string{name}}
-	_, err := svc.DeleteDashboards(input)
-	if checkErr {
-		require.NoError(t, err)
-	}
-}
-
-func assertCloudWatchDashboardsDeleted(t *testing.T, svc *cloudwatch.CloudWatch, identifiers []*string) {
-	for _, name := range identifiers {
-		resp, err := svc.ListDashboards(&cloudwatch.ListDashboardsInput{DashboardNamePrefix: name})
-		require.NoError(t, err)
-		if len(resp.DashboardEntries) > 0 {
-			t.Fatalf("Dashboard %s is not deleted", aws.StringValue(name))
-		}
-	}
-}
-
-const helloWorldCloudWatchDashboardWidget = `{
-   "widgets":[
-      {
-         "type":"text",
-         "x":0,
-         "y":7,
-         "width":3,
-         "height":3,
-         "properties":{
-            "markdown":"Hello world"
-         }
-      }
-   ]
-}`

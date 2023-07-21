@@ -1,152 +1,101 @@
 package aws
 
 import (
-	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"strings"
+	"github.com/stretchr/testify/require"
+	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestListCloudWatchLogGroups(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	svc := cloudwatchlogs.New(session)
-
-	lgName := createCloudWatchLogGroup(t, svc)
-	defer deleteCloudWatchLogGroup(t, svc, lgName, true)
-
-	lgNames, err := getAllCloudWatchLogGroups(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(lgNames), aws.StringValue(lgName))
+type mockedCloudWatchLogGroup struct {
+	cloudwatchlogsiface.CloudWatchLogsAPI
+	DeleteLogGroupOutput    cloudwatchlogs.DeleteLogGroupOutput
+	DescribeLogGroupsOutput cloudwatchlogs.DescribeLogGroupsOutput
 }
 
-func TestTimeFilterExclusionNewlyCreatedCloudWatchLogGroup(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := cloudwatchlogs.New(session)
-
-	lgName := createCloudWatchLogGroup(t, svc)
-	defer deleteCloudWatchLogGroup(t, svc, lgName, true)
-
-	// Assert CloudWatch Dashboard is picked up without filters
-	lgNames, err := getAllCloudWatchLogGroups(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(lgNames), aws.StringValue(lgName))
-
-	// Assert user doesn't appear when we look at users older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	lgNamesOlder, err := getAllCloudWatchLogGroups(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(lgNamesOlder), aws.StringValue(lgName))
+func (m mockedCloudWatchLogGroup) DescribeLogGroupsPages(input *cloudwatchlogs.DescribeLogGroupsInput, fn func(*cloudwatchlogs.DescribeLogGroupsOutput, bool) bool) error {
+	fn(&m.DescribeLogGroupsOutput, true)
+	return nil
 }
 
-func TestNukeCloudWatchLogGroupOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := cloudwatchlogs.New(session)
-
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	lgName := createCloudWatchLogGroup(t, svc)
-	defer deleteCloudWatchLogGroup(t, svc, lgName, false)
-	identifiers := []*string{lgName}
-
-	require.NoError(
-		t,
-		nukeAllCloudWatchLogGroups(session, identifiers),
-	)
-
-	// Make sure the CloudWatch Dashboard is deleted.
-	assertCloudWatchLogGroupsDeleted(t, svc, identifiers)
+func (m mockedCloudWatchLogGroup) DeleteLogGroup(input *cloudwatchlogs.DeleteLogGroupInput) (*cloudwatchlogs.DeleteLogGroupOutput, error) {
+	return &m.DeleteLogGroupOutput, nil
 }
 
-func TestNukeCloudWatchLogGroupMoreThanOne(t *testing.T) {
+func TestCloudWatchLogGroup_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	testName1 := "test-name1"
+	testName2 := "test-name2"
+	now := time.Now()
+	cw := CloudWatchLogGroups{
+		Client: mockedCloudWatchLogGroup{
+			DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
+				LogGroups: []*cloudwatchlogs.LogGroup{
+					{
+						LogGroupName: aws.String(testName1),
+						CreationTime: aws.Int64(now.UnixMilli()),
+					},
+					{
+						LogGroupName: aws.String(testName2),
+						CreationTime: aws.Int64(now.Add(1).UnixMilli()),
+					},
+				},
+			},
+		}}
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := cloudwatchlogs.New(session)
-
-	lgNames := []*string{}
-	for i := 0; i < 3; i++ {
-		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		lgName := createCloudWatchLogGroup(t, svc)
-		defer deleteCloudWatchLogGroup(t, svc, lgName, false)
-		lgNames = append(lgNames, lgName)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-2 * time.Hour)),
+				}},
+			expected: []string{},
+		},
 	}
 
-	require.NoError(
-		t,
-		nukeAllCloudWatchLogGroups(session, lgNames),
-	)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := cw.getAll(config.Config{
+				CloudWatchLogGroup: tc.configObj,
+			})
 
-	// Make sure the CloudWatch Dashboard is deleted.
-	assertCloudWatchLogGroupsDeleted(t, svc, lgNames)
-}
-
-func createCloudWatchLogGroup(t *testing.T, svc *cloudwatchlogs.CloudWatchLogs) *string {
-	uniqueID := util.UniqueID()
-	name := fmt.Sprintf("cloud-nuke-test-%s", strings.ToLower(uniqueID))
-
-	_, err := svc.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
-		LogGroupName: aws.String(name),
-	})
-	require.NoError(t, err)
-
-	// Add an arbitrary sleep to account for eventual consistency
-	time.Sleep(15 * time.Second)
-	return &name
-}
-
-// deleteCloudWatchLogGroup is a function to delete the given CloudWatch Log Group.
-func deleteCloudWatchLogGroup(t *testing.T, svc *cloudwatchlogs.CloudWatchLogs, name *string, checkErr bool) {
-	_, err := svc.DeleteLogGroup(&cloudwatchlogs.DeleteLogGroupInput{
-		LogGroupName: name,
-	})
-	if checkErr {
-		require.NoError(t, err)
-	}
-}
-
-func assertCloudWatchLogGroupsDeleted(t *testing.T, svc *cloudwatchlogs.CloudWatchLogs, identifiers []*string) {
-	for _, name := range identifiers {
-		resp, err := svc.DescribeLogGroups(&cloudwatchlogs.DescribeLogGroupsInput{
-			LogGroupNamePrefix: name,
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
-		require.NoError(t, err)
-		if len(resp.LogGroups) > 0 {
-			t.Fatalf("Log Group %s is not deleted", aws.StringValue(name))
-		}
 	}
+}
+
+func TestCloudWatchLogGroup_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+	cw := CloudWatchLogGroups{
+		Client: mockedCloudWatchLogGroup{
+			DeleteLogGroupOutput: cloudwatchlogs.DeleteLogGroupOutput{},
+		}}
+
+	err := cw.nukeAll([]*string{aws.String("test-name1"), aws.String("test-name2")})
+	require.NoError(t, err)
 }

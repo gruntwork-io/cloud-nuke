@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -17,15 +16,22 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllCloudWatchLogGroups(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := cloudwatchlogs.New(session)
-
+func (cwlg CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, error) {
 	allLogGroups := []*string{}
-	err := svc.DescribeLogGroupsPages(
+	err := cwlg.Client.DescribeLogGroupsPages(
 		&cloudwatchlogs.DescribeLogGroupsInput{},
 		func(page *cloudwatchlogs.DescribeLogGroupsOutput, lastPage bool) bool {
 			for _, logGroup := range page.LogGroups {
-				if shouldIncludeCloudWatchLogGroup(logGroup, excludeAfter, configObj) {
+				var creationTime *time.Time
+				if logGroup.CreationTime != nil {
+					// Convert milliseconds since epoch to time.Time object
+					creationTime = aws.Time(time.Unix(0, aws.Int64Value(logGroup.CreationTime)*int64(time.Millisecond)))
+				}
+
+				if configObj.CloudWatchLogGroup.ShouldInclude(config.ResourceValue{
+					Name: logGroup.LogGroupName,
+					Time: creationTime,
+				}) {
 					allLogGroups = append(allLogGroups, logGroup.LogGroupName)
 				}
 			}
@@ -38,32 +44,9 @@ func getAllCloudWatchLogGroups(session *session.Session, excludeAfter time.Time,
 	return allLogGroups, nil
 }
 
-func shouldIncludeCloudWatchLogGroup(logGroup *cloudwatchlogs.LogGroup, excludeAfter time.Time, configObj config.Config) bool {
-	if logGroup == nil {
-		return false
-	}
-
-	if logGroup.CreationTime != nil {
-		// Convert milliseconds since epoch to time.Time object
-		creationTime := time.Unix(0, aws.Int64Value(logGroup.CreationTime)*int64(time.Millisecond))
-		if excludeAfter.Before(creationTime) {
-			return false
-		}
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(logGroup.LogGroupName),
-		configObj.CloudWatchLogGroup.IncludeRule.NamesRegExp,
-		configObj.CloudWatchLogGroup.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllCloudWatchLogGroups(session *session.Session, identifiers []*string) error {
-	region := aws.StringValue(session.Config.Region)
-	svc := cloudwatchlogs.New(session)
-
+func (cwlg CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CloudWatch Log Groups to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No CloudWatch Log Groups to nuke in region %s", cwlg.Region)
 		return nil
 	}
 
@@ -78,13 +61,13 @@ func nukeAllCloudWatchLogGroups(session *session.Session, identifiers []*string)
 
 	// There is no bulk delete CloudWatch Log Group API, so we delete the batch of CloudWatch Log Groups concurrently
 	// using go routines.
-	logging.Logger.Debugf("Deleting CloudWatch Log Groups in region %s", region)
+	logging.Logger.Debugf("Deleting CloudWatch Log Groups in region %s", cwlg.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
 	for i, logGroupName := range identifiers {
 		errChans[i] = make(chan error, 1)
-		go deleteCloudWatchLogGroupAsync(wg, errChans[i], svc, logGroupName, region)
+		go cwlg.deleteAsync(wg, errChans[i], logGroupName)
 	}
 	wg.Wait()
 
@@ -99,7 +82,7 @@ func nukeAllCloudWatchLogGroups(session *session.Session, identifiers []*string)
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking Cloudwatch Log Group",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": cwlg.Region,
 				})
 			}
 		}
@@ -111,18 +94,12 @@ func nukeAllCloudWatchLogGroups(session *session.Session, identifiers []*string)
 	return nil
 }
 
-// deleteCloudWatchLogGroupAsync deletes the provided Log Group asynchronously in a goroutine, using wait groups for
+// deleteAsync deletes the provided Log Group asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors.
-func deleteCloudWatchLogGroupAsync(
-	wg *sync.WaitGroup,
-	errChan chan error,
-	svc *cloudwatchlogs.CloudWatchLogs,
-	logGroupName *string,
-	region string,
-) {
+func (cwlg CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, logGroupName *string) {
 	defer wg.Done()
 	input := &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: logGroupName}
-	_, err := svc.DeleteLogGroup(input)
+	_, err := cwlg.Client.DeleteLogGroup(input)
 
 	// Record status of this resource
 	e := report.Entry{
@@ -136,9 +113,9 @@ func deleteCloudWatchLogGroupAsync(
 
 	logGroupNameStr := aws.StringValue(logGroupName)
 	if err == nil {
-		logging.Logger.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, region)
+		logging.Logger.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, cwlg.Region)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, region, err)
+		logging.Logger.Debugf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, cwlg.Region, err)
 	}
 }
 
