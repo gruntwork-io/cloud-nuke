@@ -2,11 +2,6 @@ package aws
 
 import (
 	"fmt"
-<<<<<<< Updated upstream
-=======
-	"github.com/aws/aws-sdk-go/service/acmpca"
-	"github.com/aws/aws-sdk-go/service/apigatewayv2"
->>>>>>> Stashed changes
 	"math/rand"
 	"sort"
 	"strings"
