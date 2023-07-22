@@ -63,6 +63,7 @@ type Config struct {
 	Redshift                     ResourceType               `yaml:"Redshift"`
 	S3                           ResourceType               `yaml:"s3"`
 	SNS                          ResourceType               `yaml:"SNS"`
+	Snapshots                    ResourceType               `yaml:"Snapshots"`
 	SQS                          ResourceType               `yaml:"SQS"`
 	SageMakerNotebook            ResourceType               `yaml:"SageMakerNotebook"`
 	SecretsManagerSecrets        ResourceType               `yaml:"SecretsManager"`

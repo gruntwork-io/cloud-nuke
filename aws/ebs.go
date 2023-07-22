@@ -1,14 +1,11 @@
 package aws
 
 import (
-	"time"
-
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -17,25 +14,23 @@ import (
 )
 
 // Returns a formatted string of EBS volume ids
-func getAllEbsVolumes(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := ec2.New(session)
-
+func (ev EBSVolumes) getAll(configObj config.Config) ([]*string, error) {
 	// Available statuses: (creating | available | in-use | deleting | deleted | error).
 	// Since the output of this function is used to delete the returned volumes
 	// We want to only list EBS volumes with a status of "available" or "creating"
 	// Since those are the only statuses that are eligible for deletion
 	statusFilter := ec2.Filter{Name: aws.String("status"), Values: aws.StringSlice([]string{"available", "creating", "error"})}
-
-	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{
+	result, err := ev.Client.DescribeVolumes(&ec2.DescribeVolumesInput{
 		Filters: []*ec2.Filter{&statusFilter},
 	})
+
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var volumeIds []*string
 	for _, volume := range result.Volumes {
-		if shouldIncludeEBSVolume(volume, excludeAfter, configObj) {
+		if shouldIncludeEBSVolume(volume, configObj) {
 			volumeIds = append(volumeIds, volume.VolumeId)
 		}
 	}
@@ -43,38 +38,28 @@ func getAllEbsVolumes(session *session.Session, region string, excludeAfter time
 	return volumeIds, nil
 }
 
-func shouldIncludeEBSVolume(volume *ec2.Volume, excludeAfter time.Time, configObj config.Config) bool {
-	if volume == nil {
-		return false
-	}
-
-	if excludeAfter.Before(aws.TimeValue(volume.CreateTime)) {
-		return false
-	}
-
+func shouldIncludeEBSVolume(volume *ec2.Volume, configObj config.Config) bool {
 	name := ""
 	for _, tag := range volume.Tags {
 		if tag != nil && aws.StringValue(tag.Key) == "Name" {
 			name = aws.StringValue(tag.Value)
 		}
 	}
-	return config.ShouldInclude(
-		name,
-		configObj.EBSVolume.IncludeRule.NamesRegExp,
-		configObj.EBSVolume.ExcludeRule.NamesRegExp,
-	)
+
+	return configObj.DynamoDB.ShouldInclude(config.ResourceValue{
+		Name: &name,
+		Time: volume.CreateTime,
+	})
 }
 
 // Deletes all EBS Volumes
-func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
-	svc := ec2.New(session)
-
+func (ev EBSVolumes) nukeAll(volumeIds []*string) error {
 	if len(volumeIds) == 0 {
-		logging.Logger.Debugf("No EBS volumes to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No EBS volumes to nuke in region %s", ev.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all EBS volumes in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all EBS volumes in region %s", ev.Region)
 	var deletedVolumeIDs []*string
 
 	for _, volumeID := range volumeIds {
@@ -82,7 +67,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 			VolumeId: volumeID,
 		}
 
-		_, err := svc.DeleteVolume(params)
+		_, err := ev.Client.DeleteVolume(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -97,7 +82,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EBS Volume",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": ev.Region,
 					"reason": "VolumeInUse",
 				})
 				logging.Logger.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
@@ -105,7 +90,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EBS Volume",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": ev.Region,
 					"reason": "InvalidVolume.NotFound",
 				})
 				logging.Logger.Debugf("EBS volume %s has already been deleted", *volumeID)
@@ -113,7 +98,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EBS Volume",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": ev.Region,
 				})
 				logging.Logger.Debugf("[Failed] %s", err)
 			}
@@ -124,7 +109,7 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 	}
 
 	if len(deletedVolumeIDs) > 0 {
-		err := svc.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
+		err := ev.Client.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
 			VolumeIds: deletedVolumeIDs,
 		})
 		if err != nil {
@@ -132,12 +117,12 @@ func nukeAllEbsVolumes(session *session.Session, volumeIds []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking EBS Volume",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": ev.Region,
 			})
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), ev.Region)
 	return nil
 }

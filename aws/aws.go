@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/ebs"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/ecs"
@@ -699,12 +698,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// EBS Volumes
 		ebsVolumes := EBSVolumes{
-			Client: ebs.New(cloudNukeSession),
+			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
 		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
 			start := time.Now()
-			volumeIds, err := getAllEbsVolumes(cloudNukeSession, region, excludeAfter, configObj)
+			volumeIds, err := ebsVolumes.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -794,7 +793,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(snapshots.ResourceName(), resourceTypes) {
 			start := time.Now()
-			snapshotIds, err := getAllSnapshots(cloudNukeSession, region, excludeAfter)
+			snapshotIds, err := snapshots.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

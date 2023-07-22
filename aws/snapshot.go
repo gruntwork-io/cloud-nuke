@@ -1,14 +1,12 @@
 package aws
 
 import (
-	"time"
-
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -16,28 +14,27 @@ import (
 )
 
 // Returns a formatted string of Snapshot snapshot ids
-func getAllSnapshots(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
-	svc := ec2.New(session)
+func (s Snapshots) getAll(configObj config.Config) ([]*string, error) {
 
-	// status - The status of the snapshot (pending | completed | error).
+	// status - The status of the s (pending | completed | error).
 	// Since the output of this function is used to delete the returned snapshots
 	// We only want to list EBS Snapshots with a status of "completed"
 	// Since that is the only status that is eligible for deletion
 	status_filter := ec2.Filter{Name: awsgo.String("status"), Values: aws.StringSlice([]string{"completed", "error"})}
-
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{awsgo.String("self")},
 		Filters:  []*ec2.Filter{&status_filter},
 	}
 
-	output, err := svc.DescribeSnapshots(params)
+	output, err := s.Client.DescribeSnapshots(params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var snapshotIds []*string
 	for _, snapshot := range output.Snapshots {
-		if excludeAfter.After(*snapshot.StartTime) && !SnapshotHasAWSBackupTag(snapshot.Tags) {
+		if configObj.Snapshots.ShouldInclude(config.ResourceValue{Time: snapshot.StartTime}) &&
+			!SnapshotHasAWSBackupTag(snapshot.Tags) {
 			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
 		}
 	}
@@ -62,15 +59,14 @@ func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
 }
 
 // Deletes all Snapshots
-func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
-	svc := ec2.New(session)
+func (s Snapshots) nukeAll(snapshotIds []*string) error {
 
 	if len(snapshotIds) == 0 {
-		logging.Logger.Debugf("No Snapshots to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Snapshots to nuke in region %s", s.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Snapshots in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Snapshots in region %s", s.Region)
 	var deletedSnapshotIDs []*string
 
 	for _, snapshotID := range snapshotIds {
@@ -78,7 +74,7 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 			SnapshotId: snapshotID,
 		}
 
-		_, err := svc.DeleteSnapshot(params)
+		_, err := s.Client.DeleteSnapshot(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -93,7 +89,7 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking EBS Snapshot",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": s.Region,
 			})
 		} else {
 			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
@@ -101,6 +97,6 @@ func nukeAllSnapshots(session *session.Session, snapshotIds []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), s.Region)
 	return nil
 }

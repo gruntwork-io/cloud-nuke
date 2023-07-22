@@ -1,122 +1,100 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
 )
 
-func createTestSnapshot(t *testing.T, session *session.Session, name string) ec2.Snapshot {
-	svc := ec2.New(session)
-
-	az := awsgo.StringValue(session.Config.Region) + "a"
-	volume := createTestEBSVolume(t, session, name, az)
-	snapshot, err := svc.CreateSnapshot(&ec2.CreateSnapshotInput{
-		VolumeId: volume.VolumeId,
-	})
-
-	if err != nil {
-		assert.Failf(t, "Could not create test Snapshot", errors.WithStackTrace(err).Error())
-	}
-
-	err = svc.WaitUntilSnapshotCompleted(&ec2.DescribeSnapshotsInput{
-		OwnerIds:    []*string{awsgo.String("self")},
-		SnapshotIds: []*string{snapshot.SnapshotId},
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	return *snapshot
+type mockedSnapshot struct {
+	ec2iface.EC2API
+	DeleteSnapshotOutput    ec2.DeleteSnapshotOutput
+	DescribeSnapshotsOutput ec2.DescribeSnapshotsOutput
 }
 
-func TestListSnapshots(t *testing.T) {
+func (m mockedSnapshot) DeleteSnapshot(input *ec2.DeleteSnapshotInput) (*ec2.DeleteSnapshotOutput, error) {
+	return &m.DeleteSnapshotOutput, nil
+}
+
+func (m mockedSnapshot) DescribeSnapshots(input *ec2.DescribeSnapshotsInput) (*ec2.DescribeSnapshotsOutput, error) {
+	return &m.DescribeSnapshotsOutput, nil
+}
+
+func TestSnapshot_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+	testSnapshot1 := "test-snapshot1"
+	testSnapshot2 := "test-snapshot2"
+	now := time.Now()
+	s := Snapshots{
+		Client: mockedSnapshot{
+			DescribeSnapshotsOutput: ec2.DescribeSnapshotsOutput{
+				Snapshots: []*ec2.Snapshot{
+					{
+						SnapshotId: awsgo.String(testSnapshot1),
+						StartTime:  awsgo.Time(now),
+						Tags: []*ec2.Tag{
+							{
+								Key:   awsgo.String("aws:backup:source-resource"),
+								Value: awsgo.String(""),
+							},
+						},
+					},
+					{
+						SnapshotId: awsgo.String(testSnapshot2),
+						StartTime:  awsgo.Time(now),
+					},
+				},
+			},
+		},
 	}
 
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testSnapshot2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1)),
+				}},
+			expected: []string{},
+		},
 	}
 
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	snapshot := createTestSnapshot(t, session, uniqueTestID)
-
-	// clean up after this test
-	defer nukeAllSnapshots(session, []*string{snapshot.SnapshotId})
-	defer nukeAllEbsVolumes(session, findEBSVolumesByNameTag(t, session, uniqueTestID))
-
-	snapshots, err := getAllSnapshots(session, region, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Snapshots")
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := s.getAll(config.Config{
+				Snapshots: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+		})
 	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(snapshots), *snapshot.SnapshotId)
-
-	snapshots, err = getAllSnapshots(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Snapshots")
-	}
-
-	assert.Contains(t, awsgo.StringValueSlice(snapshots), *snapshot.SnapshotId)
 }
 
-func TestNukeSnapshots(t *testing.T) {
+func TestSnapshot_NukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+	s := Snapshots{
+		Client: mockedSnapshot{
+			DeleteSnapshotOutput: ec2.DeleteSnapshotOutput{},
+		},
 	}
 
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	svc := ec2.New(session)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	snapshot := createTestSnapshot(t, session, uniqueTestID)
-
-	// clean up ec2 instance created by the above call
-	defer nukeAllEbsVolumes(session, findEBSVolumesByNameTag(t, session, uniqueTestID))
-
-	_, err = svc.DescribeSnapshots(&ec2.DescribeSnapshotsInput{
-		SnapshotIds: []*string{snapshot.SnapshotId},
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	if err := nukeAllSnapshots(session, []*string{snapshot.SnapshotId}); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	snapshots, err := getAllSnapshots(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Snapshots")
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(snapshots), *snapshot.SnapshotId)
+	err := s.nukeAll([]*string{awsgo.String("test-snapshot")})
+	require.NoError(t, err)
 }
