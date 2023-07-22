@@ -13,22 +13,22 @@ type DynamoDB struct {
 	DynamoTableNames []string
 }
 
-func (tables DynamoDB) ResourceName() string {
+func (ddb DynamoDB) ResourceName() string {
 	return "dynamodb"
 }
 
-func (tables DynamoDB) ResourceIdentifiers() []string {
-	return tables.DynamoTableNames
+func (ddb DynamoDB) ResourceIdentifiers() []string {
+	return ddb.DynamoTableNames
 }
 
-func (tables DynamoDB) MaxBatchSize() int {
+func (ddb DynamoDB) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke all Dynamo DB Tables
-func (tables DynamoDB) Nuke(awsSession *session.Session, identifiers []string) error {
-	if err := nukeAllDynamoDBTables(awsSession, awsgo.StringSlice(identifiers)); err != nil {
+func (ddb DynamoDB) Nuke(awsSession *session.Session, identifiers []string) error {
+	if err := ddb.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil
