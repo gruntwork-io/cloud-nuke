@@ -26,7 +26,7 @@ func (s SNSTopic) MaxBatchSize() int {
 }
 
 func (s SNSTopic) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllSNSTopics(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := s.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil

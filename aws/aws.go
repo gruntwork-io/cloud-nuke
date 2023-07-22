@@ -1713,7 +1713,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(snsTopics.ResourceName(), resourceTypes) {
 			start := time.Now()
-			snsTopicArns, err := getAllSNSTopics(cloudNukeSession, excludeAfter, configObj)
+			snsTopicArns, err := snsTopics.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
