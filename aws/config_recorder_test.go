@@ -1,92 +1,87 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"testing"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/configservice"
+	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
+	"regexp"
+	"testing"
 )
 
-func TestListConfigRecorders(t *testing.T) {
+type mockedConfigServiceRecorders struct {
+	configserviceiface.ConfigServiceAPI
+	DescribeConfigurationRecordersOutput configservice.DescribeConfigurationRecordersOutput
+	DeleteConfigurationRecorderOutput    configservice.DeleteConfigurationRecorderOutput
+}
+
+func (m mockedConfigServiceRecorders) DescribeConfigurationRecorders(input *configservice.DescribeConfigurationRecordersInput) (*configservice.DescribeConfigurationRecordersOutput, error) {
+	return &m.DescribeConfigurationRecordersOutput, nil
+}
+
+func (m mockedConfigServiceRecorders) DeleteConfigurationRecorder(input *configservice.DeleteConfigurationRecorderInput) (*configservice.DeleteConfigurationRecorderOutput, error) {
+	return &m.DeleteConfigurationRecorderOutput, nil
+}
+
+func TestConfigServiceRecorder_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	testName1 := "test-recorder-1"
+	testName2 := "test-recorder-2"
+	csr := ConfigServiceRecorders{
+		Client: mockedConfigServiceRecorders{
+			DescribeConfigurationRecordersOutput: configservice.DescribeConfigurationRecordersOutput{
+				ConfigurationRecorders: []*configservice.ConfigurationRecorder{
+					{Name: aws.String(testName1)},
+					{Name: aws.String(testName2)},
+				},
+			},
+		},
+	}
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := csr.getAll(config.Config{
+				ConfigServiceRecorder: tc.configObj,
+			})
 
-	// You can only have one configuration recorder per region, so instead of our usual
-	// create and list pattern, we'll just ensure there is a recorder in our target region,
-	// creating one if necessary, and then that we can see that config recorder returned by
-	// getAllConfigRecorders
-	configRecorderName := ensureConfigurationRecorderExistsInRegion(t, region)
-
-	configRecorderNames, lookupErr := getAllConfigRecorders(session, time.Now(), config.Config{})
-	require.NoError(t, lookupErr)
-	require.NotEmpty(t, configRecorderNames)
-
-	// Sanity check that we got back a recorder
-	assert.Equal(t, configRecorderNames[0], configRecorderName)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
 }
 
-func TestNukeConfigRecorderOne(t *testing.T) {
+func TestConfigServiceRecorder_NukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	configRecorderName := ensureConfigurationRecorderExistsInRegion(t, region)
-
-	defer deleteConfigRecorder(t, region, configRecorderName, false)
-
-	require.NoError(
-		t,
-		nukeAllConfigRecorders(session, []string{configRecorderName}),
-	)
-
-	assertConfigRecordersDeleted(t, region)
-}
-
-// Test helpers
-
-func deleteConfigRecorder(t *testing.T, region string, configRecorderName string, checkErr bool) {
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	configService := configservice.New(session)
-
-	param := &configservice.DeleteConfigurationRecorderInput{
-		ConfigurationRecorderName: aws.String(configRecorderName),
+	csr := ConfigServiceRecorders{
+		Client: mockedConfigServiceRecorders{
+			DeleteConfigurationRecorderOutput: configservice.DeleteConfigurationRecorderOutput{},
+		},
 	}
 
-	_, deleteErr := configService.DeleteConfigurationRecorder(param)
-	if checkErr {
-		require.NoError(t, deleteErr)
-	}
-}
-
-func assertConfigRecordersDeleted(t *testing.T, region string) {
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+	err := csr.nukeAll([]string{"test"})
 	require.NoError(t, err)
-
-	svc := configservice.New(session)
-
-	param := &configservice.DescribeConfigurationRecordersInput{}
-
-	resp, err := svc.DescribeConfigurationRecorders(param)
-	require.NoError(t, err)
-
-	require.Empty(t, resp.ConfigurationRecorders)
 }

@@ -12,20 +12,20 @@ type ConfigServiceRule struct {
 	RuleNames []string
 }
 
-func (c ConfigServiceRule) ResourceName() string {
+func (csr ConfigServiceRule) ResourceName() string {
 	return "config-rules"
 }
 
-func (c ConfigServiceRule) ResourceIdentifiers() []string {
-	return c.RuleNames
+func (csr ConfigServiceRule) ResourceIdentifiers() []string {
+	return csr.RuleNames
 }
 
-func (c ConfigServiceRule) MaxBatchSize() int {
+func (csr ConfigServiceRule) MaxBatchSize() int {
 	return 200
 }
 
-func (c ConfigServiceRule) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllConfigServiceRules(session, identifiers); err != nil {
+func (csr ConfigServiceRule) Nuke(session *session.Session, identifiers []string) error {
+	if err := csr.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil

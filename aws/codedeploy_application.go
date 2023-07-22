@@ -1,11 +1,7 @@
 package aws
 
 import (
-	"sync"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -14,40 +10,39 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
+	"sync"
 )
 
-func getAllCodeDeployApplications(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
-	svc := codedeploy.New(session)
-
+func (c CodeDeployApplications) getAll(configObj config.Config) ([]*string, error) {
 	codeDeployApplicationsFilteredByName := []string{}
 
-	err := svc.ListApplicationsPages(&codedeploy.ListApplicationsInput{}, func(page *codedeploy.ListApplicationsOutput, lastPage bool) bool {
-		for _, application := range page.Applications {
-			// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
-			// CreationDate is not available in the ListApplications API call, so we can't filter by that here, but we do filter by it later.
-			// By filtering the name here, we can reduce the number of BatchGetApplication API calls we have to make.
-			if config.ShouldInclude(*application, configObj.CodeDeployApplications.IncludeRule.NamesRegExp, configObj.CodeDeployApplications.ExcludeRule.NamesRegExp) {
-				codeDeployApplicationsFilteredByName = append(codeDeployApplicationsFilteredByName, *application)
+	err := c.Client.ListApplicationsPages(
+		&codedeploy.ListApplicationsInput{}, func(page *codedeploy.ListApplicationsOutput, lastPage bool) bool {
+			for _, application := range page.Applications {
+				// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
+				// CreationDate is not available in the ListApplications API call, so we can't filter by that here, but we do filter by it later.
+				// By filtering the name here, we can reduce the number of BatchGetApplication API calls we have to make.
+				if configObj.CodeDeployApplications.ShouldInclude(config.ResourceValue{Name: application}) {
+					codeDeployApplicationsFilteredByName = append(codeDeployApplicationsFilteredByName, *application)
+				}
 			}
-		}
-		return !lastPage
-	})
+
+			return !lastPage
+		})
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if the CodeDeploy Application should be excluded by CreationDate and return.
 	// We have to do this after the ListApplicationsPages API call because CreationDate is not available in that call.
-	return batchDescribeAndFilterCodeDeployApplications(session, codeDeployApplicationsFilteredByName, excludeAfter)
+	return c.batchDescribeAndFilter(codeDeployApplicationsFilteredByName, configObj)
 }
 
 // batchDescribeAndFilterCodeDeployApplications - Describe the CodeDeploy Applications and filter out the ones that should be excluded by CreationDate.
-func batchDescribeAndFilterCodeDeployApplications(session *session.Session, identifiers []string, excludeAfter time.Time) ([]string, error) {
-	svc := codedeploy.New(session)
-
+func (c CodeDeployApplications) batchDescribeAndFilter(identifiers []string, configObj config.Config) ([]*string, error) {
 	// BatchGetApplications can only take 100 identifiers at a time, so we have to break up the identifiers into chunks of 100.
 	batchSize := 100
-	applicationNames := []string{}
+	var applicationNames []*string
 
 	for {
 		// if there are no identifiers left, then break out of the loop
@@ -63,7 +58,7 @@ func batchDescribeAndFilterCodeDeployApplications(session *session.Session, iden
 		// get the next batch of identifiers
 		batch := aws.StringSlice(identifiers[:batchSize])
 		// then using that batch of identifiers, get the applicationsinfo
-		resp, err := svc.BatchGetApplications(
+		resp, err := c.Client.BatchGetApplications(
 			&codedeploy.BatchGetApplicationsInput{ApplicationNames: batch},
 		)
 		if err != nil {
@@ -72,8 +67,10 @@ func batchDescribeAndFilterCodeDeployApplications(session *session.Session, iden
 
 		// for each applicationsinfo, check if it should be excluded by creation date
 		for j := range resp.ApplicationsInfo {
-			if shouldNukeByCreationTime(resp.ApplicationsInfo[j], excludeAfter) {
-				applicationNames = append(applicationNames, *resp.ApplicationsInfo[j].ApplicationName)
+			if configObj.CodeDeployApplications.ShouldInclude(config.ResourceValue{
+				Time: resp.ApplicationsInfo[j].CreateTime,
+			}) {
+				applicationNames = append(applicationNames, resp.ApplicationsInfo[j].ApplicationName)
 			}
 		}
 
@@ -84,38 +81,20 @@ func batchDescribeAndFilterCodeDeployApplications(session *session.Session, iden
 	return applicationNames, nil
 }
 
-// shouldNukeByCreationTime - Check if the CodeDeploy Application should be excluded by CreationDate.
-func shouldNukeByCreationTime(applicationInfo *codedeploy.ApplicationInfo, excludeAfter time.Time) bool {
-	// If the CreationDate is nil, then we can't filter by it, so we return false as a precaution.
-	if applicationInfo == nil || applicationInfo.CreateTime == nil {
-		return false
-	}
-
-	// If the excludeAfter date is before the CreationDate, then we should not nuke the resource.
-	if excludeAfter.Before(*applicationInfo.CreateTime) {
-		return false
-	}
-
-	// Otherwise, the resource can be safely nuked.
-	return true
-}
-
-func nukeAllCodeDeployApplications(session *session.Session, identifiers []string) error {
-	svc := codedeploy.New(session)
-
+func (c CodeDeployApplications) nukeAll(identifiers []string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CodeDeploy Applications to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No CodeDeploy Applications to nuke in region %s", c.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting CodeDeploy Applications in region %s", *session.Config.Region)
+	logging.Logger.Infof("Deleting CodeDeploy Applications in region %s", c.Region)
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(identifiers))
 
 	for _, identifier := range identifiers {
 		wg.Add(1)
-		go nukeCodeDeployApplicationAsync(svc, &wg, errChan, identifier)
+		go c.deleteAsync(&wg, errChan, identifier)
 	}
 
 	wg.Wait()
@@ -129,7 +108,7 @@ func nukeAllCodeDeployApplications(session *session.Session, identifiers []strin
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking CodeDeploy Application",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": c.Region,
 		})
 	}
 
@@ -141,10 +120,10 @@ func nukeAllCodeDeployApplications(session *session.Session, identifiers []strin
 	return nil
 }
 
-func nukeCodeDeployApplicationAsync(svc *codedeploy.CodeDeploy, wg *sync.WaitGroup, errChan chan<- error, identifier string) {
+func (c CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
 	defer wg.Done()
 
-	_, err := svc.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
+	_, err := c.Client.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
 	if err != nil {
 		errChan <- err
 	}
