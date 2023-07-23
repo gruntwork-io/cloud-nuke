@@ -482,18 +482,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
-		transitGatewayIsAvailable, err := tgIsAvailableInRegion(cloudNukeSession, region)
-		if err != nil {
-			ge := report.GeneralError{
-				Error:        err,
-				Description:  "Unable to retrieve Transit Gateways",
-				ResourceType: transitGatewayVpcAttachments.ResourceName(),
-			}
-			report.RecordError(ge)
-		}
-		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
+		if IsNukeable(transitGatewayVpcAttachments.ResourceName(), resourceTypes) {
 			start := time.Now()
-			transitGatewayVpcAttachmentIds, err := getAllTransitGatewayVpcAttachments(cloudNukeSession, region, excludeAfter)
+			transitGatewayVpcAttachmentIds, err := transitGatewayVpcAttachments.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -521,9 +512,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
-		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
+		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) {
 			start := time.Now()
-			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(cloudNukeSession, region, excludeAfter)
+			transitGatewayRouteTableIds, err := transitGatewayRouteTables.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -551,9 +542,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			Client: ec2.New(cloudNukeSession),
 			Region: region,
 		}
-		if IsNukeable(transitGateways.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
+		if IsNukeable(transitGateways.ResourceName(), resourceTypes) {
 			start := time.Now()
-			transitGatewayIds, err := getAllTransitGatewayInstances(cloudNukeSession, region, excludeAfter)
+			transitGatewayIds, err := transitGateways.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
