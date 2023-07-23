@@ -15,23 +15,23 @@ type SqsQueue struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (queue SqsQueue) ResourceName() string {
+func (sq SqsQueue) ResourceName() string {
 	return "sqs"
 }
 
-func (queue SqsQueue) MaxBatchSize() int {
+func (sq SqsQueue) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // ResourceIdentifiers - The arns of the sqs queues
-func (queue SqsQueue) ResourceIdentifiers() []string {
-	return queue.QueueUrls
+func (sq SqsQueue) ResourceIdentifiers() []string {
+	return sq.QueueUrls
 }
 
 // Nuke - nuke 'em all!!!
-func (queue SqsQueue) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllSqsQueues(session, awsgo.StringSlice(identifiers)); err != nil {
+func (sq SqsQueue) Nuke(session *session.Session, identifiers []string) error {
+	if err := sq.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
