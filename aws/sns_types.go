@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type SNSTopic struct {
-	Arns []string
+	Client snsiface.SNSAPI
+	Region string
+	Arns   []string
 }
 
 func (s SNSTopic) ResourceName() string {

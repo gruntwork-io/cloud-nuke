@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SecretsManagerSecrets - represents all AWS secrets manager secrets that should be deleted.
 type SecretsManagerSecrets struct {
+	Client    secretsmanageriface.SecretsManagerAPI
+	Region    string
 	SecretIDs []string
 }
 

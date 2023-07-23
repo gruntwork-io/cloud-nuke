@@ -2,10 +2,13 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 type ConfigServiceRule struct {
+	Client    configserviceiface.ConfigServiceAPI
+	Region    string
 	RuleNames []string
 }
 

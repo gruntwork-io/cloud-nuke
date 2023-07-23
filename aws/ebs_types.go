@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ebs/ebsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EBSVolumes - represents all ebs volumes
 type EBSVolumes struct {
+	Client    ebsiface.EBSAPI
+	Region    string
 	VolumeIds []string
 }
 

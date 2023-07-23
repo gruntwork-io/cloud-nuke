@@ -3,11 +3,14 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SqsQueue - represents all sqs queues
 type SqsQueue struct {
+	Client    sqsiface.SQSAPI
+	Region    string
 	QueueUrls []string
 }
 

@@ -18,8 +18,42 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/acmpca"
+	"github.com/aws/aws-sdk-go/service/apigateway"
+	"github.com/aws/aws-sdk-go/service/apigatewayv2"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/backup"
+	"github.com/aws/aws-sdk-go/service/cloudtrail"
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go/service/codedeploy"
+	"github.com/aws/aws-sdk-go/service/configservice"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/ebs"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/elasticache"
+	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/aws/aws-sdk-go/service/guardduty"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/macie2"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/redshift"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/sagemaker"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go/service/securityhub"
+	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -242,10 +276,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// because of dependencies between resources
 
 		// ACMPCA arns
-		acmpca := ACMPCA{}
+		acmpca := ACMPCA{
+			Client: acmpca.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(acmpca.ResourceName(), resourceTypes) {
 			start := time.Now()
-			arns, err := getAllACMPCA(cloudNukeSession, region, excludeAfter)
+			arns, err := acmpca.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -268,7 +305,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ACMPCA arns
 
 		// ASG Names
-		asGroups := ASGroups{}
+		asGroups := ASGroups{
+			Client: autoscaling.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(asGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
 			groupNames, err := getAllAutoScalingGroups(cloudNukeSession, region, excludeAfter, configObj)
@@ -322,7 +362,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Launch Configuration Names
 
 		// Launch Template Names
-		templates := LaunchTemplates{}
+		templates := LaunchTemplates{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(templates.ResourceName(), resourceTypes) {
 			start := time.Now()
 			templateNames, err := getAllLaunchTemplates(cloudNukeSession, excludeAfter, configObj)
@@ -349,8 +392,11 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End Launch Template Names
 
-		// LoadBalancer Names
-		loadBalancers := LoadBalancers{}
+		// LoadBalancers Names
+		loadBalancers := LoadBalancers{
+			Client: elb.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(loadBalancers.ResourceName(), resourceTypes) {
 			start := time.Now()
 			elbNames, err := getAllElbInstances(cloudNukeSession, region, excludeAfter)
@@ -377,7 +423,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End LoadBalancer Names
 
 		// LoadBalancerV2 Arns
-		loadBalancersV2 := LoadBalancersV2{}
+		loadBalancersV2 := LoadBalancersV2{
+			Client: elbv2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
 			start := time.Now()
 			elbv2Arns, err := getAllElbv2Instances(cloudNukeSession, region, excludeAfter, configObj)
@@ -404,7 +453,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End LoadBalancerV2 Arns
 
 		// SQS Queues
-		sqsQueue := SqsQueue{}
+		sqsQueue := SqsQueue{
+			Client: sqs.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(sqsQueue.ResourceName(), resourceTypes) {
 			start := time.Now()
 			queueUrls, err := getAllSqsQueue(cloudNukeSession, region, excludeAfter)
@@ -431,7 +483,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End SQS Queue
 
 		// TransitGatewayVpcAttachment
-		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{}
+		transitGatewayVpcAttachments := TransitGatewaysVpcAttachment{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		transitGatewayIsAvailable, err := tgIsAvailableInRegion(cloudNukeSession, region)
 		if err != nil {
 			ge := report.GeneralError{
@@ -467,7 +522,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End TransitGatewayVpcAttachment
 
 		// TransitGatewayRouteTable
-		transitGatewayRouteTables := TransitGatewaysRouteTables{}
+		transitGatewayRouteTables := TransitGatewaysRouteTables{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(transitGatewayRouteTables.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
 			start := time.Now()
 			transitGatewayRouteTableIds, err := getAllTransitGatewayRouteTables(cloudNukeSession, region, excludeAfter)
@@ -494,7 +552,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End TransitGatewayRouteTable
 
 		// TransitGateway
-		transitGateways := TransitGateways{}
+		transitGateways := TransitGateways{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(transitGateways.ResourceName(), resourceTypes) && transitGatewayIsAvailable {
 			start := time.Now()
 			transitGatewayIds, err := getAllTransitGatewayInstances(cloudNukeSession, region, excludeAfter)
@@ -521,7 +582,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End TransitGateway
 
 		// NATGateway
-		natGateways := NatGateways{}
+		natGateways := NatGateways{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
 			start := time.Now()
 			ngwIDs, err := getAllNatGateways(cloudNukeSession, excludeAfter, configObj)
@@ -548,7 +612,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End NATGateway
 
 		// OpenSearch Domains
-		domains := OpenSearchDomains{}
+		domains := OpenSearchDomains{
+			Client: iam.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(domains.ResourceName(), resourceTypes) {
 			start := time.Now()
 			domainNames, err := getOpenSearchDomainsToNuke(cloudNukeSession, excludeAfter, configObj)
@@ -575,7 +642,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End OpenSearchDomains
 
 		// EC2 Instances
-		ec2Instances := EC2Instances{}
+		ec2Instances := EC2Instances{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
 			start := time.Now()
 			instanceIds, err := getAllEc2Instances(cloudNukeSession, region, excludeAfter, configObj)
@@ -602,7 +672,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EC2 Instances
 
 		// EC2 Dedicated Hosts
-		ec2DedicatedHosts := EC2DedicatedHosts{}
+		ec2DedicatedHosts := EC2DedicatedHosts{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(ec2DedicatedHosts.ResourceName(), resourceTypes) {
 			start := time.Now()
 			hostIds, err := getAllEc2DedicatedHosts(cloudNukeSession, excludeAfter, configObj)
@@ -630,7 +703,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EC2 Dedicated Hosts
 
 		// EBS Volumes
-		ebsVolumes := EBSVolumes{}
+		ebsVolumes := EBSVolumes{
+			Client: ebs.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(ebsVolumes.ResourceName(), resourceTypes) {
 			start := time.Now()
 			volumeIds, err := getAllEbsVolumes(cloudNukeSession, region, excludeAfter, configObj)
@@ -657,7 +733,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EBS Volumes
 
 		// EIP Addresses
-		eipAddresses := EIPAddresses{}
+		eipAddresses := EIPAddresses{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(eipAddresses.ResourceName(), resourceTypes) {
 			start := time.Now()
 			allocationIds, err := getAllEIPAddresses(cloudNukeSession, region, excludeAfter, configObj)
@@ -684,7 +763,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EIP Addresses
 
 		// AMIs
-		amis := AMIs{}
+		amis := AMIs{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(amis.ResourceName(), resourceTypes) {
 			start := time.Now()
 			imageIds, err := getAllAMIs(cloudNukeSession, region, excludeAfter)
@@ -711,7 +793,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End AMIs
 
 		// Snapshots
-		snapshots := Snapshots{}
+		snapshots := Snapshots{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(snapshots.ResourceName(), resourceTypes) {
 			start := time.Now()
 			snapshotIds, err := getAllSnapshots(cloudNukeSession, region, excludeAfter)
@@ -738,7 +823,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Snapshots
 
 		// ECS resources
-		ecsServices := ECSServices{}
+		ecsServices := ECSServices{
+			Client: ecs.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(ecsServices.ResourceName(), resourceTypes) {
 			start := time.Now()
 			clusterArns, err := getAllEcsClusters(cloudNukeSession)
@@ -768,7 +856,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			})
 		}
 
-		ecsClusters := ECSClusters{}
+		ecsClusters := ECSClusters{
+			Client: ecs.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(ecsClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
 			ecsClusterArns, err := getAllEcsClustersOlderThan(cloudNukeSession, excludeAfter, configObj)
@@ -825,7 +916,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EKS resources
 
 		// RDS DB Instances
-		dbInstances := DBInstances{}
+		dbInstances := DBInstances{
+			Client: rds.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
 			start := time.Now()
 			instanceNames, err := getAllRdsInstances(cloudNukeSession, excludeAfter, configObj)
@@ -853,7 +947,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End RDS DB Instances
 
 		// RDS DB Subnet Groups
-		dbSubnetGroups := DBSubnetGroups{}
+		dbSubnetGroups := DBSubnetGroups{
+			Client: rds.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(dbSubnetGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
 
@@ -917,7 +1014,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End RDS DB Clusters
 
 		// Backup Vaults
-		backupVault := BackupVault{}
+		backupVault := BackupVault{
+			Client: backup.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(backupVault.ResourceName(), resourceTypes) {
 			start := time.Now()
 			backupVaultNames, err := getAllBackupVault(cloudNukeSession, configObj)
@@ -945,7 +1045,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End backup vaults
 
 		// Lambda Functions
-		lambdaFunctions := LambdaFunctions{}
+		lambdaFunctions := LambdaFunctions{
+			Client: lambda.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
 			start := time.Now()
 			lambdaFunctionNames, err := getAllLambdaFunctions(cloudNukeSession, excludeAfter, configObj, lambdaFunctions.MaxBatchSize())
@@ -973,7 +1076,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Lambda Functions
 
 		// Secrets Manager Secrets
-		secretsManagerSecrets := SecretsManagerSecrets{}
+		secretsManagerSecrets := SecretsManagerSecrets{
+			Client: secretsmanager.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(secretsManagerSecrets.ResourceName(), resourceTypes) {
 			start := time.Now()
 			secrets, err := getAllSecretsManagerSecrets(cloudNukeSession, excludeAfter, configObj)
@@ -1030,7 +1136,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End AccessAnalyzer
 
 		// CloudWatchDashboard
-		cloudwatchDashboards := CloudWatchDashboards{}
+		cloudwatchDashboards := CloudWatchDashboards{
+			Client: cloudwatch.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(cloudwatchDashboards.ResourceName(), resourceTypes) {
 			start := time.Now()
 			cwdbNames, err := getAllCloudWatchDashboards(cloudNukeSession, excludeAfter, configObj)
@@ -1058,7 +1167,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End CloudWatchDashboard
 
 		// CloudWatchLogGroup
-		cloudwatchLogGroups := CloudWatchLogGroups{}
+		cloudwatchLogGroups := CloudWatchLogGroups{
+			Client: cloudwatchlogs.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(cloudwatchLogGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
 			lgNames, err := getAllCloudWatchLogGroups(cloudNukeSession, excludeAfter, configObj)
@@ -1085,7 +1197,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End CloudWatchLogGroup
 
 		// S3 Buckets
-		s3Buckets := S3Buckets{}
+		s3Buckets := S3Buckets{
+			Client: s3.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
 			start := time.Now()
 			var bucketNamesPerRegion map[string][]*string
@@ -1144,7 +1259,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		// End S3 Buckets
 
-		DynamoDB := DynamoDB{}
+		DynamoDB := DynamoDB{
+			Client: dynamodb.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
 			start := time.Now()
 			tablenames, err := getAllDynamoTables(cloudNukeSession, excludeAfter, configObj, DynamoDB)
@@ -1172,7 +1290,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Dynamo DB tables
 
 		// EC2 VPCS
-		ec2Vpcs := EC2VPCs{}
+		ec2Vpcs := EC2VPCs{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
 			start := time.Now()
 			vpcids, vpcs, err := getAllVpcs(cloudNukeSession, region, excludeAfter, configObj)
@@ -1224,7 +1345,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EC2 KeyPairs
 
 		// Elasticaches
-		elasticaches := Elasticaches{}
+		elasticaches := Elasticaches{
+			Client: elasticache.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(elasticaches.ResourceName(), resourceTypes) {
 			start := time.Now()
 			clusterIds, err := getAllElasticacheClusters(cloudNukeSession, region, excludeAfter, configObj)
@@ -1252,7 +1376,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Elasticaches
 
 		// Elasticache Parameter Groups
-		elasticacheParameterGroups := ElasticacheParameterGroups{}
+		elasticacheParameterGroups := ElasticacheParameterGroups{
+			Client: elasticache.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(elasticacheParameterGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
 			groupNames, err := getAllElasticacheParameterGroups(cloudNukeSession, region, excludeAfter, configObj)
@@ -1280,7 +1407,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Elasticache Parameter Groups
 
 		// Elasticache Subnet Groups
-		elasticacheSubnetGroups := ElasticacheSubnetGroups{}
+		elasticacheSubnetGroups := ElasticacheSubnetGroups{
+			Client: elasticache.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(elasticacheSubnetGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
 			groupNames, err := getAllElasticacheSubnetGroups(cloudNukeSession, region, excludeAfter, configObj)
@@ -1308,7 +1438,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Elasticache Subnet Groups
 
 		// KMS Customer managed keys
-		customerKeys := KmsCustomerKeys{}
+		customerKeys := KmsCustomerKeys{
+			Client: kms.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(customerKeys.ResourceName(), resourceTypes) {
 			start := time.Now()
 			keys, aliases, err := getAllKmsUserKeys(cloudNukeSession, customerKeys.MaxBatchSize(), excludeAfter, configObj, allowDeleteUnaliasedKeys)
@@ -1337,7 +1470,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End KMS Customer managed keys
 
 		// GuardDuty detectors
-		guardDutyDetectors := GuardDuty{}
+		guardDutyDetectors := GuardDuty{
+			Client: guardduty.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(guardDutyDetectors.ResourceName(), resourceTypes) {
 			start := time.Now()
 			detectors, err := getAllGuardDutyDetectors(cloudNukeSession, excludeAfter, configObj, guardDutyDetectors.MaxBatchSize())
@@ -1364,7 +1500,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End GuardDuty detectors
 
 		// Macie member accounts
-		macieAccounts := MacieMember{}
+		macieAccounts := MacieMember{
+			Client: macie2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(macieAccounts.ResourceName(), resourceTypes) {
 			start := time.Now()
 			// Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the excludeAfter or configObj patterns
@@ -1393,7 +1532,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Macie member accounts
 
 		// Start SageMaker Notebook Instances
-		notebookInstances := SageMakerNotebookInstances{}
+		notebookInstances := SageMakerNotebookInstances{
+			Client: sagemaker.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
 			start := time.Now()
 			instances, err := getAllNotebookInstances(cloudNukeSession, excludeAfter, configObj)
@@ -1420,7 +1562,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End SageMaker Notebook Instances
 
 		// Kinesis Streams
-		kinesisStreams := KinesisStreams{}
+		kinesisStreams := KinesisStreams{
+			Client: kinesis.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(kinesisStreams.ResourceName(), resourceTypes) {
 			start := time.Now()
 			streams, err := getAllKinesisStreams(cloudNukeSession, configObj)
@@ -1447,7 +1592,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Kinesis Streams
 
 		// Redshift Clusters
-		redshiftClusters := RedshiftClusters{}
+		redshiftClusters := RedshiftClusters{
+			Client: redshift.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(redshiftClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
 			clusters, err := getAllRedshiftClusters(cloudNukeSession, region, excludeAfter, configObj)
@@ -1504,7 +1652,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End API Gateways (v1)
 
 		// API Gateways (v2)
-		apiGatewaysV2 := ApiGatewayV2{}
+		apiGatewaysV2 := ApiGatewayV2{
+			Client: apigatewayv2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(apiGatewaysV2.ResourceName(), resourceTypes) {
 			start := time.Now()
 			gatewayV2Ids, err := getAllAPIGatewaysV2(cloudNukeSession, excludeAfter, configObj)
@@ -1531,7 +1682,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End API Gateways (v2)
 
 		// Elastic FileSystems (efs)
-		elasticFileSystems := ElasticFileSystem{}
+		elasticFileSystems := ElasticFileSystem{
+			Client: efs.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(elasticFileSystems.ResourceName(), resourceTypes) {
 			start := time.Now()
 			elasticFileSystemsIds, err := getAllElasticFileSystems(cloudNukeSession, excludeAfter, configObj)
@@ -1558,7 +1712,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Elastic FileSystems (efs)
 
 		// SNS Topics
-		snsTopics := SNSTopic{}
+		snsTopics := SNSTopic{
+			Client: sns.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(snsTopics.ResourceName(), resourceTypes) {
 			start := time.Now()
 			snsTopicArns, err := getAllSNSTopics(cloudNukeSession, excludeAfter, configObj)
@@ -1585,7 +1742,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End SNS Topics
 
 		// Cloudtrail Trails
-		cloudtrailTrails := CloudtrailTrail{}
+		cloudtrailTrails := CloudtrailTrail{
+			Client: cloudtrail.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(cloudtrailTrails.ResourceName(), resourceTypes) {
 			start := time.Now()
 			cloudtrailArns, err := getAllCloudtrailTrails(cloudNukeSession, excludeAfter, configObj)
@@ -1612,7 +1772,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Cloudtrail Trails
 
 		// ECR Repositories
-		ecrRepositories := ECR{}
+		ecrRepositories := ECR{
+			Client: ecr.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(ecrRepositories.ResourceName(), resourceTypes) {
 			start := time.Now()
 			ecrRepositoryArns, err := getAllECRRepositories(cloudNukeSession, excludeAfter, configObj)
@@ -1639,7 +1802,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ECR Repositories
 
 		// Config Service Rules
-		configServiceRules := ConfigServiceRule{}
+		configServiceRules := ConfigServiceRule{
+			Client: configservice.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(configServiceRules.ResourceName(), resourceTypes) {
 			start := time.Now()
 			configServiceRuleNames, err := getAllConfigRules(cloudNukeSession, excludeAfter, configObj)
@@ -1666,7 +1832,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Config service rules
 
 		// Config Service recorders
-		configServiceRecorders := ConfigServiceRecorders{}
+		configServiceRecorders := ConfigServiceRecorders{
+			Client: configservice.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(configServiceRecorders.ResourceName(), resourceTypes) {
 			start := time.Now()
 			configServiceRecorderNames, err := getAllConfigRecorders(cloudNukeSession, excludeAfter, configObj)
@@ -1693,7 +1862,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Config service recorders
 
 		// CloudWatchAlarm
-		cloudwatchAlarms := CloudWatchAlarms{}
+		cloudwatchAlarms := CloudWatchAlarms{
+			Client: cloudwatch.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(cloudwatchAlarms.ResourceName(), resourceTypes) {
 			start := time.Now()
 			cwalNames, err := getAllCloudWatchAlarms(cloudNukeSession, excludeAfter, configObj)
@@ -1720,7 +1892,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End CloudWatchAlarm
 
 		// Security Hub
-		securityHub := SecurityHub{}
+		securityHub := SecurityHub{
+			Client: securityhub.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(securityHub.ResourceName(), resourceTypes) {
 			start := time.Now()
 			hubArns, err := getAllSecurityHubArns(cloudNukeSession, excludeAfter)
@@ -1747,7 +1922,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Security Hub
 
 		// CodeDeploy Applications
-		codeDeployApplications := CodeDeployApplications{}
+		codeDeployApplications := CodeDeployApplications{
+			Client: codedeploy.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(codeDeployApplications.ResourceName(), resourceTypes) {
 			start := time.Now()
 			applications, err := getAllCodeDeployApplications(cloudNukeSession, excludeAfter, configObj)
@@ -1852,7 +2030,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		globalResources := AwsRegionResource{}
 
 		// IAM Users
-		iamUsers := IAMUsers{}
+		iamUsers := IAMUsers{
+			Client: iam.New(session),
+		}
 		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
 			start := time.Now()
 			userNames, err := getAllIamUsers(session, excludeAfter, configObj)
@@ -1879,7 +2059,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End IAM Users
 
 		// IAM Groups
-		iamGroups := IAMGroups{}
+		iamGroups := IAMGroups{
+			Client: iam.New(session),
+		}
 		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
 			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
@@ -1901,7 +2083,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// END IAM Groups
 
 		// IAM Policies
-		iamPolicies := IAMPolicies{}
+		iamPolicies := IAMPolicies{
+			Client: iam.New(session),
+		}
 		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
 			start := time.Now()
 			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
@@ -1923,7 +2107,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End IAM Policies
 
 		// IAM OpenID Connect Providers
-		oidcProviders := OIDCProviders{}
+		oidcProviders := OIDCProviders{
+			Client: iam.New(session),
+		}
 		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
 			start := time.Now()
 			providerARNs, err := getAllOIDCProviders(session, excludeAfter, configObj)
@@ -1951,7 +2137,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End IAM OpenIDConnectProviders
 
 		// IAM Roles
-		iamRoles := IAMRoles{}
+		iamRoles := IAMRoles{
+			Client: iam.New(session),
+		}
 		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
 			start := time.Now()
 			roleNames, err := getAllIamRoles(session, excludeAfter, configObj)
@@ -1978,7 +2166,9 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End IAM Roles
 
 		// IAM Service Linked Roles
-		iamServiceLinkedRoles := IAMServiceLinkedRoles{}
+		iamServiceLinkedRoles := IAMServiceLinkedRoles{
+			Client: iam.New(session),
+		}
 		if IsNukeable(iamServiceLinkedRoles.ResourceName(), resourceTypes) {
 			start := time.Now()
 			roleNames, err := getAllIamServiceLinkedRoles(session, excludeAfter, configObj)
