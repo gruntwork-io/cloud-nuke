@@ -34,7 +34,7 @@ func TestAMIGetAll(t *testing.T) {
 	testName := "test-ami"
 	testImageId := "test-image-id"
 	now := time.Now()
-	acm := AMI{
+	acm := AMIs{
 		Client: mockedAMI{
 			DescribeImagesOutput: ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{{
@@ -75,7 +75,7 @@ func TestAMINukeAll(t *testing.T) {
 	t.Parallel()
 
 	testName := "test-ami"
-	acm := AMI{
+	acm := AMIs{
 		Client: mockedAMI{
 			DeregisterImageOutput: ec2.DeregisterImageOutput{},
 		},
