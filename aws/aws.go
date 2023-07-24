@@ -1015,7 +1015,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(backupVault.ResourceName(), resourceTypes) {
 			start := time.Now()
-			backupVaultNames, err := getAllBackupVault(cloudNukeSession, configObj)
+			backupVaultNames, err := backupVault.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
