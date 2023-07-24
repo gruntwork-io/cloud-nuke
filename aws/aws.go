@@ -1137,7 +1137,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(cloudwatchDashboards.ResourceName(), resourceTypes) {
 			start := time.Now()
-			cwdbNames, err := getAllCloudWatchDashboards(cloudNukeSession, excludeAfter, configObj)
+			cwdbNames, err := cloudwatchDashboards.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1168,7 +1168,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(cloudwatchLogGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
-			lgNames, err := getAllCloudWatchLogGroups(cloudNukeSession, excludeAfter, configObj)
+			lgNames, err := cloudwatchLogGroups.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1863,7 +1863,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(cloudwatchAlarms.ResourceName(), resourceTypes) {
 			start := time.Now()
-			cwalNames, err := getAllCloudWatchAlarms(cloudNukeSession, excludeAfter, configObj)
+			cwalNames, err := cloudwatchAlarms.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

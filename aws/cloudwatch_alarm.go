@@ -2,35 +2,37 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
-func getAllCloudWatchAlarms(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := cloudwatch.New(session)
-
+func (cw CloudWatchAlarms) getAll(configObj config.Config) ([]*string, error) {
 	allAlarms := []*string{}
 	input := &cloudwatch.DescribeAlarmsInput{
 		AlarmTypes: aws.StringSlice([]string{cloudwatch.AlarmTypeMetricAlarm, cloudwatch.AlarmTypeCompositeAlarm}),
 	}
-	err := svc.DescribeAlarmsPages(
+	err := cw.Client.DescribeAlarmsPages(
 		input,
 		func(page *cloudwatch.DescribeAlarmsOutput, lastPage bool) bool {
 			for _, alarm := range page.MetricAlarms {
-				if shouldIncludeCloudWatchMetricAlarm(alarm, excludeAfter, configObj) {
+				if configObj.CloudWatchAlarm.ShouldInclude(config.ResourceValue{
+					Name: alarm.AlarmName,
+					Time: alarm.AlarmConfigurationUpdatedTimestamp,
+				}) {
 					allAlarms = append(allAlarms, alarm.AlarmName)
 				}
 			}
+
 			for _, alarm := range page.CompositeAlarms {
-				if shouldIncludeCloudWatchCompositeAlarm(alarm, excludeAfter, configObj) {
+				if configObj.CloudWatchAlarm.ShouldInclude(config.ResourceValue{
+					Name: alarm.AlarmName,
+					Time: alarm.AlarmConfigurationUpdatedTimestamp,
+				}) {
 					allAlarms = append(allAlarms, alarm.AlarmName)
 				}
 			}
@@ -40,45 +42,9 @@ func getAllCloudWatchAlarms(session *session.Session, excludeAfter time.Time, co
 	return allAlarms, errors.WithStackTrace(err)
 }
 
-func shouldIncludeCloudWatchCompositeAlarm(alarm *cloudwatch.CompositeAlarm, excludeAfter time.Time, configObj config.Config) bool {
-	if alarm == nil {
-		return false
-	}
-
-	if alarm.AlarmConfigurationUpdatedTimestamp != nil && excludeAfter.Before(*alarm.AlarmConfigurationUpdatedTimestamp) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(alarm.AlarmName),
-		configObj.CloudWatchAlarm.IncludeRule.NamesRegExp,
-		configObj.CloudWatchAlarm.ExcludeRule.NamesRegExp,
-	)
-}
-
-func shouldIncludeCloudWatchMetricAlarm(alarm *cloudwatch.MetricAlarm, excludeAfter time.Time, configObj config.Config) bool {
-	if alarm == nil {
-		return false
-	}
-
-	if alarm.AlarmConfigurationUpdatedTimestamp != nil && excludeAfter.Before(*alarm.AlarmConfigurationUpdatedTimestamp) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(alarm.AlarmName),
-		configObj.CloudWatchAlarm.IncludeRule.NamesRegExp,
-		configObj.CloudWatchAlarm.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) error {
-	region := aws.StringValue(session.Config.Region)
-
-	svc := cloudwatch.New(session)
-
+func (cw CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CloudWatch Alarms to nuke in region %s", region)
+		logging.Logger.Debugf("No CloudWatch Alarms to nuke in region %s", cw.Region)
 		return nil
 	}
 
@@ -91,10 +57,10 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 		return TooManyCloudWatchAlarmsErr{}
 	}
 
-	logging.Logger.Debugf("Deleting CloudWatch Alarms in region %s", region)
+	logging.Logger.Debugf("Deleting CloudWatch Alarms in region %s", cw.Region)
 
 	// If the alarm's type is composite alarm, remove the dependency by removing the rule.
-	alarms, err := svc.DescribeAlarms(&cloudwatch.DescribeAlarmsInput{
+	alarms, err := cw.Client.DescribeAlarms(&cloudwatch.DescribeAlarmsInput{
 		AlarmTypes: aws.StringSlice([]string{cloudwatch.AlarmTypeMetricAlarm, cloudwatch.AlarmTypeCompositeAlarm}),
 		AlarmNames: identifiers,
 	})
@@ -103,12 +69,12 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking Cloudwatch Alarm Dependency",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": cw.Region,
 		})
 	}
 
 	for _, compositeAlarm := range alarms.CompositeAlarms {
-		_, err := svc.PutCompositeAlarm(&cloudwatch.PutCompositeAlarmInput{
+		_, err := cw.Client.PutCompositeAlarm(&cloudwatch.PutCompositeAlarmInput{
 			AlarmName: compositeAlarm.AlarmName,
 			AlarmRule: aws.String("FALSE"),
 		})
@@ -117,13 +83,13 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Cloudwatch Composite Alarm",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": cw.Region,
 			})
 		}
 	}
 
 	input := cloudwatch.DeleteAlarmsInput{AlarmNames: identifiers}
-	_, err = svc.DeleteAlarms(&input)
+	_, err = cw.Client.DeleteAlarms(&input)
 
 	// Record status of this resource
 	e := report.BatchEntry{
@@ -138,13 +104,13 @@ func nukeAllCloudWatchAlarms(session *session.Session, identifiers []*string) er
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking Cloudwatch Alarm",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": cw.Region,
 		})
 		return errors.WithStackTrace(err)
 	}
 
 	for _, alarmName := range identifiers {
-		logging.Logger.Debugf("[OK] CloudWatch Alarm %s was deleted in %s", aws.StringValue(alarmName), region)
+		logging.Logger.Debugf("[OK] CloudWatch Alarm %s was deleted in %s", aws.StringValue(alarmName), cw.Region)
 	}
 	return nil
 }

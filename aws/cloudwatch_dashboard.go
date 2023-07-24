@@ -1,62 +1,41 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func getAllCloudWatchDashboards(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := cloudwatch.New(session)
-
+func (cwdb CloudWatchDashboards) getAll(configObj config.Config) ([]*string, error) {
 	allDashboards := []*string{}
 	input := &cloudwatch.ListDashboardsInput{}
-	err := svc.ListDashboardsPages(
+	err := cwdb.Client.ListDashboardsPages(
 		input,
 		func(page *cloudwatch.ListDashboardsOutput, lastPage bool) bool {
 			for _, dashboard := range page.DashboardEntries {
-				if shouldIncludeCloudWatchDashboard(dashboard, excludeAfter, configObj) {
+				if configObj.CloudWatchDashboard.ShouldInclude(config.ResourceValue{
+					Name: dashboard.DashboardName,
+					Time: dashboard.LastModified,
+				}) {
 					allDashboards = append(allDashboards, dashboard.DashboardName)
 				}
 			}
+
 			return !lastPage
 		},
 	)
 	return allDashboards, errors.WithStackTrace(err)
 }
 
-func shouldIncludeCloudWatchDashboard(dashboard *cloudwatch.DashboardEntry, excludeAfter time.Time, configObj config.Config) bool {
-	if dashboard == nil {
-		return false
-	}
-
-	if dashboard.LastModified != nil && excludeAfter.Before(*dashboard.LastModified) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(dashboard.DashboardName),
-		configObj.CloudWatchDashboard.IncludeRule.NamesRegExp,
-		configObj.CloudWatchDashboard.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string) error {
-	region := aws.StringValue(session.Config.Region)
-
-	svc := cloudwatch.New(session)
-
+func (cwdb CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CloudWatch Dashboards to nuke in region %s", region)
+		logging.Logger.Debugf("No CloudWatch Dashboards to nuke in region %s", cwdb.Region)
 		return nil
 	}
 
@@ -69,9 +48,9 @@ func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string
 		return TooManyCloudWatchDashboardsErr{}
 	}
 
-	logging.Logger.Debugf("Deleting CloudWatch Dashboards in region %s", region)
+	logging.Logger.Debugf("Deleting CloudWatch Dashboards in region %s", cwdb.Region)
 	input := cloudwatch.DeleteDashboardsInput{DashboardNames: identifiers}
-	_, err := svc.DeleteDashboards(&input)
+	_, err := cwdb.Client.DeleteDashboards(&input)
 
 	// Record status of this resource
 	e := report.BatchEntry{
@@ -86,13 +65,13 @@ func nukeAllCloudWatchDashboards(session *session.Session, identifiers []*string
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking Cloudwatch Dashboard",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": cwdb.Region,
 		})
 		return errors.WithStackTrace(err)
 	}
 
 	for _, dashboardName := range identifiers {
-		logging.Logger.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.StringValue(dashboardName), region)
+		logging.Logger.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.StringValue(dashboardName), cwdb.Region)
 	}
 	return nil
 }

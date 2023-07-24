@@ -15,22 +15,22 @@ type CloudWatchAlarms struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (cwal CloudWatchAlarms) ResourceName() string {
+func (cw CloudWatchAlarms) ResourceName() string {
 	return "cloudwatch-alarm"
 }
 
 // ResourceIdentifiers - The name of cloudwatch alarms
-func (cwal CloudWatchAlarms) ResourceIdentifiers() []string {
-	return cwal.AlarmNames
+func (cw CloudWatchAlarms) ResourceIdentifiers() []string {
+	return cw.AlarmNames
 }
 
-func (cwal CloudWatchAlarms) MaxBatchSize() int {
+func (cw CloudWatchAlarms) MaxBatchSize() int {
 	return 99
 }
 
 // Nuke - nuke 'em all!!!
-func (cwal CloudWatchAlarms) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllCloudWatchAlarms(session, awsgo.StringSlice(identifiers)); err != nil {
+func (cw CloudWatchAlarms) Nuke(session *session.Session, identifiers []string) error {
+	if err := cw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

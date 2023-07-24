@@ -30,7 +30,7 @@ func (cwdb CloudWatchDashboards) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (cwdb CloudWatchDashboards) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllCloudWatchDashboards(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := cwdb.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
