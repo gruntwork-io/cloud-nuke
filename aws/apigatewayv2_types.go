@@ -13,20 +13,20 @@ type ApiGatewayV2 struct {
 	Ids    []string
 }
 
-func (apigateway ApiGatewayV2) ResourceName() string {
+func (gw ApiGatewayV2) ResourceName() string {
 	return "apigatewayv2"
 }
 
-func (apigateway ApiGatewayV2) ResourceIdentifiers() []string {
-	return apigateway.Ids
+func (gw ApiGatewayV2) ResourceIdentifiers() []string {
+	return gw.Ids
 }
 
-func (apigateway ApiGatewayV2) MaxBatchSize() int {
+func (gw ApiGatewayV2) MaxBatchSize() int {
 	return 10
 }
 
-func (apigateway ApiGatewayV2) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllAPIGatewaysV2(session, awsgo.StringSlice(identifiers)); err != nil {
+func (gw ApiGatewayV2) Nuke(session *session.Session, identifiers []string) error {
+	if err := gw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

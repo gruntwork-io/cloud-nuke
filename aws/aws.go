@@ -1653,7 +1653,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(apiGatewaysV2.ResourceName(), resourceTypes) {
 			start := time.Now()
-			gatewayV2Ids, err := getAllAPIGatewaysV2(cloudNukeSession, excludeAfter, configObj)
+			gatewayV2Ids, err := apiGatewaysV2.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
