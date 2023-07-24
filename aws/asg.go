@@ -1,30 +1,29 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of ASG Names
-func getAllAutoScalingGroups(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := autoscaling.New(session)
-	result, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
+func (ag ASGroups) getAll(configObj config.Config) ([]*string, error) {
+	result, err := ag.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var groupNames []*string
 	for _, group := range result.AutoScalingGroups {
-		if shouldIncludeAutoScalingGroup(group, excludeAfter, configObj) {
+		if configObj.AutoScalingGroup.ShouldInclude(config.ResourceValue{
+			Time: group.CreatedTime,
+			Name: group.AutoScalingGroupName,
+		}) {
 			groupNames = append(groupNames, group.AutoScalingGroupName)
 		}
 	}
@@ -32,32 +31,14 @@ func getAllAutoScalingGroups(session *session.Session, region string, excludeAft
 	return groupNames, nil
 }
 
-func shouldIncludeAutoScalingGroup(group *autoscaling.Group, excludeAfter time.Time, configObj config.Config) bool {
-	if group == nil {
-		return false
-	}
-
-	if group.CreatedTime != nil && excludeAfter.Before(*group.CreatedTime) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		awsgo.StringValue(group.AutoScalingGroupName),
-		configObj.AutoScalingGroup.IncludeRule.NamesRegExp,
-		configObj.AutoScalingGroup.ExcludeRule.NamesRegExp,
-	)
-}
-
 // Deletes all Auto Scaling Groups
-func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) error {
-	svc := autoscaling.New(session)
-
+func (ag ASGroups) nukeAll(groupNames []*string) error {
 	if len(groupNames) == 0 {
-		logging.Logger.Debugf("No Auto Scaling Groups to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Auto Scaling Groups to nuke in region %s", ag.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Auto Scaling Groups in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Auto Scaling Groups in region %s", ag.Region)
 	var deletedGroupNames []*string
 
 	for _, groupName := range groupNames {
@@ -66,7 +47,7 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 			ForceDelete:          awsgo.Bool(true),
 		}
 
-		_, err := svc.DeleteAutoScalingGroup(params)
+		_, err := ag.Client.DeleteAutoScalingGroup(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -81,7 +62,7 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ASG",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": ag.Region,
 			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, groupName)
@@ -90,7 +71,7 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 	}
 
 	if len(deletedGroupNames) > 0 {
-		err := svc.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
+		err := ag.Client.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
 			AutoScalingGroupNames: deletedGroupNames,
 		})
 		if err != nil {
@@ -98,12 +79,12 @@ func nukeAllAutoScalingGroups(session *session.Session, groupNames []*string) er
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ASG",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": ag.Region,
 			})
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), ag.Region)
 	return nil
 }
