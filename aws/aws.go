@@ -1743,7 +1743,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(cloudtrailTrails.ResourceName(), resourceTypes) {
 			start := time.Now()
-			cloudtrailArns, err := getAllCloudtrailTrails(cloudNukeSession, excludeAfter, configObj)
+			cloudtrailArns, err := cloudtrailTrails.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
