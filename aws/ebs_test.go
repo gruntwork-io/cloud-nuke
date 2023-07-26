@@ -70,7 +70,7 @@ func TestEBSVolume_GetAll(t *testing.T) {
 	}{
 		"emptyFilter": {
 			configObj: config.ResourceType{},
-			expected:  []string{testName1, testName2},
+			expected:  []string{testVolume1, testVolume2},
 		},
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
@@ -79,7 +79,7 @@ func TestEBSVolume_GetAll(t *testing.T) {
 						RE: *regexp.MustCompile(testName1),
 					}}},
 			},
-			expected: []string{testName2},
+			expected: []string{testVolume2},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{

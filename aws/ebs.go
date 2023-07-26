@@ -46,7 +46,7 @@ func shouldIncludeEBSVolume(volume *ec2.Volume, configObj config.Config) bool {
 		}
 	}
 
-	return configObj.DynamoDB.ShouldInclude(config.ResourceValue{
+	return configObj.EBSVolume.ShouldInclude(config.ResourceValue{
 		Name: &name,
 		Time: volume.CreateTime,
 	})
