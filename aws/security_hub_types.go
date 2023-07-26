@@ -12,20 +12,20 @@ type SecurityHub struct {
 	HubArns []string
 }
 
-func (h SecurityHub) ResourceName() string {
+func (sh SecurityHub) ResourceName() string {
 	return "security-hub"
 }
 
-func (h SecurityHub) ResourceIdentifiers() []string {
-	return h.HubArns
+func (sh SecurityHub) ResourceIdentifiers() []string {
+	return sh.HubArns
 }
 
-func (h SecurityHub) MaxBatchSize() int {
+func (sh SecurityHub) MaxBatchSize() int {
 	return 5
 }
 
-func (h SecurityHub) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeSecurityHub(session, identifiers); err != nil {
+func (sh SecurityHub) Nuke(session *session.Session, identifiers []string) error {
+	if err := sh.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
