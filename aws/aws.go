@@ -1260,7 +1260,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(DynamoDB.ResourceName(), resourceTypes) {
 			start := time.Now()
-			tablenames, err := getAllDynamoTables(cloudNukeSession, excludeAfter, configObj, DynamoDB)
+			tablenames, err := DynamoDB.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

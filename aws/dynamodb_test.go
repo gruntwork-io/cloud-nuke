@@ -1,208 +1,117 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"log"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestDynamoTables(t *testing.T, tableName, region string) {
-	awsSession, err := session.NewSession(&aws.Config{
-		Region: aws.String(region)},
-	)
-
-	svc := dynamodb.New(awsSession)
-	// THE INFORMATION TO CREATE THE TABLE
-	input := &dynamodb.CreateTableInput{
-		TableName: &tableName,
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
-			{
-				AttributeName: aws.String("Nuke" + string(rune(1))),
-				AttributeType: aws.String("S"),
-			},
-			{
-				AttributeName: aws.String("TypeofNuke" + string(rune(1))),
-				AttributeType: aws.String("S"),
-			},
-		},
-		KeySchema: []*dynamodb.KeySchemaElement{
-			{
-				AttributeName: aws.String("Nuke" + string(rune(1))),
-				KeyType:       aws.String("HASH"),
-			},
-			{
-				AttributeName: aws.String("TypeofNuke" + string(rune(1))),
-				KeyType:       aws.String("RANGE"),
-			},
-		},
-		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(1),
-			WriteCapacityUnits: aws.Int64(1),
-		},
-	}
-	// CREATING THE TABLE FROM THE INPUT
-	_, err = svc.CreateTable(input)
-	require.NoError(t, err)
-
+type mockedDynamoDB struct {
+	dynamodbiface.DynamoDBAPI
+	DescribeTableOutputMap map[string]dynamodb.DescribeTableOutput
+	ListTablesOutput       dynamodb.ListTablesOutput
+	DeleteTableOutput      dynamodb.DeleteTableOutput
 }
 
-func getTableStatus(TableName string, region string) *string {
-	awsSession, err := session.NewSession(&aws.Config{
-		Region: aws.String(region)},
-	)
-
-	svc := dynamodb.New(awsSession)
-
-	tableInput := &dynamodb.DescribeTableInput{TableName: &TableName}
-
-	result, err := svc.DescribeTable(tableInput)
-	if err != nil {
-		log.Fatalf("There was an error describing tables %v", err)
-	}
-
-	return result.Table.TableStatus
-
+func (m mockedDynamoDB) ListTablesPages(input *dynamodb.ListTablesInput, fn func(*dynamodb.ListTablesOutput, bool) bool) error {
+	fn(&m.ListTablesOutput, true)
+	return nil
 }
 
-func TestShouldIncludeTable(t *testing.T) {
+func (m mockedDynamoDB) DescribeTable(input *dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error) {
+	output := m.DescribeTableOutputMap[*input.TableName]
+	return &output, nil
+}
+
+func (m mockedDynamoDB) DeleteTable(input *dynamodb.DeleteTableInput) (*dynamodb.DeleteTableOutput, error) {
+	return &m.DeleteTableOutput, nil
+}
+
+func TestDynamoDB_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
-	mockTable := &dynamodb.TableDescription{
-		TableName:        aws.String("cloud-nuke-test"),
-		CreationDateTime: aws.Time(time.Now()),
-	}
+	t.Parallel()
 
-	mockExpression, err := regexp.Compile("^cloud-nuke-*")
-	if err != nil {
-		log.Fatalf("There was an error compiling regex expression %v", err)
-	}
-
-	mockExcludeConfig := config.Config{
-		DynamoDB: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{
-						RE: *mockExpression,
+	testName1 := "table1"
+	testName2 := "table2"
+	now := time.Now()
+	ddb := DynamoDB{
+		Client: mockedDynamoDB{
+			ListTablesOutput: dynamodb.ListTablesOutput{
+				TableNames: []*string{
+					aws.String(testName1),
+					aws.String(testName2),
+				},
+			},
+			DescribeTableOutputMap: map[string]dynamodb.DescribeTableOutput{
+				testName1: {
+					Table: &dynamodb.TableDescription{
+						TableName:        aws.String(testName1),
+						CreationDateTime: aws.Time(now),
+					},
+				},
+				testName2: {
+					Table: &dynamodb.TableDescription{
+						TableName:        aws.String(testName2),
+						CreationDateTime: aws.Time(now.Add(1)),
 					},
 				},
 			},
 		},
 	}
 
-	mockIncludeConfig := config.Config{
-		DynamoDB: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{
-						RE: *mockExpression,
-					},
-				},
-			},
-		},
-	}
-
-	cases := []struct {
-		Name         string
-		Table        *dynamodb.TableDescription
-		Config       config.Config
-		ExcludeAfter time.Time
-		Expected     bool
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
 	}{
-		{
-			Name:         "ConfigExclude",
-			Table:        mockTable,
-			Config:       mockExcludeConfig,
-			ExcludeAfter: time.Now().Add(1 * time.Hour),
-			Expected:     false,
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
 		},
-		{
-			Name:         "ConfigInclude",
-			Table:        mockTable,
-			Config:       mockIncludeConfig,
-			ExcludeAfter: time.Now().Add(1 * time.Hour),
-			Expected:     true,
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
 		},
-		{
-			Name:         "NotOlderThan",
-			Table:        mockTable,
-			Config:       config.Config{},
-			ExcludeAfter: time.Now().Add(1 * time.Hour * -1),
-			Expected:     false,
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1)),
+				}},
+			expected: []string{},
 		},
 	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			result := shouldIncludeTable(c.Table, c.ExcludeAfter, c.Config)
-			assert.Equal(t, c.Expected, result)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := ddb.getAll(config.Config{
+				DynamoDB: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
 }
 
-func TestGetTablesDynamo(t *testing.T) {
+func TestDynamoDb_NukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
-	region, err := getRandomRegion()
-	require.NoError(t, err)
 
-	db := DynamoDB{}
-	awsSession, err := session.NewSession(&aws.Config{
-		Region: aws.String(region)},
-	)
-	require.NoError(t, err)
-
-	_, err = getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{}, db)
-	require.NoError(t, err)
-}
-
-func TestNukeAllDynamoDBTables(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-	db := DynamoDB{}
-
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+	ddb := DynamoDB{
+		Client: mockedDynamoDB{
+			DeleteTableOutput: dynamodb.DeleteTableOutput{},
+		},
 	}
-	awsSession, err := session.NewSession(&aws.Config{
-		Region: aws.String(region)},
-	)
+
+	err := ddb.nukeAll([]*string{aws.String("table1"), aws.String("table2")})
 	require.NoError(t, err)
-
-	tableName := "cloud-nuke-test-" + util.UniqueID()
-	defer nukeAllDynamoDBTables(awsSession, []*string{&tableName})
-	createTestDynamoTables(t, tableName, region)
-	COUNTER := 0
-	for COUNTER <= 1 {
-		tableStatus := getTableStatus(tableName, region)
-		if *tableStatus == "ACTIVE" {
-			COUNTER += 1
-			log.Printf("Created a table: %v\n", tableName)
-		} else {
-			log.Printf("Table not ready yet: %v", tableName)
-		}
-	}
-	nukeErr := nukeAllDynamoDBTables(awsSession, []*string{&tableName})
-	require.NoError(t, nukeErr)
-
-	time.Sleep(5 * time.Second)
-
-	tables, err := getAllDynamoTables(awsSession, time.Now().Add(1*time.Hour*-1), config.Config{}, db)
-	require.NoError(t, err)
-
-	for _, table := range tables {
-		if tableName == *table {
-			assert.Fail(t, errors.WithStackTrace(err).Error())
-		}
-	}
 }
