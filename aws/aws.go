@@ -1794,7 +1794,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(configServiceRules.ResourceName(), resourceTypes) {
 			start := time.Now()
-			configServiceRuleNames, err := getAllConfigRules(cloudNukeSession, excludeAfter, configObj)
+			configServiceRuleNames, err := configServiceRules.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1811,7 +1811,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(configServiceRuleNames) > 0 {
-				configServiceRules.RuleNames = configServiceRuleNames
+				configServiceRules.RuleNames = awsgo.StringValueSlice(configServiceRuleNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, configServiceRules)
 			}
 		}
@@ -1824,7 +1824,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(configServiceRecorders.ResourceName(), resourceTypes) {
 			start := time.Now()
-			configServiceRecorderNames, err := getAllConfigRecorders(cloudNukeSession, excludeAfter, configObj)
+			configServiceRecorderNames, err := configServiceRecorders.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1841,7 +1841,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(configServiceRecorderNames) > 0 {
-				configServiceRecorders.RecorderNames = configServiceRecorderNames
+				configServiceRecorders.RecorderNames = awsgo.StringValueSlice(configServiceRecorderNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, configServiceRecorders)
 			}
 		}
@@ -1914,7 +1914,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(codeDeployApplications.ResourceName(), resourceTypes) {
 			start := time.Now()
-			applications, err := getAllCodeDeployApplications(cloudNukeSession, excludeAfter, configObj)
+			applications, err := codeDeployApplications.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1931,7 +1931,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(applications) > 0 {
-				codeDeployApplications.AppNames = applications
+				codeDeployApplications.AppNames = awsgo.StringValueSlice(applications)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, codeDeployApplications)
 			}
 		}

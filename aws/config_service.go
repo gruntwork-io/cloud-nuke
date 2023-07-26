@@ -1,37 +1,35 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllConfigRules(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
-	svc := configservice.New(session)
-
-	configRuleNames := []string{}
+func (csr ConfigServiceRule) getAll(configObj config.Config) ([]*string, error) {
+	configRuleNames := []*string{}
 
 	paginator := func(output *configservice.DescribeConfigRulesOutput, lastPage bool) bool {
 		for _, configRule := range output.ConfigRules {
-			if shouldIncludeConfigRule(configRule, excludeAfter, configObj) {
-				configRuleNames = append(configRuleNames, aws.StringValue(configRule.ConfigRuleName))
+			if configObj.ConfigServiceRule.ShouldInclude(config.ResourceValue{
+				Name: configRule.ConfigRuleName,
+			}) {
+				configRuleNames = append(configRuleNames, configRule.ConfigRuleName)
 			}
 		}
+
 		return !lastPage
 	}
 
 	// Pass an empty config rules input, to signify we want all config rules returned
 	param := &configservice.DescribeConfigRulesInput{}
 
-	err := svc.DescribeConfigRulesPages(param, paginator)
+	err := csr.Client.DescribeConfigRulesPages(param, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -39,23 +37,9 @@ func getAllConfigRules(session *session.Session, excludeAfter time.Time, configO
 	return configRuleNames, nil
 }
 
-func shouldIncludeConfigRule(configRule *configservice.ConfigRule, excludeAfter time.Time, configObj config.Config) bool {
-	if configRule == nil {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(configRule.ConfigRuleName),
-		configObj.ConfigServiceRule.IncludeRule.NamesRegExp,
-		configObj.ConfigServiceRule.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllConfigServiceRules(session *session.Session, configRuleNames []string) error {
-	svc := configservice.New(session)
-
+func (csr ConfigServiceRule) nukeAll(configRuleNames []string) error {
 	if len(configRuleNames) == 0 {
-		logging.Logger.Debugf("No Config service rules to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Config service rules to nuke in region %s", csr.Region)
 	}
 
 	var deletedConfigRuleNames []*string
@@ -64,7 +48,7 @@ func nukeAllConfigServiceRules(session *session.Session, configRuleNames []strin
 		params := &configservice.DeleteConfigRuleInput{
 			ConfigRuleName: aws.String(configRuleName),
 		}
-		_, err := svc.DeleteConfigRule(params)
+		_, err := csr.Client.DeleteConfigRule(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -79,7 +63,7 @@ func nukeAllConfigServiceRules(session *session.Session, configRuleNames []strin
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Config Service Rule",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": csr.Region,
 			})
 		} else {
 			deletedConfigRuleNames = append(deletedConfigRuleNames, aws.String(configRuleName))
@@ -87,7 +71,7 @@ func nukeAllConfigServiceRules(session *session.Session, configRuleNames []strin
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Config service rules deleted in %s", len(deletedConfigRuleNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Config service rules deleted in %s", len(deletedConfigRuleNames), csr.Region)
 
 	return nil
 }

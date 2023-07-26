@@ -30,7 +30,7 @@ func (c CodeDeployApplications) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (c CodeDeployApplications) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllCodeDeployApplications(session, identifiers); err != nil {
+	if err := c.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

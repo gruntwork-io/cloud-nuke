@@ -1,198 +1,128 @@
 package aws
 
 import (
-	"fmt"
-	"math/rand"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/terratest/modules/random"
 )
 
-func createSession(region string) (*session.Session, error) {
-	return session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
+type mockedCodeDeployApplications struct {
+	codedeployiface.CodeDeployAPI
+	ListApplicationsOutput     codedeploy.ListApplicationsOutput
+	BatchGetApplicationsOutput codedeploy.BatchGetApplicationsOutput
+	DeleteApplicationOutput    codedeploy.DeleteApplicationOutput
 }
 
-func createCodeDeployApplication(session *session.Session, applicationName, region string) error {
-	svc := codedeploy.New(session)
-	computePlatform := selectComputePlatform()
-	_, err := svc.CreateApplication(
-		&codedeploy.CreateApplicationInput{
-			ApplicationName: &applicationName,
-			ComputePlatform: &computePlatform,
-		})
-
-	return err
+func (m mockedCodeDeployApplications) ListApplicationsPages(input *codedeploy.ListApplicationsInput, fn func(*codedeploy.ListApplicationsOutput, bool) bool) error {
+	fn(&m.ListApplicationsOutput, true)
+	return nil
 }
 
-func selectComputePlatform() string {
-	computePlatforms := []string{"Server", "Lambda", "ECS"}
-	return computePlatforms[rand.Intn(len(computePlatforms))]
-}
-
-func createCodeDeployTestEnvironment(numberOfApplications int, namePostfix string) (*session.Session, []string, error) {
-	region, err := getRandomRegion()
-	if err != nil {
-		return nil, nil, err
+func (m mockedCodeDeployApplications) BatchGetApplications(
+	input *codedeploy.BatchGetApplicationsInput) (*codedeploy.BatchGetApplicationsOutput, error) {
+	// Filter out applications that don't match the input names
+	names := make(map[string]bool)
+	for _, name := range input.ApplicationNames {
+		names[*name] = true
 	}
 
-	session, err := createSession(region)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	identifiers := make([]string, 0, numberOfApplications)
-
-	for i := 0; i < numberOfApplications; i++ {
-		applicationName := fmt.Sprintf("cloud-nuke-test-%s-%d", namePostfix, i)
-		err := createCodeDeployApplication(session, applicationName, *session.Config.Region)
-		if err != nil {
-			return nil, nil, err
+	var matched []*codedeploy.ApplicationInfo
+	for _, info := range m.BatchGetApplicationsOutput.ApplicationsInfo {
+		if names[*info.ApplicationName] {
+			matched = append(matched, info)
 		}
-		identifiers = append(identifiers, applicationName)
 	}
 
-	return session, identifiers, nil
+	return &codedeploy.BatchGetApplicationsOutput{
+		ApplicationsInfo: matched,
+	}, nil
 }
 
-func TestGetAllCodeDeployApplicationsSimple(t *testing.T) {
-	namePostfix := random.UniqueId()
-	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
-	if err != nil {
-		t.Fatalf("Failed to create CodeDeploy test environment: %v", err)
-	}
-	defer nukeAllCodeDeployApplications(session, identifiers)
-
-	// Test that we can get all CodeDeploy Applications
-	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{})
-	if err != nil {
-		t.Fatalf("Failed to get CodeDeploy Applications: %v", err)
-	}
-
-	if len(applicationNames) != 5 {
-		t.Fatalf("Expected 5 CodeDeploy Applications, got %d: %v", len(applicationNames), applicationNames)
-	}
+func (m mockedCodeDeployApplications) DeleteApplication(input *codedeploy.DeleteApplicationInput) (*codedeploy.DeleteApplicationOutput, error) {
+	return &m.DeleteApplicationOutput, nil
 }
 
-func TestGetAllCodeDeployApplicationsFilteredCreationDate(t *testing.T) {
-	namePostfix := random.UniqueId()
-	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
-	if err != nil {
-		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
-	}
-	defer nukeAllCodeDeployApplications(session, identifiers)
+func TestCodeDeployApplication_GetAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
 
-	// Test that we can get all CodeDeploy Applications
-	applicationNames, err := getAllCodeDeployApplications(session, time.Now().AddDate(0, 0, -1), config.Config{})
-	if err != nil {
-		t.Errorf("Failed to get CodeDeploy Applications: %v", err)
-	}
-
-	if len(applicationNames) != 0 {
-		t.Errorf("Expected 0 CodeDeploy Applications, got %d: %v", len(applicationNames), applicationNames)
-	}
-}
-
-func TestGetAllCodeDeployApplicationsIncludedByName(t *testing.T) {
-	namePostfix := random.UniqueId()
-	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
-	if err != nil {
-		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
-	}
-	defer nukeAllCodeDeployApplications(session, identifiers)
-
-	// Test that we can get all CodeDeploy Applications
-	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{
-		CodeDeployApplications: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
+	testName1 := "cloud-nuke-test-1"
+	testName2 := "cloud-nuke-test-2"
+	now := time.Now()
+	c := CodeDeployApplications{
+		Client: mockedCodeDeployApplications{
+			ListApplicationsOutput: codedeploy.ListApplicationsOutput{
+				Applications: []*string{
+					aws.String(testName1),
+					aws.String(testName2),
+				},
+			},
+			BatchGetApplicationsOutput: codedeploy.BatchGetApplicationsOutput{
+				ApplicationsInfo: []*codedeploy.ApplicationInfo{
 					{
-						RE: *regexp.MustCompile(fmt.Sprintf("cloud-nuke-test-%s-1", namePostfix)),
+						ApplicationName: aws.String(testName1),
+						CreateTime:      aws.Time(now),
+					},
+					{
+						ApplicationName: aws.String(testName2),
+						CreateTime:      aws.Time(now.Add(1)),
 					},
 				},
 			},
 		},
-	})
-	if err != nil {
-		t.Errorf("Failed to get CodeDeploy Applications: %v", err)
 	}
 
-	if len(applicationNames) != 1 {
-		t.Errorf("Expected 1 CodeDeploy Application, got %d: %v", len(applicationNames), applicationNames)
-	}
-}
-
-func TestGetAllCodeDeployApplicationsExcludedByName(t *testing.T) {
-	namePostfix := random.UniqueId()
-	session, identifiers, err := createCodeDeployTestEnvironment(5, namePostfix)
-	if err != nil {
-		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
-	}
-	defer nukeAllCodeDeployApplications(session, identifiers)
-
-	// Test that we can get all CodeDeploy Applications
-	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{
-		CodeDeployApplications: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{
-						RE: *regexp.MustCompile(fmt.Sprintf("cloud-nuke-test-%s-1", namePostfix)),
-					},
-				},
-			},
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
 		},
-	})
-	if err != nil {
-		t.Errorf("Failed to get CodeDeploy Applications: %v", err)
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1)),
+				}},
+			expected: []string{},
+		},
 	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := c.getAll(config.Config{
+				CodeDeployApplications: tc.configObj,
+			})
 
-	if len(applicationNames) != 4 {
-		t.Errorf("Expected 4 CodeDeploy Application, got %d: %v", len(applicationNames), applicationNames)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
 	}
 }
 
-func TestNukeMoreThanOneCodeDeployApplications(t *testing.T) {
-	namePostfix := random.UniqueId()
-
-	applicationCount := 5
-	session, identifiers, err := createCodeDeployTestEnvironment(applicationCount, namePostfix)
-	if err != nil {
-		t.Errorf("Failed to create CodeDeploy test environment: %v", err)
+func TestCodeDeployApplication_NukeAll(t *testing.T) {
+	c := CodeDeployApplications{
+		Client: mockedCodeDeployApplications{
+			DeleteApplicationOutput: codedeploy.DeleteApplicationOutput{},
+		},
 	}
 
-	// ensure we leave the test environment clean
-	defer nukeAllCodeDeployApplications(session, identifiers)
-
-	// Test that all CodeDeploy Applications are found
-	applicationNames, err := getAllCodeDeployApplications(session, time.Now(), config.Config{})
-	if err != nil {
-		t.Errorf("Failed to get CodeDeploy Applications: %v", err)
-	}
-
-	if len(applicationNames) != applicationCount {
-		t.Errorf("Expected %d CodeDeploy Applications, got %d: %v", applicationCount, len(applicationNames), applicationNames)
-	}
-
-	// Nuke all codedeploy applications
-	err = nukeAllCodeDeployApplications(session, applicationNames)
-	if err != nil {
-		t.Errorf("Failed to nuke CodeDeploy Applications: %v", err)
-	}
-
-	// Test that all CodeDeploy Applications are gone
-	applicationNames, err = getAllCodeDeployApplications(session, time.Now(), config.Config{})
-	if err != nil {
-		t.Errorf("Failed to get CodeDeploy Applications: %v", err)
-	}
-
-	if len(applicationNames) != 0 {
-		t.Errorf("Expected 0 CodeDeploy Applications, got %d: %v", len(applicationNames), applicationNames)
-	}
+	err := c.nukeAll([]string{"test"})
+	require.NoError(t, err)
 }

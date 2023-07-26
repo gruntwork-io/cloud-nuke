@@ -1,57 +1,40 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllConfigRecorders(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
-	svc := configservice.New(session)
+func (csr ConfigServiceRecorders) getAll(configObj config.Config) ([]*string, error) {
 
-	configRecorderNames := []string{}
+	configRecorderNames := []*string{}
 
 	param := &configservice.DescribeConfigurationRecordersInput{}
-
-	output, err := svc.DescribeConfigurationRecorders(param)
+	output, err := csr.Client.DescribeConfigurationRecorders(param)
 	if err != nil {
-		return []string{}, errors.WithStackTrace(err)
+		return []*string{}, errors.WithStackTrace(err)
 	}
 
 	for _, configRecorder := range output.ConfigurationRecorders {
-		if shouldIncludeConfigRecorder(configRecorder, excludeAfter, configObj) {
-			configRecorderNames = append(configRecorderNames, aws.StringValue(configRecorder.Name))
+		if configObj.ConfigServiceRecorder.ShouldInclude(config.ResourceValue{
+			Name: configRecorder.Name,
+		}) {
+			configRecorderNames = append(configRecorderNames, configRecorder.Name)
 		}
 	}
 
 	return configRecorderNames, nil
 }
 
-func shouldIncludeConfigRecorder(configRecorder *configservice.ConfigurationRecorder, excludeAfter time.Time, configObj config.Config) bool {
-	if configRecorder == nil {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(configRecorder.Name),
-		configObj.ConfigServiceRecorder.IncludeRule.NamesRegExp,
-		configObj.ConfigServiceRecorder.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllConfigRecorders(session *session.Session, configRecorderNames []string) error {
-	svc := configservice.New(session)
-
+func (csr ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
 	if len(configRecorderNames) == 0 {
-		logging.Logger.Debugf("No Config recorders to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Config recorders to nuke in region %s", csr.Region)
 		return nil
 	}
 
@@ -62,7 +45,7 @@ func nukeAllConfigRecorders(session *session.Session, configRecorderNames []stri
 			ConfigurationRecorderName: aws.String(configRecorderName),
 		}
 
-		_, err := svc.DeleteConfigurationRecorder(params)
+		_, err := csr.Client.DeleteConfigurationRecorder(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -77,7 +60,7 @@ func nukeAllConfigRecorders(session *session.Session, configRecorderNames []stri
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Config Recorder",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": csr.Region,
 			})
 		} else {
 			deletedNames = append(deletedNames, aws.String(configRecorderName))
@@ -85,6 +68,6 @@ func nukeAllConfigRecorders(session *session.Session, configRecorderNames []stri
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Config Recorders deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Config Recorders deleted in %s", len(deletedNames), csr.Region)
 	return nil
 }
