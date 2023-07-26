@@ -454,7 +454,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(sqsQueue.ResourceName(), resourceTypes) {
 			start := time.Now()
-			queueUrls, err := getAllSqsQueue(cloudNukeSession, region, excludeAfter)
+			queueUrls, err := sqsQueue.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
