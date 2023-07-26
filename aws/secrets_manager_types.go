@@ -15,16 +15,16 @@ type SecretsManagerSecrets struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (secret SecretsManagerSecrets) ResourceName() string {
+func (sms SecretsManagerSecrets) ResourceName() string {
 	return "secretsmanager"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (secret SecretsManagerSecrets) ResourceIdentifiers() []string {
-	return secret.SecretIDs
+func (sms SecretsManagerSecrets) ResourceIdentifiers() []string {
+	return sms.SecretIDs
 }
 
-func (secret SecretsManagerSecrets) MaxBatchSize() int {
+func (sms SecretsManagerSecrets) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that secrets manager does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
 	// overloading the runtime and to avoid AWS throttling with many API calls.
@@ -32,8 +32,8 @@ func (secret SecretsManagerSecrets) MaxBatchSize() int {
 }
 
 // Nuke - nuke 'em all!!!
-func (secret SecretsManagerSecrets) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllSecretsManagerSecrets(session, awsgo.StringSlice(identifiers)); err != nil {
+func (sms SecretsManagerSecrets) Nuke(session *session.Session, identifiers []string) error {
+	if err := sms.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
