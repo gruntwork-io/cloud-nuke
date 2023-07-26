@@ -1,24 +1,19 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllRdsInstances(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := rds.New(session)
-
-	result, err := svc.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
+func (di DBInstances) getAll(configObj config.Config) ([]*string, error) {
+	result, err := di.Client.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -26,7 +21,10 @@ func getAllRdsInstances(session *session.Session, excludeAfter time.Time, config
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		if shouldIncludeDbInstance(database, excludeAfter, configObj) {
+		if configObj.DBInstances.ShouldInclude(config.ResourceValue{
+			Time: database.InstanceCreateTime,
+			Name: database.DBName,
+		}) {
 			names = append(names, database.DBInstanceIdentifier)
 		}
 	}
@@ -34,31 +32,13 @@ func getAllRdsInstances(session *session.Session, excludeAfter time.Time, config
 	return names, nil
 }
 
-func shouldIncludeDbInstance(database *rds.DBInstance, excludeAfter time.Time, configObj config.Config) bool {
-	if database == nil || database.InstanceCreateTime == nil {
-		return false
-	}
-
-	if excludeAfter.Before(*database.InstanceCreateTime) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(database.DBName),
-		configObj.DBInstances.IncludeRule.NamesRegExp,
-		configObj.DBInstances.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllRdsInstances(session *session.Session, names []*string) error {
-	svc := rds.New(session)
-
+func (di DBInstances) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No RDS DB Instance to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No RDS DB Instance to nuke in region %s", di.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all RDS Instances in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all RDS Instances in region %s", di.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -67,13 +47,13 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 			SkipFinalSnapshot:    awsgo.Bool(true),
 		}
 
-		_, err := svc.DeleteDBInstance(params)
+		_, err := di.Client.DeleteDBInstance(params)
 
 		if err != nil {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking RDS Instance",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": di.Region,
 			})
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 		} else {
@@ -85,7 +65,7 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			err := svc.WaitUntilDBInstanceDeleted(&rds.DescribeDBInstancesInput{
+			err := di.Client.WaitUntilDBInstanceDeleted(&rds.DescribeDBInstancesInput{
 				DBInstanceIdentifier: name,
 			})
 
@@ -101,7 +81,7 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking RDS Instance",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": di.Region,
 				})
 				logging.Logger.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
@@ -109,6 +89,6 @@ func nukeAllRdsInstances(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d RDS DB Instance(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d RDS DB Instance(s) deleted in %s", len(deletedNames), di.Region)
 	return nil
 }

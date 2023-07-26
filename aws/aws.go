@@ -908,7 +908,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(dbInstances.ResourceName(), resourceTypes) {
 			start := time.Now()
-			instanceNames, err := getAllRdsInstances(cloudNukeSession, excludeAfter, configObj)
+			instanceNames, err := dbInstances.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
