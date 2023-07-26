@@ -31,7 +31,7 @@ func (tgw TransitGatewaysVpcAttachment) ResourceIdentifiers() []string {
 
 // Nuke - nuke 'em all!!!
 func (tgw TransitGatewaysVpcAttachment) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllTransitGatewayVpcAttachments(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -62,7 +62,7 @@ func (tgw TransitGatewaysRouteTables) ResourceIdentifiers() []string {
 
 // Nuke - nuke 'em all!!!
 func (tgw TransitGatewaysRouteTables) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllTransitGatewayRouteTables(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -93,7 +93,7 @@ func (tgw TransitGateways) ResourceIdentifiers() []string {
 
 // Nuke - nuke 'em all!!!
 func (tgw TransitGateways) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllTransitGatewayInstances(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
