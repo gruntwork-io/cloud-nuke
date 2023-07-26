@@ -13,23 +13,23 @@ type SageMakerNotebookInstances struct {
 	InstanceNames []string
 }
 
-func (instance SageMakerNotebookInstances) ResourceName() string {
-	return "sagemaker-notebook-instance"
+func (smni SageMakerNotebookInstances) ResourceName() string {
+	return "sagemaker-notebook-smni"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances
-func (instance SageMakerNotebookInstances) ResourceIdentifiers() []string {
-	return instance.InstanceNames
+func (smni SageMakerNotebookInstances) ResourceIdentifiers() []string {
+	return smni.InstanceNames
 }
 
-func (instance SageMakerNotebookInstances) MaxBatchSize() int {
+func (smni SageMakerNotebookInstances) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (instance SageMakerNotebookInstances) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllNotebookInstances(session, awsgo.StringSlice(identifiers)); err != nil {
+func (smni SageMakerNotebookInstances) Nuke(session *session.Session, identifiers []string) error {
+	if err := smni.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -1524,7 +1524,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(notebookInstances.ResourceName(), resourceTypes) {
 			start := time.Now()
-			instances, err := getAllNotebookInstances(cloudNukeSession, excludeAfter, configObj)
+			instances, err := notebookInstances.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

@@ -1,24 +1,19 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllNotebookInstances(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := sagemaker.New(session)
-
-	result, err := svc.ListNotebookInstances(&sagemaker.ListNotebookInstancesInput{})
+func (smni SageMakerNotebookInstances) getAll(configObj config.Config) ([]*string, error) {
+	result, err := smni.Client.ListNotebookInstances(&sagemaker.ListNotebookInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -26,38 +21,28 @@ func getAllNotebookInstances(session *session.Session, excludeAfter time.Time, c
 	var names []*string
 
 	for _, notebook := range result.NotebookInstances {
-		if notebook.CreationTime == nil {
-			continue
+		if configObj.SageMakerNotebook.ShouldInclude(config.ResourceValue{
+			Name: notebook.NotebookInstanceName,
+			Time: notebook.CreationTime,
+		}) {
+			names = append(names, notebook.NotebookInstanceName)
 		}
-		if !excludeAfter.After(awsgo.TimeValue(notebook.CreationTime)) {
-			continue
-		}
-		if !config.ShouldInclude(awsgo.StringValue(notebook.NotebookInstanceName), configObj.S3.IncludeRule.NamesRegExp, configObj.S3.ExcludeRule.NamesRegExp) {
-			continue
-		}
-		names = append(names, notebook.NotebookInstanceName)
 	}
 
 	return names, nil
 }
 
-func nukeAllNotebookInstances(session *session.Session, names []*string) error {
-	svc := sagemaker.New(session)
-
+func (smni SageMakerNotebookInstances) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No Sagemaker Notebook Instance to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Sagemaker Notebook Instance to nuke in region %s", smni.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Sagemaker Notebook Instances in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Sagemaker Notebook Instances in region %s", smni.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		params := &sagemaker.DeleteNotebookInstanceInput{
-			NotebookInstanceName: name,
-		}
-
-		_, err := svc.StopNotebookInstance(&sagemaker.StopNotebookInstanceInput{
+		_, err := smni.Client.StopNotebookInstance(&sagemaker.StopNotebookInstanceInput{
 			NotebookInstanceName: name,
 		})
 		if err != nil {
@@ -65,33 +50,34 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Sagemaker Notebook Instance",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": smni.Region,
 				"reason": "Failed to Stop Notebook",
 			})
 		}
 
-		err = svc.WaitUntilNotebookInstanceStopped(&sagemaker.DescribeNotebookInstanceInput{
+		err = smni.Client.WaitUntilNotebookInstanceStopped(&sagemaker.DescribeNotebookInstanceInput{
 			NotebookInstanceName: name,
 		})
-
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Sagemaker Notebook Instance",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": smni.Region,
 				"reason": "Failed waiting for notebook to stop",
 			})
 		}
 
-		_, err = svc.DeleteNotebookInstance(params)
+		_, err = smni.Client.DeleteNotebookInstance(&sagemaker.DeleteNotebookInstanceInput{
+			NotebookInstanceName: name,
+		})
 
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Sagemaker Notebook Instance",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": smni.Region,
 				"reason": "Failed to Delete Notebook",
 			})
 		} else {
@@ -103,7 +89,7 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			err := svc.WaitUntilNotebookInstanceDeleted(&sagemaker.DescribeNotebookInstanceInput{
+			err := smni.Client.WaitUntilNotebookInstanceDeleted(&sagemaker.DescribeNotebookInstanceInput{
 				NotebookInstanceName: name,
 			})
 
@@ -120,7 +106,7 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking Sagemaker Notebook Instance",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": smni.Region,
 					"reason": "Failed waiting for notebook instance to delete",
 				})
 				return errors.WithStackTrace(err)
@@ -128,6 +114,6 @@ func nukeAllNotebookInstances(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Sagemaker Notebook Instance(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Sagemaker Notebook Instance(s) deleted in %s", len(deletedNames), smni.Region)
 	return nil
 }
