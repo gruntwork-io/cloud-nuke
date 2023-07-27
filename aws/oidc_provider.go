@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -25,14 +24,12 @@ type oidcProvider struct {
 	ProviderURL *string
 }
 
-// getAllOIDCProviders will list all the OpenID Connect Providers in an account, filtering out those that do not match
+// getAll will list all the OpenID Connect Providers in an account, filtering out those that do not match
 // the requested rules (older-than and config file settings). Note that since the list API does not return the necessary
 // information to implement the filters, we use goroutines to asynchronously and concurrently fetch the details for all
 // the providers that are found in the account.
-func getAllOIDCProviders(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := iam.New(session)
-
-	output, err := svc.ListOpenIDConnectProviders(&iam.ListOpenIDConnectProvidersInput{})
+func (oidcprovider OIDCProviders) getAll(configObj config.Config) ([]*string, error) {
+	output, err := oidcprovider.Client.ListOpenIDConnectProviders(&iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -41,14 +38,17 @@ func getAllOIDCProviders(session *session.Session, excludeAfter time.Time, confi
 	for _, provider := range output.OpenIDConnectProviderList {
 		providerARNs = append(providerARNs, provider.Arn)
 	}
-	providers, err := getAllOIDCProviderDetails(svc, providerARNs)
+	providers, err := oidcprovider.getAllOIDCProviderDetails(providerARNs)
 	if err != nil {
 		return nil, err
 	}
 
 	providerARNsToDelete := []*string{}
 	for _, provider := range providers {
-		if shouldIncludeOIDCProvider(provider, excludeAfter, configObj) {
+		if configObj.OIDCProvider.ShouldInclude(config.ResourceValue{
+			Name: provider.ProviderURL,
+			Time: provider.CreateTime,
+		}) {
 			providerARNsToDelete = append(providerARNsToDelete, provider.ARN)
 		}
 	}
@@ -57,7 +57,7 @@ func getAllOIDCProviders(session *session.Session, excludeAfter time.Time, confi
 
 // getAllOIDCProviderDetails fetches the details of the given list of OpenID Connect Providers so that we can make
 // informed decisions about which ones should be included in the nuking procedure.
-func getAllOIDCProviderDetails(svc *iam.IAM, providerARNs []*string) ([]oidcProvider, error) {
+func (oidcprovider OIDCProviders) getAllOIDCProviderDetails(providerARNs []*string) ([]oidcProvider, error) {
 	numRetrieving := len(providerARNs)
 
 	// Schedule goroutines to retrieve the provider details async.
@@ -68,7 +68,7 @@ func getAllOIDCProviderDetails(svc *iam.IAM, providerARNs []*string) ([]oidcProv
 	for i, providerARN := range providerARNs {
 		resultChans[i] = make(chan *oidcProvider, 1)
 		errChans[i] = make(chan error, 1)
-		go getOIDCProviderDetailAsync(wg, resultChans[i], errChans[i], svc, providerARN)
+		go oidcprovider.getOIDCProviderDetailAsync(wg, resultChans[i], errChans[i], providerARN)
 	}
 	wg.Wait()
 
@@ -95,26 +95,12 @@ func getAllOIDCProviderDetails(svc *iam.IAM, providerARNs []*string) ([]oidcProv
 	return allResults, nil
 }
 
-// shouldIncludeOIDCProvider determines whether or not a given OpenID Connect Provider should be nuked based on the
-// given constraints.
-func shouldIncludeOIDCProvider(provider oidcProvider, excludeAfter time.Time, configObj config.Config) bool {
-	if excludeAfter.Before(aws.TimeValue(provider.CreateTime)) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(provider.ProviderURL),
-		configObj.OIDCProvider.IncludeRule.NamesRegExp,
-		configObj.OIDCProvider.ExcludeRule.NamesRegExp,
-	)
-}
-
 // getOIDCProviderDetailAsync is a routine for fetching the details of a single OpenID Connect Provider. This function
 // is designed to be called in a goroutine.
-func getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvider, errChan chan error, svc *iam.IAM, providerARN *string) {
+func (oidcprovider OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvider, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
-	resp, err := svc.GetOpenIDConnectProvider(&iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
+	resp, err := oidcprovider.Client.GetOpenIDConnectProvider(&iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
 	if err != nil {
 		// If we get a 404, meaning the OIDC Provider was deleted between retrieving it with list and detail fetching,
 		// we ignore the error and return nothing.
@@ -141,9 +127,7 @@ func getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvide
 }
 
 // nukeAllOIDCProviders deletes all the given OpenID Connect Providers from the account.
-func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error {
-	svc := iam.New(session)
-
+func (oidcprovider OIDCProviders) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No OIDC Providers to nuke")
 		return nil
@@ -165,7 +149,7 @@ func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error
 	errChans := make([]chan error, len(identifiers))
 	for i, providerARN := range identifiers {
 		errChans[i] = make(chan error, 1)
-		go deleteOIDCProviderAsync(wg, errChans[i], svc, providerARN)
+		go oidcprovider.deleteAsync(wg, errChans[i], providerARN)
 	}
 	wg.Wait()
 
@@ -177,9 +161,7 @@ func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error
 			logging.Logger.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking OIDC Provider",
-			}, map[string]interface{}{
-				"region": *session.Config.Region,
-			})
+			}, map[string]interface{}{})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -193,12 +175,13 @@ func nukeAllOIDCProviders(session *session.Session, identifiers []*string) error
 	return nil
 }
 
-// deleteOIDCProviderAsync deletes the provided OIDC Provider asynchronously in a goroutine, using wait groups for
+// deleteAsync deletes the provided OIDC Provider asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors.
-func deleteOIDCProviderAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, providerARN *string) {
+func (oidcprovider OIDCProviders) deleteAsync(wg *sync.WaitGroup, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
-	_, err := svc.DeleteOpenIDConnectProvider(&iam.DeleteOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
+	_, err := oidcprovider.Client.DeleteOpenIDConnectProvider(
+		&iam.DeleteOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
 	// Record status of this resource
 	e := report.Entry{
 		Identifier:   aws.StringValue(providerARN),
