@@ -2,67 +2,106 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	awsSession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/redshift"
+	"github.com/aws/aws-sdk-go/service/redshift/redshiftiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strings"
+	"regexp"
 	"testing"
 	"time"
 )
 
-func TestNukeRedshiftClusters(t *testing.T) {
+type mockedRedshift struct {
+	redshiftiface.RedshiftAPI
+
+	DeleteClusterOutput    redshift.DeleteClusterOutput
+	DescribeClustersOutput redshift.DescribeClustersOutput
+}
+
+func (m mockedRedshift) DescribeClustersPages(input *redshift.DescribeClustersInput, fn func(*redshift.DescribeClustersOutput, bool) bool) error {
+	fn(&m.DescribeClustersOutput, true)
+	return nil
+}
+
+func (m mockedRedshift) DeleteCluster(input *redshift.DeleteClusterInput) (*redshift.DeleteClusterOutput, error) {
+	return &m.DeleteClusterOutput, nil
+}
+
+func (m mockedRedshift) WaitUntilClusterDeleted(*redshift.DescribeClustersInput) error {
+	return nil
+}
+
+func TestRedshiftCluster_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
-	region, err := getRandomRegion()
-	require.NoError(t, err)
 
-	session, err := awsSession.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
-	require.NoError(t, err)
-
-	svc := redshift.New(session)
-
-	clusterName := "test-" + strings.ToLower(util.UniqueID())
-
-	//create cluster
-	_, err = svc.CreateCluster(
-		&redshift.CreateClusterInput{
-			ClusterIdentifier:  aws.String(clusterName),
-			MasterUsername:     aws.String("grunty"),
-			MasterUserPassword: aws.String("Gruntysecurepassword1"),
-			NodeType:           aws.String("dc2.large"),
-			NumberOfNodes:      aws.Int64(2),
+	now := time.Now()
+	testName1 := "test-cluster1"
+	testName2 := "test-cluster2"
+	rc := RedshiftClusters{
+		Client: mockedRedshift{
+			DescribeClustersOutput: redshift.DescribeClustersOutput{
+				Clusters: []*redshift.Cluster{
+					{
+						ClusterIdentifier: aws.String(testName1),
+						ClusterCreateTime: aws.Time(now),
+					},
+					{
+						ClusterIdentifier: aws.String(testName2),
+						ClusterCreateTime: aws.Time(now.Add(1)),
+					},
+				},
+			},
 		},
-	)
-	require.NoError(t, err)
-	err = svc.WaitUntilClusterAvailable(&redshift.DescribeClustersInput{
-		ClusterIdentifier: aws.String(clusterName),
-	})
-	require.NoError(t, err)
-	defer svc.DeleteCluster(&redshift.DeleteClusterInput{ClusterIdentifier: aws.String(clusterName)})
+	}
 
-	//Sleep for a minute for consistency in aws
-	sleepTime, err := time.ParseDuration("1m")
-	time.Sleep(sleepTime)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				}},
+			expected: []string{},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := rc.getAll(config.Config{
+				Redshift: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
+}
 
-	//test list clusters
-	clusters, err := getAllRedshiftClusters(session, region, time.Now().Add(1*time.Hour), config.Config{})
+func TestRedshiftCluster_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	rc := RedshiftClusters{
+		Client: mockedRedshift{
+			DeleteClusterOutput: redshift.DeleteClusterOutput{},
+		},
+	}
+
+	err := rc.nukeAll([]*string{aws.String("test")})
 	require.NoError(t, err)
-
-	//Ensure our cluster exists
-	assert.Contains(t, aws.StringValueSlice(clusters), clusterName)
-
-	//nuke cluster
-	err = nukeAllRedshiftClusters(session, aws.StringSlice([]string{clusterName}))
-	require.NoError(t, err)
-
-	//check that the cluster no longer exists
-	clusters, err = getAllRedshiftClusters(session, region, time.Now().Add(1*time.Hour), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(clusters), aws.StringSlice([]string{clusterName}))
 }

@@ -1583,7 +1583,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(redshiftClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
-			clusters, err := getAllRedshiftClusters(cloudNukeSession, region, excludeAfter, configObj)
+			clusters, err := redshiftClusters.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
