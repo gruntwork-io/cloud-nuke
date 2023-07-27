@@ -15,23 +15,23 @@ type Snapshots struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (snapshot Snapshots) ResourceName() string {
+func (s Snapshots) ResourceName() string {
 	return "snap"
 }
 
 // ResourceIdentifiers - The Snapshot snapshot ids
-func (snapshot Snapshots) ResourceIdentifiers() []string {
-	return snapshot.SnapshotIds
+func (s Snapshots) ResourceIdentifiers() []string {
+	return s.SnapshotIds
 }
 
-func (snapshot Snapshots) MaxBatchSize() int {
+func (s Snapshots) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (snapshot Snapshots) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllSnapshots(session, awsgo.StringSlice(identifiers)); err != nil {
+func (s Snapshots) Nuke(session *session.Session, identifiers []string) error {
+	if err := s.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
