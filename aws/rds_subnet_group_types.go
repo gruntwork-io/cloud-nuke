@@ -13,23 +13,23 @@ type DBSubnetGroups struct {
 	InstanceNames []string
 }
 
-func (instance DBSubnetGroups) ResourceName() string {
+func (dsg DBSubnetGroups) ResourceName() string {
 	return "rds-subnet-group"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances
-func (instance DBSubnetGroups) ResourceIdentifiers() []string {
-	return instance.InstanceNames
+func (dsg DBSubnetGroups) ResourceIdentifiers() []string {
+	return dsg.InstanceNames
 }
 
-func (instance DBSubnetGroups) MaxBatchSize() int {
+func (dsg DBSubnetGroups) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (instance DBSubnetGroups) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllRdsDbSubnetGroups(session, awsgo.StringSlice(identifiers)); err != nil {
+func (dsg DBSubnetGroups) Nuke(session *session.Session, identifiers []string) error {
+	if err := dsg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
