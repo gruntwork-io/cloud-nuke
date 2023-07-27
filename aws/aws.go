@@ -1883,7 +1883,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(securityHub.ResourceName(), resourceTypes) {
 			start := time.Now()
-			hubArns, err := getAllSecurityHubArns(cloudNukeSession, excludeAfter)
+			hubArns, err := securityHub.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1900,7 +1900,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(hubArns) > 0 {
-				securityHub.HubArns = hubArns
+				securityHub.HubArns = awsgo.StringValueSlice(hubArns)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, securityHub)
 			}
 		}

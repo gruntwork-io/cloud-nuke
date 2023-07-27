@@ -1,63 +1,122 @@
 package aws
 
 import (
-	"strings"
+	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/securityhub"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Security Hub tests are limited to testing the ability to find and disable security hub
-// basic features. The functionality of cloud-nuke disassociating/deleting members and
-// disassociating administrator accounts requires the use of multiple AWS accounts and the
-// ability to send and accept invitations within those accounts.
+type mockedSecurityHub struct {
+	securityhubiface.SecurityHubAPI
+	DescribeHubOutput                          securityhub.DescribeHubOutput
+	ListMembersOutput                          securityhub.ListMembersOutput
+	DisassociateMembersOutput                  securityhub.DisassociateMembersOutput
+	DeleteMembersOutput                        securityhub.DeleteMembersOutput
+	GetAdministratorAccountOutput              securityhub.GetAdministratorAccountOutput
+	DisassociateFromAdministratorAccountOutput securityhub.DisassociateFromAdministratorAccountOutput
+	DisableSecurityHubOutput                   securityhub.DisableSecurityHubOutput
+}
 
-func TestSecurityHub(t *testing.T) {
+func (m mockedSecurityHub) DescribeHub(*securityhub.DescribeHubInput) (*securityhub.DescribeHubOutput, error) {
+	return &m.DescribeHubOutput, nil
+}
+
+func (m mockedSecurityHub) ListMembers(*securityhub.ListMembersInput) (*securityhub.ListMembersOutput, error) {
+	return &m.ListMembersOutput, nil
+}
+
+func (m mockedSecurityHub) DisassociateMembers(*securityhub.DisassociateMembersInput) (*securityhub.DisassociateMembersOutput, error) {
+	return &m.DisassociateMembersOutput, nil
+}
+
+func (m mockedSecurityHub) DeleteMembers(*securityhub.DeleteMembersInput) (*securityhub.DeleteMembersOutput, error) {
+	return &m.DeleteMembersOutput, nil
+}
+
+func (m mockedSecurityHub) GetAdministratorAccount(*securityhub.GetAdministratorAccountInput) (*securityhub.GetAdministratorAccountOutput, error) {
+	return &m.GetAdministratorAccountOutput, nil
+}
+
+func (m mockedSecurityHub) DisassociateFromAdministratorAccount(*securityhub.DisassociateFromAdministratorAccountInput) (*securityhub.DisassociateFromAdministratorAccountOutput, error) {
+	return &m.DisassociateFromAdministratorAccountOutput, nil
+}
+
+func (m mockedSecurityHub) DisableSecurityHub(*securityhub.DisableSecurityHubInput) (*securityhub.DisableSecurityHubOutput, error) {
+	return &m.DisableSecurityHubOutput, nil
+}
+
+func TestSecurityHub_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-	logging.Logger.Infof("Region: %s", region)
-
-	region = "us-east-1"
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	svc := securityhub.New(session)
-
-	// Check if Security Hub is enabled
-	_, err = svc.DescribeHub(&securityhub.DescribeHubInput{})
-
-	if err != nil {
-		// DescribeHub throws an error if Security Hub is not enabled
-		if strings.Contains(err.Error(), "is not subscribed to AWS Security Hub") {
-			logging.Logger.Infof("Security Hub not enabled.")
-			logging.Logger.Infof("Enabling Security Hub")
-			_, err := svc.EnableSecurityHub(&securityhub.EnableSecurityHubInput{})
-			require.NoError(t, err)
-		} else {
-			require.NoError(t, err)
-		}
-	} else {
-		logging.Logger.Infof("Security Hub already enabled")
+	now := time.Now()
+	nowStr := now.Format(time.RFC3339)
+	testArn := "test-arn"
+	sh := SecurityHub{
+		Client: mockedSecurityHub{
+			DescribeHubOutput: securityhub.DescribeHubOutput{
+				SubscribedAt: &nowStr,
+				HubArn:       aws.String(testArn),
+			},
+		},
 	}
 
-	hubArns, err := getAllSecurityHubArns(session, time.Now())
-	require.NoError(t, err)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testArn},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				}},
+			expected: []string{},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := sh.getAll(config.Config{
+				SecurityHub: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
+}
 
-	logging.Logger.Infof("Nuking security hub")
-	require.NoError(t, nukeSecurityHub(session, hubArns))
+func TestSecurityHub_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
 
-	hubArns, err = getAllSecurityHubArns(session, time.Now())
+	sh := SecurityHub{
+		Client: mockedSecurityHub{
+			ListMembersOutput: securityhub.ListMembersOutput{
+				Members: []*securityhub.Member{{
+					AccountId: aws.String("123456789012"),
+				}},
+			},
+			DisassociateMembersOutput: securityhub.DisassociateMembersOutput{},
+			DeleteMembersOutput:       securityhub.DeleteMembersOutput{},
+			GetAdministratorAccountOutput: securityhub.GetAdministratorAccountOutput{
+				Administrator: &securityhub.Invitation{
+					AccountId: aws.String("123456789012"),
+				},
+			},
+			DisassociateFromAdministratorAccountOutput: securityhub.DisassociateFromAdministratorAccountOutput{},
+			DisableSecurityHubOutput:                   securityhub.DisableSecurityHubOutput{},
+		},
+	}
+
+	err := sh.nukeAll([]string{"123456789012"})
 	require.NoError(t, err)
-	assert.Empty(t, hubArns)
 }
