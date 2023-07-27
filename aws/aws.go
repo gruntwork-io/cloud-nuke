@@ -38,6 +38,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/macie2"
+	"github.com/aws/aws-sdk-go/service/opensearchservice"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/redshift"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -598,12 +599,12 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 
 		// OpenSearch Domains
 		domains := OpenSearchDomains{
-			Client: iam.New(cloudNukeSession),
+			Client: opensearchservice.New(cloudNukeSession),
 			Region: region,
 		}
 		if IsNukeable(domains.ResourceName(), resourceTypes) {
 			start := time.Now()
-			domainNames, err := getOpenSearchDomainsToNuke(cloudNukeSession, excludeAfter, configObj)
+			domainNames, err := domains.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
