@@ -1068,7 +1068,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(secretsManagerSecrets.ResourceName(), resourceTypes) {
 			start := time.Now()
-			secrets, err := getAllSecretsManagerSecrets(cloudNukeSession, excludeAfter, configObj)
+			secrets, err := secretsManagerSecrets.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
