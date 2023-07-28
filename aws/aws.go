@@ -330,10 +330,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End ASG Names
 
 		// Launch Configuration Names
-		configs := LaunchConfigs{}
+		configs := LaunchConfigs{
+			Client: autoscaling.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(configs.ResourceName(), resourceTypes) {
 			start := time.Now()
-			configNames, err := getAllLaunchConfigurations(cloudNukeSession, region, excludeAfter, configObj)
+			configNames, err := configs.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
