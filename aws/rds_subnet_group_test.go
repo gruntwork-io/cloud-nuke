@@ -1,59 +1,91 @@
 package aws
 
 import (
-	"fmt"
-	"strings"
-	"testing"
-
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/gruntwork-io/terratest/modules/aws"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"regexp"
+	"testing"
 )
 
-func createTestRDSSubnetGroup(t *testing.T, session *session.Session, name string) {
-	t.Logf("Creating RDS subnet group in region %s", awsgo.StringValue(session.Config.Region))
-
-	defaultVpc := aws.GetDefaultVpc(t, *session.Config.Region)
-	defaultAzSubnets := aws.GetDefaultSubnetIDsForVpc(t, *defaultVpc)
-	var subnetIds []*string
-	for _, subnet := range defaultAzSubnets {
-		subnetIds = append(subnetIds, awsgo.String(subnet))
-	}
-
-	svc := rds.New(session)
-	_, err := svc.CreateDBSubnetGroup(&rds.CreateDBSubnetGroupInput{
-		DBSubnetGroupName:        awsgo.String(name),
-		DBSubnetGroupDescription: awsgo.String(fmt.Sprintf("Test DB subnet for %s", t.Name())),
-		SubnetIds:                subnetIds,
-	})
-
-	require.NoError(t, err)
+type mockedDBSubnetGroups struct {
+	rdsiface.RDSAPI
+	DescribeDBSubnetGroupsOutput rds.DescribeDBSubnetGroupsOutput
+	DeleteDBSubnetGroupOutput    rds.DeleteDBSubnetGroupOutput
 }
 
-func TestNukeRDSSubnetGroup(t *testing.T) {
+func (m mockedDBSubnetGroups) DescribeDBSubnetGroups(*rds.DescribeDBSubnetGroupsInput) (*rds.DescribeDBSubnetGroupsOutput, error) {
+	return &m.DescribeDBSubnetGroupsOutput, nil
+}
+
+func (m mockedDBSubnetGroups) DeleteDBSubnetGroup(*rds.DeleteDBSubnetGroupInput) (*rds.DeleteDBSubnetGroupOutput, error) {
+	return &m.DeleteDBSubnetGroupOutput, nil
+}
+
+func TestDBSubnetGroups_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, errors.WithStackTrace(err))
+	testName1 := "test-db-subnet-group1"
+	testName2 := "test-db-subnet-group2"
+	dsg := DBSubnetGroups{
+		Client: mockedDBSubnetGroups{
+			DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
+				DBSubnetGroups: []*rds.DBSubnetGroup{
+					{
+						DBSubnetGroupName: awsgo.String(testName1),
+					},
+					{
+						DBSubnetGroupName: awsgo.String(testName2),
+					},
+				},
+			},
+		},
+	}
 
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := dsg.getAll(config.Config{
+				DBSubnetGroups: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+		})
+	}
 
-	subnetGroupName := "cloud-nuke-test-" + util.UniqueID()
-	createTestRDSSubnetGroup(t, session, subnetGroupName)
+}
 
-	defer func() {
-		nukeAllRdsDbSubnetGroups(session, []*string{&subnetGroupName})
-		subnetGroupNames, _ := getAllRdsDbSubnetGroups(session, config.Config{})
-		assert.NotContains(t, awsgo.StringValueSlice(subnetGroupNames), strings.ToLower(subnetGroupName))
-	}()
+func TestDBSubnetGroups_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	dsg := DBSubnetGroups{
+		Client: mockedDBSubnetGroups{
+			DeleteDBSubnetGroupOutput: rds.DeleteDBSubnetGroupOutput{},
+		},
+	}
+
+	err := dsg.nukeAll([]*string{awsgo.String("test")})
+	require.NoError(t, err)
 }

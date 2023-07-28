@@ -7,7 +7,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -16,10 +15,10 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func waitUntilRdsDbSubnetGroupDeleted(svc *rds.RDS, name *string) error {
+func (dsg DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error {
 	// wait up to 15 minutes
 	for i := 0; i < 90; i++ {
-		_, err := svc.DescribeDBSubnetGroups(&rds.DescribeDBSubnetGroupsInput{DBSubnetGroupName: name})
+		_, err := dsg.Client.DescribeDBSubnetGroups(&rds.DescribeDBSubnetGroupsInput{DBSubnetGroupName: name})
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBSubnetGroupNotFoundFault {
 				return nil
@@ -35,23 +34,15 @@ func waitUntilRdsDbSubnetGroupDeleted(svc *rds.RDS, name *string) error {
 	return RdsDeleteError{name: *name}
 }
 
-func shouldIncludeDbSubnetGroup(subnetGroup *rds.DBSubnetGroup, configObj config.Config) bool {
-	return config.ShouldInclude(
-		aws.StringValue(subnetGroup.DBSubnetGroupName),
-		configObj.DBSubnetGroups.IncludeRule.NamesRegExp,
-		configObj.DBSubnetGroups.ExcludeRule.NamesRegExp,
-	)
-}
-
-func getAllRdsDbSubnetGroups(session *session.Session, configObj config.Config) ([]*string, error) {
-	svc := rds.New(session)
-
+func (dsg DBSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
 	var names []*string
-	err := svc.DescribeDBSubnetGroupsPages(
+	err := dsg.Client.DescribeDBSubnetGroupsPages(
 		&rds.DescribeDBSubnetGroupsInput{},
 		func(page *rds.DescribeDBSubnetGroupsOutput, lastPage bool) bool {
 			for _, subnetGroup := range page.DBSubnetGroups {
-				if shouldIncludeDbSubnetGroup(subnetGroup, configObj) {
+				if configObj.DBSubnetGroups.ShouldInclude(config.ResourceValue{
+					Name: subnetGroup.DBSubnetGroupName,
+				}) {
 					names = append(names, subnetGroup.DBSubnetGroupName)
 				}
 			}
@@ -65,19 +56,17 @@ func getAllRdsDbSubnetGroups(session *session.Session, configObj config.Config) 
 	return names, nil
 }
 
-func nukeAllRdsDbSubnetGroups(session *session.Session, names []*string) error {
-	svc := rds.New(session)
-
+func (dsg DBSubnetGroups) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No DB Subnet groups in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No DB Subnet groups in region %s", dsg.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all DB Subnet groups in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all DB Subnet groups in region %s", dsg.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		_, err := svc.DeleteDBSubnetGroup(&rds.DeleteDBSubnetGroupInput{
+		_, err := dsg.Client.DeleteDBSubnetGroup(&rds.DeleteDBSubnetGroupInput{
 			DBSubnetGroupName: name,
 		})
 
@@ -94,7 +83,7 @@ func nukeAllRdsDbSubnetGroups(session *session.Session, names []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking RDS DB subnet group",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": dsg.Region,
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
@@ -105,7 +94,7 @@ func nukeAllRdsDbSubnetGroups(session *session.Session, names []*string) error {
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			err := waitUntilRdsDbSubnetGroupDeleted(svc, name)
+			err := dsg.waitUntilRdsDbSubnetGroupDeleted(name)
 			if err != nil {
 				logging.Logger.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
@@ -113,6 +102,6 @@ func nukeAllRdsDbSubnetGroups(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d RDS DB subnet group(s) nuked in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d RDS DB subnet group(s) nuked in %s", len(deletedNames), dsg.Region)
 	return nil
 }
