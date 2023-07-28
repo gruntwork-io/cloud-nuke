@@ -1,171 +1,101 @@
 package aws
 
 import (
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
 )
 
-func createTestLaunchTemplate(t *testing.T, session *session.Session, name string) {
-	svc := ec2.New(session)
-
-	param := &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: &name,
-		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
-			InstanceType: awsgo.String("t2.micro"),
-		},
-		VersionDescription: aws.String("cloud-nuke-test-v1"),
-	}
-
-	_, err := svc.CreateLaunchTemplate(param)
-
-	assert.NoError(t, err, "Could not create test Launch template")
+type mockedLaunchTemplate struct {
+	ec2iface.EC2API
+	DescribeLaunchTemplatesOutput ec2.DescribeLaunchTemplatesOutput
+	DeleteLaunchTemplateOutput    ec2.DeleteLaunchTemplateOutput
 }
 
-func TestListLaunchTemplates(t *testing.T) {
+func (m mockedLaunchTemplate) DescribeLaunchTemplates(input *ec2.DescribeLaunchTemplatesInput) (*ec2.DescribeLaunchTemplatesOutput, error) {
+	return &m.DescribeLaunchTemplatesOutput, nil
+}
+
+func (m mockedLaunchTemplate) DeleteLaunchTemplate(input *ec2.DeleteLaunchTemplateInput) (*ec2.DeleteLaunchTemplateOutput, error) {
+	return &m.DeleteLaunchTemplateOutput, nil
+}
+
+func TestLaunchTemplate_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-
-	assert.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	assert.NoError(t, err)
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	createTestLaunchTemplate(t, session, uniqueTestID)
-
-	// clean up after this test
-	defer nukeAllLaunchTemplates(session, []*string{&uniqueTestID})
-
-	templateNames, err := getAllLaunchTemplates(session, time.Now().Add(1*time.Hour*-1), config.Config{})
-
-	assert.NoError(t, err, "Unable to fetch list of Launch Templates")
-
-	// Template should not be in the list due to the time filter
-	assert.NotContains(t, awsgo.StringValueSlice(templateNames), uniqueTestID)
-
-	templateNames, err = getAllLaunchTemplates(session, time.Now().Add(1*time.Hour), config.Config{})
-
-	assert.NoError(t, err, "Unable to fetch list of Launch Templates")
-
-	assert.Contains(t, awsgo.StringValueSlice(templateNames), uniqueTestID)
-}
-
-func TestNukeLaunchTemplates(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	assert.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	assert.NoError(t, err)
-
-	svc := ec2.New(session)
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	createTestLaunchTemplate(t, session, uniqueTestID)
-
-	_, err = svc.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []*string{&uniqueTestID},
-	})
-	assert.NoError(t, err)
-
-	assert.NoError(t, nukeAllLaunchTemplates(session, []*string{&uniqueTestID}))
-
-	groupNames, err := getAllLaunchTemplates(session, time.Now().Add(1*time.Hour), config.Config{})
-	assert.NoError(t, err, "Unable to fetch list of Launch Templates")
-
-	assert.NotContains(t, awsgo.StringValueSlice(groupNames), uniqueTestID)
-}
-
-func TestShouldIncludeLaunchTemplate(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	mockLaunchTemplate := &ec2.LaunchTemplate{
-		LaunchTemplateName: awsgo.String("cloud-nuke-test"),
-		CreateTime:         awsgo.Time(time.Now()),
-	}
-
-	mockExpression, err := regexp.Compile("^cloud-nuke-*")
-	if err != nil {
-		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
-	}
-
-	mockExcludeConfig := config.Config{
-		LaunchTemplate: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
+	now := time.Now()
+	testName1 := "test-launch-template1"
+	testName2 := "test-launch-template2"
+	lt := LaunchTemplates{
+		Client: mockedLaunchTemplate{
+			DescribeLaunchTemplatesOutput: ec2.DescribeLaunchTemplatesOutput{
+				LaunchTemplates: []*ec2.LaunchTemplate{
 					{
-						RE: *mockExpression,
+						LaunchTemplateName: awsgo.String(testName1),
+						CreateTime:         awsgo.Time(now),
+					},
+					{
+						LaunchTemplateName: awsgo.String(testName2),
+						CreateTime:         awsgo.Time(now.Add(1)),
 					},
 				},
 			},
 		},
 	}
 
-	mockIncludeConfig := config.Config{
-		LaunchTemplate: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{
-						RE: *mockExpression,
-					},
-				},
-			},
-		},
-	}
-
-	cases := []struct {
-		Name           string
-		LaunchTemplate *ec2.LaunchTemplate
-		Config         config.Config
-		ExcludeAfter   time.Time
-		Expected       bool
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
 	}{
-		{
-			Name:           "ConfigExclude",
-			LaunchTemplate: mockLaunchTemplate,
-			Config:         mockExcludeConfig,
-			ExcludeAfter:   time.Now().Add(1 * time.Hour),
-			Expected:       false,
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
 		},
-		{
-			Name:           "ConfigInclude",
-			LaunchTemplate: mockLaunchTemplate,
-			Config:         mockIncludeConfig,
-			ExcludeAfter:   time.Now().Add(1 * time.Hour),
-			Expected:       true,
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
 		},
-		{
-			Name:           "NotOlderThan",
-			LaunchTemplate: mockLaunchTemplate,
-			Config:         config.Config{},
-			ExcludeAfter:   time.Now().Add(1 * time.Hour * -1),
-			Expected:       false,
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: awsgo.Time(now),
+				}},
+			expected: []string{testName1},
 		},
 	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			result := shouldIncludeLaunchTemplate(c.LaunchTemplate, c.ExcludeAfter, c.Config)
-			assert.Equal(t, c.Expected, result)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := lt.getAll(config.Config{
+				LaunchTemplate: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
 		})
 	}
+}
+
+func TestLaunchTemplate_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	lt := LaunchTemplates{
+		Client: mockedLaunchTemplate{
+			DeleteLaunchTemplateOutput: ec2.DeleteLaunchTemplateOutput{},
+		},
+	}
+
+	err := lt.nukeAll([]*string{awsgo.String("test")})
+	require.NoError(t, err)
 }
