@@ -1,206 +1,108 @@
 package aws
 
 import (
-	"archive/zip"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"io"
-	"io/ioutil"
-	"os"
+	"github.com/stretchr/testify/require"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// TODO: Move this into the utils package
-func createZipFile(filename string, file string) error {
-	err := ioutil.WriteFile(file, []byte("package test"), 0755)
+type mockedLambda struct {
+	lambdaiface.LambdaAPI
+	ListFunctionsOutput  lambda.ListFunctionsOutput
+	DeleteFunctionOutput lambda.DeleteFunctionOutput
+}
 
-	newZipFile, _ := os.Create(filename)
-	defer newZipFile.Close()
-
-	zipWriter := zip.NewWriter(newZipFile)
-	defer zipWriter.Close()
-
-	err = addFileToZip(zipWriter, file)
-	if err != nil {
-		return err
-	}
-
-	err = removeFile(file)
-	if err != nil {
-		return err
-	}
-
+func (m mockedLambda) ListFunctionsPages(input *lambda.ListFunctionsInput, fn func(*lambda.ListFunctionsOutput, bool) bool) error {
+	fn(&m.ListFunctionsOutput, true)
 	return nil
 }
 
-// TODO: Move this into the utils package
-func removeFile(zipFileName string) error {
-	err := os.Remove(zipFileName)
-	if err != nil {
-		return err
-	}
-	return nil
+func (m mockedLambda) DeleteFunction(input *lambda.DeleteFunctionInput) (*lambda.DeleteFunctionOutput, error) {
+	return &m.DeleteFunctionOutput, nil
 }
 
-// TODO: Move this into the utils package
-func addFileToZip(zipWriter *zip.Writer, filename string) error {
-	fileToZip, err := os.Open(filename)
-	defer fileToZip.Close()
-
-	info, err := fileToZip.Stat()
-
-	header, err := zip.FileInfoHeader(info)
-	if err != nil {
-		return err
-	}
-
-	header.Name = filename
-	header.Method = zip.Deflate
-
-	writer, err := zipWriter.CreateHeader(header)
-	_, err = io.Copy(writer, fileToZip)
-	return err
-}
-
-func createTestLambdaFunction(t *testing.T, session *session.Session, name string) {
-	svc := lambda.New(session)
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	roleName := uniqueTestID + "-role"
-	bucketName := uniqueTestID + "-bucket"
-	zipFileName := uniqueTestID + ".zip"
-	goFileName := uniqueTestID + ".go"
-
-	// Prepare resources
-	// Create the IAM roles for Lambda function
-	role := createLambdaRole(t, session, roleName)
-	defer deleteLambdaRole(session, role)
-
-	// IAM resources are slow to propagate, so give it some
-	// time
-	time.Sleep(15 * time.Second)
-
-	svcs3 := s3.New(session)
-	svcs3.CreateBucket(&s3.CreateBucketInput{
-		Bucket: aws.String(bucketName),
-	})
-
-	createZipFile(zipFileName, goFileName)
-	defer removeFile(zipFileName)
-
-	// Upload Zip
-	reader := strings.NewReader(zipFileName)
-	uploader := s3manager.NewUploader(session)
-	uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(zipFileName),
-		Body:   reader,
-	})
-
-	runTime := "go1.x"
-	contents, err := ioutil.ReadFile(zipFileName)
-	createCode := &lambda.FunctionCode{
-		ZipFile: contents,
-	}
-	params := &lambda.CreateFunctionInput{
-		Code:         createCode,
-		FunctionName: &name,
-		Handler:      awsgo.String(goFileName),
-		Role:         role.Arn,
-		Runtime:      &runTime,
-	}
-
-	_, err = svc.CreateFunction(params)
-	require.NoError(t, err)
-}
-
-func TestLambdaFunctionConfigFile(t *testing.T) {
+func TestLambdaFunction_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	testName1 := "test-lambda-function1"
+	testName2 := "test-lambda-function2"
+	testTime := time.Now()
+
+	layout := "2006-01-02T15:04:05.000+0000"
+	testTimeStr := "2023-07-28T12:34:56.789+0000"
+	testTime, err := time.Parse(layout, testTimeStr)
 	require.NoError(t, err)
 
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	includedLambdaFunctionName := "cloud-nuke-test-include-" + util.UniqueID()
-	createTestLambdaFunction(t, session, includedLambdaFunctionName)
-
-	excludedLambdaFunctionName := "cloud-nuke-test-" + util.UniqueID()
-	createTestLambdaFunction(t, session, excludedLambdaFunctionName)
-
-	defer nukeAllLambdaFunctions(session, []*string{&includedLambdaFunctionName, &excludedLambdaFunctionName})
-
-	excludeAfter := time.Now().Add(1 * time.Hour)
-	lambdaFunctions, err := getAllLambdaFunctions(session, excludeAfter, config.Config{
-		LambdaFunction: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{RE: *regexp.MustCompile("^cloud-nuke-test-include-.*")},
+	lf := LambdaFunctions{
+		Client: mockedLambda{
+			ListFunctionsOutput: lambda.ListFunctionsOutput{
+				Functions: []*lambda.FunctionConfiguration{
+					{
+						FunctionName: aws.String(testName1),
+						LastModified: aws.String(testTimeStr),
+					},
+					{
+						FunctionName: aws.String(testName2),
+						LastModified: aws.String(testTimeStr),
+					},
 				},
 			},
 		},
-	}, 1)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(lambdaFunctions))
-	require.Equal(t, includedLambdaFunctionName, aws.StringValue(lambdaFunctions[0]))
+	}
+
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(testTime.Add(-2 * time.Hour)),
+				}},
+			expected: []string{},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := lf.getAll(config.Config{
+				LambdaFunction: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
 }
 
-func TestNukeLambdaFunction(t *testing.T) {
+func TestLambdaFunction_NukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-
-	require.NoError(t, errors.WithStackTrace(err))
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	lambdaFunctionName := "cloud-nuke-test-" + util.UniqueID()
-	lambdaFunctionName2 := "cloud-nuke-test2-" + util.UniqueID()
-
-	excludeAfter := time.Now().Add(1 * time.Hour)
-
-	createTestLambdaFunction(t, session, lambdaFunctionName)
-	createTestLambdaFunction(t, session, lambdaFunctionName2)
-
-	defer func() {
-		nukeAllLambdaFunctions(session, []*string{&lambdaFunctionName, &lambdaFunctionName2})
-
-		lambdaFunctionNames, _ := getAllLambdaFunctions(session, excludeAfter, config.Config{}, 1)
-
-		assert.NotContains(t, awsgo.StringValueSlice(lambdaFunctionNames), lambdaFunctionName)
-		assert.NotContains(t, awsgo.StringValueSlice(lambdaFunctionNames), lambdaFunctionName2)
-
-	}()
-
-	lambdaFunctions, err := getAllLambdaFunctions(session, excludeAfter, config.Config{}, 1)
-
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of Lambda Functions", errors.WithStackTrace(err).Error())
+	lf := LambdaFunctions{
+		Client: mockedLambda{
+			DeleteFunctionOutput: lambda.DeleteFunctionOutput{},
+		},
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(lambdaFunctions), lambdaFunctionName)
-	assert.Contains(t, awsgo.StringValueSlice(lambdaFunctions), lambdaFunctionName2)
-
+	err := lf.nukeAll([]*string{aws.String("test")})
+	require.NoError(t, err)
 }
