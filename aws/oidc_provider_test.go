@@ -1,186 +1,116 @@
 package aws
 
 import (
-	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/terratest/modules/random"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-const (
-	defaultTestRegion = "us-east-1"
-)
+type mockedOIDCProvider struct {
+	iamiface.IAMAPI
+	ListOpenIDConnectProvidersOutput  iam.ListOpenIDConnectProvidersOutput
+	GetOpenIDConnectProviderOutput    map[string]iam.GetOpenIDConnectProviderOutput
+	DeleteOpenIDConnectProviderOutput iam.DeleteOpenIDConnectProviderOutput
+}
 
-// NOTE: OpenID Connect Provider is a global resource, so we use the default region for the tests.
+func (m mockedOIDCProvider) DeleteOpenIDConnectProvider(input *iam.DeleteOpenIDConnectProviderInput) (*iam.DeleteOpenIDConnectProviderOutput, error) {
+	return &m.DeleteOpenIDConnectProviderOutput, nil
+}
 
-func TestListOIDCProviders(t *testing.T) {
+func (m mockedOIDCProvider) ListOpenIDConnectProviders(input *iam.ListOpenIDConnectProvidersInput) (*iam.ListOpenIDConnectProvidersOutput, error) {
+	return &m.ListOpenIDConnectProvidersOutput, nil
+}
+
+func (m mockedOIDCProvider) GetOpenIDConnectProvider(input *iam.GetOpenIDConnectProviderInput) (*iam.GetOpenIDConnectProviderOutput, error) {
+	arn := input.OpenIDConnectProviderArn
+	resp := m.GetOpenIDConnectProviderOutput[*arn]
+
+	return &resp, nil
+}
+
+func TestOIDCProvider_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
-	require.NoError(t, err)
-	svc := iam.New(session)
-
-	oidcProviderARN := createOIDCProvider(t, svc, "base")
-	defer deleteOIDCProvider(t, svc, oidcProviderARN, true)
-
-	providerARNs, err := getAllOIDCProviders(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(providerARNs), aws.StringValue(oidcProviderARN))
-}
-
-func TestTimeFilterExclusionNewlyCreatedOIDCProvider(t *testing.T) {
-	t.Parallel()
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
-	require.NoError(t, err)
-	svc := iam.New(session)
-
-	oidcProviderARN := createOIDCProvider(t, svc, "base")
-	defer deleteOIDCProvider(t, svc, oidcProviderARN, true)
-
-	// Assert OpenID Connect Provider is picked up without filters
-	providerARNsNewer, err := getAllOIDCProviders(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(providerARNsNewer), aws.StringValue(oidcProviderARN))
-
-	// Assert provider doesn't appear when we look at providers older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	providerARNsOlder, err := getAllOIDCProviders(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(providerARNsOlder), aws.StringValue(oidcProviderARN))
-}
-
-func TestConfigExclusionCreatedOIDCProvider(t *testing.T) {
-	t.Parallel()
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
-	require.NoError(t, err)
-	svc := iam.New(session)
-
-	includedOIDCProviderARN := createOIDCProvider(t, svc, "include")
-	defer deleteOIDCProvider(t, svc, includedOIDCProviderARN, true)
-
-	excludedOIDCProviderARN := createOIDCProvider(t, svc, "exclude")
-	defer deleteOIDCProvider(t, svc, excludedOIDCProviderARN, true)
-
-	// Assert OpenID Connect Providers are picked up without filters
-	providerARNsNewer, err := getAllOIDCProviders(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(providerARNsNewer), aws.StringValue(includedOIDCProviderARN))
-	assert.Contains(t, aws.StringValueSlice(providerARNsNewer), aws.StringValue(excludedOIDCProviderARN))
-
-	// Assert provider doesn't appear when we filter providers by config file
-	providerARNsConfigFiltered, err := getAllOIDCProviders(session, time.Now(), config.Config{
-		OIDCProvider: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					config.Expression{
-						RE: *regexp.MustCompile(".*include.*"),
-					},
+	testArn1 := "test-arn1"
+	testArn2 := "test-arn2"
+	testUrl1 := "https://test1.com"
+	testUrl2 := "https://test2.com"
+	now := time.Now()
+	oidcp := OIDCProviders{
+		Client: mockedOIDCProvider{
+			ListOpenIDConnectProvidersOutput: iam.ListOpenIDConnectProvidersOutput{
+				OpenIDConnectProviderList: []*iam.OpenIDConnectProviderListEntry{
+					{Arn: aws.String(testArn1)},
+					{Arn: aws.String(testArn2)},
+				},
+			},
+			GetOpenIDConnectProviderOutput: map[string]iam.GetOpenIDConnectProviderOutput{
+				testArn1: {
+					Url:        aws.String(testUrl1),
+					CreateDate: aws.Time(now),
+				},
+				testArn2: {
+					Url:        aws.String(testUrl2),
+					CreateDate: aws.Time(now.Add(1)),
 				},
 			},
 		},
-	})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(providerARNsConfigFiltered), aws.StringValue(includedOIDCProviderARN))
-	assert.NotContains(t, aws.StringValueSlice(providerARNsConfigFiltered), aws.StringValue(excludedOIDCProviderARN))
+	}
+
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testArn1, testArn2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testUrl1),
+					}}},
+			},
+			expected: []string{testArn2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testArn1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := oidcp.getAll(config.Config{
+				OIDCProvider: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
+
 }
 
-func TestNukeOIDCProviderOne(t *testing.T) {
+func TestOIDCProvider_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
+	oidcp := OIDCProviders{
+		Client: mockedOIDCProvider{
+			DeleteOpenIDConnectProviderOutput: iam.DeleteOpenIDConnectProviderOutput{},
+		},
+	}
+
+	err := oidcp.nukeAll([]*string{aws.String("test")})
 	require.NoError(t, err)
-	svc := iam.New(session)
-
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	oidcProviderARN := createOIDCProvider(t, svc, "base")
-	defer deleteOIDCProvider(t, svc, oidcProviderARN, false)
-
-	identifiers := []*string{oidcProviderARN}
-	require.NoError(
-		t,
-		nukeAllOIDCProviders(session, identifiers),
-	)
-
-	// Make sure the OIDC Provider is deleted.
-	assertOIDCProvidersDeleted(t, svc, identifiers)
-}
-
-func TestNukeOIDCProviderMoreThanOne(t *testing.T) {
-	t.Parallel()
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(defaultTestRegion)})
-	require.NoError(t, err)
-	svc := iam.New(session)
-
-	providers := []*string{}
-	for i := 0; i < 3; i++ {
-		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		oidcProviderARN := createOIDCProvider(t, svc, "base")
-		defer deleteOIDCProvider(t, svc, oidcProviderARN, false)
-		providers = append(providers, oidcProviderARN)
-	}
-
-	require.NoError(
-		t,
-		nukeAllOIDCProviders(session, providers),
-	)
-
-	// Make sure all OIDCProviders are deleted.
-	assertOIDCProvidersDeleted(t, svc, providers)
-}
-
-// Helper functions for driving the OIDC Provider tests
-
-// createOIDCProvider will create a new OIDC Provider
-func createOIDCProvider(t *testing.T, svc *iam.IAM, basename string) *string {
-	input := &iam.CreateOpenIDConnectProviderInput{
-		Url: aws.String(fmt.Sprintf("https://%s.%s.gruntwork-sandbox.in", random.UniqueId(), basename)),
-		// We can use a non-functional thumbprint here because we don't care if the provider actually works - only that
-		// the resource exists.
-		ThumbprintList: aws.StringSlice([]string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}),
-	}
-	resp, err := svc.CreateOpenIDConnectProvider(input)
-	require.NoError(t, err)
-
-	// Wait 10 seconds after creation to ensure the OIDC provider gets propagated through AWS system.
-	time.Sleep(time.Second * 10)
-
-	return resp.OpenIDConnectProviderArn
-}
-
-// deleteOIDCProvider is a function to delete the given OpenID Connect Provider.
-func deleteOIDCProvider(t *testing.T, svc *iam.IAM, providerARN *string, checkErr bool) {
-	input := &iam.DeleteOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN}
-	_, err := svc.DeleteOpenIDConnectProvider(input)
-	if checkErr {
-		require.NoError(t, err)
-	}
-}
-
-func assertOIDCProvidersDeleted(t *testing.T, svc *iam.IAM, identifiers []*string) {
-	resp, err := svc.ListOpenIDConnectProviders(&iam.ListOpenIDConnectProvidersInput{})
-	require.NoError(t, err)
-
-	providerARNsFound := []string{}
-	for _, provider := range resp.OpenIDConnectProviderList {
-		if provider != nil {
-			providerARNsFound = append(providerARNsFound, aws.StringValue(provider.Arn))
-		}
-	}
-
-	for _, providerARN := range identifiers {
-		assert.NotContains(t, providerARNsFound, aws.StringValue(providerARN))
-	}
 }

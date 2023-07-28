@@ -2065,7 +2065,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(oidcProviders.ResourceName(), resourceTypes) {
 			start := time.Now()
-			providerARNs, err := getAllOIDCProviders(session, excludeAfter, configObj)
+			providerARNs, err := oidcProviders.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

@@ -32,7 +32,7 @@ func (oidcprovider OIDCProviders) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (oidcprovider OIDCProviders) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllOIDCProviders(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := oidcprovider.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
