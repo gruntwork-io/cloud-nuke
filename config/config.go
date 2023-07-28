@@ -3,6 +3,7 @@ package config
 import (
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"time"
 
@@ -72,6 +73,25 @@ type Config struct {
 	TransitGatewayRouteTable     ResourceType               `yaml:"TransitGatewayRouteTable"`
 	TransitGatewaysVpcAttachment ResourceType               `yaml:"TransitGatewaysVpcAttachment"`
 	VPC                          ResourceType               `yaml:"VPC"`
+}
+
+func (c *Config) AddExcludeAfterTime(excludeAfter *time.Time) {
+	// exclude after filter has been applied to all resources via `older-than` flag, we are
+	// setting this rule across all resource types.
+	//
+	// TODO: after refactoring all the code, we can remove having excludeAfter in config and
+	//  passing in as additional argument to GetAllResources.
+	v := reflect.ValueOf(c).Elem()
+	excludeFilterRule := FilterRule{TimeAfter: excludeAfter}
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Kind() == reflect.Struct {
+			excludeRuleField := field.FieldByName("ExcludeRule")
+			if excludeRuleField.CanSet() {
+				excludeRuleField.Set(reflect.ValueOf(excludeFilterRule))
+			}
+		}
+	}
 }
 
 type KMSCustomerKeyResourceType struct {
