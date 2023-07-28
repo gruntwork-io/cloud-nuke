@@ -574,7 +574,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(natGateways.ResourceName(), resourceTypes) {
 			start := time.Now()
-			ngwIDs, err := getAllNatGateways(cloudNukeSession, excludeAfter, configObj)
+			ngwIDs, err := natGateways.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

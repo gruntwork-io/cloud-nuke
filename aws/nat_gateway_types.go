@@ -33,7 +33,7 @@ func (secret NatGateways) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (ngw NatGateways) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllNatGateways(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := ngw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
