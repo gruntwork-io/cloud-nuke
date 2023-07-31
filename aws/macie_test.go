@@ -1,61 +1,99 @@
 package aws
 
 import (
-	"strings"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/macie2"
+	"github.com/aws/aws-sdk-go/service/macie2/macie2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/macie2"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// Macie tests are limited to testing the ability to find and disable basic Macie
-// features. The functionality of cloud-nuke disassociating/deleting members and
-// disassociating administrator accounts requires the use of multiple AWS accounts and the
-// ability to send and accept invitations within those accounts.
+type mockedMacie struct {
+	macie2iface.Macie2API
+	GetMacieSessionOutput                      macie2.GetMacieSessionOutput
+	ListMacieMembersOutput                     macie2.ListMembersOutput
+	DisassociateMemberOutput                   macie2.DisassociateMemberOutput
+	DeleteMemberOutput                         macie2.DeleteMemberOutput
+	GetAdministratorAccountOutput              macie2.GetAdministratorAccountOutput
+	DisassociateFromAdministratorAccountOutput macie2.DisassociateFromAdministratorAccountOutput
+	DisableMacieOutput                         macie2.DisableMacieOutput
+}
 
-func TestMacie(t *testing.T) {
+func (m mockedMacie) GetMacieSession(input *macie2.GetMacieSessionInput) (*macie2.GetMacieSessionOutput, error) {
+	return &m.GetMacieSessionOutput, nil
+}
+
+func (m mockedMacie) ListMembers(input *macie2.ListMembersInput) (*macie2.ListMembersOutput, error) {
+	return &m.ListMacieMembersOutput, nil
+}
+
+func (m mockedMacie) DisassociateMember(input *macie2.DisassociateMemberInput) (*macie2.DisassociateMemberOutput, error) {
+	return &m.DisassociateMemberOutput, nil
+}
+
+func (m mockedMacie) DeleteMember(input *macie2.DeleteMemberInput) (*macie2.DeleteMemberOutput, error) {
+	return &m.DeleteMemberOutput, nil
+}
+
+func (m mockedMacie) GetAdministratorAccount(input *macie2.GetAdministratorAccountInput) (*macie2.GetAdministratorAccountOutput, error) {
+	return &m.GetAdministratorAccountOutput, nil
+}
+
+func (m mockedMacie) DisassociateFromAdministratorAccount(input *macie2.DisassociateFromAdministratorAccountInput) (*macie2.DisassociateFromAdministratorAccountOutput, error) {
+	return &m.DisassociateFromAdministratorAccountOutput, nil
+}
+
+func (m mockedMacie) DisableMacie(input *macie2.DisableMacieInput) (*macie2.DisableMacieOutput, error) {
+	return &m.DisableMacieOutput, nil
+}
+
+func TestMacie_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-	logging.Logger.Infof("Region: %s", region)
-
-	awsSession, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	svc := macie2.New(awsSession)
-
-	// Check if Macie is enabled
-	_, err = svc.GetMacieSession(&macie2.GetMacieSessionInput{})
-
-	if err != nil {
-		// GetMacieSession throws an error if Macie is not enabled
-		if strings.Contains(err.Error(), "Macie is not enabled") {
-			logging.Logger.Infof("Macie not enabled.")
-			logging.Logger.Infof("Enabling Macie")
-			_, err := svc.EnableMacie(&macie2.EnableMacieInput{})
-			require.NoError(t, err)
-		} else {
-			require.NoError(t, err)
-		}
-	} else {
-		logging.Logger.Infof("Macie already enabled")
+	now := time.Now()
+	mm := MacieMember{
+		Client: mockedMacie{
+			GetMacieSessionOutput: macie2.GetMacieSessionOutput{
+				Status:    awsgo.String("ENABLED"),
+				CreatedAt: awsgo.Time(now),
+			},
+		},
 	}
 
-	macieEnabled, err := getMacie(awsSession, time.Now())
+	_, err := mm.getAll(config.Config{})
 	require.NoError(t, err)
+}
 
-	logging.Logger.Infof("Nuking Macie")
-	require.NoError(t, nukeMacie(awsSession, macieEnabled))
+func TestMacie_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
 
-	macieEnabled, err = getMacie(awsSession, time.Now())
+	mm := MacieMember{
+		Client: mockedMacie{
+			ListMacieMembersOutput: macie2.ListMembersOutput{
+				Members: []*macie2.Member{
+					{
+						AccountId: awsgo.String("123456789012"),
+					},
+				},
+			},
+
+			DisassociateMemberOutput: macie2.DisassociateMemberOutput{},
+			DeleteMemberOutput:       macie2.DeleteMemberOutput{},
+			GetAdministratorAccountOutput: macie2.GetAdministratorAccountOutput{
+				Administrator: &macie2.Invitation{
+					AccountId: awsgo.String("123456789012"),
+				},
+			},
+			DisassociateFromAdministratorAccountOutput: macie2.DisassociateFromAdministratorAccountOutput{},
+			DisableMacieOutput:                         macie2.DisableMacieOutput{},
+		},
+	}
+
+	err := mm.nukeAll([]string{"enabled"})
 	require.NoError(t, err)
-	assert.Empty(t, macieEnabled)
 }

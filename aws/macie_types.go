@@ -12,20 +12,20 @@ type MacieMember struct {
 	AccountIds []string
 }
 
-func (r MacieMember) ResourceName() string {
+func (mm MacieMember) ResourceName() string {
 	return "macie-member"
 }
 
-func (r MacieMember) ResourceIdentifiers() []string {
-	return r.AccountIds
+func (mm MacieMember) ResourceIdentifiers() []string {
+	return mm.AccountIds
 }
 
-func (r MacieMember) MaxBatchSize() int {
+func (mm MacieMember) MaxBatchSize() int {
 	return 10
 }
 
-func (r MacieMember) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeMacie(session, identifiers); err != nil {
+func (mm MacieMember) Nuke(session *session.Session, identifiers []string) error {
+	if err := mm.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil
