@@ -1,17 +1,14 @@
 package aws
 
 import (
-	"context"
 	"sync"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -19,57 +16,29 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllKinesisStreams(session *session.Session, configObj config.Config) ([]*string, error) {
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	if err != nil {
-		return []*string{}, errors.WithStackTrace(err)
-	}
-	svc := kinesis.NewFromConfig(cfg)
-
+func (ks KinesisStreams) getAll(configObj config.Config) ([]*string, error) {
 	allStreams := []*string{}
-
-	paginator := kinesis.NewListStreamsPaginator(svc, nil)
-
-	for paginator.HasMorePages() {
-		resp, err := paginator.NextPage(context.TODO())
-		if err != nil {
-			return []*string{}, errors.WithStackTrace(err)
-		}
-		for _, stream := range resp.StreamNames {
-			if shouldIncludeKinesisStream(aws.String(stream), configObj) {
-				allStreams = append(allStreams, aws.String(stream))
+	err := ks.Client.ListStreamsPages(&kinesis.ListStreamsInput{}, func(page *kinesis.ListStreamsOutput, lastPage bool) bool {
+		for _, stream := range page.StreamNames {
+			if configObj.KinesisStream.ShouldInclude(config.ResourceValue{
+				Name: stream,
+			}) {
+				allStreams = append(allStreams, stream)
 			}
 		}
-	}
 
+		return !lastPage
+	})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
+
 	return allStreams, nil
 }
 
-func shouldIncludeKinesisStream(streamName *string, configObj config.Config) bool {
-	if streamName == nil {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(streamName),
-		configObj.KinesisStream.IncludeRule.NamesRegExp,
-		configObj.KinesisStream.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllKinesisStreams(session *session.Session, identifiers []*string) error {
-	region := aws.StringValue(session.Config.Region)
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	if err != nil {
-		return err
-	}
-	svc := kinesis.NewFromConfig(cfg)
-
+func (ks KinesisStreams) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No Kinesis Streams to nuke in region: %s", region)
+		logging.Logger.Debugf("No Kinesis Streams to nuke in region: %s", ks.Region)
 	}
 
 	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
@@ -83,13 +52,13 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 
 	// There is no bulk delete Kinesis Stream API, so we delete the batch of Kinesis Streams concurrently
 	// using go routines.
-	logging.Logger.Debugf("Deleting Kinesis Streams in region: %s", region)
+	logging.Logger.Debugf("Deleting Kinesis Streams in region: %s", ks.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
 	for i, streamName := range identifiers {
 		errChans[i] = make(chan error, 1)
-		go deleteKinesisStreamAsync(wg, errChans[i], svc, streamName, region)
+		go ks.deleteAsync(wg, errChans[i], streamName)
 	}
 	wg.Wait()
 
@@ -103,7 +72,7 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking Kinesis Stream",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": ks.Region,
 				})
 				allErrs = multierror.Append(allErrs, err)
 			}
@@ -116,16 +85,14 @@ func nukeAllKinesisStreams(session *session.Session, identifiers []*string) erro
 	return nil
 }
 
-func deleteKinesisStreamAsync(
+func (ks KinesisStreams) deleteAsync(
 	wg *sync.WaitGroup,
 	errChan chan error,
-	svc *kinesis.Client,
 	streamName *string,
-	region string,
 ) {
 	defer wg.Done()
 	input := &kinesis.DeleteStreamInput{StreamName: streamName}
-	_, err := svc.DeleteStream(context.TODO(), input)
+	_, err := ks.Client.DeleteStream(input)
 
 	// Record status of this resource
 	e := report.Entry{
@@ -139,9 +106,9 @@ func deleteKinesisStreamAsync(
 
 	streamNameStr := aws.StringValue(streamName)
 	if err == nil {
-		logging.Logger.Debugf("[OK] Kinesis Stream %s delete in %s", streamNameStr, region)
+		logging.Logger.Debugf("[OK] Kinesis Stream %s delete in %s", streamNameStr, ks.Region)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting Kinesis Stream %s in %s: %s", streamNameStr, region, err)
+		logging.Logger.Debugf("[Failed] Error deleting Kinesis Stream %s in %s: %s", streamNameStr, ks.Region, err)
 	}
 }
 
