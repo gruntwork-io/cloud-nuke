@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -20,15 +19,13 @@ import (
 )
 
 // List all IAM Roles in the AWS account
-func getAllIamServiceLinkedRoles(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := iam.New(session)
-
+func (islr IAMServiceLinkedRoles) getAll(configObj config.Config) ([]*string, error) {
 	allIAMServiceLinkedRoles := []*string{}
-	err := svc.ListRolesPages(
+	err := islr.Client.ListRolesPages(
 		&iam.ListRolesInput{},
 		func(page *iam.ListRolesOutput, lastPage bool) bool {
 			for _, iamServiceLinkedRole := range page.Roles {
-				if shouldIncludeIAMServiceLinkedRole(iamServiceLinkedRole, excludeAfter, configObj) {
+				if islr.shouldInclude(iamServiceLinkedRole, configObj) {
 					allIAMServiceLinkedRoles = append(allIAMServiceLinkedRoles, iamServiceLinkedRole.RoleName)
 				}
 			}
@@ -41,12 +38,12 @@ func getAllIamServiceLinkedRoles(session *session.Session, excludeAfter time.Tim
 	return allIAMServiceLinkedRoles, nil
 }
 
-func deleteIamServiceLinkedRole(svc *iam.IAM, roleName *string) error {
+func (islr IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) error {
 	// Deletion ID looks like this: "
 	//{
 	//	DeletionTaskId: "task/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_2/d3c4c9fc-7fd3-4a36-974a-afb0eb78f102"
 	//}
-	deletionData, err := svc.DeleteServiceLinkedRole(&iam.DeleteServiceLinkedRoleInput{
+	deletionData, err := islr.Client.DeleteServiceLinkedRole(&iam.DeleteServiceLinkedRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -62,7 +59,7 @@ func deleteIamServiceLinkedRole(svc *iam.IAM, roleName *string) error {
 	for !done {
 		done = true
 		// Check if the deletion is complete
-		deletionStatus, err = svc.GetServiceLinkedRoleDeletionStatus(&iam.GetServiceLinkedRoleDeletionStatusInput{
+		deletionStatus, err = islr.Client.GetServiceLinkedRoleDeletionStatus(&iam.GetServiceLinkedRoleDeletionStatusInput{
 			DeletionTaskId: deletionData.DeletionTaskId,
 		})
 		if err != nil {
@@ -85,10 +82,7 @@ func deleteIamServiceLinkedRole(svc *iam.IAM, roleName *string) error {
 }
 
 // Delete all IAM Roles
-func nukeAllIamServiceLinkedRoles(session *session.Session, roleNames []*string) error {
-	region := aws.StringValue(session.Config.Region)
-	svc := iam.New(session)
-
+func (islr IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	if len(roleNames) == 0 {
 		logging.Logger.Debug("No IAM Service Linked Roles to nuke")
 		return nil
@@ -104,13 +98,13 @@ func nukeAllIamServiceLinkedRoles(session *session.Session, roleNames []*string)
 	}
 
 	// There is no bulk delete IAM Roles API, so we delete the batch of IAM roles concurrently using go routines
-	logging.Logger.Debugf("Deleting all IAM Service Linked Roles in region %s", region)
+	logging.Logger.Debugf("Deleting all IAM Service Linked Roles")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(roleNames))
 	errChans := make([]chan error, len(roleNames))
 	for i, roleName := range roleNames {
 		errChans[i] = make(chan error, 1)
-		go deleteIamServiceLinkedRoleAsync(wg, errChans[i], svc, roleName)
+		go islr.deleteIamServiceLinkedRoleAsync(wg, errChans[i], roleName)
 	}
 	wg.Wait()
 
@@ -122,9 +116,7 @@ func nukeAllIamServiceLinkedRoles(session *session.Session, roleNames []*string)
 			logging.Logger.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Service Linked Role",
-			}, map[string]interface{}{
-				"region": *session.Config.Region,
-			})
+			}, map[string]interface{}{})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -133,32 +125,23 @@ func nukeAllIamServiceLinkedRoles(session *session.Session, roleNames []*string)
 	}
 
 	for _, roleName := range roleNames {
-		logging.Logger.Debugf("[OK] IAM Service Linked Role %s was deleted in %s", aws.StringValue(roleName), region)
+		logging.Logger.Debugf("[OK] IAM Service Linked Role %s was deleted.", aws.StringValue(roleName))
 	}
 	return nil
 }
 
-func shouldIncludeIAMServiceLinkedRole(iamServiceLinkedRole *iam.Role, excludeAfter time.Time, configObj config.Config) bool {
-	if iamServiceLinkedRole == nil {
-		return false
-	}
-
+func (islr IAMServiceLinkedRoles) shouldInclude(iamServiceLinkedRole *iam.Role, configObj config.Config) bool {
 	if !strings.Contains(aws.StringValue(iamServiceLinkedRole.Arn), "aws-service-role") {
 		return false
 	}
 
-	if excludeAfter.Before(*iamServiceLinkedRole.CreateDate) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(iamServiceLinkedRole.RoleName),
-		configObj.IAMServiceLinkedRoles.IncludeRule.NamesRegExp,
-		configObj.IAMServiceLinkedRoles.ExcludeRule.NamesRegExp,
-	)
+	return configObj.IAMServiceLinkedRoles.ShouldInclude(config.ResourceValue{
+		Time: iamServiceLinkedRole.CreateDate,
+		Name: iamServiceLinkedRole.RoleName,
+	})
 }
 
-func deleteIamServiceLinkedRoleAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, roleName *string) {
+func (islr IAMServiceLinkedRoles) deleteIamServiceLinkedRoleAsync(wg *sync.WaitGroup, errChan chan error, roleName *string) {
 	defer wg.Done()
 
 	var result *multierror.Error
@@ -167,12 +150,12 @@ func deleteIamServiceLinkedRoleAsync(wg *sync.WaitGroup, errChan chan error, svc
 	// items we need delete/detach them before actually deleting it.
 	// NOTE: The actual role deletion should always be the last one. This way we
 	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(svc *iam.IAM, roleName *string) error{
-		deleteIamServiceLinkedRole,
+	functions := []func(roleName *string) error{
+		islr.deleteIamServiceLinkedRole,
 	}
 
 	for _, fn := range functions {
-		if err := fn(svc, roleName); err != nil {
+		if err := fn(roleName); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}

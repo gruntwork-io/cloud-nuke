@@ -14,23 +14,23 @@ type IAMRoles struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (r IAMRoles) ResourceName() string {
+func (ir IAMRoles) ResourceName() string {
 	return "iam-role"
 }
 
 // ResourceIdentifiers - The IAM UserNames
-func (r IAMRoles) ResourceIdentifiers() []string {
-	return r.RoleNames
+func (ir IAMRoles) ResourceIdentifiers() []string {
+	return ir.RoleNames
 }
 
 // Tentative batch size to ensure AWS doesn't throttle
-func (r IAMRoles) MaxBatchSize() int {
+func (ir IAMRoles) MaxBatchSize() int {
 	return 20
 }
 
 // Nuke - nuke 'em all!!!
-func (r IAMRoles) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllIamRoles(session, awsgo.StringSlice(identifiers)); err != nil {
+func (ir IAMRoles) Nuke(session *session.Session, identifiers []string) error {
+	if err := ir.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

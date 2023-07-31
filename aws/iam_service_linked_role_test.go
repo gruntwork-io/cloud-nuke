@@ -1,142 +1,114 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
+	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestListIamServiceLinkedRoles(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	roleNames, err := getAllIamServiceLinkedRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotEmpty(t, roleNames)
+type mockedIAMServiceLinkedRoles struct {
+	iamiface.IAMAPI
+	ListRolesPagesOutput                     iam.ListRolesOutput
+	DeleteServiceLinkedRoleOutput            iam.DeleteServiceLinkedRoleOutput
+	GetServiceLinkedRoleDeletionStatusOutput iam.GetServiceLinkedRoleDeletionStatusOutput
 }
 
-func createTestServiceLinkedRole(t *testing.T, session *session.Session, name, awsServiceName string) error {
-	svc := iam.New(session)
-
-	input := &iam.CreateServiceLinkedRoleInput{
-		AWSServiceName: aws.String(awsServiceName),
-		Description:    aws.String("cloud-nuke-test"),
-		CustomSuffix:   aws.String(name),
-	}
-
-	_, err := svc.CreateServiceLinkedRole(input)
-	require.NoError(t, err)
-
+func (m mockedIAMServiceLinkedRoles) ListRolesPages(input *iam.ListRolesInput, fn func(*iam.ListRolesOutput, bool) bool) error {
+	fn(&m.ListRolesPagesOutput, true)
 	return nil
 }
 
-func TestCreateIamServiceLinkedRole(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	name := "cloud-nuke-test-" + util.UniqueID()
-	awsServiceName := "autoscaling.amazonaws.com"
-	iamServiceLinkedRoleName := "AWSServiceRoleForAutoScaling_" + name
-	roleNames, err := getAllIamServiceLinkedRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
-
-	err = createTestServiceLinkedRole(t, session, name, awsServiceName)
-	require.NoError(t, err)
-
-	roleNames, err = getAllIamServiceLinkedRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	//AWSServiceRoleForAutoScaling_cloud-nuke-test
-	assert.Contains(t, awsgo.StringValueSlice(roleNames), iamServiceLinkedRoleName)
+func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRole(input *iam.DeleteServiceLinkedRoleInput) (*iam.DeleteServiceLinkedRoleOutput, error) {
+	return &m.DeleteServiceLinkedRoleOutput, nil
 }
 
-func TestNukeIamServiceLinkedRoles(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	name := "cloud-nuke-test-" + util.UniqueID()
-	awsServiceName := "autoscaling.amazonaws.com"
-	iamServiceLinkedRoleName := "AWSServiceRoleForAutoScaling_" + name
-
-	err = createTestServiceLinkedRole(t, session, name, awsServiceName)
-	require.NoError(t, err)
-
-	err = nukeAllIamServiceLinkedRoles(session, []*string{&iamServiceLinkedRoleName})
-	require.NoError(t, err)
-
-	roleNames, err := getAllIamServiceLinkedRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotContains(t, awsgo.StringValueSlice(roleNames), iamServiceLinkedRoleName)
+func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatus(input *iam.GetServiceLinkedRoleDeletionStatusInput) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error) {
+	return &m.GetServiceLinkedRoleDeletionStatusOutput, nil
 }
 
-func TestTimeFilterExclusionNewlyCreatedIamServiceLinkedRole(t *testing.T) {
+func TestIAMServiceLinkedRoles_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	now := time.Now()
+	testName1 := "test-role1"
+	testName2 := "test-role2"
+	islr := IAMServiceLinkedRoles{
+		Client: &mockedIAMServiceLinkedRoles{
+			ListRolesPagesOutput: iam.ListRolesOutput{
+				Roles: []*iam.Role{
+					{
+						RoleName:   aws.String(testName1),
+						CreateDate: aws.Time(now),
+						Arn:        aws.String("aws-service-role"),
+					},
+					{
+						RoleName:   aws.String(testName2),
+						CreateDate: aws.Time(now.Add(1)),
+						Arn:        aws.String("aws-service-role"),
+					},
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testName1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := islr.getAll(config.Config{
+				IAMServiceLinkedRoles: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
+
+}
+
+func TestIAMServiceLinkedRoles_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	islr := IAMServiceLinkedRoles{
+
+		Client: &mockedIAMServiceLinkedRoles{
+			DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{},
+			GetServiceLinkedRoleDeletionStatusOutput: iam.GetServiceLinkedRoleDeletionStatusOutput{
+				Status: aws.String("SUCCEEDED"),
+			},
+		},
+	}
+
+	err := islr.nukeAll([]*string{aws.String("test-role1")})
 	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	// Assert role didn't exist
-	name := "cloud-nuke-test-" + util.UniqueID()
-	awsServiceName := "autoscaling.amazonaws.com"
-	iamServiceLinkedRoleName := "AWSServiceRoleForAutoScaling_" + name
-
-	roleNames, err := getAllIamServiceLinkedRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
-
-	// Creates a role
-	err = createTestServiceLinkedRole(t, session, name, awsServiceName)
-	defer nukeAllIamRoles(session, []*string{&name})
-
-	// Assert role is created
-	roleNames, err = getAllIamServiceLinkedRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, awsgo.StringValueSlice(roleNames), iamServiceLinkedRoleName)
-
-	// Assert role doesn't appear when we look at roles older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	roleNames, err = getAllIamServiceLinkedRoles(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(roleNames), iamServiceLinkedRoleName)
 }
