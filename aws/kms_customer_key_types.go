@@ -19,23 +19,23 @@ type KmsCustomerKeys struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (c KmsCustomerKeys) ResourceName() string {
+func (kck KmsCustomerKeys) ResourceName() string {
 	return "kmscustomerkeys"
 }
 
 // ResourceIdentifiers - The KMS Key IDs
-func (c KmsCustomerKeys) ResourceIdentifiers() []string {
-	return c.KeyIds
+func (kck KmsCustomerKeys) ResourceIdentifiers() []string {
+	return kck.KeyIds
 }
 
 // MaxBatchSize - Requests batch size
-func (r KmsCustomerKeys) MaxBatchSize() int {
+func (kck KmsCustomerKeys) MaxBatchSize() int {
 	return 49
 }
 
 // Nuke - remove all customer managed keys
-func (c KmsCustomerKeys) Nuke(session *session.Session, keyIds []string) error {
-	if err := nukeAllCustomerManagedKmsKeys(session, awsgo.StringSlice(keyIds), c.KeyAliases); err != nil {
+func (kck KmsCustomerKeys) Nuke(session *session.Session, keyIds []string) error {
+	if err := kck.nukeAll(awsgo.StringSlice(keyIds)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
