@@ -7,81 +7,60 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func getAllLambdaFunctions(session *session.Session, excludeAfter time.Time, configObj config.Config, batchSize int) ([]*string, error) {
-	svc := lambda.New(session)
-
-	var result []*lambda.FunctionConfiguration
-
-	var next *string = nil
-	for {
-		list, err := svc.ListFunctions(&lambda.ListFunctionsInput{
-			Marker:   next,
-			MaxItems: awsgo.Int64(int64(batchSize)),
-		})
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-		result = append(result, list.Functions...)
-		if list.NextMarker == nil || len(*list.NextMarker) == 0 {
-			break
-		}
-		next = list.NextMarker
-	}
-
+func (lf LambdaFunctions) getAll(configObj config.Config) ([]*string, error) {
 	var names []*string
 
-	for _, lambda := range result {
-		if shouldIncludeLambdaFunction(lambda, excludeAfter, configObj) {
-			names = append(names, lambda.FunctionName)
-		}
+	err := lf.Client.ListFunctionsPages(
+		&lambda.ListFunctionsInput{}, func(page *lambda.ListFunctionsOutput, lastPage bool) bool {
+			for _, lambda := range page.Functions {
+				if lf.shouldInclude(lambda, configObj) {
+					names = append(names, lambda.FunctionName)
+				}
+			}
+
+			return !lastPage
+		})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return names, nil
 }
 
-func shouldIncludeLambdaFunction(lambdaFn *lambda.FunctionConfiguration, excludeAfter time.Time, configObj config.Config) bool {
+func (lf LambdaFunctions) shouldInclude(lambdaFn *lambda.FunctionConfiguration, configObj config.Config) bool {
 	if lambdaFn == nil {
 		return false
 	}
 
 	fnLastModified := aws.StringValue(lambdaFn.LastModified)
-	fnName := aws.StringValue(lambdaFn.FunctionName)
-
+	fnName := lambdaFn.FunctionName
 	layout := "2006-01-02T15:04:05.000+0000"
 	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
 	if err != nil {
-		logging.Logger.Debugf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, fnName)
+		logging.Logger.Debugf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, *fnName)
 		return false
 	}
 
-	if excludeAfter.Before(lastModifiedDateTime) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		fnName,
-		configObj.LambdaFunction.IncludeRule.NamesRegExp,
-		configObj.LambdaFunction.ExcludeRule.NamesRegExp,
-	)
+	return configObj.LambdaFunction.ShouldInclude(config.ResourceValue{
+		Time: &lastModifiedDateTime,
+		Name: fnName,
+	})
 }
 
-func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
-	svc := lambda.New(session)
-
+func (lf LambdaFunctions) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No Lambda Functions to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Lambda Functions to nuke in region %s", lf.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Lambda Functions in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Lambda Functions in region %s", lf.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -89,7 +68,7 @@ func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
 			FunctionName: name,
 		}
 
-		_, err := svc.DeleteFunction(params)
+		_, err := lf.Client.DeleteFunction(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -104,7 +83,7 @@ func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Lambda Function",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": lf.Region,
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
@@ -112,6 +91,6 @@ func nukeAllLambdaFunctions(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), lf.Region)
 	return nil
 }

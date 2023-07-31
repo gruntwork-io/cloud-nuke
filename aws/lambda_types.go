@@ -13,23 +13,23 @@ type LambdaFunctions struct {
 	LambdaFunctionNames []string
 }
 
-func (lambda LambdaFunctions) ResourceName() string {
+func (lf LambdaFunctions) ResourceName() string {
 	return "lambda"
 }
 
 // ResourceIdentifiers - The names of the lambda functions
-func (lambda LambdaFunctions) ResourceIdentifiers() []string {
-	return lambda.LambdaFunctionNames
+func (lf LambdaFunctions) ResourceIdentifiers() []string {
+	return lf.LambdaFunctionNames
 }
 
-func (lambda LambdaFunctions) MaxBatchSize() int {
+func (lf LambdaFunctions) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (lambda LambdaFunctions) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllLambdaFunctions(session, awsgo.StringSlice(identifiers)); err != nil {
+func (lf LambdaFunctions) Nuke(session *session.Session, identifiers []string) error {
+	if err := lf.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

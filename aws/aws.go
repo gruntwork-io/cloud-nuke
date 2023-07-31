@@ -1038,7 +1038,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(lambdaFunctions.ResourceName(), resourceTypes) {
 			start := time.Now()
-			lambdaFunctionNames, err := getAllLambdaFunctions(cloudNukeSession, excludeAfter, configObj, lambdaFunctions.MaxBatchSize())
+			lambdaFunctionNames, err := lambdaFunctions.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
