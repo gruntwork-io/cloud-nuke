@@ -241,6 +241,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 
 // GetAllResources - Lists all aws resources
 func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTypes []string, configObj config.Config, allowDeleteUnaliasedKeys bool) (*AwsAccountResources, error) {
+	configObj.AddExcludeAfterTime(&excludeAfter)
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
