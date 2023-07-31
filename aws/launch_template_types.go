@@ -15,23 +15,23 @@ type LaunchTemplates struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (template LaunchTemplates) ResourceName() string {
+func (lt LaunchTemplates) ResourceName() string {
 	return "lt"
 }
 
-func (template LaunchTemplates) MaxBatchSize() int {
+func (lt LaunchTemplates) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // ResourceIdentifiers - The names of the launch templates
-func (template LaunchTemplates) ResourceIdentifiers() []string {
-	return template.LaunchTemplateNames
+func (lt LaunchTemplates) ResourceIdentifiers() []string {
+	return lt.LaunchTemplateNames
 }
 
 // Nuke - nuke 'em all!!!
-func (template LaunchTemplates) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllLaunchTemplates(session, awsgo.StringSlice(identifiers)); err != nil {
+func (lt LaunchTemplates) Nuke(session *session.Session, identifiers []string) error {
+	if err := lt.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

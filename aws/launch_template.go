@@ -1,31 +1,29 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of Launch Template Names
-func getAllLaunchTemplates(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := ec2.New(session)
-	result, err := svc.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{})
+func (lt LaunchTemplates) getAll(configObj config.Config) ([]*string, error) {
+	result, err := lt.Client.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var templateNames []*string
 	for _, template := range result.LaunchTemplates {
-		if shouldIncludeLaunchTemplate(template, excludeAfter, configObj) {
+		if configObj.LaunchTemplate.ShouldInclude(config.ResourceValue{
+			Name: template.LaunchTemplateName,
+			Time: template.CreateTime,
+		}) {
 			templateNames = append(templateNames, template.LaunchTemplateName)
 		}
 	}
@@ -33,32 +31,14 @@ func getAllLaunchTemplates(session *session.Session, excludeAfter time.Time, con
 	return templateNames, nil
 }
 
-func shouldIncludeLaunchTemplate(lt *ec2.LaunchTemplate, excludeAfter time.Time, configObj config.Config) bool {
-	if lt == nil {
-		return false
-	}
-
-	if lt.CreateTime != nil && excludeAfter.Before(*lt.CreateTime) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		awsgo.StringValue(lt.LaunchTemplateName),
-		configObj.LaunchTemplate.IncludeRule.NamesRegExp,
-		configObj.LaunchTemplate.ExcludeRule.NamesRegExp,
-	)
-}
-
 // Deletes all Launch Templates
-func nukeAllLaunchTemplates(session *session.Session, templateNames []*string) error {
-	svc := ec2.New(session)
-
+func (lt LaunchTemplates) nukeAll(templateNames []*string) error {
 	if len(templateNames) == 0 {
-		logging.Logger.Debugf("No Launch Templates to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Launch Templates to nuke in region %s", lt.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Launch Templates in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Launch Templates in region %s", lt.Region)
 	var deletedTemplateNames []*string
 
 	for _, templateName := range templateNames {
@@ -66,7 +46,7 @@ func nukeAllLaunchTemplates(session *session.Session, templateNames []*string) e
 			LaunchTemplateName: templateName,
 		}
 
-		_, err := svc.DeleteLaunchTemplate(params)
+		_, err := lt.Client.DeleteLaunchTemplate(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -81,7 +61,7 @@ func nukeAllLaunchTemplates(session *session.Session, templateNames []*string) e
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Launch Template",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": lt.Region,
 			})
 		} else {
 			deletedTemplateNames = append(deletedTemplateNames, templateName)
@@ -89,6 +69,6 @@ func nukeAllLaunchTemplates(session *session.Session, templateNames []*string) e
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Launch Template(s) deleted in %s", len(deletedTemplateNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Launch Template(s) deleted in %s", len(deletedTemplateNames), lt.Region)
 	return nil
 }

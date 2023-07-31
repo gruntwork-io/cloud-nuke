@@ -367,7 +367,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(templates.ResourceName(), resourceTypes) {
 			start := time.Now()
-			templateNames, err := getAllLaunchTemplates(cloudNukeSession, excludeAfter, configObj)
+			templateNames, err := templates.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
