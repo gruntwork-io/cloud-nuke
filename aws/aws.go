@@ -2046,7 +2046,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(iamPolicies.ResourceName(), resourceTypes) {
 			start := time.Now()
-			policyArns, err := getAllLocalIamPolicies(session, excludeAfter, configObj)
+			policyArns, err := iamPolicies.getAll(configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

@@ -2,7 +2,6 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -12,27 +11,27 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
 	"sync"
-	"time"
 )
 
 // Returns the ARN of all customer managed policies
-func getAllLocalIamPolicies(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := iam.New(session)
-
+func (ip IAMPolicies) getAll(configObj config.Config) ([]*string, error) {
 	var allIamPolicies []*string
 
-	err := svc.ListPoliciesPages(
+	err := ip.Client.ListPoliciesPages(
 		&iam.ListPoliciesInput{Scope: aws.String(iam.PolicyScopeTypeLocal)},
 		func(page *iam.ListPoliciesOutput, lastPage bool) bool {
 			for _, policy := range page.Policies {
-				if shouldIncludeIamPolicy(policy, excludeAfter, configObj) {
+				if configObj.IAMPolicies.ShouldInclude(config.ResourceValue{
+					Name: policy.PolicyName,
+					Time: policy.CreateDate,
+				}) {
 					allIamPolicies = append(allIamPolicies, policy.Arn)
 				}
 			}
+
 			return !lastPage
 		},
 	)
-
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -41,9 +40,7 @@ func getAllLocalIamPolicies(session *session.Session, excludeAfter time.Time, co
 }
 
 // Delete all iam customer managed policies. Caller is responsible for pagination (no more than 100/request)
-func nukeAllIamPolicies(session *session.Session, policyArns []*string) error {
-	svc := iam.New(session)
-
+func (ip IAMPolicies) nukeAll(policyArns []*string) error {
 	if len(policyArns) == 0 {
 		logging.Logger.Debug("No IAM Policies to nuke")
 	}
@@ -61,7 +58,7 @@ func nukeAllIamPolicies(session *session.Session, policyArns []*string) error {
 	errChans := make([]chan error, len(policyArns))
 	for i, arn := range policyArns {
 		errChans[i] = make(chan error, 1)
-		go deleteIamPolicyAsync(wg, errChans[i], svc, arn)
+		go ip.deleteIamPolicyAsync(wg, errChans[i], arn)
 	}
 	wg.Wait()
 
@@ -73,9 +70,7 @@ func nukeAllIamPolicies(session *session.Session, policyArns []*string) error {
 			logging.Logger.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Policy",
-			}, map[string]interface{}{
-				"region": *session.Config.Region,
-			})
+			}, map[string]interface{}{})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -87,19 +82,19 @@ func nukeAllIamPolicies(session *session.Session, policyArns []*string) error {
 }
 
 // Removes an IAM Policy from AWS, designed to run as a goroutine
-func deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, policyArn *string) {
+func (ip IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, policyArn *string) {
 	defer wg.Done()
 	var multierr *multierror.Error
 
 	//Detach any entities the policy is attached to
-	err := detachPolicyEntities(svc, policyArn)
+	err := ip.detachPolicyEntities(policyArn)
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	}
 
 	//Get Old Policy Versions
 	var versionsToRemove []*string
-	err = svc.ListPolicyVersionsPages(&iam.ListPolicyVersionsInput{PolicyArn: policyArn},
+	err = ip.Client.ListPolicyVersionsPages(&iam.ListPolicyVersionsInput{PolicyArn: policyArn},
 		func(page *iam.ListPolicyVersionsOutput, lastPage bool) bool {
 			for _, policyVersion := range page.Versions {
 				if !*policyVersion.IsDefaultVersion {
@@ -114,13 +109,13 @@ func deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, 
 
 	//Delete old policy versions
 	for _, versionId := range versionsToRemove {
-		_, err = svc.DeletePolicyVersion(&iam.DeletePolicyVersionInput{VersionId: versionId, PolicyArn: policyArn})
+		_, err = ip.Client.DeletePolicyVersion(&iam.DeletePolicyVersionInput{VersionId: versionId, PolicyArn: policyArn})
 		if err != nil {
 			multierr = multierror.Append(multierr, err)
 		}
 	}
 	//Delete the policy
-	_, err = svc.DeletePolicy(&iam.DeletePolicyInput{PolicyArn: policyArn})
+	_, err = ip.Client.DeletePolicy(&iam.DeletePolicyInput{PolicyArn: policyArn})
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	} else {
@@ -137,11 +132,11 @@ func deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, 
 	errChan <- multierr.ErrorOrNil()
 }
 
-func detachPolicyEntities(svc *iam.IAM, policyArn *string) error {
+func (ip IAMPolicies) detachPolicyEntities(policyArn *string) error {
 	var allPolicyGroups []*string
 	var allPolicyRoles []*string
 	var allPolicyUsers []*string
-	err := svc.ListEntitiesForPolicyPages(&iam.ListEntitiesForPolicyInput{PolicyArn: policyArn},
+	err := ip.Client.ListEntitiesForPolicyPages(&iam.ListEntitiesForPolicyInput{PolicyArn: policyArn},
 		func(page *iam.ListEntitiesForPolicyOutput, lastPage bool) bool {
 			for _, group := range page.PolicyGroups {
 				allPolicyGroups = append(allPolicyGroups, group.GroupName)
@@ -164,7 +159,7 @@ func detachPolicyEntities(svc *iam.IAM, policyArn *string) error {
 			UserName:  userName,
 			PolicyArn: policyArn,
 		}
-		_, err = svc.DetachUserPolicy(detachUserInput)
+		_, err = ip.Client.DetachUserPolicy(detachUserInput)
 		if err != nil {
 			return err
 		}
@@ -175,7 +170,7 @@ func detachPolicyEntities(svc *iam.IAM, policyArn *string) error {
 			GroupName: groupName,
 			PolicyArn: policyArn,
 		}
-		_, err = svc.DetachGroupPolicy(detachGroupInput)
+		_, err = ip.Client.DetachGroupPolicy(detachGroupInput)
 		if err != nil {
 			return err
 		}
@@ -186,28 +181,12 @@ func detachPolicyEntities(svc *iam.IAM, policyArn *string) error {
 			RoleName:  roleName,
 			PolicyArn: policyArn,
 		}
-		_, err = svc.DetachRolePolicy(detachRoleInput)
+		_, err = ip.Client.DetachRolePolicy(detachRoleInput)
 		if err != nil {
 			return err
 		}
 	}
 	return err
-}
-
-func shouldIncludeIamPolicy(iamPolicy *iam.Policy, excludeAfter time.Time, configObj config.Config) bool {
-	if iamPolicy == nil {
-		return false
-	}
-
-	if excludeAfter.Before(aws.TimeValue(iamPolicy.CreateDate)) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(iamPolicy.PolicyName),
-		configObj.IAMPolicies.IncludeRule.NamesRegExp,
-		configObj.IAMPolicies.ExcludeRule.NamesRegExp,
-	)
 }
 
 // TooManyIamPolicyErr Custom Errors
