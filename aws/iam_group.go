@@ -1,30 +1,28 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"sync"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/hashicorp/go-multierror"
+	"sync"
 )
 
-func getAllIamGroups(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := iam.New(session)
-
+func (ig IAMGroups) getAll(configObj config.Config) ([]*string, error) {
 	var allIamGroups []*string
-	err := svc.ListGroupsPages(
+	err := ig.Client.ListGroupsPages(
 		&iam.ListGroupsInput{},
 		func(page *iam.ListGroupsOutput, lastPage bool) bool {
 			for _, iamGroup := range page.Groups {
-				if shouldIncludeIamGroup(iamGroup, excludeAfter, configObj) {
+				if configObj.IAMGroups.ShouldInclude(config.ResourceValue{
+					Time: iamGroup.CreateDate,
+					Name: iamGroup.GroupName,
+				}) {
 					allIamGroups = append(allIamGroups, iamGroup.GroupName)
 				}
 			}
@@ -34,13 +32,12 @@ func getAllIamGroups(session *session.Session, excludeAfter time.Time, configObj
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
+
 	return allIamGroups, nil
 }
 
-// nukeAllIamGroups - delete all IAM groups.  Caller is responsible for pagination (no more than 100/request)
-func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
-	svc := iam.New(session)
-
+// nukeAll - delete all IAM groups.  Caller is responsible for pagination (no more than 100/request)
+func (ig IAMGroups) nukeAll(groupNames []*string) error {
 	if len(groupNames) == 0 {
 		logging.Logger.Debug("No IAM Groups to nuke")
 		return nil
@@ -59,7 +56,7 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 	errChans := make([]chan error, len(groupNames))
 	for i, groupName := range groupNames {
 		errChans[i] = make(chan error, 1)
-		go deleteIamGroupAsync(wg, errChans[i], svc, groupName)
+		go ig.deleteAsync(wg, errChans[i], groupName)
 	}
 	wg.Wait()
 
@@ -71,9 +68,7 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 			logging.Logger.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Group",
-			}, map[string]interface{}{
-				"region": *session.Config.Region,
-			})
+			}, map[string]interface{}{})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -85,7 +80,7 @@ func nukeAllIamGroups(session *session.Session, groupNames []*string) error {
 }
 
 // deleteIamGroup - removes an IAM group from AWS, designed to run as a goroutine
-func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, groupName *string) {
+func (ig IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupName *string) {
 	defer wg.Done()
 	var multierr *multierror.Error
 
@@ -93,13 +88,13 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 	getGroupInput := &iam.GetGroupInput{
 		GroupName: groupName,
 	}
-	grp, err := svc.GetGroup(getGroupInput)
+	grp, err := ig.Client.GetGroup(getGroupInput)
 	for _, user := range grp.Users {
 		unlinkUserInput := &iam.RemoveUserFromGroupInput{
 			UserName:  user.UserName,
 			GroupName: groupName,
 		}
-		_, err := svc.RemoveUserFromGroup(unlinkUserInput)
+		_, err := ig.Client.RemoveUserFromGroup(unlinkUserInput)
 		if err != nil {
 			multierr = multierror.Append(multierr, err)
 		}
@@ -107,7 +102,7 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 
 	//Detach any policies on the group
 	allPolicies := []*string{}
-	err = svc.ListAttachedGroupPoliciesPages(&iam.ListAttachedGroupPoliciesInput{GroupName: groupName},
+	err = ig.Client.ListAttachedGroupPoliciesPages(&iam.ListAttachedGroupPoliciesInput{GroupName: groupName},
 		func(page *iam.ListAttachedGroupPoliciesOutput, lastPage bool) bool {
 			for _, iamPolicy := range page.AttachedPolicies {
 				allPolicies = append(allPolicies, iamPolicy.PolicyArn)
@@ -121,12 +116,12 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 			GroupName: groupName,
 			PolicyArn: policy,
 		}
-		_, err = svc.DetachGroupPolicy(unlinkPolicyInput)
+		_, err = ig.Client.DetachGroupPolicy(unlinkPolicyInput)
 	}
 
 	// Detach any inline policies on the group
 	allInlinePolicyNames := []*string{}
-	err = svc.ListGroupPoliciesPages(&iam.ListGroupPoliciesInput{GroupName: groupName},
+	err = ig.Client.ListGroupPoliciesPages(&iam.ListGroupPoliciesInput{GroupName: groupName},
 		func(page *iam.ListGroupPoliciesOutput, lastPage bool) bool {
 			logging.Logger.Info("ListGroupPolicies response page: ", page)
 			for _, policyName := range page.PolicyNames {
@@ -138,14 +133,14 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 
 	logging.Logger.Info("inline policies: ", allInlinePolicyNames)
 	for _, policyName := range allInlinePolicyNames {
-		_, err = svc.DeleteGroupPolicy(&iam.DeleteGroupPolicyInput{
+		_, err = ig.Client.DeleteGroupPolicy(&iam.DeleteGroupPolicyInput{
 			GroupName:  groupName,
 			PolicyName: policyName,
 		})
 	}
 
 	//Delete the group
-	_, err = svc.DeleteGroup(&iam.DeleteGroupInput{
+	_, err = ig.Client.DeleteGroup(&iam.DeleteGroupInput{
 		GroupName: groupName,
 	})
 	if err != nil {
@@ -162,23 +157,6 @@ func deleteIamGroupAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, g
 	report.Record(e)
 
 	errChan <- multierr.ErrorOrNil()
-}
-
-// check if iam group should be included based on config rules (RegExp and Exclude After)
-func shouldIncludeIamGroup(iamGroup *iam.Group, excludeAfter time.Time, configObj config.Config) bool {
-	if iamGroup == nil {
-		return false
-	}
-
-	if excludeAfter.Before(aws.TimeValue(iamGroup.CreateDate)) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(iamGroup.GroupName),
-		configObj.IAMGroups.IncludeRule.NamesRegExp,
-		configObj.IAMGroups.ExcludeRule.NamesRegExp,
-	)
 }
 
 // TooManyIamGroupErr Custom Errors

@@ -2022,7 +2022,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(iamGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
-			groupNames, err := getAllIamGroups(session, excludeAfter, configObj)
+			groupNames, err := iamGroups.getAll(configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
