@@ -1,64 +1,45 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of Launch config Names
-func getAllLaunchConfigurations(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := autoscaling.New(session)
-	result, err := svc.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{})
+func (lc LaunchConfigs) getAll(configObj config.Config) ([]*string, error) {
+	result, err := lc.Client.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var configNames []*string
-	for _, config := range result.LaunchConfigurations {
-		if shouldIncludeLaunchConfiguration(config, excludeAfter, configObj) {
-			configNames = append(configNames, config.LaunchConfigurationName)
+	for _, c := range result.LaunchConfigurations {
+		if configObj.LaunchConfiguration.ShouldInclude(config.ResourceValue{
+			Time: c.CreatedTime,
+			Name: c.LaunchConfigurationName,
+		}) {
+			configNames = append(configNames, c.LaunchConfigurationName)
 		}
 	}
 
 	return configNames, nil
 }
 
-func shouldIncludeLaunchConfiguration(lc *autoscaling.LaunchConfiguration, excludeAfter time.Time, configObj config.Config) bool {
-	if lc == nil {
-		return false
-	}
-
-	if lc.CreatedTime != nil && excludeAfter.Before(*lc.CreatedTime) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		awsgo.StringValue(lc.LaunchConfigurationName),
-		configObj.LaunchConfiguration.IncludeRule.NamesRegExp,
-		configObj.LaunchConfiguration.ExcludeRule.NamesRegExp,
-	)
-}
-
 // Deletes all Launch configurations
-func nukeAllLaunchConfigurations(session *session.Session, configNames []*string) error {
-	svc := autoscaling.New(session)
+func (lc LaunchConfigs) nukeAll(configNames []*string) error {
 
 	if len(configNames) == 0 {
-		logging.Logger.Debugf("No Launch Configurations to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Launch Configurations to nuke in region %s", lc.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Launch Configurations in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Launch Configurations in region %s", lc.Region)
 	var deletedConfigNames []*string
 
 	for _, configName := range configNames {
@@ -66,7 +47,7 @@ func nukeAllLaunchConfigurations(session *session.Session, configNames []*string
 			LaunchConfigurationName: configName,
 		}
 
-		_, err := svc.DeleteLaunchConfiguration(params)
+		_, err := lc.Client.DeleteLaunchConfiguration(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -81,7 +62,7 @@ func nukeAllLaunchConfigurations(session *session.Session, configNames []*string
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Launch Configuration",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": lc.Region,
 			})
 		} else {
 			deletedConfigNames = append(deletedConfigNames, configName)
@@ -89,6 +70,6 @@ func nukeAllLaunchConfigurations(session *session.Session, configNames []*string
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Launch Configuration(s) deleted in %s", len(deletedConfigNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Launch Configuration(s) deleted in %s", len(deletedConfigNames), lc.Region)
 	return nil
 }

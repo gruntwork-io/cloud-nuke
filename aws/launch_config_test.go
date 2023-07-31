@@ -1,193 +1,102 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
 )
 
-func createTestLaunchConfiguration(t *testing.T, session *session.Session, name string) {
-	svc := autoscaling.New(session)
-	instance := createTestEC2Instance(t, session, name, false)
-
-	param := &autoscaling.CreateLaunchConfigurationInput{
-		LaunchConfigurationName: &name,
-		InstanceId:              instance.InstanceId,
-	}
-
-	_, err := svc.CreateLaunchConfiguration(param)
-	if err != nil {
-		assert.Failf(t, "Could not create test Launch Configuration", errors.WithStackTrace(err).Error())
-	}
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
+type mockedLaunchConfiguration struct {
+	autoscalingiface.AutoScalingAPI
+	DescribeLaunchConfigurationsOutput autoscaling.DescribeLaunchConfigurationsOutput
+	DeleteLaunchConfigurationOutput    autoscaling.DeleteLaunchConfigurationOutput
 }
 
-func TestListLaunchConfigurations(t *testing.T) {
+func (m mockedLaunchConfiguration) DescribeLaunchConfigurations(input *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
+	return &m.DescribeLaunchConfigurationsOutput, nil
+}
+
+func (m mockedLaunchConfiguration) DeleteLaunchConfiguration(input *autoscaling.DeleteLaunchConfigurationInput) (*autoscaling.DeleteLaunchConfigurationOutput, error) {
+	return &m.DeleteLaunchConfigurationOutput, nil
+}
+
+func TestLaunchConfigurations_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	createTestLaunchConfiguration(t, session, uniqueTestID)
-
-	// clean up after this test
-	defer nukeAllLaunchConfigurations(session, []*string{&uniqueTestID})
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
-
-	configNames, err := getAllLaunchConfigurations(session, region, time.Now().Add(1*time.Hour*-1), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Launch Configurations")
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(configNames), uniqueTestID)
-
-	configNames, err = getAllLaunchConfigurations(session, region, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Launch Configurations")
-	}
-
-	assert.Contains(t, awsgo.StringValueSlice(configNames), uniqueTestID)
-}
-
-func TestNukeLaunchConfigurations(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	svc := autoscaling.New(session)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	createTestLaunchConfiguration(t, session, uniqueTestID)
-
-	// clean up ec2 instance created by the above call
-	defer nukeAllEc2Instances(session, findEC2InstancesByNameTag(t, session, uniqueTestID))
-
-	_, err = svc.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{
-		LaunchConfigurationNames: []*string{&uniqueTestID},
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	if err := nukeAllLaunchConfigurations(session, []*string{&uniqueTestID}); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	groupNames, err := getAllLaunchConfigurations(session, region, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Launch Configurations")
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(groupNames), uniqueTestID)
-}
-
-func TestShouldIncludeLaunchConfiguration(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	mockLaunchConfiguration := &autoscaling.LaunchConfiguration{
-		LaunchConfigurationName: awsgo.String("cloud-nuke-test"),
-		CreatedTime:             awsgo.Time(time.Now()),
-	}
-
-	mockExpression, err := regexp.Compile("^cloud-nuke-*")
-	if err != nil {
-		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
-	}
-
-	mockExcludeConfig := config.Config{
-		LaunchConfiguration: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
+	testName1 := "test-launch-config1"
+	testName2 := "test-launch-config2"
+	now := time.Now()
+	lc := LaunchConfigs{
+		Client: mockedLaunchConfiguration{
+			DescribeLaunchConfigurationsOutput: autoscaling.DescribeLaunchConfigurationsOutput{
+				LaunchConfigurations: []*autoscaling.LaunchConfiguration{
 					{
-						RE: *mockExpression,
+						LaunchConfigurationName: awsgo.String(testName1),
+						CreatedTime:             awsgo.Time(now),
+					},
+					{
+						LaunchConfigurationName: awsgo.String(testName2),
+						CreatedTime:             awsgo.Time(now.Add(1)),
 					},
 				},
 			},
 		},
 	}
 
-	mockIncludeConfig := config.Config{
-		LaunchConfiguration: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{
-						RE: *mockExpression,
-					},
-				},
-			},
-		},
-	}
-
-	cases := []struct {
-		Name                string
-		LaunchConfiguration *autoscaling.LaunchConfiguration
-		Config              config.Config
-		ExcludeAfter        time.Time
-		Expected            bool
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
 	}{
-		{
-			Name:                "ConfigExclude",
-			LaunchConfiguration: mockLaunchConfiguration,
-			Config:              mockExcludeConfig,
-			ExcludeAfter:        time.Now().Add(1 * time.Hour),
-			Expected:            false,
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
 		},
-		{
-			Name:                "ConfigInclude",
-			LaunchConfiguration: mockLaunchConfiguration,
-			Config:              mockIncludeConfig,
-			ExcludeAfter:        time.Now().Add(1 * time.Hour),
-			Expected:            true,
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
 		},
-		{
-			Name:                "NotOlderThan",
-			LaunchConfiguration: mockLaunchConfiguration,
-			Config:              config.Config{},
-			ExcludeAfter:        time.Now().Add(1 * time.Hour * -1),
-			Expected:            false,
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: awsgo.Time(now.Add(-1 * time.Hour)),
+				}},
+			expected: []string{},
 		},
 	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			result := shouldIncludeLaunchConfiguration(c.LaunchConfiguration, c.ExcludeAfter, c.Config)
-			assert.Equal(t, c.Expected, result)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := lc.getAll(config.Config{
+				LaunchConfiguration: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
 		})
 	}
+}
+
+func TestLaunchConfigurations_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	lc := LaunchConfigs{
+		Client: mockedLaunchConfiguration{
+			DeleteLaunchConfigurationOutput: autoscaling.DeleteLaunchConfigurationOutput{},
+		},
+	}
+
+	err := lc.nukeAll([]*string{awsgo.String("test")})
+	require.NoError(t, err)
 }
