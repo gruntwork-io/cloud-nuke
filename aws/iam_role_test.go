@@ -1,166 +1,161 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
+	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestListIamRoles(t *testing.T) {
+type mockedIAMRoles struct {
+	iamiface.IAMAPI
+	ListRolesPagesOutput                iam.ListRolesOutput
+	ListInstanceProfilesForRoleOutput   iam.ListInstanceProfilesForRoleOutput
+	RemoveRoleFromInstanceProfileOutput iam.RemoveRoleFromInstanceProfileOutput
+	DeleteInstanceProfileOutput         iam.DeleteInstanceProfileOutput
+	ListRolePoliciesOutput              iam.ListRolePoliciesOutput
+	DeleteRolePolicyOutput              iam.DeleteRolePolicyOutput
+	ListAttachedRolePoliciesOutput      iam.ListAttachedRolePoliciesOutput
+	DetachRolePolicyOutput              iam.DetachRolePolicyOutput
+	DeleteRoleOutput                    iam.DeleteRoleOutput
+}
+
+func (m mockedIAMRoles) ListRolesPages(input *iam.ListRolesInput, f func(*iam.ListRolesOutput, bool) bool) error {
+	f(&m.ListRolesPagesOutput, true)
+	return nil
+}
+
+func (m mockedIAMRoles) ListInstanceProfilesForRole(input *iam.ListInstanceProfilesForRoleInput) (*iam.ListInstanceProfilesForRoleOutput, error) {
+	return &m.ListInstanceProfilesForRoleOutput, nil
+}
+
+func (m mockedIAMRoles) RemoveRoleFromInstanceProfile(input *iam.RemoveRoleFromInstanceProfileInput) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
+	return &m.RemoveRoleFromInstanceProfileOutput, nil
+}
+
+func (m mockedIAMRoles) DeleteInstanceProfile(input *iam.DeleteInstanceProfileInput) (*iam.DeleteInstanceProfileOutput, error) {
+	return &m.DeleteInstanceProfileOutput, nil
+}
+
+func (m mockedIAMRoles) ListRolePolicies(input *iam.ListRolePoliciesInput) (*iam.ListRolePoliciesOutput, error) {
+	return &m.ListRolePoliciesOutput, nil
+}
+
+func (m mockedIAMRoles) DeleteRolePolicy(input *iam.DeleteRolePolicyInput) (*iam.DeleteRolePolicyOutput, error) {
+	return &m.DeleteRolePolicyOutput, nil
+}
+
+func (m mockedIAMRoles) ListAttachedRolePolicies(input *iam.ListAttachedRolePoliciesInput) (*iam.ListAttachedRolePoliciesOutput, error) {
+	return &m.ListAttachedRolePoliciesOutput, nil
+}
+
+func (m mockedIAMRoles) DetachRolePolicy(input *iam.DetachRolePolicyInput) (*iam.DetachRolePolicyOutput, error) {
+	return &m.DetachRolePolicyOutput, nil
+}
+
+func (m mockedIAMRoles) DeleteRole(input *iam.DeleteRoleInput) (*iam.DeleteRoleOutput, error) {
+	return &m.DeleteRoleOutput, nil
+}
+
+func TestIAMRoles_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	roleNames, err := getAllIamRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotEmpty(t, roleNames)
-}
-
-func createTestRole(t *testing.T, session *session.Session, name string) error {
-	svc := iam.New(session)
-
-	input := &iam.CreateRoleInput{
-		RoleName: aws.String(name),
-		AssumeRolePolicyDocument: aws.String(`{
-			"Version": "2012-10-17",
-			"Statement": [
-			  {
-				"Effect": "Allow",
-				"Principal": {
-				  "Service": "ec2.amazonaws.com"
+	testName1 := "test-role1"
+	testName2 := "test-role2"
+	now := time.Now()
+	ir := IAMRoles{
+		Client: mockedIAMRoles{
+			ListRolesPagesOutput: iam.ListRolesOutput{
+				Roles: []*iam.Role{
+					{
+						RoleName:   aws.String(testName1),
+						CreateDate: aws.Time(now),
+					},
+					{
+						RoleName:   aws.String(testName2),
+						CreateDate: aws.Time(now.Add(1)),
+					},
 				},
-				"Action": "sts:AssumeRole"
-			  }
-			]
-		  }`),
+			},
+		},
 	}
 
-	_, err := svc.CreateRole(input)
-	require.NoError(t, err)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testName1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := ir.getALl(config.Config{
+				IAMRoles: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
 
-	return nil
 }
 
-func createAndAttachInstanceProfile(t *testing.T, session *session.Session, name string) error {
-	svc := iam.New(session)
-
-	instanceProfile := &iam.CreateInstanceProfileInput{
-		InstanceProfileName: aws.String(name),
-	}
-
-	instanceProfileLink := &iam.AddRoleToInstanceProfileInput{
-		InstanceProfileName: aws.String(name),
-		RoleName:            aws.String(name),
-	}
-
-	_, err := svc.CreateInstanceProfile(instanceProfile)
-	require.NoError(t, err)
-
-	_, err = svc.AddRoleToInstanceProfile(instanceProfileLink)
-	require.NoError(t, err)
-
-	return nil
-}
-
-func TestCreateIamRole(t *testing.T) {
+func TestIAMRoles_NukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	ir := IAMRoles{
+		Client: mockedIAMRoles{
+			ListInstanceProfilesForRoleOutput: iam.ListInstanceProfilesForRoleOutput{
+				InstanceProfiles: []*iam.InstanceProfile{
+					{
+						InstanceProfileName: aws.String("test-instance-profile"),
+					},
+				},
+			},
+			RemoveRoleFromInstanceProfileOutput: iam.RemoveRoleFromInstanceProfileOutput{},
+			DeleteInstanceProfileOutput:         iam.DeleteInstanceProfileOutput{},
+			ListRolePoliciesOutput: iam.ListRolePoliciesOutput{
+				PolicyNames: []*string{
+					aws.String("test-policy"),
+				},
+			},
+			DeleteRolePolicyOutput: iam.DeleteRolePolicyOutput{},
+			ListAttachedRolePoliciesOutput: iam.ListAttachedRolePoliciesOutput{
+				AttachedPolicies: []*iam.AttachedPolicy{
+					{
+						PolicyArn: aws.String("test-policy-arn"),
+					},
+				},
+			},
+			DetachRolePolicyOutput: iam.DetachRolePolicyOutput{},
+			DeleteRoleOutput:       iam.DeleteRoleOutput{},
+		},
+	}
+
+	err := ir.nukeAll([]*string{aws.String("test-role")})
 	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	name := "cloud-nuke-test-" + util.UniqueID()
-	roleNames, err := getAllIamRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
-
-	err = createTestRole(t, session, name)
-	require.NoError(t, err)
-
-	err = createAndAttachInstanceProfile(t, session, name)
-	defer nukeAllIamRoles(session, []*string{&name})
-	require.NoError(t, err)
-
-	roleNames, err = getAllIamRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, awsgo.StringValueSlice(roleNames), name)
-}
-
-func TestNukeIamRoles(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	name := "cloud-nuke-test-" + util.UniqueID()
-	err = createTestRole(t, session, name)
-	require.NoError(t, err)
-
-	err = createAndAttachInstanceProfile(t, session, name)
-	require.NoError(t, err)
-
-	err = nukeAllIamRoles(session, []*string{&name})
-	require.NoError(t, err)
-}
-
-func TestTimeFilterExclusionNewlyCreatedIamRole(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	require.NoError(t, err)
-
-	// Assert role didn't exist
-	name := "cloud-nuke-test-" + util.UniqueID()
-	roleNames, err := getAllIamRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
-
-	// Creates a role
-	err = createTestRole(t, session, name)
-	defer nukeAllIamRoles(session, []*string{&name})
-
-	// Assert role is created
-	roleNames, err = getAllIamRoles(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, awsgo.StringValueSlice(roleNames), name)
-
-	// Assert role doesn't appear when we look at roles older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	roleNames, err = getAllIamRoles(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(roleNames), name)
 }

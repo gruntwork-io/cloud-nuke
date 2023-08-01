@@ -2100,7 +2100,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
 			start := time.Now()
-			roleNames, err := getAllIamRoles(session, excludeAfter, configObj)
+			roleNames, err := iamRoles.getALl(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -2129,7 +2129,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(iamServiceLinkedRoles.ResourceName(), resourceTypes) {
 			start := time.Now()
-			roleNames, err := getAllIamServiceLinkedRoles(session, excludeAfter, configObj)
+			roleNames, err := iamServiceLinkedRoles.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

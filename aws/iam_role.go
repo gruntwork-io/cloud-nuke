@@ -1,35 +1,31 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"strings"
-	"sync"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
+	"strings"
+	"sync"
 )
 
 // List all IAM Roles in the AWS account
-func getAllIamRoles(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := iam.New(session)
-
+func (ir IAMRoles) getALl(configObj config.Config) ([]*string, error) {
 	allIAMRoles := []*string{}
-	err := svc.ListRolesPages(
+	err := ir.Client.ListRolesPages(
 		&iam.ListRolesInput{},
 		func(page *iam.ListRolesOutput, lastPage bool) bool {
 			for _, iamRole := range page.Roles {
-				if shouldIncludeIAMRole(iamRole, excludeAfter, configObj) {
+				if ir.shouldInclude(iamRole, configObj) {
 					allIAMRoles = append(allIAMRoles, iamRole.RoleName)
 				}
 			}
+
 			return !lastPage
 		},
 	)
@@ -39,8 +35,8 @@ func getAllIamRoles(session *session.Session, excludeAfter time.Time, configObj 
 	return allIAMRoles, nil
 }
 
-func deleteManagedRolePolicies(svc *iam.IAM, roleName *string) error {
-	policiesOutput, err := svc.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
+func (ir IAMRoles) deleteManagedRolePolicies(roleName *string) error {
+	policiesOutput, err := ir.Client.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -49,7 +45,7 @@ func deleteManagedRolePolicies(svc *iam.IAM, roleName *string) error {
 
 	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
 		arn := attachedPolicy.PolicyArn
-		_, err = svc.DetachRolePolicy(&iam.DetachRolePolicyInput{
+		_, err = ir.Client.DetachRolePolicy(&iam.DetachRolePolicyInput{
 			PolicyArn: arn,
 			RoleName:  roleName,
 		})
@@ -63,8 +59,8 @@ func deleteManagedRolePolicies(svc *iam.IAM, roleName *string) error {
 	return nil
 }
 
-func deleteInlineRolePolicies(svc *iam.IAM, roleName *string) error {
-	policyOutput, err := svc.ListRolePolicies(&iam.ListRolePoliciesInput{
+func (ir IAMRoles) deleteInlineRolePolicies(roleName *string) error {
+	policyOutput, err := ir.Client.ListRolePolicies(&iam.ListRolePoliciesInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -73,7 +69,7 @@ func deleteInlineRolePolicies(svc *iam.IAM, roleName *string) error {
 	}
 
 	for _, policyName := range policyOutput.PolicyNames {
-		_, err := svc.DeleteRolePolicy(&iam.DeleteRolePolicyInput{
+		_, err := ir.Client.DeleteRolePolicy(&iam.DeleteRolePolicyInput{
 			PolicyName: policyName,
 			RoleName:   roleName,
 		})
@@ -87,8 +83,8 @@ func deleteInlineRolePolicies(svc *iam.IAM, roleName *string) error {
 	return nil
 }
 
-func deleteInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
-	profilesOutput, err := svc.ListInstanceProfilesForRole(&iam.ListInstanceProfilesForRoleInput{
+func (ir IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
+	profilesOutput, err := ir.Client.ListInstanceProfilesForRole(&iam.ListInstanceProfilesForRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -98,7 +94,7 @@ func deleteInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
 	for _, profile := range profilesOutput.InstanceProfiles {
 
 		// Role needs to be removed from instance profile before it can be deleted
-		_, err := svc.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
+		_, err := ir.Client.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: profile.InstanceProfileName,
 			RoleName:            roleName,
 		})
@@ -106,7 +102,7 @@ func deleteInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
 			logging.Logger.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		} else {
-			_, err := svc.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
+			_, err := ir.Client.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
 				InstanceProfileName: profile.InstanceProfileName,
 			})
 			if err != nil {
@@ -119,8 +115,8 @@ func deleteInstanceProfilesFromRole(svc *iam.IAM, roleName *string) error {
 	return nil
 }
 
-func deleteIamRole(svc *iam.IAM, roleName *string) error {
-	_, err := svc.DeleteRole(&iam.DeleteRoleInput{
+func (ir IAMRoles) deleteIamRole(roleName *string) error {
+	_, err := ir.Client.DeleteRole(&iam.DeleteRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -131,10 +127,7 @@ func deleteIamRole(svc *iam.IAM, roleName *string) error {
 }
 
 // Delete all IAM Roles
-func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
-	region := aws.StringValue(session.Config.Region)
-	svc := iam.New(session)
-
+func (ir IAMRoles) nukeAll(roleNames []*string) error {
 	if len(roleNames) == 0 {
 		logging.Logger.Debug("No IAM Roles to nuke")
 		return nil
@@ -150,13 +143,13 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	}
 
 	// There is no bulk delete IAM Roles API, so we delete the batch of IAM roles concurrently using go routines
-	logging.Logger.Debugf("Deleting all IAM Roles in region %s", region)
+	logging.Logger.Debugf("Deleting all IAM Roles")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(roleNames))
 	errChans := make([]chan error, len(roleNames))
 	for i, roleName := range roleNames {
 		errChans[i] = make(chan error, 1)
-		go deleteIamRoleAsync(wg, errChans[i], svc, roleName)
+		go ir.deleteIamRoleAsync(wg, errChans[i], roleName)
 	}
 	wg.Wait()
 
@@ -168,9 +161,7 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 			logging.Logger.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Role",
-			}, map[string]interface{}{
-				"region": *session.Config.Region,
-			})
+			}, map[string]interface{}{})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -179,12 +170,12 @@ func nukeAllIamRoles(session *session.Session, roleNames []*string) error {
 	}
 
 	for _, roleName := range roleNames {
-		logging.Logger.Debugf("[OK] IAM Role %s was deleted in %s", aws.StringValue(roleName), region)
+		logging.Logger.Debugf("[OK] IAM Role %s was deleted", aws.StringValue(roleName))
 	}
 	return nil
 }
 
-func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj config.Config) bool {
+func (ir IAMRoles) shouldInclude(iamRole *iam.Role, configObj config.Config) bool {
 	if iamRole == nil {
 		return false
 	}
@@ -202,18 +193,13 @@ func shouldIncludeIAMRole(iamRole *iam.Role, excludeAfter time.Time, configObj c
 		return false
 	}
 
-	if excludeAfter.Before(*iamRole.CreateDate) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(iamRole.RoleName),
-		configObj.IAMRoles.IncludeRule.NamesRegExp,
-		configObj.IAMRoles.ExcludeRule.NamesRegExp,
-	)
+	return configObj.IAMRoles.ShouldInclude(config.ResourceValue{
+		Name: iamRole.RoleName,
+		Time: iamRole.CreateDate,
+	})
 }
 
-func deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, roleName *string) {
+func (ir IAMRoles) deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, roleName *string) {
 	defer wg.Done()
 
 	var result *multierror.Error
@@ -222,15 +208,15 @@ func deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, svc *iam.IAM, ro
 	// items we need delete/detach them before actually deleting it.
 	// NOTE: The actual role deletion should always be the last one. This way we
 	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(svc *iam.IAM, roleName *string) error{
-		deleteInstanceProfilesFromRole,
-		deleteInlineRolePolicies,
-		deleteManagedRolePolicies,
-		deleteIamRole,
+	functions := []func(roleName *string) error{
+		ir.deleteInstanceProfilesFromRole,
+		ir.deleteInlineRolePolicies,
+		ir.deleteManagedRolePolicies,
+		ir.deleteIamRole,
 	}
 
 	for _, fn := range functions {
-		if err := fn(svc, roleName); err != nil {
+		if err := fn(roleName); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}

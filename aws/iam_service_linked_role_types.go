@@ -14,23 +14,23 @@ type IAMServiceLinkedRoles struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (r IAMServiceLinkedRoles) ResourceName() string {
+func (islr IAMServiceLinkedRoles) ResourceName() string {
 	return "iam-service-linked-role"
 }
 
 // ResourceIdentifiers - The IAM UserNames
-func (r IAMServiceLinkedRoles) ResourceIdentifiers() []string {
-	return r.RoleNames
+func (islr IAMServiceLinkedRoles) ResourceIdentifiers() []string {
+	return islr.RoleNames
 }
 
 // Tentative batch size to ensure AWS doesn't throttle
-func (r IAMServiceLinkedRoles) MaxBatchSize() int {
+func (islr IAMServiceLinkedRoles) MaxBatchSize() int {
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (r IAMServiceLinkedRoles) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllIamServiceLinkedRoles(session, awsgo.StringSlice(identifiers)); err != nil {
+func (islr IAMServiceLinkedRoles) Nuke(session *session.Session, identifiers []string) error {
+	if err := islr.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
