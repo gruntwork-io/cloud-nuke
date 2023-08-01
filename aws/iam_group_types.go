@@ -14,24 +14,24 @@ type IAMGroups struct {
 }
 
 // ResourceName - the simple name of the AWS resource
-func (u IAMGroups) ResourceName() string {
+func (ig IAMGroups) ResourceName() string {
 	return "iam-group"
 }
 
 // ResourceIdentifiers - The IAM GroupNames
-func (g IAMGroups) ResourceIdentifiers() []string {
-	return g.GroupNames
+func (ig IAMGroups) ResourceIdentifiers() []string {
+	return ig.GroupNames
 }
 
 // Tentative batch size to ensure AWS doesn't throttle
 // There's a global max of 500 groups so it shouldn't take long either way
-func (g IAMGroups) MaxBatchSize() int {
+func (ig IAMGroups) MaxBatchSize() int {
 	return 49
 }
 
 // Nuke - Destroy every group in this collection
-func (g IAMGroups) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllIamGroups(session, awsgo.StringSlice(identifiers)); err != nil {
+func (ig IAMGroups) Nuke(session *session.Session, identifiers []string) error {
+	if err := ig.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

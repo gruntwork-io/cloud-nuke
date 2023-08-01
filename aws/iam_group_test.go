@@ -1,194 +1,157 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"regexp"
 	"testing"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Test that we can list IAM groups in an AWS account
-func TestListIamGroups(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	localSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
-
-	groupNames, err := getAllIamGroups(localSession, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.NotEmpty(t, groupNames)
+type mockedIAMGroups struct {
+	iamiface.IAMAPI
+	ListGroupsPagesOutput                iam.ListGroupsOutput
+	GetGroupOutput                       iam.GetGroupOutput
+	RemoveUserFromGroupOutput            iam.RemoveUserFromGroupOutput
+	DeleteGroupOutput                    iam.DeleteGroupOutput
+	ListAttachedGroupPoliciesPagesOutput iam.ListAttachedGroupPoliciesOutput
+	DetachGroupPolicyOutput              iam.DetachGroupPolicyOutput
+	ListGroupPoliciesOutput              iam.ListGroupPoliciesOutput
+	DeleteGroupPolicyOutput              iam.DeleteGroupPolicyOutput
 }
 
-// Creates an empty IAM group for testing
-func createEmptyTestGroup(t *testing.T, session *session.Session, name string) error {
-	svc := iam.New(session)
-
-	groupInput := &iam.CreateGroupInput{
-		GroupName: awsgo.String(name),
-	}
-
-	_, err := svc.CreateGroup(groupInput)
-	require.NoError(t, err)
+func (m mockedIAMGroups) ListGroupsPages(input *iam.ListGroupsInput, fn func(*iam.ListGroupsOutput, bool) bool) error {
+	fn(&m.ListGroupsPagesOutput, true)
 	return nil
 }
 
-// Stores information for cleanup
-type groupInfo struct {
-	GroupName *string
-	UserName  *string
-	PolicyArn *string
+func (m mockedIAMGroups) DeleteGroup(input *iam.DeleteGroupInput) (*iam.DeleteGroupOutput, error) {
+	return &m.DeleteGroupOutput, nil
 }
 
-func createNonEmptyTestGroup(t *testing.T, session *session.Session, groupName string, userName string) (*groupInfo, error) {
-	svc := iam.New(session)
-
-	//Create User
-	userInput := &iam.CreateUserInput{
-		UserName: awsgo.String(userName),
-	}
-
-	_, err := svc.CreateUser(userInput)
-	require.NoError(t, err)
-
-	//Create Policy
-	policyOutput, err := svc.CreatePolicy(&iam.CreatePolicyInput{
-		PolicyDocument: awsgo.String(`{
-			"Version": "2012-10-17",
-			"Statement": [
-					{
-							"Sid": "VisualEditor0",
-							"Effect": "Allow",
-							"Action": "ec2:DescribeInstances",
-							"Resource": "*"
-					}
-			]
-		}`),
-		PolicyName:  awsgo.String("policy-" + groupName),
-		Description: awsgo.String("Policy created by cloud-nuke tests - Should be deleted"),
-	})
-	require.NoError(t, err)
-
-	//Create Group
-	groupInput := &iam.CreateGroupInput{
-		GroupName: awsgo.String(groupName),
-	}
-
-	_, err = svc.CreateGroup(groupInput)
-	require.NoError(t, err)
-
-	//Add user to Group
-	userGroupLinkInput := &iam.AddUserToGroupInput{
-		GroupName: awsgo.String(groupName),
-		UserName:  awsgo.String(userName),
-	}
-	_, err = svc.AddUserToGroup(userGroupLinkInput)
-	require.NoError(t, err)
-
-	//Add policy to Group
-
-	groupPolicyInput := &iam.AttachGroupPolicyInput{
-		PolicyArn: policyOutput.Policy.Arn,
-		GroupName: awsgo.String(groupName),
-	}
-	_, err = svc.AttachGroupPolicy(groupPolicyInput)
-	require.NoError(t, err)
-
-	// Add inline policy to Group
-	putGroupPolicyInput := &iam.PutGroupPolicyInput{
-		GroupName: &groupName,
-		PolicyDocument: awsgo.String(`{
-			"Version": "2012-10-17",
-			"Statement": [
-					{
-							"Sid": "VisualEditor0",
-							"Effect": "Allow",
-							"Action": "ec2:DescribeInstances",
-							"Resource": "*"
-					}
-			]
-		}`),
-		PolicyName: awsgo.String("inline-policy-" + groupName),
-	}
-	_, err = svc.PutGroupPolicy(putGroupPolicyInput)
-	require.NoError(t, err)
-
-	info := &groupInfo{
-		GroupName: &groupName,
-		PolicyArn: policyOutput.Policy.Arn,
-		UserName:  &userName,
-	}
-
-	return info, nil
+func (m mockedIAMGroups) ListAttachedGroupPoliciesPages(input *iam.ListAttachedGroupPoliciesInput, fn func(*iam.ListAttachedGroupPoliciesOutput, bool) bool) error {
+	fn(&m.ListAttachedGroupPoliciesPagesOutput, true)
+	return nil
 }
 
-func deleteGroupExtraResources(session *session.Session, info *groupInfo) {
-	svc := iam.New(session)
-	_, err := svc.DeletePolicy(&iam.DeletePolicyInput{
-		PolicyArn: info.PolicyArn,
-	})
-	if err != nil {
-		logging.Logger.Errorf("Unable to delete test policy: %s", *info.PolicyArn)
-	}
-
-	_, err = svc.DeleteUser(&iam.DeleteUserInput{
-		UserName: info.UserName,
-	})
-	if err != nil {
-		logging.Logger.Errorf("Unable to delete test user: %s", *info.UserName)
-	}
+func (m mockedIAMGroups) ListGroupPoliciesPages(input *iam.ListGroupPoliciesInput, fn func(*iam.ListGroupPoliciesOutput, bool) bool) error {
+	fn(&m.ListGroupPoliciesOutput, true)
+	return nil
 }
 
-// Test that we can nuke iam groups.
-func TestNukeIamGroups(t *testing.T) {
+func (m mockedIAMGroups) DetachGroupPolicy(input *iam.DetachGroupPolicyInput) (*iam.DetachGroupPolicyOutput, error) {
+	return &m.DetachGroupPolicyOutput, nil
+}
+
+func (m mockedIAMGroups) DeleteGroupPolicy(input *iam.DeleteGroupPolicyInput) (*iam.DeleteGroupPolicyOutput, error) {
+	return &m.DeleteGroupPolicyOutput, nil
+}
+
+func (m mockedIAMGroups) GetGroup(input *iam.GetGroupInput) (*iam.GetGroupOutput, error) {
+	return &m.GetGroupOutput, nil
+}
+
+func (m mockedIAMGroups) RemoveUserFromGroup(input *iam.RemoveUserFromGroupInput) (*iam.RemoveUserFromGroupOutput, error) {
+	return &m.RemoveUserFromGroupOutput, nil
+}
+
+func TestIamGroups_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
+	testName1 := "group1"
+	testName2 := "group2"
+	now := time.Now()
+	ig := IAMGroups{
+		Client: mockedIAMGroups{
+			ListGroupsPagesOutput: iam.ListGroupsOutput{
+				Groups: []*iam.Group{
+					{
+						GroupName:  awsgo.String(testName1),
+						CreateDate: awsgo.Time(now),
+					},
+					{
+						GroupName:  awsgo.String(testName2),
+						CreateDate: awsgo.Time(now.Add(1)),
+					},
+				},
+			},
+		},
+	}
 
-	localSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: awsgo.Time(now),
+				}},
+			expected: []string{testName1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := ig.getAll(config.Config{
+				IAMGroups: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+		})
+	}
+}
 
-	//Create test entities
-	emptyName := "cloud-nuke-test" + util.UniqueID()
-	err = createEmptyTestGroup(t, localSession, emptyName)
-	require.NoError(t, err)
+func TestIamGroups_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
 
-	nonEmptyName := "cloud-nuke-test" + util.UniqueID()
-	userName := "cloud-nuke-test" + util.UniqueID()
-	info, err := createNonEmptyTestGroup(t, localSession, nonEmptyName, userName)
-	defer deleteGroupExtraResources(localSession, info)
-	require.NoError(t, err)
+	ig := IAMGroups{
+		Client: mockedIAMGroups{
+			GetGroupOutput: iam.GetGroupOutput{
+				Users: []*iam.User{
+					{
+						UserName: awsgo.String("user1"),
+					},
+				},
+			},
+			RemoveUserFromGroupOutput: iam.RemoveUserFromGroupOutput{},
+			ListAttachedGroupPoliciesPagesOutput: iam.ListAttachedGroupPoliciesOutput{
+				AttachedPolicies: []*iam.AttachedPolicy{
+					{
+						PolicyName: awsgo.String("policy1"),
+					},
+				},
+			},
+			DetachGroupPolicyOutput: iam.DetachGroupPolicyOutput{},
+			ListGroupPoliciesOutput: iam.ListGroupPoliciesOutput{
+				PolicyNames: []*string{
+					awsgo.String("policy2"),
+				},
+			},
+			DeleteGroupPolicyOutput: iam.DeleteGroupPolicyOutput{},
+			DeleteGroupOutput:       iam.DeleteGroupOutput{},
+		},
+	}
 
-	//Assert test entities exist
-	groupNames, err := getAllIamGroups(localSession, time.Now(), config.Config{})
+	err := ig.nukeAll([]*string{awsgo.String("group1")})
 	require.NoError(t, err)
-	assert.Contains(t, awsgo.StringValueSlice(groupNames), nonEmptyName)
-	assert.Contains(t, awsgo.StringValueSlice(groupNames), emptyName)
-
-	//Nuke test entities
-	err = nukeAllIamGroups(localSession, []*string{&emptyName, &nonEmptyName})
-	require.NoError(t, err)
-
-	//Assert test entities don't exist anymore
-	groupNames, err = getAllIamGroups(localSession, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(groupNames), nonEmptyName)
-	assert.NotContains(t, awsgo.StringValueSlice(groupNames), emptyName)
 }
