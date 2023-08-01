@@ -1466,7 +1466,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(guardDutyDetectors.ResourceName(), resourceTypes) {
 			start := time.Now()
-			detectors, err := getAllGuardDutyDetectors(cloudNukeSession, excludeAfter, configObj, guardDutyDetectors.MaxBatchSize())
+			detectors, err := guardDutyDetectors.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1483,7 +1483,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(detectors) > 0 {
-				guardDutyDetectors.detectorIds = detectors
+				guardDutyDetectors.detectorIds = aws.StringValueSlice(detectors)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, guardDutyDetectors)
 			}
 		}

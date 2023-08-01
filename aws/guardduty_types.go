@@ -24,5 +24,5 @@ func (gd GuardDuty) MaxBatchSize() int {
 }
 
 func (gd GuardDuty) Nuke(session *session.Session, detectorIds []string) error {
-	return nukeAllGuardDutyDetectors(session, detectorIds)
+	return gd.nukeAll(detectorIds)
 }
