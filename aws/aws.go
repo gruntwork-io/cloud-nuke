@@ -1993,7 +1993,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(iamUsers.ResourceName(), resourceTypes) {
 			start := time.Now()
-			userNames, err := getAllIamUsers(session, excludeAfter, configObj)
+			userNames, err := iamUsers.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
