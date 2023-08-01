@@ -428,7 +428,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(loadBalancersV2.ResourceName(), resourceTypes) {
 			start := time.Now()
-			elbv2Arns, err := getAllElbv2Instances(cloudNukeSession, region, excludeAfter, configObj)
+			elbv2Arns, err := loadBalancersV2.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
