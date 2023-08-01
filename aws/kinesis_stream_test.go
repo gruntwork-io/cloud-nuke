@@ -1,145 +1,85 @@
 package aws
 
 import (
-	"context"
-	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"strings"
-	"testing"
-	"time"
-
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/kinesis"
-	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
+	"regexp"
+	"testing"
 )
 
-func TestListKinesisStreams(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	require.NoError(t, err)
-
-	svc := kinesis.NewFromConfig(cfg)
-
-	sName := createKinesisStream(t, svc)
-	defer deleteKinesisStream(t, svc, sName, true)
-
-	sNames, err := getAllKinesisStreams(session, config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(sNames), aws.StringValue(sName))
+type mockedKinesisClient struct {
+	kinesisiface.KinesisAPI
+	ListStreamsOutput  kinesis.ListStreamsOutput
+	DeleteStreamOutput kinesis.DeleteStreamOutput
 }
 
-func TestNukeKinesisStreamOne(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	require.NoError(t, err)
-
-	svc := kinesis.NewFromConfig(cfg)
-
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	sName := createKinesisStream(t, svc)
-	defer deleteKinesisStream(t, svc, sName, true)
-	identifiers := []*string{sName}
-
-	require.NoError(
-		t,
-		nukeAllKinesisStreams(session, identifiers),
-	)
-
-	assertKinesisStreamsDeleted(t, svc, identifiers)
+func (m mockedKinesisClient) ListStreamsPages(input *kinesis.ListStreamsInput, fn func(*kinesis.ListStreamsOutput, bool) bool) error {
+	fn(&m.ListStreamsOutput, true)
+	return nil
 }
 
-func TestNukeKinesisStreamMoreThanOne(t *testing.T) {
+func (m mockedKinesisClient) DeleteStream(input *kinesis.DeleteStreamInput) (*kinesis.DeleteStreamOutput, error) {
+	return &m.DeleteStreamOutput, nil
+}
+
+func TestKinesisStreams_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	require.NoError(t, err)
-
-	svc := kinesis.NewFromConfig(cfg)
-
-	sNames := []*string{}
-	for i := 0; i < 3; i++ {
-		// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-		sName := createKinesisStream(t, svc)
-		defer deleteKinesisStream(t, svc, sName, true)
-		sNames = append(sNames, sName)
+	testName1 := "stream1"
+	testName2 := "stream2"
+	ks := KinesisStreams{
+		Client: mockedKinesisClient{
+			ListStreamsOutput: kinesis.ListStreamsOutput{
+				StreamNames: []*string{aws.String(testName1), aws.String(testName2)},
+			},
+		},
 	}
 
-	require.NoError(
-		t,
-		nukeAllKinesisStreams(session, sNames),
-	)
-
-	assertKinesisStreamsDeleted(t, svc, sNames)
-}
-
-func createKinesisStream(t *testing.T, svc *kinesis.Client) *string {
-	uniqueID := util.UniqueID()
-	name := fmt.Sprintf("cloud-nuke-test-%s", strings.ToLower(uniqueID))
-
-	_, err := svc.CreateStream(context.TODO(), &kinesis.CreateStreamInput{
-		ShardCount: aws.Int32(1),
-		StreamName: aws.String(name),
-	})
-	require.NoError(t, err)
-
-	// Add an arbitrary sleep to account for eventual consistency
-	time.Sleep(15 * time.Second)
-	return &name
-}
-
-func deleteKinesisStream(t *testing.T, svc *kinesis.Client, name *string, checkErr bool) {
-	_, err := svc.DeleteStream(context.TODO(), &kinesis.DeleteStreamInput{
-		StreamName: name,
-	})
-	if checkErr {
-		require.NoError(t, err)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
 	}
-}
-
-func assertKinesisStreamsDeleted(t *testing.T, svc *kinesis.Client, identifiers []*string) {
-	for _, name := range identifiers {
-		stream, err := svc.DescribeStream(context.TODO(), &kinesis.DescribeStreamInput{
-			StreamName: name,
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := ks.getAll(config.Config{
+				KinesisStream: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
-
-		// There is an error returned, assert it's because the Stream cannot be found because it's
-		// been deleted. Otherwise assert that the stream status is DELETING.
-		if err != nil {
-			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() != "ResourceNotFoundException" {
-				t.Fatalf("Stream %s is not deleted", aws.StringValue(name))
-			}
-		} else {
-			require.Equal(t, types.StreamStatusDeleting, stream.StreamDescription.StreamStatus)
-		}
 	}
+
+}
+
+func TestKinesisStreams_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	ks := KinesisStreams{
+		Client: mockedKinesisClient{
+			DeleteStreamOutput: kinesis.DeleteStreamOutput{},
+		},
+	}
+
+	err := ks.nukeAll([]*string{aws.String("test")})
+	require.NoError(t, err)
 }

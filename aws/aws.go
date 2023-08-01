@@ -1558,7 +1558,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(kinesisStreams.ResourceName(), resourceTypes) {
 			start := time.Now()
-			streams, err := getAllKinesisStreams(cloudNukeSession, configObj)
+			streams, err := kinesisStreams.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
