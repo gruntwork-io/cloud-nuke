@@ -1,117 +1,104 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
+	"regexp"
 	"testing"
 	"time"
-
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/elb"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
 )
 
-func createTestELB(t *testing.T, session *session.Session, name string) {
-	svc := elb.New(session)
+type mockedLoadBalancers struct {
+	elbiface.ELBAPI
+	DescribeLoadBalancersOutput elb.DescribeLoadBalancersOutput
+	DeleteLoadBalancerOutput    elb.DeleteLoadBalancerOutput
+	DescribeLoadBalancersError  error
+}
 
-	param := &elb.CreateLoadBalancerInput{
-		AvailabilityZones: []*string{
-			awsgo.String(awsgo.StringValue(session.Config.Region) + "a"),
-		},
-		LoadBalancerName: awsgo.String(name),
-		Listeners: []*elb.Listener{
-			&elb.Listener{
-				InstancePort:     awsgo.Int64(80),
-				LoadBalancerPort: awsgo.Int64(80),
-				Protocol:         awsgo.String("HTTP"),
+func (m mockedLoadBalancers) DescribeLoadBalancers(input *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error) {
+	return &m.DescribeLoadBalancersOutput, nil
+}
+
+func (m mockedLoadBalancers) DeleteLoadBalancer(input *elb.DeleteLoadBalancerInput) (*elb.DeleteLoadBalancerOutput, error) {
+	return &m.DeleteLoadBalancerOutput, m.DescribeLoadBalancersError
+}
+
+func TestElb_GetAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testName1 := "test-name-1"
+	testName2 := "test-name-2"
+	now := time.Now()
+	balancer := LoadBalancers{
+		Client: mockedLoadBalancers{
+			DescribeLoadBalancersOutput: elb.DescribeLoadBalancersOutput{
+				LoadBalancerDescriptions: []*elb.LoadBalancerDescription{
+					{
+						LoadBalancerName: aws.String(testName1),
+						CreatedTime:      aws.Time(now),
+					},
+					{
+						LoadBalancerName: aws.String(testName2),
+						CreatedTime:      aws.Time(now.Add(1)),
+					},
+				},
 			},
 		},
 	}
 
-	_, err := svc.CreateLoadBalancer(param)
-	if err != nil {
-		assert.Failf(t, "Could not create test ELB", errors.WithStackTrace(err).Error())
-	}
-}
-
-func TestListELBs(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	elbName := "cloud-nuke-test-" + util.UniqueID()
-	createTestELB(t, session, elbName)
-	// clean up after this test
-	defer nukeAllElbInstances(session, []*string{&elbName})
-
-	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour*-1))
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of ELBs", errors.WithStackTrace(err).Error())
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(elbNames), elbName)
-
-	elbNames, err = getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of ELBs", errors.WithStackTrace(err).Error())
-	}
-
-	assert.Contains(t, awsgo.StringValueSlice(elbNames), elbName)
-}
-
-func TestNukeELBs(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region)},
-	)
-	svc := elb.New(session)
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	elbName := "cloud-nuke-test-" + util.UniqueID()
-	createTestELB(t, session, elbName)
-
-	_, err = svc.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{
-		LoadBalancerNames: []*string{
-			awsgo.String(elbName),
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
 		},
-	})
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testName1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := balancer.getAll(config.Config{
+				ELBv1: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
+}
 
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+func TestElb_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	balancer := LoadBalancers{
+		Client: mockedLoadBalancers{
+			DeleteLoadBalancerOutput:   elb.DeleteLoadBalancerOutput{},
+			DescribeLoadBalancersError: awserr.New("LoadBalancerNotFound", "", nil),
+		},
 	}
 
-	if err := nukeAllElbInstances(session, []*string{&elbName}); err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	elbNames, err := getAllElbInstances(session, region, time.Now().Add(1*time.Hour))
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of ELBs: %v", err)
-	}
-
-	assert.NotContains(t, awsgo.StringValueSlice(elbNames), elbName)
+	err := balancer.nukeAll([]*string{aws.String("test-arn-1"), aws.String("test-arn-2")})
+	require.NoError(t, err)
 }

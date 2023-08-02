@@ -1,22 +1,22 @@
 package aws
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func waitUntilElbDeleted(svc *elb.ELB, input *elb.DescribeLoadBalancersInput) error {
+func (balancer LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalancersInput) error {
 	for i := 0; i < 30; i++ {
-		_, err := svc.DescribeLoadBalancers(input)
+		_, err := balancer.Client.DescribeLoadBalancers(input)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "LoadBalancerNotFound" {
 				return nil
@@ -33,16 +33,18 @@ func waitUntilElbDeleted(svc *elb.ELB, input *elb.DescribeLoadBalancersInput) er
 }
 
 // Returns a formatted string of ELB names
-func getAllElbInstances(session *session.Session, region string, excludeAfter time.Time) ([]*string, error) {
-	svc := elb.New(session)
-	result, err := svc.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{})
+func (balancer LoadBalancers) getAll(configObj config.Config) ([]*string, error) {
+	result, err := balancer.Client.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var names []*string
 	for _, balancer := range result.LoadBalancerDescriptions {
-		if excludeAfter.After(*balancer.CreatedTime) {
+		if configObj.ELBv1.ShouldInclude(config.ResourceValue{
+			Name: balancer.LoadBalancerName,
+			Time: balancer.CreatedTime,
+		}) {
 			names = append(names, balancer.LoadBalancerName)
 		}
 	}
@@ -51,15 +53,13 @@ func getAllElbInstances(session *session.Session, region string, excludeAfter ti
 }
 
 // Deletes all Elastic Load Balancers
-func nukeAllElbInstances(session *session.Session, names []*string) error {
-	svc := elb.New(session)
-
+func (balancer LoadBalancers) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No Elastic Load Balancers to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Elastic Load Balancers to nuke in region %s", balancer.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Elastic Load Balancers in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Elastic Load Balancers in region %s", balancer.Region)
 	var deletedNames []*string
 
 	for _, name := range names {
@@ -67,7 +67,7 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 			LoadBalancerName: name,
 		}
 
-		_, err := svc.DeleteLoadBalancer(params)
+		_, err := balancer.Client.DeleteLoadBalancer(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -82,7 +82,7 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Load Balancer (v1)",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": balancer.Region,
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
@@ -91,7 +91,7 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 	}
 
 	if len(deletedNames) > 0 {
-		err := waitUntilElbDeleted(svc, &elb.DescribeLoadBalancersInput{
+		err := balancer.waitUntilElbDeleted(&elb.DescribeLoadBalancersInput{
 			LoadBalancerNames: deletedNames,
 		})
 		if err != nil {
@@ -100,6 +100,6 @@ func nukeAllElbInstances(session *session.Session, names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), balancer.Region)
 	return nil
 }
