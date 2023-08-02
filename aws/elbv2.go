@@ -1,31 +1,29 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of ELBv2 Arns
-func getAllElbv2Instances(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := elbv2.New(session)
-	result, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
+func (balancer LoadBalancersV2) getAll(configObj config.Config) ([]*string, error) {
+	result, err := balancer.Client.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var arns []*string
 	for _, balancer := range result.LoadBalancers {
-		if shouldIncludeELBv2(balancer, excludeAfter, configObj) {
+		if configObj.ELBv2.ShouldInclude(config.ResourceValue{
+			Name: balancer.LoadBalancerName,
+			Time: balancer.CreatedTime,
+		}) {
 			arns = append(arns, balancer.LoadBalancerArn)
 		}
 	}
@@ -33,32 +31,14 @@ func getAllElbv2Instances(session *session.Session, region string, excludeAfter 
 	return arns, nil
 }
 
-func shouldIncludeELBv2(balancer *elbv2.LoadBalancer, excludeAfter time.Time, configObj config.Config) bool {
-	if balancer == nil {
-		return false
-	}
-
-	if balancer.CreatedTime != nil && excludeAfter.Before(*balancer.CreatedTime) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		awsgo.StringValue(balancer.LoadBalancerName),
-		configObj.ELBv2.IncludeRule.NamesRegExp,
-		configObj.ELBv2.ExcludeRule.NamesRegExp,
-	)
-}
-
 // Deletes all Elastic Load Balancers
-func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
-	svc := elbv2.New(session)
-
+func (balancer LoadBalancersV2) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
-		logging.Logger.Debugf("No V2 Elastic Load Balancers to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No V2 Elastic Load Balancers to nuke in region %s", balancer.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all V2 Elastic Load Balancers in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all V2 Elastic Load Balancers in region %s", balancer.Region)
 	var deletedArns []*string
 
 	for _, arn := range arns {
@@ -66,7 +46,7 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 			LoadBalancerArn: arn,
 		}
 
-		_, err := svc.DeleteLoadBalancer(params)
+		_, err := balancer.Client.DeleteLoadBalancer(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -81,7 +61,7 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Load Balancer V2",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": balancer.Region,
 			})
 		} else {
 			deletedArns = append(deletedArns, arn)
@@ -90,7 +70,7 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 	}
 
 	if len(deletedArns) > 0 {
-		err := svc.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{
+		err := balancer.Client.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{
 			LoadBalancerArns: deletedArns,
 		})
 		if err != nil {
@@ -99,6 +79,6 @@ func nukeAllElbv2Instances(session *session.Session, arns []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), balancer.Region)
 	return nil
 }

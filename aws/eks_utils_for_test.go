@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/go-commons/collections"
 	"testing"
 	"time"
 
@@ -298,3 +299,48 @@ const eksNodeGroupAssumeRolePolicy = `{
     }
   ]
 }`
+
+func getSubnetsInDifferentAZs(t *testing.T, session *session.Session) (*ec2.Subnet, *ec2.Subnet) {
+	subnetOutput, err := ec2.New(session).DescribeSubnets(&ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   awsgo.String("default-for-az"),
+				Values: []*string{awsgo.String("true")},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.True(t, len(subnetOutput.Subnets) >= 2)
+
+	subnet1Idx := -1
+	for idx, subnet := range subnetOutput.Subnets {
+		if !collections.ListContainsElement(AvailabilityZoneBlackList, awsgo.StringValue(subnet.AvailabilityZone)) {
+			subnet1Idx = idx
+			break
+		}
+	}
+	if subnet1Idx == -1 {
+		require.Fail(t, "Unable to find a subnet in an availability zone that is not blacklisted.")
+	}
+	subnet1 := subnetOutput.Subnets[subnet1Idx]
+	az1 := awsgo.StringValue(subnet1.AvailabilityZone)
+	subnet1Id := awsgo.StringValue(subnet1.SubnetId)
+	subnet1VpcId := awsgo.StringValue(subnet1.VpcId)
+
+	for i := subnet1Idx + 1; i < len(subnetOutput.Subnets); i++ {
+		subnet2 := subnetOutput.Subnets[i]
+		az2 := awsgo.StringValue(subnet2.AvailabilityZone)
+		if collections.ListContainsElement(AvailabilityZoneBlackList, az2) {
+			// Skip because subnet is in a blacklisted AZ
+			continue
+		}
+		subnet2Id := awsgo.StringValue(subnet2.SubnetId)
+		subnet2VpcId := awsgo.StringValue(subnet2.VpcId)
+		if az1 != az2 && subnet1Id != subnet2Id && subnet1VpcId == subnet2VpcId {
+			return subnet1, subnet2
+		}
+	}
+
+	require.Fail(t, "Unable to find 2 subnets in different Availability Zones")
+	return nil, nil
+}

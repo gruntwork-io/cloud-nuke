@@ -31,7 +31,7 @@ func (balancer LoadBalancersV2) ResourceIdentifiers() []string {
 
 // Nuke - nuke 'em all!!!
 func (balancer LoadBalancersV2) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllElbv2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := balancer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
