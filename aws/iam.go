@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -19,25 +18,28 @@ import (
 )
 
 // List all IAM users in the AWS account and returns a slice of the UserNames
-func getAllIamUsers(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := iam.New(session)
+func (iu IAMUsers) getAll(configObj config.Config) ([]*string, error) {
 	input := &iam.ListUsersInput{}
 
 	var userNames []*string
-
-	err := svc.ListUsersPages(input, func(page *iam.ListUsersOutput, lastPage bool) bool {
+	err := iu.Client.ListUsersPages(input, func(page *iam.ListUsersOutput, lastPage bool) bool {
 		for _, user := range page.Users {
-			if config.ShouldInclude(aws.StringValue(user.UserName), configObj.IAMUsers.IncludeRule.NamesRegExp, configObj.IAMUsers.ExcludeRule.NamesRegExp) && excludeAfter.After(*user.CreateDate) {
+			if configObj.IAMUsers.ShouldInclude(config.ResourceValue{
+				Name: user.UserName,
+				Time: user.CreateDate,
+			}) {
 				userNames = append(userNames, user.UserName)
 			}
 		}
+
 		return !lastPage
 	})
+
 	return userNames, errors.WithStackTrace(err)
 }
 
-func detachUserPolicies(svc *iam.IAM, userName *string) error {
-	policiesOutput, err := svc.ListAttachedUserPolicies(&iam.ListAttachedUserPoliciesInput{
+func (iu IAMUsers) detachUserPolicies(userName *string) error {
+	policiesOutput, err := iu.Client.ListAttachedUserPolicies(&iam.ListAttachedUserPoliciesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -46,7 +48,7 @@ func detachUserPolicies(svc *iam.IAM, userName *string) error {
 
 	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
 		arn := attachedPolicy.PolicyArn
-		_, err = svc.DetachUserPolicy(&iam.DetachUserPolicyInput{
+		_, err = iu.Client.DetachUserPolicy(&iam.DetachUserPolicyInput{
 			PolicyArn: arn,
 			UserName:  userName,
 		})
@@ -60,8 +62,8 @@ func detachUserPolicies(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func deleteInlineUserPolicies(svc *iam.IAM, userName *string) error {
-	policyOutput, err := svc.ListUserPolicies(&iam.ListUserPoliciesInput{
+func (iu IAMUsers) deleteInlineUserPolicies(userName *string) error {
+	policyOutput, err := iu.Client.ListUserPolicies(&iam.ListUserPoliciesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -70,7 +72,7 @@ func deleteInlineUserPolicies(svc *iam.IAM, userName *string) error {
 	}
 
 	for _, policyName := range policyOutput.PolicyNames {
-		_, err := svc.DeleteUserPolicy(&iam.DeleteUserPolicyInput{
+		_, err := iu.Client.DeleteUserPolicy(&iam.DeleteUserPolicyInput{
 			PolicyName: policyName,
 			UserName:   userName,
 		})
@@ -84,8 +86,8 @@ func deleteInlineUserPolicies(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func removeUserFromGroups(svc *iam.IAM, userName *string) error {
-	groupsOutput, err := svc.ListGroupsForUser(&iam.ListGroupsForUserInput{
+func (iu IAMUsers) removeUserFromGroups(userName *string) error {
+	groupsOutput, err := iu.Client.ListGroupsForUser(&iam.ListGroupsForUserInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -93,7 +95,7 @@ func removeUserFromGroups(svc *iam.IAM, userName *string) error {
 	}
 
 	for _, group := range groupsOutput.Groups {
-		_, err := svc.RemoveUserFromGroup(&iam.RemoveUserFromGroupInput{
+		_, err := iu.Client.RemoveUserFromGroup(&iam.RemoveUserFromGroupInput{
 			GroupName: group.GroupName,
 			UserName:  userName,
 		})
@@ -107,7 +109,7 @@ func removeUserFromGroups(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func deleteLoginProfile(svc *iam.IAM, userName *string) error {
+func (iu IAMUsers) deleteLoginProfile(userName *string) error {
 	return retry.DoWithRetry(
 		logging.Logger,
 		"Delete Login Profile",
@@ -115,7 +117,7 @@ func deleteLoginProfile(svc *iam.IAM, userName *string) error {
 		2*time.Second,
 		func() error {
 			// Delete Login Profile attached to the user
-			_, err := svc.DeleteLoginProfile(&iam.DeleteLoginProfileInput{
+			_, err := iu.Client.DeleteLoginProfile(&iam.DeleteLoginProfileInput{
 				UserName: userName,
 			})
 			if err != nil {
@@ -141,8 +143,8 @@ func deleteLoginProfile(svc *iam.IAM, userName *string) error {
 		})
 }
 
-func deleteAccessKeys(svc *iam.IAM, userName *string) error {
-	output, err := svc.ListAccessKeys(&iam.ListAccessKeysInput{
+func (iu IAMUsers) deleteAccessKeys(userName *string) error {
+	output, err := iu.Client.ListAccessKeys(&iam.ListAccessKeysInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -152,7 +154,7 @@ func deleteAccessKeys(svc *iam.IAM, userName *string) error {
 
 	for _, md := range output.AccessKeyMetadata {
 		accessKeyId := md.AccessKeyId
-		_, err := svc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
+		_, err := iu.Client.DeleteAccessKey(&iam.DeleteAccessKeyInput{
 			AccessKeyId: accessKeyId,
 			UserName:    userName,
 		})
@@ -167,8 +169,8 @@ func deleteAccessKeys(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func deleteSigningCertificate(svc *iam.IAM, userName *string) error {
-	output, err := svc.ListSigningCertificates(&iam.ListSigningCertificatesInput{
+func (iu IAMUsers) deleteSigningCertificate(userName *string) error {
+	output, err := iu.Client.ListSigningCertificates(&iam.ListSigningCertificatesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -178,7 +180,7 @@ func deleteSigningCertificate(svc *iam.IAM, userName *string) error {
 
 	for _, cert := range output.Certificates {
 		certificateId := cert.CertificateId
-		_, err := svc.DeleteSigningCertificate(&iam.DeleteSigningCertificateInput{
+		_, err := iu.Client.DeleteSigningCertificate(&iam.DeleteSigningCertificateInput{
 			CertificateId: certificateId,
 			UserName:      userName,
 		})
@@ -193,8 +195,8 @@ func deleteSigningCertificate(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func deleteSSHPublicKeys(svc *iam.IAM, userName *string) error {
-	output, err := svc.ListSSHPublicKeys(&iam.ListSSHPublicKeysInput{
+func (iu IAMUsers) deleteSSHPublicKeys(userName *string) error {
+	output, err := iu.Client.ListSSHPublicKeys(&iam.ListSSHPublicKeysInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -204,7 +206,7 @@ func deleteSSHPublicKeys(svc *iam.IAM, userName *string) error {
 
 	for _, key := range output.SSHPublicKeys {
 		keyId := key.SSHPublicKeyId
-		_, err := svc.DeleteSSHPublicKey(&iam.DeleteSSHPublicKeyInput{
+		_, err := iu.Client.DeleteSSHPublicKey(&iam.DeleteSSHPublicKeyInput{
 			SSHPublicKeyId: keyId,
 			UserName:       userName,
 		})
@@ -219,13 +221,13 @@ func deleteSSHPublicKeys(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func deleteServiceSpecificCredentials(svc *iam.IAM, userName *string) error {
+func (iu IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 	services := []string{
 		"cassandra.amazonaws.com",
 		"codecommit.amazonaws.com",
 	}
 	for _, service := range services {
-		output, err := svc.ListServiceSpecificCredentials(&iam.ListServiceSpecificCredentialsInput{
+		output, err := iu.Client.ListServiceSpecificCredentials(&iam.ListServiceSpecificCredentialsInput{
 			ServiceName: aws.String(service),
 			UserName:    userName,
 		})
@@ -237,7 +239,7 @@ func deleteServiceSpecificCredentials(svc *iam.IAM, userName *string) error {
 		for _, metadata := range output.ServiceSpecificCredentials {
 			serviceSpecificCredentialId := metadata.ServiceSpecificCredentialId
 
-			_, err := svc.DeleteServiceSpecificCredential(&iam.DeleteServiceSpecificCredentialInput{
+			_, err := iu.Client.DeleteServiceSpecificCredential(&iam.DeleteServiceSpecificCredentialInput{
 				ServiceSpecificCredentialId: serviceSpecificCredentialId,
 				UserName:                    userName,
 			})
@@ -253,8 +255,8 @@ func deleteServiceSpecificCredentials(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func deleteMFADevices(svc *iam.IAM, userName *string) error {
-	output, err := svc.ListMFADevices(&iam.ListMFADevicesInput{
+func (iu IAMUsers) deleteMFADevices(userName *string) error {
+	output, err := iu.Client.ListMFADevices(&iam.ListMFADevicesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -266,7 +268,7 @@ func deleteMFADevices(svc *iam.IAM, userName *string) error {
 	for _, device := range output.MFADevices {
 		serialNumber := device.SerialNumber
 
-		_, err := svc.DeactivateMFADevice(&iam.DeactivateMFADeviceInput{
+		_, err := iu.Client.DeactivateMFADevice(&iam.DeactivateMFADeviceInput{
 			SerialNumber: serialNumber,
 			UserName:     userName,
 		})
@@ -282,7 +284,7 @@ func deleteMFADevices(svc *iam.IAM, userName *string) error {
 	for _, device := range output.MFADevices {
 		serialNumber := device.SerialNumber
 
-		_, err := svc.DeleteVirtualMFADevice(&iam.DeleteVirtualMFADeviceInput{
+		_, err := iu.Client.DeleteVirtualMFADevice(&iam.DeleteVirtualMFADeviceInput{
 			SerialNumber: serialNumber,
 		})
 		if err != nil {
@@ -296,8 +298,8 @@ func deleteMFADevices(svc *iam.IAM, userName *string) error {
 	return nil
 }
 
-func deleteUser(svc *iam.IAM, userName *string) error {
-	_, err := svc.DeleteUser(&iam.DeleteUserInput{
+func (iu IAMUsers) deleteUser(userName *string) error {
+	_, err := iu.Client.DeleteUser(&iam.DeleteUserInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -308,26 +310,26 @@ func deleteUser(svc *iam.IAM, userName *string) error {
 }
 
 // Nuke a single user
-func nukeUser(svc *iam.IAM, userName *string) error {
+func (iu IAMUsers) nukeUser(userName *string) error {
 	// Functions used to really nuke an IAM User as a user can have many attached
 	// items we need delete/detach them before actually deleting it.
 	// NOTE: The actual user deletion should always be the last one. This way we
 	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(svc *iam.IAM, userName *string) error{
-		detachUserPolicies, // TODO: Add CLI option to delete the Policy as policies exist independently of the user
-		deleteInlineUserPolicies,
-		removeUserFromGroups, // TODO: Add CLI option to delete groups as groups exist independently of the user
-		deleteLoginProfile,
-		deleteAccessKeys,
-		deleteSigningCertificate,
-		deleteSSHPublicKeys,
-		deleteServiceSpecificCredentials,
-		deleteMFADevices,
-		deleteUser,
+	functions := []func(userName *string) error{
+		iu.detachUserPolicies, // TODO: Add CLI option to delete the Policy as policies exist independently of the user
+		iu.deleteInlineUserPolicies,
+		iu.removeUserFromGroups, // TODO: Add CLI option to delete groups as groups exist independently of the user
+		iu.deleteLoginProfile,
+		iu.deleteAccessKeys,
+		iu.deleteSigningCertificate,
+		iu.deleteSSHPublicKeys,
+		iu.deleteServiceSpecificCredentials,
+		iu.deleteMFADevices,
+		iu.deleteUser,
 	}
 
 	for _, fn := range functions {
-		if err := fn(svc, userName); err != nil {
+		if err := fn(userName); err != nil {
 			return err
 		}
 	}
@@ -336,7 +338,7 @@ func nukeUser(svc *iam.IAM, userName *string) error {
 }
 
 // Delete all IAM Users
-func nukeAllIamUsers(session *session.Session, userNames []*string) error {
+func (iu IAMUsers) nukeAll(userNames []*string) error {
 	if len(userNames) == 0 {
 		logging.Logger.Info("No IAM Users to nuke")
 		return nil
@@ -345,11 +347,10 @@ func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 	logging.Logger.Info("Deleting all IAM Users")
 
 	deletedUsers := 0
-	svc := iam.New(session)
 	multiErr := new(multierror.Error)
 
 	for _, userName := range userNames {
-		err := nukeUser(svc, userName)
+		err := iu.nukeUser(userName)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(userName),
@@ -363,9 +364,7 @@ func nukeAllIamUsers(session *session.Session, userNames []*string) error {
 			multierror.Append(multiErr, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM User",
-			}, map[string]interface{}{
-				"region": *session.Config.Region,
-			})
+			}, map[string]interface{}{})
 		} else {
 			deletedUsers++
 			logging.Logger.Debugf("Deleted IAM User: %s", *userName)

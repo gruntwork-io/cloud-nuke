@@ -14,23 +14,23 @@ type IAMUsers struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (u IAMUsers) ResourceName() string {
+func (iu IAMUsers) ResourceName() string {
 	return "iam"
 }
 
 // ResourceIdentifiers - The IAM UserNames
-func (u IAMUsers) ResourceIdentifiers() []string {
-	return u.UserNames
+func (iu IAMUsers) ResourceIdentifiers() []string {
+	return iu.UserNames
 }
 
 // Tentative batch size to ensure AWS doesn't throttle
-func (u IAMUsers) MaxBatchSize() int {
+func (iu IAMUsers) MaxBatchSize() int {
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (u IAMUsers) Nuke(session *session.Session, users []string) error {
-	if err := nukeAllIamUsers(session, awsgo.StringSlice(users)); err != nil {
+func (iu IAMUsers) Nuke(session *session.Session, users []string) error {
+	if err := iu.nukeAll(awsgo.StringSlice(users)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
