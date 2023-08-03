@@ -1340,7 +1340,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(elasticaches.ResourceName(), resourceTypes) {
 			start := time.Now()
-			clusterIds, err := getAllElasticacheClusters(cloudNukeSession, region, excludeAfter, configObj)
+			clusterIds, err := elasticaches.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1371,7 +1371,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(elasticacheParameterGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
-			groupNames, err := getAllElasticacheParameterGroups(cloudNukeSession, region, excludeAfter, configObj)
+			groupNames, err := elasticacheParameterGroups.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1402,7 +1402,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(elasticacheSubnetGroups.ResourceName(), resourceTypes) {
 			start := time.Now()
-			groupNames, err := getAllElasticacheSubnetGroups(cloudNukeSession, region, excludeAfter, configObj)
+			groupNames, err := elasticacheSubnetGroups.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
