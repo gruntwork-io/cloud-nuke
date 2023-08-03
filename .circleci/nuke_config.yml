@@ -61,7 +61,7 @@ OIDCProvider:
   exclude:
     names_regex:
       # We have an active OIDC Provider used by github actions
-      - ".*token.actions.githubusercontent.com.*"
+      - "^token.actions.githubusercontent.com$"
 
 EKSCluster:
   exclude:
