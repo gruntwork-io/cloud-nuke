@@ -2,6 +2,7 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -14,11 +15,17 @@ import (
 type mockedDBSubnetGroups struct {
 	rdsiface.RDSAPI
 	DescribeDBSubnetGroupsOutput rds.DescribeDBSubnetGroupsOutput
+	DescribeDBSubnetGroupError   error
 	DeleteDBSubnetGroupOutput    rds.DeleteDBSubnetGroupOutput
 }
 
+func (m mockedDBSubnetGroups) DescribeDBSubnetGroupsPages(input *rds.DescribeDBSubnetGroupsInput, fn func(*rds.DescribeDBSubnetGroupsOutput, bool) bool) error {
+	fn(&m.DescribeDBSubnetGroupsOutput, true)
+	return nil
+}
+
 func (m mockedDBSubnetGroups) DescribeDBSubnetGroups(*rds.DescribeDBSubnetGroupsInput) (*rds.DescribeDBSubnetGroupsOutput, error) {
-	return &m.DescribeDBSubnetGroupsOutput, nil
+	return &m.DescribeDBSubnetGroupsOutput, m.DescribeDBSubnetGroupError
 }
 
 func (m mockedDBSubnetGroups) DeleteDBSubnetGroup(*rds.DeleteDBSubnetGroupInput) (*rds.DeleteDBSubnetGroupOutput, error) {
@@ -82,7 +89,8 @@ func TestDBSubnetGroups_NukeAll(t *testing.T) {
 
 	dsg := DBSubnetGroups{
 		Client: mockedDBSubnetGroups{
-			DeleteDBSubnetGroupOutput: rds.DeleteDBSubnetGroupOutput{},
+			DeleteDBSubnetGroupOutput:  rds.DeleteDBSubnetGroupOutput{},
+			DescribeDBSubnetGroupError: awserr.New(rds.ErrCodeDBSubnetGroupNotFoundFault, "", nil),
 		},
 	}
 
