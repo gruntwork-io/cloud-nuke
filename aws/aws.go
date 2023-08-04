@@ -729,7 +729,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(eipAddresses.ResourceName(), resourceTypes) {
 			start := time.Now()
-			allocationIds, err := getAllEIPAddresses(cloudNukeSession, region, excludeAfter, configObj)
+			allocationIds, err := eipAddresses.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

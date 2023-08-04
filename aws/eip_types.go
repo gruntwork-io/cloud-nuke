@@ -31,7 +31,7 @@ func (address EIPAddresses) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (address EIPAddresses) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllEIPAddresses(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := address.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

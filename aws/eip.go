@@ -2,13 +2,13 @@ package aws
 
 import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -16,14 +16,14 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func setFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, value time.Time, layout string) error {
+func (ea EIPAddresses) setFirstSeenTag(address ec2.Address, value time.Time) error {
 	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
-	_, err := svc.CreateTags(&ec2.CreateTagsInput{
+	_, err := ea.Client.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{address.AllocationId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   awsgo.String(key),
-				Value: awsgo.String(value.Format(layout)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestampTag(value)),
 			},
 		},
 	})
@@ -34,16 +34,16 @@ func setFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, value time.T
 	return nil
 }
 
-func getFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, layout string) (*time.Time, error) {
+func (ea EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error) {
 	tags := address.Tags
 	for _, tag := range tags {
-		if *tag.Key == key {
-			firstSeenTime, err := time.Parse(layout, *tag.Value)
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 
-			return &firstSeenTime, nil
+			return firstSeenTime, nil
 		}
 	}
 
@@ -51,18 +51,15 @@ func getFirstSeenTag(svc *ec2.EC2, address ec2.Address, key string, layout strin
 }
 
 // Returns a formatted string of EIP allocation ids
-func getAllEIPAddresses(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := ec2.New(session)
-	const layout = "2006-01-02 15:04:05"
-
-	result, err := svc.DescribeAddresses(&ec2.DescribeAddressesInput{})
+func (ea EIPAddresses) getAll(configObj config.Config) ([]*string, error) {
+	result, err := ea.Client.DescribeAddresses(&ec2.DescribeAddressesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
-		firstSeenTime, err := getFirstSeenTag(svc, *address, firstSeenTagKey, layout)
+		firstSeenTime, err := ea.getFirstSeenTag(*address)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -70,11 +67,11 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 		if firstSeenTime == nil {
 			now := time.Now().UTC()
 			firstSeenTime = &now
-			if err := setFirstSeenTag(svc, *address, firstSeenTagKey, *firstSeenTime, layout); err != nil {
+			if err := ea.setFirstSeenTag(*address, *firstSeenTime); err != nil {
 				return nil, err
 			}
 		}
-		if shouldIncludeAllocationId(address, excludeAfter, *firstSeenTime, configObj) {
+		if ea.shouldInclude(address, *firstSeenTime, configObj) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
@@ -82,36 +79,24 @@ func getAllEIPAddresses(session *session.Session, region string, excludeAfter ti
 	return allocationIds, nil
 }
 
-func shouldIncludeAllocationId(address *ec2.Address, excludeAfter time.Time, firstSeenTime time.Time, configObj config.Config) bool {
-	if address == nil {
-		return false
-	}
-
-	if excludeAfter.Before(firstSeenTime) {
-		return false
-	}
-
+func (ea EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.Time, configObj config.Config) bool {
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	allocationName := GetEC2ResourceNameTagValue(address.Tags)
-
-	return config.ShouldInclude(
-		*allocationName,
-		configObj.ElasticIP.IncludeRule.NamesRegExp,
-		configObj.ElasticIP.ExcludeRule.NamesRegExp,
-	)
+	allocationName, _ := GetEC2ResourceNameTagValue(address.Tags)
+	return configObj.ElasticIP.ShouldInclude(config.ResourceValue{
+		Time: &firstSeenTime,
+		Name: &allocationName,
+	})
 }
 
 // Deletes all EIP allocation ids
-func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) error {
-	svc := ec2.New(session)
-
+func (ea EIPAddresses) nukeAll(allocationIds []*string) error {
 	if len(allocationIds) == 0 {
-		logging.Logger.Debugf("No Elastic IPs to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No Elastic IPs to nuke in region %s", ea.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Elastic IPs in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Elastic IPs in region %s", ea.Region)
 	var deletedAllocationIDs []*string
 
 	for _, allocationID := range allocationIds {
@@ -119,7 +104,7 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 			AllocationId: allocationID,
 		}
 
-		_, err := svc.ReleaseAddress(params)
+		_, err := ea.Client.ReleaseAddress(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -136,7 +121,7 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EIP",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": ea.Region,
 					"reason": "Still Attached to an Active Resource",
 				})
 			} else {
@@ -144,7 +129,7 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EIP",
 				}, map[string]interface{}{
-					"region": *session.Config.Region,
+					"region": ea.Region,
 				})
 			}
 		} else {
@@ -153,6 +138,6 @@ func nukeAllEIPAddresses(session *session.Session, allocationIds []*string) erro
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Elastic IP(s) deleted in %s", len(deletedAllocationIDs), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d Elastic IP(s) deleted in %s", len(deletedAllocationIDs), ea.Region)
 	return nil
 }
