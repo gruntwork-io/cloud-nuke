@@ -1,163 +1,144 @@
 package aws
 
 import (
-	"context"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go/service/efs/efsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
+	"regexp"
 	"testing"
 	"time"
-
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/efs"
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-type TestElasticFileSystem struct {
-	Name *string
-	ID   *string
+type mockedElasticFileSystem struct {
+	efsiface.EFSAPI
+	DescribeFileSystemsPagesOutput efs.DescribeFileSystemsOutput
+	DescribeAccessPointsOutput     efs.DescribeAccessPointsOutput
+	DeleteAccessPointOutput        efs.DeleteAccessPointOutput
+	DescribeMountTargetsOutput     efs.DescribeMountTargetsOutput
+	DeleteMountTargetOutput        efs.DeleteMountTargetOutput
+	DeleteFileSystemOutput         efs.DeleteFileSystemOutput
 }
 
-func createTestElasticFileSystem(t *testing.T, session *session.Session, name string) (*TestElasticFileSystem, error) {
-	testEfs := &TestElasticFileSystem{
-		Name: aws.String(name),
-	}
-
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	if err != nil {
-		return testEfs, errors.WithStackTrace(err)
-	}
-
-	svc := efs.NewFromConfig(cfg)
-
-	param := &efs.CreateFileSystemInput{
-		CreationToken: testEfs.Name,
-	}
-
-	output, err := svc.CreateFileSystem(context.TODO(), param)
-	if err != nil {
-		assert.Failf(t, "Could not create test Elastic FileSystem (efs): %s", errors.WithStackTrace(err).Error())
-	}
-
-	testEfs.ID = output.FileSystemId
-
-	return testEfs, nil
+func (m mockedElasticFileSystem) DescribeFileSystemsPages(input *efs.DescribeFileSystemsInput, callback func(*efs.DescribeFileSystemsOutput, bool) bool) error {
+	callback(&m.DescribeFileSystemsPagesOutput, true)
+	return nil
 }
 
-func TestListElasticFileSystems(t *testing.T) {
+func (m mockedElasticFileSystem) DescribeAccessPoints(input *efs.DescribeAccessPointsInput) (*efs.DescribeAccessPointsOutput, error) {
+	return &m.DescribeAccessPointsOutput, nil
+}
+
+func (m mockedElasticFileSystem) DeleteAccessPoint(input *efs.DeleteAccessPointInput) (*efs.DeleteAccessPointOutput, error) {
+	return &m.DeleteAccessPointOutput, nil
+}
+
+func (m mockedElasticFileSystem) DescribeMountTargets(input *efs.DescribeMountTargetsInput) (*efs.DescribeMountTargetsOutput, error) {
+	return &m.DescribeMountTargetsOutput, nil
+}
+
+func (m mockedElasticFileSystem) DeleteMountTarget(input *efs.DeleteMountTargetInput) (*efs.DeleteMountTargetOutput, error) {
+	return &m.DeleteMountTargetOutput, nil
+}
+
+func (m mockedElasticFileSystem) DeleteFileSystem(input *efs.DeleteFileSystemInput) (*efs.DeleteFileSystemOutput, error) {
+	return &m.DeleteFileSystemOutput, nil
+}
+
+func TestEFS_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-	session, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	},
-	)
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+	testId1 := "testId1"
+	testName1 := "test-efs1"
+	testId2 := "testId2"
+	testName2 := "test-efs2"
+	now := time.Now()
+	ef := ElasticFileSystem{
+		Client: mockedElasticFileSystem{
+			DescribeFileSystemsPagesOutput: efs.DescribeFileSystemsOutput{
+				FileSystems: []*efs.FileSystemDescription{
+					{
+						FileSystemId: aws.String(testId1),
+						Name:         aws.String(testName1),
+						CreationTime: aws.Time(now),
+					},
+					{
+						FileSystemId: aws.String(testId2),
+						Name:         aws.String(testName2),
+						CreationTime: aws.Time(now.Add(1)),
+					},
+				},
+			},
+		},
 	}
 
-	efsName := "aws-nuke-test-" + util.UniqueID()
-	testEfs, createTestEfsErr := createTestElasticFileSystem(t, session, efsName)
-	require.NoError(t, createTestEfsErr)
-	// clean up after this test
-	defer nukeAllElasticFileSystems(session, []*string{testEfs.ID})
-
-	efsIds, err := getAllElasticFileSystems(session, time.Now(), config.Config{})
-	if err != nil {
-		assert.Fail(t, "Unable to fetch list of Elastic FileSystems (efs)")
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testId1, testId2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testId2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testId1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := ef.getAll(config.Config{
+				ElasticFileSystem: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
 	}
 
-	assert.Contains(t, awsgo.StringValueSlice(efsIds), aws.StringValue(testEfs.ID))
 }
 
-func TestTimeFilterExclusionNewlyCreatedEFS(t *testing.T) {
+func TestEFS_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
+	ef := ElasticFileSystem{
+		Client: mockedElasticFileSystem{
+
+			DescribeAccessPointsOutput: efs.DescribeAccessPointsOutput{
+				AccessPoints: []*efs.AccessPointDescription{
+					{
+						AccessPointId: aws.String("fsap-1234567890abcdef0"),
+					},
+				},
+			},
+			DescribeMountTargetsOutput: efs.DescribeMountTargetsOutput{
+				MountTargets: []*efs.MountTargetDescription{
+					{
+						MountTargetId: aws.String("fsmt-1234567890abcdef0"),
+					},
+				},
+			},
+			DeleteAccessPointOutput: efs.DeleteAccessPointOutput{},
+			DeleteMountTargetOutput: efs.DeleteMountTargetOutput{},
+			DeleteFileSystemOutput:  efs.DeleteFileSystemOutput{},
+		},
+	}
+
+	err := ef.nukeAll([]*string{aws.String("fs-1234567890abcdef0")})
 	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	testEFSName := "aws-nuke-test-" + util.UniqueID()
-
-	testEFS, createEFSErr := createTestElasticFileSystem(t, session, testEFSName)
-	require.NoError(t, createEFSErr)
-	defer nukeAllElasticFileSystems(session, []*string{testEFS.ID})
-
-	// Assert Elastic FileSystem is picked up without filters
-	efsIds, err := getAllElasticFileSystems(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(efsIds), aws.StringValue(testEFS.ID))
-
-	// Assert Elastic FileSystem doesn't appear when we look at Elastic FileSystems older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	efsIdsOlder, err := getAllElasticFileSystems(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(efsIdsOlder), aws.StringValue(testEFS.ID))
-}
-
-func TestNukeElasticFileSystemOne(t *testing.T) {
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	apigwName := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	testEfs, createTestErr := createTestElasticFileSystem(t, session, apigwName)
-	require.NoError(t, createTestErr)
-
-	nukeErr := nukeAllElasticFileSystems(session, []*string{testEfs.ID})
-	require.NoError(t, nukeErr)
-
-	// This sleep is necessary to allow AWS to realize the Elastic FileSystem is no longer "in-use"
-	time.Sleep(10 * time.Second)
-
-	// Make sure the Elastic FileSystem was deleted
-	efsIds, err := getAllElasticFileSystems(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotContains(t, aws.StringValueSlice(efsIds), aws.StringValue(testEfs.ID))
-}
-
-func TestNukeElasticFileSystemsMoreThanOne(t *testing.T) {
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	efsName := "aws-nuke-test-" + util.UniqueID()
-	efsName2 := "aws-nuke-test-" + util.UniqueID()
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	testEFS, createTestErr := createTestElasticFileSystem(t, session, efsName)
-	require.NoError(t, createTestErr)
-	testEFS2, createTestErr2 := createTestElasticFileSystem(t, session, efsName2)
-	require.NoError(t, createTestErr2)
-
-	nukeErr := nukeAllElasticFileSystems(session, []*string{testEFS.ID, testEFS2.ID})
-	require.NoError(t, nukeErr)
-
-	// Sleep for 10 seconds so that AWS has time to realize the EFS is no longer "in-use"
-	time.Sleep(10 * time.Second)
-
-	// Make sure the Elastic FileSystems were deleted
-	efsIds, err := getAllElasticFileSystems(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-
-	assert.NotContains(t, aws.StringValueSlice(efsIds), aws.StringValue(testEFS.ID))
-	assert.NotContains(t, aws.StringValueSlice(efsIds), aws.StringValue(testEFS2.ID))
 }
