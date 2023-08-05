@@ -1768,7 +1768,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(ecrRepositories.ResourceName(), resourceTypes) {
 			start := time.Now()
-			ecrRepositoryArns, err := getAllECRRepositories(cloudNukeSession, excludeAfter, configObj)
+			ecrRepositoryArns, err := ecrRepositories.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1785,7 +1785,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(ecrRepositoryArns) > 0 {
-				ecrRepositories.RepositoryNames = ecrRepositoryArns
+				ecrRepositories.RepositoryNames = aws.StringValueSlice(ecrRepositoryArns)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecrRepositories)
 			}
 		}

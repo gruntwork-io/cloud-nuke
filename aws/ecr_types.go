@@ -25,7 +25,7 @@ func (registry ECR) MaxBatchSize() int {
 }
 
 func (registry ECR) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllECRRepositories(session, identifiers); err != nil {
+	if err := registry.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
