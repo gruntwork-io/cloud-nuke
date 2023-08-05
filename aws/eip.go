@@ -93,10 +93,10 @@ func shouldIncludeAllocationId(address *ec2.Address, excludeAfter time.Time, fir
 
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	allocationName, _ := GetEC2ResourceNameTagValue(address.Tags)
+	allocationName := GetEC2ResourceNameTagValue(address.Tags)
 
 	return config.ShouldInclude(
-		allocationName,
+		*allocationName,
 		configObj.ElasticIP.IncludeRule.NamesRegExp,
 		configObj.ElasticIP.ExcludeRule.NamesRegExp,
 	)

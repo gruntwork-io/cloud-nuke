@@ -1,31 +1,29 @@
 package aws
 
 import (
-	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pterm/pterm"
 )
 
-func setFirstSeenVpcTag(svc *ec2.EC2, vpc ec2.Vpc, key string, value time.Time) error {
+func (v EC2VPCs) setFirstSeenTag(vpc ec2.Vpc, value time.Time) error {
 	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
-	_, err := svc.CreateTags(&ec2.CreateTagsInput{
+	_, err := v.Client.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{vpc.VpcId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   awsgo.String(key),
-				Value: awsgo.String(value.Format(firstSeenTimeFormat)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestampTag(value)),
 			},
 		},
 	})
@@ -36,26 +34,24 @@ func setFirstSeenVpcTag(svc *ec2.EC2, vpc ec2.Vpc, key string, value time.Time) 
 	return nil
 }
 
-func getFirstSeenVpcTag(vpc ec2.Vpc, key string) (*time.Time, error) {
+func (v EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
 	tags := vpc.Tags
 	for _, tag := range tags {
-		if *tag.Key == key {
-			firstSeenTime, err := time.Parse(firstSeenTimeFormat, *tag.Value)
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 
-			return &firstSeenTime, nil
+			return firstSeenTime, nil
 		}
 	}
 
 	return nil, nil
 }
 
-func getAllVpcs(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, []Vpc, error) {
-	svc := ec2.New(session)
-
-	result, err := svc.DescribeVpcs(&ec2.DescribeVpcsInput{
+func (v EC2VPCs) getAll(configObj config.Config) ([]*string, error) {
+	result, err := v.Client.DescribeVpcs(&ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
 			// Note: this filter omits the default since there is special
 			// handling for default resources already
@@ -66,75 +62,40 @@ func getAllVpcs(session *session.Session, region string, excludeAfter time.Time,
 		},
 	})
 	if err != nil {
-		return nil, nil, errors.WithStackTrace(err)
+		return nil, errors.WithStackTrace(err)
 	}
 
 	var ids []*string
-	var vpcs []Vpc
 	for _, vpc := range result.Vpcs {
-		firstSeenTime, err := getFirstSeenVpcTag(*vpc, firstSeenTagKey)
+		firstSeenTime, err := v.getFirstSeenTag(*vpc)
 		if err != nil {
 			logging.Logger.Error("Unable to retrieve tags")
-			return nil, nil, errors.WithStackTrace(err)
+			return nil, errors.WithStackTrace(err)
 		}
 
 		if firstSeenTime == nil {
 			now := time.Now().UTC()
 			firstSeenTime = &now
-			if err := setFirstSeenVpcTag(svc, *vpc, firstSeenTagKey, time.Now().UTC()); err != nil {
-				return nil, nil, err
+			if err := v.setFirstSeenTag(*vpc, time.Now().UTC()); err != nil {
+				return nil, err
 			}
 		}
 
-		if shouldIncludeVpc(vpc, excludeAfter, *firstSeenTime, configObj) {
+		if configObj.VPC.ShouldInclude(config.ResourceValue{
+			Time: firstSeenTime,
+			Name: GetEC2ResourceNameTagValue(vpc.Tags),
+		}) {
 			ids = append(ids, vpc.VpcId)
-
-			vpcs = append(vpcs, Vpc{
-				VpcId:  *vpc.VpcId,
-				Region: region,
-				svc:    svc,
-			})
 		}
 	}
 
-	return ids, vpcs, nil
+	return ids, nil
 }
 
-func shouldIncludeVpc(vpc *ec2.Vpc, excludeAfter time.Time, firstSeenTime time.Time, configObj config.Config) bool {
-	if vpc == nil {
-		return false
-	}
-
-	if excludeAfter.Before(firstSeenTime) {
-		return false
-	}
-
-	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
-	// Ignore this error and pass empty string to config.ShouldInclude
-	vpcName, _ := GetEC2ResourceNameTagValue(vpc.Tags)
-
-	return config.ShouldInclude(
-		vpcName,
-		configObj.VPC.IncludeRule.NamesRegExp,
-		configObj.VPC.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
+func (v EC2VPCs) nukeAll(vpcIds []string) error {
 	if len(vpcIds) == 0 {
 		logging.Logger.Debug("No VPCs to nuke")
 		return nil
-	}
-
-	spinnerMsg := fmt.Sprintf("Deleting the following VPCs: %+v\n", vpcIds)
-
-	// Start a simple spinner to track progress reading all relevant AWS resources
-	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
-		WithRemoveWhenDone(true).
-		Start(spinnerMsg)
-
-	if spinnerErr != nil {
-		return errors.WithStackTrace(spinnerErr)
 	}
 
 	logging.Logger.Debug("Deleting all VPCs")
@@ -142,11 +103,14 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 	deletedVPCs := 0
 	multiErr := new(multierror.Error)
 
-	for _, vpc := range vpcs {
-		err := vpc.nuke(spinnerSuccess)
+	for _, id := range vpcIds {
+		_, err := v.Client.DeleteVpc(&ec2.DeleteVpcInput{
+			VpcId: awsgo.String(id),
+		})
+
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   vpc.VpcId,
+			Identifier:   id,
 			ResourceType: "VPC",
 			Error:        err,
 		}
@@ -158,12 +122,12 @@ func nukeAllVPCs(session *session.Session, vpcIds []string, vpcs []Vpc) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking VPC",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": v.Region,
 			})
 			multierror.Append(multiErr, err)
 		} else {
 			deletedVPCs++
-			logging.Logger.Debugf("Deleted VPC: %s", vpc.VpcId)
+			logging.Logger.Debugf("Deleted VPC: %s", id)
 		}
 	}
 

@@ -1286,7 +1286,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(ec2Vpcs.ResourceName(), resourceTypes) {
 			start := time.Now()
-			vpcids, vpcs, err := getAllVpcs(cloudNukeSession, region, excludeAfter, configObj)
+			vpcids, err := ec2Vpcs.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -1305,7 +1305,6 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			})
 			if len(vpcids) > 0 {
 				ec2Vpcs.VPCIds = awsgo.StringValueSlice(vpcids)
-				ec2Vpcs.VPCs = vpcs
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ec2Vpcs)
 			}
 		}

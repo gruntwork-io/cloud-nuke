@@ -10,7 +10,6 @@ type EC2VPCs struct {
 	Client ec2iface.EC2API
 	Region string
 	VPCIds []string
-	VPCs   []Vpc
 }
 
 // ResourceName - the simple name of the aws resource
@@ -30,7 +29,7 @@ func (v EC2VPCs) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (v EC2VPCs) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllVPCs(session, identifiers, v.VPCs); err != nil {
+	if err := v.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
