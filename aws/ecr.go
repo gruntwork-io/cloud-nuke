@@ -1,36 +1,33 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllECRRepositories(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]string, error) {
-	svc := ecr.New(session)
-
-	repositoryNames := []string{}
+func (registry ECR) getAll(configObj config.Config) ([]*string, error) {
+	repositoryNames := []*string{}
 
 	paginator := func(output *ecr.DescribeRepositoriesOutput, lastPage bool) bool {
 		for _, repository := range output.Repositories {
-			if shouldIncludeECRRepository(repository, excludeAfter, configObj) {
-				repositoryNames = append(repositoryNames, aws.StringValue(repository.RepositoryName))
+			if configObj.ECRRepository.ShouldInclude(config.ResourceValue{
+				Time: repository.CreatedAt,
+				Name: repository.RepositoryName,
+			}) {
+				repositoryNames = append(repositoryNames, repository.RepositoryName)
 			}
 		}
 		return !lastPage
 	}
 
 	param := &ecr.DescribeRepositoriesInput{}
-
-	err := svc.DescribeRepositoriesPages(param, paginator)
+	err := registry.Client.DescribeRepositoriesPages(param, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -38,29 +35,9 @@ func getAllECRRepositories(session *session.Session, excludeAfter time.Time, con
 	return repositoryNames, nil
 }
 
-func shouldIncludeECRRepository(repository *ecr.Repository, excludeAfter time.Time, configObj config.Config) bool {
-	if repository == nil {
-		return false
-	}
-
-	createdAtVal := aws.TimeValue(repository.CreatedAt)
-
-	if excludeAfter.Before(createdAtVal) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(repository.RepositoryName),
-		configObj.ECRRepository.IncludeRule.NamesRegExp,
-		configObj.ECRRepository.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllECRRepositories(session *session.Session, repositoryNames []string) error {
-	svc := ecr.New(session)
-
+func (registry ECR) nukeAll(repositoryNames []string) error {
 	if len(repositoryNames) == 0 {
-		logging.Logger.Debugf("No ECR repositories to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No ECR repositories to nuke in region %s", registry.Region)
 		return nil
 	}
 
@@ -72,7 +49,7 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 			RepositoryName: aws.String(repositoryName),
 		}
 
-		_, err := svc.DeleteRepository(params)
+		_, err := registry.Client.DeleteRepository(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -86,7 +63,7 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ECR Repo",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": registry.Region,
 			})
 			logging.Logger.Debugf("[Failed] %s", err)
 		} else {
@@ -96,7 +73,7 @@ func nukeAllECRRepositories(session *session.Session, repositoryNames []string) 
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), registry.Region)
 
 	return nil
 }
