@@ -69,10 +69,10 @@ func shouldIncludeHostId(host *ec2.Host, excludeAfter time.Time, configObj confi
 
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	hostNameTagValue, _ := GetEC2ResourceNameTagValue(host.Tags)
+	hostNameTagValue := GetEC2ResourceNameTagValue(host.Tags)
 
 	return config.ShouldInclude(
-		hostNameTagValue,
+		*hostNameTagValue,
 		configObj.EC2DedicatedHosts.IncludeRule.NamesRegExp,
 		configObj.EC2DedicatedHosts.ExcludeRule.NamesRegExp,
 	)

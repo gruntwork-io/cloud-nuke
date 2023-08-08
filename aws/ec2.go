@@ -87,10 +87,10 @@ func shouldIncludeInstanceId(instance *ec2.Instance, excludeAfter time.Time, pro
 
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	instanceName, _ := GetEC2ResourceNameTagValue(instance.Tags)
+	instanceName := GetEC2ResourceNameTagValue(instance.Tags)
 
 	return config.ShouldInclude(
-		instanceName,
+		*instanceName,
 		configObj.EC2.IncludeRule.NamesRegExp,
 		configObj.EC2.ExcludeRule.NamesRegExp,
 	)
@@ -840,7 +840,7 @@ func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 }
 
 // Given an slice of tags, return the value of the Name tag
-func GetEC2ResourceNameTagValue(tags []*ec2.Tag) (string, error) {
+func GetEC2ResourceNameTagValue(tags []*ec2.Tag) *string {
 	t := make(map[string]string)
 
 	for _, v := range tags {
@@ -848,7 +848,8 @@ func GetEC2ResourceNameTagValue(tags []*ec2.Tag) (string, error) {
 	}
 
 	if name, ok := t["Name"]; ok {
-		return name, nil
+		return &name
 	}
-	return "", fmt.Errorf("Resource does not have Name tag")
+
+	return nil
 }
