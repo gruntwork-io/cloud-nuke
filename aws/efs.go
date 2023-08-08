@@ -1,17 +1,13 @@
 package aws
 
 import (
-	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/efs"
-	"github.com/aws/aws-sdk-go-v2/service/efs/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/efs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -19,56 +15,28 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func getAllElasticFileSystems(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	if err != nil {
-		return []*string{}, errors.WithStackTrace(err)
-	}
-	svc := efs.NewFromConfig(cfg)
-
-	result, err := svc.DescribeFileSystems(context.TODO(), &efs.DescribeFileSystemsInput{})
-	if err != nil {
-		return []*string{}, errors.WithStackTrace(err)
-	}
+func (ef ElasticFileSystem) getAll(configObj config.Config) ([]*string, error) {
 
 	allEfs := []*string{}
-	for _, fileSystem := range result.FileSystems {
-		if shouldIncludeElasticFileSystem(&fileSystem, excludeAfter, configObj) {
-			allEfs = append(allEfs, fileSystem.FileSystemId)
+	err := ef.Client.DescribeFileSystemsPages(&efs.DescribeFileSystemsInput{}, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
+		for _, system := range page.FileSystems {
+			if configObj.ElasticFileSystem.ShouldInclude(config.ResourceValue{
+				Name: system.Name,
+				Time: system.CreationTime,
+			}) {
+				allEfs = append(allEfs, system.FileSystemId)
+			}
 		}
-	}
-	return allEfs, nil
+
+		return !lastPage
+	})
+
+	return allEfs, err
 }
 
-func shouldIncludeElasticFileSystem(efsDescription *types.FileSystemDescription, excludeAfter time.Time, configObj config.Config) bool {
-	if efsDescription == nil {
-		return false
-	}
-
-	if efsDescription.CreationTime != nil {
-		if excludeAfter.Before(aws.TimeValue(efsDescription.CreationTime)) {
-			return false
-		}
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(efsDescription.Name),
-		configObj.ElasticFileSystem.IncludeRule.NamesRegExp,
-		configObj.ElasticFileSystem.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllElasticFileSystems(session *session.Session, identifiers []*string) error {
-	region := aws.StringValue(session.Config.Region)
-
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(aws.StringValue(session.Config.Region)))
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-	svc := efs.NewFromConfig(cfg)
-
+func (ef ElasticFileSystem) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No Elastic FileSystems (efs) to nuke in region %s", region)
+		logging.Logger.Debugf("No Elastic FileSystems (efs) to nuke in region %s", ef.Region)
 	}
 
 	if len(identifiers) > 100 {
@@ -77,13 +45,13 @@ func nukeAllElasticFileSystems(session *session.Session, identifiers []*string) 
 	}
 
 	// There is no bulk delete EFS API, so we delete the batch of Elastic FileSystems concurrently using goroutines
-	logging.Logger.Debugf("Deleting Elastic FileSystems (efs) in region %s", region)
+	logging.Logger.Debugf("Deleting Elastic FileSystems (efs) in region %s", ef.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
 	for i, efsID := range identifiers {
 		errChans[i] = make(chan error, 1)
-		go deleteElasticFileSystemAsync(wg, errChans[i], svc, efsID, region)
+		go ef.deleteAsync(wg, errChans[i], efsID)
 	}
 	wg.Wait()
 
@@ -95,7 +63,7 @@ func nukeAllElasticFileSystems(session *session.Session, identifiers []*string) 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking EFS",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": ef.Region,
 			})
 		}
 	}
@@ -106,7 +74,7 @@ func nukeAllElasticFileSystems(session *session.Session, identifiers []*string) 
 	return nil
 }
 
-func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *efs.Client, efsID *string, region string) {
+func (ef ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error, efsID *string) {
 	var allErrs *multierror.Error
 
 	defer wg.Done()
@@ -121,7 +89,7 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 		FileSystemId: efsID,
 	}
 
-	out, err := svc.DescribeAccessPoints(context.TODO(), accessPointParam)
+	out, err := ef.Client.DescribeAccessPoints(accessPointParam)
 	if err != nil {
 		allErrs = multierror.Append(allErrs, err)
 	}
@@ -136,13 +104,13 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 			AccessPointId: apID,
 		}
 
-		logging.Logger.Debugf("Deleting access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), region)
+		logging.Logger.Debugf("Deleting access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), ef.Region)
 
-		_, err := svc.DeleteAccessPoint(context.TODO(), deleteParam)
+		_, err := ef.Client.DeleteAccessPoint(deleteParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
-			logging.Logger.Debugf("[OK] Deleted access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), region)
+			logging.Logger.Debugf("[OK] Deleted access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), ef.Region)
 		}
 	}
 
@@ -166,7 +134,7 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 			mountTargetParam.Marker = marker
 		}
 
-		mountTargetsOutput, describeMountsErr := svc.DescribeMountTargets(context.TODO(), mountTargetParam)
+		mountTargetsOutput, describeMountsErr := ef.Client.DescribeMountTargets(mountTargetParam)
 		if describeMountsErr != nil {
 			allErrs = multierror.Append(allErrs, err)
 		}
@@ -189,13 +157,13 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 			MountTargetId: mtID,
 		}
 
-		logging.Logger.Debugf("Deleting mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), region)
+		logging.Logger.Debugf("Deleting mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), ef.Region)
 
-		_, err := svc.DeleteMountTarget(context.TODO(), deleteMtParam)
+		_, err := ef.Client.DeleteMountTarget(deleteMtParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
-			logging.Logger.Debugf("[OK] Deleted mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), region)
+			logging.Logger.Debugf("[OK] Deleted mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), ef.Region)
 		}
 	}
 
@@ -207,7 +175,7 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 		FileSystemId: efsID,
 	}
 
-	_, deleteErr := svc.DeleteFileSystem(context.TODO(), deleteEfsParam)
+	_, deleteErr := ef.Client.DeleteFileSystem(deleteEfsParam)
 	// Record status of this resource
 	e := report.Entry{
 		Identifier:   aws.StringValue(efsID),
@@ -221,8 +189,8 @@ func deleteElasticFileSystemAsync(wg *sync.WaitGroup, errChan chan error, svc *e
 	}
 
 	if err == nil {
-		logging.Logger.Debugf("[OK] Elastic FileSystem (efs) %s deleted in %s", aws.StringValue(efsID), region)
+		logging.Logger.Debugf("[OK] Elastic FileSystem (efs) %s deleted in %s", aws.StringValue(efsID), ef.Region)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting Elastic FileSystem (efs) %s in %s", aws.StringValue(efsID), region)
+		logging.Logger.Debugf("[Failed] Error deleting Elastic FileSystem (efs) %s in %s", aws.StringValue(efsID), ef.Region)
 	}
 }

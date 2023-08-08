@@ -13,22 +13,23 @@ type ElasticFileSystem struct {
 	Ids    []string
 }
 
-func (efs ElasticFileSystem) ResourceName() string {
+func (ef ElasticFileSystem) ResourceName() string {
 	return "efs"
 }
 
-func (efs ElasticFileSystem) ResourceIdentifiers() []string {
-	return efs.Ids
+func (ef ElasticFileSystem) ResourceIdentifiers() []string {
+	return ef.Ids
 }
 
-func (efs ElasticFileSystem) MaxBatchSize() int {
+func (ef ElasticFileSystem) MaxBatchSize() int {
 	return 10
 }
 
-func (efs ElasticFileSystem) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllElasticFileSystems(session, awsgo.StringSlice(identifiers)); err != nil {
+func (ef ElasticFileSystem) Nuke(session *session.Session, identifiers []string) error {
+	if err := ef.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
+
 	return nil
 }
 
