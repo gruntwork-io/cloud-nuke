@@ -82,10 +82,10 @@ func (ea EIPAddresses) getAll(configObj config.Config) ([]*string, error) {
 func (ea EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.Time, configObj config.Config) bool {
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	allocationName, _ := GetEC2ResourceNameTagValue(address.Tags)
+	allocationName := GetEC2ResourceNameTagValue(address.Tags)
 	return configObj.ElasticIP.ShouldInclude(config.ResourceValue{
 		Time: &firstSeenTime,
-		Name: &allocationName,
+		Name: allocationName,
 	})
 }
 
