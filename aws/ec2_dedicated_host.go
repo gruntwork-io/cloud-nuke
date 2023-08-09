@@ -2,22 +2,18 @@ package aws
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func getAllEc2DedicatedHosts(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := ec2.New(session)
+func (h EC2DedicatedHosts) getAll(configObj config.Config) ([]*string, error) {
 	var hostIds []*string
 
 	describeHostsInput := &ec2.DescribeHostsInput{
@@ -33,11 +29,11 @@ func getAllEc2DedicatedHosts(session *session.Session, excludeAfter time.Time, c
 		},
 	}
 
-	err := svc.DescribeHostsPages(
+	err := h.Client.DescribeHostsPages(
 		describeHostsInput,
 		func(page *ec2.DescribeHostsOutput, lastPage bool) bool {
 			for _, host := range page.Hosts {
-				if shouldIncludeHostId(host, excludeAfter, configObj) {
+				if shouldIncludeHostId(host, configObj) {
 					hostIds = append(hostIds, host.HostId)
 				}
 			}
@@ -52,12 +48,8 @@ func getAllEc2DedicatedHosts(session *session.Session, excludeAfter time.Time, c
 	return hostIds, nil
 }
 
-func shouldIncludeHostId(host *ec2.Host, excludeAfter time.Time, configObj config.Config) bool {
+func shouldIncludeHostId(host *ec2.Host, configObj config.Config) bool {
 	if host == nil {
-		return false
-	}
-
-	if excludeAfter.Before(*host.AllocationTime) {
 		return false
 	}
 
@@ -71,40 +63,37 @@ func shouldIncludeHostId(host *ec2.Host, excludeAfter time.Time, configObj confi
 	// Ignore this error and pass empty string to config.ShouldInclude
 	hostNameTagValue := GetEC2ResourceNameTagValue(host.Tags)
 
-	return config.ShouldInclude(
-		*hostNameTagValue,
-		configObj.EC2DedicatedHosts.IncludeRule.NamesRegExp,
-		configObj.EC2DedicatedHosts.ExcludeRule.NamesRegExp,
-	)
+	return configObj.EC2DedicatedHosts.ShouldInclude(config.ResourceValue{
+		Name: hostNameTagValue,
+		Time: host.AllocationTime,
+	})
 }
 
-func nukeAllEc2DedicatedHosts(session *session.Session, hostIds []*string) error {
-	svc := ec2.New(session)
-
+func (h EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 	if len(hostIds) == 0 {
-		logging.Logger.Debugf("No EC2 dedicated hosts to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No EC2 dedicated hosts to nuke in region %s", h.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Releasing all EC2 dedicated host allocations in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Releasing all EC2 dedicated host allocations in region %s", h.Region)
 
 	input := &ec2.ReleaseHostsInput{HostIds: hostIds}
 
-	releaseResult, err := svc.ReleaseHosts(input)
+	releaseResult, err := h.Client.ReleaseHosts(input)
 
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking EC2 Dedicated Hosts",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": h.Region,
 		})
 		return errors.WithStackTrace(err)
 	}
 
 	// Report successes and failures from release host request
 	for _, hostSuccess := range releaseResult.Successful {
-		logging.Logger.Debugf("[OK] Dedicated host %s was released in %s", aws.StringValue(hostSuccess), *session.Config.Region)
+		logging.Logger.Debugf("[OK] Dedicated host %s was released in %s", aws.StringValue(hostSuccess), h.Region)
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostSuccess),
 			ResourceType: "EC2 Dedicated Host",
@@ -116,9 +105,9 @@ func nukeAllEc2DedicatedHosts(session *session.Session, hostIds []*string) error
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking EC2 Dedicated Host",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": h.Region,
 		})
-		logging.Logger.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), *session.Config.Region, aws.StringValue(hostFailed.Error.Message))
+		logging.Logger.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), h.Region, aws.StringValue(hostFailed.Error.Message))
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostFailed.ResourceId),
 			ResourceType: "EC2 Dedicated Host",

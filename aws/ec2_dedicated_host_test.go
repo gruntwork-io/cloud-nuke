@@ -1,156 +1,118 @@
 package aws
 
 import (
-	"errors"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
+	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	gruntworkerrors "github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-const (
-	TagNamePrefix  = "cloud-nuke-test-"
-	InstanceFamily = "c5"
-	InstanceType   = "c5.large"
-)
+type mockedEC2DedicatedHosts struct {
+	ec2iface.EC2API
+	DescribeHostsPagesOutput ec2.DescribeHostsOutput
+	ReleaseHostsOutput       ec2.ReleaseHostsOutput
+}
 
-func TestListDedicatedHosts(t *testing.T) {
+func (m mockedEC2DedicatedHosts) DescribeHostsPages(input *ec2.DescribeHostsInput, fn func(*ec2.DescribeHostsOutput, bool) bool) error {
+	fn(&m.DescribeHostsPagesOutput, true)
+	return nil
+}
+
+func (m mockedEC2DedicatedHosts) ReleaseHosts(input *ec2.ReleaseHostsInput) (*ec2.ReleaseHostsOutput, error) {
+	return &m.ReleaseHostsOutput, nil
+}
+
+func TestEC2DedicatedHosts_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	svc := ec2.New(session)
-
-	createdHostIds, err := allocateDedicatedHosts(svc, 1)
-	require.NoError(t, err)
-
-	defer nukeAllEc2DedicatedHosts(session, createdHostIds)
-
-	// test if created allocation matches get response
-	hostIds, err := getAllEc2DedicatedHosts(session, time.Now(), config.Config{})
-
-	require.NoError(t, err)
-	assert.Equal(t, aws.StringValueSlice(hostIds), aws.StringValueSlice(createdHostIds))
-
-	//test time shift
-	olderThan := time.Now().Add(-1 * time.Hour)
-	hostIds, err = getAllEc2DedicatedHosts(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotEqual(t, aws.StringValueSlice(hostIds), aws.StringValueSlice(createdHostIds))
-}
-
-func TestNukeDedicatedHosts(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	logging.Logger.Infof("region: %s", region)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	svc := ec2.New(session)
-
-	createdHostIds, err := allocateDedicatedHosts(svc, 1)
-	require.NoError(t, err)
-
-	err = nukeAllEc2DedicatedHosts(session, createdHostIds)
-	require.NoError(t, err)
-
-	hostIds, err := getAllEc2DedicatedHosts(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(hostIds), createdHostIds)
-}
-
-func allocateDedicatedHosts(svc *ec2.EC2, hostQuantity int64) (hostIds []*string, err error) {
-
-	usableAzs, err := getAzsForInstanceType(svc)
-
-	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
-		return nil, gruntworkerrors.WithStackTrace(err)
-	}
-
-	if usableAzs == nil {
-		logging.Logger.Debugf("[Failed] No AZs with InstanceType found.")
-	}
-
-	hostTagName := TagNamePrefix + util.UniqueID()
-
-	input := &ec2.AllocateHostsInput{
-		AvailabilityZone: aws.String(usableAzs[0]),
-		InstanceFamily:   aws.String(InstanceFamily),
-		Quantity:         aws.Int64(hostQuantity),
-		TagSpecifications: []*ec2.TagSpecification{
-			{
-				ResourceType: aws.String("dedicated-host"),
-				Tags: []*ec2.Tag{
+	testId1 := "test-host-id-1"
+	testId2 := "test-host-id-2"
+	testName1 := "test-host-name-1"
+	testName2 := "test-host-name-2"
+	now := time.Now()
+	h := EC2DedicatedHosts{
+		Client: mockedEC2DedicatedHosts{
+			DescribeHostsPagesOutput: ec2.DescribeHostsOutput{
+				Hosts: []*ec2.Host{
 					{
-						Key:   aws.String("Name"),
-						Value: aws.String(hostTagName),
+						HostId: awsgo.String(testId1),
+						Tags: []*ec2.Tag{
+							{
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName1),
+							},
+						},
+						AllocationTime: awsgo.Time(now),
+					},
+					{
+						HostId: awsgo.String(testId2),
+						Tags: []*ec2.Tag{
+							{
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName2),
+							},
+						},
+						AllocationTime: awsgo.Time(now.Add(1)),
 					},
 				},
 			},
 		},
 	}
 
-	hostIdsOutput, err := svc.AllocateHosts(input)
-
-	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
-		return nil, gruntworkerrors.WithStackTrace(err)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testId1, testId2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testId2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testId1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := h.getAll(config.Config{
+				EC2DedicatedHosts: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+		})
 	}
 
-	for i := range hostIdsOutput.HostIds {
-		hostIds = append(hostIds, hostIdsOutput.HostIds[i])
-	}
-
-	return hostIds, nil
 }
 
-func getAzsForInstanceType(svc *ec2.EC2) ([]string, error) {
-	var instanceOfferings []string
-	input := &ec2.DescribeInstanceTypeOfferingsInput{
-		MaxResults:   aws.Int64(5),
-		LocationType: aws.String("availability-zone"),
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("instance-type"),
-				Values: []*string{aws.String(InstanceType)},
-			},
+func TestEC2DedicatedHosts_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	h := EC2DedicatedHosts{
+		Client: mockedEC2DedicatedHosts{
+			ReleaseHostsOutput: ec2.ReleaseHostsOutput{},
 		},
 	}
 
-	az, err := svc.DescribeInstanceTypeOfferings(input)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(az.InstanceTypeOfferings) == 0 {
-		err := errors.New("No matching instance types found in region/az.")
-		return nil, gruntworkerrors.WithStackTrace(err)
-	}
-
-	for i := range az.InstanceTypeOfferings {
-		instanceOfferings = append(instanceOfferings, *az.InstanceTypeOfferings[i].Location)
-	}
-
-	return instanceOfferings, err
+	err := h.nukeAll([]*string{awsgo.String("test-host-id-1"), awsgo.String("test-host-id-2")})
+	require.NoError(t, err)
 }
