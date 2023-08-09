@@ -31,7 +31,7 @@ func (cache Elasticaches) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (cache Elasticaches) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllElasticacheClusters(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := cache.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -65,7 +65,7 @@ func (pg ElasticacheParameterGroups) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (pg ElasticacheParameterGroups) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllElasticacheParameterGroups(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := pg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -98,7 +98,7 @@ func (sg ElasticacheSubnetGroups) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (sg ElasticacheSubnetGroups) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllElasticacheSubnetGroups(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := sg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
