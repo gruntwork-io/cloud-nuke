@@ -15,23 +15,23 @@ type EC2Instances struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (instance EC2Instances) ResourceName() string {
+func (ei EC2Instances) ResourceName() string {
 	return "ec2"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (instance EC2Instances) ResourceIdentifiers() []string {
-	return instance.InstanceIds
+func (ei EC2Instances) ResourceIdentifiers() []string {
+	return ei.InstanceIds
 }
 
-func (instance EC2Instances) MaxBatchSize() int {
+func (ei EC2Instances) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // Nuke - nuke 'em all!!!
-func (instance EC2Instances) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllEc2Instances(session, awsgo.StringSlice(identifiers)); err != nil {
+func (ei EC2Instances) Nuke(session *session.Session, identifiers []string) error {
+	if err := ei.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -11,7 +11,6 @@ import (
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -21,20 +20,21 @@ import (
 )
 
 // returns only instance Ids of unprotected ec2 instances
-func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutput, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
+func (ei EC2Instances) filterOutProtectedInstances(output *ec2.DescribeInstancesOutput, configObj config.Config) ([]*string, error) {
 	var filteredIds []*string
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
 			instanceID := *instance.InstanceId
 
-			attr, err := svc.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
+			attr, err := ei.Client.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
 				Attribute:  awsgo.String("disableApiTermination"),
 				InstanceId: awsgo.String(instanceID),
 			})
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
-			if shouldIncludeInstanceId(instance, excludeAfter, *attr.DisableApiTermination.Value, configObj) {
+
+			if shouldIncludeInstanceId(instance, *attr.DisableApiTermination.Value, configObj) {
 				filteredIds = append(filteredIds, &instanceID)
 			}
 		}
@@ -44,9 +44,7 @@ func filterOutProtectedInstances(svc *ec2.EC2, output *ec2.DescribeInstancesOutp
 }
 
 // Returns a formatted string of EC2 instance ids
-func getAllEc2Instances(session *session.Session, region string, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := ec2.New(session)
-
+func (ei EC2Instances) getAll(configObj config.Config) ([]*string, error) {
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -59,12 +57,12 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 		},
 	}
 
-	output, err := svc.DescribeInstances(params)
+	output, err := ei.Client.DescribeInstances(params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
-	instanceIds, err := filterOutProtectedInstances(svc, output, excludeAfter, configObj)
+	instanceIds, err := ei.filterOutProtectedInstances(output, configObj)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -72,15 +70,7 @@ func getAllEc2Instances(session *session.Session, region string, excludeAfter ti
 	return instanceIds, nil
 }
 
-func shouldIncludeInstanceId(instance *ec2.Instance, excludeAfter time.Time, protected bool, configObj config.Config) bool {
-	if instance == nil {
-		return false
-	}
-
-	if excludeAfter.Before(*instance.LaunchTime) {
-		return false
-	}
-
+func shouldIncludeInstanceId(instance *ec2.Instance, protected bool, configObj config.Config) bool {
 	if protected {
 		return false
 	}
@@ -88,41 +78,37 @@ func shouldIncludeInstanceId(instance *ec2.Instance, excludeAfter time.Time, pro
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
 	instanceName := GetEC2ResourceNameTagValue(instance.Tags)
-
-	return config.ShouldInclude(
-		*instanceName,
-		configObj.EC2.IncludeRule.NamesRegExp,
-		configObj.EC2.ExcludeRule.NamesRegExp,
-	)
+	return configObj.EC2.ShouldInclude(config.ResourceValue{
+		Name: instanceName,
+		Time: instance.LaunchTime,
+	})
 }
 
 // Deletes all non protected EC2 instances
-func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error {
-	svc := ec2.New(session)
-
+func (ei EC2Instances) nukeAll(instanceIds []*string) error {
 	if len(instanceIds) == 0 {
-		logging.Logger.Debugf("No EC2 instances to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No EC2 instances to nuke in region %s", ei.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Terminating all EC2 instances in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Terminating all EC2 instances in region %s", ei.Region)
 
 	params := &ec2.TerminateInstancesInput{
 		InstanceIds: instanceIds,
 	}
 
-	_, err := svc.TerminateInstances(params)
+	_, err := ei.Client.TerminateInstances(params)
 	if err != nil {
 		logging.Logger.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking EC2 Instance",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": ei.Region,
 		})
 		return errors.WithStackTrace(err)
 	}
 
-	err = svc.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
+	err = ei.Client.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   awsgo.String("instance-id"),
@@ -140,12 +126,12 @@ func nukeAllEc2Instances(session *session.Session, instanceIds []*string) error 
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking EC2 Instance",
 		}, map[string]interface{}{
-			"region": *session.Config.Region,
+			"region": ei.Region,
 		})
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Debugf("[OK] %d instance(s) terminated in %s", len(instanceIds), *session.Config.Region)
+	logging.Logger.Debugf("[OK] %d instance(s) terminated in %s", len(instanceIds), ei.Region)
 	return nil
 }
 

@@ -1,214 +1,138 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
-
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecs"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// Test we can create a cluster, tag it, and then find the tag
-func TestCanTagEcsClusters(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-	region := getRandomFargateSupportedRegion()
-
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
-
-	cluster := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-"+util.UniqueID())
-	defer deleteEcsCluster(awsSession, cluster)
-
-	tagValue := time.Now().UTC()
-
-	tagErr := tagEcsClusterWhenFirstSeen(awsSession, cluster.ClusterArn, tagValue)
-	require.NoError(t, tagErr)
-
-	returnedTag, err := getFirstSeenEcsClusterTag(awsSession, cluster.ClusterArn)
-	require.NoError(t, err)
-
-	parsedTagValue, parseErr1 := parseTimestampTag(formatTimestampTag(tagValue))
-	require.NoError(t, parseErr1)
-
-	parsedReturnValue, parseErr2 := parseTimestampTag(formatTimestampTag(returnedTag))
-	require.NoError(t, parseErr2)
-
-	//compare that the tags' Time values after formatting are equal
-	assert.Equal(t, parsedTagValue, parsedReturnValue)
+type mockedEC2Cluster struct {
+	ecsiface.ECSAPI
+	ListClustersOutput        ecs.ListClustersOutput
+	DescribeClustersOutput    ecs.DescribeClustersOutput
+	TagResourceOutput         ecs.TagResourceOutput
+	ListTagsForResourceOutput ecs.ListTagsForResourceOutput
+	DeleteClusterOutput       ecs.DeleteClusterOutput
 }
 
-// Test we can get all ECS clusters younger than < X time based on tags
-func TestCanListAllEcsClustersOlderThan24hours(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-	region := getRandomFargateSupportedRegion()
-
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
-
-	cluster1 := createEcsFargateCluster(t, awsSession, util.UniqueID())
-	defer deleteEcsCluster(awsSession, cluster1)
-	cluster2 := createEcsFargateCluster(t, awsSession, util.UniqueID())
-	defer deleteEcsCluster(awsSession, cluster2)
-
-	now := time.Now().UTC()
-	var olderClusterTagValue = now.Add(time.Hour * time.Duration(-48))
-	var youngerClusterTagValue = now.Add(time.Hour * time.Duration(-23))
-
-	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, olderClusterTagValue)
-	require.NoError(t, err1)
-	err2 := tagEcsClusterWhenFirstSeen(awsSession, cluster2.ClusterArn, youngerClusterTagValue)
-	require.NoError(t, err2)
-
-	last24Hours := now.Add(time.Hour * time.Duration(-24))
-	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours, config.Config{})
-	require.NoError(t, err)
-
-	assert.Contains(t, awsgo.StringValueSlice(filteredClusterArns), awsgo.StringValue(cluster1.ClusterArn))
+func (m mockedEC2Cluster) ListClusters(*ecs.ListClustersInput) (*ecs.ListClustersOutput, error) {
+	return &m.ListClustersOutput, nil
 }
 
-// Test we can nuke all ECS clusters older than 24hrs
-func TestCanNukeAllEcsClustersOlderThan24Hours(t *testing.T) {
+func (m mockedEC2Cluster) DescribeClusters(*ecs.DescribeClustersInput) (*ecs.DescribeClustersOutput, error) {
+	return &m.DescribeClustersOutput, nil
+}
+
+func (m mockedEC2Cluster) TagResource(*ecs.TagResourceInput) (*ecs.TagResourceOutput, error) {
+	return &m.TagResourceOutput, nil
+}
+
+func (m mockedEC2Cluster) ListTagsForResource(*ecs.ListTagsForResourceInput) (*ecs.ListTagsForResourceOutput, error) {
+	return &m.ListTagsForResourceOutput, nil
+}
+
+func (m mockedEC2Cluster) DeleteCluster(*ecs.DeleteClusterInput) (*ecs.DeleteClusterOutput, error) {
+	return &m.DeleteClusterOutput, nil
+}
+
+func TestEC2Cluster_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
-	region := getRandomFargateSupportedRegion()
 
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-	require.NoError(t, err)
+	testArn1 := "arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"
+	testArn2 := "arn:aws:ecs:us-east-1:123456789012:cluster/cluster2"
+	testName1 := "cluster1"
+	testName2 := "cluster2"
+	now := time.Now()
+	ec := ECSClusters{
+		Client: mockedEC2Cluster{
+			ListClustersOutput: ecs.ListClustersOutput{
+				ClusterArns: []*string{
+					aws.String(testArn1),
+					aws.String(testArn2),
+				},
+			},
 
-	cluster1 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-24-"+util.UniqueID())
-	defer deleteEcsCluster(awsSession, cluster1)
-	cluster2 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-24-"+util.UniqueID())
-	defer deleteEcsCluster(awsSession, cluster2)
-	cluster3 := createEcsFargateCluster(t, awsSession, "cloud-nuke-test-24-"+util.UniqueID())
-	defer deleteEcsCluster(awsSession, cluster3)
-
-	now := time.Now().UTC()
-	var oldClusterTagValue1 = now.Add(time.Hour * time.Duration(-48))
-	var youngClusterTagValue = now
-	var oldClusterTagValue2 = now.Add(time.Hour * time.Duration(-27))
-
-	err1 := tagEcsClusterWhenFirstSeen(awsSession, cluster1.ClusterArn, oldClusterTagValue1)
-	require.NoError(t, err1)
-	err2 := tagEcsClusterWhenFirstSeen(awsSession, cluster2.ClusterArn, youngClusterTagValue)
-	require.NoError(t, err2)
-	err3 := tagEcsClusterWhenFirstSeen(awsSession, cluster3.ClusterArn, oldClusterTagValue2)
-	require.NoError(t, err3)
-
-	// expression to match created clusters
-	clusterMatchExpression, err := regexp.Compile("^cloud-nuke-test-24*")
-	assert.NoError(t, err)
-
-	last24Hours := now.Add(time.Hour * time.Duration(-24))
-	filteredClusterArns, err := getAllEcsClustersOlderThan(awsSession, last24Hours, config.Config{
-		ECSCluster: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
+			DescribeClustersOutput: ecs.DescribeClustersOutput{
+				Clusters: []*ecs.Cluster{
 					{
-						RE: *clusterMatchExpression,
+						ClusterArn:  aws.String(testArn1),
+						Status:      aws.String("ACTIVE"),
+						ClusterName: aws.String(testName1),
+					},
+					{
+						ClusterArn:  aws.String(testArn2),
+						Status:      aws.String("ACTIVE"),
+						ClusterName: aws.String(testName2),
 					},
 				},
 			},
-		},
-	})
-	require.NoError(t, err)
 
-	nukeErr := nukeEcsClusters(awsSession, filteredClusterArns)
-	require.NoError(t, nukeErr)
-
-	allLeftClusterArns, err := getAllEcsClusters(awsSession)
-	require.NoError(t, err)
-
-	assert.Contains(t, awsgo.StringValueSlice(allLeftClusterArns), awsgo.StringValue(cluster2.ClusterArn))
-}
-
-// Test the config file filtering works as expected
-func TestShouldIncludeECSCluster(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	mockCluster := &ecs.Cluster{
-		ClusterName: awsgo.String("cloud-nuke-test"),
-		Status:      awsgo.String("ACTIVE"),
-	}
-
-	mockClusterInactive := &ecs.Cluster{
-		ClusterName: awsgo.String("cloud-nuke-test"),
-		Status:      awsgo.String("INACTIVE"),
-	}
-
-	mockExpression, err := regexp.Compile("^cloud-nuke-*")
-	if err != nil {
-		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
-	}
-
-	mockExcludeConfig := config.Config{
-		ECSCluster: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
+			ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
+				Tags: []*ecs.Tag{
 					{
-						RE: *mockExpression,
+						Key:   aws.String(util.FirstSeenTagKey),
+						Value: aws.String(util.FormatTimestampTag(now)),
 					},
 				},
 			},
 		},
 	}
 
-	mockIncludeConfig := config.Config{
-		ECSCluster: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{
-						RE: *mockExpression,
-					},
-				},
-			},
-		},
-	}
-
-	cases := []struct {
-		Name     string
-		Cluster  *ecs.Cluster
-		Config   config.Config
-		Expected bool
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
 	}{
-		{
-			Name:     "ConfigExclude",
-			Cluster:  mockCluster,
-			Config:   mockExcludeConfig,
-			Expected: false,
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testArn1, testArn2},
 		},
-		{
-			Name:     "ConfigInclude",
-			Cluster:  mockCluster,
-			Config:   mockIncludeConfig,
-			Expected: true,
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testArn2},
 		},
-		{
-			Name:     "ConfigIncludeInactive",
-			Cluster:  mockClusterInactive,
-			Config:   mockIncludeConfig,
-			Expected: false,
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				}},
+			expected: []string{},
 		},
 	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			result := shouldIncludeECSCluster(c.Cluster, c.Config)
-			assert.Equal(t, c.Expected, result)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := ec.getAll(config.Config{
+				ECSCluster: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
+
+}
+
+func TestEC2Cluster_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	ec := ECSClusters{
+		Client: mockedEC2Cluster{
+			DeleteClusterOutput: ecs.DeleteClusterOutput{},
+		},
+	}
+
+	err := ec.nukeAll([]*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	require.NoError(t, err)
 }
