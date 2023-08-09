@@ -31,7 +31,7 @@ func (h EC2DedicatedHosts) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (h EC2DedicatedHosts) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllEc2DedicatedHosts(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := h.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
