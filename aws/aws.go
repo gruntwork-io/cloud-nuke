@@ -1314,7 +1314,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		KeyPairs := EC2KeyPairs{}
 		if IsNukeable(KeyPairs.ResourceName(), resourceTypes) {
 			start := time.Now()
-			keyPairIds, err := getAllEc2KeyPairs(cloudNukeSession, excludeAfter, configObj)
+			keyPairIds, err := KeyPairs.getAll(configObj)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
