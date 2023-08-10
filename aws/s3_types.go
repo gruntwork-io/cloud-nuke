@@ -45,7 +45,7 @@ func (bucket S3Buckets) ResourceIdentifiers() []string {
 
 // Nuke - nuke 'em all!!!
 func (bucket S3Buckets) Nuke(session *session.Session, identifiers []string) error {
-	delCount, err := nukeAllS3Buckets(session, aws.StringSlice(identifiers), bucket.ObjectMaxBatchSize())
+	delCount, err := bucket.nukeAll(aws.StringSlice(identifiers))
 
 	totalCount := len(identifiers)
 	if delCount > 0 {

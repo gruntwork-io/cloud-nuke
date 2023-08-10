@@ -1193,48 +1193,17 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(s3Buckets.ResourceName(), resourceTypes) {
 			start := time.Now()
-			var bucketNamesPerRegion map[string][]*string
-
-			// AWS S3 buckets list operation lists all buckets irrespective of regions.
-			// For each bucket we have to make a separate call to find the bucket region.
-			// Hence for x buckets and a total of y target regions - we need to make:
-			// (x + 1) * y calls i.e. 1 call to list all x buckets, x calls to find out
-			// each bucket's region and repeat the process for each of the y regions.
-
-			// getAllS3Buckets returns a map of regions to buckets and we call it only once -
-			// thereby reducing total calls from (x + 1) * y to only (x + 1) for the first region -
-			// followed by a cache lookup for rest of the regions.
-
-			// Cache lookup to check if we already obtained bucket names per region
-			bucketNamesPerRegion, ok := resourcesCache["S3"]
-
-			if !ok {
-				bucketNamesPerRegion, err = getAllS3Buckets(
-					cloudNukeSession,
-					excludeAfter,
-					targetRegions,
-					"",
-					s3Buckets.MaxConcurrentGetSize(),
-					configObj,
-				)
-				if err != nil {
-					ge := report.GeneralError{
-						Error:        err,
-						Description:  "Unable to retrieve S3 buckets",
-						ResourceType: s3Buckets.ResourceName(),
-					}
-					report.RecordError(ge)
+			bucketNames, err := s3Buckets.getAll(configObj)
+			if err != nil {
+				ge := report.GeneralError{
+					Error:        err,
+					Description:  "Unable to retrieve S3 buckets",
+					ResourceType: s3Buckets.ResourceName(),
 				}
-
-				resourcesCache["S3"] = make(map[string][]*string)
-
-				for bucketRegion := range bucketNamesPerRegion {
-					resourcesCache["S3"][bucketRegion] = bucketNamesPerRegion[bucketRegion]
-				}
+				report.RecordError(ge)
 			}
 
-			bucketNames, ok := resourcesCache["S3"][region]
-
+			resourcesCache["S3"] = make(map[string][]*string)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Done Listing S3 Buckets",
 			}, map[string]interface{}{
@@ -1242,7 +1211,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"recordCount": len(bucketNames),
 				"actionTime":  time.Since(start).Seconds(),
 			})
-			if ok && len(bucketNames) > 0 {
+			if len(bucketNames) > 0 {
 				s3Buckets.Names = aws.StringValueSlice(bucketNames)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, s3Buckets)
 			}
