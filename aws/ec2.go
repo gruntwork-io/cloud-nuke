@@ -88,6 +88,9 @@ func shouldIncludeInstanceId(instance *ec2.Instance, excludeAfter time.Time, pro
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
 	instanceName := GetEC2ResourceNameTagValue(instance.Tags)
+	if instanceName == nil {
+		instanceName = awsgo.String("")
+	}
 
 	return config.ShouldInclude(
 		*instanceName,
