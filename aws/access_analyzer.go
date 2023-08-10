@@ -1,29 +1,26 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"sync"
-	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
+	"sync"
 )
 
-func getAllAccessAnalyzers(session *session.Session, excludeAfter time.Time, configObj config.Config) ([]*string, error) {
-	svc := accessanalyzer.New(session)
-
+func (analyzer AccessAnalyzer) getAll(configObj config.Config) ([]*string, error) {
 	allAnalyzers := []*string{}
-	err := svc.ListAnalyzersPages(
+	err := analyzer.Client.ListAnalyzersPages(
 		&accessanalyzer.ListAnalyzersInput{},
 		func(page *accessanalyzer.ListAnalyzersOutput, lastPage bool) bool {
 			for _, analyzer := range page.Analyzers {
-				if shouldIncludeAccessAnalyzer(analyzer, excludeAfter, configObj) {
+				if configObj.AccessAnalyzer.ShouldInclude(config.ResourceValue{
+					Time: analyzer.CreatedAt,
+					Name: analyzer.Name,
+				}) {
 					allAnalyzers = append(allAnalyzers, analyzer.Name)
 				}
 			}
@@ -33,25 +30,9 @@ func getAllAccessAnalyzers(session *session.Session, excludeAfter time.Time, con
 	return allAnalyzers, errors.WithStackTrace(err)
 }
 
-func shouldIncludeAccessAnalyzer(analyzer *accessanalyzer.AnalyzerSummary, excludeAfter time.Time, configObj config.Config) bool {
-	if analyzer == nil {
-		return false
-	}
-
-	if excludeAfter.Before(aws.TimeValue(analyzer.CreatedAt)) {
-		return false
-	}
-
-	return config.ShouldInclude(
-		aws.StringValue(analyzer.Name),
-		configObj.AccessAnalyzer.IncludeRule.NamesRegExp,
-		configObj.AccessAnalyzer.ExcludeRule.NamesRegExp,
-	)
-}
-
-func nukeAllAccessAnalyzers(session *session.Session, names []*string) error {
+func (analyzer AccessAnalyzer) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No IAM Access Analyzers to nuke in region %s", *session.Config.Region)
+		logging.Logger.Debugf("No IAM Access Analyzers to nuke in region %s", analyzer.Region)
 		return nil
 	}
 
@@ -65,15 +46,14 @@ func nukeAllAccessAnalyzers(session *session.Session, names []*string) error {
 	}
 
 	// There is no bulk delete access analyzer API, so we delete the batch of Access Analyzers concurrently using go routines.
-	logging.Logger.Debugf("Deleting all Access Analyzers in region %s", *session.Config.Region)
+	logging.Logger.Debugf("Deleting all Access Analyzers in region %s", analyzer.Region)
 
-	svc := accessanalyzer.New(session)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(names))
 	errChans := make([]chan error, len(names))
 	for i, analyzerName := range names {
 		errChans[i] = make(chan error, 1)
-		go deleteAccessAnalyzerAsync(wg, errChans[i], svc, analyzerName)
+		go analyzer.deleteAccessAnalyzerAsync(wg, errChans[i], analyzerName)
 	}
 	wg.Wait()
 
@@ -86,7 +66,7 @@ func nukeAllAccessAnalyzers(session *session.Session, names []*string) error {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Access Analyzer",
 			}, map[string]interface{}{
-				"region": *session.Config.Region,
+				"region": analyzer.Region,
 			})
 		}
 	}
@@ -96,11 +76,11 @@ func nukeAllAccessAnalyzers(session *session.Session, names []*string) error {
 
 // deleteAccessAnalyzerAsync deletes the provided IAM Access Analyzer asynchronously in a goroutine, using wait groups
 // for concurrency control and a return channel for errors.
-func deleteAccessAnalyzerAsync(wg *sync.WaitGroup, errChan chan error, svc *accessanalyzer.AccessAnalyzer, analyzerName *string) {
+func (analyzer AccessAnalyzer) deleteAccessAnalyzerAsync(wg *sync.WaitGroup, errChan chan error, analyzerName *string) {
 	defer wg.Done()
 
 	input := &accessanalyzer.DeleteAnalyzerInput{AnalyzerName: analyzerName}
-	_, err := svc.DeleteAnalyzer(input)
+	_, err := analyzer.Client.DeleteAnalyzer(input)
 	errChan <- err
 }
 

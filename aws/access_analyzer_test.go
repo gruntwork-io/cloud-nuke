@@ -1,137 +1,104 @@
 package aws
 
 import (
-	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/accessanalyzer"
+	"github.com/aws/aws-sdk-go/service/accessanalyzer/accessanalyzeriface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"strings"
+	"github.com/stretchr/testify/require"
+	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/accessanalyzer"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/terratest/modules/random"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestListAccessAnalyzers(t *testing.T) {
+type mockedAccessAnalyzer struct {
+	accessanalyzeriface.AccessAnalyzerAPI
+	ListAnalyzersPagesOutput accessanalyzer.ListAnalyzersOutput
+	DeleteAnalyzerOutput     accessanalyzer.DeleteAnalyzerOutput
+}
+
+func (m mockedAccessAnalyzer) ListAnalyzersPages(input *accessanalyzer.ListAnalyzersInput, callback func(*accessanalyzer.ListAnalyzersOutput, bool) bool) error {
+	callback(&m.ListAnalyzersPagesOutput, true)
+	return nil
+}
+
+func (m mockedAccessAnalyzer) DeleteAnalyzer(input *accessanalyzer.DeleteAnalyzerInput) (*accessanalyzer.DeleteAnalyzerOutput, error) {
+	return &m.DeleteAnalyzerOutput, nil
+}
+
+func TestAccessAnalyzer_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	// We hard code the region here to avoid the tests colliding with each other, since we can only have one account
-	// analyzer per region (but we can have multiple org analyzers).
-	region := "us-west-1"
+	now := time.Now()
+	testName1 := "test1"
+	testName2 := "test2"
+	aa := AccessAnalyzer{
+		Client: mockedAccessAnalyzer{
+			ListAnalyzersPagesOutput: accessanalyzer.ListAnalyzersOutput{
+				Analyzers: []*accessanalyzer.AnalyzerSummary{
+					{
+						Name:      awsgo.String(testName1),
+						CreatedAt: awsgo.Time(now),
+					},
+					{
+						Name:      awsgo.String(testName2),
+						CreatedAt: awsgo.Time(now.Add(1)),
+					},
+				},
+			},
+		},
+	}
 
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := accessanalyzer.New(session)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testName1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := aa.getAll(config.Config{
+				AccessAnalyzer: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+		})
+	}
 
-	analyzerName := createAccessAnalyzer(t, svc)
-	defer deleteAccessAnalyzer(t, svc, analyzerName, true)
-
-	analyzerNames, err := getAllAccessAnalyzers(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(analyzerNames), aws.StringValue(analyzerName))
 }
 
-func TestTimeFilterExclusionNewlyCreatedAccessAnalyzer(t *testing.T) {
+func TestAccessAnalyzer_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	// We hard code the region here to avoid the tests colliding with each other, since we can only have one account
-	// analyzer per region (but we can have multiple org analyzers).
-	region := "us-west-2"
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := accessanalyzer.New(session)
-
-	analyzerName := createAccessAnalyzer(t, svc)
-	defer deleteAccessAnalyzer(t, svc, analyzerName, true)
-
-	// Assert Access Analyzer is picked up without filters
-	analyzerNamesNewer, err := getAllAccessAnalyzers(session, time.Now(), config.Config{})
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(analyzerNamesNewer), aws.StringValue(analyzerName))
-
-	// Assert analyzer doesn't appear when we look at users older than 1 Hour
-	olderThan := time.Now().Add(-1 * time.Hour)
-	analyzerNamesOlder, err := getAllAccessAnalyzers(session, olderThan, config.Config{})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(analyzerNamesOlder), aws.StringValue(analyzerName))
-}
-
-func TestNukeAccessAnalyzerOne(t *testing.T) {
-	t.Parallel()
-
-	// We hard code the region here to avoid the tests colliding with each other, since we can only have one account
-	// analyzer per region (but we can have multiple org analyzers).
-	region := "eu-west-1"
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-	svc := accessanalyzer.New(session)
-
-	// We ignore errors in the delete call here, because it is intended to be a stop gap in case there is a bug in nuke.
-	analyzerName := createAccessAnalyzer(t, svc)
-	defer deleteAccessAnalyzer(t, svc, analyzerName, false)
-	identifiers := []*string{analyzerName}
-
-	require.NoError(
-		t,
-		nukeAllAccessAnalyzers(session, identifiers),
-	)
-
-	// Make sure the Access Analyzer is deleted.
-	assertAccessAnalyzersDeleted(t, svc, identifiers)
-}
-
-// Helper functions for driving the Access Analyzer tests
-
-// createAccessAnalyzer will create a new IAM Access Analyzer for test purposes
-func createAccessAnalyzer(t *testing.T, svc *accessanalyzer.AccessAnalyzer) *string {
-	name := fmt.Sprintf("cloud-nuke-test-%s", strings.ToLower(random.UniqueId()))
-	resp, err := svc.CreateAnalyzer(&accessanalyzer.CreateAnalyzerInput{
-		AnalyzerName: aws.String(name),
-		Type:         aws.String("ACCOUNT"),
-	})
-	require.NoError(t, err)
-	if resp.Arn == nil {
-		t.Fatalf("Impossible error: AWS returned nil NAT gateway")
+	aa := AccessAnalyzer{
+		Client: mockedAccessAnalyzer{
+			DeleteAnalyzerOutput: accessanalyzer.DeleteAnalyzerOutput{},
+		},
 	}
 
-	// AccessAnalyzer API operates on the name, so we need to extract out the name part of the ARN. Analyzer ARNs are of
-	// the form: arn:aws:access-analyzer:sa-east-1:000000000000:analyzer/test-iam-access-analyzer-fhkb2x-sa_east_1, so
-	// to get the name we can extract the resource part and split on `/` and return the second part.
-	arn, err := arn.Parse(aws.StringValue(resp.Arn))
+	err := aa.nukeAll([]*string{awsgo.String("test")})
 	require.NoError(t, err)
-	nameParts := strings.Split(arn.Resource, "/")
-	require.Equal(t, 2, len(nameParts))
-	require.Equal(t, "analyzer", nameParts[0])
-	return aws.String(nameParts[1])
-}
-
-// deleteAccessAnalyzer is a function to delete the given NAT gateway.
-func deleteAccessAnalyzer(t *testing.T, svc *accessanalyzer.AccessAnalyzer, analyzerName *string, checkErr bool) {
-	input := &accessanalyzer.DeleteAnalyzerInput{AnalyzerName: analyzerName}
-	_, err := svc.DeleteAnalyzer(input)
-	if checkErr {
-		require.NoError(t, err)
-	}
-}
-
-func assertAccessAnalyzersDeleted(t *testing.T, svc *accessanalyzer.AccessAnalyzer, identifiers []*string) {
-	for _, identifier := range identifiers {
-		_, err := svc.GetAnalyzer(&accessanalyzer.GetAnalyzerInput{AnalyzerName: identifier})
-		if err == nil {
-			t.Fatalf("Access Analyzer %s still exists", aws.StringValue(identifier))
-		}
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == accessanalyzer.ErrCodeResourceNotFoundException {
-			continue
-		}
-		t.Fatalf("Error checking for access analyzer %s: %s", aws.StringValue(identifier), err)
-	}
 }

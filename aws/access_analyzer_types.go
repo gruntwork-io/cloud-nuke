@@ -33,7 +33,7 @@ func (analyzer AccessAnalyzer) MaxBatchSize() int {
 
 // Nuke - nuke 'em all!!!
 func (analyzer AccessAnalyzer) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllAccessAnalyzers(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := analyzer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
