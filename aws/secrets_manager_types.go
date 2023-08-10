@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -31,8 +31,18 @@ func (sms SecretsManagerSecrets) MaxBatchSize() int {
 	return 10
 }
 
+func (sms SecretsManagerSecrets) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := sms.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	sms.SecretIDs = awsgo.StringValueSlice(identifiers)
+	return sms.SecretIDs, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (sms SecretsManagerSecrets) Nuke(session *session.Session, identifiers []string) error {
+func (sms SecretsManagerSecrets) Nuke(identifiers []string) error {
 	if err := sms.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

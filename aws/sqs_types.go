@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (sq SqsQueue) ResourceIdentifiers() []string {
 	return sq.QueueUrls
 }
 
+func (sq SqsQueue) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := sq.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	sq.QueueUrls = awsgo.StringValueSlice(identifiers)
+	return sq.QueueUrls, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (sq SqsQueue) Nuke(session *session.Session, identifiers []string) error {
+func (sq SqsQueue) Nuke(identifiers []string) error {
 	if err := sq.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

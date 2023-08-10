@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/redshift/redshiftiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -27,8 +27,18 @@ func (rc RedshiftClusters) MaxBatchSize() int {
 	return 49
 }
 
+func (rc RedshiftClusters) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := rc.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	rc.ClusterIdentifiers = awsgo.StringValueSlice(identifiers)
+	return rc.ClusterIdentifiers, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (rc RedshiftClusters) Nuke(session *session.Session, identifiers []string) error {
+func (rc RedshiftClusters) Nuke(identifiers []string) error {
 	if err := rc.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

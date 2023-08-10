@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -25,7 +25,17 @@ func (gw ApiGatewayV2) MaxBatchSize() int {
 	return 10
 }
 
-func (gw ApiGatewayV2) Nuke(session *session.Session, identifiers []string) error {
+func (gw ApiGatewayV2) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := gw.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	gw.Ids = awsgo.StringValueSlice(identifiers)
+	return gw.Ids, nil
+}
+
+func (gw ApiGatewayV2) Nuke(identifiers []string) error {
 	if err := gw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

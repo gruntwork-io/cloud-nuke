@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -28,8 +28,18 @@ func (iu IAMUsers) MaxBatchSize() int {
 	return 49
 }
 
+func (iu IAMUsers) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := iu.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	iu.UserNames = awsgo.StringValueSlice(identifiers)
+	return iu.UserNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (iu IAMUsers) Nuke(session *session.Session, users []string) error {
+func (iu IAMUsers) Nuke(users []string) error {
 	if err := iu.nukeAll(awsgo.StringSlice(users)); err != nil {
 		return errors.WithStackTrace(err)
 	}

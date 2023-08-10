@@ -15,7 +15,7 @@ import (
 )
 
 // List all IAM Roles in the AWS account
-func (ir IAMRoles) getALl(configObj config.Config) ([]*string, error) {
+func (ir IAMRoles) getAll(configObj config.Config) ([]*string, error) {
 	allIAMRoles := []*string{}
 	err := ir.Client.ListRolesPages(
 		&iam.ListRolesInput{},

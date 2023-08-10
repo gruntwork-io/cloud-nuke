@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -31,8 +31,18 @@ func (clusters EKSClusters) MaxBatchSize() int {
 	return 10
 }
 
+func (clusters EKSClusters) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := clusters.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	clusters.Clusters = awsgo.StringValueSlice(identifiers)
+	return clusters.Clusters, nil
+}
+
 // Nuke - nuke all EKS Cluster resources
-func (clusters EKSClusters) Nuke(awsSession *session.Session, identifiers []string) error {
+func (clusters EKSClusters) Nuke(identifiers []string) error {
 	if err := clusters.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

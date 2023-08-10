@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache/elasticacheiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (cache Elasticaches) MaxBatchSize() int {
 	return 49
 }
 
+func (cache Elasticaches) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := cache.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	cache.ClusterIds = awsgo.StringValueSlice(identifiers)
+	return cache.ClusterIds, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (cache Elasticaches) Nuke(session *session.Session, identifiers []string) error {
+func (cache Elasticaches) Nuke(identifiers []string) error {
 	if err := cache.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -63,8 +73,18 @@ func (pg ElasticacheParameterGroups) MaxBatchSize() int {
 	return 49
 }
 
+func (pg ElasticacheParameterGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := pg.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	pg.GroupNames = awsgo.StringValueSlice(identifiers)
+	return pg.GroupNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (pg ElasticacheParameterGroups) Nuke(session *session.Session, identifiers []string) error {
+func (pg ElasticacheParameterGroups) Nuke(identifiers []string) error {
 	if err := pg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -96,8 +116,18 @@ func (sg ElasticacheSubnetGroups) MaxBatchSize() int {
 	return 49
 }
 
+func (sg ElasticacheSubnetGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := sg.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	sg.GroupNames = awsgo.StringValueSlice(identifiers)
+	return sg.GroupNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (sg ElasticacheSubnetGroups) Nuke(session *session.Session, identifiers []string) error {
+func (sg ElasticacheSubnetGroups) Nuke(identifiers []string) error {
 	if err := sg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

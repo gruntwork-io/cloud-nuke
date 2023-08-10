@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -28,8 +28,18 @@ func (cwdb CloudWatchDashboards) MaxBatchSize() int {
 	return 49
 }
 
+func (cwdb CloudWatchDashboards) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := cwdb.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	cwdb.DashboardNames = awsgo.StringValueSlice(identifiers)
+	return cwdb.DashboardNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (cwdb CloudWatchDashboards) Nuke(session *session.Session, identifiers []string) error {
+func (cwdb CloudWatchDashboards) Nuke(identifiers []string) error {
 	if err := cwdb.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

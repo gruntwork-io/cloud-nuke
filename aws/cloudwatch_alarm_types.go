@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -28,8 +28,18 @@ func (cw CloudWatchAlarms) MaxBatchSize() int {
 	return 99
 }
 
+func (cw CloudWatchAlarms) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := cw.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	cw.AlarmNames = awsgo.StringValueSlice(identifiers)
+	return cw.AlarmNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (cw CloudWatchAlarms) Nuke(session *session.Session, identifiers []string) error {
+func (cw CloudWatchAlarms) Nuke(identifiers []string) error {
 	if err := cw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

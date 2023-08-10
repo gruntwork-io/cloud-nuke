@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -28,7 +28,17 @@ func (k EC2KeyPairs) MaxBatchSize() int {
 	return 200
 }
 
-func (k EC2KeyPairs) Nuke(session *session.Session, identifiers []string) error {
+func (k EC2KeyPairs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := k.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	k.KeyPairIds = awsgo.StringValueSlice(identifiers)
+	return k.KeyPairIds, nil
+}
+
+func (k EC2KeyPairs) Nuke(identifiers []string) error {
 	if err := k.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

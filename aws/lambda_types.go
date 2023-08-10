@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -27,8 +27,18 @@ func (lf LambdaFunctions) MaxBatchSize() int {
 	return 49
 }
 
+func (lf LambdaFunctions) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := lf.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	lf.LambdaFunctionNames = awsgo.StringValueSlice(identifiers)
+	return lf.LambdaFunctionNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (lf LambdaFunctions) Nuke(session *session.Session, identifiers []string) error {
+func (lf LambdaFunctions) Nuke(identifiers []string) error {
 	if err := lf.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

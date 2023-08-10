@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -31,8 +31,18 @@ func (secret NatGateways) MaxBatchSize() int {
 	return 10
 }
 
+func (secret NatGateways) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := secret.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	secret.NatGatewayIDs = awsgo.StringValueSlice(identifiers)
+	return secret.NatGatewayIDs, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (ngw NatGateways) Nuke(session *session.Session, identifiers []string) error {
+func (ngw NatGateways) Nuke(identifiers []string) error {
 	if err := ngw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
