@@ -37,7 +37,7 @@ func (clusters ECSClusters) MaxBatchSize() int {
 
 // Nuke - nuke all ECS Cluster resources
 func (clusters ECSClusters) Nuke(awsSession *session.Session, identifiers []string) error {
-	if err := nukeEcsClusters(awsSession, awsgo.StringSlice(identifiers)); err != nil {
+	if err := clusters.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil

@@ -638,7 +638,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(ec2Instances.ResourceName(), resourceTypes) {
 			start := time.Now()
-			instanceIds, err := getAllEc2Instances(cloudNukeSession, region, excludeAfter, configObj)
+			instanceIds, err := ec2Instances.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -819,29 +819,20 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(ecsServices.ResourceName(), resourceTypes) {
 			start := time.Now()
-			clusterArns, err := getAllEcsClusters(cloudNukeSession)
+
+			serviceArns, err := ecsServices.getAll(configObj)
 			if err != nil {
-				ge := report.GeneralError{
-					Error:        err,
-					Description:  "Unable to retrieve ECS clusters",
-					ResourceType: ecsServices.ResourceName(),
-				}
-				report.RecordError(ge)
+				return nil, errors.WithStackTrace(err)
 			}
-			if len(clusterArns) > 0 {
-				serviceArns, serviceClusterMap, err := getAllEcsServices(cloudNukeSession, clusterArns, excludeAfter, configObj)
-				if err != nil {
-					return nil, errors.WithStackTrace(err)
-				}
-				ecsServices.Services = awsgo.StringValueSlice(serviceArns)
-				ecsServices.ServiceClusterMap = serviceClusterMap
-				resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
-			}
+
+			ecsServices.Services = awsgo.StringValueSlice(serviceArns)
+			resourcesInRegion.Resources = append(resourcesInRegion.Resources, ecsServices)
+
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Done Listing ECS Services",
 			}, map[string]interface{}{
 				"region":      region,
-				"recordCount": len(clusterArns),
+				"recordCount": len(serviceArns),
 				"actionTime":  time.Since(start).Seconds(),
 			})
 		}
@@ -852,7 +843,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(ecsClusters.ResourceName(), resourceTypes) {
 			start := time.Now()
-			ecsClusterArns, err := getAllEcsClustersOlderThan(cloudNukeSession, excludeAfter, configObj)
+			ecsClusterArns, err := ecsClusters.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,

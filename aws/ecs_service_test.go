@@ -1,314 +1,148 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
-
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecs"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/stretchr/testify/assert"
 )
 
-// Test that we can find ECS services that are running Fargate tasks
-func TestListECSFargateServices(t *testing.T) {
+type mockedEC2Service struct {
+	ecsiface.ECSAPI
+	ListClustersOutput     ecs.ListClustersOutput
+	DescribeServicesOutput ecs.DescribeServicesOutput
+	ListServicesOutput     ecs.ListServicesOutput
+	UpdateServiceOutput    ecs.UpdateServiceOutput
+	DeleteServiceOutput    ecs.DeleteServiceOutput
+}
+
+func (m mockedEC2Service) ListClusters(*ecs.ListClustersInput) (*ecs.ListClustersOutput, error) {
+	return &m.ListClustersOutput, nil
+}
+
+func (m mockedEC2Service) DescribeServices(*ecs.DescribeServicesInput) (*ecs.DescribeServicesOutput, error) {
+	return &m.DescribeServicesOutput, nil
+}
+
+func (m mockedEC2Service) ListServices(*ecs.ListServicesInput) (*ecs.ListServicesOutput, error) {
+	return &m.ListServicesOutput, nil
+}
+
+func (m mockedEC2Service) UpdateService(*ecs.UpdateServiceInput) (*ecs.UpdateServiceOutput, error) {
+	return &m.UpdateServiceOutput, nil
+}
+
+func (m mockedEC2Service) WaitUntilServicesStable(*ecs.DescribeServicesInput) error {
+	return nil
+}
+
+func (m mockedEC2Service) DeleteService(*ecs.DeleteServiceInput) (*ecs.DeleteServiceOutput, error) {
+	return &m.DeleteServiceOutput, nil
+}
+
+func (m mockedEC2Service) WaitUntilServicesInactive(*ecs.DescribeServicesInput) error {
+	return nil
+}
+
+func TestEC2Service_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region := getRandomFargateSupportedRegion()
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	ecsServiceClusterMap := map[string]string{}
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	clusterName := uniqueTestID + "-cluster"
-	serviceName := uniqueTestID + "-service"
-	taskFamilyName := uniqueTestID + "-task"
-
-	cluster := createEcsFargateCluster(t, awsSession, clusterName)
-	defer deleteEcsCluster(awsSession, cluster)
-
-	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "FARGATE")
-	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
-
-	service := createEcsService(t, awsSession, serviceName, cluster, "FARGATE", taskDefinition, "REPLICA")
-	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
-	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
-
-	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
-	}
-	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
-	_, exists := newEcsServiceClusterMap[*service.ServiceArn]
-	assert.False(t, exists)
-
-	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
-	}
-	assert.Contains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
-	_, exists = newEcsServiceClusterMap[*service.ServiceArn]
-	assert.True(t, exists)
-}
-
-// Test that we can successfully nuke ECS services running Fargate tasks
-func TestNukeECSFargateServices(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region := getRandomFargateSupportedRegion()
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	clusterName := uniqueTestID + "-cluster"
-	serviceName := uniqueTestID + "-service"
-	taskFamilyName := uniqueTestID + "-task"
-
-	cluster := createEcsFargateCluster(t, awsSession, clusterName)
-	defer deleteEcsCluster(awsSession, cluster)
-
-	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "FARGATE")
-	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
-
-	service := createEcsService(t, awsSession, serviceName, cluster, "FARGATE", taskDefinition, "REPLICA")
-
-	ecsServiceClusterMap := map[string]string{}
-	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
-	err = nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
-
-	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
-	}
-	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
-}
-
-// Test that we can find ECS services running EC2 tasks
-func TestListECSEC2Services(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region := getRandomFargateSupportedRegion()
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	ecsServiceClusterMap := map[string]string{}
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	clusterName := uniqueTestID + "-cluster"
-	serviceName := uniqueTestID + "-service"
-	taskFamilyName := uniqueTestID + "-task"
-	roleName := uniqueTestID + "-role"
-	instanceProfileName := uniqueTestID + "-instance-profile"
-
-	// Prepare resources
-	// Create the IAM roles for ECS EC2 container instances
-	role := createEcsRole(t, awsSession, roleName)
-	defer deleteRole(awsSession, role)
-
-	instanceProfile := createEcsInstanceProfile(t, awsSession, instanceProfileName, role)
-	defer deleteInstanceProfile(awsSession, instanceProfile)
-
-	// IAM resources are slow to propagate, so give it some
-	// time
-	time.Sleep(15 * time.Second)
-
-	// Provision a cluster with ec2 container instances, not
-	// forgetting to schedule deletion
-	cluster, instance := createEcsEC2Cluster(t, awsSession, clusterName, instanceProfile)
-	defer deleteEcsCluster(awsSession, cluster)
-	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
-
-	// Finally, define the task and service
-	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")
-	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
-
-	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition, "REPLICA")
-	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
-	defer nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn})
-	// END prepare resources
-
-	ecsServiceArns, newEcsServiceClusterMap, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour*-1), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
-	}
-	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
-	_, exists := newEcsServiceClusterMap[*service.ServiceArn]
-	assert.False(t, exists)
-
-	ecsServiceArns, newEcsServiceClusterMap, err = getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
-	}
-	assert.Contains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
-	_, exists = newEcsServiceClusterMap[*service.ServiceArn]
-	assert.True(t, exists)
-}
-
-// Test that we can successfully nuke ECS services running EC2 tasks
-func TestNukeECSEC2Services(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region := getRandomFargateSupportedRegion()
-	awsSession, err := session.NewSession(&awsgo.Config{
-		Region: awsgo.String(region),
-	})
-
-	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
-	}
-
-	ecsServiceClusterMap := map[string]string{}
-	uniqueTestID := "cloud-nuke-test-" + util.UniqueID()
-	clusterName := uniqueTestID + "-cluster"
-	serviceName := uniqueTestID + "-service"
-	daemonServiceName := uniqueTestID + "-daemon-service"
-	taskFamilyName := uniqueTestID + "-task"
-	taskDaemonFamilyName := uniqueTestID + "-daemon-task"
-	roleName := uniqueTestID + "-role"
-	instanceProfileName := uniqueTestID + "-instance-profile"
-
-	// Prepare resources
-	// Create the IAM roles for ECS EC2 container instances
-	role := createEcsRole(t, awsSession, roleName)
-	defer deleteRole(awsSession, role)
-
-	instanceProfile := createEcsInstanceProfile(t, awsSession, instanceProfileName, role)
-	defer deleteInstanceProfile(awsSession, instanceProfile)
-
-	// IAM resources are slow to propagate, so give it some
-	// time
-	time.Sleep(15 * time.Second)
-
-	// Provision a cluster with ec2 container instances, not
-	// forgetting to schedule deletion
-	cluster, instance := createEcsEC2Cluster(t, awsSession, clusterName, instanceProfile)
-	defer deleteEcsCluster(awsSession, cluster)
-	defer nukeAllEc2Instances(awsSession, []*string{instance.InstanceId})
-
-	// Finally, define the task and service
-	taskDefinition := createEcsTaskDefinition(t, awsSession, taskFamilyName, "EC2")
-	defer deleteEcsTaskDefinition(awsSession, taskDefinition)
-
-	service := createEcsService(t, awsSession, serviceName, cluster, "EC2", taskDefinition, "REPLICA")
-	ecsServiceClusterMap[*service.ServiceArn] = *cluster.ClusterArn
-
-	taskDaemonDefinition := createEcsTaskDefinition(t, awsSession, taskDaemonFamilyName, "EC2")
-	defer deleteEcsTaskDefinition(awsSession, taskDaemonDefinition)
-
-	daemonService := createEcsService(t, awsSession, daemonServiceName, cluster, "EC2", taskDaemonDefinition, "DAEMON")
-	ecsServiceClusterMap[*daemonService.ServiceArn] = *cluster.ClusterArn
-
-	// END prepare resources
-
-	err = nukeAllEcsServices(awsSession, ecsServiceClusterMap, []*string{service.ServiceArn, daemonService.ServiceArn})
-
-	ecsServiceArns, _, err := getAllEcsServices(awsSession, []*string{cluster.ClusterArn}, time.Now().Add(1*time.Hour), config.Config{})
-	if err != nil {
-		assert.Failf(t, "Unable to fetch list of services: %s", err.Error())
-	}
-	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *service.ServiceArn)
-	assert.NotContains(t, awsgo.StringValueSlice(ecsServiceArns), *daemonService.ServiceArn)
-}
-
-// Test the config file filtering works as expected
-func TestShouldIncludeECSService(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	mockService := &ecs.Service{
-		ServiceName: awsgo.String("cloud-nuke-test"),
-		CreatedAt:   awsgo.Time(time.Now()),
-	}
-
-	mockExpression, err := regexp.Compile("^cloud-nuke-*")
-	if err != nil {
-		logging.Logger.Fatalf("There was an error compiling regex expression %v", err)
-	}
-
-	mockExcludeConfig := config.Config{
-		ECSService: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
+	testArn1 := "testArn1"
+	testArn2 := "testArn2"
+	testName1 := "testService1"
+	testName2 := "testService2"
+	now := time.Now()
+	es := ECSServices{
+		Client: mockedEC2Service{
+			ListClustersOutput: ecs.ListClustersOutput{
+				ClusterArns: []*string{
+					aws.String(testArn1),
+				},
+			},
+			ListServicesOutput: ecs.ListServicesOutput{
+				ServiceArns: []*string{
+					aws.String(testArn1),
+				},
+			},
+			DescribeServicesOutput: ecs.DescribeServicesOutput{
+				Services: []*ecs.Service{
 					{
-						RE: *mockExpression,
+						ServiceArn:  aws.String(testArn1),
+						ServiceName: aws.String(testName1),
+						CreatedAt:   aws.Time(now),
+					},
+					{
+						ServiceArn:  aws.String(testArn2),
+						ServiceName: aws.String(testName2),
+						CreatedAt:   aws.Time(now.Add(1)),
 					},
 				},
 			},
 		},
 	}
 
-	mockIncludeConfig := config.Config{
-		ECSService: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{
-					{
-						RE: *mockExpression,
-					},
-				},
-			},
-		},
-	}
-
-	cases := []struct {
-		Name         string
-		Service      *ecs.Service
-		Config       config.Config
-		ExcludeAfter time.Time
-		Expected     bool
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
 	}{
-		{
-			Name:         "ConfigExclude",
-			Service:      mockService,
-			Config:       mockExcludeConfig,
-			ExcludeAfter: time.Now().Add(1 * time.Hour),
-			Expected:     false,
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testArn1, testArn2},
 		},
-		{
-			Name:         "ConfigInclude",
-			Service:      mockService,
-			Config:       mockIncludeConfig,
-			ExcludeAfter: time.Now().Add(1 * time.Hour),
-			Expected:     true,
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile(testName1),
+					}}},
+			},
+			expected: []string{testArn2},
 		},
-		{
-			Name:         "NotOlderThan",
-			Service:      mockService,
-			Config:       config.Config{},
-			ExcludeAfter: time.Now().Add(1 * time.Hour * -1),
-			Expected:     false,
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testArn1},
 		},
 	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			result := shouldIncludeECSService(c.Service, c.ExcludeAfter, c.Config)
-			assert.Equal(t, c.Expected, result)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := es.getAll(config.Config{
+				ECSService: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
+
+}
+
+func TestEC2Service_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	es := ECSServices{
+		Client: mockedEC2Service{
+			DescribeServicesOutput: ecs.DescribeServicesOutput{
+				Services: []*ecs.Service{
+					{
+						ServiceArn:         aws.String("testArn1"),
+						SchedulingStrategy: aws.String(ecs.SchedulingStrategyDaemon),
+					},
+				},
+			},
+			UpdateServiceOutput: ecs.UpdateServiceOutput{},
+			DeleteServiceOutput: ecs.DeleteServiceOutput{},
+		},
+	}
+
+	err := es.nukeAll([]*string{aws.String("testArn1")})
+	require.NoError(t, err)
 }
