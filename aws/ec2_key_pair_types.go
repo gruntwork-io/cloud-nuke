@@ -29,7 +29,7 @@ func (k EC2KeyPairs) MaxBatchSize() int {
 }
 
 func (k EC2KeyPairs) Nuke(session *session.Session, identifiers []string) error {
-	if err := nukeAllEc2KeyPairs(session, awsgo.StringSlice(identifiers)); err != nil {
+	if err := k.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
