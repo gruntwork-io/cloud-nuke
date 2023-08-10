@@ -2,8 +2,8 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -43,16 +43,26 @@ func (bucket S3Buckets) ResourceIdentifiers() []string {
 	return bucket.Names
 }
 
+func (bucket S3Buckets) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := bucket.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket.Names = aws.StringValueSlice(identifiers)
+	return bucket.Names, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (bucket S3Buckets) Nuke(session *session.Session, identifiers []string) error {
+func (bucket S3Buckets) Nuke(identifiers []string) error {
 	delCount, err := bucket.nukeAll(aws.StringSlice(identifiers))
 
 	totalCount := len(identifiers)
 	if delCount > 0 {
-		logging.Logger.Debugf("[OK] - %d/%d - S3 bucket(s) deleted in %s", delCount, totalCount, *session.Config.Region)
+		logging.Logger.Debugf("[OK] - %d/%d - S3 bucket(s) deleted in %s", delCount, totalCount, bucket.Region)
 	}
 	if delCount != totalCount {
-		logging.Logger.Debugf("[Failed] - %d/%d - S3 bucket(s) failed deletion in %s", totalCount-delCount, totalCount, *session.Config.Region)
+		logging.Logger.Debugf("[Failed] - %d/%d - S3 bucket(s) failed deletion in %s", totalCount-delCount, totalCount, bucket.Region)
 	}
 
 	if err != nil {

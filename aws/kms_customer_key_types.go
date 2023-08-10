@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -33,8 +33,18 @@ func (kck KmsCustomerKeys) MaxBatchSize() int {
 	return 49
 }
 
+func (kck KmsCustomerKeys) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := kck.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	kck.KeyIds = awsgo.StringValueSlice(identifiers)
+	return kck.KeyIds, nil
+}
+
 // Nuke - remove all customer managed keys
-func (kck KmsCustomerKeys) Nuke(session *session.Session, keyIds []string) error {
+func (kck KmsCustomerKeys) Nuke(keyIds []string) error {
 	if err := kck.nukeAll(awsgo.StringSlice(keyIds)); err != nil {
 		return errors.WithStackTrace(err)
 	}

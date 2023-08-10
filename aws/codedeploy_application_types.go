@@ -1,8 +1,9 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws/session"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -28,8 +29,18 @@ func (c CodeDeployApplications) MaxBatchSize() int {
 	return 100
 }
 
+func (c CodeDeployApplications) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := c.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	c.AppNames = awsgo.StringValueSlice(identifiers)
+	return c.AppNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (c CodeDeployApplications) Nuke(session *session.Session, identifiers []string) error {
+func (c CodeDeployApplications) Nuke(identifiers []string) error {
 	if err := c.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

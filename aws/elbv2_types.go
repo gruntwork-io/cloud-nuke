@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (balancer LoadBalancersV2) ResourceIdentifiers() []string {
 	return balancer.Arns
 }
 
+func (balancer LoadBalancersV2) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := balancer.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	balancer.Arns = awsgo.StringValueSlice(identifiers)
+	return balancer.Arns, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (balancer LoadBalancersV2) Nuke(session *session.Session, identifiers []string) error {
+func (balancer LoadBalancersV2) Nuke(identifiers []string) error {
 	if err := balancer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -27,8 +27,18 @@ func (dsg DBSubnetGroups) MaxBatchSize() int {
 	return 49
 }
 
+func (dsg DBSubnetGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := dsg.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	dsg.InstanceNames = awsgo.StringValueSlice(identifiers)
+	return dsg.InstanceNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (dsg DBSubnetGroups) Nuke(session *session.Session, identifiers []string) error {
+func (dsg DBSubnetGroups) Nuke(identifiers []string) error {
 	if err := dsg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

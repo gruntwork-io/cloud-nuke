@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer/accessanalyzeriface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -31,8 +31,18 @@ func (analyzer AccessAnalyzer) MaxBatchSize() int {
 	return 10
 }
 
+func (analyzer AccessAnalyzer) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := analyzer.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	analyzer.AnalyzerNames = awsgo.StringValueSlice(identifiers)
+	return analyzer.AnalyzerNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (analyzer AccessAnalyzer) Nuke(session *session.Session, identifiers []string) error {
+func (analyzer AccessAnalyzer) Nuke(identifiers []string) error {
 	if err := analyzer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

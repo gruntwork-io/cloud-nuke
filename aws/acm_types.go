@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acm/acmiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (acm ACM) MaxBatchSize() int {
 	return 10
 }
 
+func (acm ACM) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := acm.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	acm.ARNs = awsgo.StringValueSlice(identifiers)
+	return acm.ARNs, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (acm ACM) Nuke(session *session.Session, arns []string) error {
+func (acm ACM) Nuke(arns []string) error {
 	if err := acm.nukeAll(awsgo.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}

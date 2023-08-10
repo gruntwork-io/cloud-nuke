@@ -2,8 +2,8 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -31,8 +31,18 @@ func (ks KinesisStreams) MaxBatchSize() int {
 	return 35
 }
 
+func (ks KinesisStreams) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := ks.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	ks.Names = aws.StringValueSlice(identifiers)
+	return ks.Names, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (ks KinesisStreams) Nuke(session *session.Session, identifiers []string) error {
+func (ks KinesisStreams) Nuke(identifiers []string) error {
 	if err := ks.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

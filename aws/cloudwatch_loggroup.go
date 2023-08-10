@@ -16,9 +16,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (cwlg CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, error) {
+func (csr CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, error) {
 	allLogGroups := []*string{}
-	err := cwlg.Client.DescribeLogGroupsPages(
+	err := csr.Client.DescribeLogGroupsPages(
 		&cloudwatchlogs.DescribeLogGroupsInput{},
 		func(page *cloudwatchlogs.DescribeLogGroupsOutput, lastPage bool) bool {
 			for _, logGroup := range page.LogGroups {
@@ -44,9 +44,9 @@ func (cwlg CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, erro
 	return allLogGroups, nil
 }
 
-func (cwlg CloudWatchLogGroups) nukeAll(identifiers []*string) error {
+func (csr CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CloudWatch Log Groups to nuke in region %s", cwlg.Region)
+		logging.Logger.Debugf("No CloudWatch Log Groups to nuke in region %s", csr.Region)
 		return nil
 	}
 
@@ -61,13 +61,13 @@ func (cwlg CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 
 	// There is no bulk delete CloudWatch Log Group API, so we delete the batch of CloudWatch Log Groups concurrently
 	// using go routines.
-	logging.Logger.Debugf("Deleting CloudWatch Log Groups in region %s", cwlg.Region)
+	logging.Logger.Debugf("Deleting CloudWatch Log Groups in region %s", csr.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
 	for i, logGroupName := range identifiers {
 		errChans[i] = make(chan error, 1)
-		go cwlg.deleteAsync(wg, errChans[i], logGroupName)
+		go csr.deleteAsync(wg, errChans[i], logGroupName)
 	}
 	wg.Wait()
 
@@ -82,7 +82,7 @@ func (cwlg CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking Cloudwatch Log Group",
 				}, map[string]interface{}{
-					"region": cwlg.Region,
+					"region": csr.Region,
 				})
 			}
 		}
@@ -96,10 +96,10 @@ func (cwlg CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 
 // deleteAsync deletes the provided Log Group asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors.
-func (cwlg CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, logGroupName *string) {
+func (csr CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, logGroupName *string) {
 	defer wg.Done()
 	input := &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: logGroupName}
-	_, err := cwlg.Client.DeleteLogGroup(input)
+	_, err := csr.Client.DeleteLogGroup(input)
 
 	// Record status of this resource
 	e := report.Entry{
@@ -113,9 +113,9 @@ func (cwlg CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan err
 
 	logGroupNameStr := aws.StringValue(logGroupName)
 	if err == nil {
-		logging.Logger.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, cwlg.Region)
+		logging.Logger.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, csr.Region)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, cwlg.Region, err)
+		logging.Logger.Debugf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, csr.Region, err)
 	}
 }
 

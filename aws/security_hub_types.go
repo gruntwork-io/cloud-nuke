@@ -1,8 +1,9 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws/session"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -24,7 +25,17 @@ func (sh SecurityHub) MaxBatchSize() int {
 	return 5
 }
 
-func (sh SecurityHub) Nuke(session *session.Session, identifiers []string) error {
+func (sh SecurityHub) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := sh.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	sh.HubArns = awsgo.StringValueSlice(identifiers)
+	return sh.HubArns, nil
+}
+
+func (sh SecurityHub) Nuke(identifiers []string) error {
 	if err := sh.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

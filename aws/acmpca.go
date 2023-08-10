@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// getAll returns a list of all arns of ACMPCA, which can be deleted.
+// GetAll returns a list of all arns of ACMPCA, which can be deleted.
 func (ap ACMPCA) getAll(configObj config.Config) ([]*string, error) {
 	var arns []*string
 	paginationErr := ap.Client.ListCertificateAuthoritiesPages(

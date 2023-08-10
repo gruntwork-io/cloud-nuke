@@ -17,8 +17,8 @@ import (
 // getAll will find and return any Macie accounts that were created via accepting an invite from another AWS Account
 // Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the configObj pattern, so we
 // currently can only accept a session and excludeAfter
-func (mm MacieMember) getAll(configObj config.Config) ([]string, error) {
-	var macieStatus []string
+func (mm MacieMember) getAll(configObj config.Config) ([]*string, error) {
+	var macieStatus []*string
 
 	output, err := mm.Client.GetMacieSession(&macie2.GetMacieSessionInput{})
 	if err != nil {
@@ -36,7 +36,7 @@ func (mm MacieMember) getAll(configObj config.Config) ([]string, error) {
 	if configObj.MacieMember.ShouldInclude(config.ResourceValue{
 		Time: output.CreatedAt,
 	}) {
-		macieStatus = append(macieStatus, *output.Status)
+		macieStatus = append(macieStatus, output.Status)
 	}
 
 	return macieStatus, nil

@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -30,8 +30,18 @@ func (oidcprovider OIDCProviders) MaxBatchSize() int {
 	return 10
 }
 
+func (oidcprovider OIDCProviders) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := oidcprovider.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	oidcprovider.ProviderARNs = awsgo.StringValueSlice(identifiers)
+	return oidcprovider.ProviderARNs, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (oidcprovider OIDCProviders) Nuke(session *session.Session, identifiers []string) error {
+func (oidcprovider OIDCProviders) Nuke(identifiers []string) error {
 	if err := oidcprovider.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

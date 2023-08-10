@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (ag ASGroups) ResourceIdentifiers() []string {
 	return ag.GroupNames
 }
 
+func (ag ASGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := ag.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	ag.GroupNames = awsgo.StringValueSlice(identifiers)
+	return ag.GroupNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (ag ASGroups) Nuke(session *session.Session, identifiers []string) error {
+func (ag ASGroups) Nuke(identifiers []string) error {
 	if err := ag.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

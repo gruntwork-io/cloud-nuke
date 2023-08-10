@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (balancer LoadBalancers) MaxBatchSize() int {
 	return 49
 }
 
+func (balancer LoadBalancers) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := balancer.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	balancer.Names = awsgo.StringValueSlice(identifiers)
+	return balancer.Names, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (balancer LoadBalancers) Nuke(session *session.Session, identifiers []string) error {
+func (balancer LoadBalancers) Nuke(identifiers []string) error {
 	if err := balancer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
