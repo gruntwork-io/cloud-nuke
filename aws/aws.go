@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"math/rand"
 	"sort"
 	"strings"
@@ -1089,10 +1090,13 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End Secrets Manager Secrets
 
 		// AccessAnalyzer
-		accessAnalyzer := AccessAnalyzer{}
+		accessAnalyzer := AccessAnalyzer{
+			Client: accessanalyzer.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(accessAnalyzer.ResourceName(), resourceTypes) {
 			start := time.Now()
-			analyzerNames, err := getAllAccessAnalyzers(cloudNukeSession, excludeAfter, configObj)
+			analyzerNames, err := accessAnalyzer.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
