@@ -1,3 +1,12 @@
+orbs:
+  go: circleci/go@1.7.3
+
+# The "sign binary" runs in a MacOS environment, so it's necessary to download GW's binaries
+env: &env
+  environment:
+    GRUNTWORK_INSTALLER_VERSION: v0.0.39
+    MODULE_CI_VERSION: v0.52.6
+
 defaults: &defaults
   resource_class: medium+
   docker:
@@ -78,11 +87,40 @@ jobs:
               --delete-unaliased-kms-keys
           no_output_timeout: 1h
   deploy:
-    <<: *defaults
+    <<: *env
+    macos:
+      xcode: 14.2.0
+    resource_class: macos.x86.medium.gen2
     steps:
+      - checkout
       - attach_workspace:
           at: .
-      - run: cd bin && sha256sum * > SHA256SUMS
+      - go/install:
+          version: "1.20.5"
+      - run:
+          name: Install sign-binary-helpers
+          command: |
+            curl -Ls https://raw.githubusercontent.com/gruntwork-io/gruntwork-installer/master/bootstrap-gruntwork-installer.sh | bash /dev/stdin --version "${GRUNTWORK_INSTALLER_VERSION}"
+            gruntwork-install --module-name "gruntwork-module-circleci-helpers" --repo "https://github.com/gruntwork-io/terraform-aws-ci" --tag "${MODULE_CI_VERSION}"
+            gruntwork-install --module-name "sign-binary-helpers" --repo "https://github.com/gruntwork-io/terraform-aws-ci" --tag "${MODULE_CI_VERSION}"
+      - run:
+          name: Compile and sign the binaries
+          command: |
+            sign-binary --install-macos-sign-dependencies --os mac .gon_amd64.hcl
+            sign-binary --os mac .gon_arm64.hcl
+            echo "Done signing the binary"
+
+            # Replace the files in bin. These are the same file names generated from .gon_amd64.hcl and .gon_arm64.hcl
+            unzip cloud-nuke_darwin_amd64.zip
+            mv cloud-nuke_darwin_amd64 bin/
+
+            unzip cloud-nuke_darwin_arm64.zip
+            mv cloud-nuke_darwin_arm64 bin/
+      - run:
+          name: Run SHA256SUM
+          command: |
+            brew install coreutils
+            cd bin && sha256sum * > SHA256SUMS
       - run: upload-github-release-assets bin/*
 workflows:
   version: 2
@@ -117,6 +155,7 @@ workflows:
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
+            - APPLE__OSX__code-signing
   nuke_phxdevops:
     when:
       and:
