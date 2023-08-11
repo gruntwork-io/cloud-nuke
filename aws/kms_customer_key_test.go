@@ -1,167 +1,154 @@
 package aws
 
 import (
-	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestListKmsUserKeys(t *testing.T) {
+type mockedKmsCustomerKeys struct {
+	kmsiface.KMSAPI
+	ListKeysPagesOutput       kms.ListKeysOutput
+	ListAliasesPagesOutput    kms.ListAliasesOutput
+	DescribeKeyOutput         map[string]kms.DescribeKeyOutput
+	ScheduleKeyDeletionOutput kms.ScheduleKeyDeletionOutput
+	DeleteAliasOutput         kms.DeleteAliasOutput
+}
+
+func (m mockedKmsCustomerKeys) ListKeysPages(input *kms.ListKeysInput, fn func(*kms.ListKeysOutput, bool) bool) error {
+	fn(&m.ListKeysPagesOutput, true)
+	return nil
+}
+
+func (m mockedKmsCustomerKeys) ListAliasesPages(input *kms.ListAliasesInput, fn func(*kms.ListAliasesOutput, bool) bool) error {
+	fn(&m.ListAliasesPagesOutput, true)
+	return nil
+}
+
+func (m mockedKmsCustomerKeys) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+	id := input.KeyId
+	output := m.DescribeKeyOutput[*id]
+
+	return &output, nil
+}
+
+func (m mockedKmsCustomerKeys) ScheduleKeyDeletion(input *kms.ScheduleKeyDeletionInput) (*kms.ScheduleKeyDeletionOutput, error) {
+	return &m.ScheduleKeyDeletionOutput, nil
+}
+
+func (m mockedKmsCustomerKeys) DeleteAlias(input *kms.DeleteAliasInput) (*kms.DeleteAliasOutput, error) {
+	return &m.DeleteAliasOutput, nil
+}
+
+func TestKMS_GetAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	aliasName := "cloud-nuke-test-" + util.UniqueID()
-	keyAlias := fmt.Sprintf("alias/%s", aliasName)
-	createdKeyId := createKmsCustomerManagedKey(t, session)
-	_ = createKmsCustomerManagedKeyAlias(t, session, createdKeyId, keyAlias)
-
-	// test if listing of keys will return new key and alias
-	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, false)
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
-	assert.Contains(t, aliases[createdKeyId], keyAlias)
-
-	// test if time shift works
-	olderThan := time.Now().Add(-1 * time.Hour)
-	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), olderThan, config.Config{}, false)
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
-	assert.NotContains(t, aliases[createdKeyId], keyAlias)
-
-	// test if matching by regexp works
-	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
-		KMSCustomerKeys: config.KMSCustomerKeyResourceType{
-			ResourceType: config.ResourceType{
-				IncludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{
-						{RE: *regexp.MustCompile(fmt.Sprintf("^%s", keyAlias))},
+	key1 := "key1"
+	key2 := "key2"
+	alias1 := "alias/key1"
+	alias2 := "alias/key2"
+	now := time.Now()
+	kck := KmsCustomerKeys{
+		Client: mockedKmsCustomerKeys{
+			ListKeysPagesOutput: kms.ListKeysOutput{
+				Keys: []*kms.KeyListEntry{
+					{
+						KeyId: aws.String(key1),
+					},
+					{
+						KeyId: aws.String(key2),
+					},
+				},
+			},
+			ListAliasesPagesOutput: kms.ListAliasesOutput{
+				Aliases: []*kms.AliasListEntry{
+					{
+						AliasName:   aws.String(alias1),
+						TargetKeyId: aws.String(key1),
+					},
+					{
+						AliasName:   aws.String(alias2),
+						TargetKeyId: aws.String(key2),
+					},
+				},
+			},
+			DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+				key1: {
+					KeyMetadata: &kms.KeyMetadata{
+						KeyId:        aws.String(key1),
+						KeyManager:   aws.String(kms.KeyManagerTypeCustomer),
+						CreationDate: aws.Time(now),
+					},
+				},
+				key2: {
+					KeyMetadata: &kms.KeyMetadata{
+						KeyId:        aws.String(key2),
+						KeyManager:   aws.String(kms.KeyManagerTypeCustomer),
+						CreationDate: aws.Time(now.Add(1)),
 					},
 				},
 			},
 		},
-	}, false)
-	require.NoError(t, err)
-	assert.Contains(t, aws.StringValueSlice(keys), createdKeyId)
-	assert.Contains(t, aliases[createdKeyId], keyAlias)
-	assert.Equal(t, 1, len(keys))
-
-	// test if exclusion by regexp works
-	keys, aliases, err = getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{
-		KMSCustomerKeys: config.KMSCustomerKeyResourceType{
-			ResourceType: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{
-						{RE: *regexp.MustCompile(fmt.Sprintf("^%s", keyAlias))},
-					},
-				},
-			},
-		},
-	}, false)
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
-	assert.NotContains(t, aliases[createdKeyId], keyAlias)
-}
-
-func TestRemoveKmsUserKeys(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	keyAlias := "alias/cloud-nuke-test-" + util.UniqueID()
-	createdKeyId := createKmsCustomerManagedKey(t, session)
-	_ = createKmsCustomerManagedKeyAlias(t, session, createdKeyId, keyAlias)
-
-	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{"keyid": {keyAlias}})
-	require.NoError(t, err)
-
-	// test if key is not included for removal second time, after being marked for deletion
-	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, false)
-
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
-	assert.NotContains(t, aliases[createdKeyId], keyAlias)
-
-	// test that all aliases were deleted from the key, even if the key was successfully marked for deletion
-	listedAliases, err := listAliasesForKey(session, &createdKeyId)
-
-	require.NoError(t, err)
-	assert.Empty(t, listedAliases)
-}
-
-func TestRemoveKmsUserKeysAllowUnaliased(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
-	t.Parallel()
-
-	region, err := getRandomRegion()
-	require.NoError(t, err)
-
-	session, err := session.NewSession(&aws.Config{Region: aws.String(region)})
-	require.NoError(t, err)
-
-	createdKeyId := createKmsCustomerManagedKey(t, session)
-
-	err = nukeAllCustomerManagedKmsKeys(session, []*string{&createdKeyId}, map[string][]string{})
-	require.NoError(t, err)
-
-	// test if key is not included for removal second time, after being marked for deletion
-	keys, aliases, err := getAllKmsUserKeys(session, KmsCustomerKeys{}.MaxBatchSize(), time.Now(), config.Config{}, true)
-
-	require.NoError(t, err)
-	assert.NotContains(t, aws.StringValueSlice(keys), createdKeyId)
-	assert.NotContains(t, aliases, createdKeyId)
-}
-
-func createKmsCustomerManagedKey(t *testing.T, session *session.Session) string {
-	svc := kms.New(session)
-	input := &kms.CreateKeyInput{}
-	result, err := svc.CreateKey(input)
-	require.NoError(t, err)
-	createdKeyId := *result.KeyMetadata.KeyId
-
-	return createdKeyId
-}
-
-func createKmsCustomerManagedKeyAlias(t *testing.T, session *session.Session, keyId string, alias string) string {
-	svc := kms.New(session)
-
-	aliasInput := &kms.CreateAliasInput{AliasName: &alias, TargetKeyId: &keyId}
-	_, err := svc.CreateAlias(aliasInput)
-	require.NoError(t, err)
-
-	return *aliasInput.AliasName
-}
-
-func listAliasesForKey(session *session.Session, keyId *string) ([]string, error) {
-	svc := kms.New(session)
-	input := &kms.ListAliasesInput{KeyId: keyId}
-	result, err := svc.ListAliases(input)
-
-	aliases := make([]string, 0)
-
-	for _, alias := range result.Aliases {
-		aliases = append(aliases, *alias.TargetKeyId)
 	}
 
-	return aliases, err
+	tests := map[string]struct {
+		configObj config.KMSCustomerKeyResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.KMSCustomerKeyResourceType{},
+			expected:  []string{key1, key2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.KMSCustomerKeyResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{
+							RE: *regexp.MustCompile(alias1),
+						}}},
+				},
+			},
+			expected: []string{key2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.KMSCustomerKeyResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						TimeAfter: aws.Time(now),
+					}},
+			},
+			expected: []string{key1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := kck.getAll(config.Config{
+				KMSCustomerKeys: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
+}
+
+func TestKMS_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	kck := KmsCustomerKeys{
+		Client: mockedKmsCustomerKeys{
+			DeleteAliasOutput:         kms.DeleteAliasOutput{},
+			ScheduleKeyDeletionOutput: kms.ScheduleKeyDeletionOutput{},
+		},
+	}
+
+	err := kck.nukeAll([]*string{aws.String("key1"), aws.String("key2")})
+	require.NoError(t, err)
 }
