@@ -1275,7 +1275,10 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		// End EC2 VPCS
 
 		// Start EC2 KeyPairs
-		KeyPairs := EC2KeyPairs{}
+		KeyPairs := EC2KeyPairs{
+			Client: ec2.New(cloudNukeSession),
+			Region: region,
+		}
 		if IsNukeable(KeyPairs.ResourceName(), resourceTypes) {
 			start := time.Now()
 			keyPairIds, err := KeyPairs.getAll(configObj)
