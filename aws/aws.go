@@ -225,6 +225,7 @@ func GetAllResources(
 	}
 
 	for _, region := range targetRegions {
+		logging.Logger.Infoln("Listing resources in region: ", region)
 		cloudNukeSession := newSession(region)
 		stsService := sts.New(cloudNukeSession)
 		resp, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
@@ -236,6 +237,7 @@ func GetAllResources(
 		registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
 		for _, resource := range registeredResources {
 			if IsNukeable((*resource).ResourceName(), resourceTypes) {
+				logging.Logger.Infoln("Listing resources of type: ", (*resource).ResourceName())
 				start := time.Now()
 				identifiers, err := (*resource).GetAndSetIdentifiers(configObj)
 				if err != nil {
