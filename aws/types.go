@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"strings"
 	"time"
@@ -35,7 +36,7 @@ func (a *AwsAccountResources) TotalResourceCount() int {
 
 // MapResourceNameToIdentifiers converts a slice of Resources to a map of resource types to their found identifiers
 // For example: ["ec2"] = ["i-0b22a22eec53b9321", "i-0e22a22yec53b9456"]
-func (arr AwsRegionResource) MapResourceNameToIdentifiers() map[string][]string {
+func (arr *AwsRegionResource) MapResourceNameToIdentifiers() map[string][]string {
 	// Initialize map of resource name to identifier, e.g., ["ec2"] = "i-0b22a22eec53b9321"
 	m := make(map[string][]string)
 	for _, resource := range arr.Resources {
@@ -49,7 +50,7 @@ func (arr AwsRegionResource) MapResourceNameToIdentifiers() map[string][]string 
 }
 
 // CountOfResourceType is a convenience method that returns the number of the supplied resource type found in the AwsRegionResource
-func (arr AwsRegionResource) CountOfResourceType(resourceType string) int {
+func (arr *AwsRegionResource) CountOfResourceType(resourceType string) int {
 	idMap := arr.MapResourceNameToIdentifiers()
 	resourceType = strings.ToLower(resourceType)
 	if val, ok := idMap[resourceType]; ok {
@@ -59,12 +60,12 @@ func (arr AwsRegionResource) CountOfResourceType(resourceType string) int {
 }
 
 // ResourceTypePresent is a convenience method that returns true, if the given resource is found in the AwsRegionResource, or false if it is not
-func (arr AwsRegionResource) ResourceTypePresent(resourceType string) bool {
+func (arr *AwsRegionResource) ResourceTypePresent(resourceType string) bool {
 	return arr.CountOfResourceType(resourceType) > 0
 }
 
 // IdentifiersForResourceType is a convenience method that returns the list of resource identifiers for a given resource type, if available
-func (arr AwsRegionResource) IdentifiersForResourceType(resourceType string) []string {
+func (arr *AwsRegionResource) IdentifiersForResourceType(resourceType string) []string {
 	idMap := arr.MapResourceNameToIdentifiers()
 	resourceType = strings.ToLower(resourceType)
 	if val, ok := idMap[resourceType]; ok {
@@ -74,6 +75,7 @@ func (arr AwsRegionResource) IdentifiersForResourceType(resourceType string) []s
 }
 
 type AwsResources interface {
+	Init(session *session.Session)
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int

@@ -22,8 +22,8 @@ func ExtractResourcesForPrinting(account *AwsAccountResources) []string {
 	resources = make([]string, 0)
 	for region, resourcesInRegion := range account.Resources {
 		for _, foundResources := range resourcesInRegion.Resources {
-			for _, identifier := range foundResources.ResourceIdentifiers() {
-				resources = append(resources, fmt.Sprintf("%s %s %s\n", ui.ResourceHighlightStyle.Render(foundResources.ResourceName()), identifier, region))
+			for _, identifier := range (*foundResources).ResourceIdentifiers() {
+				resources = append(resources, fmt.Sprintf("%s %s %s\n", ui.ResourceHighlightStyle.Render((*foundResources).ResourceName()), identifier, region))
 			}
 		}
 	}
