@@ -20,7 +20,7 @@ func (instance *DBClusters) Init(session *session.Session) {
 }
 
 func (instance *DBClusters) ResourceName() string {
-	return "rds"
+	return "rds-cluster"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances
