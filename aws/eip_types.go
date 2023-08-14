@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (address EIPAddresses) MaxBatchSize() int {
 	return 49
 }
 
+func (address EIPAddresses) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := address.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	address.AllocationIds = awsgo.StringValueSlice(identifiers)
+	return address.AllocationIds, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (address EIPAddresses) Nuke(session *session.Session, identifiers []string) error {
+func (address EIPAddresses) Nuke(identifiers []string) error {
 	if err := address.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

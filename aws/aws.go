@@ -1479,7 +1479,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(accountIds) > 0 {
-				macieAccounts.AccountIds = accountIds
+				macieAccounts.AccountIds = aws.StringValueSlice(accountIds)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, macieAccounts)
 			}
 
@@ -1930,7 +1930,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 				"actionTime":  time.Since(start).Seconds(),
 			})
 			if len(acmArns) > 0 {
-				acm.ARNs = acmArns
+				acm.ARNs = aws.StringValueSlice(acmArns)
 				resourcesInRegion.Resources = append(resourcesInRegion.Resources, acm)
 			}
 		}
@@ -2065,7 +2065,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 		if IsNukeable(iamRoles.ResourceName(), resourceTypes) {
 			start := time.Now()
-			roleNames, err := iamRoles.getALl(configObj)
+			roleNames, err := iamRoles.getAll(configObj)
 			if err != nil {
 				ge := report.GeneralError{
 					Error:        err,
@@ -2206,7 +2206,7 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) {
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
 	resourcesInRegion := account.Resources[region]
 
 	for _, resources := range resourcesInRegion.Resources {
@@ -2218,7 +2218,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, sessi
 
 		for i := 0; i < len(batches); i++ {
 			batch := batches[i]
-			if err := resources.Nuke(session, batch); err != nil {
+			if err := resources.Nuke(batch); err != nil {
 				// TODO: Figure out actual error type
 				if strings.Contains(err.Error(), "RequestLimitExceeded") {
 					logging.Logger.Debug(
@@ -2260,22 +2260,12 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		EventName: "Begin nuking resources",
 	}, map[string]interface{}{})
 
-	defaultRegion := regions[0]
 	for _, region := range regions {
-		// region that will be used to create a session
-		sessionRegion := region
-
-		// As there is no actual region named global we have to pick a valid one just to create the session
-		if region == GlobalRegion {
-			sessionRegion = defaultRegion
-		}
-
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Creating session for region",
 		}, map[string]interface{}{
 			"region": region,
 		})
-		session := newSession(sessionRegion)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Nuking Region",
 		}, map[string]interface{}{
@@ -2286,7 +2276,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		// We intentionally do not handle an error returned from this method, because we collect individual errors
 		// on per-resource basis via the report package's Record method. In the run report displayed at the end of
 		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
-		nukeAllResourcesInRegion(account, region, session)
+		nukeAllResourcesInRegion(account, region)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Done Nuking Region",
 		}, map[string]interface{}{

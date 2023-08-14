@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (services ECSServices) MaxBatchSize() int {
 	return 49
 }
 
+func (services ECSServices) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := services.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	services.Services = awsgo.StringValueSlice(identifiers)
+	return services.Services, nil
+}
+
 // Nuke - nuke all ECS service resources
-func (services ECSServices) Nuke(awsSession *session.Session, identifiers []string) error {
+func (services ECSServices) Nuke(identifiers []string) error {
 	if err := services.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

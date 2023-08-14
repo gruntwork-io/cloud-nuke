@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (ig IAMGroups) MaxBatchSize() int {
 	return 49
 }
 
+func (ig IAMGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := ig.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	ig.GroupNames = awsgo.StringValueSlice(identifiers)
+	return ig.GroupNames, nil
+}
+
 // Nuke - Destroy every group in this collection
-func (ig IAMGroups) Nuke(session *session.Session, identifiers []string) error {
+func (ig IAMGroups) Nuke(identifiers []string) error {
 	if err := ig.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -25,7 +25,17 @@ func (s SNSTopic) MaxBatchSize() int {
 	return 50
 }
 
-func (s SNSTopic) Nuke(session *session.Session, identifiers []string) error {
+func (s SNSTopic) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := s.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	s.Arns = awsgo.StringValueSlice(identifiers)
+	return s.Arns, nil
+}
+
+func (s SNSTopic) Nuke(identifiers []string) error {
 	if err := s.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/apigateway/apigatewayiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -25,8 +25,17 @@ func (gateway ApiGateway) MaxBatchSize() int {
 	return 10
 }
 
-func (gateway ApiGateway) Nuke(session *session.Session, identifiers []string) error {
-	// TODO(james): stop passing in session argument as it is included as part of the gateway struct.
+func (gateway ApiGateway) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := gateway.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	gateway.Ids = awsgo.StringValueSlice(identifiers)
+	return gateway.Ids, nil
+}
+
+func (gateway ApiGateway) Nuke(identifiers []string) error {
 	if err := gateway.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

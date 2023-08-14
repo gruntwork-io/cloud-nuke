@@ -1,8 +1,9 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws/session"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/guardduty/guarddutyiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
 type GuardDuty struct {
@@ -23,6 +24,16 @@ func (gd GuardDuty) MaxBatchSize() int {
 	return 10
 }
 
-func (gd GuardDuty) Nuke(session *session.Session, detectorIds []string) error {
+func (gd GuardDuty) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := gd.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	gd.detectorIds = awsgo.StringValueSlice(identifiers)
+	return gd.detectorIds, nil
+}
+
+func (gd GuardDuty) Nuke(detectorIds []string) error {
 	return gd.nukeAll(detectorIds)
 }

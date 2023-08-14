@@ -11,16 +11,16 @@ import (
 )
 
 // Returns a list of strings of ACM ARNs
-func (a ACM) getAll(configObj config.Config) ([]string, error) {
+func (a ACM) getAll(configObj config.Config) ([]*string, error) {
 
 	params := &acm.ListCertificatesInput{}
 
-	acmArns := []string{}
+	acmArns := []*string{}
 	err := a.Client.ListCertificatesPages(params,
 		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
 			for i := range page.CertificateSummaryList {
 				if a.shouldInclude(page.CertificateSummaryList[i], configObj) {
-					acmArns = append(acmArns, *page.CertificateSummaryList[i].CertificateArn)
+					acmArns = append(acmArns, page.CertificateSummaryList[i].CertificateArn)
 				}
 			}
 

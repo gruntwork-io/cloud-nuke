@@ -113,7 +113,7 @@ func TestIAMRoles_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ir.getALl(config.Config{
+			names, err := ir.getAll(config.Config{
 				IAMRoles: tc.configObj,
 			})
 			require.NoError(t, err)

@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sagemaker/sagemakeriface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -27,8 +27,18 @@ func (smni SageMakerNotebookInstances) MaxBatchSize() int {
 	return 49
 }
 
+func (smni SageMakerNotebookInstances) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := smni.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	smni.InstanceNames = awsgo.StringValueSlice(identifiers)
+	return smni.InstanceNames, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (smni SageMakerNotebookInstances) Nuke(session *session.Session, identifiers []string) error {
+func (smni SageMakerNotebookInstances) Nuke(identifiers []string) error {
 	if err := smni.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

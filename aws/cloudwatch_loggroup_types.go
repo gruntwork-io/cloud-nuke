@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -15,25 +15,35 @@ type CloudWatchLogGroups struct {
 }
 
 // ResourceName - the simple name of the aws resource
-func (cwlg CloudWatchLogGroups) ResourceName() string {
+func (csr CloudWatchLogGroups) ResourceName() string {
 	return "cloudwatch-loggroup"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (cwlg CloudWatchLogGroups) ResourceIdentifiers() []string {
-	return cwlg.Names
+func (csr CloudWatchLogGroups) ResourceIdentifiers() []string {
+	return csr.Names
 }
 
-func (cwlg CloudWatchLogGroups) MaxBatchSize() int {
+func (csr CloudWatchLogGroups) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that CloudWatch Logs does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We pick 35 here, which is half of what the AWS web
 	// console will do. We pick a conservative number here to avoid hitting AWS API rate limits.
 	return 35
 }
 
+func (csr CloudWatchLogGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := csr.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	csr.Names = awsgo.StringValueSlice(identifiers)
+	return csr.Names, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (cwlg CloudWatchLogGroups) Nuke(session *session.Session, identifiers []string) error {
-	if err := cwlg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+func (csr CloudWatchLogGroups) Nuke(identifiers []string) error {
+	if err := csr.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

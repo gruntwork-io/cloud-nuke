@@ -1,8 +1,9 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws/session"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/macie2/macie2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -24,7 +25,17 @@ func (mm MacieMember) MaxBatchSize() int {
 	return 10
 }
 
-func (mm MacieMember) Nuke(session *session.Session, identifiers []string) error {
+func (mm MacieMember) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := mm.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	mm.AccountIds = awsgo.StringValueSlice(identifiers)
+	return mm.AccountIds, nil
+}
+
+func (mm MacieMember) Nuke(identifiers []string) error {
 	if err := mm.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -54,7 +54,7 @@ func TestACMGetAll(t *testing.T) {
 	// without any filters
 	acms, err := acm.getAll(config.Config{})
 	require.NoError(t, err)
-	require.Contains(t, acms, testArn)
+	require.Contains(t, aws.StringValueSlice(acms), testArn)
 
 	// filtering domain names
 	acms, err = acm.getAll(config.Config{
@@ -65,7 +65,7 @@ func TestACMGetAll(t *testing.T) {
 				}}}},
 	})
 	require.NoError(t, err)
-	require.NotContains(t, acms, testArn)
+	require.NotContains(t, aws.StringValueSlice(acms), testArn)
 
 	// filtering with time
 	acms, err = acm.getAll(config.Config{
@@ -75,7 +75,7 @@ func TestACMGetAll(t *testing.T) {
 			}},
 	})
 	require.NoError(t, err)
-	require.NotContains(t, acms, testArn)
+	require.NotContains(t, aws.StringValueSlice(acms), testArn)
 }
 
 func TestACMGetAll_FilterInUse(t *testing.T) {

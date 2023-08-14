@@ -2,10 +2,9 @@ package aws
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"strings"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 const AwsResourceExclusionTagKey = "cloud-nuke-excluded"
@@ -78,7 +77,8 @@ type AwsResources interface {
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int
-	Nuke(session *session.Session, identifiers []string) error
+	Nuke(identifiers []string) error
+	GetAndSetIdentifiers(configObj config.Config) ([]string, error)
 }
 
 type AwsRegionResource struct {

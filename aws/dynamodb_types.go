@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
@@ -26,8 +26,18 @@ func (ddb DynamoDB) MaxBatchSize() int {
 	return 49
 }
 
+func (ddb DynamoDB) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := ddb.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	ddb.DynamoTableNames = awsgo.StringValueSlice(identifiers)
+	return ddb.DynamoTableNames, nil
+}
+
 // Nuke - nuke all Dynamo DB Tables
-func (ddb DynamoDB) Nuke(awsSession *session.Session, identifiers []string) error {
+func (ddb DynamoDB) Nuke(identifiers []string) error {
 	if err := ddb.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

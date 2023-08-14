@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -28,8 +28,18 @@ func (ct CloudtrailTrail) MaxBatchSize() int {
 	return 50
 }
 
+func (ct CloudtrailTrail) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := ct.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	ct.Arns = awsgo.StringValueSlice(identifiers)
+	return ct.Arns, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (ct CloudtrailTrail) Nuke(session *session.Session, identifiers []string) error {
+func (ct CloudtrailTrail) Nuke(identifiers []string) error {
 	if err := ct.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

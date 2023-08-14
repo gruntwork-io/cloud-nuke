@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -29,8 +29,18 @@ func (tgw TransitGatewaysVpcAttachment) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
+func (tgw TransitGatewaysVpcAttachment) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := tgw.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	tgw.Ids = awsgo.StringValueSlice(identifiers)
+	return tgw.Ids, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (tgw TransitGatewaysVpcAttachment) Nuke(session *session.Session, identifiers []string) error {
+func (tgw TransitGatewaysVpcAttachment) Nuke(identifiers []string) error {
 	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -60,8 +70,18 @@ func (tgw TransitGatewaysRouteTables) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
+func (tgw TransitGatewaysRouteTables) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := tgw.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	tgw.Ids = awsgo.StringValueSlice(identifiers)
+	return tgw.Ids, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (tgw TransitGatewaysRouteTables) Nuke(session *session.Session, identifiers []string) error {
+func (tgw TransitGatewaysRouteTables) Nuke(identifiers []string) error {
 	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -91,8 +111,18 @@ func (tgw TransitGateways) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
+func (tgw TransitGateways) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := tgw.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	tgw.Ids = awsgo.StringValueSlice(identifiers)
+	return tgw.Ids, nil
+}
+
 // Nuke - nuke 'em all!!!
-func (tgw TransitGateways) Nuke(session *session.Session, identifiers []string) error {
+func (tgw TransitGateways) Nuke(identifiers []string) error {
 	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

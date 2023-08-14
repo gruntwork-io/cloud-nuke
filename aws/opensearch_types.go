@@ -2,8 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/opensearchservice/opensearchserviceiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -32,8 +32,18 @@ func (osd OpenSearchDomains) MaxBatchSize() int {
 	return 10
 }
 
+func (osd OpenSearchDomains) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := osd.getAll(configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	osd.DomainNames = awsgo.StringValueSlice(identifiers)
+	return osd.DomainNames, nil
+}
+
 // Nuke nukes all OpenSearch domain resources
-func (osd OpenSearchDomains) Nuke(awsSession *session.Session, identifiers []string) error {
+func (osd OpenSearchDomains) Nuke(identifiers []string) error {
 	if err := osd.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

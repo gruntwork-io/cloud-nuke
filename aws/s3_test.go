@@ -123,7 +123,11 @@ func TestS3Bucket_GetAll(t *testing.T) {
 				S3: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+
+			require.Equal(t, len(tc.expected), len(names))
+			for _, name := range names {
+				require.Contains(t, tc.expected, *name)
+			}
 		})
 	}
 }
