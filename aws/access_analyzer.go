@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-func (analyzer AccessAnalyzer) getAll(configObj config.Config) ([]*string, error) {
+func (analyzer *AccessAnalyzer) getAll(configObj config.Config) ([]*string, error) {
 	allAnalyzers := []*string{}
 	err := analyzer.Client.ListAnalyzersPages(
 		&accessanalyzer.ListAnalyzersInput{},
@@ -30,7 +30,7 @@ func (analyzer AccessAnalyzer) getAll(configObj config.Config) ([]*string, error
 	return allAnalyzers, errors.WithStackTrace(err)
 }
 
-func (analyzer AccessAnalyzer) nukeAll(names []*string) error {
+func (analyzer *AccessAnalyzer) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No IAM Access Analyzers to nuke in region %s", analyzer.Region)
 		return nil
@@ -76,7 +76,7 @@ func (analyzer AccessAnalyzer) nukeAll(names []*string) error {
 
 // deleteAccessAnalyzerAsync deletes the provided IAM Access Analyzer asynchronously in a goroutine, using wait groups
 // for concurrency control and a return channel for errors.
-func (analyzer AccessAnalyzer) deleteAccessAnalyzerAsync(wg *sync.WaitGroup, errChan chan error, analyzerName *string) {
+func (analyzer *AccessAnalyzer) deleteAccessAnalyzerAsync(wg *sync.WaitGroup, errChan chan error, analyzerName *string) {
 	defer wg.Done()
 
 	input := &accessanalyzer.DeleteAnalyzerInput{AnalyzerName: analyzerName}

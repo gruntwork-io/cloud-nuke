@@ -20,7 +20,7 @@ import (
 )
 
 // returns only instance Ids of unprotected ec2 instances
-func (ei EC2Instances) filterOutProtectedInstances(output *ec2.DescribeInstancesOutput, configObj config.Config) ([]*string, error) {
+func (ei *EC2Instances) filterOutProtectedInstances(output *ec2.DescribeInstancesOutput, configObj config.Config) ([]*string, error) {
 	var filteredIds []*string
 	for _, reservation := range output.Reservations {
 		for _, instance := range reservation.Instances {
@@ -44,7 +44,7 @@ func (ei EC2Instances) filterOutProtectedInstances(output *ec2.DescribeInstances
 }
 
 // Returns a formatted string of EC2 instance ids
-func (ei EC2Instances) getAll(configObj config.Config) ([]*string, error) {
+func (ei *EC2Instances) getAll(configObj config.Config) ([]*string, error) {
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -85,7 +85,7 @@ func shouldIncludeInstanceId(instance *ec2.Instance, protected bool, configObj c
 }
 
 // Deletes all non protected EC2 instances
-func (ei EC2Instances) nukeAll(instanceIds []*string) error {
+func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 	if len(instanceIds) == 0 {
 		logging.Logger.Debugf("No EC2 instances to nuke in region %s", ei.Region)
 		return nil

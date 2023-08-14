@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (gateway ApiGateway) getAll(configObj config.Config) ([]*string, error) {
+func (gateway *ApiGateway) getAll(configObj config.Config) ([]*string, error) {
 	result, err := gateway.Client.GetRestApis(&apigateway.GetRestApisInput{})
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
@@ -34,7 +34,7 @@ func (gateway ApiGateway) getAll(configObj config.Config) ([]*string, error) {
 	return IDs, nil
 }
 
-func (gateway ApiGateway) nukeAll(identifiers []*string) error {
+func (gateway *ApiGateway) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No API Gateways (v1) to nuke in region %s", gateway.Region)
 	}
@@ -77,7 +77,7 @@ func (gateway ApiGateway) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func (gateway ApiGateway) nukeAsync(
+func (gateway *ApiGateway) nukeAsync(
 	wg *sync.WaitGroup, errChan chan error, apigwID *string) {
 	defer wg.Done()
 

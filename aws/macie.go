@@ -17,7 +17,7 @@ import (
 // getAll will find and return any Macie accounts that were created via accepting an invite from another AWS Account
 // Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the configObj pattern, so we
 // currently can only accept a session and excludeAfter
-func (mm MacieMember) getAll(configObj config.Config) ([]*string, error) {
+func (mm *MacieMember) getAll(configObj config.Config) ([]*string, error) {
 	var macieStatus []*string
 
 	output, err := mm.Client.GetMacieSession(&macie2.GetMacieSessionInput{})
@@ -42,7 +42,7 @@ func (mm MacieMember) getAll(configObj config.Config) ([]*string, error) {
 	return macieStatus, nil
 }
 
-func (mm MacieMember) getAllMacieMembers() ([]*string, error) {
+func (mm *MacieMember) getAllMacieMembers() ([]*string, error) {
 	var memberAccountIds []*string
 
 	// OnlyAssociated=false input parameter includes "pending" invite members
@@ -67,7 +67,7 @@ func (mm MacieMember) getAllMacieMembers() ([]*string, error) {
 	return memberAccountIds, nil
 }
 
-func (mm MacieMember) removeMacieMembers(memberAccountIds []*string) error {
+func (mm *MacieMember) removeMacieMembers(memberAccountIds []*string) error {
 
 	// Member accounts must first be disassociated
 	for _, accountId := range memberAccountIds {
@@ -87,7 +87,7 @@ func (mm MacieMember) removeMacieMembers(memberAccountIds []*string) error {
 	return nil
 }
 
-func (mm MacieMember) nukeAll(identifier []string) error {
+func (mm *MacieMember) nukeAll(identifier []string) error {
 	if len(identifier) == 0 {
 		logging.Logger.Debugf("No Macie member accounts to nuke in region %s", mm.Region)
 		return nil

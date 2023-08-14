@@ -22,7 +22,7 @@ import (
 // the excludeAfter and configObj configurations. Note that OpenSearch Domains do not have resource timestamps, so we
 // use the first-seen tagging pattern to track which OpenSearch Domains should be nuked based on time. This routine will
 // tag resources with the first-seen tag if it does not have one.
-func (osd OpenSearchDomains) getAll(configObj config.Config) ([]*string, error) {
+func (osd *OpenSearchDomains) getAll(configObj config.Config) ([]*string, error) {
 	domains, err := osd.getAllActiveOpenSearchDomains()
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -56,7 +56,7 @@ func (osd OpenSearchDomains) getAll(configObj config.Config) ([]*string, error) 
 }
 
 // getAllActiveOpenSearchDomains filters all active OpenSearch domains, which are those that have the `Created` flag true and `Deleted` flag false.
-func (osd OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchservice.DomainStatus, error) {
+func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchservice.DomainStatus, error) {
 	allDomains := []*string{}
 	resp, err := osd.Client.ListDomainNames(&opensearchservice.ListDomainNamesInput{})
 	if err != nil {
@@ -84,7 +84,7 @@ func (osd OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchservi
 }
 
 // Tag an OpenSearch Domain identified by the given ARN when it's first seen by cloud-nuke
-func (osd OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.Time) error {
+func (osd *OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.Time) error {
 	logging.Logger.Debugf("Tagging the OpenSearch Domain with ARN %s with first seen timestamp", aws.StringValue(domainARN))
 	firstSeenTime := util.FormatTimestampTag(timestamp)
 
@@ -107,7 +107,7 @@ func (osd OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.T
 }
 
 // getFirstSeenTag gets the `cloud-nuke-first-seen` tag value for a given OpenSearch Domain
-func (osd OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, error) {
+func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, error) {
 	var firstSeenTime *time.Time
 
 	input := &opensearchservice.ListTagsInput{ARN: domainARN}
@@ -135,7 +135,7 @@ func (osd OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, err
 // nukeAll nukes the given list of OpenSearch domains concurrently. Note that the opensearchservice API
 // does not support bulk delete, so this routine will spawn a goroutine for each domain that needs to be nuked so that
 // they can be issued concurrently.
-func (osd OpenSearchDomains) nukeAll(identifiers []*string) error {
+func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No OpenSearch Domains to nuke in region %s", osd.Region)
 		return nil
@@ -206,7 +206,7 @@ func (osd OpenSearchDomains) nukeAll(identifiers []*string) error {
 
 // deleteAsync deletes the provided OpenSearch Domain asynchronously in a goroutine, using wait groups
 // for concurrency control and a return channel for errors.
-func (osd OpenSearchDomains) deleteAsync(wg *sync.WaitGroup, errChan chan error, domainName *string) {
+func (osd *OpenSearchDomains) deleteAsync(wg *sync.WaitGroup, errChan chan error, domainName *string) {
 	defer wg.Done()
 
 	input := &opensearchservice.DeleteDomainInput{DomainName: domainName}

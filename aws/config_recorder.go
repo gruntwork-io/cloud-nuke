@@ -11,7 +11,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (csr ConfigServiceRecorders) getAll(configObj config.Config) ([]*string, error) {
+func (csr *ConfigServiceRecorders) getAll(configObj config.Config) ([]*string, error) {
 
 	configRecorderNames := []*string{}
 
@@ -32,7 +32,7 @@ func (csr ConfigServiceRecorders) getAll(configObj config.Config) ([]*string, er
 	return configRecorderNames, nil
 }
 
-func (csr ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
+func (csr *ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
 	if len(configRecorderNames) == 0 {
 		logging.Logger.Debugf("No Config recorders to nuke in region %s", csr.Region)
 		return nil

@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,13 +16,17 @@ type NatGateways struct {
 	NatGatewayIDs []string
 }
 
+func (ngw *NatGateways) Init(session *session.Session) {
+	ngw.Client = ec2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (ngw NatGateways) ResourceName() string {
+func (ngw *NatGateways) ResourceName() string {
 	return "nat-gateway"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (ngw NatGateways) ResourceIdentifiers() []string {
+func (ngw *NatGateways) ResourceIdentifiers() []string {
 	return ngw.NatGatewayIDs
 }
 
@@ -42,7 +48,7 @@ func (secret NatGateways) GetAndSetIdentifiers(configObj config.Config) ([]strin
 }
 
 // Nuke - nuke 'em all!!!
-func (ngw NatGateways) Nuke(identifiers []string) error {
+func (ngw *NatGateways) Nuke(identifiers []string) error {
 	if err := ngw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

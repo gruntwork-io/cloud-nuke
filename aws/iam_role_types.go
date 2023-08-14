@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -13,22 +15,26 @@ type IAMRoles struct {
 	RoleNames []string
 }
 
+func (ir *IAMRoles) Init(session *session.Session) {
+	ir.Client = iam.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (ir IAMRoles) ResourceName() string {
+func (ir *IAMRoles) ResourceName() string {
 	return "iam-role"
 }
 
 // ResourceIdentifiers - The IAM UserNames
-func (ir IAMRoles) ResourceIdentifiers() []string {
+func (ir *IAMRoles) ResourceIdentifiers() []string {
 	return ir.RoleNames
 }
 
 // Tentative batch size to ensure AWS doesn't throttle
-func (ir IAMRoles) MaxBatchSize() int {
+func (ir *IAMRoles) MaxBatchSize() int {
 	return 20
 }
 
-func (ir IAMRoles) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (ir *IAMRoles) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := ir.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -39,7 +45,7 @@ func (ir IAMRoles) GetAndSetIdentifiers(configObj config.Config) ([]string, erro
 }
 
 // Nuke - nuke 'em all!!!
-func (ir IAMRoles) Nuke(identifiers []string) error {
+func (ir *IAMRoles) Nuke(identifiers []string) error {
 	if err := ir.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

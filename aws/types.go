@@ -27,7 +27,7 @@ func (a *AwsAccountResources) TotalResourceCount() int {
 	total := 0
 	for _, regionResource := range a.Resources {
 		for _, resource := range regionResource.Resources {
-			total += len(resource.ResourceIdentifiers())
+			total += len((*resource).ResourceIdentifiers())
 		}
 	}
 	return total
@@ -39,9 +39,9 @@ func (arr AwsRegionResource) MapResourceNameToIdentifiers() map[string][]string 
 	// Initialize map of resource name to identifier, e.g., ["ec2"] = "i-0b22a22eec53b9321"
 	m := make(map[string][]string)
 	for _, resource := range arr.Resources {
-		if len(resource.ResourceIdentifiers()) > 0 {
-			for _, id := range resource.ResourceIdentifiers() {
-				m[resource.ResourceName()] = append(m[resource.ResourceName()], id)
+		if len((*resource).ResourceIdentifiers()) > 0 {
+			for _, id := range (*resource).ResourceIdentifiers() {
+				m[(*resource).ResourceName()] = append(m[(*resource).ResourceName()], id)
 			}
 		}
 	}
@@ -82,7 +82,7 @@ type AwsResources interface {
 }
 
 type AwsRegionResource struct {
-	Resources []AwsResources
+	Resources []*AwsResources
 }
 
 // Query is a struct that represents the desired parameters for scanning resources within a given account

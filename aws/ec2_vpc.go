@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (v EC2VPCs) setFirstSeenTag(vpc ec2.Vpc, value time.Time) error {
+func (v *EC2VPCs) setFirstSeenTag(vpc ec2.Vpc, value time.Time) error {
 	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
 	_, err := v.Client.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{vpc.VpcId},
@@ -34,7 +34,7 @@ func (v EC2VPCs) setFirstSeenTag(vpc ec2.Vpc, value time.Time) error {
 	return nil
 }
 
-func (v EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
+func (v *EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
 	tags := vpc.Tags
 	for _, tag := range tags {
 		if util.IsFirstSeenTag(tag.Key) {
@@ -50,7 +50,7 @@ func (v EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
 	return nil, nil
 }
 
-func (v EC2VPCs) getAll(configObj config.Config) ([]*string, error) {
+func (v *EC2VPCs) getAll(configObj config.Config) ([]*string, error) {
 	result, err := v.Client.DescribeVpcs(&ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
 			// Note: this filter omits the default since there is special
@@ -92,7 +92,7 @@ func (v EC2VPCs) getAll(configObj config.Config) ([]*string, error) {
 	return ids, nil
 }
 
-func (v EC2VPCs) nukeAll(vpcIds []string) error {
+func (v *EC2VPCs) nukeAll(vpcIds []string) error {
 	if len(vpcIds) == 0 {
 		logging.Logger.Debug("No VPCs to nuke")
 		return nil

@@ -11,7 +11,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (csr ConfigServiceRule) getAll(configObj config.Config) ([]*string, error) {
+func (csr *ConfigServiceRule) getAll(configObj config.Config) ([]*string, error) {
 	configRuleNames := []*string{}
 
 	paginator := func(output *configservice.DescribeConfigRulesOutput, lastPage bool) bool {
@@ -37,7 +37,7 @@ func (csr ConfigServiceRule) getAll(configObj config.Config) ([]*string, error) 
 	return configRuleNames, nil
 }
 
-func (csr ConfigServiceRule) nukeAll(configRuleNames []string) error {
+func (csr *ConfigServiceRule) nukeAll(configRuleNames []string) error {
 	if len(configRuleNames) == 0 {
 		logging.Logger.Debugf("No Config service rules to nuke in region %s", csr.Region)
 	}

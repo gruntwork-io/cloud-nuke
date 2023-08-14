@@ -19,7 +19,7 @@ import (
 )
 
 // List all IAM Roles in the AWS account
-func (islr IAMServiceLinkedRoles) getAll(configObj config.Config) ([]*string, error) {
+func (islr *IAMServiceLinkedRoles) getAll(configObj config.Config) ([]*string, error) {
 	allIAMServiceLinkedRoles := []*string{}
 	err := islr.Client.ListRolesPages(
 		&iam.ListRolesInput{},
@@ -38,7 +38,7 @@ func (islr IAMServiceLinkedRoles) getAll(configObj config.Config) ([]*string, er
 	return allIAMServiceLinkedRoles, nil
 }
 
-func (islr IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) error {
+func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) error {
 	// Deletion ID looks like this: "
 	//{
 	//	DeletionTaskId: "task/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_2/d3c4c9fc-7fd3-4a36-974a-afb0eb78f102"
@@ -82,7 +82,7 @@ func (islr IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) e
 }
 
 // Delete all IAM Roles
-func (islr IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
+func (islr *IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	if len(roleNames) == 0 {
 		logging.Logger.Debug("No IAM Service Linked Roles to nuke")
 		return nil
@@ -130,7 +130,7 @@ func (islr IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	return nil
 }
 
-func (islr IAMServiceLinkedRoles) shouldInclude(iamServiceLinkedRole *iam.Role, configObj config.Config) bool {
+func (islr *IAMServiceLinkedRoles) shouldInclude(iamServiceLinkedRole *iam.Role, configObj config.Config) bool {
 	if !strings.Contains(aws.StringValue(iamServiceLinkedRole.Arn), "aws-service-role") {
 		return false
 	}
@@ -141,7 +141,7 @@ func (islr IAMServiceLinkedRoles) shouldInclude(iamServiceLinkedRole *iam.Role, 
 	})
 }
 
-func (islr IAMServiceLinkedRoles) deleteIamServiceLinkedRoleAsync(wg *sync.WaitGroup, errChan chan error, roleName *string) {
+func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRoleAsync(wg *sync.WaitGroup, errChan chan error, roleName *string) {
 	defer wg.Done()
 
 	var result *multierror.Error

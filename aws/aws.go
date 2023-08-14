@@ -268,6 +268,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 		}
 
 		resourcesInRegion := AwsRegionResource{}
+		var resources []AwsResources
 
 		// The order in which resources are nuked is important
 		// because of dependencies between resources
@@ -296,7 +297,7 @@ func GetAllResources(targetRegions []string, excludeAfter time.Time, resourceTyp
 			})
 			if len(arns) > 0 {
 				acmpca.ARNs = awsgo.StringValueSlice(arns)
-				resourcesInRegion.Resources = append(resourcesInRegion.Resources, acmpca)
+				resources = append(resources, acmpca)
 			}
 		}
 		// End ACMPCA arns

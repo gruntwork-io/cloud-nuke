@@ -12,7 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (cwdb CloudWatchDashboards) getAll(configObj config.Config) ([]*string, error) {
+func (cwdb *CloudWatchDashboards) getAll(configObj config.Config) ([]*string, error) {
 	allDashboards := []*string{}
 	input := &cloudwatch.ListDashboardsInput{}
 	err := cwdb.Client.ListDashboardsPages(
@@ -33,7 +33,7 @@ func (cwdb CloudWatchDashboards) getAll(configObj config.Config) ([]*string, err
 	return allDashboards, errors.WithStackTrace(err)
 }
 
-func (cwdb CloudWatchDashboards) nukeAll(identifiers []*string) error {
+func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No CloudWatch Dashboards to nuke in region %s", cwdb.Region)
 		return nil

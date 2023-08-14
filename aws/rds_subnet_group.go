@@ -15,7 +15,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (dsg DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error {
+func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error {
 	// wait up to 15 minutes
 	for i := 0; i < 90; i++ {
 		_, err := dsg.Client.DescribeDBSubnetGroups(&rds.DescribeDBSubnetGroupsInput{DBSubnetGroupName: name})
@@ -34,7 +34,7 @@ func (dsg DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error {
 	return RdsDeleteError{name: *name}
 }
 
-func (dsg DBSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
+func (dsg *DBSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
 	var names []*string
 	err := dsg.Client.DescribeDBSubnetGroupsPages(
 		&rds.DescribeDBSubnetGroupsInput{},
@@ -56,7 +56,7 @@ func (dsg DBSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
 	return names, nil
 }
 
-func (dsg DBSubnetGroups) nukeAll(names []*string) error {
+func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No DB Subnet groups in region %s", dsg.Region)
 		return nil

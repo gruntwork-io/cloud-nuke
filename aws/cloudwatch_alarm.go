@@ -11,7 +11,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (cw CloudWatchAlarms) getAll(configObj config.Config) ([]*string, error) {
+func (cw *CloudWatchAlarms) getAll(configObj config.Config) ([]*string, error) {
 	allAlarms := []*string{}
 	input := &cloudwatch.DescribeAlarmsInput{
 		AlarmTypes: aws.StringSlice([]string{cloudwatch.AlarmTypeMetricAlarm, cloudwatch.AlarmTypeCompositeAlarm}),
@@ -42,7 +42,7 @@ func (cw CloudWatchAlarms) getAll(configObj config.Config) ([]*string, error) {
 	return allAlarms, errors.WithStackTrace(err)
 }
 
-func (cw CloudWatchAlarms) nukeAll(identifiers []*string) error {
+func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No CloudWatch Alarms to nuke in region %s", cw.Region)
 		return nil

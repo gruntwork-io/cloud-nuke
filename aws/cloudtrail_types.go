@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,21 +16,25 @@ type CloudtrailTrail struct {
 	Arns   []string
 }
 
+func (ct *CloudtrailTrail) Init(session *session.Session) {
+	ct.Client = cloudtrail.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (ct CloudtrailTrail) ResourceName() string {
+func (ct *CloudtrailTrail) ResourceName() string {
 	return "cloudtrail"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (ct CloudtrailTrail) ResourceIdentifiers() []string {
+func (ct *CloudtrailTrail) ResourceIdentifiers() []string {
 	return ct.Arns
 }
 
-func (ct CloudtrailTrail) MaxBatchSize() int {
+func (ct *CloudtrailTrail) MaxBatchSize() int {
 	return 50
 }
 
-func (ct CloudtrailTrail) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (ct *CloudtrailTrail) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := ct.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -39,7 +45,7 @@ func (ct CloudtrailTrail) GetAndSetIdentifiers(configObj config.Config) ([]strin
 }
 
 // Nuke - nuke 'em all!!!
-func (ct CloudtrailTrail) Nuke(identifiers []string) error {
+func (ct *CloudtrailTrail) Nuke(identifiers []string) error {
 	if err := ct.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

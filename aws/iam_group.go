@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-func (ig IAMGroups) getAll(configObj config.Config) ([]*string, error) {
+func (ig *IAMGroups) getAll(configObj config.Config) ([]*string, error) {
 	var allIamGroups []*string
 	err := ig.Client.ListGroupsPages(
 		&iam.ListGroupsInput{},
@@ -37,7 +37,7 @@ func (ig IAMGroups) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // nukeAll - delete all IAM groups.  Caller is responsible for pagination (no more than 100/request)
-func (ig IAMGroups) nukeAll(groupNames []*string) error {
+func (ig *IAMGroups) nukeAll(groupNames []*string) error {
 	if len(groupNames) == 0 {
 		logging.Logger.Debug("No IAM Groups to nuke")
 		return nil
@@ -80,7 +80,7 @@ func (ig IAMGroups) nukeAll(groupNames []*string) error {
 }
 
 // deleteIamGroup - removes an IAM group from AWS, designed to run as a goroutine
-func (ig IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupName *string) {
+func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupName *string) {
 	defer wg.Done()
 	var multierr *multierror.Error
 

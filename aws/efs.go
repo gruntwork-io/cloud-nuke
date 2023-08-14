@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ef ElasticFileSystem) getAll(configObj config.Config) ([]*string, error) {
+func (ef *ElasticFileSystem) getAll(configObj config.Config) ([]*string, error) {
 
 	allEfs := []*string{}
 	err := ef.Client.DescribeFileSystemsPages(&efs.DescribeFileSystemsInput{}, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
@@ -34,7 +34,7 @@ func (ef ElasticFileSystem) getAll(configObj config.Config) ([]*string, error) {
 	return allEfs, err
 }
 
-func (ef ElasticFileSystem) nukeAll(identifiers []*string) error {
+func (ef *ElasticFileSystem) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No Elastic FileSystems (efs) to nuke in region %s", ef.Region)
 	}
@@ -74,7 +74,7 @@ func (ef ElasticFileSystem) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func (ef ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error, efsID *string) {
+func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error, efsID *string) {
 	var allErrs *multierror.Error
 
 	defer wg.Done()

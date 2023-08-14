@@ -14,7 +14,7 @@ import (
 )
 
 // Returns the ARN of all customer managed policies
-func (ip IAMPolicies) getAll(configObj config.Config) ([]*string, error) {
+func (ip *IAMPolicies) getAll(configObj config.Config) ([]*string, error) {
 	var allIamPolicies []*string
 
 	err := ip.Client.ListPoliciesPages(
@@ -40,7 +40,7 @@ func (ip IAMPolicies) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // Delete all iam customer managed policies. Caller is responsible for pagination (no more than 100/request)
-func (ip IAMPolicies) nukeAll(policyArns []*string) error {
+func (ip *IAMPolicies) nukeAll(policyArns []*string) error {
 	if len(policyArns) == 0 {
 		logging.Logger.Debug("No IAM Policies to nuke")
 	}
@@ -82,7 +82,7 @@ func (ip IAMPolicies) nukeAll(policyArns []*string) error {
 }
 
 // Removes an IAM Policy from AWS, designed to run as a goroutine
-func (ip IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, policyArn *string) {
+func (ip *IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, policyArn *string) {
 	defer wg.Done()
 	var multierr *multierror.Error
 
@@ -132,7 +132,7 @@ func (ip IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan erro
 	errChan <- multierr.ErrorOrNil()
 }
 
-func (ip IAMPolicies) detachPolicyEntities(policyArn *string) error {
+func (ip *IAMPolicies) detachPolicyEntities(policyArn *string) error {
 	var allPolicyGroups []*string
 	var allPolicyRoles []*string
 	var allPolicyUsers []*string

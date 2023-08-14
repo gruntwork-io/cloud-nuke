@@ -11,7 +11,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (registry ECR) getAll(configObj config.Config) ([]*string, error) {
+func (registry *ECR) getAll(configObj config.Config) ([]*string, error) {
 	repositoryNames := []*string{}
 
 	paginator := func(output *ecr.DescribeRepositoriesOutput, lastPage bool) bool {
@@ -35,7 +35,7 @@ func (registry ECR) getAll(configObj config.Config) ([]*string, error) {
 	return repositoryNames, nil
 }
 
-func (registry ECR) nukeAll(repositoryNames []string) error {
+func (registry *ECR) nukeAll(repositoryNames []string) error {
 	if len(repositoryNames) == 0 {
 		logging.Logger.Debugf("No ECR repositories to nuke in region %s", registry.Region)
 		return nil

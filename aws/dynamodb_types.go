@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
@@ -13,20 +15,24 @@ type DynamoDB struct {
 	DynamoTableNames []string
 }
 
-func (ddb DynamoDB) ResourceName() string {
+func (ddb *DynamoDB) Init(session *session.Session) {
+	ddb.Client = dynamodb.New(session)
+}
+
+func (ddb *DynamoDB) ResourceName() string {
 	return "dynamodb"
 }
 
-func (ddb DynamoDB) ResourceIdentifiers() []string {
+func (ddb *DynamoDB) ResourceIdentifiers() []string {
 	return ddb.DynamoTableNames
 }
 
-func (ddb DynamoDB) MaxBatchSize() int {
+func (ddb *DynamoDB) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (ddb DynamoDB) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (ddb *DynamoDB) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := ddb.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -37,7 +43,7 @@ func (ddb DynamoDB) GetAndSetIdentifiers(configObj config.Config) ([]string, err
 }
 
 // Nuke - nuke all Dynamo DB Tables
-func (ddb DynamoDB) Nuke(identifiers []string) error {
+func (ddb *DynamoDB) Nuke(identifiers []string) error {
 	if err := ddb.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

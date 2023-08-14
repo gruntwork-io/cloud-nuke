@@ -12,7 +12,7 @@ import (
 )
 
 // Returns a formatted string of Launch config Names
-func (lc LaunchConfigs) getAll(configObj config.Config) ([]*string, error) {
+func (lc *LaunchConfigs) getAll(configObj config.Config) ([]*string, error) {
 	result, err := lc.Client.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -32,7 +32,7 @@ func (lc LaunchConfigs) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // Deletes all Launch configurations
-func (lc LaunchConfigs) nukeAll(configNames []*string) error {
+func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
 
 	if len(configNames) == 0 {
 		logging.Logger.Debugf("No Launch Configurations to nuke in region %s", lc.Region)

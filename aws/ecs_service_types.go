@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -15,21 +17,25 @@ type ECSServices struct {
 	ServiceClusterMap map[string]string
 }
 
+func (services *ECSServices) Init(session *session.Session) {
+	services.Client = ecs.New(session)
+}
+
 // ResourceName - The simple name of the aws resource
-func (services ECSServices) ResourceName() string {
+func (services *ECSServices) ResourceName() string {
 	return "ecsserv"
 }
 
 // ResourceIdentifiers - The ARNs of the collected ECS services
-func (services ECSServices) ResourceIdentifiers() []string {
+func (services *ECSServices) ResourceIdentifiers() []string {
 	return services.Services
 }
 
-func (services ECSServices) MaxBatchSize() int {
+func (services *ECSServices) MaxBatchSize() int {
 	return 49
 }
 
-func (services ECSServices) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (services *ECSServices) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := services.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -40,7 +46,7 @@ func (services ECSServices) GetAndSetIdentifiers(configObj config.Config) ([]str
 }
 
 // Nuke - nuke all ECS service resources
-func (services ECSServices) Nuke(identifiers []string) error {
+func (services *ECSServices) Nuke(identifiers []string) error {
 	if err := services.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

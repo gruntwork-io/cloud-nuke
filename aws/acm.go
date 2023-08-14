@@ -11,7 +11,7 @@ import (
 )
 
 // Returns a list of strings of ACM ARNs
-func (a ACM) getAll(configObj config.Config) ([]*string, error) {
+func (a *ACM) getAll(configObj config.Config) ([]*string, error) {
 
 	params := &acm.ListCertificatesInput{}
 
@@ -34,7 +34,7 @@ func (a ACM) getAll(configObj config.Config) ([]*string, error) {
 	return acmArns, nil
 }
 
-func (a ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config) bool {
+func (a *ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config) bool {
 	if acm == nil {
 		return false
 	}
@@ -51,7 +51,7 @@ func (a ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config)
 }
 
 // Deletes all ACMs
-func (a ACM) nukeAll(arns []*string) error {
+func (a *ACM) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
 		logging.Logger.Debugf("No ACMs to nuke in region %s", a.Region)
 		return nil

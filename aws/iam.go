@@ -18,7 +18,7 @@ import (
 )
 
 // List all IAM users in the AWS account and returns a slice of the UserNames
-func (iu IAMUsers) getAll(configObj config.Config) ([]*string, error) {
+func (iu *IAMUsers) getAll(configObj config.Config) ([]*string, error) {
 	input := &iam.ListUsersInput{}
 
 	var userNames []*string
@@ -38,7 +38,7 @@ func (iu IAMUsers) getAll(configObj config.Config) ([]*string, error) {
 	return userNames, errors.WithStackTrace(err)
 }
 
-func (iu IAMUsers) detachUserPolicies(userName *string) error {
+func (iu *IAMUsers) detachUserPolicies(userName *string) error {
 	policiesOutput, err := iu.Client.ListAttachedUserPolicies(&iam.ListAttachedUserPoliciesInput{
 		UserName: userName,
 	})
@@ -62,7 +62,7 @@ func (iu IAMUsers) detachUserPolicies(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) deleteInlineUserPolicies(userName *string) error {
+func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
 	policyOutput, err := iu.Client.ListUserPolicies(&iam.ListUserPoliciesInput{
 		UserName: userName,
 	})
@@ -86,7 +86,7 @@ func (iu IAMUsers) deleteInlineUserPolicies(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) removeUserFromGroups(userName *string) error {
+func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
 	groupsOutput, err := iu.Client.ListGroupsForUser(&iam.ListGroupsForUserInput{
 		UserName: userName,
 	})
@@ -109,7 +109,7 @@ func (iu IAMUsers) removeUserFromGroups(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) deleteLoginProfile(userName *string) error {
+func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 	return retry.DoWithRetry(
 		logging.Logger,
 		"Delete Login Profile",
@@ -143,7 +143,7 @@ func (iu IAMUsers) deleteLoginProfile(userName *string) error {
 		})
 }
 
-func (iu IAMUsers) deleteAccessKeys(userName *string) error {
+func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
 	output, err := iu.Client.ListAccessKeys(&iam.ListAccessKeysInput{
 		UserName: userName,
 	})
@@ -169,7 +169,7 @@ func (iu IAMUsers) deleteAccessKeys(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) deleteSigningCertificate(userName *string) error {
+func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
 	output, err := iu.Client.ListSigningCertificates(&iam.ListSigningCertificatesInput{
 		UserName: userName,
 	})
@@ -195,7 +195,7 @@ func (iu IAMUsers) deleteSigningCertificate(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) deleteSSHPublicKeys(userName *string) error {
+func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
 	output, err := iu.Client.ListSSHPublicKeys(&iam.ListSSHPublicKeysInput{
 		UserName: userName,
 	})
@@ -221,7 +221,7 @@ func (iu IAMUsers) deleteSSHPublicKeys(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
+func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 	services := []string{
 		"cassandra.amazonaws.com",
 		"codecommit.amazonaws.com",
@@ -255,7 +255,7 @@ func (iu IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) deleteMFADevices(userName *string) error {
+func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 	output, err := iu.Client.ListMFADevices(&iam.ListMFADevicesInput{
 		UserName: userName,
 	})
@@ -298,7 +298,7 @@ func (iu IAMUsers) deleteMFADevices(userName *string) error {
 	return nil
 }
 
-func (iu IAMUsers) deleteUser(userName *string) error {
+func (iu *IAMUsers) deleteUser(userName *string) error {
 	_, err := iu.Client.DeleteUser(&iam.DeleteUserInput{
 		UserName: userName,
 	})
@@ -310,7 +310,7 @@ func (iu IAMUsers) deleteUser(userName *string) error {
 }
 
 // Nuke a single user
-func (iu IAMUsers) nukeUser(userName *string) error {
+func (iu *IAMUsers) nukeUser(userName *string) error {
 	// Functions used to really nuke an IAM User as a user can have many attached
 	// items we need delete/detach them before actually deleting it.
 	// NOTE: The actual user deletion should always be the last one. This way we
@@ -338,7 +338,7 @@ func (iu IAMUsers) nukeUser(userName *string) error {
 }
 
 // Delete all IAM Users
-func (iu IAMUsers) nukeAll(userNames []*string) error {
+func (iu *IAMUsers) nukeAll(userNames []*string) error {
 	if len(userNames) == 0 {
 		logging.Logger.Info("No IAM Users to nuke")
 		return nil

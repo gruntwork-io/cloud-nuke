@@ -18,7 +18,7 @@ import (
 )
 
 // GetAll returns a list of all arns of ACMPCA, which can be deleted.
-func (ap ACMPCA) getAll(configObj config.Config) ([]*string, error) {
+func (ap *ACMPCA) getAll(configObj config.Config) ([]*string, error) {
 	var arns []*string
 	paginationErr := ap.Client.ListCertificateAuthoritiesPages(
 		&acmpca.ListCertificateAuthoritiesInput{},
@@ -37,7 +37,7 @@ func (ap ACMPCA) getAll(configObj config.Config) ([]*string, error) {
 	return arns, nil
 }
 
-func (ap ACMPCA) shouldInclude(ca *acmpca.CertificateAuthority, configObj config.Config) bool {
+func (ap *ACMPCA) shouldInclude(ca *acmpca.CertificateAuthority, configObj config.Config) bool {
 	if ca == nil {
 		return false
 	}
@@ -60,7 +60,7 @@ func (ap ACMPCA) shouldInclude(ca *acmpca.CertificateAuthority, configObj config
 }
 
 // nukeAll will delete all ACMPCA, which are given by a list of arns.
-func (ap ACMPCA) nukeAll(arns []*string) error {
+func (ap *ACMPCA) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
 		logging.Logger.Debugf("No ACMPCA to nuke in region %s", ap.Region)
 		return nil
@@ -96,7 +96,7 @@ func (ap ACMPCA) nukeAll(arns []*string) error {
 
 // deleteAsync deletes the provided ACMPCA arn. Intended to be run in a goroutine, using wait groups
 // and a return channel for errors.
-func (ap ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *string) {
+func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *string) {
 	defer wg.Done()
 
 	logging.Logger.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, ap.Region)

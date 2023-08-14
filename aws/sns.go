@@ -20,7 +20,7 @@ import (
 // getAllSNSTopics returns a list of all SNS topics in the region, filtering the name by the config
 // The SQS APIs do not return a creation date, therefore we tag the resources with a first seen time when the topic first appears. We then
 // use that tag to measure the excludeAfter time duration, and determine whether to nuke the resource based on that.
-func (s SNSTopic) getAll(configObj config.Config) ([]*string, error) {
+func (s *SNSTopic) getAll(configObj config.Config) ([]*string, error) {
 
 	var snsTopics []*string
 	err := s.Client.ListTopicsPages(&sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {
@@ -66,7 +66,7 @@ func (s SNSTopic) getAll(configObj config.Config) ([]*string, error) {
 
 // getFirstSeenSNSTopicTag will retrive the time that the topic was first seen, otherwise returning nil if the topic has not been
 // seen before.
-func (s SNSTopic) getFirstSeenSNSTopicTag(topicArn string) (*time.Time, error) {
+func (s *SNSTopic) getFirstSeenSNSTopicTag(topicArn string) (*time.Time, error) {
 	response, err := s.Client.ListTagsForResource(&sns.ListTagsForResourceInput{
 		ResourceArn: &topicArn,
 	})
@@ -89,7 +89,7 @@ func (s SNSTopic) getFirstSeenSNSTopicTag(topicArn string) (*time.Time, error) {
 }
 
 // setFirstSeenSNSTopic will append a tag to the SNS Topic that details the first seen time.
-func (s SNSTopic) setFirstSeenSNSTopicTag(topicArn string, value time.Time) error {
+func (s *SNSTopic) setFirstSeenSNSTopicTag(topicArn string, value time.Time) error {
 	timeValue := value.Format(firstSeenTimeFormat)
 
 	_, err := s.Client.TagResource(
@@ -124,7 +124,7 @@ func shouldIncludeSNS(topicArn string, excludeAfter, firstSeenTime time.Time, co
 	return config.ShouldInclude(topicName, configObj.SNS.IncludeRule.NamesRegExp, configObj.SNS.ExcludeRule.NamesRegExp)
 }
 
-func (s SNSTopic) nukeAll(identifiers []*string) error {
+func (s *SNSTopic) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No SNS Topics to nuke in region %s", s.Region)
 	}
@@ -164,7 +164,7 @@ func (s SNSTopic) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func (s SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn *string) {
+func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn *string) {
 	defer wg.Done()
 
 	deleteParam := &sns.DeleteTopicInput{

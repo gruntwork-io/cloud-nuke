@@ -18,7 +18,7 @@ type DetectorOutputWithID struct {
 	Output *guardduty.GetDetectorOutput
 }
 
-func (gd GuardDuty) getAll(configObj config.Config) ([]*string, error) {
+func (gd *GuardDuty) getAll(configObj config.Config) ([]*string, error) {
 	var detectorIdsToInclude []*string
 	var detectorIds []*string
 	err := gd.Client.ListDetectorsPages(&guardduty.ListDetectorsInput{}, func(page *guardduty.ListDetectorsOutput, lastPage bool) bool {
@@ -48,7 +48,7 @@ func (gd GuardDuty) getAll(configObj config.Config) ([]*string, error) {
 	return detectorIdsToInclude, nil
 }
 
-func (gd GuardDuty) shouldInclude(detector *guardduty.GetDetectorOutput, detectorId *string, configObj config.Config) bool {
+func (gd *GuardDuty) shouldInclude(detector *guardduty.GetDetectorOutput, detectorId *string, configObj config.Config) bool {
 	detectorCreatedAt := aws.StringValue(detector.CreatedAt)
 	createdAtDateTime, err := time.Parse(time.RFC3339, detectorCreatedAt)
 	if err != nil {
@@ -58,7 +58,7 @@ func (gd GuardDuty) shouldInclude(detector *guardduty.GetDetectorOutput, detecto
 	return configObj.GuardDuty.ShouldInclude(config.ResourceValue{Time: &createdAtDateTime})
 }
 
-func (gd GuardDuty) nukeAll(detectorIds []string) error {
+func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 	if len(detectorIds) == 0 {
 		logging.Logger.Debugf("No GuardDuty detectors to nuke in region %s", gd.Region)
 

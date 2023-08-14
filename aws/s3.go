@@ -41,7 +41,7 @@ func (sb S3Buckets) getS3BucketRegion(bucketName string) (string, error) {
 }
 
 // getS3BucketTags returns S3 Bucket tags.
-func (bucket S3Buckets) getS3BucketTags(bucketName string) ([]map[string]string, error) {
+func (bucket *S3Buckets) getS3BucketTags(bucketName string) ([]map[string]string, error) {
 	input := &s3.GetBucketTaggingInput{
 		Bucket: aws.String(bucketName),
 	}

@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,21 +16,25 @@ type CloudWatchAlarms struct {
 	AlarmNames []string
 }
 
+func (cw *CloudWatchAlarms) Init(session *session.Session) {
+	cw.Client = cloudwatch.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (cw CloudWatchAlarms) ResourceName() string {
+func (cw *CloudWatchAlarms) ResourceName() string {
 	return "cloudwatch-alarm"
 }
 
 // ResourceIdentifiers - The name of cloudwatch alarms
-func (cw CloudWatchAlarms) ResourceIdentifiers() []string {
+func (cw *CloudWatchAlarms) ResourceIdentifiers() []string {
 	return cw.AlarmNames
 }
 
-func (cw CloudWatchAlarms) MaxBatchSize() int {
+func (cw *CloudWatchAlarms) MaxBatchSize() int {
 	return 99
 }
 
-func (cw CloudWatchAlarms) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (cw *CloudWatchAlarms) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := cw.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -39,7 +45,7 @@ func (cw CloudWatchAlarms) GetAndSetIdentifiers(configObj config.Config) ([]stri
 }
 
 // Nuke - nuke 'em all!!!
-func (cw CloudWatchAlarms) Nuke(identifiers []string) error {
+func (cw *CloudWatchAlarms) Nuke(identifiers []string) error {
 	if err := cw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

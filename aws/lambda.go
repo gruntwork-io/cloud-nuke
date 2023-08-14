@@ -13,7 +13,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (lf LambdaFunctions) getAll(configObj config.Config) ([]*string, error) {
+func (lf *LambdaFunctions) getAll(configObj config.Config) ([]*string, error) {
 	var names []*string
 
 	err := lf.Client.ListFunctionsPages(
@@ -34,7 +34,7 @@ func (lf LambdaFunctions) getAll(configObj config.Config) ([]*string, error) {
 	return names, nil
 }
 
-func (lf LambdaFunctions) shouldInclude(lambdaFn *lambda.FunctionConfiguration, configObj config.Config) bool {
+func (lf *LambdaFunctions) shouldInclude(lambdaFn *lambda.FunctionConfiguration, configObj config.Config) bool {
 	if lambdaFn == nil {
 		return false
 	}
@@ -54,7 +54,7 @@ func (lf LambdaFunctions) shouldInclude(lambdaFn *lambda.FunctionConfiguration, 
 	})
 }
 
-func (lf LambdaFunctions) nukeAll(names []*string) error {
+func (lf *LambdaFunctions) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No Lambda Functions to nuke in region %s", lf.Region)
 		return nil

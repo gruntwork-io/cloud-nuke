@@ -15,7 +15,7 @@ import (
 )
 
 // Returns a formatted string of SQS Queue URLs
-func (sq SqsQueue) getAll(configObj config.Config) ([]*string, error) {
+func (sq *SqsQueue) getAll(configObj config.Config) ([]*string, error) {
 	result := []*string{}
 	paginator := func(output *sqs.ListQueuesOutput, lastPage bool) bool {
 		result = append(result, output.QueueUrls...)
@@ -62,7 +62,7 @@ func (sq SqsQueue) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // Deletes all Elastic Load Balancers
-func (sq SqsQueue) nukeAll(urls []*string) error {
+func (sq *SqsQueue) nukeAll(urls []*string) error {
 	if len(urls) == 0 {
 		logging.Logger.Debugf("No SQS Queues to nuke in region %s", sq.Region)
 		return nil

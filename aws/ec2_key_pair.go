@@ -11,7 +11,7 @@ import (
 )
 
 // getAllEc2KeyPairs extracts the list of existing ec2 key pairs.
-func (k EC2KeyPairs) getAll(configObj config.Config) ([]*string, error) {
+func (k *EC2KeyPairs) getAll(configObj config.Config) ([]*string, error) {
 	result, err := k.Client.DescribeKeyPairs(&ec2.DescribeKeyPairsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -31,7 +31,7 @@ func (k EC2KeyPairs) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // deleteKeyPair is a helper method that deletes the given ec2 key pair.
-func (k EC2KeyPairs) deleteKeyPair(keyPairId *string) error {
+func (k *EC2KeyPairs) deleteKeyPair(keyPairId *string) error {
 	params := &ec2.DeleteKeyPairInput{
 		KeyPairId: keyPairId,
 	}
@@ -45,7 +45,7 @@ func (k EC2KeyPairs) deleteKeyPair(keyPairId *string) error {
 }
 
 // nukeAllEc2KeyPairs attempts to delete given ec2 key pair IDs.
-func (k EC2KeyPairs) nukeAll(keypairIds []*string) error {
+func (k *EC2KeyPairs) nukeAll(keypairIds []*string) error {
 	if len(keypairIds) == 0 {
 		logging.Logger.Infof("No EC2 key pairs to nuke in region %s", k.Region)
 		return nil

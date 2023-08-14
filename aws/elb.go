@@ -14,7 +14,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (balancer LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalancersInput) error {
+func (balancer *LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalancersInput) error {
 	for i := 0; i < 30; i++ {
 		_, err := balancer.Client.DescribeLoadBalancers(input)
 		if err != nil {
@@ -33,7 +33,7 @@ func (balancer LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalance
 }
 
 // Returns a formatted string of ELB names
-func (balancer LoadBalancers) getAll(configObj config.Config) ([]*string, error) {
+func (balancer *LoadBalancers) getAll(configObj config.Config) ([]*string, error) {
 	result, err := balancer.Client.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -53,7 +53,7 @@ func (balancer LoadBalancers) getAll(configObj config.Config) ([]*string, error)
 }
 
 // Deletes all Elastic Load Balancers
-func (balancer LoadBalancers) nukeAll(names []*string) error {
+func (balancer *LoadBalancers) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No Elastic Load Balancers to nuke in region %s", balancer.Region)
 		return nil

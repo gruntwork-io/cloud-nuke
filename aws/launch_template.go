@@ -12,7 +12,7 @@ import (
 )
 
 // Returns a formatted string of Launch Template Names
-func (lt LaunchTemplates) getAll(configObj config.Config) ([]*string, error) {
+func (lt *LaunchTemplates) getAll(configObj config.Config) ([]*string, error) {
 	result, err := lt.Client.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -32,7 +32,7 @@ func (lt LaunchTemplates) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // Deletes all Launch Templates
-func (lt LaunchTemplates) nukeAll(templateNames []*string) error {
+func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 	if len(templateNames) == 0 {
 		logging.Logger.Debugf("No Launch Templates to nuke in region %s", lt.Region)
 		return nil

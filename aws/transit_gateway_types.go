@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,22 +16,26 @@ type TransitGatewaysVpcAttachment struct {
 	Ids    []string
 }
 
+func (tgw *TransitGatewaysVpcAttachment) Init(session *session.Session) {
+	tgw.Client = ec2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (tgw TransitGatewaysVpcAttachment) ResourceName() string {
+func (tgw *TransitGatewaysVpcAttachment) ResourceName() string {
 	return "transit-gateway-attachment"
 }
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
-func (tgw TransitGatewaysVpcAttachment) MaxBatchSize() int {
+func (tgw *TransitGatewaysVpcAttachment) MaxBatchSize() int {
 	return maxBatchSize
 }
 
 // ResourceIdentifiers - The Ids of the transit gateways
-func (tgw TransitGatewaysVpcAttachment) ResourceIdentifiers() []string {
+func (tgw *TransitGatewaysVpcAttachment) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
-func (tgw TransitGatewaysVpcAttachment) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (tgw *TransitGatewaysVpcAttachment) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := tgw.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -40,7 +46,7 @@ func (tgw TransitGatewaysVpcAttachment) GetAndSetIdentifiers(configObj config.Co
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw TransitGatewaysVpcAttachment) Nuke(identifiers []string) error {
+func (tgw *TransitGatewaysVpcAttachment) Nuke(identifiers []string) error {
 	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -55,22 +61,26 @@ type TransitGatewaysRouteTables struct {
 	Ids    []string
 }
 
+func (tgw *TransitGatewaysRouteTables) Init(session *session.Session) {
+	tgw.Client = ec2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (tgw TransitGatewaysRouteTables) ResourceName() string {
+func (tgw *TransitGatewaysRouteTables) ResourceName() string {
 	return "transit-gateway-route-table"
 }
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
-func (tgw TransitGatewaysRouteTables) MaxBatchSize() int {
+func (tgw *TransitGatewaysRouteTables) MaxBatchSize() int {
 	return maxBatchSize
 }
 
 // ResourceIdentifiers - The arns of the transit gateways route tables
-func (tgw TransitGatewaysRouteTables) ResourceIdentifiers() []string {
+func (tgw *TransitGatewaysRouteTables) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
-func (tgw TransitGatewaysRouteTables) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (tgw *TransitGatewaysRouteTables) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := tgw.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -81,7 +91,7 @@ func (tgw TransitGatewaysRouteTables) GetAndSetIdentifiers(configObj config.Conf
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw TransitGatewaysRouteTables) Nuke(identifiers []string) error {
+func (tgw *TransitGatewaysRouteTables) Nuke(identifiers []string) error {
 	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -96,22 +106,26 @@ type TransitGateways struct {
 	Ids    []string
 }
 
+func (tgw *TransitGateways) Init(session *session.Session) {
+	tgw.Client = ec2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (tgw TransitGateways) ResourceName() string {
+func (tgw *TransitGateways) ResourceName() string {
 	return "transit-gateway"
 }
 
 // MaxBatchSize - Tentative batch size to ensure AWS doesn't throttle
-func (tgw TransitGateways) MaxBatchSize() int {
+func (tgw *TransitGateways) MaxBatchSize() int {
 	return maxBatchSize
 }
 
 // ResourceIdentifiers - The Ids of the transit gateways
-func (tgw TransitGateways) ResourceIdentifiers() []string {
+func (tgw *TransitGateways) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
-func (tgw TransitGateways) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (tgw *TransitGateways) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := tgw.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -122,7 +136,7 @@ func (tgw TransitGateways) GetAndSetIdentifiers(configObj config.Config) ([]stri
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw TransitGateways) Nuke(identifiers []string) error {
+func (tgw *TransitGateways) Nuke(identifiers []string) error {
 	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

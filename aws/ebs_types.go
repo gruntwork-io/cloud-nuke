@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,22 +16,26 @@ type EBSVolumes struct {
 	VolumeIds []string
 }
 
+func (ev *EBSVolumes) Init(session *session.Session) {
+	ev.Client = ec2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (ev EBSVolumes) ResourceName() string {
+func (ev *EBSVolumes) ResourceName() string {
 	return "ebs"
 }
 
 // ResourceIdentifiers - The volume ids of the ebs volumes
-func (ev EBSVolumes) ResourceIdentifiers() []string {
+func (ev *EBSVolumes) ResourceIdentifiers() []string {
 	return ev.VolumeIds
 }
 
-func (ev EBSVolumes) MaxBatchSize() int {
+func (ev *EBSVolumes) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (ev EBSVolumes) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (ev *EBSVolumes) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := ev.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -40,7 +46,7 @@ func (ev EBSVolumes) GetAndSetIdentifiers(configObj config.Config) ([]string, er
 }
 
 // Nuke - nuke 'em all!!!
-func (ev EBSVolumes) Nuke(identifiers []string) error {
+func (ev *EBSVolumes) Nuke(identifiers []string) error {
 	if err := ev.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

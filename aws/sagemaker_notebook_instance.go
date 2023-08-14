@@ -12,7 +12,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (smni SageMakerNotebookInstances) getAll(configObj config.Config) ([]*string, error) {
+func (smni *SageMakerNotebookInstances) getAll(configObj config.Config) ([]*string, error) {
 	result, err := smni.Client.ListNotebookInstances(&sagemaker.ListNotebookInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -32,7 +32,7 @@ func (smni SageMakerNotebookInstances) getAll(configObj config.Config) ([]*strin
 	return names, nil
 }
 
-func (smni SageMakerNotebookInstances) nukeAll(names []*string) error {
+func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No Sagemaker Notebook Instance to nuke in region %s", smni.Region)
 		return nil

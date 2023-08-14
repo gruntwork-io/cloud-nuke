@@ -11,7 +11,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (bv BackupVault) getAll(configObj config.Config) ([]*string, error) {
+func (bv *BackupVault) getAll(configObj config.Config) ([]*string, error) {
 	names := []*string{}
 	paginator := func(output *backup.ListBackupVaultsOutput, lastPage bool) bool {
 		for _, backupVault := range output.BackupVaultList {
@@ -34,7 +34,7 @@ func (bv BackupVault) getAll(configObj config.Config) ([]*string, error) {
 	return names, nil
 }
 
-func (bv BackupVault) nukeAll(names []*string) error {
+func (bv *BackupVault) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No backup vaults to nuke in region %s", bv.Region)
 		return nil

@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/macie2"
 	"github.com/aws/aws-sdk-go/service/macie2/macie2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -13,19 +15,23 @@ type MacieMember struct {
 	AccountIds []string
 }
 
-func (mm MacieMember) ResourceName() string {
+func (mm *MacieMember) Init(session *session.Session) {
+	mm.Client = macie2.New(session)
+}
+
+func (mm *MacieMember) ResourceName() string {
 	return "macie-member"
 }
 
-func (mm MacieMember) ResourceIdentifiers() []string {
+func (mm *MacieMember) ResourceIdentifiers() []string {
 	return mm.AccountIds
 }
 
-func (mm MacieMember) MaxBatchSize() int {
+func (mm *MacieMember) MaxBatchSize() int {
 	return 10
 }
 
-func (mm MacieMember) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (mm *MacieMember) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := mm.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -35,7 +41,7 @@ func (mm MacieMember) GetAndSetIdentifiers(configObj config.Config) ([]string, e
 	return mm.AccountIds, nil
 }
 
-func (mm MacieMember) Nuke(identifiers []string) error {
+func (mm *MacieMember) Nuke(identifiers []string) error {
 	if err := mm.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 // List all IAM Roles in the AWS account
-func (ir IAMRoles) getAll(configObj config.Config) ([]*string, error) {
+func (ir *IAMRoles) getAll(configObj config.Config) ([]*string, error) {
 	allIAMRoles := []*string{}
 	err := ir.Client.ListRolesPages(
 		&iam.ListRolesInput{},
@@ -35,7 +35,7 @@ func (ir IAMRoles) getAll(configObj config.Config) ([]*string, error) {
 	return allIAMRoles, nil
 }
 
-func (ir IAMRoles) deleteManagedRolePolicies(roleName *string) error {
+func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
 	policiesOutput, err := ir.Client.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
 		RoleName: roleName,
 	})
@@ -59,7 +59,7 @@ func (ir IAMRoles) deleteManagedRolePolicies(roleName *string) error {
 	return nil
 }
 
-func (ir IAMRoles) deleteInlineRolePolicies(roleName *string) error {
+func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
 	policyOutput, err := ir.Client.ListRolePolicies(&iam.ListRolePoliciesInput{
 		RoleName: roleName,
 	})
@@ -83,7 +83,7 @@ func (ir IAMRoles) deleteInlineRolePolicies(roleName *string) error {
 	return nil
 }
 
-func (ir IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
+func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 	profilesOutput, err := ir.Client.ListInstanceProfilesForRole(&iam.ListInstanceProfilesForRoleInput{
 		RoleName: roleName,
 	})
@@ -115,7 +115,7 @@ func (ir IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 	return nil
 }
 
-func (ir IAMRoles) deleteIamRole(roleName *string) error {
+func (ir *IAMRoles) deleteIamRole(roleName *string) error {
 	_, err := ir.Client.DeleteRole(&iam.DeleteRoleInput{
 		RoleName: roleName,
 	})
@@ -127,7 +127,7 @@ func (ir IAMRoles) deleteIamRole(roleName *string) error {
 }
 
 // Delete all IAM Roles
-func (ir IAMRoles) nukeAll(roleNames []*string) error {
+func (ir *IAMRoles) nukeAll(roleNames []*string) error {
 	if len(roleNames) == 0 {
 		logging.Logger.Debug("No IAM Roles to nuke")
 		return nil
@@ -175,7 +175,7 @@ func (ir IAMRoles) nukeAll(roleNames []*string) error {
 	return nil
 }
 
-func (ir IAMRoles) shouldInclude(iamRole *iam.Role, configObj config.Config) bool {
+func (ir *IAMRoles) shouldInclude(iamRole *iam.Role, configObj config.Config) bool {
 	if iamRole == nil {
 		return false
 	}
@@ -199,7 +199,7 @@ func (ir IAMRoles) shouldInclude(iamRole *iam.Role, configObj config.Config) boo
 	})
 }
 
-func (ir IAMRoles) deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, roleName *string) {
+func (ir *IAMRoles) deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, roleName *string) {
 	defer wg.Done()
 
 	var result *multierror.Error

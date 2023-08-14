@@ -11,7 +11,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (ct CloudtrailTrail) getAll(configObj config.Config) ([]*string, error) {
+func (ct *CloudtrailTrail) getAll(configObj config.Config) ([]*string, error) {
 	param := &cloudtrail.ListTrailsInput{}
 
 	trailIds := []*string{}
@@ -35,7 +35,7 @@ func (ct CloudtrailTrail) getAll(configObj config.Config) ([]*string, error) {
 	return trailIds, nil
 }
 
-func (ct CloudtrailTrail) nukeAll(arns []*string) error {
+func (ct *CloudtrailTrail) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
 		logging.Logger.Debugf("No Cloudtrail Trails to nuke in region %s", ct.Region)
 		return nil
