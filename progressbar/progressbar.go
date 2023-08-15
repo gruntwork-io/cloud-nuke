@@ -25,3 +25,11 @@ func WithTotal(i int) {
 func UpdateTitle(t string) {
 	p = p.UpdateTitle(t)
 }
+
+// StartProgressBarWithLength - Starts the progress bar with the correct number of items
+func StartProgressBarWithLength(length int) {
+	// Update the progress bar to have the correct width based on the total number of unique resource targteds
+	WithTotal(length)
+	p := GetProgressbar()
+	p.Start()
+}

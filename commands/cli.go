@@ -2,6 +2,9 @@ package commands
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/aws/resources"
+	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"os"
 	"strings"
 	"time"
@@ -9,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
-	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/ui"
@@ -469,8 +471,8 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 		return errors.WithStackTrace(spinnerErr)
 	}
 
-	vpcPerRegion := aws.NewVpcPerRegion(regions)
-	vpcPerRegion, err := aws.GetDefaultVpcs(vpcPerRegion)
+	vpcPerRegion := resources.NewVpcPerRegion(regions)
+	vpcPerRegion, err := resources.GetDefaultVpcs(vpcPerRegion)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -512,8 +514,8 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	if proceed || c.Bool("force") {
 		// Start nuke progress bar with correct number of items
-		aws.StartProgressBarWithLength(len(targetedRegionList))
-		err := aws.NukeVpcs(vpcPerRegion)
+		progressbar.StartProgressBarWithLength(len(targetedRegionList))
+		err := resources.NukeVpcs(vpcPerRegion)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		}
@@ -533,7 +535,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 		return errors.WithStackTrace(spinnerErr)
 	}
 
-	defaultSgs, err := aws.GetDefaultSecurityGroups(regions)
+	defaultSgs, err := resources.GetDefaultSecurityGroups(regions)
 	spinnerSuccess.Stop()
 	if err != nil {
 		return errors.WithStackTrace(err)
@@ -573,7 +575,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	}
 
 	if proceed || c.Bool("force") {
-		err := aws.NukeDefaultSecurityGroupRules(defaultSgs)
+		err := resources.NukeDefaultSecurityGroupRules(defaultSgs)
 		if err != nil {
 			logging.Logger.Errorf("[Failed] %s", err)
 		}

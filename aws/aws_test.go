@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ func TestSplit(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		assert.Equal(t, testCase.expected, split(testCase.array, testCase.limit))
+		assert.Equal(t, testCase.expected, util.Split(testCase.array, testCase.limit))
 	}
 }
 

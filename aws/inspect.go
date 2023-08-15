@@ -2,7 +2,6 @@ package aws
 
 import (
 	"fmt"
-
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/ui"
