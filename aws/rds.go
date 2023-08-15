@@ -12,7 +12,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (di DBInstances) getAll(configObj config.Config) ([]*string, error) {
+func (di *DBInstances) getAll(configObj config.Config) ([]*string, error) {
 	result, err := di.Client.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -32,7 +32,7 @@ func (di DBInstances) getAll(configObj config.Config) ([]*string, error) {
 	return names, nil
 }
 
-func (di DBInstances) nukeAll(names []*string) error {
+func (di *DBInstances) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Logger.Debugf("No RDS DB Instance to nuke in region %s", di.Region)
 		return nil

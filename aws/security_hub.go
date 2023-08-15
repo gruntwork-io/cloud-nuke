@@ -15,7 +15,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (sh SecurityHub) getAll(configObj config.Config) ([]*string, error) {
+func (sh *SecurityHub) getAll(configObj config.Config) ([]*string, error) {
 	var securityHubArns []*string
 
 	output, err := sh.Client.DescribeHub(&securityhub.DescribeHubInput{})
@@ -48,7 +48,7 @@ func shouldIncludeHub(hub *securityhub.DescribeHubOutput, configObj config.Confi
 	return configObj.SecurityHub.ShouldInclude(config.ResourceValue{Time: &subscribedAt})
 }
 
-func (sh SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
+func (sh *SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
 	var hubMemberAccountIds []*string
 
 	// OnlyAssociated=false input parameter includes "pending" invite members
@@ -73,7 +73,7 @@ func (sh SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
 	return hubMemberAccountIds, nil
 }
 
-func (sh SecurityHub) removeMembersFromHub(accountIds []*string) error {
+func (sh *SecurityHub) removeMembersFromHub(accountIds []*string) error {
 
 	// Member accounts must first be disassociated
 	_, err := sh.Client.DisassociateMembers(&securityhub.DisassociateMembersInput{AccountIds: accountIds})
@@ -92,7 +92,7 @@ func (sh SecurityHub) removeMembersFromHub(accountIds []*string) error {
 	return nil
 }
 
-func (sh SecurityHub) nukeAll(securityHubArns []string) error {
+func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	if len(securityHubArns) == 0 {
 		logging.Logger.Debugf("No security hub resources to nuke in region %s", sh.Region)
 		return nil

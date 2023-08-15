@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,22 +16,26 @@ type LoadBalancersV2 struct {
 	Arns   []string
 }
 
+func (balancer *LoadBalancersV2) Init(session *session.Session) {
+	balancer.Client = elbv2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (balancer LoadBalancersV2) ResourceName() string {
+func (balancer *LoadBalancersV2) ResourceName() string {
 	return "elbv2"
 }
 
-func (balancer LoadBalancersV2) MaxBatchSize() int {
+func (balancer *LoadBalancersV2) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // ResourceIdentifiers - The arns of the load balancers
-func (balancer LoadBalancersV2) ResourceIdentifiers() []string {
+func (balancer *LoadBalancersV2) ResourceIdentifiers() []string {
 	return balancer.Arns
 }
 
-func (balancer LoadBalancersV2) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (balancer *LoadBalancersV2) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := balancer.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -40,7 +46,7 @@ func (balancer LoadBalancersV2) GetAndSetIdentifiers(configObj config.Config) ([
 }
 
 // Nuke - nuke 'em all!!!
-func (balancer LoadBalancersV2) Nuke(identifiers []string) error {
+func (balancer *LoadBalancersV2) Nuke(identifiers []string) error {
 	if err := balancer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

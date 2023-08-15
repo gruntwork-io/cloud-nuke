@@ -16,7 +16,7 @@ import (
 )
 
 // Returns a formatted string of AMI Image ids
-func (ami AMIs) getAll(configObj config.Config) ([]*string, error) {
+func (ami *AMIs) getAll(configObj config.Config) ([]*string, error) {
 	params := &ec2.DescribeImagesInput{
 		Owners: []*string{awsgo.String("self")},
 	}
@@ -46,7 +46,7 @@ func (ami AMIs) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // Deletes all AMI
-func (ami AMIs) nukeAll(imageIds []*string) error {
+func (ami *AMIs) nukeAll(imageIds []*string) error {
 	if len(imageIds) == 0 {
 		logging.Logger.Debugf("No AMI to nuke in region %s", ami.Region)
 		return nil

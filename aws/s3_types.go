@@ -2,6 +2,8 @@ package aws
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -15,35 +17,39 @@ type S3Buckets struct {
 	Names  []string
 }
 
+func (bucket *S3Buckets) Init(session *session.Session) {
+	bucket.Client = s3.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (bucket S3Buckets) ResourceName() string {
+func (bucket *S3Buckets) ResourceName() string {
 	return "s3"
 }
 
 // MaxBatchSize decides how many S3 buckets to delete in one call.
-func (bucket S3Buckets) MaxBatchSize() int {
+func (bucket *S3Buckets) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 500
 }
 
 // MaxConcurrentGetSize decides how many S3 buckets to fetch in one call.
-func (bucket S3Buckets) MaxConcurrentGetSize() int {
+func (bucket *S3Buckets) MaxConcurrentGetSize() int {
 	// To speed up bucket fetch part.
 	return 100
 }
 
 // ObjectMaxBatchSize decides how many unique objects of an S3 bucket (object + version = unique object) to delete in one call.
-func (bucket S3Buckets) ObjectMaxBatchSize() int {
+func (bucket *S3Buckets) ObjectMaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 1000
 }
 
 // ResourceIdentifiers - The names of the S3 buckets
-func (bucket S3Buckets) ResourceIdentifiers() []string {
+func (bucket *S3Buckets) ResourceIdentifiers() []string {
 	return bucket.Names
 }
 
-func (bucket S3Buckets) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (bucket *S3Buckets) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := bucket.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -54,7 +60,7 @@ func (bucket S3Buckets) GetAndSetIdentifiers(configObj config.Config) ([]string,
 }
 
 // Nuke - nuke 'em all!!!
-func (bucket S3Buckets) Nuke(identifiers []string) error {
+func (bucket *S3Buckets) Nuke(identifiers []string) error {
 	delCount, err := bucket.nukeAll(aws.StringSlice(identifiers))
 
 	totalCount := len(identifiers)

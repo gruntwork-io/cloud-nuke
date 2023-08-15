@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/aws/aws-sdk-go/service/guardduty/guarddutyiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 )
@@ -12,19 +14,23 @@ type GuardDuty struct {
 	detectorIds []string
 }
 
-func (gd GuardDuty) ResourceName() string {
+func (gd *GuardDuty) Init(session *session.Session) {
+	gd.Client = guardduty.New(session)
+}
+
+func (gd *GuardDuty) ResourceName() string {
 	return "guardduty"
 }
 
-func (gd GuardDuty) ResourceIdentifiers() []string {
+func (gd *GuardDuty) ResourceIdentifiers() []string {
 	return gd.detectorIds
 }
 
-func (gd GuardDuty) MaxBatchSize() int {
+func (gd *GuardDuty) MaxBatchSize() int {
 	return 10
 }
 
-func (gd GuardDuty) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (gd *GuardDuty) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := gd.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -34,6 +40,6 @@ func (gd GuardDuty) GetAndSetIdentifiers(configObj config.Config) ([]string, err
 	return gd.detectorIds, nil
 }
 
-func (gd GuardDuty) Nuke(detectorIds []string) error {
+func (gd *GuardDuty) Nuke(detectorIds []string) error {
 	return gd.nukeAll(detectorIds)
 }

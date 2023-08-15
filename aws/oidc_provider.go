@@ -28,7 +28,7 @@ type oidcProvider struct {
 // the requested rules (older-than and config file settings). Note that since the list API does not return the necessary
 // information to implement the filters, we use goroutines to asynchronously and concurrently fetch the details for all
 // the providers that are found in the account.
-func (oidcprovider OIDCProviders) getAll(configObj config.Config) ([]*string, error) {
+func (oidcprovider *OIDCProviders) getAll(configObj config.Config) ([]*string, error) {
 	output, err := oidcprovider.Client.ListOpenIDConnectProviders(&iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -57,7 +57,7 @@ func (oidcprovider OIDCProviders) getAll(configObj config.Config) ([]*string, er
 
 // getAllOIDCProviderDetails fetches the details of the given list of OpenID Connect Providers so that we can make
 // informed decisions about which ones should be included in the nuking procedure.
-func (oidcprovider OIDCProviders) getAllOIDCProviderDetails(providerARNs []*string) ([]oidcProvider, error) {
+func (oidcprovider *OIDCProviders) getAllOIDCProviderDetails(providerARNs []*string) ([]oidcProvider, error) {
 	numRetrieving := len(providerARNs)
 
 	// Schedule goroutines to retrieve the provider details async.
@@ -97,7 +97,7 @@ func (oidcprovider OIDCProviders) getAllOIDCProviderDetails(providerARNs []*stri
 
 // getOIDCProviderDetailAsync is a routine for fetching the details of a single OpenID Connect Provider. This function
 // is designed to be called in a goroutine.
-func (oidcprovider OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvider, errChan chan error, providerARN *string) {
+func (oidcprovider *OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvider, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
 	resp, err := oidcprovider.Client.GetOpenIDConnectProvider(&iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
@@ -127,7 +127,7 @@ func (oidcprovider OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup,
 }
 
 // nukeAllOIDCProviders deletes all the given OpenID Connect Providers from the account.
-func (oidcprovider OIDCProviders) nukeAll(identifiers []*string) error {
+func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No OIDC Providers to nuke")
 		return nil
@@ -177,7 +177,7 @@ func (oidcprovider OIDCProviders) nukeAll(identifiers []*string) error {
 
 // deleteAsync deletes the provided OIDC Provider asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors.
-func (oidcprovider OIDCProviders) deleteAsync(wg *sync.WaitGroup, errChan chan error, providerARN *string) {
+func (oidcprovider *OIDCProviders) deleteAsync(wg *sync.WaitGroup, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
 	_, err := oidcprovider.Client.DeleteOpenIDConnectProvider(

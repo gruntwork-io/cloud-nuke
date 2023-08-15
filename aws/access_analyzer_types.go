@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer/accessanalyzeriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,24 +16,28 @@ type AccessAnalyzer struct {
 	AnalyzerNames []string
 }
 
+func (analyzer *AccessAnalyzer) Init(session *session.Session) {
+	analyzer.Client = accessanalyzer.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (analyzer AccessAnalyzer) ResourceName() string {
+func (analyzer *AccessAnalyzer) ResourceName() string {
 	return "accessanalyzer"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (analyzer AccessAnalyzer) ResourceIdentifiers() []string {
+func (analyzer *AccessAnalyzer) ResourceIdentifiers() []string {
 	return analyzer.AnalyzerNames
 }
 
-func (analyzer AccessAnalyzer) MaxBatchSize() int {
+func (analyzer *AccessAnalyzer) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that IAM Access Analyzer does not support bulk delete,
 	// so we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
 	// overloading the runtime and to avoid AWS throttling with many API calls.
 	return 10
 }
 
-func (analyzer AccessAnalyzer) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (analyzer *AccessAnalyzer) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := analyzer.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -42,7 +48,7 @@ func (analyzer AccessAnalyzer) GetAndSetIdentifiers(configObj config.Config) ([]
 }
 
 // Nuke - nuke 'em all!!!
-func (analyzer AccessAnalyzer) Nuke(identifiers []string) error {
+func (analyzer *AccessAnalyzer) Nuke(identifiers []string) error {
 	if err := analyzer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

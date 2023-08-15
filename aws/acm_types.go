@@ -3,6 +3,7 @@ package aws
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/aws/aws-sdk-go/service/acm/acmiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -15,38 +16,38 @@ type ACM struct {
 	ARNs   []string
 }
 
-func (acm *ACM) Init(session session.Session) {
-
+func (a *ACM) Init(session *session.Session) {
+	a.Client = acm.New(session)
 }
 
 // ResourceName - the simple name of the aws resource
-func (acm ACM) ResourceName() string {
+func (a *ACM) ResourceName() string {
 	return "acm"
 }
 
 // ResourceIdentifiers - the arns of the aws certificate manager certificates
-func (acm ACM) ResourceIdentifiers() []string {
-	return acm.ARNs
+func (a *ACM) ResourceIdentifiers() []string {
+	return a.ARNs
 }
 
-func (acm ACM) MaxBatchSize() int {
+func (a *ACM) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 10
 }
 
-func (acm ACM) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := acm.getAll(configObj)
+func (a *ACM) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+	identifiers, err := a.getAll(configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	acm.ARNs = awsgo.StringValueSlice(identifiers)
-	return acm.ARNs, nil
+	a.ARNs = awsgo.StringValueSlice(identifiers)
+	return a.ARNs, nil
 }
 
 // Nuke - nuke 'em all!!!
-func (acm ACM) Nuke(arns []string) error {
-	if err := acm.nukeAll(awsgo.StringSlice(arns)); err != nil {
+func (a *ACM) Nuke(arns []string) error {
+	if err := a.nukeAll(awsgo.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -14,7 +14,7 @@ import (
 )
 
 // Returns a formatted string of EBS volume ids
-func (ev EBSVolumes) getAll(configObj config.Config) ([]*string, error) {
+func (ev *EBSVolumes) getAll(configObj config.Config) ([]*string, error) {
 	// Available statuses: (creating | available | in-use | deleting | deleted | error).
 	// Since the output of this function is used to delete the returned volumes
 	// We want to only list EBS volumes with a status of "available" or "creating"
@@ -53,7 +53,7 @@ func shouldIncludeEBSVolume(volume *ec2.Volume, configObj config.Config) bool {
 }
 
 // Deletes all EBS Volumes
-func (ev EBSVolumes) nukeAll(volumeIds []*string) error {
+func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 	if len(volumeIds) == 0 {
 		logging.Logger.Debugf("No EBS volumes to nuke in region %s", ev.Region)
 		return nil

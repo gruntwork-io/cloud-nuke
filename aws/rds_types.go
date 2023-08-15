@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -13,21 +15,25 @@ type DBInstances struct {
 	InstanceNames []string
 }
 
-func (di DBInstances) ResourceName() string {
+func (di *DBInstances) Init(session *session.Session) {
+	di.Client = rds.New(session)
+}
+
+func (di *DBInstances) ResourceName() string {
 	return "rds"
 }
 
 // ResourceIdentifiers - The instance names of the rds db instances
-func (di DBInstances) ResourceIdentifiers() []string {
+func (di *DBInstances) ResourceIdentifiers() []string {
 	return di.InstanceNames
 }
 
-func (di DBInstances) MaxBatchSize() int {
+func (di *DBInstances) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (di DBInstances) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (di *DBInstances) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := di.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -38,7 +44,7 @@ func (di DBInstances) GetAndSetIdentifiers(configObj config.Config) ([]string, e
 }
 
 // Nuke - nuke 'em all!!!
-func (di DBInstances) Nuke(identifiers []string) error {
+func (di *DBInstances) Nuke(identifiers []string) error {
 	if err := di.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

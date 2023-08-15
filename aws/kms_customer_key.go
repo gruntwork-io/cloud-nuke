@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (kck KmsCustomerKeys) getAll(configObj config.Config) ([]*string, error) {
+func (kck *KmsCustomerKeys) getAll(configObj config.Config) ([]*string, error) {
 	// Collect all keys in the account
 	var keys []string
 	err := kck.Client.ListKeysPages(&kms.ListKeysInput{}, func(page *kms.ListKeysOutput, lastPage bool) bool {
@@ -101,7 +101,7 @@ type KmsCheckIncludeResult struct {
 	Error error
 }
 
-func (kck KmsCustomerKeys) shouldInclude(
+func (kck *KmsCustomerKeys) shouldInclude(
 	wg *sync.WaitGroup,
 	resultsChan chan *KmsCheckIncludeResult,
 	key string,
@@ -164,7 +164,7 @@ func (kck KmsCustomerKeys) shouldInclude(
 	resultsChan <- &KmsCheckIncludeResult{KeyId: key}
 }
 
-func (kck KmsCustomerKeys) nukeAll(keyIds []*string) error {
+func (kck *KmsCustomerKeys) nukeAll(keyIds []*string) error {
 	if len(keyIds) == 0 {
 		logging.Logger.Debugf("No Customer Keys to nuke in region %s", kck.Region)
 		return nil
@@ -205,7 +205,7 @@ func (kck KmsCustomerKeys) nukeAll(keyIds []*string) error {
 	return errors.WithStackTrace(allErrs.ErrorOrNil())
 }
 
-func (kck KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) {
+func (kck *KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) {
 	defer wg.Done()
 
 	for _, aliasName := range aliases {
@@ -220,7 +220,7 @@ func (kck KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) {
 	}
 }
 
-func (kck KmsCustomerKeys) requestKeyDeletion(wg *sync.WaitGroup, errChan chan error, key *string) {
+func (kck *KmsCustomerKeys) requestKeyDeletion(wg *sync.WaitGroup, errChan chan error, key *string) {
 	defer wg.Done()
 	input := &kms.ScheduleKeyDeletionInput{KeyId: key, PendingWindowInDays: aws.Int64(int64(kmsRemovalWindow))}
 	_, err := kck.Client.ScheduleKeyDeletion(input)

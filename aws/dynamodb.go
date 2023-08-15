@@ -13,7 +13,7 @@ import (
 	"log"
 )
 
-func (ddb DynamoDB) getAll(configObj config.Config) ([]*string, error) {
+func (ddb *DynamoDB) getAll(configObj config.Config) ([]*string, error) {
 	var tableNames []*string
 
 	err := ddb.Client.ListTablesPages(
@@ -42,7 +42,7 @@ func (ddb DynamoDB) getAll(configObj config.Config) ([]*string, error) {
 	return tableNames, nil
 }
 
-func (ddb DynamoDB) nukeAll(tables []*string) error {
+func (ddb *DynamoDB) nukeAll(tables []*string) error {
 	if len(tables) == 0 {
 		logging.Logger.Debugf("No DynamoDB tables to nuke in region %s", ddb.Region)
 		return nil

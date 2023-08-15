@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ks KinesisStreams) getAll(configObj config.Config) ([]*string, error) {
+func (ks *KinesisStreams) getAll(configObj config.Config) ([]*string, error) {
 	allStreams := []*string{}
 	err := ks.Client.ListStreamsPages(&kinesis.ListStreamsInput{}, func(page *kinesis.ListStreamsOutput, lastPage bool) bool {
 		for _, stream := range page.StreamNames {
@@ -36,7 +36,7 @@ func (ks KinesisStreams) getAll(configObj config.Config) ([]*string, error) {
 	return allStreams, nil
 }
 
-func (ks KinesisStreams) nukeAll(identifiers []*string) error {
+func (ks *KinesisStreams) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No Kinesis Streams to nuke in region: %s", ks.Region)
 	}
@@ -85,7 +85,7 @@ func (ks KinesisStreams) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func (ks KinesisStreams) deleteAsync(
+func (ks *KinesisStreams) deleteAsync(
 	wg *sync.WaitGroup,
 	errChan chan error,
 	streamName *string,

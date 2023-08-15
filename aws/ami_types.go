@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,22 +16,26 @@ type AMIs struct {
 	ImageIds []string
 }
 
+func (ami *AMIs) Init(session *session.Session) {
+	ami.Client = ec2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (ami AMIs) ResourceName() string {
+func (ami *AMIs) ResourceName() string {
 	return "ami"
 }
 
 // ResourceIdentifiers - The AMI image ids
-func (ami AMIs) ResourceIdentifiers() []string {
+func (ami *AMIs) ResourceIdentifiers() []string {
 	return ami.ImageIds
 }
 
-func (ami AMIs) MaxBatchSize() int {
+func (ami *AMIs) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (ami AMIs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (ami *AMIs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := ami.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -40,7 +46,7 @@ func (ami AMIs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) 
 }
 
 // Nuke - nuke 'em all!!!
-func (ami AMIs) Nuke(identifiers []string) error {
+func (ami *AMIs) Nuke(identifiers []string) error {
 	if err := ami.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

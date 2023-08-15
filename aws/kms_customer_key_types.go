@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -18,22 +20,26 @@ type KmsCustomerKeys struct {
 	KeyAliases map[string][]string
 }
 
+func (kck *KmsCustomerKeys) Init(session *session.Session) {
+	kck.Client = kms.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (kck KmsCustomerKeys) ResourceName() string {
+func (kck *KmsCustomerKeys) ResourceName() string {
 	return "kmscustomerkeys"
 }
 
 // ResourceIdentifiers - The KMS Key IDs
-func (kck KmsCustomerKeys) ResourceIdentifiers() []string {
+func (kck *KmsCustomerKeys) ResourceIdentifiers() []string {
 	return kck.KeyIds
 }
 
 // MaxBatchSize - Requests batch size
-func (kck KmsCustomerKeys) MaxBatchSize() int {
+func (kck *KmsCustomerKeys) MaxBatchSize() int {
 	return 49
 }
 
-func (kck KmsCustomerKeys) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (kck *KmsCustomerKeys) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := kck.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -44,7 +50,7 @@ func (kck KmsCustomerKeys) GetAndSetIdentifiers(configObj config.Config) ([]stri
 }
 
 // Nuke - remove all customer managed keys
-func (kck KmsCustomerKeys) Nuke(keyIds []string) error {
+func (kck *KmsCustomerKeys) Nuke(keyIds []string) error {
 	if err := kck.nukeAll(awsgo.StringSlice(keyIds)); err != nil {
 		return errors.WithStackTrace(err)
 	}

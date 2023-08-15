@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ngw NatGateways) getAll(configObj config.Config) ([]*string, error) {
+func (ngw *NatGateways) getAll(configObj config.Config) ([]*string, error) {
 	allNatGateways := []*string{}
 	input := &ec2.DescribeNatGatewaysInput{}
 	err := ngw.Client.DescribeNatGatewaysPages(
@@ -62,7 +62,7 @@ func getNatGatewayName(ngw *ec2.NatGateway) *string {
 	return nil
 }
 
-func (ngw NatGateways) nukeAll(identifiers []*string) error {
+func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No Nat Gateways to nuke in region %s", ngw.Region)
 		return nil
@@ -135,7 +135,7 @@ func (ngw NatGateways) nukeAll(identifiers []*string) error {
 // areAllNatGatewaysDeleted returns true if all the requested NAT gateways have been deleted. This is determined by
 // querying for the statuses of all the NAT gateways, and checking if AWS knows about them (if not, the NAT gateway was
 // deleted and rolled off AWS DB) or if the status was updated to deleted.
-func (ngw NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, error) {
+func (ngw *NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, error) {
 	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
 	// based on NatGateways.MaxBatchSize.
 	resp, err := ngw.Client.DescribeNatGateways(&ec2.DescribeNatGatewaysInput{NatGatewayIds: identifiers})
@@ -163,7 +163,7 @@ func (ngw NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, er
 
 // deleteNatGatewaysAsync deletes the provided NAT Gateway asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors.
-func (ngw NatGateways) deleteAsync(wg *sync.WaitGroup, errChan chan error, ngwID *string) {
+func (ngw *NatGateways) deleteAsync(wg *sync.WaitGroup, errChan chan error, ngwID *string) {
 	defer wg.Done()
 
 	input := &ec2.DeleteNatGatewayInput{NatGatewayId: ngwID}

@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -13,22 +15,26 @@ type EC2VPCs struct {
 	VPCIds []string
 }
 
+func (v *EC2VPCs) Init(session *session.Session) {
+	v.Client = ec2.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (v EC2VPCs) ResourceName() string {
+func (v *EC2VPCs) ResourceName() string {
 	return "vpc"
 }
 
 // ResourceIdentifiers - The instance ids of the ec2 instances
-func (v EC2VPCs) ResourceIdentifiers() []string {
+func (v *EC2VPCs) ResourceIdentifiers() []string {
 	return v.VPCIds
 }
 
-func (v EC2VPCs) MaxBatchSize() int {
+func (v *EC2VPCs) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (v EC2VPCs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (v *EC2VPCs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := v.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -39,7 +45,7 @@ func (v EC2VPCs) GetAndSetIdentifiers(configObj config.Config) ([]string, error)
 }
 
 // Nuke - nuke 'em all!!!
-func (v EC2VPCs) Nuke(identifiers []string) error {
+func (v *EC2VPCs) Nuke(identifiers []string) error {
 	if err := v.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

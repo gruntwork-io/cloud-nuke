@@ -12,7 +12,7 @@ import (
 )
 
 // Returns a formatted string of ASG Names
-func (ag ASGroups) getAll(configObj config.Config) ([]*string, error) {
+func (ag *ASGroups) getAll(configObj config.Config) ([]*string, error) {
 	result, err := ag.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -32,7 +32,7 @@ func (ag ASGroups) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // Deletes all Auto Scaling Groups
-func (ag ASGroups) nukeAll(groupNames []*string) error {
+func (ag *ASGroups) nukeAll(groupNames []*string) error {
 	if len(groupNames) == 0 {
 		logging.Logger.Debugf("No Auto Scaling Groups to nuke in region %s", ag.Region)
 		return nil

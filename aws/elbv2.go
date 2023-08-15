@@ -12,7 +12,7 @@ import (
 )
 
 // Returns a formatted string of ELBv2 Arns
-func (balancer LoadBalancersV2) getAll(configObj config.Config) ([]*string, error) {
+func (balancer *LoadBalancersV2) getAll(configObj config.Config) ([]*string, error) {
 	result, err := balancer.Client.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -32,7 +32,7 @@ func (balancer LoadBalancersV2) getAll(configObj config.Config) ([]*string, erro
 }
 
 // Deletes all Elastic Load Balancers
-func (balancer LoadBalancersV2) nukeAll(arns []*string) error {
+func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
 		logging.Logger.Debugf("No V2 Elastic Load Balancers to nuke in region %s", balancer.Region)
 		return nil

@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-func (c CodeDeployApplications) getAll(configObj config.Config) ([]*string, error) {
+func (c *CodeDeployApplications) getAll(configObj config.Config) ([]*string, error) {
 	codeDeployApplicationsFilteredByName := []string{}
 
 	err := c.Client.ListApplicationsPages(
@@ -39,7 +39,7 @@ func (c CodeDeployApplications) getAll(configObj config.Config) ([]*string, erro
 }
 
 // batchDescribeAndFilterCodeDeployApplications - Describe the CodeDeploy Applications and filter out the ones that should be excluded by CreationDate.
-func (c CodeDeployApplications) batchDescribeAndFilter(identifiers []string, configObj config.Config) ([]*string, error) {
+func (c *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, configObj config.Config) ([]*string, error) {
 	// BatchGetApplications can only take 100 identifiers at a time, so we have to break up the identifiers into chunks of 100.
 	batchSize := 100
 	var applicationNames []*string
@@ -81,7 +81,7 @@ func (c CodeDeployApplications) batchDescribeAndFilter(identifiers []string, con
 	return applicationNames, nil
 }
 
-func (c CodeDeployApplications) nukeAll(identifiers []string) error {
+func (c *CodeDeployApplications) nukeAll(identifiers []string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No CodeDeploy Applications to nuke in region %s", c.Region)
 		return nil
@@ -120,7 +120,7 @@ func (c CodeDeployApplications) nukeAll(identifiers []string) error {
 	return nil
 }
 
-func (c CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
+func (c *CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
 	defer wg.Done()
 
 	_, err := c.Client.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})

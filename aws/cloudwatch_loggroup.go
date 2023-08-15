@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (csr CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, error) {
+func (csr *CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, error) {
 	allLogGroups := []*string{}
 	err := csr.Client.DescribeLogGroupsPages(
 		&cloudwatchlogs.DescribeLogGroupsInput{},
@@ -44,7 +44,7 @@ func (csr CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, error
 	return allLogGroups, nil
 }
 
-func (csr CloudWatchLogGroups) nukeAll(identifiers []*string) error {
+func (csr *CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No CloudWatch Log Groups to nuke in region %s", csr.Region)
 		return nil
@@ -96,7 +96,7 @@ func (csr CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 
 // deleteAsync deletes the provided Log Group asynchronously in a goroutine, using wait groups for
 // concurrency control and a return channel for errors.
-func (csr CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, logGroupName *string) {
+func (csr *CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, logGroupName *string) {
 	defer wg.Done()
 	input := &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: logGroupName}
 	_, err := csr.Client.DeleteLogGroup(input)

@@ -15,7 +15,7 @@ import (
 )
 
 // Returns a formatted string of Elasticache cluster Ids
-func (cache Elasticaches) getAll(configObj config.Config) ([]*string, error) {
+func (cache *Elasticaches) getAll(configObj config.Config) ([]*string, error) {
 	// First, get any cache clusters that are replication groups, which will be the case for all multi-node Redis clusters
 	replicationGroupsResult, replicationGroupsErr := cache.Client.DescribeReplicationGroups(&elasticache.DescribeReplicationGroupsInput{})
 	if replicationGroupsErr != nil {
@@ -61,7 +61,7 @@ const (
 	Single      CacheClusterType = "single"
 )
 
-func (cache Elasticaches) determineCacheClusterType(clusterId *string) (*string, CacheClusterType, error) {
+func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string, CacheClusterType, error) {
 	replicationGroupDescribeParams := &elasticache.DescribeReplicationGroupsInput{
 		ReplicationGroupId: clusterId,
 	}
@@ -106,7 +106,7 @@ func (cache Elasticaches) determineCacheClusterType(clusterId *string) (*string,
 	return nil, Single, CouldNotLookupCacheClusterErr{ClusterId: clusterId}
 }
 
-func (cache Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *string) error {
+func (cache *Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *string) error {
 	logging.Logger.Debugf("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.StringValue(clusterId))
 	params := elasticache.DeleteCacheClusterInput{
 		CacheClusterId: clusterId,
@@ -121,7 +121,7 @@ func (cache Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *s
 	})
 }
 
-func (cache Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterId *string) error {
+func (cache *Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterId *string) error {
 	logging.Logger.Debugf("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.StringValue(clusterId))
 
 	params := &elasticache.DeleteReplicationGroupInput{
@@ -145,7 +145,7 @@ func (cache Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterId
 	return nil
 }
 
-func (cache Elasticaches) nukeAll(clusterIds []*string) error {
+func (cache *Elasticaches) nukeAll(clusterIds []*string) error {
 	if len(clusterIds) == 0 {
 		logging.Logger.Debugf("No Elasticache clusters to nuke in region %s", cache.Region)
 		return nil
@@ -210,7 +210,7 @@ func (err CouldNotLookupCacheClusterErr) Error() string {
 Elasticache Parameter Groups
 */
 
-func (pg ElasticacheParameterGroups) getAll(configObj config.Config) ([]*string, error) {
+func (pg *ElasticacheParameterGroups) getAll(configObj config.Config) ([]*string, error) {
 	var paramGroupNames []*string
 	err := pg.Client.DescribeCacheParameterGroupsPages(
 		&elasticache.DescribeCacheParameterGroupsInput{},
@@ -227,7 +227,7 @@ func (pg ElasticacheParameterGroups) getAll(configObj config.Config) ([]*string,
 	return paramGroupNames, errors.WithStackTrace(err)
 }
 
-func (pg ElasticacheParameterGroups) shouldInclude(paramGroup *elasticache.CacheParameterGroup, configObj config.Config) bool {
+func (pg *ElasticacheParameterGroups) shouldInclude(paramGroup *elasticache.CacheParameterGroup, configObj config.Config) bool {
 	if paramGroup == nil {
 		return false
 	}
@@ -241,7 +241,7 @@ func (pg ElasticacheParameterGroups) shouldInclude(paramGroup *elasticache.Cache
 	})
 }
 
-func (pg ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
+func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 	if len(paramGroupNames) == 0 {
 		logging.Logger.Debugf("No Elasticache parameter groups to nuke in region %s", pg.Region)
 		return nil
@@ -276,7 +276,7 @@ func (pg ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 /*
 Elasticache Subnet Groups
 */
-func (sg ElasticacheSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
+func (sg *ElasticacheSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
 	var subnetGroupNames []*string
 	err := sg.Client.DescribeCacheSubnetGroupsPages(
 		&elasticache.DescribeCacheSubnetGroupsInput{},
@@ -296,7 +296,7 @@ func (sg ElasticacheSubnetGroups) getAll(configObj config.Config) ([]*string, er
 	return subnetGroupNames, errors.WithStackTrace(err)
 }
 
-func (sg ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
+func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
 	if len(subnetGroupNames) == 0 {
 		logging.Logger.Debugf("No Elasticache subnet groups to nuke in region %s", sg.Region)
 		return nil

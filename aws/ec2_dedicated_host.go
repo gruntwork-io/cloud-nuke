@@ -13,7 +13,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (h EC2DedicatedHosts) getAll(configObj config.Config) ([]*string, error) {
+func (h *EC2DedicatedHosts) getAll(configObj config.Config) ([]*string, error) {
 	var hostIds []*string
 
 	describeHostsInput := &ec2.DescribeHostsInput{
@@ -69,7 +69,7 @@ func shouldIncludeHostId(host *ec2.Host, configObj config.Config) bool {
 	})
 }
 
-func (h EC2DedicatedHosts) nukeAll(hostIds []*string) error {
+func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 	if len(hostIds) == 0 {
 		logging.Logger.Debugf("No EC2 dedicated hosts to nuke in region %s", h.Region)
 		return nil

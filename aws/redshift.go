@@ -11,7 +11,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (rc RedshiftClusters) getAll(configObj config.Config) ([]*string, error) {
+func (rc *RedshiftClusters) getAll(configObj config.Config) ([]*string, error) {
 	var clusterIds []*string
 	err := rc.Client.DescribeClustersPages(
 		&redshift.DescribeClustersInput{},
@@ -32,7 +32,7 @@ func (rc RedshiftClusters) getAll(configObj config.Config) ([]*string, error) {
 	return clusterIds, errors.WithStackTrace(err)
 }
 
-func (rc RedshiftClusters) nukeAll(identifiers []*string) error {
+func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No Redshift Clusters to nuke in region %s", rc.Region)
 		return nil

@@ -26,7 +26,7 @@ const describeClustersRequestBatchSize = 100
 
 // getAllEcsClusters - Returns a string of ECS Cluster ARNs, which uniquely identifies the cluster.
 // We need to get all clusters before we can get all services.
-func (clusters ECSClusters) getAllEcsClusters() ([]*string, error) {
+func (clusters *ECSClusters) getAllEcsClusters() ([]*string, error) {
 	clusterArns := []*string{}
 	result, err := clusters.Client.ListClusters(&ecs.ListClustersInput{})
 	if err != nil {
@@ -47,7 +47,7 @@ func (clusters ECSClusters) getAllEcsClusters() ([]*string, error) {
 }
 
 // Filter all active ecs clusters
-func (clusters ECSClusters) getAllActiveEcsClusterArns(configObj config.Config) ([]*string, error) {
+func (clusters *ECSClusters) getAllActiveEcsClusterArns(configObj config.Config) ([]*string, error) {
 	allClusters, err := clusters.getAllEcsClusters()
 	if err != nil {
 		logging.Logger.Debug("Error getting all ECS clusters")
@@ -94,7 +94,7 @@ func shouldIncludeECSCluster(cluster *ecs.Cluster, configObj config.Config) bool
 	return configObj.ECSCluster.ShouldInclude(config.ResourceValue{Name: cluster.ClusterName})
 }
 
-func (clusters ECSClusters) getAll(configObj config.Config) ([]*string, error) {
+func (clusters *ECSClusters) getAll(configObj config.Config) ([]*string, error) {
 	clusterArns, err := clusters.getAllActiveEcsClusterArns(configObj)
 	if err != nil {
 		logging.Logger.Debugf("Error getting all ECS clusters with `ACTIVE` status")
@@ -123,7 +123,7 @@ func (clusters ECSClusters) getAll(configObj config.Config) ([]*string, error) {
 	return filteredEcsClusters, nil
 }
 
-func (clusters ECSClusters) nukeAll(ecsClusterArns []*string) error {
+func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 	numNuking := len(ecsClusterArns)
 
 	if numNuking == 0 {
@@ -169,7 +169,7 @@ func (clusters ECSClusters) nukeAll(ecsClusterArns []*string) error {
 }
 
 // Tag an ECS cluster identified by the given cluster ARN when it's first seen by cloud-nuke
-func (clusters ECSClusters) setFirstSeenTag(clusterArn *string, timestamp time.Time) error {
+func (clusters *ECSClusters) setFirstSeenTag(clusterArn *string, timestamp time.Time) error {
 	firstSeenTime := util.FormatTimestampTag(timestamp)
 
 	input := &ecs.TagResourceInput{
@@ -191,7 +191,7 @@ func (clusters ECSClusters) setFirstSeenTag(clusterArn *string, timestamp time.T
 }
 
 // Get the `cloud-nuke-first-seen` tag value for a given ECS cluster
-func (clusters ECSClusters) getFirstSeenTag(clusterArn *string) (*time.Time, error) {
+func (clusters *ECSClusters) getFirstSeenTag(clusterArn *string) (*time.Time, error) {
 	var firstSeenTime *time.Time
 
 	input := &ecs.ListTagsForResourceInput{

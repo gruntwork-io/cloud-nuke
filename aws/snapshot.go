@@ -14,7 +14,7 @@ import (
 )
 
 // Returns a formatted string of Snapshot snapshot ids
-func (s Snapshots) getAll(configObj config.Config) ([]*string, error) {
+func (s *Snapshots) getAll(configObj config.Config) ([]*string, error) {
 
 	// status - The status of the s (pending | completed | error).
 	// Since the output of this function is used to delete the returned snapshots
@@ -59,7 +59,7 @@ func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
 }
 
 // Deletes all Snapshots
-func (s Snapshots) nukeAll(snapshotIds []*string) error {
+func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 
 	if len(snapshotIds) == 0 {
 		logging.Logger.Debugf("No Snapshots to nuke in region %s", s.Region)

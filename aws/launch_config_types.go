@@ -2,6 +2,8 @@ package aws
 
 import (
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -14,22 +16,26 @@ type LaunchConfigs struct {
 	LaunchConfigurationNames []string
 }
 
+func (lc *LaunchConfigs) Init(session *session.Session) {
+	lc.Client = autoscaling.New(session)
+}
+
 // ResourceName - the simple name of the aws resource
-func (lc LaunchConfigs) ResourceName() string {
+func (lc *LaunchConfigs) ResourceName() string {
 	return "lc"
 }
 
-func (lc LaunchConfigs) MaxBatchSize() int {
+func (lc *LaunchConfigs) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
 // ResourceIdentifiers - The names of the launch configurations
-func (lc LaunchConfigs) ResourceIdentifiers() []string {
+func (lc *LaunchConfigs) ResourceIdentifiers() []string {
 	return lc.LaunchConfigurationNames
 }
 
-func (lc LaunchConfigs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
+func (lc *LaunchConfigs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
 	identifiers, err := lc.getAll(configObj)
 	if err != nil {
 		return nil, err
@@ -40,7 +46,7 @@ func (lc LaunchConfigs) GetAndSetIdentifiers(configObj config.Config) ([]string,
 }
 
 // Nuke - nuke 'em all!!!
-func (lc LaunchConfigs) Nuke(identifiers []string) error {
+func (lc *LaunchConfigs) Nuke(identifiers []string) error {
 	if err := lc.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

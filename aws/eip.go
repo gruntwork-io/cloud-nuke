@@ -16,7 +16,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (ea EIPAddresses) setFirstSeenTag(address ec2.Address, value time.Time) error {
+func (ea *EIPAddresses) setFirstSeenTag(address ec2.Address, value time.Time) error {
 	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
 	_, err := ea.Client.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{address.AllocationId},
@@ -34,7 +34,7 @@ func (ea EIPAddresses) setFirstSeenTag(address ec2.Address, value time.Time) err
 	return nil
 }
 
-func (ea EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error) {
+func (ea *EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error) {
 	tags := address.Tags
 	for _, tag := range tags {
 		if util.IsFirstSeenTag(tag.Key) {
@@ -51,7 +51,7 @@ func (ea EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error) 
 }
 
 // Returns a formatted string of EIP allocation ids
-func (ea EIPAddresses) getAll(configObj config.Config) ([]*string, error) {
+func (ea *EIPAddresses) getAll(configObj config.Config) ([]*string, error) {
 	result, err := ea.Client.DescribeAddresses(&ec2.DescribeAddressesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -79,7 +79,7 @@ func (ea EIPAddresses) getAll(configObj config.Config) ([]*string, error) {
 	return allocationIds, nil
 }
 
-func (ea EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.Time, configObj config.Config) bool {
+func (ea *EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.Time, configObj config.Config) bool {
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
 	allocationName := GetEC2ResourceNameTagValue(address.Tags)
@@ -90,7 +90,7 @@ func (ea EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.Ti
 }
 
 // Deletes all EIP allocation ids
-func (ea EIPAddresses) nukeAll(allocationIds []*string) error {
+func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 	if len(allocationIds) == 0 {
 		logging.Logger.Debugf("No Elastic IPs to nuke in region %s", ea.Region)
 		return nil

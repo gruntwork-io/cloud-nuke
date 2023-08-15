@@ -16,7 +16,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (sms SecretsManagerSecrets) getAll(configObj config.Config) ([]*string, error) {
+func (sms *SecretsManagerSecrets) getAll(configObj config.Config) ([]*string, error) {
 	allSecrets := []*string{}
 	input := &secretsmanager.ListSecretsInput{}
 	err := sms.Client.ListSecretsPages(
@@ -53,7 +53,7 @@ func shouldIncludeSecret(secret *secretsmanager.SecretListEntry, configObj confi
 	})
 }
 
-func (sms SecretsManagerSecrets) nukeAll(identifiers []*string) error {
+func (sms *SecretsManagerSecrets) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No Secrets Manager Secrets to nuke in region %s", sms.Region)
 		return nil
@@ -88,7 +88,7 @@ func (sms SecretsManagerSecrets) nukeAll(identifiers []*string) error {
 
 // deleteAsync deletes the provided secrets manager secret. Intended to be run in a goroutine, using wait groups
 // and a return channel for errors.
-func (sms SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan error, secretID *string) {
+func (sms *SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan error, secretID *string) {
 	defer wg.Done()
 
 	// If this region's secret is primary, and it has replicated secrets, remove replication first.

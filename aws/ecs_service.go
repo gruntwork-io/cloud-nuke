@@ -15,7 +15,7 @@ import (
 
 // getAllEcsClusters - Returns a string of ECS Cluster ARNs, which uniquely identifies the cluster.
 // We need to get all clusters before we can get all services.
-func (services ECSServices) getAllEcsClusters() ([]*string, error) {
+func (services *ECSServices) getAllEcsClusters() ([]*string, error) {
 	clusterArns := []*string{}
 	result, err := services.Client.ListClusters(&ecs.ListClustersInput{})
 	if err != nil {
@@ -38,7 +38,7 @@ func (services ECSServices) getAllEcsClusters() ([]*string, error) {
 // filterOutRecentServices - Given a list of services and an excludeAfter
 // timestamp, filter out any services that were created after `excludeAfter.
 // Additionally, filter based on Config file patterns.
-func (services ECSServices) filterOutRecentServices(clusterArn *string, ecsServiceArns []string, configObj config.Config) ([]*string, error) {
+func (services *ECSServices) filterOutRecentServices(clusterArn *string, ecsServiceArns []string, configObj config.Config) ([]*string, error) {
 	// Fetch descriptions in batches of 10, which is the max that AWS
 	// accepts for describe service.
 	var filteredEcsServiceArns []*string
@@ -69,7 +69,7 @@ func (services ECSServices) filterOutRecentServices(clusterArn *string, ecsServi
 // clusters. For ECS, need to track ECS clusters of services as all service
 // level API endpoints require providing the corresponding cluster.
 // Note that this looks up services by ECS cluster ARNs.
-func (services ECSServices) getAll(configObj config.Config) ([]*string, error) {
+func (services *ECSServices) getAll(configObj config.Config) ([]*string, error) {
 	ecsClusterArns, err := services.getAllEcsClusters()
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -103,7 +103,7 @@ func (services ECSServices) getAll(configObj config.Config) ([]*string, error) {
 // drainEcsServices - Drain all tasks from all services requested. This will
 // return a list of service ARNs that have been successfully requested to be
 // drained.
-func (services ECSServices) drainEcsServices(ecsServiceArns []*string) []*string {
+func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*string {
 	var requestedDrains []*string
 	for _, ecsServiceArn := range ecsServiceArns {
 
@@ -153,7 +153,7 @@ func (services ECSServices) drainEcsServices(ecsServiceArns []*string) []*string
 // given list of services, by waiting for stability which is defined as
 // desiredCount == runningCount. This will return a list of service ARNs that
 // have successfully been drained.
-func (services ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) []*string {
+func (services *ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) []*string {
 	var successfullyDrained []*string
 	for _, ecsServiceArn := range ecsServiceArns {
 		params := &ecs.DescribeServicesInput{
@@ -179,7 +179,7 @@ func (services ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) [
 
 // deleteEcsServices - Deletes all services requested. Returns a list of
 // service ARNs that have been accepted by AWS for deletion.
-func (services ECSServices) deleteEcsServices(ecsServiceArns []*string) []*string {
+func (services *ECSServices) deleteEcsServices(ecsServiceArns []*string) []*string {
 	var requestedDeletes []*string
 	for _, ecsServiceArn := range ecsServiceArns {
 		params := &ecs.DeleteServiceInput{
@@ -205,7 +205,7 @@ func (services ECSServices) deleteEcsServices(ecsServiceArns []*string) []*strin
 // waitUntilServicesDeleted - Waits until the service has been actually deleted
 // from AWS. Returns a list of service ARNs that have been successfully
 // deleted.
-func (services ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) []*string {
+func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) []*string {
 	var successfullyDeleted []*string
 	for _, ecsServiceArn := range ecsServiceArns {
 		params := &ecs.DescribeServicesInput{
@@ -246,7 +246,7 @@ func (services ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) [
 // 2.) Delete service object once no tasks are running.
 // Note that this will swallow failed deletes and continue along, logging the
 // service ARN so that we can find it later.
-func (services ECSServices) nukeAll(ecsServiceArns []*string) error {
+func (services *ECSServices) nukeAll(ecsServiceArns []*string) error {
 	numNuking := len(ecsServiceArns)
 	if numNuking == 0 {
 		logging.Logger.Debugf("No ECS services to nuke in region %s", services.Region)

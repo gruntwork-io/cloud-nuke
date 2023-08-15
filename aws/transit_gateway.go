@@ -13,7 +13,7 @@ import (
 )
 
 // Returns a formatted string of TransitGateway IDs
-func (tgw TransitGateways) getAll(configObj config.Config) ([]*string, error) {
+func (tgw *TransitGateways) getAll(configObj config.Config) ([]*string, error) {
 	result, err := tgw.Client.DescribeTransitGateways(&ec2.DescribeTransitGatewaysInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -31,7 +31,7 @@ func (tgw TransitGateways) getAll(configObj config.Config) ([]*string, error) {
 }
 
 // Delete all TransitGateways
-func (tgw TransitGateways) nukeAll(ids []*string) error {
+func (tgw *TransitGateways) nukeAll(ids []*string) error {
 	if len(ids) == 0 {
 		logging.Logger.Debugf("No Transit Gateways to nuke in region %s", tgw.Region)
 		return nil
@@ -73,7 +73,7 @@ func (tgw TransitGateways) nukeAll(ids []*string) error {
 }
 
 // Returns a formatted string of TranstGatewayRouteTable IDs
-func (tgw TransitGatewaysRouteTables) getAll(configObj config.Config) ([]*string, error) {
+func (tgw *TransitGatewaysRouteTables) getAll(configObj config.Config) ([]*string, error) {
 	// Remove defalt route table, that will be deleted along with its TransitGateway
 	param := &ec2.DescribeTransitGatewayRouteTablesInput{
 		Filters: []*ec2.Filter{
@@ -103,7 +103,7 @@ func (tgw TransitGatewaysRouteTables) getAll(configObj config.Config) ([]*string
 }
 
 // Delete all TransitGatewayRouteTables
-func (tgw TransitGatewaysRouteTables) nukeAll(ids []*string) error {
+func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 	if len(ids) == 0 {
 		logging.Logger.Debugf("No Transit Gateway Route Tables to nuke in region %s", tgw.Region)
 		return nil
@@ -131,7 +131,7 @@ func (tgw TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 }
 
 // Returns a formated string of TransitGatewayVpcAttachment IDs
-func (tgw TransitGatewaysVpcAttachment) getAll(configObj config.Config) ([]*string, error) {
+func (tgw *TransitGatewaysVpcAttachment) getAll(configObj config.Config) ([]*string, error) {
 	result, err := tgw.Client.DescribeTransitGatewayVpcAttachments(&ec2.DescribeTransitGatewayVpcAttachmentsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -149,7 +149,7 @@ func (tgw TransitGatewaysVpcAttachment) getAll(configObj config.Config) ([]*stri
 }
 
 // Delete all TransitGatewayVpcAttachments
-func (tgw TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
+func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 	if len(ids) == 0 {
 		logging.Logger.Debugf("No Transit Gateway Vpc Attachments to nuke in region %s", tgw.Region)
 		return nil
