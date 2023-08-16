@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-const AwsResourceExclusionTagKey = "cloud-nuke-excluded"
-
 type AwsAccountResources struct {
 	Resources map[string]AwsRegionResource
 }

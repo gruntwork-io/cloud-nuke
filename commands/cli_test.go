@@ -1,10 +1,11 @@
 package commands
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"testing"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -38,19 +39,19 @@ func TestParseDurationInvalidFormat(t *testing.T) {
 func TestListResourceTypes(t *testing.T) {
 	allAWSResourceTypes := aws.ListResourceTypes()
 	assert.Greater(t, len(allAWSResourceTypes), 0)
-	assert.Contains(t, allAWSResourceTypes, (&aws.EC2Instances{}).ResourceName())
+	assert.Contains(t, allAWSResourceTypes, (&resources.EC2Instances{}).ResourceName())
 }
 
 func TestIsValidResourceType(t *testing.T) {
 	allAWSResourceTypes := aws.ListResourceTypes()
-	ec2ResourceName := (*&aws.EC2Instances{}).ResourceName()
+	ec2ResourceName := (*&resources.EC2Instances{}).ResourceName()
 	assert.Equal(t, aws.IsValidResourceType(ec2ResourceName, allAWSResourceTypes), true)
 	assert.Equal(t, aws.IsValidResourceType("xyz", allAWSResourceTypes), false)
 }
 
 func TestIsNukeable(t *testing.T) {
-	ec2ResourceName := (&aws.EC2Instances{}).ResourceName()
-	amiResourceName := (&aws.AMIs{}).ResourceName()
+	ec2ResourceName := (&resources.EC2Instances{}).ResourceName()
+	amiResourceName := (&resources.AMIs{}).ResourceName()
 
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{ec2ResourceName}), true)
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{"all"}), true)
