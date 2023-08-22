@@ -36,10 +36,10 @@ func (osd *OpenSearchDomains) getAll(configObj config.Config) ([]*string, error)
 			return nil, errors.WithStackTrace(err)
 		}
 
-		if firstSeenTime.IsZero() {
+		if firstSeenTime == nil {
 			err := osd.setFirstSeenTag(domain.ARN, time.Now().UTC())
 			if err != nil {
-				logging.Logger.Errorf("Error tagging the OpenSearch Domain with ARN %s", aws.StringValue(domain.ARN))
+				logging.Logger.Errorf("Error tagging the OpenSearch Domain with ARN %s with error: %s", aws.StringValue(domain.ARN), err.Error())
 				return nil, errors.WithStackTrace(err)
 			}
 		}
