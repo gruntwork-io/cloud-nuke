@@ -124,6 +124,7 @@ IAMUsers:
 IAMRoles:
   include:
     names_regex:
+      - "github"
       - "^cloud-nuke-Test*"
       - "^cloud-nuke-test-[a-zA-Z0-9]{6}"
       - "^cloud-nuke-test-[a-zA-Z0-9]{6}-role"
