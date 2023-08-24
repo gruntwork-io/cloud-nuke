@@ -122,9 +122,12 @@ IAMUsers:
       # We want to make sure the main circle-ci-test user is never deleted
       - "^circle-ci-test$"
 IAMRoles:
-  include:
+  exclude:
+    # Never delete the github oidc role
     names_regex:
       - "github"
+  include:
+    names_regex:
       - "^cloud-nuke-Test*"
       - "^cloud-nuke-test-[a-zA-Z0-9]{6}"
       - "^cloud-nuke-test-[a-zA-Z0-9]{6}-role"
