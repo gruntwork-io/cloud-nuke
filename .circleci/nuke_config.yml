@@ -151,6 +151,10 @@ IAMGroups:
       - "^test-sudo-group-[a-z]-[a-zA-Z0-9]{6}"
       - "^tst-openvpn-host-[a-zA-Z0-9]{6}-.*"
 IAMRoles:
+  exclude:
+    # Never delete the github oidc role
+    names_regex:
+      - "github"
   include:
     names_regex:
       - "^cloud-nuke-Test*"
