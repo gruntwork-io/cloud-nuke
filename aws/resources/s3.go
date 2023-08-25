@@ -3,9 +3,9 @@ package resources
 import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"math"
-	"strings"
 	"sync"
 	"time"
 
@@ -43,12 +43,10 @@ func (sb S3Buckets) getS3BucketRegion(bucketName string) (string, error) {
 }
 
 // getS3BucketTags returns S3 Bucket tags.
-func (bucket *S3Buckets) getS3BucketTags(bucketName string) ([]map[string]string, error) {
+func (bucket *S3Buckets) getS3BucketTags(bucketName string) (map[string]string, error) {
 	input := &s3.GetBucketTaggingInput{
 		Bucket: aws.String(bucketName),
 	}
-
-	tags := []map[string]string{}
 
 	// Please note that svc argument should be created from a session object which is
 	// in the same region as the bucket or GetBucketTagging will fail.
@@ -57,39 +55,20 @@ func (bucket *S3Buckets) getS3BucketTags(bucketName string) ([]map[string]string
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case "NoSuchTagSet":
-				return tags, nil
+				return nil, nil
 			}
 		}
-		return tags, err
+		return nil, err
 	}
 
-	for _, tagSet := range result.TagSet {
-		tags = append(tags, map[string]string{"Key": *tagSet.Key, "Value": *tagSet.Value})
-	}
-
-	return tags, nil
-}
-
-// hasValidTags checks if bucket tags permit it to be in the deletion list.
-func hasValidTags(bucketTags []map[string]string) bool {
-	// Exclude deletion of any buckets with cloud-nuke-excluded tags
-	if len(bucketTags) > 0 {
-		for _, tagSet := range bucketTags {
-			key := strings.ToLower(tagSet["Key"])
-			value := strings.ToLower(tagSet["Value"])
-			if key == AwsResourceExclusionTagKey && value == "true" {
-				return false
-			}
-		}
-	}
-	return true
+	return util.ConvertS3TagsToMap(result.TagSet), nil
 }
 
 // S3Bucket - represents S3 bucket
 type S3Bucket struct {
 	Name          string
 	CreationDate  time.Time
-	Tags          []map[string]string
+	Tags          map[string]string
 	Error         error
 	IsValid       bool
 	InvalidReason string
@@ -194,23 +173,14 @@ func (sb S3Buckets) getBucketInfo(bucket *s3.Bucket, bucketCh chan<- *S3Bucket, 
 		bucketCh <- &bucketData
 		return
 	}
+
 	bucketData.Tags = bucketTags
-	if !hasValidTags(bucketData.Tags) {
-		bucketData.InvalidReason = "Matched tag filter"
-		bucketCh <- &bucketData
-		return
-	}
-
-	// Check if the bucket is older than the required time
-	if !configObj.S3.ShouldInclude(config.ResourceValue{Time: &bucketData.CreationDate}) {
-		bucketData.InvalidReason = "Matched CreationDate filter"
-		bucketCh <- &bucketData
-		return
-	}
-
-	// Check if the bucket matches config file rules
-	if !configObj.S3.ShouldInclude(config.ResourceValue{Name: &bucketData.Name}) {
-		bucketData.InvalidReason = "Filtered by config file rules"
+	if !configObj.S3.ShouldInclude(config.ResourceValue{
+		Time: &bucketData.CreationDate,
+		Name: &bucketData.Name,
+		Tags: bucketTags,
+	}) {
+		bucketData.InvalidReason = "filtered"
 		bucketCh <- &bucketData
 		return
 	}
