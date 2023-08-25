@@ -110,7 +110,7 @@ func (clusters *ECSClusters) getAll(configObj config.Config) ([]*string, error) 
 			return nil, errors.WithStackTrace(err)
 		}
 
-		if firstSeenTime.IsZero() {
+		if firstSeenTime == nil {
 			err := clusters.setFirstSeenTag(clusterArn, time.Now().UTC())
 			if err != nil {
 				logging.Logger.Debugf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
