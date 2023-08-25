@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"strings"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -32,6 +33,20 @@ func (ami *AMIs) getAll(configObj config.Config) ([]*string, error) {
 		createdTime, err := time.Parse(layout, *image.CreationDate)
 		if err != nil {
 			return nil, err
+		}
+
+		// Check if the image has a tag that indicates AWS management
+		isAWSManaged := false
+		for _, tag := range image.Tags {
+			if *tag.Key == "aws-managed" && *tag.Value == "true" {
+				isAWSManaged = true
+				break
+			}
+		}
+
+		// Skip AWS managed images and images created by AWS Backup
+		if isAWSManaged || strings.HasPrefix(*image.Name, "AwsBackup") {
+			continue
 		}
 
 		if configObj.AMI.ShouldInclude(config.ResourceValue{
