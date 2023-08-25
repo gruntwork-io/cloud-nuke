@@ -24,7 +24,7 @@ import (
 // CreateCli - Create the CLI app with all commands, flags, and usage text configured.
 func CreateCli(version string) *cli.App {
 	app := cli.NewApp()
-	logging.InitLogger("cloud-nuke", version)
+	logging.InitLogger()
 	_, disableTelemetryFlag := os.LookupEnv("DISABLE_TELEMETRY")
 	if !disableTelemetryFlag {
 		ui.WarningMessage("This program sends telemetry to Gruntwork. To disable, set DISABLE_TELEMETRY=true as an environment variable")
@@ -189,7 +189,8 @@ func parseLogLevel(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("Invalid log level - %s - %s", logLevel, err)
 	}
-	logging.Logger.Level = parsedLogLevel
+	logging.Logger.SetLevel(parsedLogLevel)
+	logging.Logger.Debugf("Setting log level to %s", parsedLogLevel.String())
 	return nil
 }
 

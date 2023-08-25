@@ -1,10 +1,18 @@
 package logging
 
-import "github.com/gruntwork-io/go-commons/logging"
+import (
+	"github.com/sirupsen/logrus"
+	"os"
+)
 
-// Logger - Global logger variable
-var Logger = logging.GetLogger("cloud-nuke", "")
+var Logger *logrus.Logger
 
-func InitLogger(name string, version string) {
-	Logger = logging.GetLogger(name, version)
+func InitLogger() {
+	Logger = logrus.New()
+
+	// Set the desired log level (e.g., Debug, Info, Warn, Error, etc.)
+	Logger.SetLevel(logrus.InfoLevel)
+
+	// You can also set the log output (e.g., os.Stdout, a file, etc.)
+	Logger.SetOutput(os.Stdout)
 }
