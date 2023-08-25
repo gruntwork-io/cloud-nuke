@@ -5,14 +5,15 @@ import (
 	"os"
 )
 
-var Logger *logrus.Logger
+var Logger = InitLogger()
 
-func InitLogger() {
-	Logger = logrus.New()
+func InitLogger() *logrus.Logger {
+	logger := logrus.New()
 
 	// Set the desired log level (e.g., Debug, Info, Warn, Error, etc.)
-	Logger.SetLevel(logrus.InfoLevel)
+	logger.SetLevel(logrus.InfoLevel)
 
 	// You can also set the log output (e.g., os.Stdout, a file, etc.)
-	Logger.SetOutput(os.Stdout)
+	logger.SetOutput(os.Stdout)
+	return logger
 }
