@@ -342,157 +342,31 @@ func main() {
 ```
 
 
-### Config file
+## Config file
 
-For more granularity, such as being able to specify which resources to terminate using regular expressions or plain text, you can pass in a configuration file.
+You can also specify which resources to terminate with more granularity via using config files. The config file is a
+YAML file that specifies which resources to terminate. The top level keys of the config file are the resource types, and
+the values are the rules for which resources to terminate.
 
-_Note: Config file support is a new feature and only filtering a handful of resources by name using regular expressions is currently supported. We'll be adding more support in the future, and pull requests are welcome!_
+### Filtering Features
 
-The following resources support the Config file:
+For each resource type, you can specify either `include` or `exclude` rules. Each rule can be one of the following
+filters mentioned below. Here is an example:
 
-- S3 Buckets
-    - Resource type: `s3`
-    - Config key: `s3`
-- IAM Users
-    - Resource type: `iam`
-    - Config key: `IAMUsers`
-- IAM Roles
-    - Resource type: `iam-role`
-    - Config key: `IAMRoles`
-- IAM Service-Linked Roles
-    - Resource type: `iam-service-linked-role`
-    - Config key: `IAMServiceLinkedRoles`
-- Secrets Manager Secrets
-    - Resource type: `secretsmanager`
-    - Config key: `SecretsManager`
-- NAT Gateways
-    - Resource type: `nat-gateway`
-    - Config key: `NatGateway`
-- IAM Access Analyzers
-    - Resource type: `accessanalyzer`
-    - Config key: `AccessAnalyzer`
-- CloudWatch Dashboards
-    - Resource type: `cloudwatch-dashboard`
-    - Config key: `CloudWatchDashboard`
-- OpenSearch Domains
-    - Resource type: `opensearch`
-    - Config key: `OpenSearchDomain`
-- DynamoDB Tables
-    - Resource type: `dynamodb`
-    - Config key: `DynamoDB`
-- EBS Volumes
-    - Resource type: `ebs`
-    - Config key: `EBSVolume`
-- Lambda Functions
-    - Resource type: `lambda`
-    - Config key: `LambdaFunction`
-- Elastic Load Balancers
-    - Resource type: `elbv2`
-    - Config key: `ELBv2`
-- ECS Services
-    - Resource type: `ecsserv`
-    - Config key: `ECSService`
-- ECS Clusters
-    - Resource type: `ecscluster`
-    - Config key: `ECSCluster`
-- Elasticache
-    - Resource type: `elasticache`
-    - Config key: `Elasticache`
-- Elasticache Parameter Groups
-  - Resource type: `elasticacheParameterGroup`
-  - Config key: `ElasticacheParameterGroup`
-- Elasticache Subnet Group
-  - Resource type: `elasticacheSubnetGroup`
-  - Config key: `ElasticacheSubnetGroup`
-- VPCs
-    - Resource type: `vpc`
-    - Config key: `VPC`
-- IAM OpenID Connect Providers
-    - Resource type: `oidcprovider`
-    - Config key: `OIDCProvider`
-- CloudWatch LogGroups
-    - Resource type: `cloudwatch-loggroup`
-    - Config key: `CloudWatchLogGroup`
-- KMS customer keys
-    - Resource type: `kmscustomerkeys`
-    - Config key: `KMSCustomerKeys`
-- Auto Scaling Groups
-    - Resource type: `asg`
-    - Config key: `AutoScalingGroup`
-- Launch Configurations
-    - Resource type: `lc`
-    - Config key: `LaunchConfiguration`
-- Elastic IP Address
-    - Resource type: `eip`
-    - Config key: `ElasticIP`
-- EC2 Instances
-    - Resource type: `ec2`
-    - Config key: `EC2`
-- EC2 Dedicated Hosts
-    - Resource type: `ec2-dedicated-hosts`
-    - Config key: `EC2DedicatedHosts`
-- EC2 Key Pairs
-    - Resource type: `ec2-keypairs`
-    - Config key: `EC2KeyPairs`
-- EKS Clusters
-    - Resource type: `ekscluster`
-    - Config key: `EKSCluster`
-- SageMaker Notebook Instances
-    - Resource type: `sagemaker-notebook-instances`
-    - Config key: `SageMakerNotebook`
-- API Gateways (v1)
-    - Resource type: `apigateway`
-    - Config key: `APIGateway`
-- API Gateways (v2)
-    - Resource type: `apigatewayv2`
-    - Config key: `APIGatewayV2`
-- Elastic FileSystems (efs)
-    - Resource type: `efs`
-    - Config key: `ElasticFileSystem`
-- ECR Repositories
-    - Resource type: `ecr`
-    - Config key: `ECRRepository`
-- RDS, Neptune, and Document DB Resources
-    - Resource type: `rds`
-    - Config key: `DBInstances`
-- RDS DB Subnet Groups
-  - Resource type: `rds-subnet-group`
-  - Config key: `DBSubnetGroups`
-- Launch Templates
-    - Resource type: `lt`
-    - Config key: `LaunchTemplate`
-- CloudWatch Alarms
-    - Resource type: `cloudwatch-alarm`
-    - Config key: `CloudWatchAlarm`
-- Redshift
-  - Resource type: `redshift`
-  - Config key: `Redshift`
-- AWS Certificate Manager
-  - Resource type: `acm`
-  - Config key: `ACM`
-- CodeDeploy
-  - Resource type: `codedeploy-application`
-  - Config key: `Codedeploy`
-- CodeDeploy
-  - Resource type: `backup-vault`
-  - Config key: `Backupvault`
-
-Notes:
-  * no configuration options for KMS customer keys, since keys are created with auto-generated identifier
-
-- Kinesis Streams
-    - Resource type: `kinesis-stream`
-    - Config key: `KinesisStream`
-
-#### Example
-
-```shell
-cloud-nuke aws --resource-type s3 --config path/to/file.yaml
+```
+s3:
+  include:
+    ...
+  exclude:
+    ...
 ```
 
-Given this command, `cloud-nuke` will nuke _only_ S3 buckets, as specified by the `--resource-type s3` option.
+#### Names Regex Filter 
 
-Now given the following config, the s3 buckets that will be nuked are further filtered to only include ones that match any of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but a bucket named `my-s3-bucket` would not.
+Now given the following config, the s3 buckets that will be nuked are further filtered to only include ones that match
+any of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but a bucket
+named `my-s3-bucket` would not.
+
 ```yaml
 s3:
   include:
@@ -511,8 +385,6 @@ IAMUsers:
       - ^my-test-user-.*
 ```
 
-#### Include and exclude together
-
 Now consider the following contrived example:
 
 ```yaml
@@ -527,94 +399,136 @@ s3:
       - prod
 ```
 
-The intention is to delete all the s3 buckets that match the include rules but not the exclude rules. Filtering is commutative, meaning that you should get the same result whether you apply the include filters before or after the exclude filters.
+The intention is to delete all the s3 buckets that match the include rules but not the exclude rules. Filtering is
+**commutative**, meaning that you should get the same result whether you apply the include filters before or after the
+exclude filters.
 
-The result of these filters applied in either order will be a set of s3 buckets that match `^alb-.*-access-logs$` as long as they do not also contain `public` or `prod`. The rule to include s3 buckets matching `.*-prod-alb-.*` is negated by the rule to exclude those matching `prod`.
+The result of these filters applied in either order will be a set of s3 buckets that match `^alb-.*-access-logs$` as
+long as they do not also contain `public` or `prod`. The rule to include s3 buckets matching `.*-prod-alb-.*` is negated
+by the rule to exclude those matching `prod`.
 
-<!-- We might only want to support region and resource-type in the command line, rather than in the config file.
+#### Time Filter
 
-Given this config, `cloud-nuke` will nuke all S3 buckets that exist in `us-east-1` and all S3 buckets that exist in `us-west-1`.
+You can also filter resources by time. The following config will delete all s3 buckets that were created after
+`2020-01-01T00:00:00Z`.
+
 ```yaml
 s3:
   include:
-    regions:
-      - us-east-1
-      - us-west-1
+    time_after: '2020-01-01T00:00:00Z'
 ```
 
-Given this config, `cloud-nuke` will nuke all S3 buckets that match the regular expression but only if they do not also exist in `us-east-1`. So a bucket named `abc-prod-alb-def` located in the `ap-northeast-2` region would be nuked.
+Similarly, you can delete all s3 buckets that were created before `2020-01-01T00:00:00Z` by using the `time_before`
+
 ```yaml
 s3:
   include:
-    names_regex:
-      - .*-prod-alb-.*
-  exclude:
-    regions:
-      - us-east-1
+    time_before: '2020-01-01T00:00:00Z'
 ```
--->
+
+#### Tag Filter
+
+You can also filter resources by tags. The following config will delete all s3 buckets that have a tag with key `foo`
+```yaml
+s3:
+  include:
+    tag: 'foo'
+```
+
+By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources. 
+
+### What's supported?
+
+To find out what we options are supported in the config file today, consult this table. Resource types at the top level
+of the file that are supported are listed here.
+
+| resource type               | config key                   | names_regex                           | time                                | tags | 
+|-----------------------------|------------------------------|---------------------------------------|-------------------------------------|------|
+| acm                         | ACM                          | ✅ (Domain Name)                       | ✅ (Created Time)                    | ❌    |
+| acmpca                      | ACMPCA                       | ❌                                     | ✅ (LastStateChange or Created Time) | ❌    |
+| ami                         | AMI                          | ✅ (Image Name)                        | ✅ (Creation Time)                   | ❌    |
+| apigateway                  | APIGateway                   | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    |
+| apigatewayv2                | APIGatewayV2                 | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    |
+| accessanalyzer              | AccessAnalyzer               | ✅ (Analyzer Name)                     | ✅ (Created Time)                    | ❌    |
+| asg                         | AutoScalingGroup             | ✅ (ASG Name)                          | ✅ (Created Time)                    | ❌    |
+| backup-vault                | BackupVault                  | ✅ (Backup Vault Name)                 | ✅ (Created Time)                    | ❌    |
+| cloudwatch-alarm            | CloudWatchAlarm              | ✅ (Alarm Name)                        | ✅ (AlarmConfigurationUpdated Time)  | ❌    |
+| cloudwatch-dashboard        | CloudWatchDashboard          | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    |
+| cloudwatch-loggroup         | CloudWatchLogGroup           | ✅ (Log Group Name)                    | ✅ (Creation Time)                   | ❌    |
+| cloudtrail                  | CloudtrailTrail              | ✅ (Trail Name)                        | ❌                                   | ❌    |
+| codedeploy-application      | CodeDeployApplications       | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    |
+| config-recorders            | ConfigServiceRecorder        | ✅ (Recorder Name)                     | ❌                                   | ❌    |
+| config-rules                | ConfigServiceRule            | ✅ (Rule Name)                         | ❌                                   | ❌    |
+| rds-cluster                 | DBClusters                   | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ❌    |
+| rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ❌    |
+| rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
+| dynamodb                    | DynamoDB                     | ✅ (Table Name)                        | ✅ (Creation Time)                   | ❌    |
+| ebs                         | EBSVolume                    | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ❌    |
+| ec2                         | EC2                          | ✅ (Instance Name)                     | ✅ (Launch Time)                     | ❌    |
+| ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
+| ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ❌    |
+| ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |
+| ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |
+| ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |
+| ekscluster                  | EKSCluster                   | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    |
+| elb                         | ELBv1                        | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    |
+| elbv2                       | ELBv2                        | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    |
+| efs                         | ElasticFileSystem            | ✅ (File System Name)                  | ✅ (Creation Time)                   | ❌    |
+| eip                         | ElasticIP                    | ✅ (Elastic IP Allocation Name)        | ✅ (First Seen Tag Time)             | ❌    |
+| elasticache                 | Elasticache                  | ✅ (Cluster ID & Replication Group ID) | ✅ (Creation Time)                   | ❌    |
+| elasticacheparametergroups  | ElasticacheParameterGroups   | ✅ (Parameter Group Name)              | ❌                                   | ❌    |
+| elasticachesubnetgroups     | ElasticacheSubnetGroups      | ✅ (Subnet Group Name)                 | ❌                                   | ❌    |
+| guardduty                   | GuardDuty                    | ❌                                     | ✅ (Created Time)                    | ❌    |
+| iam-group                   | IAMGroups                    | ✅ (Group Name)                        | ✅ (Creation Time)                   | ❌    |
+| iam-policy                  | IAMPolicies                  | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ❌    |
+| iam-role                    | IAMRoles                     | ✅ (Role Name)                         | ✅ (Creation Time)                   | ❌    |
+| iam-service-linked-role     | IAMServiceLinkedRoles        | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    |
+| iam                         | IAMUsers                     | ✅ (User Name)                         | ✅ (Creation Time)                   | ❌    |
+| kmscustomerkeys             | KMSCustomerKeys              | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    |
+| kinesis-stream              | KinesisStream                | ✅ (Stream Name)                       | ❌                                   | ❌    |
+| lambda                      | LambdaFunction               | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ❌    |
+| lc                          | LaunchConfiguration          | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    |
+| lt                          | LaunchTemplate               | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    |
+| macie-member                | MacieMember                  | ❌                                     | ✅ (Creation Time)                   | ❌    |
+| nat-gateway                 | NatGateway                   | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ❌    |
+| oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |
+| opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |
+| redshift                    | Redshift                     | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    |
+| s3                          | S3                           | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    |
+| snstopic                    | SNS                          | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    |
+| sqs                         | SQS                          | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    |
+| sagemaker-notebook-smni     | SageMakerNotebook            | ✅ (Notebook Instnace Name)            | ✅ (Creation Time)                   | ❌    |
+| secretsmanager              | SecretsManagerSecrets        | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    |
+| security-hub                | SecurityHub                  | ❌                                     | ✅ (Created Time)                    | ❌    |
+| snap                        | Snapshots                    | ❌                                     | ✅ (Creation Time)                   | ❌    |
+| transit-gateway             | TransitGateway               | ❌                                     | ✅ (Creation Time)                   | ❌    |
+| transit-gateway-route-table | TransitGatewayRouteTable     | ❌                                     | ✅ (Creation Time)                   | ❌    |
+| transit-gateway-attachment  | TransitGatewaysVpcAttachment | ❌                                     | ✅ (Creation Time)                   | ❌    |
+| vpc                         | VPC                          | ✅ (EC2 Name Tag)                      | ✅ (First Seen Tag Time)             | ❌    |
+
+### How to Use
+Once you created your config file, you can run a command like this to nuke resources with your config file: 
+
+```shell
+cloud-nuke aws --resource-type s3 --config path/to/file.yaml
+```
+
+> **CLI options override config file options**
+> 
+> The options provided in the command line take precedence over those provided in any config file that gets passed in. For
+> example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `ec2:` at the
+> top level but doesn't specify `s3:`. The command line argument filters the resource types to include only s3, so the
+> rules in the config file for `ec2:` are ignored, and ec2 resources are not nuked. All s3 resources would be nuked.
+> 
+> In the same vein, say you do not provide a `--resource-type` option in the command line, but you do pass in a config
+> file that only lists rules for `s3:`, such as `cloud-nuke aws --config path/to/config.yaml`. In this case _all_
+> resources would be nuked, but among `s3` buckets, only those matching your config file rules would be nuked.
+> 
+> Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will
+> list resources that would undergo nuking and wait for your confirmation before carrying it out.
 
 
-#### CLI options override config file options
-
-The options provided in the command line take precedence over those provided in any config file that gets passed in. For example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `ec2:` at the top level but doesn't specify `s3:`. The command line argument filters the resource types to include only s3, so the rules in the config file for `ec2:` are ignored, and ec2 resources are not nuked. All s3 resources would be nuked.
-
-In the same vein, say you do not provide a `--resource-type` option in the command line, but you do pass in a config file that only lists rules for `s3:`, such as `cloud-nuke aws --config path/to/config.yaml`. In this case _all_ resources would be nuked, but among `s3` buckets, only those matching your config file rules would be nuked.
-
-Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will list resources that would undergo nuking and wait for your confirmation before carrying it out.
-
-#### What's supported?
-
-To find out what we options are supported in the config file today, consult this table. Resource types at the top level of the file that are supported are listed here.
-
-| resource type                 | names | names_regex | tags | tags_regex |
-|-------------------------------| ----- | ----------- | ---- | ---------- |
-| s3                            | none  | ✅           | none | none       |
-| iam user                      | none  | ✅           | none | none       |
-| ecsserv                       | none  | ✅           | none | none       |
-| ecscluster                    | none  | ✅           | none | none       |
-| secretsmanager                | none  | ✅           | none | none       |
-| nat-gateway                   | none  | ✅           | none | none       |
-| accessanalyzer                | none  | ✅           | none | none       |
-| dynamodb                      | none  | ✅           | none | none       |
-| ebs                           | none  | ✅           | none | none       |
-| lambda                        | none  | ✅           | none | none       |
-| elbv2                         | none  | ✅           | none | none       |
-| ecs                           | none  | ✅           | none | none       |
-| elasticache                   | none  | ✅           | none | none       |
-| elasticache parameter group   | none  | ✅           | none | none       |
-| elasticache subnet group      | none  | ✅           | none | none       |
-| vpc                           | none  | ✅           | none | none       |
-| oidcprovider                  | none  | ✅           | none | none       |
-| cloudwatch-loggroup           | none  | ✅           | none | none       |
-| kmscustomerkeys               | none  | ✅           | none | none       |
-| asg                           | none  | ✅           | none | none       |
-| lc                            | none  | ✅           | none | none       |
-| eip                           | none  | ✅           | none | none       |
-| ec2                           | none  | ✅           | none | none       |
-| apigateway                    | none  | ✅           | none | none       |
-| apigatewayv2                  | none  | ✅           | none | none       |
-| eks                           | none  | ✅           | none | none       |
-| kinesis-stream                | none  | ✅           | none | none       |
-| efs                           | none  | ✅           | none | none       |
-| acmpca                        | none  | none        | none | none       |
-| iam role                      | none  | ✅           | none | none       |
-| iam service-linked role       | none  | ✅           | none | none       |
-| iam policy                    | none  | ✅           | none | none       |
-| sagemaker-notebook-instances  | none  | ✅           | none | none       |
-| ecr                           | none  | ✅           | none | none       |
-| rds (+neptune and documentdb) | none  | ✅           | none | none       |
-| rds subnet groups             | none  | ✅           | none | none       |
-| lt                            | none  | ✅           | none | none       |
-| config-recorders              | none  | ✅           | none | none       |
-| config-rules                  | none  | ✅           | none | none       |
-| cloudwatch-alarm              | none  | ✅           | none | none       |
-| redshift                      | none  | ✅           | none | none       |
-| backup-vault                  | none  | ✅           | none | none       |
-| ... (more to come)            | none  | none        | none | none       |
-
-
-### Log level
+## Log level
 By default, cloud-nuke sends most output to the `Debug` level logger, to enhance legibility, since the results of every deletion attempt will be displayed in the report that cloud-nuke prints after each run.
 
 However, sometimes it's helpful to see all output, such as when you're debugging something.
