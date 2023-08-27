@@ -12,7 +12,6 @@ import (
 )
 
 const DefaultAwsResourceExclusionTagKey = "cloud-nuke-excluded"
-const DefaultAwsResourceInclusionTagKey = "cloud-nuke-included"
 
 // Config - the config object we pass around
 type Config struct {
@@ -214,28 +213,12 @@ func (r ResourceType) getExclusionTag() string {
 	return DefaultAwsResourceExclusionTagKey
 }
 
-func (r ResourceType) getInclusionTag() string {
-	if r.IncludeRule.Tag != nil {
-		return *r.IncludeRule.Tag
-	}
-
-	return DefaultAwsResourceInclusionTagKey
-}
-
 func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 	// Handle exclude rule first
 	exclusionTag := r.getExclusionTag()
 	if value, ok := tags[exclusionTag]; ok {
 		if strings.ToLower(value) == "true" {
 			return false
-		}
-	}
-
-	// Handle include rule first
-	inclusionTag := r.getInclusionTag()
-	if value, ok := tags[inclusionTag]; ok {
-		if strings.ToLower(value) == "true" {
-			return true
 		}
 	}
 
