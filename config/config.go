@@ -5,10 +5,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
 )
+
+const DefaultAwsResourceExclusionTagKey = "cloud-nuke-excluded"
 
 // Config - the config object we pass around
 type Config struct {
@@ -109,6 +112,7 @@ type FilterRule struct {
 	NamesRegExp []Expression `yaml:"names_regex"`
 	TimeAfter   *time.Time   `yaml:"time_after"`
 	TimeBefore  *time.Time   `yaml:"time_before"`
+	Tag         *string      `yaml:"tag"` // A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
 }
 
 type Expression struct {
@@ -184,6 +188,7 @@ func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression
 type ResourceValue struct {
 	Name *string
 	Time *time.Time
+	Tags map[string]string
 }
 
 func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
@@ -200,10 +205,32 @@ func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
 	return true
 }
 
+func (r ResourceType) getExclusionTag() string {
+	if r.ExcludeRule.Tag != nil {
+		return *r.ExcludeRule.Tag
+	}
+
+	return DefaultAwsResourceExclusionTagKey
+}
+
+func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
+	// Handle exclude rule first
+	exclusionTag := r.getExclusionTag()
+	if value, ok := tags[exclusionTag]; ok {
+		if strings.ToLower(value) == "true" {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 	if value.Name != nil && !ShouldInclude(*value.Name, r.IncludeRule.NamesRegExp, r.ExcludeRule.NamesRegExp) {
 		return false
 	} else if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
+		return false
+	} else if value.Tags != nil && len(value.Tags) != 0 && !r.ShouldIncludeBasedOnTag(value.Tags) {
 		return false
 	}
 
