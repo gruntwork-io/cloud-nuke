@@ -108,7 +108,7 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 
 	// Now wait until the NAT gateways are deleted
 	err := retry.DoWithRetry(
-		logging.Logger,
+		logging.Logger.WithTime(time.Now()),
 		"Waiting for all NAT gateways to be deleted.",
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
 		30, 10*time.Second,

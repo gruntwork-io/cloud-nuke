@@ -111,7 +111,7 @@ func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
 
 func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 	return retry.DoWithRetry(
-		logging.Logger,
+		logging.Logger.WithTime(time.Now()),
 		"Delete Login Profile",
 		10,
 		2*time.Second,

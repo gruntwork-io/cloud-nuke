@@ -180,7 +180,7 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 
 	// Now wait until the OpenSearch Domains are deleted
 	err := retry.DoWithRetry(
-		logging.Logger,
+		logging.Logger.WithTime(time.Now()),
 		"Waiting for all OpenSearch Domains to be deleted.",
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
 		30, 10*time.Second,
