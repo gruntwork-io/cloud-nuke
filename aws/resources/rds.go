@@ -8,6 +8,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
@@ -24,6 +25,7 @@ func (di *DBInstances) getAll(configObj config.Config) ([]*string, error) {
 		if configObj.DBInstances.ShouldInclude(config.ResourceValue{
 			Time: database.InstanceCreateTime,
 			Name: database.DBName,
+			Tags: util.ConvertRDSTagsToMap(database.TagList),
 		}) {
 			names = append(names, database.DBInstanceIdentifier)
 		}

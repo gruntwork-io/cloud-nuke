@@ -3,6 +3,7 @@ package resources
 import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -33,8 +34,10 @@ func (s *Snapshots) getAll(configObj config.Config) ([]*string, error) {
 
 	var snapshotIds []*string
 	for _, snapshot := range output.Snapshots {
-		if configObj.Snapshots.ShouldInclude(config.ResourceValue{Time: snapshot.StartTime}) &&
-			!SnapshotHasAWSBackupTag(snapshot.Tags) {
+		if configObj.Snapshots.ShouldInclude(config.ResourceValue{
+			Time: snapshot.StartTime,
+			Tags: util.ConvertEC2TagsToMap(snapshot.Tags),
+		}) && !SnapshotHasAWSBackupTag(snapshot.Tags) {
 			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
 		}
 	}

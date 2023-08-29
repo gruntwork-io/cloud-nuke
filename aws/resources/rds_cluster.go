@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -46,6 +47,7 @@ func (instance *DBClusters) getAll(configObj config.Config) ([]*string, error) {
 		if configObj.DBClusters.ShouldInclude(config.ResourceValue{
 			Name: database.DBClusterIdentifier,
 			Time: database.ClusterCreateTime,
+			Tags: util.ConvertRDSTagsToMap(database.TagList),
 		}) {
 			names = append(names, database.DBClusterIdentifier)
 		}

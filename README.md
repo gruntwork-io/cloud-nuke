@@ -428,14 +428,15 @@ s3:
 
 #### Tag Filter
 
-You can also filter resources by tags. The following config will delete all s3 buckets that have a tag with key `foo`
+You can also exclude resources by tags. The following config will delete all s3 buckets that have a tag with key `foo`
 ```yaml
 s3:
-  include:
+  exclude:
     tag: 'foo'
 ```
 
 By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources. 
+_Note: it doesn't support including resources by tags._
 
 ### What's supported?
 
@@ -450,7 +451,7 @@ of the file that are supported are listed here.
 | apigateway                  | APIGateway                   | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    |
 | apigatewayv2                | APIGatewayV2                 | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    |
 | accessanalyzer              | AccessAnalyzer               | ✅ (Analyzer Name)                     | ✅ (Created Time)                    | ❌    |
-| asg                         | AutoScalingGroup             | ✅ (ASG Name)                          | ✅ (Created Time)                    | ❌    |
+| asg                         | AutoScalingGroup             | ✅ (ASG Name)                          | ✅ (Created Time)                    | ✅    |
 | backup-vault                | BackupVault                  | ✅ (Backup Vault Name)                 | ✅ (Created Time)                    | ❌    |
 | cloudwatch-alarm            | CloudWatchAlarm              | ✅ (Alarm Name)                        | ✅ (AlarmConfigurationUpdated Time)  | ❌    |
 | cloudwatch-dashboard        | CloudWatchDashboard          | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    |
@@ -459,22 +460,22 @@ of the file that are supported are listed here.
 | codedeploy-application      | CodeDeployApplications       | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    |
 | config-recorders            | ConfigServiceRecorder        | ✅ (Recorder Name)                     | ❌                                   | ❌    |
 | config-rules                | ConfigServiceRule            | ✅ (Rule Name)                         | ❌                                   | ❌    |
-| rds-cluster                 | DBClusters                   | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ❌    |
-| rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ❌    |
+| rds-cluster                 | DBClusters                   | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    |
+| rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    |
 | rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
 | dynamodb                    | DynamoDB                     | ✅ (Table Name)                        | ✅ (Creation Time)                   | ❌    |
-| ebs                         | EBSVolume                    | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ❌    |
-| ec2                         | EC2                          | ✅ (Instance Name)                     | ✅ (Launch Time)                     | ❌    |
+| ebs                         | EBSVolume                    | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ✅    |
+| ec2                         | EC2                          | ✅ (Instance Name)                     | ✅ (Launch Time)                     | ✅    |
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
 | ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ❌    |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |
-| ekscluster                  | EKSCluster                   | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    |
+| ekscluster                  | EKSCluster                   | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ✅    |
 | elb                         | ELBv1                        | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    |
 | elbv2                       | ELBv2                        | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    |
 | efs                         | ElasticFileSystem            | ✅ (File System Name)                  | ✅ (Creation Time)                   | ❌    |
-| eip                         | ElasticIP                    | ✅ (Elastic IP Allocation Name)        | ✅ (First Seen Tag Time)             | ❌    |
+| eip                         | ElasticIP                    | ✅ (Elastic IP Allocation Name)        | ✅ (First Seen Tag Time)             | ✅    |
 | elasticache                 | Elasticache                  | ✅ (Cluster ID & Replication Group ID) | ✅ (Creation Time)                   | ❌    |
 | elasticacheparametergroups  | ElasticacheParameterGroups   | ✅ (Parameter Group Name)              | ❌                                   | ❌    |
 | elasticachesubnetgroups     | ElasticacheSubnetGroups      | ✅ (Subnet Group Name)                 | ❌                                   | ❌    |
@@ -483,14 +484,14 @@ of the file that are supported are listed here.
 | iam-policy                  | IAMPolicies                  | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ❌    |
 | iam-role                    | IAMRoles                     | ✅ (Role Name)                         | ✅ (Creation Time)                   | ❌    |
 | iam-service-linked-role     | IAMServiceLinkedRoles        | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    |
-| iam                         | IAMUsers                     | ✅ (User Name)                         | ✅ (Creation Time)                   | ❌    |
+| iam                         | IAMUsers                     | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    |
 | kmscustomerkeys             | KMSCustomerKeys              | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    |
 | kinesis-stream              | KinesisStream                | ✅ (Stream Name)                       | ❌                                   | ❌    |
 | lambda                      | LambdaFunction               | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ❌    |
 | lc                          | LaunchConfiguration          | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    |
 | lt                          | LaunchTemplate               | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    |
 | macie-member                | MacieMember                  | ❌                                     | ✅ (Creation Time)                   | ❌    |
-| nat-gateway                 | NatGateway                   | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ❌    |
+| nat-gateway                 | NatGateway                   | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    |
 | oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |
 | opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |
 | redshift                    | Redshift                     | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    |
@@ -500,7 +501,7 @@ of the file that are supported are listed here.
 | sagemaker-notebook-smni     | SageMakerNotebook            | ✅ (Notebook Instnace Name)            | ✅ (Creation Time)                   | ❌    |
 | secretsmanager              | SecretsManagerSecrets        | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    |
 | security-hub                | SecurityHub                  | ❌                                     | ✅ (Created Time)                    | ❌    |
-| snap                        | Snapshots                    | ❌                                     | ✅ (Creation Time)                   | ❌    |
+| snap                        | Snapshots                    | ❌                                     | ✅ (Creation Time)                   | ✅    |
 | transit-gateway             | TransitGateway               | ❌                                     | ✅ (Creation Time)                   | ❌    |
 | transit-gateway-route-table | TransitGatewayRouteTable     | ❌                                     | ✅ (Creation Time)                   | ❌    |
 | transit-gateway-attachment  | TransitGatewaysVpcAttachment | ❌                                     | ✅ (Creation Time)                   | ❌    |

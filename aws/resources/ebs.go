@@ -2,6 +2,7 @@ package resources
 
 import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -49,6 +50,7 @@ func shouldIncludeEBSVolume(volume *ec2.Volume, configObj config.Config) bool {
 	return configObj.EBSVolume.ShouldInclude(config.ResourceValue{
 		Name: &name,
 		Time: volume.CreateTime,
+		Tags: util.ConvertEC2TagsToMap(volume.Tags),
 	})
 }
 
