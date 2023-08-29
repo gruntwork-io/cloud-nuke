@@ -57,8 +57,8 @@ func TestListMSKClustersSingle(t *testing.T) {
 		t.Fatalf("Expected 1 cluster, got %d", len(clusterIDs))
 	}
 
-	if clusterIDs[0] != "arn:aws:kafka:us-east-1:123456789012:cluster/test-cluster-1/1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p" {
-		t.Fatalf("Unexpected cluster ID: %s", clusterIDs[0])
+	if *clusterIDs[0] != "arn:aws:kafka:us-east-1:123456789012:cluster/test-cluster-1/1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p" {
+		t.Fatalf("Unexpected cluster ID: %s", *clusterIDs[0])
 	}
 }
 
@@ -104,8 +104,8 @@ func TestListMSKClustersMultiple(t *testing.T) {
 
 	for i := range clusterIDs {
 		prefix := fmt.Sprintf("arn:aws:kafka:us-east-1:123456789012:cluster/test-cluster-%d", i+1)
-		if !strings.HasPrefix(clusterIDs[i], prefix) {
-			t.Fatalf("Unexpected cluster ID: %s", clusterIDs[i])
+		if !strings.HasPrefix(*clusterIDs[i], prefix) {
+			t.Fatalf("Unexpected cluster ID: %s", *clusterIDs[i])
 		}
 	}
 }

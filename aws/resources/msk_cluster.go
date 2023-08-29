@@ -7,13 +7,13 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (m MSKCluster) getAll(configObj config.Config) ([]string, error) {
-	clusterIDs := []string{}
+func (m MSKCluster) getAll(configObj config.Config) ([]*string, error) {
+	var clusterIDs []*string
 
 	err := m.Client.ListClustersV2Pages(&kafka.ListClustersV2Input{}, func(page *kafka.ListClustersV2Output, lastPage bool) bool {
 		for _, cluster := range page.ClusterInfoList {
 			if m.shouldInclude(cluster, configObj) {
-				clusterIDs = append(clusterIDs, *cluster.ClusterArn)
+				clusterIDs = append(clusterIDs, cluster.ClusterArn)
 			}
 		}
 		return !lastPage
