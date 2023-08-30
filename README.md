@@ -491,6 +491,7 @@ of the file that are supported are listed here.
 | lc                          | LaunchConfiguration          | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    |
 | lt                          | LaunchTemplate               | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    |
 | macie-member                | MacieMember                  | ❌                                     | ✅ (Creation Time)                   | ❌    |
+| msk-cluster                 | MskCluster                   | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    |
 | nat-gateway                 | NatGateway                   | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    |
 | oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |
 | opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |

@@ -61,6 +61,7 @@ type Config struct {
 	LaunchConfiguration          ResourceType               `yaml:"LaunchConfiguration"`
 	LaunchTemplate               ResourceType               `yaml:"LaunchTemplate"`
 	MacieMember                  ResourceType               `yaml:"MacieMember"`
+	MSKCluster                   ResourceType               `yaml:"MSKCluster"`
 	NatGateway                   ResourceType               `yaml:"NatGateway"`
 	OIDCProvider                 ResourceType               `yaml:"OIDCProvider"`
 	OpenSearchDomain             ResourceType               `yaml:"OpenSearchDomain"`
