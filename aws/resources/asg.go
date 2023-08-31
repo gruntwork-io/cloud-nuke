@@ -7,6 +7,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
@@ -23,6 +24,7 @@ func (ag *ASGroups) getAll(configObj config.Config) ([]*string, error) {
 		if configObj.AutoScalingGroup.ShouldInclude(config.ResourceValue{
 			Time: group.CreatedTime,
 			Name: group.AutoScalingGroupName,
+			Tags: util.ConvertAutoScalingTagsToMap(group.Tags),
 		}) {
 			groupNames = append(groupNames, group.AutoScalingGroupName)
 		}

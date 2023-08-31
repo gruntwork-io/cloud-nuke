@@ -86,6 +86,7 @@ func (ea *EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.T
 	return configObj.ElasticIP.ShouldInclude(config.ResourceValue{
 		Time: &firstSeenTime,
 		Name: allocationName,
+		Tags: util.ConvertEC2TagsToMap(address.Tags),
 	})
 }
 

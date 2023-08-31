@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
@@ -49,6 +50,7 @@ func shouldIncludeNatGateway(ngw *ec2.NatGateway, configObj config.Config) bool 
 	return configObj.NatGateway.ShouldInclude(config.ResourceValue{
 		Time: ngw.CreateTime,
 		Name: getNatGatewayName(ngw),
+		Tags: util.ConvertEC2TagsToMap(ngw.Tags),
 	})
 }
 

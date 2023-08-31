@@ -7,6 +7,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
@@ -44,8 +45,10 @@ func (clusters *EKSClusters) filter(clusterNames []*string, configObj config.Con
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// TODO: use resourceType function for shouldInclude
-		if !configObj.EKSCluster.ShouldInclude(config.ResourceValue{Time: describeResult.Cluster.CreatedAt}) {
+		if !configObj.EKSCluster.ShouldInclude(config.ResourceValue{
+			Time: describeResult.Cluster.CreatedAt,
+			Tags: util.ConvertStringPtrTagsToMap(describeResult.Cluster.Tags),
+		}) {
 			continue
 		}
 

@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
@@ -27,6 +28,7 @@ func (iu *IAMUsers) getAll(configObj config.Config) ([]*string, error) {
 			if configObj.IAMUsers.ShouldInclude(config.ResourceValue{
 				Name: user.UserName,
 				Time: user.CreateDate,
+				Tags: util.ConvertIAMTagsToMap(user.Tags),
 			}) {
 				userNames = append(userNames, user.UserName)
 			}

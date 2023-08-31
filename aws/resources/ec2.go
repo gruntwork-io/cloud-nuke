@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
@@ -82,6 +83,7 @@ func shouldIncludeInstanceId(instance *ec2.Instance, protected bool, configObj c
 	return configObj.EC2.ShouldInclude(config.ResourceValue{
 		Name: instanceName,
 		Time: instance.LaunchTime,
+		Tags: util.ConvertEC2TagsToMap(instance.Tags),
 	})
 }
 
