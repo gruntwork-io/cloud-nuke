@@ -26,7 +26,8 @@ func CreateCli(version string) *cli.App {
 	app := cli.NewApp()
 	_, disableTelemetryFlag := os.LookupEnv("DISABLE_TELEMETRY")
 	if !disableTelemetryFlag {
-		ui.WarningMessage("This program sends telemetry to Gruntwork. To disable, set DISABLE_TELEMETRY=true as an environment variable")
+		pterm.Warning.Println("This program sends telemetry to Gruntwork. To disable, set DISABLE_TELEMETRY=true as an environment variable")
+		pterm.Println()
 	}
 	telemetry.InitTelemetry("cloud-nuke", version)
 	telemetry.TrackEvent(commonTelemetry.EventContext{
@@ -201,6 +202,11 @@ func awsNuke(c *cli.Context) error {
 		EventName: "End aws",
 	}, map[string]interface{}{})
 
+	// Handle the case where the user only wants to list resource types
+	if c.Bool("list-resource-types") {
+		return handleListResourceTypes()
+	}
+
 	parseErr := parseLogLevel(c)
 	if parseErr != nil {
 		return errors.WithStackTrace(parseErr)
@@ -208,7 +214,6 @@ func awsNuke(c *cli.Context) error {
 
 	configObj := config.Config{}
 	configFilePath := c.String("config")
-
 	if configFilePath != "" {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Reading config file",
@@ -223,90 +228,7 @@ func awsNuke(c *cli.Context) error {
 		configObj = *configObjPtr
 	}
 
-	if c.Bool("list-resource-types") {
-		for _, resourceType := range aws.ListResourceTypes() {
-			fmt.Println(resourceType)
-		}
-		return nil
-	}
-
-	// Ensure that the resourceTypes and excludeResourceTypes arguments are valid, and then filter
-	// resourceTypes
-	resourceTypes, err := aws.HandleResourceTypeSelections(c.StringSlice("resource-type"), c.StringSlice("exclude-resource-type"))
-	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Bad Resource Types",
-		}, map[string]interface{}{})
-		return err
-	}
-
-	targetedResourceList := []pterm.BulletListItem{}
-
-	for _, resource := range resourceTypes {
-		targetedResourceList = append(targetedResourceList, pterm.BulletListItem{Level: 0, Text: resource})
-	}
-
-	ui.WarningMessage("The following resource types are targeted for destruction")
-
-	// Log which resource types will be nuked
-	list := pterm.DefaultBulletList.
-		WithItems(targetedResourceList).
-		WithBullet(ui.TargetEmoji)
-
-	renderErr := list.Render()
-	if renderErr != nil {
-		return errors.WithStackTrace(renderErr)
-	}
-
-	regions, err := aws.GetEnabledRegions()
-	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error getting regions",
-		}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
-	}
-
-	// global is a fake region, used to represent global resources
-	regions = append(regions, aws.GlobalRegion)
-
-	selectedRegions := c.StringSlice("region")
-	excludedRegions := c.StringSlice("exclude-region")
-
-	// targetRegions uses selectedRegions and excludedRegions to create a final
-	// target region slice.
-	targetRegions, err := aws.GetTargetRegions(regions, selectedRegions, excludedRegions)
-	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error targeting regions",
-		}, map[string]interface{}{})
-		return fmt.Errorf("Failed to select regions: %s", err)
-	}
-
-	excludeAfter, err := parseDurationParam(c.String("older-than"))
-	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error parsing duration",
-		}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
-	}
-
-	deleteUnaliasedKmsKeys := c.Bool("delete-unaliased-kms-keys")
-	configObj.KMSCustomerKeys.DeleteUnaliasedKeys = deleteUnaliasedKmsKeys
-
-	spinnerMsg := fmt.Sprintf("Retrieving active AWS resources in [%s]", strings.Join(targetRegions[:], ", "))
-
-	// Start a simple spinner to track progress reading all relevant AWS resources
-	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
-		WithRemoveWhenDone(true).
-		Start(spinnerMsg)
-
-	if spinnerErr != nil {
-		return errors.WithStackTrace(spinnerErr)
-	}
-
-	account, err := aws.GetAllResources(targetRegions, *excludeAfter, resourceTypes, configObj, deleteUnaliasedKmsKeys)
-	// Stop the spinner
-	spinnerSuccess.Stop()
+	query, account, err := handleGetResources(c, configObj, c.Bool("delete-unaliased-kms-keys"))
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -320,31 +242,6 @@ func awsNuke(c *cli.Context) error {
 		}, map[string]interface{}{})
 		pterm.Info.Println("Nothing to nuke, you're all good!")
 		return nil
-	}
-
-	nukableResources := aws.ExtractResourcesForPrinting(account)
-
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Found resources to nuke",
-	}, map[string]interface{}{
-		"totalResourceCount": len(nukableResources),
-	})
-
-	ui.WarningMessage(fmt.Sprintf("The following %d AWS resources will be nuked:\n", len(nukableResources)))
-
-	items := []pterm.BulletListItem{}
-
-	for _, resource := range nukableResources {
-		items = append(items, pterm.BulletListItem{Level: 0, Text: resource})
-	}
-
-	targetList := pterm.DefaultBulletList.
-		WithItems(items).
-		WithBullet(ui.FireEmoji)
-
-	targetRenderErr := targetList.Render()
-	if targetRenderErr != nil {
-		return errors.WithStackTrace(targetRenderErr)
 	}
 
 	if c.Bool("dry-run") {
@@ -368,7 +265,7 @@ func awsNuke(c *cli.Context) error {
 			return err
 		}
 		if proceed {
-			if err := aws.NukeAllResources(account, targetRegions); err != nil {
+			if err := aws.NukeAllResources(account, query.Regions); err != nil {
 				return err
 			}
 		} else {
@@ -386,7 +283,7 @@ func awsNuke(c *cli.Context) error {
 			time.Sleep(1 * time.Second)
 		}
 
-		if err := aws.NukeAllResources(account, targetRegions); err != nil {
+		if err := aws.NukeAllResources(account, query.Regions); err != nil {
 			return err
 		}
 	}
@@ -408,13 +305,13 @@ func awsDefaults(c *cli.Context) error {
 		return errors.WithStackTrace(parseErr)
 	}
 
-	logging.Logger.Infoln("Identifying enabled regions")
+	logging.Logger.Debugln("Identifying enabled regions")
 	regions, err := aws.GetEnabledRegions()
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 	for _, region := range regions {
-		logging.Logger.Infof("Found enabled region %s", region)
+		logging.Logger.Debugf("Found enabled region %s", region)
 	}
 
 	selectedRegions := c.StringSlice("region")
@@ -616,28 +513,24 @@ func awsInspect(c *cli.Context) error {
 	defer telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "End aws-inspect",
 	}, map[string]interface{}{})
-	logging.Logger.Infoln("Identifying enabled regions")
-	regions, err := aws.GetEnabledRegions()
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-	for _, region := range regions {
-		logging.Logger.Infof("Found enabled region %s", region)
-	}
 
+	// Handle the case where the user only wants to list resource types
 	if c.Bool("list-resource-types") {
-		for _, resourceType := range aws.ListResourceTypes() {
-			logging.Logger.Infoln(resourceType)
-		}
-		return nil
+		return handleListResourceTypes()
 	}
 
+	_, _, err := handleGetResources(c, config.Config{}, c.Bool("list-unaliased-kms-keys"))
+	return err
+}
+
+func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliasedKmsKeys bool) (
+	*aws.Query, *aws.AwsAccountResources, error) {
 	excludeAfter, err := parseDurationParam(c.String("older-than"))
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error parsing duration",
 		}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
+		return nil, nil, errors.WithStackTrace(err)
 	}
 
 	query, err := aws.NewQuery(
@@ -646,30 +539,97 @@ func awsInspect(c *cli.Context) error {
 		c.StringSlice("resource-type"),
 		c.StringSlice("exclude-resource-type"),
 		*excludeAfter,
-		c.Bool("list-unaliased-kms-keys"),
+		includeUnaliasedKmsKeys,
 	)
 	if err != nil {
-		return aws.QueryCreationError{Underlying: err}
+		return nil, nil, aws.QueryCreationError{Underlying: err}
 	}
 
-	accountResources, err := aws.InspectResources(query)
+	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")
+	err = RenderQueryAsBulletList(query)
+	if err != nil {
+		return nil, nil, errors.WithStackTrace(err)
+	}
+	pterm.Println()
+
+	accountResources, err := aws.GetAllResources(
+		query.Regions, query.ExcludeAfter, query.ResourceTypes, configObj, query.ListUnaliasedKMSKeys)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
 		}, map[string]interface{}{})
-		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
+		return nil, nil, errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
-	foundResources := aws.ExtractResourcesForPrinting(accountResources)
+	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
+	err = RenderResourcesAsTable(accountResources)
 
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Found resources with aws-inspect",
-	}, map[string]interface{}{
-		"resourceCount": len(foundResources),
-	})
-	for _, resource := range foundResources {
-		logging.Logger.Infoln(resource)
+	return query, accountResources, err
+}
+
+func handleListResourceTypes() error {
+	// Handle the case where the user only wants to list resource types
+	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Types")
+	return RenderResourceTypesAsBulletList(aws.ListResourceTypes())
+}
+
+// TODO: Refactor the rendering code to other files. This file currently contains quite a lot of logic
+//  and it's hard to separate this logic out to other files due to import cycle issue.
+
+func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
+	var tableData [][]string
+	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier"})
+
+	for region, resourcesInRegion := range account.Resources {
+		for _, foundResources := range resourcesInRegion.Resources {
+			for _, identifier := range (*foundResources).ResourceIdentifiers() {
+				tableData = append(tableData, []string{(*foundResources).ResourceName(), region, identifier})
+			}
+		}
 	}
 
-	return nil
+	return pterm.DefaultTable.WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		Render()
+}
+
+func RenderResourceTypesAsBulletList(resourceTypes []string) error {
+	var items []pterm.BulletListItem
+	for _, resourceType := range resourceTypes {
+		items = append(items, pterm.BulletListItem{Level: 0, Text: resourceType})
+	}
+
+	return pterm.DefaultBulletList.WithItems(items).Render()
+}
+
+func RenderQueryAsBulletList(query *aws.Query) error {
+	var tableData [][]string
+	tableData = append(tableData, []string{"Query Parameter", "Value"})
+
+	// Listing regions if there are <= 5 regions, otherwise the table format breaks.
+	if len(query.Regions) > 5 {
+		tableData = append(tableData,
+			[]string{"Target Regions", fmt.Sprintf("%d regions (too many to list all)", len(query.Regions))})
+	} else {
+		tableData = append(tableData, []string{"Target Regions", strings.Join(query.Regions, ", ")})
+	}
+
+	// Listing resource types if there are <= 5 resources, otherwise the table format breaks.
+	if len(query.ResourceTypes) > 5 {
+		tableData = append(tableData,
+			[]string{"Target Resource Types", fmt.Sprintf("%d resource types (too many to list all)", len(query.ResourceTypes))})
+	} else {
+		tableData = append(tableData, []string{"Target Resource Types", strings.Join(query.ResourceTypes, ", ")})
+	}
+
+	tableData = append(tableData, []string{"Exclude After Filter", query.ExcludeAfter.Format("2006-01-02 15:04:05")})
+	tableData = append(tableData, []string{"List Unaliased KMS Keys", fmt.Sprintf("%t", query.ListUnaliasedKMSKeys)})
+
+	return pterm.DefaultTable.WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		Render()
 }

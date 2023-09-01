@@ -99,7 +99,7 @@ func (c *Config) AddExcludeAfterTime(excludeAfter *time.Time) {
 }
 
 type KMSCustomerKeyResourceType struct {
-	DeleteUnaliasedKeys bool `yaml:"delete_unaliased_keys"`
+	IncludeUnaliasedKeys bool `yaml:"include_unaliased_keys"`
 
 	ResourceType
 }

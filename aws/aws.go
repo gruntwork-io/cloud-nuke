@@ -3,6 +3,7 @@ package aws
 import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/pterm/pterm"
 	"sort"
 	"strings"
 	"time"
@@ -28,13 +29,13 @@ func GetAllResources(
 	allowDeleteUnaliasedKeys bool) (*AwsAccountResources, error) {
 
 	configObj.AddExcludeAfterTime(&excludeAfter)
-	configObj.KMSCustomerKeys.DeleteUnaliasedKeys = allowDeleteUnaliasedKeys
+	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = allowDeleteUnaliasedKeys
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
 
+	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	for _, region := range targetRegions {
-		logging.Logger.Infoln("Listing resources in region: ", region)
 		cloudNukeSession := NewSession(region)
 		stsService := sts.New(cloudNukeSession)
 		resp, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
@@ -46,7 +47,8 @@ func GetAllResources(
 		registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
 		for _, resource := range registeredResources {
 			if IsNukeable((*resource).ResourceName(), resourceTypes) {
-				logging.Logger.Infoln("Listing resources of type: ", (*resource).ResourceName())
+				spinner.UpdateText(
+					fmt.Sprintf("Searching %s resources in %s", (*resource).ResourceName(), region))
 				start := time.Now()
 				identifiers, err := (*resource).GetAndSetIdentifiers(configObj)
 				if err != nil {
@@ -67,6 +69,7 @@ func GetAllResources(
 
 				// Only append if we have non-empty identifiers
 				if len(identifiers) > 0 {
+					pterm.Info.Println(fmt.Sprintf("Found %d %s resources in %s", len(identifiers), (*resource).ResourceName(), region))
 					awsResource.Resources = append(awsResource.Resources, resource)
 				}
 			}
@@ -75,6 +78,12 @@ func GetAllResources(
 		if len(awsResource.Resources) > 0 {
 			account.Resources[region] = awsResource
 		}
+	}
+
+	pterm.Info.Println("Done searching for resources")
+	err := spinner.Stop()
+	if err != nil {
+		return nil, err
 	}
 
 	return &account, nil
