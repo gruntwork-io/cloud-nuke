@@ -120,7 +120,7 @@ func (kck *KmsCustomerKeys) shouldInclude(
 
 	// Only delete keys without aliases if the user explicitly says so
 	if len(aliases) == 0 {
-		if !configObj.KMSCustomerKeys.DeleteUnaliasedKeys {
+		if !configObj.KMSCustomerKeys.IncludeUnaliasedKeys {
 			resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 			return
 		} else {
