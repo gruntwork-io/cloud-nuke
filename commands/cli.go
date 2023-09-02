@@ -191,6 +191,11 @@ func parseLogLevel(c *cli.Context) error {
 	}
 	logging.Logger.SetLevel(parsedLogLevel)
 	logging.Logger.Debugf("Setting log level to %s", parsedLogLevel.String())
+
+	if parsedLogLevel == logrus.DebugLevel {
+		pterm.EnableDebugMessages()
+	}
+
 	return nil
 }
 
@@ -256,31 +261,33 @@ func awsNuke(c *cli.Context) error {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Awaiting nuke confirmation",
 		}, map[string]interface{}{})
+
 		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C) "
-		proceed, err := confirmationPrompt(prompt, 2)
+		proceed, err := RenderConfirmationPrompt(prompt, 2)
 		if err != nil {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error confirming nuke",
 			}, map[string]interface{}{})
 			return err
 		}
-		if proceed {
-			if err := aws.NukeAllResources(account, query.Regions); err != nil {
-				return err
-			}
-		} else {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "User aborted nuke",
-			}, map[string]interface{}{})
+
+		if !proceed {
+			return nil
+		}
+
+		if err := aws.NukeAllResources(account, query.Regions); err != nil {
+			return err
 		}
 	} else {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Forcing nuke in 10 seconds",
 		}, map[string]interface{}{})
-		logging.Logger.Infoln("The --force flag is set, so waiting for 10 seconds before proceeding to nuke everything in your account. If you don't want to proceed, hit CTRL+C now!!")
-		for i := 10; i > 0; i-- {
-			fmt.Printf("%d...", i)
-			time.Sleep(1 * time.Second)
+
+		pterm.Println()
+		pterm.Warning.Println("The --force flag is set, proceeding to nuke everything in your account without confirmation prompt. If you don't want to proceed, hit CTRL+C now!")
+		err := RenderSpinnerWithTimerWithText("nuking starts in %d seconds.", 10)
+		if err != nil {
+			return err
 		}
 
 		if err := aws.NukeAllResources(account, query.Regions); err != nil {
@@ -289,7 +296,6 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	ui.RenderRunReport()
-
 	return nil
 }
 
@@ -403,7 +409,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		proceed, err = confirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C)", 2)
+		proceed, err = RenderConfirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C)", 2)
 		if err != nil {
 			return err
 		}
@@ -465,7 +471,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	var proceed bool
 	if !c.Bool("force") {
 		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C)"
-		proceed, err = confirmationPrompt(prompt, 2)
+		proceed, err = RenderConfirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
@@ -479,31 +485,6 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	}
 
 	return nil
-}
-
-func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
-	prompts := 0
-
-	ui.UrgentMessage("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
-
-	for prompts < maxPrompts {
-		confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
-		pterm.Println()
-		input, err := confirmPrompt.Show(prompt)
-		if err != nil {
-			logging.Logger.Errorf("[Failed to render prompt] %s", err)
-			return false, errors.WithStackTrace(err)
-		}
-		response := strings.ToLower(strings.TrimSpace(input))
-		if response == "nuke" {
-			return true, nil
-		}
-		fmt.Printf("Invalid value '%s' was entered.\n", input)
-		prompts++
-		pterm.Println()
-	}
-
-	return false, nil
 }
 
 func awsInspect(c *cli.Context) error {
@@ -525,12 +506,17 @@ func awsInspect(c *cli.Context) error {
 
 func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliasedKmsKeys bool) (
 	*aws.Query, *aws.AwsAccountResources, error) {
-	excludeAfter, err := parseDurationParam(c.String("older-than"))
-	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error parsing duration",
-		}, map[string]interface{}{})
-		return nil, nil, errors.WithStackTrace(err)
+	var excludeAfter *time.Time = nil
+	if c.String("older-than") != "0s" {
+		parsedExcludeAfter, err := parseDurationParam(c.String("older-than"))
+		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error parsing duration",
+			}, map[string]interface{}{})
+			return nil, nil, errors.WithStackTrace(err)
+		}
+
+		excludeAfter = parsedExcludeAfter
 	}
 
 	query, err := aws.NewQuery(
@@ -538,7 +524,7 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 		c.StringSlice("exclude-region"),
 		c.StringSlice("resource-type"),
 		c.StringSlice("exclude-resource-type"),
-		*excludeAfter,
+		excludeAfter,
 		includeUnaliasedKmsKeys,
 	)
 	if err != nil {
@@ -561,8 +547,10 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 		return nil, nil, errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
-	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
-	err = RenderResourcesAsTable(accountResources)
+	if accountResources.TotalResourceCount() != 0 {
+		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
+		err = RenderResourcesAsTable(accountResources)
+	}
 
 	return query, accountResources, err
 }
@@ -624,7 +612,10 @@ func RenderQueryAsBulletList(query *aws.Query) error {
 		tableData = append(tableData, []string{"Target Resource Types", strings.Join(query.ResourceTypes, ", ")})
 	}
 
-	tableData = append(tableData, []string{"Exclude After Filter", query.ExcludeAfter.Format("2006-01-02 15:04:05")})
+	if query.ExcludeAfter != nil {
+		tableData = append(tableData, []string{"Exclude After Filter", query.ExcludeAfter.Format("2006-01-02 15:04:05")})
+	}
+
 	tableData = append(tableData, []string{"List Unaliased KMS Keys", fmt.Sprintf("%t", query.ListUnaliasedKMSKeys)})
 
 	return pterm.DefaultTable.WithBoxed(true).
@@ -632,4 +623,47 @@ func RenderQueryAsBulletList(query *aws.Query) error {
 		WithHasHeader(true).
 		WithHeaderRowSeparator("-").
 		Render()
+}
+
+func RenderConfirmationPrompt(prompt string, numRetryCount int) (bool, error) {
+	prompts := 0
+
+	pterm.Println()
+	pterm.Warning.Println("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
+
+	for prompts < numRetryCount {
+		confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
+		input, err := confirmPrompt.Show(prompt)
+		if err != nil {
+			logging.Logger.Errorf("[Failed to render prompt] %s", err)
+			return false, errors.WithStackTrace(err)
+		}
+
+		response := strings.ToLower(strings.TrimSpace(input))
+		if response == "nuke" {
+			pterm.Println()
+			return true, nil
+		}
+
+		pterm.Println()
+		pterm.Error.Println(fmt.Sprintf("Invalid value was entered: %s. Try again.", input))
+		prompts++
+	}
+
+	pterm.Println()
+	return false, nil
+}
+
+func RenderSpinnerWithTimerWithText(text string, counter int) error {
+	spinner, err := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	for i := counter; i > 0; i-- {
+		spinner.UpdateText(fmt.Sprintf(text, i))
+		time.Sleep(1 * time.Second)
+	}
+
+	return spinner.Stop()
 }
