@@ -282,9 +282,10 @@ func (sg *ElasticacheSubnetGroups) getAll(configObj config.Config) ([]*string, e
 		&elasticache.DescribeCacheSubnetGroupsInput{},
 		func(page *elasticache.DescribeCacheSubnetGroupsOutput, lastPage bool) bool {
 			for _, subnetGroup := range page.CacheSubnetGroups {
-				if configObj.ElasticacheSubnetGroups.ShouldInclude(config.ResourceValue{
-					Name: subnetGroup.CacheSubnetGroupName,
-				}) {
+				if !strings.Contains(*subnetGroup.CacheSubnetGroupName, "default") &&
+					configObj.ElasticacheSubnetGroups.ShouldInclude(config.ResourceValue{
+						Name: subnetGroup.CacheSubnetGroupName,
+					}) {
 					subnetGroupNames = append(subnetGroupNames, subnetGroup.CacheSubnetGroupName)
 				}
 			}
