@@ -21,21 +21,17 @@ import (
 )
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(
-	targetRegions []string,
-	excludeAfter time.Time,
-	resourceTypes []string,
-	configObj config.Config,
-	allowDeleteUnaliasedKeys bool) (*AwsAccountResources, error) {
+func GetAllResources(query *Query, configObj config.Config) (*AwsAccountResources, error) {
 
-	configObj.AddExcludeAfterTime(&excludeAfter)
-	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = allowDeleteUnaliasedKeys
+	configObj.AddExcludeAfterTime(query.ExcludeAfter)
+	configObj.AddIncludeAfterTime(query.IncludeAfter)
+	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = query.ListUnaliasedKMSKeys
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsRegionResource),
 	}
 
 	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
-	for _, region := range targetRegions {
+	for _, region := range query.Regions {
 		cloudNukeSession := NewSession(region)
 		stsService := sts.New(cloudNukeSession)
 		resp, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
@@ -46,7 +42,7 @@ func GetAllResources(
 		awsResource := AwsRegionResource{}
 		registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
 		for _, resource := range registeredResources {
-			if IsNukeable((*resource).ResourceName(), resourceTypes) {
+			if IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
 				spinner.UpdateText(
 					fmt.Sprintf("Searching %s resources in %s", (*resource).ResourceName(), region))
 				start := time.Now()

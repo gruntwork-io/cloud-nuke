@@ -79,28 +79,40 @@ type Config struct {
 	VPC                          ResourceType               `yaml:"VPC"`
 }
 
-func (c *Config) AddExcludeAfterTime(excludeAfter *time.Time) {
-	// exclude after filter has been applied to all resources via `older-than` flag, we are
-	// setting this rule across all resource types.
-	//
-	// TODO: after refactoring all the code, we can remove having excludeAfter in config and
-	//  passing in as additional argument to GetAllResources.
+func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
+	// Do nothing if the time filter is nil
+	if timeFilter == nil {
+		return
+	}
+
 	v := reflect.ValueOf(c).Elem()
-	excludeFilterRule := FilterRule{TimeAfter: excludeAfter}
+	filterRule := FilterRule{TimeAfter: timeFilter}
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		if field.Kind() == reflect.Struct {
-			excludeRuleField := field.FieldByName("ExcludeRule")
-			if excludeRuleField.CanSet() {
-				excludeRuleField.Set(reflect.ValueOf(excludeFilterRule))
+			ruleField := field.FieldByName(fieldName)
+			if ruleField.CanSet() {
+				ruleField.Set(reflect.ValueOf(filterRule))
 			}
 		}
 	}
 }
 
+func (c *Config) AddIncludeAfterTime(includeAfter *time.Time) {
+	// include after filter has been applied to all resources via `newer-than` flag, we are
+	// setting this rule across all resource types.
+	c.addTimeAfterFilter(includeAfter, "IncludeRule")
+}
+
+func (c *Config) AddExcludeAfterTime(excludeAfter *time.Time) {
+	// exclude after filter has been applied to all resources via `older-than` flag, we are
+	// setting this rule across all resource types.
+	c.addTimeAfterFilter(excludeAfter, "ExcludeRule")
+}
+
 type KMSCustomerKeyResourceType struct {
 	IncludeUnaliasedKeys bool `yaml:"include_unaliased_keys"`
-	ResourceType        `yaml:",inline"`
+	ResourceType         `yaml:",inline"`
 }
 
 type ResourceType struct {

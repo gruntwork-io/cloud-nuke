@@ -71,6 +71,11 @@ func CreateCli(version string) *cli.App {
 					Usage: "Only delete resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 					Value: "0s",
 				},
+				&cli.StringFlag{
+					Name:  "newer-than",
+					Usage: "Only delete resources newer than this specified value. Can be any valid Go duration, such as 10m or 8h.",
+					Value: "0s",
+				},
 				&cli.BoolFlag{
 					Name:  "dry-run",
 					Usage: "Dry run without taking any action.",
@@ -152,6 +157,11 @@ func CreateCli(version string) *cli.App {
 					Usage: "Only inspect resources older than this specified value. Can be any valid Go duration, such as 10m or 8h.",
 					Value: "0s",
 				},
+				&cli.StringFlag{
+					Name:  "newer-than",
+					Usage: "Only delete resources newer than this specified value. Can be any valid Go duration, such as 10m or 8h.",
+					Value: "0s",
+				},
 				&cli.BoolFlag{
 					Name:  "list-unaliased-kms-keys",
 					Usage: "List KMS keys that do not have aliases associated with them.",
@@ -170,6 +180,10 @@ func CreateCli(version string) *cli.App {
 }
 
 func parseDurationParam(paramValue string) (*time.Time, error) {
+	if paramValue == "0s" {
+		return nil, nil
+	}
+
 	duration, err := time.ParseDuration(paramValue)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -527,9 +541,11 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 	*aws.Query, *aws.AwsAccountResources, error) {
 	excludeAfter, err := parseDurationParam(c.String("older-than"))
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error parsing duration",
-		}, map[string]interface{}{})
+		return nil, nil, errors.WithStackTrace(err)
+	}
+
+	includeAfter, err := parseDurationParam(c.String("newer-than"))
+	if err != nil {
 		return nil, nil, errors.WithStackTrace(err)
 	}
 
@@ -538,7 +554,8 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 		c.StringSlice("exclude-region"),
 		c.StringSlice("resource-type"),
 		c.StringSlice("exclude-resource-type"),
-		*excludeAfter,
+		excludeAfter,
+		includeAfter,
 		includeUnaliasedKmsKeys,
 	)
 	if err != nil {
@@ -552,8 +569,7 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 	}
 	pterm.Println()
 
-	accountResources, err := aws.GetAllResources(
-		query.Regions, query.ExcludeAfter, query.ResourceTypes, configObj, query.ListUnaliasedKMSKeys)
+	accountResources, err := aws.GetAllResources(query, configObj)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
@@ -624,7 +640,12 @@ func RenderQueryAsBulletList(query *aws.Query) error {
 		tableData = append(tableData, []string{"Target Resource Types", strings.Join(query.ResourceTypes, ", ")})
 	}
 
-	tableData = append(tableData, []string{"Exclude After Filter", query.ExcludeAfter.Format("2006-01-02 15:04:05")})
+	if query.ExcludeAfter != nil {
+		tableData = append(tableData, []string{"Exclude After Filter", query.ExcludeAfter.Format("2006-01-02 15:04:05")})
+	}
+	if query.IncludeAfter != nil {
+		tableData = append(tableData, []string{"Include After Filter", query.IncludeAfter.Format("2006-01-02 15:04:05")})
+	}
 	tableData = append(tableData, []string{"List Unaliased KMS Keys", fmt.Sprintf("%t", query.ListUnaliasedKMSKeys)})
 
 	return pterm.DefaultTable.WithBoxed(true).
