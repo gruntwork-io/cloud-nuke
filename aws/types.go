@@ -91,18 +91,20 @@ type Query struct {
 	ExcludeRegions       []string
 	ResourceTypes        []string
 	ExcludeResourceTypes []string
-	ExcludeAfter         time.Time
+	ExcludeAfter         *time.Time
+	IncludeAfter         *time.Time
 	ListUnaliasedKMSKeys bool
 }
 
 // NewQuery configures and returns a Query struct that can be passed into the InspectResources method
-func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string, excludeAfter time.Time, listUnaliasedKMSKeys bool) (*Query, error) {
+func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string, excludeAfter, includeAfter *time.Time, listUnaliasedKMSKeys bool) (*Query, error) {
 	q := &Query{
 		Regions:              regions,
 		ExcludeRegions:       excludeRegions,
 		ResourceTypes:        resourceTypes,
 		ExcludeResourceTypes: excludeResourceTypes,
 		ExcludeAfter:         excludeAfter,
+		IncludeAfter:         includeAfter,
 		ListUnaliasedKMSKeys: listUnaliasedKMSKeys,
 	}
 
