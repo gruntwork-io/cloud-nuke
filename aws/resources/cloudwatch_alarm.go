@@ -7,6 +7,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
@@ -73,7 +74,10 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 		})
 	}
 
+	var compositeAlarmNames []*string
 	for _, compositeAlarm := range alarms.CompositeAlarms {
+		compositeAlarmNames = append(compositeAlarmNames, compositeAlarm.AlarmName)
+
 		_, err := cw.Client.PutCompositeAlarm(&cloudwatch.PutCompositeAlarmInput{
 			AlarmName: compositeAlarm.AlarmName,
 			AlarmRule: aws.String("FALSE"),
@@ -86,14 +90,28 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 				"region": cw.Region,
 			})
 		}
+
+		// Note: for composite alarms, we need to delete one by one according to the documentation
+		// - https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DeleteAlarms.html.
+		_, err = cw.Client.DeleteAlarms(&cloudwatch.DeleteAlarmsInput{
+			AlarmNames: []*string{compositeAlarm.AlarmName},
+		})
+
+		// Record status of this resource
+		report.Record(report.Entry{
+			Identifier:   aws.StringValue(compositeAlarm.AlarmName),
+			ResourceType: "CloudWatch Alarm",
+			Error:        err,
+		})
 	}
 
-	input := cloudwatch.DeleteAlarmsInput{AlarmNames: identifiers}
+	nonCompositeAlarms := util.Difference(identifiers, compositeAlarmNames)
+	input := cloudwatch.DeleteAlarmsInput{AlarmNames: nonCompositeAlarms}
 	_, err = cw.Client.DeleteAlarms(&input)
 
 	// Record status of this resource
 	e := report.BatchEntry{
-		Identifiers:  aws.StringValueSlice(identifiers),
+		Identifiers:  aws.StringValueSlice(nonCompositeAlarms),
 		ResourceType: "CloudWatch Alarm",
 		Error:        err,
 	}

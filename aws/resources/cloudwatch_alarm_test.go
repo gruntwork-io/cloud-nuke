@@ -112,3 +112,26 @@ func TestCloudWatchAlarms_NukeAll(t *testing.T) {
 	err := cw.nukeAll([]*string{aws.String(testName1), aws.String(testName2)})
 	require.NoError(t, err)
 }
+
+func TestCloudWatchCompositeAlarms_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testCompositeAlaram1 := "test-name1"
+	testCompositeAlaram2 := "test-name2"
+	testName3 := "test-name3"
+	now := time.Now()
+	cw := CloudWatchAlarms{
+		Client: mockedCloudWatchAlarms{
+			DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
+				MetricAlarms: []*cloudwatch.MetricAlarm{
+					{AlarmName: aws.String(testCompositeAlaram1), AlarmConfigurationUpdatedTimestamp: &now},
+					{AlarmName: aws.String(testCompositeAlaram2), AlarmConfigurationUpdatedTimestamp: &now},
+				}},
+			PutCompositeAlarmOutput: cloudwatch.PutCompositeAlarmOutput{},
+			DeleteAlarmsOutput:      cloudwatch.DeleteAlarmsOutput{},
+		}}
+
+	err := cw.nukeAll([]*string{aws.String(testCompositeAlaram1), aws.String(testCompositeAlaram2), aws.String(testName3)})
+	require.NoError(t, err)
+}
