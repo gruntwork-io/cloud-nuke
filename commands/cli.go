@@ -6,7 +6,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -271,7 +270,7 @@ func awsNuke(c *cli.Context) error {
 			EventName: "Awaiting nuke confirmation",
 		}, map[string]interface{}{})
 		prompt := "\nAre you sure you want to nuke all listed resources? Enter 'nuke' to confirm (or exit with ^C) "
-		proceed, err := confirmationPrompt(prompt, 2)
+		proceed, err := ui.RenderNukeConfirmationPrompt(prompt, 2)
 		if err != nil {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error confirming nuke",
@@ -417,7 +416,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	var proceed bool
 	if !c.Bool("force") {
-		proceed, err = confirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C)", 2)
+		proceed, err = ui.RenderNukeConfirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C)", 2)
 		if err != nil {
 			return err
 		}
@@ -479,7 +478,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	var proceed bool
 	if !c.Bool("force") {
 		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C)"
-		proceed, err = confirmationPrompt(prompt, 2)
+		proceed, err = ui.RenderNukeConfirmationPrompt(prompt, 2)
 		if err != nil {
 			return err
 		}
@@ -493,31 +492,6 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	}
 
 	return nil
-}
-
-func confirmationPrompt(prompt string, maxPrompts int) (bool, error) {
-	prompts := 0
-
-	ui.UrgentMessage("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
-
-	for prompts < maxPrompts {
-		confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
-		pterm.Println()
-		input, err := confirmPrompt.Show(prompt)
-		if err != nil {
-			logging.Logger.Errorf("[Failed to render prompt] %s", err)
-			return false, errors.WithStackTrace(err)
-		}
-		response := strings.ToLower(strings.TrimSpace(input))
-		if response == "nuke" {
-			return true, nil
-		}
-		fmt.Printf("Invalid value '%s' was entered.\n", input)
-		prompts++
-		pterm.Println()
-	}
-
-	return false, nil
 }
 
 func awsInspect(c *cli.Context) error {
@@ -563,7 +537,7 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 	}
 
 	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")
-	err = RenderQueryAsBulletList(query)
+	err = ui.RenderQueryAsBulletList(query)
 	if err != nil {
 		return nil, nil, errors.WithStackTrace(err)
 	}
@@ -578,7 +552,7 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 	}
 
 	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
-	err = RenderResourcesAsTable(accountResources)
+	err = ui.RenderResourcesAsTable(accountResources)
 
 	return query, accountResources, err
 }
@@ -586,71 +560,5 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 func handleListResourceTypes() error {
 	// Handle the case where the user only wants to list resource types
 	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Types")
-	return RenderResourceTypesAsBulletList(aws.ListResourceTypes())
-}
-
-// TODO: Refactor the rendering code to other files. This file currently contains quite a lot of logic
-//  and it's hard to separate this logic out to other files due to import cycle issue.
-
-func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
-	var tableData [][]string
-	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier"})
-
-	for region, resourcesInRegion := range account.Resources {
-		for _, foundResources := range resourcesInRegion.Resources {
-			for _, identifier := range (*foundResources).ResourceIdentifiers() {
-				tableData = append(tableData, []string{(*foundResources).ResourceName(), region, identifier})
-			}
-		}
-	}
-
-	return pterm.DefaultTable.WithBoxed(true).
-		WithData(tableData).
-		WithHasHeader(true).
-		WithHeaderRowSeparator("-").
-		Render()
-}
-
-func RenderResourceTypesAsBulletList(resourceTypes []string) error {
-	var items []pterm.BulletListItem
-	for _, resourceType := range resourceTypes {
-		items = append(items, pterm.BulletListItem{Level: 0, Text: resourceType})
-	}
-
-	return pterm.DefaultBulletList.WithItems(items).Render()
-}
-
-func RenderQueryAsBulletList(query *aws.Query) error {
-	var tableData [][]string
-	tableData = append(tableData, []string{"Query Parameter", "Value"})
-
-	// Listing regions if there are <= 5 regions, otherwise the table format breaks.
-	if len(query.Regions) > 5 {
-		tableData = append(tableData,
-			[]string{"Target Regions", fmt.Sprintf("%d regions (too many to list all)", len(query.Regions))})
-	} else {
-		tableData = append(tableData, []string{"Target Regions", strings.Join(query.Regions, ", ")})
-	}
-
-	// Listing resource types if there are <= 5 resources, otherwise the table format breaks.
-	if len(query.ResourceTypes) > 5 {
-		tableData = append(tableData,
-			[]string{"Target Resource Types", fmt.Sprintf("%d resource types (too many to list all)", len(query.ResourceTypes))})
-	} else {
-		tableData = append(tableData, []string{"Target Resource Types", strings.Join(query.ResourceTypes, ", ")})
-	}
-
-	if query.ExcludeAfter != nil {
-		tableData = append(tableData, []string{"Exclude After Filter", query.ExcludeAfter.Format("2006-01-02 15:04:05")})
-	}
-	if query.IncludeAfter != nil {
-		tableData = append(tableData, []string{"Include After Filter", query.IncludeAfter.Format("2006-01-02 15:04:05")})
-	}
-	tableData = append(tableData, []string{"List Unaliased KMS Keys", fmt.Sprintf("%t", query.ListUnaliasedKMSKeys)})
-
-	return pterm.DefaultTable.WithBoxed(true).
-		WithData(tableData).
-		WithHasHeader(true).
-		WithHeaderRowSeparator("-").
-		Render()
+	return ui.RenderResourceTypesAsBulletList(aws.ListResourceTypes())
 }

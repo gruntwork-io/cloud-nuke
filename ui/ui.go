@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/go-commons/errors"
 	"io"
 	"os"
 	"strings"
@@ -140,4 +142,96 @@ func truncate(s string, maxLen int) string {
 // "sit" more nicely within their specified table cells in the terminal
 func removeNewlines(s string) string {
 	return strings.ReplaceAll(s, "\n", "")
+}
+
+func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
+	var tableData [][]string
+	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier"})
+
+	for region, resourcesInRegion := range account.Resources {
+		for _, foundResources := range resourcesInRegion.Resources {
+			for _, identifier := range (*foundResources).ResourceIdentifiers() {
+				tableData = append(tableData, []string{(*foundResources).ResourceName(), region, identifier})
+			}
+		}
+	}
+
+	return pterm.DefaultTable.WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		Render()
+}
+
+func RenderResourceTypesAsBulletList(resourceTypes []string) error {
+	var items []pterm.BulletListItem
+	for _, resourceType := range resourceTypes {
+		items = append(items, pterm.BulletListItem{Level: 0, Text: resourceType})
+	}
+
+	return pterm.DefaultBulletList.WithItems(items).Render()
+}
+
+func RenderQueryAsBulletList(query *aws.Query) error {
+	var tableData [][]string
+	tableData = append(tableData, []string{"Query Parameter", "Value"})
+
+	// Listing regions if there are <= 5 regions, otherwise the table format breaks.
+	if len(query.Regions) > 5 {
+		tableData = append(tableData,
+			[]string{"Target Regions", fmt.Sprintf("%d regions (too many to list all)", len(query.Regions))})
+	} else {
+		tableData = append(tableData, []string{"Target Regions", strings.Join(query.Regions, ", ")})
+	}
+
+	// Listing resource types if there are <= 5 resources, otherwise the table format breaks.
+	if len(query.ResourceTypes) > 5 {
+		tableData = append(tableData,
+			[]string{"Target Resource Types", fmt.Sprintf("%d resource types (too many to list all)", len(query.ResourceTypes))})
+	} else {
+		tableData = append(tableData, []string{"Target Resource Types", strings.Join(query.ResourceTypes, ", ")})
+	}
+
+	if query.ExcludeAfter != nil {
+		tableData = append(tableData, []string{"Exclude After Filter", query.ExcludeAfter.Format("2006-01-02 15:04:05")})
+	}
+	if query.IncludeAfter != nil {
+		tableData = append(tableData, []string{"Include After Filter", query.IncludeAfter.Format("2006-01-02 15:04:05")})
+	}
+	tableData = append(tableData, []string{"List Unaliased KMS Keys", fmt.Sprintf("%t", query.ListUnaliasedKMSKeys)})
+
+	return pterm.DefaultTable.WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		Render()
+}
+
+func RenderNukeConfirmationPrompt(prompt string, numRetryCount int) (bool, error) {
+	prompts := 0
+
+	pterm.Println()
+	pterm.Warning.Println("THE NEXT STEPS ARE DESTRUCTIVE AND COMPLETELY IRREVERSIBLE, PROCEED WITH CAUTION!!!")
+
+	for prompts < numRetryCount {
+		confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
+		input, err := confirmPrompt.Show(prompt)
+		if err != nil {
+			logging.Logger.Errorf("[Failed to render prompt] %s", err)
+			return false, errors.WithStackTrace(err)
+		}
+
+		response := strings.ToLower(strings.TrimSpace(input))
+		if response == "nuke" {
+			pterm.Println()
+			return true, nil
+		}
+
+		pterm.Println()
+		pterm.Error.Println(fmt.Sprintf("Invalid value was entered: %s. Try again.", input))
+		prompts++
+	}
+
+	pterm.Println()
+	return false, nil
 }
