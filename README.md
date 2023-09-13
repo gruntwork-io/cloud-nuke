@@ -496,7 +496,7 @@ of the file that are supported are listed here.
 | oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |
 | opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |
 | redshift                    | Redshift                     | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    |
-| s3                          | S3                           | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    |
+| s3                          | s3                           | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    |
 | snstopic                    | SNS                          | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    |
 | sqs                         | SQS                          | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    |
 | sagemaker-notebook-smni     | SageMakerNotebook            | ✅ (Notebook Instnace Name)            | ✅ (Creation Time)                   | ❌    |
