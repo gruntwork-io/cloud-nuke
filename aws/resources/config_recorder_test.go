@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
@@ -62,7 +63,7 @@ func TestConfigServiceRecorder_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := csr.getAll(config.Config{
+			names, err := csr.getAll(context.Background(), config.Config{
 				ConfigServiceRecorder: tc.configObj,
 			})
 

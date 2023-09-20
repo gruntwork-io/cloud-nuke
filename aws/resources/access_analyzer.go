@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -11,7 +12,7 @@ import (
 	"sync"
 )
 
-func (analyzer *AccessAnalyzer) getAll(configObj config.Config) ([]*string, error) {
+func (analyzer *AccessAnalyzer) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allAnalyzers := []*string{}
 	err := analyzer.Client.ListAnalyzersPages(
 		&accessanalyzer.ListAnalyzersInput{},

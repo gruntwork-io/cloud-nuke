@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/securityhub"
@@ -31,8 +32,8 @@ func (sh *SecurityHub) MaxBatchSize() int {
 	return 5
 }
 
-func (sh *SecurityHub) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := sh.getAll(configObj)
+func (sh *SecurityHub) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := sh.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

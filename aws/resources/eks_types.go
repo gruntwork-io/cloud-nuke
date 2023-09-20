@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -37,8 +38,8 @@ func (clusters *EKSClusters) MaxBatchSize() int {
 	return 10
 }
 
-func (clusters *EKSClusters) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := clusters.getAll(configObj)
+func (clusters *EKSClusters) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := clusters.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -12,7 +13,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (cwdb *CloudWatchDashboards) getAll(configObj config.Config) ([]*string, error) {
+func (cwdb *CloudWatchDashboards) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allDashboards := []*string{}
 	input := &cloudwatch.ListDashboardsInput{}
 	err := cwdb.Client.ListDashboardsPages(

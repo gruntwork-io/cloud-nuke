@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
@@ -13,7 +14,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (lf *LambdaFunctions) getAll(configObj config.Config) ([]*string, error) {
+func (lf *LambdaFunctions) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
 
 	err := lf.Client.ListFunctionsPages(

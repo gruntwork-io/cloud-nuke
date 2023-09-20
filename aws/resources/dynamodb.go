@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -13,7 +14,7 @@ import (
 	"log"
 )
 
-func (ddb *DynamoDB) getAll(configObj config.Config) ([]*string, error) {
+func (ddb *DynamoDB) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var tableNames []*string
 
 	err := ddb.Client.ListTablesPages(

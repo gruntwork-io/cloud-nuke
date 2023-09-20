@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -78,7 +79,7 @@ type AwsResources interface {
 	ResourceIdentifiers() []string
 	MaxBatchSize() int
 	Nuke(identifiers []string) error
-	GetAndSetIdentifiers(configObj config.Config) ([]string, error)
+	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
 }
 
 type AwsRegionResource struct {

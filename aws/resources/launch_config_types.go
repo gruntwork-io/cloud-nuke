@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -35,8 +36,8 @@ func (lc *LaunchConfigs) ResourceIdentifiers() []string {
 	return lc.LaunchConfigurationNames
 }
 
-func (lc *LaunchConfigs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := lc.getAll(configObj)
+func (lc *LaunchConfigs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := lc.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

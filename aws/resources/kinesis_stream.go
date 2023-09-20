@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"sync"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -16,7 +17,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ks *KinesisStreams) getAll(configObj config.Config) ([]*string, error) {
+func (ks *KinesisStreams) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allStreams := []*string{}
 	err := ks.Client.ListStreamsPages(&kinesis.ListStreamsInput{}, func(page *kinesis.ListStreamsOutput, lastPage bool) bool {
 		for _, stream := range page.StreamNames {

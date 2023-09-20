@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
 
@@ -50,7 +51,7 @@ func (v *EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
 	return nil, nil
 }
 
-func (v *EC2VPCs) getAll(configObj config.Config) ([]*string, error) {
+func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := v.Client.DescribeVpcs(&ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
 			// Note: this filter omits the default since there is special

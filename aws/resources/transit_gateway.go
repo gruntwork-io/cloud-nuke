@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -13,7 +14,7 @@ import (
 )
 
 // Returns a formatted string of TransitGateway IDs
-func (tgw *TransitGateways) getAll(configObj config.Config) ([]*string, error) {
+func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := tgw.Client.DescribeTransitGateways(&ec2.DescribeTransitGatewaysInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -73,7 +74,7 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 }
 
 // Returns a formatted string of TranstGatewayRouteTable IDs
-func (tgw *TransitGatewaysRouteTables) getAll(configObj config.Config) ([]*string, error) {
+func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// Remove defalt route table, that will be deleted along with its TransitGateway
 	param := &ec2.DescribeTransitGatewayRouteTablesInput{
 		Filters: []*ec2.Filter{
@@ -131,7 +132,7 @@ func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 }
 
 // Returns a formated string of TransitGatewayVpcAttachment IDs
-func (tgw *TransitGatewaysVpcAttachment) getAll(configObj config.Config) ([]*string, error) {
+func (tgw *TransitGatewaysVpcAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := tgw.Client.DescribeTransitGatewayVpcAttachments(&ec2.DescribeTransitGatewayVpcAttachmentsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

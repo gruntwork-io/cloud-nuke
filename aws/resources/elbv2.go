@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -12,7 +13,7 @@ import (
 )
 
 // Returns a formatted string of ELBv2 Arns
-func (balancer *LoadBalancersV2) getAll(configObj config.Config) ([]*string, error) {
+func (balancer *LoadBalancersV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := balancer.Client.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

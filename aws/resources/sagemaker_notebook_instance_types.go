@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
@@ -33,8 +34,8 @@ func (smni *SageMakerNotebookInstances) MaxBatchSize() int {
 	return 49
 }
 
-func (smni *SageMakerNotebookInstances) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := smni.getAll(configObj)
+func (smni *SageMakerNotebookInstances) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := smni.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

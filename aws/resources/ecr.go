@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -11,7 +12,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (registry *ECR) getAll(configObj config.Config) ([]*string, error) {
+func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	repositoryNames := []*string{}
 
 	paginator := func(output *ecr.DescribeRepositoriesOutput, lastPage bool) bool {

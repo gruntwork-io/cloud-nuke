@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -46,7 +47,7 @@ func (ei *EC2Instances) filterOutProtectedInstances(output *ec2.DescribeInstance
 }
 
 // Returns a formatted string of EC2 instance ids
-func (ei *EC2Instances) getAll(configObj config.Config) ([]*string, error) {
+func (ei *EC2Instances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{

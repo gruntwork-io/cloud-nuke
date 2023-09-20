@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
@@ -91,7 +92,7 @@ func TestOIDCProvider_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := oidcp.getAll(config.Config{
+			names, err := oidcp.getAll(context.Background(), config.Config{
 				OIDCProvider: tc.configObj,
 			})
 			require.NoError(t, err)

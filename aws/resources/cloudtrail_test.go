@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
@@ -69,7 +70,7 @@ func TestCloudTrailGetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ct.getAll(config.Config{
+			names, err := ct.getAll(context.Background(), config.Config{
 				CloudtrailTrail: tc.configObj,
 			})
 

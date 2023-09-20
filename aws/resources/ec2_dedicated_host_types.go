@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -35,8 +36,8 @@ func (h *EC2DedicatedHosts) MaxBatchSize() int {
 	return 49
 }
 
-func (h *EC2DedicatedHosts) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := h.getAll(configObj)
+func (h *EC2DedicatedHosts) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := h.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

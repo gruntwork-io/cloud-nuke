@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -102,7 +103,7 @@ func TestTransitGateways_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := tgw.getAll(config.Config{
+			names, err := tgw.getAll(context.Background(), config.Config{
 				TransitGateway: tc.configObj,
 			})
 			require.NoError(t, err)
@@ -169,7 +170,7 @@ func TestTransitGatewayRouteTables_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := tgw.getAll(config.Config{
+			names, err := tgw.getAll(context.Background(), config.Config{
 				TransitGatewayRouteTable: tc.configObj,
 			})
 			require.NoError(t, err)
@@ -235,7 +236,7 @@ func TestTransitGatewayVpcAttachments_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := tgw.getAll(config.Config{
+			names, err := tgw.getAll(context.Background(), config.Config{
 				TransitGatewaysVpcAttachment: tc.configObj,
 			})
 			require.NoError(t, err)

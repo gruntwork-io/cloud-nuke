@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
@@ -81,7 +82,7 @@ func TestCloudWatchAlarm_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := cw.getAll(config.Config{
+			names, err := cw.getAll(context.Background(), config.Config{
 				CloudWatchAlarm: tc.configObj,
 			})
 

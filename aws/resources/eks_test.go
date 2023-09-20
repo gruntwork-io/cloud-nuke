@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -95,7 +96,7 @@ func TestEKSClusterGetAll(t *testing.T) {
 		},
 	}
 
-	clusters, err := eksCluster.getAll(config.Config{})
+	clusters, err := eksCluster.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
 	require.Contains(t, awsgo.StringValueSlice(clusters), testClusterName)
 }

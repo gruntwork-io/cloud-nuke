@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"testing"
@@ -85,7 +86,7 @@ func TestSecurityHub_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := sh.getAll(config.Config{
+			names, err := sh.getAll(context.Background(), config.Config{
 				SecurityHub: tc.configObj,
 			})
 			require.NoError(t, err)

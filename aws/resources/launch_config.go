@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -12,7 +13,7 @@ import (
 )
 
 // Returns a formatted string of Launch config Names
-func (lc *LaunchConfigs) getAll(configObj config.Config) ([]*string, error) {
+func (lc *LaunchConfigs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := lc.Client.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

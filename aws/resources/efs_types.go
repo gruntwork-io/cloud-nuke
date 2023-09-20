@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/efs"
@@ -31,8 +32,8 @@ func (ef *ElasticFileSystem) MaxBatchSize() int {
 	return 10
 }
 
-func (ef *ElasticFileSystem) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := ef.getAll(configObj)
+func (ef *ElasticFileSystem) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := ef.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
@@ -93,7 +94,7 @@ func TestDynamoDB_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ddb.getAll(config.Config{
+			names, err := ddb.getAll(context.Background(), config.Config{
 				DynamoDB: tc.configObj,
 			})
 			require.NoError(t, err)

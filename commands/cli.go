@@ -543,7 +543,7 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 	}
 	pterm.Println()
 
-	accountResources, err := aws.GetAllResources(query, configObj)
+	accountResources, err := aws.GetAllResources(c.Context, query, configObj)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",

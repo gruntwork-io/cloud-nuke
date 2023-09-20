@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/backup"
@@ -33,8 +34,8 @@ func (bv *BackupVault) MaxBatchSize() int {
 	return 50
 }
 
-func (bv *BackupVault) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := bv.getAll(configObj)
+func (bv *BackupVault) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := bv.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

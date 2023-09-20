@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -99,7 +100,7 @@ func TestEIPAddress_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ea.getAll(config.Config{
+			names, err := ea.getAll(context.Background(), config.Config{
 				ElasticIP: tc.configObj,
 			})
 			require.NoError(t, err)

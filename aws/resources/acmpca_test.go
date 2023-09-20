@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -63,12 +64,12 @@ func TestAcmPcaGetAll(t *testing.T) {
 	}
 
 	// without filters
-	arns, err := acmPca.getAll(config.Config{})
+	arns, err := acmPca.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
 	require.Contains(t, awsgo.StringValueSlice(arns), testArn)
 
 	// with exclude after filter
-	arns, err = acmPca.getAll(config.Config{
+	arns, err = acmPca.getAll(context.Background(), config.Config{
 		ACMPCA: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: awsgo.Time(now.Add(-1))}},

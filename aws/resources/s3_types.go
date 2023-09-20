@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -49,8 +50,8 @@ func (bucket *S3Buckets) ResourceIdentifiers() []string {
 	return bucket.Names
 }
 
-func (bucket *S3Buckets) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := bucket.getAll(configObj)
+func (bucket *S3Buckets) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := bucket.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

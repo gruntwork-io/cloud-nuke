@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/elb"
@@ -79,7 +80,7 @@ func TestElb_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := balancer.getAll(config.Config{
+			names, err := balancer.getAll(context.Background(), config.Config{
 				ELBv1: tc.configObj,
 			})
 			require.NoError(t, err)

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
 
@@ -36,7 +37,7 @@ func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClus
 	return RdsDeleteError{name: *input.DBClusterIdentifier}
 }
 
-func (instance *DBClusters) getAll(configObj config.Config) ([]*string, error) {
+func (instance *DBClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := instance.Client.DescribeDBClusters(&rds.DescribeDBClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

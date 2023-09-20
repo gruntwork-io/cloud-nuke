@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
@@ -37,8 +38,8 @@ func (sms *SecretsManagerSecrets) MaxBatchSize() int {
 	return 10
 }
 
-func (sms *SecretsManagerSecrets) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := sms.getAll(configObj)
+func (sms *SecretsManagerSecrets) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := sms.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

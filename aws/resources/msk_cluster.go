@@ -1,13 +1,14 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/kafka"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (m MSKCluster) getAll(configObj config.Config) ([]*string, error) {
+func (m MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var clusterIDs []*string
 
 	err := m.Client.ListClustersV2Pages(&kafka.ListClustersV2Input{}, func(page *kafka.ListClustersV2Output, lastPage bool) bool {

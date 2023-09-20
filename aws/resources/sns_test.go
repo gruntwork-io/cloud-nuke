@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 	"regexp"
 	"testing"
@@ -97,7 +98,7 @@ func TestSNS_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := s.getAll(config.Config{
+			names, err := s.getAll(context.Background(), config.Config{
 				SNS: tc.configObj,
 			})
 			require.NoError(t, err)

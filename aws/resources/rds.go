@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -13,7 +14,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (di *DBInstances) getAll(configObj config.Config) ([]*string, error) {
+func (di *DBInstances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := di.Client.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

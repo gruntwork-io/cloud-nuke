@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -77,7 +78,7 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := lt.getAll(config.Config{
+			names, err := lt.getAll(context.Background(), config.Config{
 				LaunchTemplate: tc.configObj,
 			})
 			require.NoError(t, err)

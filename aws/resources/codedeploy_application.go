@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -13,10 +14,10 @@ import (
 	"sync"
 )
 
-func (c *CodeDeployApplications) getAll(configObj config.Config) ([]*string, error) {
+func (cda *CodeDeployApplications) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	codeDeployApplicationsFilteredByName := []string{}
 
-	err := c.Client.ListApplicationsPages(
+	err := cda.Client.ListApplicationsPages(
 		&codedeploy.ListApplicationsInput{}, func(page *codedeploy.ListApplicationsOutput, lastPage bool) bool {
 			for _, application := range page.Applications {
 				// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
@@ -35,11 +36,11 @@ func (c *CodeDeployApplications) getAll(configObj config.Config) ([]*string, err
 
 	// Check if the CodeDeploy Application should be excluded by CreationDate and return.
 	// We have to do this after the ListApplicationsPages API call because CreationDate is not available in that call.
-	return c.batchDescribeAndFilter(codeDeployApplicationsFilteredByName, configObj)
+	return cda.batchDescribeAndFilter(codeDeployApplicationsFilteredByName, configObj)
 }
 
 // batchDescribeAndFilterCodeDeployApplications - Describe the CodeDeploy Applications and filter out the ones that should be excluded by CreationDate.
-func (c *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, configObj config.Config) ([]*string, error) {
+func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, configObj config.Config) ([]*string, error) {
 	// BatchGetApplications can only take 100 identifiers at a time, so we have to break up the identifiers into chunks of 100.
 	batchSize := 100
 	var applicationNames []*string
@@ -58,7 +59,7 @@ func (c *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, co
 		// get the next batch of identifiers
 		batch := aws.StringSlice(identifiers[:batchSize])
 		// then using that batch of identifiers, get the applicationsinfo
-		resp, err := c.Client.BatchGetApplications(
+		resp, err := cda.Client.BatchGetApplications(
 			&codedeploy.BatchGetApplicationsInput{ApplicationNames: batch},
 		)
 		if err != nil {
@@ -81,20 +82,20 @@ func (c *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, co
 	return applicationNames, nil
 }
 
-func (c *CodeDeployApplications) nukeAll(identifiers []string) error {
+func (cda *CodeDeployApplications) nukeAll(identifiers []string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CodeDeploy Applications to nuke in region %s", c.Region)
+		logging.Logger.Debugf("No CodeDeploy Applications to nuke in region %s", cda.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting CodeDeploy Applications in region %s", c.Region)
+	logging.Logger.Infof("Deleting CodeDeploy Applications in region %s", cda.Region)
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(identifiers))
 
 	for _, identifier := range identifiers {
 		wg.Add(1)
-		go c.deleteAsync(&wg, errChan, identifier)
+		go cda.deleteAsync(&wg, errChan, identifier)
 	}
 
 	wg.Wait()
@@ -108,7 +109,7 @@ func (c *CodeDeployApplications) nukeAll(identifiers []string) error {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking CodeDeploy Application",
 		}, map[string]interface{}{
-			"region": c.Region,
+			"region": cda.Region,
 		})
 	}
 
@@ -120,10 +121,10 @@ func (c *CodeDeployApplications) nukeAll(identifiers []string) error {
 	return nil
 }
 
-func (c *CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
+func (cda *CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
 	defer wg.Done()
 
-	_, err := c.Client.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
+	_, err := cda.Client.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
 	if err != nil {
 		errChan <- err
 	}

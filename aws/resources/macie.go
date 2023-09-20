@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -17,7 +18,7 @@ import (
 // getAll will find and return any Macie accounts that were created via accepting an invite from another AWS Account
 // Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the configObj pattern, so we
 // currently can only accept a session and excludeAfter
-func (mm *MacieMember) getAll(configObj config.Config) ([]*string, error) {
+func (mm *MacieMember) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var macieStatus []*string
 
 	output, err := mm.Client.GetMacieSession(&macie2.GetMacieSessionInput{})

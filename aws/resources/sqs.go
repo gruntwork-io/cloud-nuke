@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -15,7 +16,7 @@ import (
 )
 
 // Returns a formatted string of SQS Queue URLs
-func (sq *SqsQueue) getAll(configObj config.Config) ([]*string, error) {
+func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result := []*string{}
 	paginator := func(output *sqs.ListQueuesOutput, lastPage bool) bool {
 		result = append(result, output.QueueUrls...)

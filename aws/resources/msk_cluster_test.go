@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -48,7 +49,7 @@ func TestListMSKClustersSingle(t *testing.T) {
 		Client: &mockMskClient,
 	}
 
-	clusterIDs, err := msk.getAll(config.Config{})
+	clusterIDs, err := msk.getAll(context.Background(), config.Config{})
 	if err != nil {
 		t.Fatalf("Unable to list MSK Clusters: %v", err)
 	}
@@ -93,7 +94,7 @@ func TestListMSKClustersMultiple(t *testing.T) {
 		Client: &mockMskClient,
 	}
 
-	clusterIDs, err := msk.getAll(config.Config{})
+	clusterIDs, err := msk.getAll(context.Background(), config.Config{})
 	if err != nil {
 		t.Fatalf("Unable to list MSK Clusters: %v", err)
 	}
@@ -121,7 +122,7 @@ func TestGetAllMSKError(t *testing.T) {
 		Client: &mockMskClient,
 	}
 
-	_, err := msk.getAll(config.Config{})
+	_, err := msk.getAll(context.Background(), config.Config{})
 	if err == nil {
 		t.Fatalf("Expected error listing MSK Clusters")
 	}

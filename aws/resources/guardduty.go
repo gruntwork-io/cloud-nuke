@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
@@ -18,7 +19,7 @@ type DetectorOutputWithID struct {
 	Output *guardduty.GetDetectorOutput
 }
 
-func (gd *GuardDuty) getAll(configObj config.Config) ([]*string, error) {
+func (gd *GuardDuty) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var detectorIdsToInclude []*string
 	var detectorIds []*string
 	err := gd.Client.ListDetectorsPages(&guardduty.ListDetectorsInput{}, func(page *guardduty.ListDetectorsOutput, lastPage bool) bool {

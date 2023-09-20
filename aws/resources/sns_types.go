@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
@@ -31,8 +32,8 @@ func (s *SNSTopic) MaxBatchSize() int {
 	return 50
 }
 
-func (s *SNSTopic) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := s.getAll(configObj)
+func (s *SNSTopic) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := s.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

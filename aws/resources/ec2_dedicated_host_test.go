@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -93,7 +94,7 @@ func TestEC2DedicatedHosts_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := h.getAll(config.Config{
+			names, err := h.getAll(context.Background(), config.Config{
 				EC2DedicatedHosts: tc.configObj,
 			})
 			require.NoError(t, err)

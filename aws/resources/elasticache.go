@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -15,7 +16,7 @@ import (
 )
 
 // Returns a formatted string of Elasticache cluster Ids
-func (cache *Elasticaches) getAll(configObj config.Config) ([]*string, error) {
+func (cache *Elasticaches) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// First, get any cache clusters that are replication groups, which will be the case for all multi-node Redis clusters
 	replicationGroupsResult, replicationGroupsErr := cache.Client.DescribeReplicationGroups(&elasticache.DescribeReplicationGroupsInput{})
 	if replicationGroupsErr != nil {
@@ -210,7 +211,7 @@ func (err CouldNotLookupCacheClusterErr) Error() string {
 Elasticache Parameter Groups
 */
 
-func (pg *ElasticacheParameterGroups) getAll(configObj config.Config) ([]*string, error) {
+func (pg *ElasticacheParameterGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var paramGroupNames []*string
 	err := pg.Client.DescribeCacheParameterGroupsPages(
 		&elasticache.DescribeCacheParameterGroupsInput{},
@@ -276,7 +277,7 @@ func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 /*
 Elasticache Subnet Groups
 */
-func (sg *ElasticacheSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
+func (sg *ElasticacheSubnetGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var subnetGroupNames []*string
 	err := sg.Client.DescribeCacheSubnetGroupsPages(
 		&elasticache.DescribeCacheSubnetGroupsInput{},

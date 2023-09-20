@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"regexp"
 	"testing"
@@ -92,7 +93,7 @@ func TestEBSVolume_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ev.getAll(config.Config{
+			names, err := ev.getAll(context.Background(), config.Config{
 				EBSVolume: tc.configObj,
 			})
 			require.NoError(t, err)

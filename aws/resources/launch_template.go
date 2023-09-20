@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -12,7 +13,7 @@ import (
 )
 
 // Returns a formatted string of Launch Template Names
-func (lt *LaunchTemplates) getAll(configObj config.Config) ([]*string, error) {
+func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := lt.Client.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

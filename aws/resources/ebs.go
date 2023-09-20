@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -15,7 +16,7 @@ import (
 )
 
 // Returns a formatted string of EBS volume ids
-func (ev *EBSVolumes) getAll(configObj config.Config) ([]*string, error) {
+func (ev *EBSVolumes) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// Available statuses: (creating | available | in-use | deleting | deleted | error).
 	// Since the output of this function is used to delete the returned volumes
 	// We want to only list EBS volumes with a status of "available" or "creating"

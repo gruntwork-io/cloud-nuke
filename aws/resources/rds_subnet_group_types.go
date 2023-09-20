@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -33,8 +34,8 @@ func (dsg *DBSubnetGroups) MaxBatchSize() int {
 	return 49
 }
 
-func (dsg *DBSubnetGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := dsg.getAll(configObj)
+func (dsg *DBSubnetGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := dsg.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

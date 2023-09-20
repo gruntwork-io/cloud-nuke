@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -36,8 +37,8 @@ func (oidcprovider *OIDCProviders) MaxBatchSize() int {
 	return 10
 }
 
-func (oidcprovider *OIDCProviders) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := oidcprovider.getAll(configObj)
+func (oidcprovider *OIDCProviders) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := oidcprovider.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

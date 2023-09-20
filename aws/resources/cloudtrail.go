@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -11,7 +12,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (ct *CloudtrailTrail) getAll(configObj config.Config) ([]*string, error) {
+func (ct *CloudtrailTrail) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	param := &cloudtrail.ListTrailsInput{}
 
 	trailIds := []*string{}

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -35,8 +36,8 @@ func (balancer *LoadBalancersV2) ResourceIdentifiers() []string {
 	return balancer.Arns
 }
 
-func (balancer *LoadBalancersV2) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := balancer.getAll(configObj)
+func (balancer *LoadBalancersV2) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := balancer.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

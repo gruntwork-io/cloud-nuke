@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -33,8 +34,8 @@ func (instance *DBClusters) MaxBatchSize() int {
 	return 49
 }
 
-func (instance *DBClusters) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := instance.getAll(configObj)
+func (instance *DBClusters) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := instance.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

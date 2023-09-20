@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -14,7 +15,7 @@ import (
 )
 
 // Returns the ARN of all customer managed policies
-func (ip *IAMPolicies) getAll(configObj config.Config) ([]*string, error) {
+func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var allIamPolicies []*string
 
 	err := ip.Client.ListPoliciesPages(

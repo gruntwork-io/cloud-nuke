@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
@@ -31,8 +32,8 @@ func (gw *ApiGatewayV2) MaxBatchSize() int {
 	return 10
 }
 
-func (gw *ApiGatewayV2) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := gw.getAll(configObj)
+func (gw *ApiGatewayV2) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := gw.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

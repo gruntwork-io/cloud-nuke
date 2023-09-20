@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
@@ -31,8 +32,8 @@ func (registry *ECR) MaxBatchSize() int {
 	return 50
 }
 
-func (registry *ECR) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := registry.getAll(configObj)
+func (registry *ECR) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := registry.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

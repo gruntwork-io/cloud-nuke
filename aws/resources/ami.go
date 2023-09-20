@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 )
 
 // Returns a formatted string of AMI Image ids
-func (ami *AMIs) getAll(configObj config.Config) ([]*string, error) {
+func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	params := &ec2.DescribeImagesInput{
 		Owners: []*string{awsgo.String("self")},
 	}

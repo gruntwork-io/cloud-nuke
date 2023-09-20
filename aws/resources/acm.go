@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -11,7 +12,7 @@ import (
 )
 
 // Returns a list of strings of ACM ARNs
-func (a *ACM) getAll(configObj config.Config) ([]*string, error) {
+func (a *ACM) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
 	params := &acm.ListCertificatesInput{}
 

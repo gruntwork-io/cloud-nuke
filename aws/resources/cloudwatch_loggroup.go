@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
@@ -16,7 +17,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (csr *CloudWatchLogGroups) getAll(configObj config.Config) ([]*string, error) {
+func (csr *CloudWatchLogGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allLogGroups := []*string{}
 	err := csr.Client.DescribeLogGroupsPages(
 		&cloudwatchlogs.DescribeLogGroupsInput{},

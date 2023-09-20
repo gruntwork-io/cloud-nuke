@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
@@ -16,38 +17,38 @@ type CodeDeployApplications struct {
 	AppNames []string
 }
 
-func (c *CodeDeployApplications) Init(session *session.Session) {
-	c.Client = codedeploy.New(session)
+func (cda *CodeDeployApplications) Init(session *session.Session) {
+	cda.Client = codedeploy.New(session)
 }
 
 // ResourceName - the simple name of the aws resource
-func (c *CodeDeployApplications) ResourceName() string {
+func (cda *CodeDeployApplications) ResourceName() string {
 	return "codedeploy-application"
 }
 
 // ResourceIdentifiers - The instance ids of the code deploy applications
-func (c *CodeDeployApplications) ResourceIdentifiers() []string {
-	return c.AppNames
+func (cda *CodeDeployApplications) ResourceIdentifiers() []string {
+	return cda.AppNames
 }
 
-func (c *CodeDeployApplications) MaxBatchSize() int {
+func (cda *CodeDeployApplications) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle.
 	return 100
 }
 
-func (c *CodeDeployApplications) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := c.getAll(configObj)
+func (cda *CodeDeployApplications) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := cda.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	c.AppNames = awsgo.StringValueSlice(identifiers)
-	return c.AppNames, nil
+	cda.AppNames = awsgo.StringValueSlice(identifiers)
+	return cda.AppNames, nil
 }
 
 // Nuke - nuke 'em all!!!
-func (c *CodeDeployApplications) Nuke(identifiers []string) error {
-	if err := c.nukeAll(identifiers); err != nil {
+func (cda *CodeDeployApplications) Nuke(identifiers []string) error {
+	if err := cda.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache"
@@ -35,8 +36,8 @@ func (cache *Elasticaches) MaxBatchSize() int {
 	return 49
 }
 
-func (cache *Elasticaches) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := cache.getAll(configObj)
+func (cache *Elasticaches) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := cache.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +84,8 @@ func (pg *ElasticacheParameterGroups) MaxBatchSize() int {
 	return 49
 }
 
-func (pg *ElasticacheParameterGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := pg.getAll(configObj)
+func (pg *ElasticacheParameterGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := pg.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +131,8 @@ func (sg *ElasticacheSubnetGroups) MaxBatchSize() int {
 	return 49
 }
 
-func (sg *ElasticacheSubnetGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := sg.getAll(configObj)
+func (sg *ElasticacheSubnetGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := sg.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

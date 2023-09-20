@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
@@ -12,7 +13,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (smni *SageMakerNotebookInstances) getAll(configObj config.Config) ([]*string, error) {
+func (smni *SageMakerNotebookInstances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := smni.Client.ListNotebookInstances(&sagemaker.ListNotebookInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

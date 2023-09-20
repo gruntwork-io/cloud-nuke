@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -75,7 +76,7 @@ type S3Bucket struct {
 }
 
 // getAllS3Buckets returns a map of per region AWS S3 buckets which were created before excludeAfter
-func (sb S3Buckets) getAll(configObj config.Config) ([]*string, error) {
+func (sb S3Buckets) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	input := &s3.ListBucketsInput{}
 	output, err := sb.Client.ListBuckets(input)
 	if err != nil {

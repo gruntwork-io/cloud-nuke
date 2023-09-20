@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
@@ -115,7 +116,7 @@ func TestIAMPolicy_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ip.getAll(config.Config{
+			names, err := ip.getAll(context.Background(), config.Config{
 				IAMPolicies: tc.configObj,
 			})
 			require.NoError(t, err)

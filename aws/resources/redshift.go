@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -11,7 +12,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (rc *RedshiftClusters) getAll(configObj config.Config) ([]*string, error) {
+func (rc *RedshiftClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var clusterIds []*string
 	err := rc.Client.DescribeClustersPages(
 		&redshift.DescribeClustersInput{},

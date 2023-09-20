@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -35,8 +36,8 @@ func (s *Snapshots) MaxBatchSize() int {
 	return 49
 }
 
-func (s *Snapshots) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := s.getAll(configObj)
+func (s *Snapshots) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := s.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

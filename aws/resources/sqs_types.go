@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -35,8 +36,8 @@ func (sq *SqsQueue) ResourceIdentifiers() []string {
 	return sq.QueueUrls
 }
 
-func (sq *SqsQueue) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := sq.getAll(configObj)
+func (sq *SqsQueue) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := sq.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

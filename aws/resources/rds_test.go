@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -88,7 +89,7 @@ func TestDBInstances_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := di.getAll(config.Config{
+			names, err := di.getAll(context.Background(), config.Config{
 				DBInstances: tc.configObj,
 			})
 			require.NoError(t, err)

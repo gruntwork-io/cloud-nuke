@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -32,8 +33,8 @@ func (ddb *DynamoDB) MaxBatchSize() int {
 	return 49
 }
 
-func (ddb *DynamoDB) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := ddb.getAll(configObj)
+func (ddb *DynamoDB) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := ddb.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

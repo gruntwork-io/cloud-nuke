@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/macie2"
 	"github.com/aws/aws-sdk-go/service/macie2/macie2iface"
@@ -64,7 +65,7 @@ func TestMacie_GetAll(t *testing.T) {
 		},
 	}
 
-	_, err := mm.getAll(config.Config{})
+	_, err := mm.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
 }
 
