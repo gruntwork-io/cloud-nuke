@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -15,7 +16,7 @@ import (
 )
 
 // Returns a formatted string of Snapshot snapshot ids
-func (s *Snapshots) getAll(configObj config.Config) ([]*string, error) {
+func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
 	// status - The status of the s (pending | completed | error).
 	// Since the output of this function is used to delete the returned snapshots

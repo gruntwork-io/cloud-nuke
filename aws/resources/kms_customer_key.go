@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
@@ -15,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (kck *KmsCustomerKeys) getAll(configObj config.Config) ([]*string, error) {
+func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// Collect all keys in the account
 	var keys []string
 	err := kck.Client.ListKeysPages(&kms.ListKeysInput{}, func(page *kms.ListKeysOutput, lastPage bool) bool {

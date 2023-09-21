@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/redshift"
 	"github.com/aws/aws-sdk-go/service/redshift/redshiftiface"
@@ -83,7 +84,7 @@ func TestRedshiftCluster_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := rc.getAll(config.Config{
+			names, err := rc.getAll(context.Background(), config.Config{
 				Redshift: tc.configObj,
 			})
 			require.NoError(t, err)

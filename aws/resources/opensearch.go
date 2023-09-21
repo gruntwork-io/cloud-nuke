@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -22,7 +23,7 @@ import (
 // the excludeAfter and configObj configurations. Note that OpenSearch Domains do not have resource timestamps, so we
 // use the first-seen tagging pattern to track which OpenSearch Domains should be nuked based on time. This routine will
 // tag resources with the first-seen tag if it does not have one.
-func (osd *OpenSearchDomains) getAll(configObj config.Config) ([]*string, error) {
+func (osd *OpenSearchDomains) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	domains, err := osd.getAllActiveOpenSearchDomains()
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

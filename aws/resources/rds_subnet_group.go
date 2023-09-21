@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"time"
@@ -34,7 +35,7 @@ func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error 
 	return RdsDeleteError{name: *name}
 }
 
-func (dsg *DBSubnetGroups) getAll(configObj config.Config) ([]*string, error) {
+func (dsg *DBSubnetGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
 	err := dsg.Client.DescribeDBSubnetGroupsPages(
 		&rds.DescribeDBSubnetGroupsInput{},

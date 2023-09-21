@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
@@ -129,7 +130,7 @@ func TestKMS_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := kck.getAll(config.Config{
+			names, err := kck.getAll(context.Background(), config.Config{
 				KMSCustomerKeys: tc.configObj,
 			})
 			require.NoError(t, err)

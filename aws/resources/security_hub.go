@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (sh *SecurityHub) getAll(configObj config.Config) ([]*string, error) {
+func (sh *SecurityHub) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var securityHubArns []*string
 
 	output, err := sh.Client.DescribeHub(&securityhub.DescribeHubInput{})

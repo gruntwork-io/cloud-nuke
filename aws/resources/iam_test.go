@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -169,7 +170,7 @@ func TestIAMUsers_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := iu.getAll(config.Config{
+			names, err := iu.getAll(context.Background(), config.Config{
 				IAMUsers: tc.configObj,
 			})
 			require.NoError(t, err)

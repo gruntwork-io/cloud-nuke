@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -37,8 +38,8 @@ func (ks *KinesisStreams) MaxBatchSize() int {
 	return 35
 }
 
-func (ks *KinesisStreams) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := ks.getAll(configObj)
+func (ks *KinesisStreams) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := ks.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -67,7 +68,7 @@ func TestAMIGetAll_SkipAWSManaged(t *testing.T) {
 		},
 	}
 
-	amis, err := acm.getAll(config.Config{})
+	amis, err := acm.getAll(context.Background(), config.Config{})
 	assert.NoError(t, err)
 	assert.NotContains(t, awsgo.StringValueSlice(amis), testImageId1)
 	assert.NotContains(t, awsgo.StringValueSlice(amis), testImageId2)
@@ -93,12 +94,12 @@ func TestAMIGetAll(t *testing.T) {
 	}
 
 	// without filters
-	amis, err := acm.getAll(config.Config{})
+	amis, err := acm.getAll(context.Background(), config.Config{})
 	assert.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(amis), testImageId)
 
 	// with name filter
-	amis, err = acm.getAll(config.Config{
+	amis, err = acm.getAll(context.Background(), config.Config{
 		AMI: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{{
@@ -108,7 +109,7 @@ func TestAMIGetAll(t *testing.T) {
 	assert.NotContains(t, awsgo.StringValueSlice(amis), testImageId)
 
 	// with time filter
-	amis, err = acm.getAll(config.Config{
+	amis, err = acm.getAll(context.Background(), config.Config{
 		AMI: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: awsgo.Time(now.Add(-12 * time.Hour))}}})

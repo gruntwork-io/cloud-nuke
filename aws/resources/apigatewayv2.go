@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"sync"
 
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -15,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (gw *ApiGatewayV2) getAll(configObj config.Config) ([]*string, error) {
+func (gw *ApiGatewayV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	output, err := gw.Client.GetApis(&apigatewayv2.GetApisInput{})
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)

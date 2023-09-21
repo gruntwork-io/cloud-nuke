@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -15,7 +16,7 @@ import (
 )
 
 // List all IAM Roles in the AWS account
-func (ir *IAMRoles) getAll(configObj config.Config) ([]*string, error) {
+func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allIAMRoles := []*string{}
 	err := ir.Client.ListRolesPages(
 		&iam.ListRolesInput{},

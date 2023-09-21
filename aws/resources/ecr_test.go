@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
@@ -78,7 +79,7 @@ func TestECR_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := er.getAll(config.Config{
+			names, err := er.getAll(context.Background(), config.Config{
 				ECRRepository: tc.configObj,
 			})
 			require.NoError(t, err)

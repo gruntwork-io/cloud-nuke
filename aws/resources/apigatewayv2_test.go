@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"regexp"
 	"testing"
 	"time"
@@ -53,12 +54,12 @@ func TestApiGatewayV2GetAll(t *testing.T) {
 	}
 
 	// empty filter
-	apis, err := gw.getAll(config.Config{})
+	apis, err := gw.getAll(context.Background(), config.Config{})
 	assert.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(apis), testApiID)
 
 	// filter by name
-	apis, err = gw.getAll(config.Config{
+	apis, err = gw.getAll(context.Background(), config.Config{
 		APIGatewayV2: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{{
@@ -68,7 +69,7 @@ func TestApiGatewayV2GetAll(t *testing.T) {
 	assert.NotContains(t, awsgo.StringValueSlice(apis), testApiID)
 
 	// filter by date
-	apis, err = gw.getAll(config.Config{
+	apis, err = gw.getAll(context.Background(), config.Config{
 		APIGatewayV2: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: awsgo.Time(now.Add(-1))}}})

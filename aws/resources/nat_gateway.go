@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -19,7 +20,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ngw *NatGateways) getAll(configObj config.Config) ([]*string, error) {
+func (ngw *NatGateways) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allNatGateways := []*string{}
 	input := &ec2.DescribeNatGatewaysInput{}
 	err := ngw.Client.DescribeNatGatewaysPages(

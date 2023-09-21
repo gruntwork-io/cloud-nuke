@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -39,8 +40,8 @@ func (kck *KmsCustomerKeys) MaxBatchSize() int {
 	return 49
 }
 
-func (kck *KmsCustomerKeys) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := kck.getAll(configObj)
+func (kck *KmsCustomerKeys) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := kck.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

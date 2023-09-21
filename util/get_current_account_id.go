@@ -7,12 +7,13 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+const (
+	AccountIdKey = "accountId"
+)
+
 func GetCurrentAccountId(session *session.Session) (string, error) {
 	stssvc := sts.New(session)
-
-	input := &sts.GetCallerIdentityInput{}
-
-	output, err := stssvc.GetCallerIdentity(input)
+	output, err := stssvc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		return "", errors.WithStackTrace(err)
 	}

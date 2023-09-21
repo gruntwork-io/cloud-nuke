@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -15,7 +16,7 @@ import (
 )
 
 // getAll returns a list of strings of EKS Cluster Names that uniquely identify each cluster.
-func (clusters *EKSClusters) getAll(configObj config.Config) ([]*string, error) {
+func (clusters *EKSClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := clusters.Client.ListClusters(&eks.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

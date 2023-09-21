@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
@@ -16,7 +17,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (sms *SecretsManagerSecrets) getAll(configObj config.Config) ([]*string, error) {
+func (sms *SecretsManagerSecrets) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allSecrets := []*string{}
 	input := &secretsmanager.ListSecretsInput{}
 	err := sms.Client.ListSecretsPages(

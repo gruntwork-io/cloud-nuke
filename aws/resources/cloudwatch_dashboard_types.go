@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
@@ -34,8 +35,8 @@ func (cwdb *CloudWatchDashboards) MaxBatchSize() int {
 	return 49
 }
 
-func (cwdb *CloudWatchDashboards) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := cwdb.getAll(configObj)
+func (cwdb *CloudWatchDashboards) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := cwdb.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

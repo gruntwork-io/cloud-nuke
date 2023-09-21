@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/opensearchservice"
@@ -38,8 +39,8 @@ func (osd *OpenSearchDomains) MaxBatchSize() int {
 	return 10
 }
 
-func (osd *OpenSearchDomains) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := osd.getAll(configObj)
+func (osd *OpenSearchDomains) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := osd.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

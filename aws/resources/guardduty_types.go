@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/guardduty"
@@ -30,8 +31,8 @@ func (gd *GuardDuty) MaxBatchSize() int {
 	return 10
 }
 
-func (gd *GuardDuty) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := gd.getAll(configObj)
+func (gd *GuardDuty) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := gd.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

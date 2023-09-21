@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"regexp"
 	"testing"
 	"time"
@@ -52,12 +53,12 @@ func TestACMGetAll(t *testing.T) {
 	}
 
 	// without any filters
-	acms, err := acm.getAll(config.Config{})
+	acms, err := acm.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
 	require.Contains(t, aws.StringValueSlice(acms), testArn)
 
 	// filtering domain names
-	acms, err = acm.getAll(config.Config{
+	acms, err = acm.getAll(context.Background(), config.Config{
 		ACM: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{{
@@ -68,7 +69,7 @@ func TestACMGetAll(t *testing.T) {
 	require.NotContains(t, aws.StringValueSlice(acms), testArn)
 
 	// filtering with time
-	acms, err = acm.getAll(config.Config{
+	acms, err = acm.getAll(context.Background(), config.Config{
 		ACM: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: aws.Time(now.Add(-1)),
@@ -98,7 +99,7 @@ func TestACMGetAll_FilterInUse(t *testing.T) {
 		},
 	}
 
-	acms, err := acm.getAll(config.Config{})
+	acms, err := acm.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
 	require.NotContains(t, acms, testArn)
 }

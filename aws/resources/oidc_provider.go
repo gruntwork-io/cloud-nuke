@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
@@ -28,7 +29,7 @@ type oidcProvider struct {
 // the requested rules (older-than and config file settings). Note that since the list API does not return the necessary
 // information to implement the filters, we use goroutines to asynchronously and concurrently fetch the details for all
 // the providers that are found in the account.
-func (oidcprovider *OIDCProviders) getAll(configObj config.Config) ([]*string, error) {
+func (oidcprovider *OIDCProviders) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	output, err := oidcprovider.Client.ListOpenIDConnectProviders(&iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

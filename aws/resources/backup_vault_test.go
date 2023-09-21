@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/backup/backupiface"
 	"regexp"
 	"testing"
@@ -79,7 +80,7 @@ func TestBackupVaultGetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := bv.getAll(config.Config{
+			names, err := bv.getAll(context.Background(), config.Config{
 				BackupVault: tc.configObj,
 			})
 

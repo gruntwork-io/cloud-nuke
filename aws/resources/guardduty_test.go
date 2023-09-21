@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/aws/aws-sdk-go/service/guardduty/guarddutyiface"
@@ -70,7 +71,7 @@ func TestGuardDuty_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := gd.getAll(config.Config{
+			names, err := gd.getAll(context.Background(), config.Config{
 				GuardDuty: tc.configObj,
 			})
 			require.NoError(t, err)

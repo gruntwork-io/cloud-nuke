@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
@@ -114,7 +115,7 @@ func TestEC2Service_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := es.getAll(config.Config{
+			names, err := es.getAll(context.Background(), config.Config{
 				ECSService: tc.configObj,
 			})
 			require.NoError(t, err)

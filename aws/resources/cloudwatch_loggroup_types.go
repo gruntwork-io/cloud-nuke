@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
@@ -37,8 +38,8 @@ func (csr *CloudWatchLogGroups) MaxBatchSize() int {
 	return 35
 }
 
-func (csr *CloudWatchLogGroups) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := csr.getAll(configObj)
+func (csr *CloudWatchLogGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := csr.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

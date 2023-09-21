@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -13,7 +14,7 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-func (h *EC2DedicatedHosts) getAll(configObj config.Config) ([]*string, error) {
+func (h *EC2DedicatedHosts) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var hostIds []*string
 
 	describeHostsInput := &ec2.DescribeHostsInput{

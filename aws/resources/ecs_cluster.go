@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
 
@@ -94,7 +95,7 @@ func shouldIncludeECSCluster(cluster *ecs.Cluster, configObj config.Config) bool
 	return configObj.ECSCluster.ShouldInclude(config.ResourceValue{Name: cluster.ClusterName})
 }
 
-func (clusters *ECSClusters) getAll(configObj config.Config) ([]*string, error) {
+func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	clusterArns, err := clusters.getAllActiveEcsClusterArns(configObj)
 	if err != nil {
 		logging.Logger.Debugf("Error getting all ECS clusters with `ACTIVE` status")

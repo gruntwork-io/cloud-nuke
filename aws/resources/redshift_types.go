@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/redshift"
@@ -33,8 +34,8 @@ func (rc *RedshiftClusters) MaxBatchSize() int {
 	return 49
 }
 
-func (rc *RedshiftClusters) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := rc.getAll(configObj)
+func (rc *RedshiftClusters) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := rc.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

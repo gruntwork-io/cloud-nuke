@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
@@ -34,8 +35,8 @@ func (ct *CloudtrailTrail) MaxBatchSize() int {
 	return 50
 }
 
-func (ct *CloudtrailTrail) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := ct.getAll(configObj)
+func (ct *CloudtrailTrail) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := ct.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

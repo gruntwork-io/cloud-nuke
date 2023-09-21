@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/macie2"
@@ -31,8 +32,8 @@ func (mm *MacieMember) MaxBatchSize() int {
 	return 10
 }
 
-func (mm *MacieMember) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := mm.getAll(configObj)
+func (mm *MacieMember) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := mm.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

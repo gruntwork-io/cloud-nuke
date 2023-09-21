@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"strings"
 	"sync"
@@ -20,7 +21,7 @@ import (
 // getAllSNSTopics returns a list of all SNS topics in the region, filtering the name by the config
 // The SQS APIs do not return a creation date, therefore we tag the resources with a first seen time when the topic first appears. We then
 // use that tag to measure the excludeAfter time duration, and determine whether to nuke the resource based on that.
-func (s *SNSTopic) getAll(configObj config.Config) ([]*string, error) {
+func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
 	var snsTopics []*string
 	err := s.Client.ListTopicsPages(&sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {

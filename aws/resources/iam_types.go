@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -34,8 +35,8 @@ func (iu *IAMUsers) MaxBatchSize() int {
 	return 49
 }
 
-func (iu *IAMUsers) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := iu.getAll(configObj)
+func (iu *IAMUsers) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := iu.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

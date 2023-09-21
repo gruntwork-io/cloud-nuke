@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -70,7 +71,7 @@ func (services *ECSServices) filterOutRecentServices(clusterArn *string, ecsServ
 // clusters. For ECS, need to track ECS clusters of services as all service
 // level API endpoints require providing the corresponding cluster.
 // Note that this looks up services by ECS cluster ARNs.
-func (services *ECSServices) getAll(configObj config.Config) ([]*string, error) {
+func (services *ECSServices) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	ecsClusterArns, err := services.getAllEcsClusters()
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

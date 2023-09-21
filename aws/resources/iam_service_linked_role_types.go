@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -34,8 +35,8 @@ func (islr *IAMServiceLinkedRoles) MaxBatchSize() int {
 	return 49
 }
 
-func (islr *IAMServiceLinkedRoles) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := islr.getAll(configObj)
+func (islr *IAMServiceLinkedRoles) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := islr.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

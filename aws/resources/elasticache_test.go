@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elasticache"
 	"github.com/aws/aws-sdk-go/service/elasticache/elasticacheiface"
@@ -89,7 +90,7 @@ func TestElasticache_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ec.getAll(config.Config{
+			names, err := ec.getAll(context.Background(), config.Config{
 				Elasticache: tc.configObj,
 			})
 			require.NoError(t, err)

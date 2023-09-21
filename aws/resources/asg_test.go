@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
@@ -46,12 +47,12 @@ func TestAutoScalingGroupGetAll(t *testing.T) {
 				}}}}}
 
 	// empty filter
-	groups, err := ag.getAll(config.Config{})
+	groups, err := ag.getAll(context.Background(), config.Config{})
 	assert.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(groups), testName)
 
 	// name filter
-	groups, err = ag.getAll(config.Config{
+	groups, err = ag.getAll(context.Background(), config.Config{
 		AutoScalingGroup: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				NamesRegExp: []config.Expression{{
@@ -61,7 +62,7 @@ func TestAutoScalingGroupGetAll(t *testing.T) {
 	assert.NotContains(t, awsgo.StringValueSlice(groups), testName)
 
 	// time filter
-	groups, err = ag.getAll(config.Config{
+	groups, err = ag.getAll(context.Background(), config.Config{
 		AutoScalingGroup: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: awsgo.Time(now.Add(-1)),

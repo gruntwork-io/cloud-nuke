@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/configservice"
@@ -31,8 +32,8 @@ func (csr *ConfigServiceRecorders) MaxBatchSize() int {
 	return 50
 }
 
-func (csr *ConfigServiceRecorders) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := csr.getAll(configObj)
+func (csr *ConfigServiceRecorders) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := csr.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
@@ -79,7 +80,7 @@ func TestAccessAnalyzer_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := aa.getAll(config.Config{
+			names, err := aa.getAll(context.Background(), config.Config{
 				AccessAnalyzer: tc.configObj,
 			})
 			require.NoError(t, err)

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -18,7 +19,7 @@ import (
 )
 
 // GetAll returns a list of all arns of ACMPCA, which can be deleted.
-func (ap *ACMPCA) getAll(configObj config.Config) ([]*string, error) {
+func (ap *ACMPCA) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var arns []*string
 	paginationErr := ap.Client.ListCertificateAuthoritiesPages(
 		&acmpca.ListCertificateAuthoritiesInput{},

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
@@ -60,7 +61,7 @@ func TestKinesisStreams_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ks.getAll(config.Config{
+			names, err := ks.getAll(context.Background(), config.Config{
 				KinesisStream: tc.configObj,
 			})
 			require.NoError(t, err)

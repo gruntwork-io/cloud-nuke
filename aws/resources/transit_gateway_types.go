@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -35,8 +36,8 @@ func (tgw *TransitGatewaysVpcAttachment) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
-func (tgw *TransitGatewaysVpcAttachment) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := tgw.getAll(configObj)
+func (tgw *TransitGatewaysVpcAttachment) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := tgw.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +81,8 @@ func (tgw *TransitGatewaysRouteTables) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
-func (tgw *TransitGatewaysRouteTables) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := tgw.getAll(configObj)
+func (tgw *TransitGatewaysRouteTables) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := tgw.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
@@ -125,8 +126,8 @@ func (tgw *TransitGateways) ResourceIdentifiers() []string {
 	return tgw.Ids
 }
 
-func (tgw *TransitGateways) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := tgw.getAll(configObj)
+func (tgw *TransitGateways) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := tgw.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

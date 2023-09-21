@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"context"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/pterm/pterm"
@@ -11,7 +12,6 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/progressbar"
@@ -21,7 +21,7 @@ import (
 )
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(query *Query, configObj config.Config) (*AwsAccountResources, error) {
+func GetAllResources(c context.Context, query *Query, configObj config.Config) (*AwsAccountResources, error) {
 
 	configObj.AddExcludeAfterTime(query.ExcludeAfter)
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
@@ -33,10 +33,10 @@ func GetAllResources(query *Query, configObj config.Config) (*AwsAccountResource
 	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	for _, region := range query.Regions {
 		cloudNukeSession := NewSession(region)
-		stsService := sts.New(cloudNukeSession)
-		resp, err := stsService.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+		accountId, err := util.GetCurrentAccountId(cloudNukeSession)
 		if err == nil {
-			telemetry.SetAccountId(*resp.Account)
+			telemetry.SetAccountId(accountId)
+			c = context.WithValue(c, util.AccountIdKey, accountId)
 		}
 
 		awsResource := AwsRegionResource{}
@@ -46,7 +46,7 @@ func GetAllResources(query *Query, configObj config.Config) (*AwsAccountResource
 				spinner.UpdateText(
 					fmt.Sprintf("Searching %s resources in %s", (*resource).ResourceName(), region))
 				start := time.Now()
-				identifiers, err := (*resource).GetAndSetIdentifiers(configObj)
+				identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
 				if err != nil {
 					ge := report.GeneralError{
 						Error:        err,

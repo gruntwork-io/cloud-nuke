@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -19,7 +20,7 @@ import (
 )
 
 // List all IAM users in the AWS account and returns a slice of the UserNames
-func (iu *IAMUsers) getAll(configObj config.Config) ([]*string, error) {
+func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	input := &iam.ListUsersInput{}
 
 	var userNames []*string

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -13,7 +14,7 @@ import (
 )
 
 // Returns a formatted string of ASG Names
-func (ag *ASGroups) getAll(configObj config.Config) ([]*string, error) {
+func (ag *ASGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := ag.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

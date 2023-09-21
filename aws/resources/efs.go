@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
@@ -15,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ef *ElasticFileSystem) getAll(configObj config.Config) ([]*string, error) {
+func (ef *ElasticFileSystem) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
 	allEfs := []*string{}
 	err := ef.Client.DescribeFileSystemsPages(&efs.DescribeFileSystemsInput{}, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {

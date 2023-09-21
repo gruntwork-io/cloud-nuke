@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
@@ -78,7 +79,7 @@ func TestCloudWatchLogGroup_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := cw.getAll(config.Config{
+			names, err := cw.getAll(context.Background(), config.Config{
 				CloudWatchLogGroup: tc.configObj,
 			})
 

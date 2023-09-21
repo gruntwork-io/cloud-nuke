@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kafka"
@@ -37,8 +38,8 @@ func (msk MSKCluster) MaxBatchSize() int {
 	return 10
 }
 
-func (msk MSKCluster) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := msk.getAll(configObj)
+func (msk MSKCluster) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := msk.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

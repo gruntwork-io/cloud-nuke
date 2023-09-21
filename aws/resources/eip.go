@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -51,7 +52,7 @@ func (ea *EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error)
 }
 
 // Returns a formatted string of EIP allocation ids
-func (ea *EIPAddresses) getAll(configObj config.Config) ([]*string, error) {
+func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := ea.Client.DescribeAddresses(&ec2.DescribeAddressesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

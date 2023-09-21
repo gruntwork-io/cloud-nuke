@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
@@ -111,7 +112,7 @@ func TestIamGroups_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ig.getAll(config.Config{
+			names, err := ig.getAll(context.Background(), config.Config{
 				IAMGroups: tc.configObj,
 			})
 			require.NoError(t, err)

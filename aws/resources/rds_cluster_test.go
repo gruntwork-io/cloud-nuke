@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"strings"
 	"testing"
@@ -51,12 +52,12 @@ func TestRDSClusterGetAll(t *testing.T) {
 	}
 
 	// Testing empty config
-	clusters, err := dbCluster.getAll(config.Config{DBClusters: config.ResourceType{}})
+	clusters, err := dbCluster.getAll(context.Background(), config.Config{DBClusters: config.ResourceType{}})
 	assert.NoError(t, err)
 	assert.Contains(t, awsgo.StringValueSlice(clusters), strings.ToLower(testName))
 
 	// Testing db cluster exclusion
-	clusters, err = dbCluster.getAll(config.Config{
+	clusters, err = dbCluster.getAll(context.Background(), config.Config{
 		DBClusters: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: awsgo.Time(now.Add(-1)),

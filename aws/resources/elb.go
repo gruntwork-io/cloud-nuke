@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -33,7 +34,7 @@ func (balancer *LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalanc
 }
 
 // Returns a formatted string of ELB names
-func (balancer *LoadBalancers) getAll(configObj config.Config) ([]*string, error) {
+func (balancer *LoadBalancers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := balancer.Client.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)

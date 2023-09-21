@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -13,7 +14,7 @@ import (
 	"sync"
 )
 
-func (ig *IAMGroups) getAll(configObj config.Config) ([]*string, error) {
+func (ig *IAMGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var allIamGroups []*string
 	err := ig.Client.ListGroupsPages(
 		&iam.ListGroupsInput{},

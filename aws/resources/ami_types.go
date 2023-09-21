@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -35,8 +36,8 @@ func (ami *AMIs) MaxBatchSize() int {
 	return 49
 }
 
-func (ami *AMIs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := ami.getAll(configObj)
+func (ami *AMIs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := ami.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -35,8 +36,8 @@ func (address *EIPAddresses) MaxBatchSize() int {
 	return 49
 }
 
-func (address *EIPAddresses) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := address.getAll(configObj)
+func (address *EIPAddresses) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := address.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

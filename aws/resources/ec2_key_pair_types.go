@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -34,8 +35,8 @@ func (k *EC2KeyPairs) MaxBatchSize() int {
 	return 200
 }
 
-func (k *EC2KeyPairs) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := k.getAll(configObj)
+func (k *EC2KeyPairs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := k.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -19,7 +20,7 @@ import (
 )
 
 // List all IAM Roles in the AWS account
-func (islr *IAMServiceLinkedRoles) getAll(configObj config.Config) ([]*string, error) {
+func (islr *IAMServiceLinkedRoles) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allIAMServiceLinkedRoles := []*string{}
 	err := islr.Client.ListRolesPages(
 		&iam.ListRolesInput{},

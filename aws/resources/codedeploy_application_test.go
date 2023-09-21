@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -106,7 +107,7 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := c.getAll(config.Config{
+			names, err := c.getAll(context.Background(), config.Config{
 				CodeDeployApplications: tc.configObj,
 			})
 

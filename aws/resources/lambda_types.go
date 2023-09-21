@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -33,8 +34,8 @@ func (lf *LambdaFunctions) MaxBatchSize() int {
 	return 49
 }
 
-func (lf *LambdaFunctions) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := lf.getAll(configObj)
+func (lf *LambdaFunctions) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := lf.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

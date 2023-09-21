@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
@@ -37,8 +38,8 @@ func (analyzer *AccessAnalyzer) MaxBatchSize() int {
 	return 10
 }
 
-func (analyzer *AccessAnalyzer) GetAndSetIdentifiers(configObj config.Config) ([]string, error) {
-	identifiers, err := analyzer.getAll(configObj)
+func (analyzer *AccessAnalyzer) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := analyzer.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}

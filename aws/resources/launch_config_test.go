@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -78,7 +79,7 @@ func TestLaunchConfigurations_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := lc.getAll(config.Config{
+			names, err := lc.getAll(context.Background(), config.Config{
 				LaunchConfiguration: tc.configObj,
 			})
 			require.NoError(t, err)

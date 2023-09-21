@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
 		},
 	}
 
-	apis, err := apiGateway.getAll(config.Config{})
+	apis, err := apiGateway.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
 	require.Contains(t, awsgo.StringValueSlice(apis), testApiID)
 
@@ -73,7 +74,7 @@ func TestAPIGatewayGetAllTimeFilter(t *testing.T) {
 	}
 
 	// test API is not excluded from the filter
-	IDs, err := apiGateway.getAll(config.Config{
+	IDs, err := apiGateway.getAll(context.Background(), config.Config{
 		APIGateway: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: aws.Time(now.Add(1)),
@@ -84,7 +85,7 @@ func TestAPIGatewayGetAllTimeFilter(t *testing.T) {
 	assert.Contains(t, aws.StringValueSlice(IDs), testApiID)
 
 	// test API being excluded from the filter
-	apiGwIdsOlder, err := apiGateway.getAll(config.Config{
+	apiGwIdsOlder, err := apiGateway.getAll(context.Background(), config.Config{
 		APIGateway: config.ResourceType{
 			ExcludeRule: config.FilterRule{
 				TimeAfter: aws.Time(now.Add(-1)),
@@ -113,7 +114,7 @@ func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 		},
 	}
 
-	apis, err := apiGateway.getAll(config.Config{})
+	apis, err := apiGateway.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
 	require.Contains(t, awsgo.StringValueSlice(apis), testApiID1)
 	require.Contains(t, awsgo.StringValueSlice(apis), testApiID2)
