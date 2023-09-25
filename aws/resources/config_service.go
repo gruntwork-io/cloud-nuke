@@ -2,14 +2,14 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"github.com/pterm/pterm"
 )
 
 func (csr *ConfigServiceRule) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -19,7 +19,7 @@ func (csr *ConfigServiceRule) getAll(c context.Context, configObj config.Config)
 		for _, configRule := range output.ConfigRules {
 			if configObj.ConfigServiceRule.ShouldInclude(config.ResourceValue{
 				Name: configRule.ConfigRuleName,
-			}) {
+			}) && *configRule.ConfigRuleState == "ACTIVE" {
 				configRuleNames = append(configRuleNames, configRule.ConfigRuleName)
 			}
 		}
@@ -46,33 +46,43 @@ func (csr *ConfigServiceRule) nukeAll(configRuleNames []string) error {
 	var deletedConfigRuleNames []*string
 
 	for _, configRuleName := range configRuleNames {
+		pterm.Debug.Println(fmt.Sprintf("Start deleting config service rule: %s", configRuleName))
+		_, err := csr.Client.DeleteRemediationConfiguration(&configservice.DeleteRemediationConfigurationInput{
+			ConfigRuleName: aws.String(configRuleName),
+		})
+		if err != nil {
+			pterm.Error.Println(fmt.Sprintf("Failed to delete remediation configuration w/ err %s", err))
+			report.Record(report.Entry{
+				Identifier:   configRuleName,
+				ResourceType: "Config service rule",
+				Error:        err,
+			})
+
+			continue
+		}
+
 		params := &configservice.DeleteConfigRuleInput{
 			ConfigRuleName: aws.String(configRuleName),
 		}
-		_, err := csr.Client.DeleteConfigRule(params)
+		_, err = csr.Client.DeleteConfigRule(params)
+		if err != nil {
+			pterm.Error.Println(fmt.Sprintf("Failed to delete config rule w/ err %s", err))
+			report.Record(report.Entry{
+				Identifier:   configRuleName,
+				ResourceType: "Config service rule",
+				Error:        err,
+			})
+		}
 
-		// Record status of this resource
-		e := report.Entry{
+		deletedConfigRuleNames = append(deletedConfigRuleNames, aws.String(configRuleName))
+		pterm.Debug.Println(fmt.Sprintf("Successfully deleted config service rule: %s", configRuleName))
+		report.Record(report.Entry{
 			Identifier:   configRuleName,
 			ResourceType: "Config service rule",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Config Service Rule",
-			}, map[string]interface{}{
-				"region": csr.Region,
-			})
-		} else {
-			deletedConfigRuleNames = append(deletedConfigRuleNames, aws.String(configRuleName))
-			logging.Logger.Debugf("Deleted Config service rule: %s", configRuleName)
-		}
+		})
 	}
 
-	logging.Logger.Debugf("[OK] %d Config service rules deleted in %s", len(deletedConfigRuleNames), csr.Region)
-
+	pterm.Debug.Println(
+		fmt.Sprintf("Completed deleting %d config service rules %s", len(deletedConfigRuleNames), csr.Region))
 	return nil
 }

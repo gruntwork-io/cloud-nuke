@@ -14,8 +14,9 @@ import (
 
 type mockedConfigServiceRule struct {
 	configserviceiface.ConfigServiceAPI
-	DescribeConfigRulesOutput configservice.DescribeConfigRulesOutput
-	DeleteConfigRuleOutput    configservice.DeleteConfigRuleOutput
+	DescribeConfigRulesOutput            configservice.DescribeConfigRulesOutput
+	DeleteConfigRuleOutput               configservice.DeleteConfigRuleOutput
+	DeleteRemediationConfigurationOutput configservice.DeleteRemediationConfigurationOutput
 }
 
 func (m mockedConfigServiceRule) DescribeConfigRulesPages(input *configservice.DescribeConfigRulesInput, fn func(*configservice.DescribeConfigRulesOutput, bool) bool) error {
@@ -25,6 +26,10 @@ func (m mockedConfigServiceRule) DescribeConfigRulesPages(input *configservice.D
 
 func (m mockedConfigServiceRule) DeleteConfigRule(input *configservice.DeleteConfigRuleInput) (*configservice.DeleteConfigRuleOutput, error) {
 	return &m.DeleteConfigRuleOutput, nil
+}
+
+func (m mockedConfigServiceRule) DeleteRemediationConfiguration(input *configservice.DeleteRemediationConfigurationInput) (*configservice.DeleteRemediationConfigurationOutput, error) {
+	return &m.DeleteRemediationConfigurationOutput, nil
 }
 
 func TestConfigServiceRule_GetAll(t *testing.T) {
@@ -37,8 +42,8 @@ func TestConfigServiceRule_GetAll(t *testing.T) {
 		Client: mockedConfigServiceRule{
 			DescribeConfigRulesOutput: configservice.DescribeConfigRulesOutput{
 				ConfigRules: []*configservice.ConfigRule{
-					{ConfigRuleName: aws.String(testName1)},
-					{ConfigRuleName: aws.String(testName2)},
+					{ConfigRuleName: aws.String(testName1), ConfigRuleState: aws.String("ACTIVE")},
+					{ConfigRuleName: aws.String(testName2), ConfigRuleState: aws.String("ACTIVE")},
 				},
 			},
 		},
@@ -80,7 +85,8 @@ func TestConfigServiceRule_NukeAll(t *testing.T) {
 
 	csr := ConfigServiceRule{
 		Client: mockedConfigServiceRule{
-			DeleteConfigRuleOutput: configservice.DeleteConfigRuleOutput{},
+			DeleteConfigRuleOutput:               configservice.DeleteConfigRuleOutput{},
+			DeleteRemediationConfigurationOutput: configservice.DeleteRemediationConfigurationOutput{},
 		},
 	}
 
