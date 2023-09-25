@@ -406,7 +406,7 @@ func nukeNetworkInterfaces(client ec2iface.EC2API, vpcID string) error {
 		return err
 	}
 
-	pterm.Debug.Println(fmt.Sprintf("Found %d ELastic Network Interfaces to Nuke.", len(allNetworkInterfaces)))
+	pterm.Debug.Println(fmt.Sprintf("Found %d Elastic Network Interfaces to Nuke.", len(allNetworkInterfaces)))
 	for _, netInterface := range allNetworkInterfaces {
 		if strings.ToLower(*netInterface.Status) == strings.ToLower(ec2.NetworkInterfaceStatusInUse) {
 			pterm.Debug.Println(fmt.Sprintf("Skipping network interface %s as it is in use",
