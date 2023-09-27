@@ -203,7 +203,11 @@ func parseLogLevel(c *cli.Context) error {
 		return fmt.Errorf("Invalid log level - %s - %s", logLevel, err)
 	}
 	logging.Logger.SetLevel(parsedLogLevel)
-	logging.Logger.Debugf("Setting log level to %s", parsedLogLevel.String())
+	if parsedLogLevel == logrus.DebugLevel {
+		pterm.EnableDebugMessages()
+		logging.Logger.Debugf("Setting log level to %s", parsedLogLevel.String())
+	}
+
 	return nil
 }
 
