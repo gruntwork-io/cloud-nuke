@@ -18,8 +18,11 @@ import (
 
 type mockedApiGatewayV2 struct {
 	apigatewayv2iface.ApiGatewayV2API
-	GetApisOutput   apigatewayv2.GetApisOutput
-	DeleteApiOutput apigatewayv2.DeleteApiOutput
+	GetApisOutput          apigatewayv2.GetApisOutput
+	DeleteApiOutput        apigatewayv2.DeleteApiOutput
+	GetDomainNamesOutput   apigatewayv2.GetDomainNamesOutput
+	GetApiMappingsOutput   apigatewayv2.GetApiMappingsOutput
+	DeleteApiMappingOutput apigatewayv2.DeleteApiMappingOutput
 }
 
 func (m mockedApiGatewayV2) GetApis(*apigatewayv2.GetApisInput) (*apigatewayv2.GetApisOutput, error) {
@@ -30,6 +33,18 @@ func (m mockedApiGatewayV2) GetApis(*apigatewayv2.GetApisInput) (*apigatewayv2.G
 func (m mockedApiGatewayV2) DeleteApi(*apigatewayv2.DeleteApiInput) (*apigatewayv2.DeleteApiOutput, error) {
 	// Only need to return mocked response output
 	return &m.DeleteApiOutput, nil
+}
+
+func (m mockedApiGatewayV2) GetDomainNames(*apigatewayv2.GetDomainNamesInput) (*apigatewayv2.GetDomainNamesOutput, error) {
+	return &m.GetDomainNamesOutput, nil
+}
+
+func (m mockedApiGatewayV2) GetApiMappings(*apigatewayv2.GetApiMappingsInput) (*apigatewayv2.GetApiMappingsOutput, error) {
+	return &m.GetApiMappingsOutput, nil
+}
+
+func (m mockedApiGatewayV2) DeleteApiMapping(*apigatewayv2.DeleteApiMappingInput) (*apigatewayv2.DeleteApiMappingOutput, error) {
+	return &m.DeleteApiMappingOutput, nil
 }
 
 func TestApiGatewayV2GetAll(t *testing.T) {
@@ -84,6 +99,21 @@ func TestApiGatewayV2NukeAll(t *testing.T) {
 	gw := ApiGatewayV2{
 		Client: mockedApiGatewayV2{
 			DeleteApiOutput: apigatewayv2.DeleteApiOutput{},
+			GetDomainNamesOutput: apigatewayv2.GetDomainNamesOutput{
+				Items: []*apigatewayv2.DomainName{
+					{
+						DomainName: aws.String("test-domain-name"),
+					},
+				},
+			},
+			GetApisOutput: apigatewayv2.GetApisOutput{
+				Items: []*apigatewayv2.Api{
+					{
+						ApiId: aws.String("test-api-id"),
+					},
+				},
+			},
+			DeleteApiMappingOutput: apigatewayv2.DeleteApiMappingOutput{},
 		},
 	}
 	err := gw.nukeAll([]*string{aws.String("test-api-id")})
