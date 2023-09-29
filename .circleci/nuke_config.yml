@@ -252,6 +252,6 @@ LambdaFunction:
       - "^ecs-deploy-runner-invoker"
 
 ACM:
-  include:
+  exclude:
     names_regex:
-      - "^gruntwork.in"
+      - "*gruntwork.in"
