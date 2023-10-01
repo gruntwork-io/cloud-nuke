@@ -11,9 +11,10 @@ import (
 )
 
 type DBClusters struct {
-	Client        rdsiface.RDSAPI
-	Region        string
-	InstanceNames []string
+	Client             rdsiface.RDSAPI
+	Region             string
+	Identifiers        []string
+	IdentifierToArnMap map[string]*string
 }
 
 func (instance *DBClusters) Init(session *session.Session) {
@@ -26,7 +27,7 @@ func (instance *DBClusters) ResourceName() string {
 
 // ResourceIdentifiers - The instance names of the rds db instances
 func (instance *DBClusters) ResourceIdentifiers() []string {
-	return instance.InstanceNames
+	return instance.Identifiers
 }
 
 func (instance *DBClusters) MaxBatchSize() int {
@@ -40,8 +41,8 @@ func (instance *DBClusters) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	instance.InstanceNames = awsgo.StringValueSlice(identifiers)
-	return instance.InstanceNames, nil
+	instance.Identifiers = awsgo.StringValueSlice(identifiers)
+	return instance.Identifiers, nil
 }
 
 // Nuke - nuke 'em all!!!
