@@ -11,7 +11,6 @@ import (
 
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/progressbar"
@@ -111,7 +110,7 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string, session *session.Session) {
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
 	resourcesInRegion := account.Resources[region]
 
 	for _, resources := range resourcesInRegion.Resources {
@@ -157,33 +156,17 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		EventName: "Begin nuking resources",
 	}, map[string]interface{}{})
 
-	defaultRegion := regions[0]
 	for _, region := range regions {
-		// region that will be used to create a session
-		sessionRegion := region
-
-		// As there is no actual region named global we have to pick a valid one just to create the session
-		if region == GlobalRegion {
-			sessionRegion = defaultRegion
-		}
-
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Creating session for region",
 		}, map[string]interface{}{
 			"region": region,
 		})
-		session := NewSession(sessionRegion)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Nuking Region",
-		}, map[string]interface{}{
-			"region":        region,
-			"resourceCount": len(account.Resources[region].Resources),
-		})
 
 		// We intentionally do not handle an error returned from this method, because we collect individual errors
 		// on per-resource basis via the report package's Record method. In the run report displayed at the end of
 		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
-		nukeAllResourcesInRegion(account, region, session)
+		nukeAllResourcesInRegion(account, region)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Done Nuking Region",
 		}, map[string]interface{}{
