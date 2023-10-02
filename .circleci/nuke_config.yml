@@ -254,4 +254,4 @@ LambdaFunction:
 ACM:
   exclude:
     names_regex:
-      - "*gruntwork.in"
+      - ".*gruntwork.in"
