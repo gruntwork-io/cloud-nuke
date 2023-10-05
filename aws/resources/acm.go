@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -9,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"github.com/pterm/pterm"
 )
 
 // Returns a list of strings of ACM ARNs
@@ -20,8 +22,15 @@ func (a *ACM) getAll(c context.Context, configObj config.Config) ([]*string, err
 	err := a.Client.ListCertificatesPages(params,
 		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
 			for i := range page.CertificateSummaryList {
+				pterm.Debug.Println(fmt.Sprintf("Found ACM %s with domain name %s",
+					*page.CertificateSummaryList[i].CertificateArn, *page.CertificateSummaryList[i].DomainName))
 				if a.shouldInclude(page.CertificateSummaryList[i], configObj) {
+					pterm.Debug.Println(fmt.Sprintf(
+						"Including ACM %s", *page.CertificateSummaryList[i].CertificateArn))
 					acmArns = append(acmArns, page.CertificateSummaryList[i].CertificateArn)
+				} else {
+					pterm.Debug.Println(fmt.Sprintf(
+						"Skipping ACM %s", *page.CertificateSummaryList[i].CertificateArn))
 				}
 			}
 
@@ -41,7 +50,7 @@ func (a *ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config
 	}
 
 	if acm.InUse != nil && *acm.InUse {
-		logging.Logger.Debugf("Skipping ACM %s as it is in use", *acm.CertificateArn)
+		pterm.Debug.Println(fmt.Sprintf("ACM %s is in use", *acm.CertificateArn))
 		return false
 	}
 
