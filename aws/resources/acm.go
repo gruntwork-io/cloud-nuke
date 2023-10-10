@@ -54,10 +54,13 @@ func (a *ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config
 		return false
 	}
 
-	return configObj.ACM.ShouldInclude(config.ResourceValue{
+	shouldInclude := configObj.ACM.ShouldInclude(config.ResourceValue{
 		Name: acm.DomainName,
 		Time: acm.CreatedAt,
 	})
+	pterm.Debug.Println(fmt.Sprintf("shouldInclude result for ACM: %s w/ domain name: %s, time: %s, and config: %+v",
+		*acm.CertificateArn, *acm.DomainName, acm.CreatedAt, configObj.ACM))
+	return shouldInclude
 }
 
 // Deletes all ACMs
