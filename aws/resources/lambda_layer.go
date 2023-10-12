@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -15,14 +16,16 @@ import (
 )
 
 func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	var layers []*lambda.LayersListItem
 	var names []*string
 
 	err := ll.Client.ListLayersPages(
 		&lambda.ListLayersInput{}, func(page *lambda.ListLayersOutput, lastPage bool) bool {
 			for _, layer := range page.Layers {
 				logging.Logger.Infof("Found layer! %s", layer)
+
 				if ll.shouldInclude(layer, configObj) {
-					names = append(names, layer.LayerName)
+					layers = append(layers, layer)
 				}
 			}
 
@@ -31,6 +34,25 @@ func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*s
 
 	if err != nil {
 		return nil, err
+	}
+
+	for _, layer := range layers {
+		err := ll.Client.ListLayerVersionsPages(
+			&lambda.ListLayerVersionsInput{
+				LayerName: layer.LayerName,
+			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
+				for _, version := range page.LayerVersions {
+					logging.Logger.Infof("Found layer version! %s", version)
+					name := fmt.Sprintf("name=%s version=%v", *layer.LayerName, *version.Version)
+					names = append(names, &name)
+				}
+
+				return !lastPage
+			})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return names, nil
