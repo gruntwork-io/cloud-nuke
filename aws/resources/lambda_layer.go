@@ -87,32 +87,56 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 
 	logging.Logger.Debugf("Deleting all Lambda Layers in region %s", ll.Region)
 	deletedNames := []*string{}
+	deleteLayerVersions := []*lambda.DeleteLayerVersionInput{}
 
 	for _, name := range names {
-		params := &lambda.DeleteFunctionInput{
-			FunctionName: name,
-		}
+		err := ll.Client.ListLayerVersionsPages(
+			&lambda.ListLayerVersionsInput{
+				LayerName: name,
+			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
+				for _, version := range page.LayerVersions {
+					logging.Logger.Infof("Found layer version! %s", version)
+					params := &lambda.DeleteLayerVersionInput{
+						LayerName:     name,
+						VersionNumber: version.Version,
+					}
+					deleteLayerVersions = append(deleteLayerVersions, params)
+				}
 
-		_, err := ll.Client.DeleteFunction(params)
+				return !lastPage
+			})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, params := range deleteLayerVersions {
+
+		_, err := ll.Client.DeleteLayerVersion(params)
+
+		if err != nil {
+			return err
+		}
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(name),
+			Identifier:   aws.StringValue(params.LayerName),
 			ResourceType: "Lambda layer",
 			Error:        err,
 		}
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			logging.Logger.Errorf("[Failed] %s: %s", *params.LayerName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Lambda Layer",
 			}, map[string]interface{}{
 				"region": ll.Region,
 			})
 		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted Lambda Layer: %s", awsgo.StringValue(name))
+			deletedNames = append(deletedNames, params.LayerName)
+			logging.Logger.Debugf("Deleted Lambda Layer: %s", awsgo.StringValue(params.LayerName))
 		}
 	}
 
