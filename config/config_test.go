@@ -75,6 +75,7 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
 		ResourceType{FilterRule{}, FilterRule{}},
+		ResourceType{FilterRule{}, FilterRule{}},
 	}
 }
 

@@ -8,34 +8,33 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type LambdaFunctions struct {
+type LambdaFunctionVersions struct {
 	Client              lambdaiface.LambdaAPI
 	Region              string
 	LambdaFunctionNames []string
 }
 
-func (lf *LambdaFunctions) Init(session *session.Session) {
+func (lf *LambdaFunctionVersions) Init(session *session.Session) {
 	lf.Client = lambda.New(session)
 }
 
-func (lf *LambdaFunctions) ResourceName() string {
+func (lf *LambdaFunctionVersions) ResourceName() string {
 	return "lambda"
 }
 
 // ResourceIdentifiers - The names of the lambda functions
-func (lf *LambdaFunctions) ResourceIdentifiers() []string {
+func (lf *LambdaFunctionVersions) ResourceIdentifiers() []string {
 	return lf.LambdaFunctionNames
 }
 
-func (lf *LambdaFunctions) MaxBatchSize() int {
+func (lf *LambdaFunctionVersions) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (lf *LambdaFunctions) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+func (lf *LambdaFunctionVersions) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := lf.getAll(c, configObj)
 	if err != nil {
 		return nil, err
@@ -43,21 +42,4 @@ func (lf *LambdaFunctions) GetAndSetIdentifiers(c context.Context, configObj con
 
 	lf.LambdaFunctionNames = awsgo.StringValueSlice(identifiers)
 	return lf.LambdaFunctionNames, nil
-}
-
-// Nuke - nuke 'em all!!!
-func (lf *LambdaFunctions) Nuke(identifiers []string) error {
-	if err := lf.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-type LambdaDeleteError struct {
-	name string
-}
-
-func (e LambdaDeleteError) Error() string {
-	return "Lambda Function:" + e.name + "was not deleted"
 }

@@ -58,6 +58,7 @@ type Config struct {
 	KMSCustomerKeys              KMSCustomerKeyResourceType `yaml:"KMSCustomerKeys"`
 	KinesisStream                ResourceType               `yaml:"KinesisStream"`
 	LambdaFunction               ResourceType               `yaml:"LambdaFunction"`
+	LambdaFunctionVersion        ResourceType               `yaml:"LambdaFunctionVersion"`
 	LaunchConfiguration          ResourceType               `yaml:"LaunchConfiguration"`
 	LaunchTemplate               ResourceType               `yaml:"LaunchTemplate"`
 	MacieMember                  ResourceType               `yaml:"MacieMember"`
