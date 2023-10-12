@@ -39,8 +39,6 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	testName1Version1 := int64(1)
 
 	testName2 := "test-lambda-layer2"
-	// testName2Version1 := 1
-	// testName2Version2 := 2
 
 	testTime := time.Now()
 
