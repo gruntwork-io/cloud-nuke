@@ -16,8 +16,9 @@ import (
 
 type mockedLambdaLayer struct {
 	lambdaiface.LambdaAPI
-	ListLayersOutput        lambda.ListLayersOutput
-	ListLayerVersionsOutput lambda.ListLayerVersionsOutput
+	ListLayersOutput         lambda.ListLayersOutput
+	ListLayerVersionsOutput  lambda.ListLayerVersionsOutput
+	DeleteLayerVersionOutput lambda.DeleteLayerVersionOutput
 }
 
 func (m mockedLambdaLayer) ListLayersPages(input *lambda.ListLayersInput, fn func(*lambda.ListLayersOutput, bool) bool) error {
@@ -48,7 +49,7 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	testTime, err := time.Parse(layout, testTimeStr)
 	require.NoError(t, err)
 
-	lf := LambdaLayers{
+	ll := LambdaLayers{
 		Client: mockedLambdaLayer{
 			ListLayersOutput: lambda.ListLayersOutput{
 				Layers: []*lambda.LayersListItem{
@@ -103,11 +104,25 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := lf.getAll(context.Background(), config.Config{
+			names, err := ll.getAll(context.Background(), config.Config{
 				LambdaLayer: tc.configObj,
 			})
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
+}
+
+func TestLambdaLayer_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	ll := LambdaLayers{
+		Client: mockedLambdaLayer{
+			DeleteLayerVersionOutput: lambda.DeleteLayerVersionOutput{},
+		},
+	}
+
+	err := ll.nukeAll([]*string{aws.String("test")})
+	require.NoError(t, err)
 }
