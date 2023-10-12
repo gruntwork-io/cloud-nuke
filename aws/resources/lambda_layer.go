@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -43,8 +42,9 @@ func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*s
 			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
 				for _, version := range page.LayerVersions {
 					logging.Logger.Infof("Found layer version! %s", version)
-					name := fmt.Sprintf("name=%s version=%v", *layer.LayerName, *version.Version)
-					names = append(names, &name)
+					// name := fmt.Sprintf("name=%s version=%v", *layer.LayerName, *version.Version)
+					// names = append(names, &name)
+					names = append(names, layer.LayerName)
 				}
 
 				return !lastPage
