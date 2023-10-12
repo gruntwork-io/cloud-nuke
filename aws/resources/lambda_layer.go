@@ -138,6 +138,6 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), ll.Region)
+	logging.Logger.Debugf("[OK] %d Lambda Layer(s) deleted in %s", len(deletedNames), ll.Region)
 	return nil
 }
