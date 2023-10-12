@@ -17,12 +17,8 @@ import (
 func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
 
-	logging.Logger.Infof("Finding versions...")
-
 	err := ll.Client.ListLayersPages(
 		&lambda.ListLayersInput{}, func(page *lambda.ListLayersOutput, lastPage bool) bool {
-			logging.Logger.Infof("Found page! %s", page)
-
 			for _, layer := range page.Layers {
 				logging.Logger.Infof("Found layer! %s", layer)
 				if ll.shouldInclude(layer, configObj) {
