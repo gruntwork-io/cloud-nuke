@@ -1074,3 +1074,29 @@ func TestShouldInclude_NameAndTimeFilter(t *testing.T) {
 		Time: aws.Time(now.Add(-1)),
 	}))
 }
+
+func TestAddIncludeAndExcludeAfterTime(t *testing.T) {
+	now := aws.Time(time.Now())
+
+	exclude, err := regexp.Compile(`test.*`)
+	require.NoError(t, err)
+	excludeREs := []Expression{{RE: *exclude}}
+
+	testConfig := &Config{}
+	testConfig.ACM = ResourceType{
+		ExcludeRule: FilterRule{
+			NamesRegExp: excludeREs,
+			TimeAfter:   now,
+		},
+	}
+
+	testConfig.AddExcludeAfterTime(now)
+	assert.Equal(t, testConfig.ACM.ExcludeRule.NamesRegExp, excludeREs)
+	assert.Equal(t, testConfig.ACM.ExcludeRule.TimeAfter, now)
+	assert.Nil(t, testConfig.ACM.IncludeRule.TimeAfter)
+
+	testConfig.AddIncludeAfterTime(now)
+	assert.Equal(t, testConfig.ACM.ExcludeRule.NamesRegExp, excludeREs)
+	assert.Equal(t, testConfig.ACM.ExcludeRule.TimeAfter, now)
+	assert.Equal(t, testConfig.ACM.IncludeRule.TimeAfter, now)
+}
