@@ -86,15 +86,15 @@ func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
 	}
 
 	v := reflect.ValueOf(c).Elem()
-	filterRule := FilterRule{TimeAfter: timeFilter}
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		if field.Kind() == reflect.Struct {
-			ruleField := field.FieldByName(fieldName)
-			if ruleField.CanSet() {
-				ruleField.Set(reflect.ValueOf(filterRule))
-			}
+		if field.Kind() != reflect.Struct {
+			continue
 		}
+
+		ruleField := field.FieldByName(fieldName)
+		filterRule := ruleField.Addr().Interface().(*FilterRule)
+		filterRule.TimeAfter = timeFilter
 	}
 }
 
