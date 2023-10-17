@@ -37,11 +37,11 @@ func (bv *BackupVault) getAll(c context.Context, configObj config.Config) ([]*st
 
 func (bv *BackupVault) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No backup vaults to nuke in region %s", bv.Region)
+		logging.Debugf("No backup vaults to nuke in region %s", bv.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all backup vaults in region %s", bv.Region)
+	logging.Debugf("Deleting all backup vaults in region %s", bv.Region)
 	var deletedNames []*string
 
 	for _, name := range names {
@@ -58,7 +58,7 @@ func (bv *BackupVault) nukeAll(names []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking BackupVault",
 			}, map[string]interface{}{
@@ -66,11 +66,11 @@ func (bv *BackupVault) nukeAll(names []*string) error {
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted backup vault: %s", aws.StringValue(name))
+			logging.Debugf("Deleted backup vault: %s", aws.StringValue(name))
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d backup vault deleted in %s", len(deletedNames), bv.Region)
+	logging.Debugf("[OK] %d backup vault deleted in %s", len(deletedNames), bv.Region)
 
 	return nil
 }

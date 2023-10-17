@@ -53,7 +53,7 @@ func (gd *GuardDuty) shouldInclude(detector *guardduty.GetDetectorOutput, detect
 	detectorCreatedAt := aws.StringValue(detector.CreatedAt)
 	createdAtDateTime, err := time.Parse(time.RFC3339, detectorCreatedAt)
 	if err != nil {
-		logging.Logger.Debugf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", detectorCreatedAt, *detectorId)
+		logging.Debugf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", detectorCreatedAt, *detectorId)
 	}
 
 	return configObj.GuardDuty.ShouldInclude(config.ResourceValue{Time: &createdAtDateTime})
@@ -61,12 +61,12 @@ func (gd *GuardDuty) shouldInclude(detector *guardduty.GetDetectorOutput, detect
 
 func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 	if len(detectorIds) == 0 {
-		logging.Logger.Debugf("No GuardDuty detectors to nuke in region %s", gd.Region)
+		logging.Debugf("No GuardDuty detectors to nuke in region %s", gd.Region)
 
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all GuardDuty detectors in region %s", gd.Region)
+	logging.Debugf("Deleting all GuardDuty detectors in region %s", gd.Region)
 
 	deletedIds := []string{}
 
@@ -86,7 +86,7 @@ func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s: %s", detectorId, err)
+			logging.Debugf("[Failed] %s: %s", detectorId, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking GuardDuty Detector",
 			}, map[string]interface{}{
@@ -94,10 +94,10 @@ func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 			})
 		} else {
 			deletedIds = append(deletedIds, detectorId)
-			logging.Logger.Debugf("Deleted GuardDuty detector: %s", detectorId)
+			logging.Debugf("Deleted GuardDuty detector: %s", detectorId)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d GuardDuty Detector(s) deleted in %s", len(deletedIds), gd.Region)
+	logging.Debugf("[OK] %d GuardDuty Detector(s) deleted in %s", len(deletedIds), gd.Region)
 	return nil
 }

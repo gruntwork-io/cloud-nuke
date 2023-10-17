@@ -29,7 +29,7 @@ func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error 
 		}
 
 		time.Sleep(10 * time.Second)
-		logging.Logger.Debug("Waiting for RDS Cluster to be deleted")
+		logging.Debug("Waiting for RDS Cluster to be deleted")
 	}
 
 	return RdsDeleteError{name: *name}
@@ -59,11 +59,11 @@ func (dsg *DBSubnetGroups) getAll(c context.Context, configObj config.Config) ([
 
 func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No DB Subnet groups in region %s", dsg.Region)
+		logging.Debugf("No DB Subnet groups in region %s", dsg.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all DB Subnet groups in region %s", dsg.Region)
+	logging.Debugf("Deleting all DB Subnet groups in region %s", dsg.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -80,7 +80,7 @@ func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s: %s", *name, err)
+			logging.Debugf("[Failed] %s: %s", *name, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking RDS DB subnet group",
 			}, map[string]interface{}{
@@ -88,7 +88,7 @@ func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted RDS DB subnet group: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted RDS DB subnet group: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -97,12 +97,12 @@ func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 
 			err := dsg.waitUntilRdsDbSubnetGroupDeleted(name)
 			if err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
+				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d RDS DB subnet group(s) nuked in %s", len(deletedNames), dsg.Region)
+	logging.Debugf("[OK] %d RDS DB subnet group(s) nuked in %s", len(deletedNames), dsg.Region)
 	return nil
 }

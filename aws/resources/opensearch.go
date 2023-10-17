@@ -40,7 +40,7 @@ func (osd *OpenSearchDomains) getAll(c context.Context, configObj config.Config)
 		if firstSeenTime == nil {
 			err := osd.setFirstSeenTag(domain.ARN, time.Now().UTC())
 			if err != nil {
-				logging.Logger.Errorf("Error tagging the OpenSearch Domain with ARN %s with error: %s", aws.StringValue(domain.ARN), err.Error())
+				logging.Errorf("Error tagging the OpenSearch Domain with ARN %s with error: %s", aws.StringValue(domain.ARN), err.Error())
 				return nil, errors.WithStackTrace(err)
 			}
 		}
@@ -61,7 +61,7 @@ func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchserv
 	allDomains := []*string{}
 	resp, err := osd.Client.ListDomainNames(&opensearchservice.ListDomainNamesInput{})
 	if err != nil {
-		logging.Logger.Errorf("Error getting all OpenSearch domains")
+		logging.Errorf("Error getting all OpenSearch domains")
 		return nil, errors.WithStackTrace(err)
 	}
 	for _, domain := range resp.DomainNames {
@@ -71,7 +71,7 @@ func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchserv
 	input := &opensearchservice.DescribeDomainsInput{DomainNames: allDomains}
 	describedDomains, describeErr := osd.Client.DescribeDomains(input)
 	if describeErr != nil {
-		logging.Logger.Errorf("Error describing Domains from input %s: ", input)
+		logging.Errorf("Error describing Domains from input %s: ", input)
 		return nil, errors.WithStackTrace(describeErr)
 	}
 
@@ -86,7 +86,7 @@ func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchserv
 
 // Tag an OpenSearch Domain identified by the given ARN when it's first seen by cloud-nuke
 func (osd *OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.Time) error {
-	logging.Logger.Debugf("Tagging the OpenSearch Domain with ARN %s with first seen timestamp", aws.StringValue(domainARN))
+	logging.Debugf("Tagging the OpenSearch Domain with ARN %s with first seen timestamp", aws.StringValue(domainARN))
 	firstSeenTime := util.FormatTimestampTag(timestamp)
 
 	input := &opensearchservice.AddTagsInput{
@@ -114,7 +114,7 @@ func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, er
 	input := &opensearchservice.ListTagsInput{ARN: domainARN}
 	domainTags, err := osd.Client.ListTags(input)
 	if err != nil {
-		logging.Logger.Errorf("Error getting the tags for OpenSearch Domain with ARN %s", aws.StringValue(domainARN))
+		logging.Errorf("Error getting the tags for OpenSearch Domain with ARN %s", aws.StringValue(domainARN))
 		return firstSeenTime, errors.WithStackTrace(err)
 	}
 
@@ -122,7 +122,7 @@ func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, er
 		if util.IsFirstSeenTag(tag.Key) {
 			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
 			if err != nil {
-				logging.Logger.Errorf("Error parsing the `cloud-nuke-first-seen` tag for OpenSearch Domain with ARN %s", aws.StringValue(domainARN))
+				logging.Errorf("Error parsing the `cloud-nuke-first-seen` tag for OpenSearch Domain with ARN %s", aws.StringValue(domainARN))
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 
@@ -138,7 +138,7 @@ func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, er
 // they can be issued concurrently.
 func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No OpenSearch Domains to nuke in region %s", osd.Region)
+		logging.Debugf("No OpenSearch Domains to nuke in region %s", osd.Region)
 		return nil
 	}
 
@@ -147,11 +147,11 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many OpenSearch Domains at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Errorf("Nuking too many OpenSearch Domains at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyOpenSearchDomainsErr{}
 	}
 
-	logging.Logger.Debugf("Deleting OpenSearch Domains in region %s", osd.Region)
+	logging.Debugf("Deleting OpenSearch Domains in region %s", osd.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -166,7 +166,7 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Opensearch",
 			}, map[string]interface{}{
@@ -200,7 +200,7 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 		return errors.WithStackTrace(err)
 	}
 	for _, domainName := range identifiers {
-		logging.Logger.Debugf("[OK] OpenSearch Domain %s was deleted in %s", aws.StringValue(domainName), osd.Region)
+		logging.Debugf("[OK] OpenSearch Domain %s was deleted in %s", aws.StringValue(domainName), osd.Region)
 	}
 	return nil
 }

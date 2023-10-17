@@ -115,7 +115,7 @@ func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*strin
 		}
 		describeServicesOutput, err := services.Client.DescribeServices(describeParams)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to describe service %s: %s", *ecsServiceArn, err)
+			logging.Errorf("[Failed] Failed to describe service %s: %s", *ecsServiceArn, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ECS Service",
 			}, map[string]interface{}{
@@ -135,7 +135,7 @@ func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*strin
 				}
 				_, err = services.Client.UpdateService(params)
 				if err != nil {
-					logging.Logger.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
+					logging.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
 					telemetry.TrackEvent(commonTelemetry.EventContext{
 						EventName: "Error Nuking ECS Service",
 					}, map[string]interface{}{
@@ -164,7 +164,7 @@ func (services *ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) 
 		}
 		err := services.Client.WaitUntilServicesStable(params)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
+			logging.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ECS Service",
 			}, map[string]interface{}{
@@ -172,7 +172,7 @@ func (services *ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) 
 				"reason": "Failed Waiting for Drain",
 			})
 		} else {
-			logging.Logger.Debugf("Drained service: %s", *ecsServiceArn)
+			logging.Debugf("Drained service: %s", *ecsServiceArn)
 			successfullyDrained = append(successfullyDrained, ecsServiceArn)
 		}
 	}
@@ -190,7 +190,7 @@ func (services *ECSServices) deleteEcsServices(ecsServiceArns []*string) []*stri
 		}
 		_, err := services.Client.DeleteService(params)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
+			logging.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ECS Service",
 			}, map[string]interface{}{
@@ -225,7 +225,7 @@ func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) 
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
+			logging.Debugf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ECS Service",
 			}, map[string]interface{}{
@@ -233,7 +233,7 @@ func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) 
 				"reason": "Failed Waiting for Delete",
 			})
 		} else {
-			logging.Logger.Debugf("Deleted service: %s", *ecsServiceArn)
+			logging.Debugf("Deleted service: %s", *ecsServiceArn)
 			successfullyDeleted = append(successfullyDeleted, ecsServiceArn)
 		}
 	}
@@ -251,11 +251,11 @@ func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) 
 func (services *ECSServices) nukeAll(ecsServiceArns []*string) error {
 	numNuking := len(ecsServiceArns)
 	if numNuking == 0 {
-		logging.Logger.Debugf("No ECS services to nuke in region %s", services.Region)
+		logging.Debugf("No ECS services to nuke in region %s", services.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting %d ECS services in region %s", numNuking, services.Region)
+	logging.Debugf("Deleting %d ECS services in region %s", numNuking, services.Region)
 
 	// First, drain all the services to 0. You can't delete a
 	// service that is running tasks.
@@ -269,6 +269,6 @@ func (services *ECSServices) nukeAll(ecsServiceArns []*string) error {
 	successfullyDeleted := services.waitUntilServicesDeleted(requestedDeletes)
 
 	numNuked := len(successfullyDeleted)
-	logging.Logger.Debugf("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, services.Client)
+	logging.Debugf("[OK] %d of %d ECS service(s) deleted in %s", numNuked, numNuking, services.Client)
 	return nil
 }

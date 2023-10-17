@@ -96,7 +96,7 @@ func (sb S3Buckets) getAll(c context.Context, configObj config.Config) ([]*strin
 	// Batch the get operation
 	for batchStart := 0; batchStart < totalBuckets; batchStart += batchSize {
 		batchEnd := int(math.Min(float64(batchStart)+float64(batchSize), float64(totalBuckets)))
-		logging.Logger.Debugf("Getting - %d-%d buckets of batch %d/%d", batchStart+1, batchEnd, batchCount, totalBatches)
+		logging.Debugf("Getting - %d-%d buckets of batch %d/%d", batchStart+1, batchEnd, batchCount, totalBatches)
 		targetBuckets := output.Buckets[batchStart:batchEnd]
 		bucketNames, err := sb.getBucketNames(targetBuckets, configObj)
 		if err != nil {
@@ -133,11 +133,11 @@ func (sb S3Buckets) getBucketNames(targetBuckets []*s3.Bucket, configObj config.
 	// messages are shown to the user as soon as possible
 	for bucketData := range bucketCh {
 		if bucketData.Error != nil {
-			logging.Logger.Debugf("Skipping - Bucket %s - region - %s - error: %s", bucketData.Name, sb.Region, bucketData.Error)
+			logging.Debugf("Skipping - Bucket %s - region - %s - error: %s", bucketData.Name, sb.Region, bucketData.Error)
 			continue
 		}
 		if !bucketData.IsValid {
-			logging.Logger.Debugf("Skipping - Bucket %s - region - %s - %s", bucketData.Name, sb.Region, bucketData.InvalidReason)
+			logging.Debugf("Skipping - Bucket %s - region - %s - %s", bucketData.Name, sb.Region, bucketData.InvalidReason)
 			continue
 		}
 
@@ -210,21 +210,21 @@ func (sb S3Buckets) emptyBucket(bucketName *string, isVersioned bool) error {
 				MaxKeys: aws.Int64(int64(sb.MaxBatchSize())),
 			},
 			func(page *s3.ListObjectVersionsOutput, lastPage bool) (shouldContinue bool) {
-				logging.Logger.Debugf("Deleting page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+				logging.Debugf("Deleting page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
 				if err := sb.deleteObjectVersions(bucketName, page.Versions); err != nil {
-					logging.Logger.Errorf("Error deleting objects versions for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+					logging.Errorf("Error deleting objects versions for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
 					errOut = err
 					return false
 				}
-				logging.Logger.Debugf("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+				logging.Debugf("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
 
-				logging.Logger.Debugf("Deleting page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+				logging.Debugf("Deleting page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
 				if err := sb.deleteDeletionMarkers(bucketName, page.DeleteMarkers); err != nil {
-					logging.Logger.Debugf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+					logging.Debugf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
 					errOut = err
 					return false
 				}
-				logging.Logger.Debugf("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+				logging.Debugf("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
 
 				pageId++
 				return true
@@ -246,13 +246,13 @@ func (sb S3Buckets) emptyBucket(bucketName *string, isVersioned bool) error {
 			MaxKeys: aws.Int64(int64(sb.MaxBatchSize())),
 		},
 		func(page *s3.ListObjectsV2Output, lastPage bool) (shouldContinue bool) {
-			logging.Logger.Debugf("Deleting object page %d (%d objects) from bucket %s", pageId, len(page.Contents), aws.StringValue(bucketName))
+			logging.Debugf("Deleting object page %d (%d objects) from bucket %s", pageId, len(page.Contents), aws.StringValue(bucketName))
 			if err := sb.deleteObjects(bucketName, page.Contents); err != nil {
-				logging.Logger.Errorf("Error deleting objects for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+				logging.Errorf("Error deleting objects for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
 				errOut = err
 				return false
 			}
-			logging.Logger.Debugf("[OK] - deleted object page %d (%d objects) from bucket %s", pageId, len(page.Contents), aws.StringValue(bucketName))
+			logging.Debugf("[OK] - deleted object page %d (%d objects) from bucket %s", pageId, len(page.Contents), aws.StringValue(bucketName))
 
 			pageId++
 			return true
@@ -270,7 +270,7 @@ func (sb S3Buckets) emptyBucket(bucketName *string, isVersioned bool) error {
 // deleteObjects will delete the provided objects (unversioned) from the specified bucket.
 func (sb S3Buckets) deleteObjects(bucketName *string, objects []*s3.Object) error {
 	if len(objects) == 0 {
-		logging.Logger.Debugf("No objects returned in page")
+		logging.Debugf("No objects returned in page")
 		return nil
 	}
 
@@ -295,7 +295,7 @@ func (sb S3Buckets) deleteObjects(bucketName *string, objects []*s3.Object) erro
 // deleteObjectVersions will delete the provided object versions from the specified bucket.
 func (sb S3Buckets) deleteObjectVersions(bucketName *string, objectVersions []*s3.ObjectVersion) error {
 	if len(objectVersions) == 0 {
-		logging.Logger.Debugf("No object versions returned in page")
+		logging.Debugf("No object versions returned in page")
 		return nil
 	}
 
@@ -321,7 +321,7 @@ func (sb S3Buckets) deleteObjectVersions(bucketName *string, objectVersions []*s
 // deleteDeletionMarkers will delete the provided deletion markers from the specified bucket.
 func (sb S3Buckets) deleteDeletionMarkers(bucketName *string, objectDelMarkers []*s3.DeleteMarkerEntry) error {
 	if len(objectDelMarkers) == 0 {
-		logging.Logger.Debugf("No deletion markers returned in page")
+		logging.Debugf("No deletion markers returned in page")
 		return nil
 	}
 
@@ -359,11 +359,11 @@ func (sb S3Buckets) nukeAllS3BucketObjects(bucketName *string) error {
 		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d", sb.MaxBatchSize(), 1, 1000)
 	}
 
-	logging.Logger.Debugf("Emptying bucket %s", aws.StringValue(bucketName))
+	logging.Debugf("Emptying bucket %s", aws.StringValue(bucketName))
 	if err := sb.emptyBucket(bucketName, isVersioned); err != nil {
 		return err
 	}
-	logging.Logger.Debugf("[OK] - successfully emptied bucket %s", aws.StringValue(bucketName))
+	logging.Debugf("[OK] - successfully emptied bucket %s", aws.StringValue(bucketName))
 	return nil
 }
 
@@ -384,17 +384,17 @@ func (sb S3Buckets) nukeEmptyS3Bucket(bucketName *string, verifyBucketDeletion b
 	// such, we retry this routine up to 3 times for a total of 300 seconds.
 	const maxRetries = 3
 	for i := 0; i < maxRetries; i++ {
-		logging.Logger.Debugf("Waiting until bucket (%s) deletion is propagated (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
+		logging.Debugf("Waiting until bucket (%s) deletion is propagated (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
 		err = sb.Client.WaitUntilBucketNotExists(&s3.HeadBucketInput{
 			Bucket: bucketName,
 		})
 		// Exit early if no error
 		if err == nil {
-			logging.Logger.Debug("Successfully detected bucket deletion.")
+			logging.Debug("Successfully detected bucket deletion.")
 			return nil
 		}
-		logging.Logger.Debugf("Error waiting for bucket (%s) deletion propagation (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
-		logging.Logger.Debugf("Underlying error was: %s", err)
+		logging.Debugf("Error waiting for bucket (%s) deletion propagation (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
+		logging.Debugf("Underlying error was: %s", err)
 	}
 	return err
 }
@@ -411,23 +411,23 @@ func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
 	verifyBucketDeletion := true
 
 	if len(bucketNames) == 0 {
-		logging.Logger.Debugf("No S3 Buckets to nuke in region %s", sb.Region)
+		logging.Debugf("No S3 Buckets to nuke in region %s", sb.Region)
 		return 0, nil
 	}
 
 	totalCount := len(bucketNames)
 
-	logging.Logger.Debugf("Deleting - %d S3 Buckets in region %s", totalCount, sb.Region)
+	logging.Debugf("Deleting - %d S3 Buckets in region %s", totalCount, sb.Region)
 
 	multiErr := new(multierror.Error)
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
 
 		bucketName := bucketNames[bucketIndex]
-		logging.Logger.Debugf("Deleting - %d/%d - Bucket: %s", bucketIndex+1, totalCount, *bucketName)
+		logging.Debugf("Deleting - %d/%d - Bucket: %s", bucketIndex+1, totalCount, *bucketName)
 
 		err = sb.nukeAllS3BucketObjects(bucketName)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			logging.Debugf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking S3 Bucket Objects",
 			}, map[string]interface{}{
@@ -439,7 +439,7 @@ func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
 
 		err = sb.nukeS3BucketPolicy(bucketName)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket policy cleanup error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			logging.Debugf("[Failed] - %d/%d - Bucket: %s - bucket policy cleanup error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking S3 Bucket Polikcy",
 			}, map[string]interface{}{
@@ -451,7 +451,7 @@ func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
 
 		err = sb.nukeEmptyS3Bucket(bucketName, verifyBucketDeletion)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			logging.Debugf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking S3 Bucket",
 			}, map[string]interface{}{
@@ -469,7 +469,7 @@ func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
 		}
 		report.Record(e)
 
-		logging.Logger.Debugf("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)
+		logging.Debugf("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)
 		delCount++
 	}
 

@@ -36,7 +36,7 @@ func (cwdb *CloudWatchDashboards) getAll(c context.Context, configObj config.Con
 
 func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CloudWatch Dashboards to nuke in region %s", cwdb.Region)
+		logging.Debugf("No CloudWatch Dashboards to nuke in region %s", cwdb.Region)
 		return nil
 	}
 
@@ -45,11 +45,11 @@ func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many CloudWatch Dashboards at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Errorf("Nuking too many CloudWatch Dashboards at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyCloudWatchDashboardsErr{}
 	}
 
-	logging.Logger.Debugf("Deleting CloudWatch Dashboards in region %s", cwdb.Region)
+	logging.Debugf("Deleting CloudWatch Dashboards in region %s", cwdb.Region)
 	input := cloudwatch.DeleteDashboardsInput{DashboardNames: identifiers}
 	_, err := cwdb.Client.DeleteDashboards(&input)
 
@@ -62,7 +62,7 @@ func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	report.RecordBatch(e)
 
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking Cloudwatch Dashboard",
 		}, map[string]interface{}{
@@ -72,7 +72,7 @@ func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	}
 
 	for _, dashboardName := range identifiers {
-		logging.Logger.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.StringValue(dashboardName), cwdb.Region)
+		logging.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.StringValue(dashboardName), cwdb.Region)
 	}
 	return nil
 }

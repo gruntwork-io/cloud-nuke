@@ -63,11 +63,11 @@ func (ap *ACMPCA) shouldInclude(ca *acmpca.CertificateAuthority, configObj confi
 // nukeAll will delete all ACMPCA, which are given by a list of arns.
 func (ap *ACMPCA) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
-		logging.Logger.Debugf("No ACMPCA to nuke in region %s", ap.Region)
+		logging.Debugf("No ACMPCA to nuke in region %s", ap.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all ACMPCA in region %s", ap.Region)
+	logging.Debugf("Deleting all ACMPCA in region %s", ap.Region)
 	// There is no bulk delete acmpca API, so we delete the batch of ARNs concurrently using go routines.
 	wg := new(sync.WaitGroup)
 	wg.Add(len(arns))
@@ -83,7 +83,7 @@ func (ap *ACMPCA) nukeAll(arns []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ACMPCA",
 			}, map[string]interface{}{
@@ -100,7 +100,7 @@ func (ap *ACMPCA) nukeAll(arns []*string) error {
 func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *string) {
 	defer wg.Done()
 
-	logging.Logger.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, ap.Region)
+	logging.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, ap.Region)
 	details, detailsErr := ap.Client.DescribeCertificateAuthority(
 		&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
 	if detailsErr != nil {
@@ -124,7 +124,7 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 		statusSafe != acmpca.CertificateAuthorityStatusDeleted
 
 	if shouldUpdateStatus {
-		logging.Logger.Debugf("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, ap.Region)
+		logging.Debugf("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, ap.Region)
 		if _, updateStatusErr := ap.Client.UpdateCertificateAuthority(&acmpca.UpdateCertificateAuthorityInput{
 			CertificateAuthorityArn: arn,
 			Status:                  aws.String(acmpca.CertificateAuthorityStatusDisabled),
@@ -133,7 +133,7 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 			return
 		}
 
-		logging.Logger.Debugf("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, ap.Region)
+		logging.Debugf("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, ap.Region)
 	}
 
 	_, deleteErr := ap.Client.DeleteCertificateAuthority(&acmpca.DeleteCertificateAuthorityInput{
@@ -156,6 +156,6 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 		errChan <- deleteErr
 		return
 	}
-	logging.Logger.Debugf("Deleted ACMPCA: %s successfully", *arn)
+	logging.Debugf("Deleted ACMPCA: %s successfully", *arn)
 	errChan <- nil
 }

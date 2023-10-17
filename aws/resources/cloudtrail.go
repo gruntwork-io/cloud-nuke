@@ -38,11 +38,11 @@ func (ct *CloudtrailTrail) getAll(c context.Context, configObj config.Config) ([
 
 func (ct *CloudtrailTrail) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
-		logging.Logger.Debugf("No Cloudtrail Trails to nuke in region %s", ct.Region)
+		logging.Debugf("No Cloudtrail Trails to nuke in region %s", ct.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Cloudtrail Trails in region %s", ct.Region)
+	logging.Debugf("Deleting all Cloudtrail Trails in region %s", ct.Region)
 	var deletedArns []*string
 
 	for _, arn := range arns {
@@ -61,7 +61,7 @@ func (ct *CloudtrailTrail) nukeAll(arns []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Cloudtrail",
 			}, map[string]interface{}{
@@ -69,11 +69,11 @@ func (ct *CloudtrailTrail) nukeAll(arns []*string) error {
 			})
 		} else {
 			deletedArns = append(deletedArns, arn)
-			logging.Logger.Debugf("Deleted Cloudtrail Trail: %s", aws.StringValue(arn))
+			logging.Debugf("Deleted Cloudtrail Trail: %s", aws.StringValue(arn))
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Cloudtrail Trail deleted in %s", len(deletedArns), ct.Region)
+	logging.Debugf("[OK] %d Cloudtrail Trail deleted in %s", len(deletedArns), ct.Region)
 
 	return nil
 }

@@ -51,10 +51,10 @@ func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
 			RoleName:  roleName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Debugf("Detached Policy %s from Role %s", aws.StringValue(arn), aws.StringValue(roleName))
+		logging.Debugf("Detached Policy %s from Role %s", aws.StringValue(arn), aws.StringValue(roleName))
 	}
 
 	return nil
@@ -65,7 +65,7 @@ func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
 		RoleName: roleName,
 	})
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -75,10 +75,10 @@ func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
 			RoleName:   roleName,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Debugf("Deleted Inline Policy %s from Role %s", aws.StringValue(policyName), aws.StringValue(roleName))
+		logging.Debugf("Deleted Inline Policy %s from Role %s", aws.StringValue(policyName), aws.StringValue(roleName))
 	}
 
 	return nil
@@ -100,18 +100,18 @@ func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 			RoleName:            roleName,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		} else {
 			_, err := ir.Client.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
 				InstanceProfileName: profile.InstanceProfileName,
 			})
 			if err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
+				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}
 		}
-		logging.Logger.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
+		logging.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (ir *IAMRoles) deleteIamRole(roleName *string) error {
 // Delete all IAM Roles
 func (ir *IAMRoles) nukeAll(roleNames []*string) error {
 	if len(roleNames) == 0 {
-		logging.Logger.Debug("No IAM Roles to nuke")
+		logging.Debug("No IAM Roles to nuke")
 		return nil
 	}
 
@@ -139,12 +139,12 @@ func (ir *IAMRoles) nukeAll(roleNames []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(roleNames) > 100 {
-		logging.Logger.Debugf("Nuking too many IAM Roles at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Debugf("Nuking too many IAM Roles at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyIamRoleErr{}
 	}
 
 	// There is no bulk delete IAM Roles API, so we delete the batch of IAM roles concurrently using go routines
-	logging.Logger.Debugf("Deleting all IAM Roles")
+	logging.Debugf("Deleting all IAM Roles")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(roleNames))
 	errChans := make([]chan error, len(roleNames))
@@ -159,7 +159,7 @@ func (ir *IAMRoles) nukeAll(roleNames []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Role",
 			}, map[string]interface{}{})
@@ -171,7 +171,7 @@ func (ir *IAMRoles) nukeAll(roleNames []*string) error {
 	}
 
 	for _, roleName := range roleNames {
-		logging.Logger.Debugf("[OK] IAM Role %s was deleted", aws.StringValue(roleName))
+		logging.Debugf("[OK] IAM Role %s was deleted", aws.StringValue(roleName))
 	}
 	return nil
 }

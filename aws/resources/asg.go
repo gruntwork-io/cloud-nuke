@@ -37,11 +37,11 @@ func (ag *ASGroups) getAll(c context.Context, configObj config.Config) ([]*strin
 // Deletes all Auto Scaling Groups
 func (ag *ASGroups) nukeAll(groupNames []*string) error {
 	if len(groupNames) == 0 {
-		logging.Logger.Debugf("No Auto Scaling Groups to nuke in region %s", ag.Region)
+		logging.Debugf("No Auto Scaling Groups to nuke in region %s", ag.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Auto Scaling Groups in region %s", ag.Region)
+	logging.Debugf("Deleting all Auto Scaling Groups in region %s", ag.Region)
 	var deletedGroupNames []*string
 
 	for _, groupName := range groupNames {
@@ -61,7 +61,7 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ASG",
 			}, map[string]interface{}{
@@ -69,7 +69,7 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, groupName)
-			logging.Logger.Debugf("Deleted Auto Scaling Group: %s", *groupName)
+			logging.Debugf("Deleted Auto Scaling Group: %s", *groupName)
 		}
 	}
 
@@ -78,7 +78,7 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 			AutoScalingGroupNames: deletedGroupNames,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ASG",
 			}, map[string]interface{}{
@@ -88,6 +88,6 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), ag.Region)
+	logging.Debugf("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), ag.Region)
 	return nil
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/pterm/pterm"
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
@@ -195,22 +194,6 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 	return &excludeAfter, nil
 }
 
-func parseLogLevel(c *cli.Context) error {
-	logLevel := c.String("log-level")
-
-	parsedLogLevel, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		return fmt.Errorf("Invalid log level - %s - %s", logLevel, err)
-	}
-	logging.Logger.SetLevel(parsedLogLevel)
-	if parsedLogLevel == logrus.DebugLevel {
-		pterm.EnableDebugMessages()
-		logging.Logger.Debugf("Setting log level to %s", parsedLogLevel.String())
-	}
-
-	return nil
-}
-
 func awsNuke(c *cli.Context) error {
 	telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "Start aws",
@@ -224,7 +207,7 @@ func awsNuke(c *cli.Context) error {
 		return handleListResourceTypes()
 	}
 
-	parseErr := parseLogLevel(c)
+	parseErr := logging.ParseLogLevel(c.String("log-level"))
 	if parseErr != nil {
 		return errors.WithStackTrace(parseErr)
 	}
@@ -246,7 +229,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	// Temporarily printing the entire config object to validate things
-	pterm.Debug.Println(fmt.Sprintf("Config object: %+v", configObj))
+	logging.Debug(fmt.Sprintf("Config object: %+v", configObj))
 
 	query, account, err := handleGetResources(c, configObj, c.Bool("delete-unaliased-kms-keys"))
 	if err != nil {
@@ -268,7 +251,7 @@ func awsNuke(c *cli.Context) error {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Skipping nuke, dryrun set",
 		}, map[string]interface{}{})
-		logging.Logger.Infoln("Not taking any action as dry-run set to true.")
+		logging.Info("Not taking any action as dry-run set to true.")
 		return nil
 	}
 
@@ -297,7 +280,7 @@ func awsNuke(c *cli.Context) error {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Forcing nuke in 10 seconds",
 		}, map[string]interface{}{})
-		logging.Logger.Infoln("The --force flag is set, so waiting for 10 seconds before proceeding to nuke everything in your account. If you don't want to proceed, hit CTRL+C now!!")
+		logging.Info("The --force flag is set, so waiting for 10 seconds before proceeding to nuke everything in your account. If you don't want to proceed, hit CTRL+C now!!")
 		for i := 10; i > 0; i-- {
 			fmt.Printf("%d...", i)
 			time.Sleep(1 * time.Second)
@@ -320,18 +303,18 @@ func awsDefaults(c *cli.Context) error {
 	defer telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "End aws-defaults",
 	}, map[string]interface{}{})
-	parseErr := parseLogLevel(c)
+	parseErr := logging.ParseLogLevel(c.String("log-level"))
 	if parseErr != nil {
 		return errors.WithStackTrace(parseErr)
 	}
 
-	logging.Logger.Debugln("Identifying enabled regions")
+	logging.Debug("Identifying enabled regions")
 	regions, err := aws.GetEnabledRegions()
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 	for _, region := range regions {
-		logging.Logger.Debugf("Found enabled region %s", region)
+		logging.Debugf("Found enabled region %s", region)
 	}
 
 	selectedRegions := c.StringSlice("region")
@@ -348,7 +331,7 @@ func awsDefaults(c *cli.Context) error {
 	}
 
 	if c.Bool("sg-only") {
-		logging.Logger.Info("Not removing default VPCs.")
+		logging.Info("Not removing default VPCs.")
 	} else {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Nuking default VPCs",
@@ -398,7 +381,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 	spinnerSuccess.Stop()
 
 	if len(vpcPerRegion) == 0 {
-		logging.Logger.Info("No default VPCs found.")
+		logging.Info("No default VPCs found.")
 		return nil
 	}
 
@@ -434,7 +417,7 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 		progressbar.StartProgressBarWithLength(len(targetedRegionList))
 		err := resources.NukeVpcs(vpcPerRegion)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 		}
 	}
 	return nil
@@ -459,7 +442,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	}
 
 	if len(defaultSgs) == 0 {
-		logging.Logger.Info("No default security groups found.")
+		logging.Info("No default security groups found.")
 		return nil
 	}
 
@@ -494,7 +477,7 @@ func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
 	if proceed || c.Bool("force") {
 		err := resources.NukeDefaultSecurityGroupRules(defaultSgs)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 		}
 	}
 

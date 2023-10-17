@@ -27,7 +27,7 @@ func (balancer *LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalanc
 		}
 
 		time.Sleep(1 * time.Second)
-		logging.Logger.Debug("Waiting for ELB to be deleted")
+		logging.Debug("Waiting for ELB to be deleted")
 	}
 
 	return ElbDeleteError{}
@@ -56,11 +56,11 @@ func (balancer *LoadBalancers) getAll(c context.Context, configObj config.Config
 // Deletes all Elastic Load Balancers
 func (balancer *LoadBalancers) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No Elastic Load Balancers to nuke in region %s", balancer.Region)
+		logging.Debugf("No Elastic Load Balancers to nuke in region %s", balancer.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Elastic Load Balancers in region %s", balancer.Region)
+	logging.Debugf("Deleting all Elastic Load Balancers in region %s", balancer.Region)
 	var deletedNames []*string
 
 	for _, name := range names {
@@ -79,7 +79,7 @@ func (balancer *LoadBalancers) nukeAll(names []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Load Balancer (v1)",
 			}, map[string]interface{}{
@@ -87,7 +87,7 @@ func (balancer *LoadBalancers) nukeAll(names []*string) error {
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted ELB: %s", *name)
+			logging.Debugf("Deleted ELB: %s", *name)
 		}
 	}
 
@@ -96,11 +96,11 @@ func (balancer *LoadBalancers) nukeAll(names []*string) error {
 			LoadBalancerNames: deletedNames,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), balancer.Region)
+	logging.Debugf("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), balancer.Region)
 	return nil
 }

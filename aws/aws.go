@@ -117,7 +117,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
 		length := len((*resources).ResourceIdentifiers())
 
 		// Split api calls into batches
-		logging.Logger.Debugf("Terminating %d resources in batches", length)
+		logging.Debugf("Terminating %d resources in batches", length)
 		batches := util.Split((*resources).ResourceIdentifiers(), (*resources).MaxBatchSize())
 
 		for i := 0; i < len(batches); i++ {
@@ -125,7 +125,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
 			if err := (*resources).Nuke(batch); err != nil {
 				// TODO: Figure out actual error type
 				if strings.Contains(err.Error(), "RequestLimitExceeded") {
-					logging.Logger.Debug(
+					logging.Debug(
 						"Request limit reached. Waiting 1 minute before making new requests",
 					)
 					time.Sleep(1 * time.Minute)
@@ -139,7 +139,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
 			}
 
 			if i != len(batches)-1 {
-				logging.Logger.Debug("Sleeping for 10 seconds before processing next batch...")
+				logging.Debug("Sleeping for 10 seconds before processing next batch...")
 				time.Sleep(10 * time.Second)
 			}
 		}

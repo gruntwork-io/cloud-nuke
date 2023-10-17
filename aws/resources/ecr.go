@@ -38,7 +38,7 @@ func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*stri
 
 func (registry *ECR) nukeAll(repositoryNames []string) error {
 	if len(repositoryNames) == 0 {
-		logging.Logger.Debugf("No ECR repositories to nuke in region %s", registry.Region)
+		logging.Debugf("No ECR repositories to nuke in region %s", registry.Region)
 		return nil
 	}
 
@@ -66,15 +66,15 @@ func (registry *ECR) nukeAll(repositoryNames []string) error {
 			}, map[string]interface{}{
 				"region": registry.Region,
 			})
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 		} else {
 
 			deletedNames = append(deletedNames, aws.String(repositoryName))
-			logging.Logger.Debugf("Deleted ECR Repository: %s", repositoryName)
+			logging.Debugf("Deleted ECR Repository: %s", repositoryName)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), registry.Region)
+	logging.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), registry.Region)
 
 	return nil
 }

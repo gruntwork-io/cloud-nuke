@@ -43,17 +43,17 @@ func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*st
 // Delete all iam customer managed policies. Caller is responsible for pagination (no more than 100/request)
 func (ip *IAMPolicies) nukeAll(policyArns []*string) error {
 	if len(policyArns) == 0 {
-		logging.Logger.Debug("No IAM Policies to nuke")
+		logging.Debug("No IAM Policies to nuke")
 	}
 
 	//Probably not required since pagination is handled by the caller
 	if len(policyArns) > 100 {
-		logging.Logger.Errorf("Nuking too many IAM Policies at once (100): Halting to avoid rate limits")
+		logging.Errorf("Nuking too many IAM Policies at once (100): Halting to avoid rate limits")
 		return TooManyIamPolicyErr{}
 	}
 
 	//No Bulk Delete exists, do it with goroutines
-	logging.Logger.Debug("Deleting all IAM Policies")
+	logging.Debug("Deleting all IAM Policies")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(policyArns))
 	errChans := make([]chan error, len(policyArns))
@@ -68,7 +68,7 @@ func (ip *IAMPolicies) nukeAll(policyArns []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Policy",
 			}, map[string]interface{}{})
@@ -120,7 +120,7 @@ func (ip *IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan err
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	} else {
-		logging.Logger.Debugf("[OK] IAM Policy %s was deleted in global", aws.StringValue(policyArn))
+		logging.Debugf("[OK] IAM Policy %s was deleted in global", aws.StringValue(policyArn))
 	}
 
 	e := report.Entry{

@@ -35,10 +35,10 @@ func (rc *RedshiftClusters) getAll(c context.Context, configObj config.Config) (
 
 func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No Redshift Clusters to nuke in region %s", rc.Region)
+		logging.Debugf("No Redshift Clusters to nuke in region %s", rc.Region)
 		return nil
 	}
-	logging.Logger.Debugf("Deleting all Redshift Clusters in region %s", rc.Region)
+	logging.Debugf("Deleting all Redshift Clusters in region %s", rc.Region)
 	deletedIds := []*string{}
 	for _, id := range identifiers {
 		_, err := rc.Client.DeleteCluster(&redshift.DeleteClusterInput{
@@ -51,10 +51,10 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 			}, map[string]interface{}{
 				"region": rc.Region,
 			})
-			logging.Logger.Errorf("[Failed] %s: %s", *id, err)
+			logging.Errorf("[Failed] %s: %s", *id, err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Logger.Debugf("Deleted Redshift Cluster: %s", aws.StringValue(id))
+			logging.Debugf("Deleted Redshift Cluster: %s", aws.StringValue(id))
 		}
 	}
 
@@ -74,11 +74,11 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 				}, map[string]interface{}{
 					"region": rc.Region,
 				})
-				logging.Logger.Errorf("[Failed] %s", err)
+				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}
 		}
 	}
-	logging.Logger.Debugf("[OK] %d Redshift Cluster(s) deleted in %s", len(deletedIds), rc.Region)
+	logging.Debugf("[OK] %d Redshift Cluster(s) deleted in %s", len(deletedIds), rc.Region)
 	return nil
 }

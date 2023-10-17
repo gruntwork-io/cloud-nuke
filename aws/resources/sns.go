@@ -28,7 +28,7 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 		for _, topic := range page.Topics {
 			firstSeenTime, err := s.getFirstSeenSNSTopicTag(*topic.TopicArn)
 			if err != nil {
-				logging.Logger.Errorf(
+				logging.Errorf(
 					"Unable to retrieve tags for SNS Topic: %s, with error: %s", *topic.TopicArn, err)
 				continue
 			}
@@ -37,7 +37,7 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 				now := time.Now().UTC()
 				firstSeenTime = &now
 				if err := s.setFirstSeenSNSTopicTag(*topic.TopicArn, now); err != nil {
-					logging.Logger.Errorf(
+					logging.Errorf(
 						"Unable to apply first seen tag SNS Topic: %s, with error: %s", *topic.TopicArn, err)
 					continue
 				}
@@ -127,16 +127,16 @@ func shouldIncludeSNS(topicArn string, excludeAfter, firstSeenTime time.Time, co
 
 func (s *SNSTopic) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No SNS Topics to nuke in region %s", s.Region)
+		logging.Debugf("No SNS Topics to nuke in region %s", s.Region)
 	}
 
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many SNS Topics (100): halting to avoid hitting AWS API rate limiting")
+		logging.Errorf("Nuking too many SNS Topics (100): halting to avoid hitting AWS API rate limiting")
 		return TooManySNSTopicsErr{}
 	}
 
 	// There is no bulk delete SNS API, so we delete the batch of SNS Topics concurrently using goroutines
-	logging.Logger.Debugf("Deleting SNS Topics in region %s", s.Region)
+	logging.Debugf("Deleting SNS Topics in region %s", s.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -150,7 +150,7 @@ func (s *SNSTopic) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking SNS Topic",
 			}, map[string]interface{}{
@@ -172,7 +172,7 @@ func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn 
 		TopicArn: topicArn,
 	}
 
-	logging.Logger.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
+	logging.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
 
 	_, err := s.Client.DeleteTopic(deleteParam)
 
@@ -187,8 +187,8 @@ func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn 
 	report.Record(e)
 
 	if err == nil {
-		logging.Logger.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
+		logging.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), s.Region)
+		logging.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), s.Region)
 	}
 }

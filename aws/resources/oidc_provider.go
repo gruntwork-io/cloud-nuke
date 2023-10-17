@@ -130,7 +130,7 @@ func (oidcprovider *OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup
 // nukeAllOIDCProviders deletes all the given OpenID Connect Providers from the account.
 func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No OIDC Providers to nuke")
+		logging.Debugf("No OIDC Providers to nuke")
 		return nil
 	}
 
@@ -139,12 +139,12 @@ func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Debugf("Nuking too many OIDC Providers at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Debugf("Nuking too many OIDC Providers at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyOIDCProvidersErr{}
 	}
 
 	// There is no bulk delete OIDC Provider API, so we delete the batch of nat gateways concurrently using go routines.
-	logging.Logger.Debugf("Deleting OIDC Providers")
+	logging.Debugf("Deleting OIDC Providers")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -159,7 +159,7 @@ func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking OIDC Provider",
 			}, map[string]interface{}{})
@@ -171,7 +171,7 @@ func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 	}
 
 	for _, providerARN := range identifiers {
-		logging.Logger.Debugf("[OK] OIDC Provider %s was deleted", aws.StringValue(providerARN))
+		logging.Debugf("[OK] OIDC Provider %s was deleted", aws.StringValue(providerARN))
 	}
 	return nil
 }
