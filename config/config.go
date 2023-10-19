@@ -37,6 +37,7 @@ type Config struct {
 	EBSVolume                    ResourceType               `yaml:"EBSVolume"`
 	EC2                          ResourceType               `yaml:"EC2"`
 	EC2DedicatedHosts            ResourceType               `yaml:"EC2DedicatedHosts"`
+	EC2DHCPOption                ResourceType               `yaml:"EC2DhcpOption"`
 	EC2KeyPairs                  ResourceType               `yaml:"EC2KeyPairs"`
 	ECRRepository                ResourceType               `yaml:"ECRRepository"`
 	ECSCluster                   ResourceType               `yaml:"ECSCluster"`
