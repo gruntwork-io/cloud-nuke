@@ -46,7 +46,7 @@ func (v *EC2DhcpOption) GetAndSetIdentifiers(c context.Context, configObj config
 }
 
 func (v *EC2DhcpOption) Nuke(identifiers []string) error {
-	if err := v.nukeAll(identifiers); err != nil {
+	if err := v.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

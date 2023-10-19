@@ -31,7 +31,7 @@ func TestEC2DhcpOption_GetAll(t *testing.T) {
 	t.Parallel()
 
 	testId1 := "test-id-1"
-	h := EC2DedicatedHosts{
+	h := EC2DhcpOption{
 		Client: mockedEC2DhcpOption{
 			DescribeDhcpOptionsOutput: ec2.DescribeDhcpOptionsOutput{
 				DhcpOptions: []*ec2.DhcpOptions{
@@ -68,7 +68,7 @@ func TestEC2DhcpOption_NukeAll(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	h := EC2DedicatedHosts{
+	h := EC2DhcpOption{
 		Client: mockedEC2DhcpOption{
 			DeleteDhcpOptionsOutput: ec2.DeleteDhcpOptionsOutput{},
 		},

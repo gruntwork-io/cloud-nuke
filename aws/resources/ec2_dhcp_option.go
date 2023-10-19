@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"fmt"
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -30,10 +29,10 @@ func (v *EC2DhcpOption) getAll(c context.Context, configObj config.Config) ([]*s
 	return dhcpOptionIds, nil
 }
 
-func (v *EC2DhcpOption) nukeAll(identifiers []string) error {
+func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
 		_, err := v.Client.DeleteDhcpOptions(&ec2.DeleteDhcpOptionsInput{
-			DhcpOptionsId: awsgo.String(identifier),
+			DhcpOptionsId: identifier,
 		})
 		if err != nil {
 			pterm.Debug.Println(fmt.Sprintf("Failed to delete DHCP option w/ err: %s.", err))
