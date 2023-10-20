@@ -228,9 +228,6 @@ func awsNuke(c *cli.Context) error {
 		configObj = *configObjPtr
 	}
 
-	// Temporarily printing the entire config object to validate things
-	logging.Debug(fmt.Sprintf("Config object: %+v", configObj))
-
 	query, account, err := handleGetResources(c, configObj, c.Bool("delete-unaliased-kms-keys"))
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
