@@ -2,7 +2,10 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/pterm/pterm"
+	"strings"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -31,7 +34,7 @@ func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClus
 		}
 
 		time.Sleep(10 * time.Second)
-		logging.Logger.Debug("Waiting for RDS Cluster to be deleted")
+		pterm.Debug.Println(fmt.Sprintf("Waiting for RDS Cluster %s to be deleted", *input.DBClusterIdentifier))
 	}
 
 	return RdsDeleteError{name: *input.DBClusterIdentifier}
@@ -43,22 +46,25 @@ func (instance *DBClusters) getAll(c context.Context, configObj config.Config) (
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var names []*string
+	var identifiers []*string
+	var identifierToArnMap = make(map[string]*string)
 	for _, database := range result.DBClusters {
 		if configObj.DBClusters.ShouldInclude(config.ResourceValue{
 			Name: database.DBClusterIdentifier,
 			Time: database.ClusterCreateTime,
 			Tags: util.ConvertRDSTagsToMap(database.TagList),
 		}) {
-			names = append(names, database.DBClusterIdentifier)
+			identifiers = append(identifiers, database.DBClusterIdentifier)
+			identifierToArnMap[*database.DBClusterIdentifier] = database.DBClusterArn
 		}
 	}
 
-	return names, nil
+	instance.IdentifierToArnMap = identifierToArnMap
+	return identifiers, nil
 }
 
-func (instance *DBClusters) nukeAll(names []*string) error {
-	if len(names) == 0 {
+func (instance *DBClusters) nukeAll(identifiers []*string) error {
+	if len(identifiers) == 0 {
 		logging.Logger.Debugf("No RDS DB Cluster to nuke in region %s", instance.Region)
 		return nil
 	}
@@ -66,7 +72,40 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 	logging.Logger.Debugf("Deleting all RDS Clusters in region %s", instance.Region)
 	deletedNames := []*string{}
 
-	for _, name := range names {
+	// TODO: potentially add support for pagination in case there are too many global clusters.
+	globalClusters, err := instance.Client.DescribeGlobalClusters(&rds.DescribeGlobalClustersInput{})
+	if err != nil {
+		pterm.Debug.Println(fmt.Sprintf("Failed to describe global clusters: %s", err))
+		return errors.WithStackTrace(err)
+	}
+
+	pterm.Debug.Println(fmt.Sprintf("Found %d global clusters", len(globalClusters.GlobalClusters)))
+	for _, globalCluster := range globalClusters.GlobalClusters {
+		for _, member := range globalCluster.GlobalClusterMembers {
+			for _, identifier := range identifiers {
+				if strings.Contains(*member.DBClusterArn, *identifier) {
+					dbClusterArn := instance.IdentifierToArnMap[*identifier]
+					_, err := instance.Client.RemoveFromGlobalCluster(&rds.RemoveFromGlobalClusterInput{
+						GlobalClusterIdentifier: globalCluster.GlobalClusterIdentifier,
+						DbClusterIdentifier:     dbClusterArn,
+					})
+					if err != nil {
+						pterm.Debug.Println(fmt.Sprintf(
+							"Failed to remove cluster %s from global cluster %s: %s",
+							*identifier, *globalCluster.GlobalClusterIdentifier, err))
+						return err
+					}
+
+					pterm.Debug.Println(fmt.Sprintf(
+						"Successfully removed cluster %s from global cluster %s",
+						*identifier, *globalCluster.GlobalClusterIdentifier))
+				}
+			}
+		}
+	}
+
+	for _, name := range identifiers {
+		pterm.Debug.Println("Deleting RDS Cluster: ", *name)
 		params := &rds.DeleteDBClusterInput{
 			DBClusterIdentifier: name,
 			SkipFinalSnapshot:   awsgo.Bool(true),
@@ -83,15 +122,15 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s: %s", *name, err)
+			pterm.Debug.Println("Failed to delete RDS Cluster: ", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking RDS Cluster",
 			}, map[string]interface{}{
 				"region": instance.Region,
 			})
 		} else {
+			pterm.Debug.Println("Successfully deleted RDS Cluster: ", *name)
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -102,12 +141,12 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 				DBClusterIdentifier: name,
 			})
 			if err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
+				pterm.Debug.Println(fmt.Sprintf("Failed to wait for RDS Cluster %s to be deleted: %s", *name, err))
 				return errors.WithStackTrace(err)
 			}
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), instance.Region)
+	pterm.Debug.Println(fmt.Sprintf("Deleted %d RDS Clusters in %s", len(deletedNames), instance.Region))
 	return nil
 }
