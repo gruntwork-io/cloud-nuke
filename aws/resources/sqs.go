@@ -65,11 +65,11 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 // Deletes all Elastic Load Balancers
 func (sq *SqsQueue) nukeAll(urls []*string) error {
 	if len(urls) == 0 {
-		logging.Logger.Debugf("No SQS Queues to nuke in region %s", sq.Region)
+		logging.Debugf("No SQS Queues to nuke in region %s", sq.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all SQS Queues in region %s", sq.Region)
+	logging.Debugf("Deleting all SQS Queues in region %s", sq.Region)
 	var deletedUrls []*string
 
 	for _, url := range urls {
@@ -88,7 +88,7 @@ func (sq *SqsQueue) nukeAll(urls []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking SQS Queue",
 			}, map[string]interface{}{
@@ -96,11 +96,11 @@ func (sq *SqsQueue) nukeAll(urls []*string) error {
 			})
 		} else {
 			deletedUrls = append(deletedUrls, url)
-			logging.Logger.Debugf("Deleted SQS Queue: %s", *url)
+			logging.Debugf("Deleted SQS Queue: %s", *url)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), sq.Region)
+	logging.Debugf("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), sq.Region)
 
 	return nil
 }

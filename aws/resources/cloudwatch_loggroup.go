@@ -47,7 +47,7 @@ func (csr *CloudWatchLogGroups) getAll(c context.Context, configObj config.Confi
 
 func (csr *CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CloudWatch Log Groups to nuke in region %s", csr.Region)
+		logging.Debugf("No CloudWatch Log Groups to nuke in region %s", csr.Region)
 		return nil
 	}
 
@@ -56,13 +56,13 @@ func (csr *CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 	// has a chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the
 	// limit here because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many CloudWatch LogGroups at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Errorf("Nuking too many CloudWatch LogGroups at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyLogGroupsErr{}
 	}
 
 	// There is no bulk delete CloudWatch Log Group API, so we delete the batch of CloudWatch Log Groups concurrently
 	// using go routines.
-	logging.Logger.Debugf("Deleting CloudWatch Log Groups in region %s", csr.Region)
+	logging.Debugf("Deleting CloudWatch Log Groups in region %s", csr.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -114,9 +114,9 @@ func (csr *CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan err
 
 	logGroupNameStr := aws.StringValue(logGroupName)
 	if err == nil {
-		logging.Logger.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, csr.Region)
+		logging.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, csr.Region)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, csr.Region, err)
+		logging.Debugf("[Failed] Error deleting CloudWatch Log Group %s in %s: %s", logGroupNameStr, csr.Region, err)
 	}
 }
 

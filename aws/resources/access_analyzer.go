@@ -33,7 +33,7 @@ func (analyzer *AccessAnalyzer) getAll(c context.Context, configObj config.Confi
 
 func (analyzer *AccessAnalyzer) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No IAM Access Analyzers to nuke in region %s", analyzer.Region)
+		logging.Debugf("No IAM Access Analyzers to nuke in region %s", analyzer.Region)
 		return nil
 	}
 
@@ -42,12 +42,12 @@ func (analyzer *AccessAnalyzer) nukeAll(names []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(names) > 100 {
-		logging.Logger.Errorf("Nuking too many Access Analyzers at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Errorf("Nuking too many Access Analyzers at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyAccessAnalyzersErr{}
 	}
 
 	// There is no bulk delete access analyzer API, so we delete the batch of Access Analyzers concurrently using go routines.
-	logging.Logger.Debugf("Deleting all Access Analyzers in region %s", analyzer.Region)
+	logging.Debugf("Deleting all Access Analyzers in region %s", analyzer.Region)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(len(names))
@@ -63,7 +63,7 @@ func (analyzer *AccessAnalyzer) nukeAll(names []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Access Analyzer",
 			}, map[string]interface{}{

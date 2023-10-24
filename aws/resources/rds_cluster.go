@@ -31,7 +31,7 @@ func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClus
 		}
 
 		time.Sleep(10 * time.Second)
-		logging.Logger.Debug("Waiting for RDS Cluster to be deleted")
+		logging.Debug("Waiting for RDS Cluster to be deleted")
 	}
 
 	return RdsDeleteError{name: *input.DBClusterIdentifier}
@@ -59,11 +59,11 @@ func (instance *DBClusters) getAll(c context.Context, configObj config.Config) (
 
 func (instance *DBClusters) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No RDS DB Cluster to nuke in region %s", instance.Region)
+		logging.Debugf("No RDS DB Cluster to nuke in region %s", instance.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all RDS Clusters in region %s", instance.Region)
+	logging.Debugf("Deleting all RDS Clusters in region %s", instance.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -83,7 +83,7 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s: %s", *name, err)
+			logging.Debugf("[Failed] %s: %s", *name, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking RDS Cluster",
 			}, map[string]interface{}{
@@ -91,7 +91,7 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -102,12 +102,12 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 				DBClusterIdentifier: name,
 			})
 			if err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
+				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), instance.Region)
+	logging.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), instance.Region)
 	return nil
 }

@@ -64,11 +64,11 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 // Deletes all AMI
 func (ami *AMIs) nukeAll(imageIds []*string) error {
 	if len(imageIds) == 0 {
-		logging.Logger.Debugf("No AMI to nuke in region %s", ami.Region)
+		logging.Debugf("No AMI to nuke in region %s", ami.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all AMI in region %s", ami.Region)
+	logging.Debugf("Deleting all AMI in region %s", ami.Region)
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
@@ -87,7 +87,7 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking AMI",
 			}, map[string]interface{}{
@@ -95,10 +95,10 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 			})
 		} else {
 			deletedCount++
-			logging.Logger.Debugf("Deleted AMI: %s", *imageID)
+			logging.Debugf("Deleted AMI: %s", *imageID)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, ami.Region)
+	logging.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, ami.Region)
 	return nil
 }

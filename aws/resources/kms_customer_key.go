@@ -64,7 +64,7 @@ func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) (
 		resultsChan[id] = make(chan *KmsCheckIncludeResult, 1)
 
 		if err != nil {
-			logging.Logger.Debugf("Can't read KMS key %s", err.Error())
+			logging.Debugf("Can't read KMS key %s", err.Error())
 			continue
 		}
 
@@ -82,7 +82,7 @@ func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) (
 	for _, channel := range resultsChan {
 		result := <-channel
 		if result.Error != nil {
-			logging.Logger.Debugf("Can't read KMS key %s", result.Error)
+			logging.Debugf("Can't read KMS key %s", result.Error)
 
 			continue
 		}
@@ -167,13 +167,13 @@ func (kck *KmsCustomerKeys) shouldInclude(
 
 func (kck *KmsCustomerKeys) nukeAll(keyIds []*string) error {
 	if len(keyIds) == 0 {
-		logging.Logger.Debugf("No Customer Keys to nuke in region %s", kck.Region)
+		logging.Debugf("No Customer Keys to nuke in region %s", kck.Region)
 		return nil
 	}
 
 	// usage of go routines for parallel keys removal
 	// https://docs.aws.amazon.com/sdk-for-go/api/service/kms/#KMS.ScheduleKeyDeletion
-	logging.Logger.Debugf("Deleting Keys secrets in region %s", kck.Region)
+	logging.Debugf("Deleting Keys secrets in region %s", kck.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(keyIds))
 	errChans := make([]chan error, len(keyIds))
@@ -195,7 +195,7 @@ func (kck *KmsCustomerKeys) nukeAll(keyIds []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking KMS Key",
 			}, map[string]interface{}{
@@ -214,9 +214,9 @@ func (kck *KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) 
 		_, err := kck.Client.DeleteAlias(input)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed deleting alias: %s", aliasName)
+			logging.Errorf("[Failed] Failed deleting alias: %s", aliasName)
 		} else {
-			logging.Logger.Debugf("Deleted alias %s", aliasName)
+			logging.Debugf("Deleted alias %s", aliasName)
 		}
 	}
 }

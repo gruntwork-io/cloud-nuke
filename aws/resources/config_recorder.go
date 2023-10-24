@@ -35,7 +35,7 @@ func (csr *ConfigServiceRecorders) getAll(c context.Context, configObj config.Co
 
 func (csr *ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
 	if len(configRecorderNames) == 0 {
-		logging.Logger.Debugf("No Config recorders to nuke in region %s", csr.Region)
+		logging.Debugf("No Config recorders to nuke in region %s", csr.Region)
 		return nil
 	}
 
@@ -57,7 +57,7 @@ func (csr *ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Config Recorder",
 			}, map[string]interface{}{
@@ -65,10 +65,10 @@ func (csr *ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
 			})
 		} else {
 			deletedNames = append(deletedNames, aws.String(configRecorderName))
-			logging.Logger.Debugf("Deleted Config Recorder: %s", configRecorderName)
+			logging.Debugf("Deleted Config Recorder: %s", configRecorderName)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Config Recorders deleted in %s", len(deletedNames), csr.Region)
+	logging.Debugf("[OK] %d Config Recorders deleted in %s", len(deletedNames), csr.Region)
 	return nil
 }

@@ -49,7 +49,7 @@ func (m MSKCluster) nukeAll(identifiers []string) error {
 			ClusterArn: &clusterArn,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 		}
 
 		// Record status of this resource

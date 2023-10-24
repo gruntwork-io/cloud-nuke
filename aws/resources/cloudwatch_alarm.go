@@ -46,7 +46,7 @@ func (cw *CloudWatchAlarms) getAll(c context.Context, configObj config.Config) (
 
 func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CloudWatch Alarms to nuke in region %s", cw.Region)
+		logging.Debugf("No CloudWatch Alarms to nuke in region %s", cw.Region)
 		return nil
 	}
 
@@ -55,11 +55,11 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many CloudWatch Alarms at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Errorf("Nuking too many CloudWatch Alarms at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyCloudWatchAlarmsErr{}
 	}
 
-	logging.Logger.Debugf("Deleting CloudWatch Alarms in region %s", cw.Region)
+	logging.Debugf("Deleting CloudWatch Alarms in region %s", cw.Region)
 
 	// If the alarm's type is composite alarm, remove the dependency by removing the rule.
 	alarms, err := cw.Client.DescribeAlarms(&cloudwatch.DescribeAlarmsInput{
@@ -67,7 +67,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 		AlarmNames: identifiers,
 	})
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking Cloudwatch Alarm Dependency",
 		}, map[string]interface{}{
@@ -84,7 +84,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 			AlarmRule: aws.String("FALSE"),
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Cloudwatch Composite Alarm",
 			}, map[string]interface{}{
@@ -119,7 +119,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	report.RecordBatch(e)
 
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking Cloudwatch Alarm",
 		}, map[string]interface{}{
@@ -129,7 +129,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	}
 
 	for _, alarmName := range identifiers {
-		logging.Logger.Debugf("[OK] CloudWatch Alarm %s was deleted in %s", aws.StringValue(alarmName), cw.Region)
+		logging.Debugf("[OK] CloudWatch Alarm %s was deleted in %s", aws.StringValue(alarmName), cw.Region)
 	}
 	return nil
 }

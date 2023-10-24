@@ -48,11 +48,11 @@ func (k *EC2KeyPairs) deleteKeyPair(keyPairId *string) error {
 // nukeAllEc2KeyPairs attempts to delete given ec2 key pair IDs.
 func (k *EC2KeyPairs) nukeAll(keypairIds []*string) error {
 	if len(keypairIds) == 0 {
-		logging.Logger.Infof("No EC2 key pairs to nuke in region %s", k.Region)
+		logging.Infof("No EC2 key pairs to nuke in region %s", k.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Terminating all EC2 key pairs in region %s", k.Region)
+	logging.Infof("Terminating all EC2 key pairs in region %s", k.Region)
 
 	deletedKeyPairs := 0
 	var multiErr *multierror.Error
@@ -63,14 +63,14 @@ func (k *EC2KeyPairs) nukeAll(keypairIds []*string) error {
 			}, map[string]interface{}{
 				"region": k.Region,
 			})
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			multiErr = multierror.Append(multiErr, err)
 		} else {
 			deletedKeyPairs++
-			logging.Logger.Infof("Deleted EC2 KeyPair: %s", *keypair)
+			logging.Infof("Deleted EC2 KeyPair: %s", *keypair)
 		}
 	}
 
-	logging.Logger.Infof("[OK] %d EC2 KeyPair(s) terminated", deletedKeyPairs)
+	logging.Infof("[OK] %d EC2 KeyPair(s) terminated", deletedKeyPairs)
 	return multiErr.ErrorOrNil()
 }

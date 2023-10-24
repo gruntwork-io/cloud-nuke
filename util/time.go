@@ -26,7 +26,7 @@ func IsFirstSeenTag(key *string) bool {
 func ParseTimestampTag(timestamp *string) (*time.Time, error) {
 	parsed, err := time.Parse(firstSeenTimeFormat, aws.StringValue(timestamp))
 	if err != nil {
-		logging.Logger.Debugf("Error parsing the timestamp into a `RFC3339` Time format")
+		logging.Debugf("Error parsing the timestamp into a `RFC3339` Time format")
 		return nil, errors.WithStackTrace(err)
 
 	}

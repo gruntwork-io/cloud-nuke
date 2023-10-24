@@ -35,11 +35,11 @@ func (smni *SageMakerNotebookInstances) getAll(c context.Context, configObj conf
 
 func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No Sagemaker Notebook Instance to nuke in region %s", smni.Region)
+		logging.Debugf("No Sagemaker Notebook Instance to nuke in region %s", smni.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Sagemaker Notebook Instances in region %s", smni.Region)
+	logging.Debugf("Deleting all Sagemaker Notebook Instances in region %s", smni.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -47,7 +47,7 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 			NotebookInstanceName: name,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			logging.Errorf("[Failed] %s: %s", *name, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Sagemaker Notebook Instance",
 			}, map[string]interface{}{
@@ -60,7 +60,7 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 			NotebookInstanceName: name,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Sagemaker Notebook Instance",
 			}, map[string]interface{}{
@@ -74,7 +74,7 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 		})
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			logging.Errorf("[Failed] %s: %s", *name, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Sagemaker Notebook Instance",
 			}, map[string]interface{}{
@@ -83,7 +83,7 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted Sagemaker Notebook Instance: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted Sagemaker Notebook Instance: %s", awsgo.StringValue(name))
 		}
 	}
 
@@ -103,7 +103,7 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 			report.Record(e)
 
 			if err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
+				logging.Errorf("[Failed] %s", err)
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking Sagemaker Notebook Instance",
 				}, map[string]interface{}{
@@ -115,6 +115,6 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Sagemaker Notebook Instance(s) deleted in %s", len(deletedNames), smni.Region)
+	logging.Debugf("[OK] %d Sagemaker Notebook Instance(s) deleted in %s", len(deletedNames), smni.Region)
 	return nil
 }

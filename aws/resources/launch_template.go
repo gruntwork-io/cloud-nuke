@@ -35,11 +35,11 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 // Deletes all Launch Templates
 func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 	if len(templateNames) == 0 {
-		logging.Logger.Debugf("No Launch Templates to nuke in region %s", lt.Region)
+		logging.Debugf("No Launch Templates to nuke in region %s", lt.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Launch Templates in region %s", lt.Region)
+	logging.Debugf("Deleting all Launch Templates in region %s", lt.Region)
 	var deletedTemplateNames []*string
 
 	for _, templateName := range templateNames {
@@ -58,7 +58,7 @@ func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Launch Template",
 			}, map[string]interface{}{
@@ -66,10 +66,10 @@ func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 			})
 		} else {
 			deletedTemplateNames = append(deletedTemplateNames, templateName)
-			logging.Logger.Debugf("Deleted Launch template: %s", *templateName)
+			logging.Debugf("Deleted Launch template: %s", *templateName)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Launch Template(s) deleted in %s", len(deletedTemplateNames), lt.Region)
+	logging.Debugf("[OK] %d Launch Template(s) deleted in %s", len(deletedTemplateNames), lt.Region)
 	return nil
 }

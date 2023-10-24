@@ -35,11 +35,11 @@ func (balancer *LoadBalancersV2) getAll(c context.Context, configObj config.Conf
 // Deletes all Elastic Load Balancers
 func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
-		logging.Logger.Debugf("No V2 Elastic Load Balancers to nuke in region %s", balancer.Region)
+		logging.Debugf("No V2 Elastic Load Balancers to nuke in region %s", balancer.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all V2 Elastic Load Balancers in region %s", balancer.Region)
+	logging.Debugf("Deleting all V2 Elastic Load Balancers in region %s", balancer.Region)
 	var deletedArns []*string
 
 	for _, arn := range arns {
@@ -58,7 +58,7 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Load Balancer V2",
 			}, map[string]interface{}{
@@ -66,7 +66,7 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 			})
 		} else {
 			deletedArns = append(deletedArns, arn)
-			logging.Logger.Debugf("Deleted ELBv2: %s", *arn)
+			logging.Debugf("Deleted ELBv2: %s", *arn)
 		}
 	}
 
@@ -75,11 +75,11 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 			LoadBalancerArns: deletedArns,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), balancer.Region)
+	logging.Debugf("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), balancer.Region)
 	return nil
 }

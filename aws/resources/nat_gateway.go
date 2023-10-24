@@ -67,7 +67,7 @@ func getNatGatewayName(ngw *ec2.NatGateway) *string {
 
 func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No Nat Gateways to nuke in region %s", ngw.Region)
+		logging.Debugf("No Nat Gateways to nuke in region %s", ngw.Region)
 		return nil
 	}
 
@@ -76,12 +76,12 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
-		logging.Logger.Debugf("Nuking too many NAT gateways at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Debugf("Nuking too many NAT gateways at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyNatErr{}
 	}
 
 	// There is no bulk delete nat gateway API, so we delete the batch of nat gateways concurrently using go routines.
-	logging.Logger.Debugf("Deleting Nat Gateways in region %s", ngw.Region)
+	logging.Debugf("Deleting Nat Gateways in region %s", ngw.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -96,7 +96,7 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking NAT Gateway",
 			}, map[string]interface{}{
@@ -130,7 +130,7 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 		return errors.WithStackTrace(err)
 	}
 	for _, ngwID := range identifiers {
-		logging.Logger.Debugf("[OK] NAT Gateway %s was deleted in %s", aws.StringValue(ngwID), ngw.Region)
+		logging.Debugf("[OK] NAT Gateway %s was deleted in %s", aws.StringValue(ngwID), ngw.Region)
 	}
 	return nil
 }

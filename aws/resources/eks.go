@@ -87,10 +87,10 @@ func (clusters *EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 			NodegroupName: nodeGroup,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] Failed waiting for Node Group %s associated with cluster %s to be deleted: %s", aws.StringValue(nodeGroup), eksClusterName, err)
+			logging.Debugf("[Failed] Failed waiting for Node Group %s associated with cluster %s to be deleted: %s", aws.StringValue(nodeGroup), eksClusterName, err)
 			allSubResourceErrs = multierror.Append(allSubResourceErrs, err)
 		} else {
-			logging.Logger.Debugf("Deleted Node Group %s associated with cluster %s", aws.StringValue(nodeGroup), eksClusterName)
+			logging.Debugf("Deleted Node Group %s associated with cluster %s", aws.StringValue(nodeGroup), eksClusterName)
 		}
 	}
 	if allSubResourceErrs != nil {
@@ -102,7 +102,7 @@ func (clusters *EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 	// request to delete the EKS cluster.
 	_, deleteErr := clusters.Client.DeleteCluster(&eks.DeleteClusterInput{Name: aws.String(eksClusterName)})
 	if deleteErr != nil {
-		logging.Logger.Debugf("[Failed] Failed deleting EKS cluster %s: %s", eksClusterName, deleteErr)
+		logging.Debugf("[Failed] Failed deleting EKS cluster %s: %s", eksClusterName, deleteErr)
 	}
 	errChan <- deleteErr
 }
@@ -135,7 +135,7 @@ func (clusters *EKSClusters) scheduleDeleteEKSClusterManagedNodeGroup(eksCluster
 			NodegroupName: nodeGroup,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] Failed deleting Node Group %s associated with cluster %s: %s", aws.StringValue(nodeGroup), eksClusterName, err)
+			logging.Debugf("[Failed] Failed deleting Node Group %s associated with cluster %s: %s", aws.StringValue(nodeGroup), eksClusterName, err)
 			allDeleteErrs = multierror.Append(allDeleteErrs, err)
 		} else {
 			deletedNodeGroups = append(deletedNodeGroups, nodeGroup)
@@ -173,7 +173,7 @@ func (clusters *EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName stri
 			FargateProfileName: fargateProfile,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] Failed deleting Fargate Profile %s associated with cluster %s: %s", aws.StringValue(fargateProfile), eksClusterName, err)
+			logging.Debugf("[Failed] Failed deleting Fargate Profile %s associated with cluster %s: %s", aws.StringValue(fargateProfile), eksClusterName, err)
 			allDeleteErrs = multierror.Append(allDeleteErrs, err)
 			continue
 		}
@@ -183,10 +183,10 @@ func (clusters *EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName stri
 			FargateProfileName: fargateProfile,
 		})
 		if waitErr != nil {
-			logging.Logger.Debugf("[Failed] Failed waiting for Fargate Profile %s associated with cluster %s to be deleted: %s", aws.StringValue(fargateProfile), eksClusterName, waitErr)
+			logging.Debugf("[Failed] Failed waiting for Fargate Profile %s associated with cluster %s to be deleted: %s", aws.StringValue(fargateProfile), eksClusterName, waitErr)
 			allDeleteErrs = multierror.Append(allDeleteErrs, waitErr)
 		} else {
-			logging.Logger.Debugf("Deleted Fargate Profile %s associated with cluster %s", aws.StringValue(fargateProfile), eksClusterName)
+			logging.Debugf("Deleted Fargate Profile %s associated with cluster %s", aws.StringValue(fargateProfile), eksClusterName)
 		}
 	}
 	return allDeleteErrs
@@ -208,9 +208,9 @@ func (clusters *EKSClusters) waitUntilEksClustersDeleted(eksClusterNames []*stri
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] Failed waiting for EKS cluster to be deleted %s: %s", *eksClusterName, err)
+			logging.Debugf("[Failed] Failed waiting for EKS cluster to be deleted %s: %s", *eksClusterName, err)
 		} else {
-			logging.Logger.Debugf("Deleted EKS cluster: %s", aws.StringValue(eksClusterName))
+			logging.Debugf("Deleted EKS cluster: %s", aws.StringValue(eksClusterName))
 			successfullyDeleted = append(successfullyDeleted, eksClusterName)
 		}
 	}
@@ -221,7 +221,7 @@ func (clusters *EKSClusters) waitUntilEksClustersDeleted(eksClusterNames []*stri
 func (clusters *EKSClusters) nukeAll(eksClusterNames []*string) error {
 	numNuking := len(eksClusterNames)
 	if numNuking == 0 {
-		logging.Logger.Debugf("No EKS clusters to nuke in region %s", clusters.Region)
+		logging.Debugf("No EKS clusters to nuke in region %s", clusters.Region)
 		return nil
 	}
 
@@ -230,13 +230,13 @@ func (clusters *EKSClusters) nukeAll(eksClusterNames []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if numNuking > 100 {
-		logging.Logger.Debugf("Nuking too many EKS Clusters at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Debugf("Nuking too many EKS Clusters at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyEKSClustersErr{}
 	}
 
 	// We need to delete subresources associated with the EKS Cluster before being able to delete the cluster, so we
 	// spawn goroutines to drive the deletion of each EKS cluster.
-	logging.Logger.Debugf("Deleting %d EKS clusters in region %s", numNuking, clusters.Region)
+	logging.Debugf("Deleting %d EKS clusters in region %s", numNuking, clusters.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(numNuking)
 	errChans := make([]chan error, numNuking)
@@ -251,7 +251,7 @@ func (clusters *EKSClusters) nukeAll(eksClusterNames []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking EKS Cluster",
 			}, map[string]interface{}{
@@ -267,7 +267,7 @@ func (clusters *EKSClusters) nukeAll(eksClusterNames []*string) error {
 	// Now wait until the EKS Clusters are deleted
 	successfullyDeleted := clusters.waitUntilEksClustersDeleted(eksClusterNames)
 	numNuked := len(successfullyDeleted)
-	logging.Logger.Debugf("[OK] %d of %d EKS cluster(s) deleted in %s", numNuked, numNuking, clusters.Region)
+	logging.Debugf("[OK] %d of %d EKS cluster(s) deleted in %s", numNuked, numNuking, clusters.Region)
 	return nil
 }
 

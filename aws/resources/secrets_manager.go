@@ -56,12 +56,12 @@ func shouldIncludeSecret(secret *secretsmanager.SecretListEntry, configObj confi
 
 func (sms *SecretsManagerSecrets) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No Secrets Manager Secrets to nuke in region %s", sms.Region)
+		logging.Debugf("No Secrets Manager Secrets to nuke in region %s", sms.Region)
 		return nil
 	}
 
 	// There is no bulk delete secrets API, so we delete the batch of secrets concurrently using go routines.
-	logging.Logger.Debugf("Deleting Secrets Manager secrets in region %s", sms.Region)
+	logging.Debugf("Deleting Secrets Manager secrets in region %s", sms.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -76,7 +76,7 @@ func (sms *SecretsManagerSecrets) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Secrets Manager Secret",
 			}, map[string]interface{}{

@@ -40,18 +40,18 @@ func (ig *IAMGroups) getAll(c context.Context, configObj config.Config) ([]*stri
 // nukeAll - delete all IAM groups.  Caller is responsible for pagination (no more than 100/request)
 func (ig *IAMGroups) nukeAll(groupNames []*string) error {
 	if len(groupNames) == 0 {
-		logging.Logger.Debug("No IAM Groups to nuke")
+		logging.Debug("No IAM Groups to nuke")
 		return nil
 	}
 
 	//Probably not required since pagination is handled by the caller
 	if len(groupNames) > 100 {
-		logging.Logger.Errorf("Nuking too many IAM Groups at once (100): Halting to avoid rate limits")
+		logging.Errorf("Nuking too many IAM Groups at once (100): Halting to avoid rate limits")
 		return TooManyIamGroupErr{}
 	}
 
 	//No bulk delete exists, do it with goroutines
-	logging.Logger.Debug("Deleting all IAM Groups")
+	logging.Debug("Deleting all IAM Groups")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(groupNames))
 	errChans := make([]chan error, len(groupNames))
@@ -66,7 +66,7 @@ func (ig *IAMGroups) nukeAll(groupNames []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Group",
 			}, map[string]interface{}{})
@@ -124,7 +124,6 @@ func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupNa
 	allInlinePolicyNames := []*string{}
 	err = ig.Client.ListGroupPoliciesPages(&iam.ListGroupPoliciesInput{GroupName: groupName},
 		func(page *iam.ListGroupPoliciesOutput, lastPage bool) bool {
-			logging.Logger.Info("ListGroupPolicies response page: ", page)
 			for _, policyName := range page.PolicyNames {
 				allInlinePolicyNames = append(allInlinePolicyNames, policyName)
 			}
@@ -132,7 +131,6 @@ func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupNa
 		},
 	)
 
-	logging.Logger.Info("inline policies: ", allInlinePolicyNames)
 	for _, policyName := range allInlinePolicyNames {
 		_, err = ig.Client.DeleteGroupPolicy(&iam.DeleteGroupPolicyInput{
 			GroupName:  groupName,
@@ -147,7 +145,7 @@ func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupNa
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	} else {
-		logging.Logger.Debugf("[OK] IAM Group %s was deleted in global", aws.StringValue(groupName))
+		logging.Debugf("[OK] IAM Group %s was deleted in global", aws.StringValue(groupName))
 	}
 
 	e := report.Entry{

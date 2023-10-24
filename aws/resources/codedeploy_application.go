@@ -84,11 +84,11 @@ func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, 
 
 func (cda *CodeDeployApplications) nukeAll(identifiers []string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No CodeDeploy Applications to nuke in region %s", cda.Region)
+		logging.Debugf("No CodeDeploy Applications to nuke in region %s", cda.Region)
 		return nil
 	}
 
-	logging.Logger.Infof("Deleting CodeDeploy Applications in region %s", cda.Region)
+	logging.Infof("Deleting CodeDeploy Applications in region %s", cda.Region)
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(identifiers))
@@ -105,7 +105,7 @@ func (cda *CodeDeployApplications) nukeAll(identifiers []string) error {
 	for err := range errChan {
 		allErrors = multierror.Append(allErrors, err)
 
-		logging.Logger.Errorf("[Failed] Error deleting CodeDeploy Application: %s", err)
+		logging.Errorf("[Failed] Error deleting CodeDeploy Application: %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking CodeDeploy Application",
 		}, map[string]interface{}{
@@ -138,8 +138,8 @@ func (cda *CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<
 	report.Record(e)
 
 	if err == nil {
-		logging.Logger.Debugf("[OK] Deleted CodeDeploy Application: %s", identifier)
+		logging.Debugf("[OK] Deleted CodeDeploy Application: %s", identifier)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting CodeDeploy Application %s: %s", identifier, err)
+		logging.Debugf("[Failed] Error deleting CodeDeploy Application %s: %s", identifier, err)
 	}
 }

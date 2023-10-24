@@ -56,7 +56,7 @@ func shouldIncludeHostId(host *ec2.Host, configObj config.Config) bool {
 
 	// If an instance is using the host allocation we cannot release it
 	if len(host.Instances) != 0 {
-		logging.Logger.Debugf("Host %s has instance(s) still associated, unable to nuke.", *host.HostId)
+		logging.Debugf("Host %s has instance(s) still associated, unable to nuke.", *host.HostId)
 		return false
 	}
 
@@ -72,18 +72,18 @@ func shouldIncludeHostId(host *ec2.Host, configObj config.Config) bool {
 
 func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 	if len(hostIds) == 0 {
-		logging.Logger.Debugf("No EC2 dedicated hosts to nuke in region %s", h.Region)
+		logging.Debugf("No EC2 dedicated hosts to nuke in region %s", h.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Releasing all EC2 dedicated host allocations in region %s", h.Region)
+	logging.Debugf("Releasing all EC2 dedicated host allocations in region %s", h.Region)
 
 	input := &ec2.ReleaseHostsInput{HostIds: hostIds}
 
 	releaseResult, err := h.Client.ReleaseHosts(input)
 
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking EC2 Dedicated Hosts",
 		}, map[string]interface{}{
@@ -94,7 +94,7 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 
 	// Report successes and failures from release host request
 	for _, hostSuccess := range releaseResult.Successful {
-		logging.Logger.Debugf("[OK] Dedicated host %s was released in %s", aws.StringValue(hostSuccess), h.Region)
+		logging.Debugf("[OK] Dedicated host %s was released in %s", aws.StringValue(hostSuccess), h.Region)
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostSuccess),
 			ResourceType: "EC2 Dedicated Host",
@@ -108,7 +108,7 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 		}, map[string]interface{}{
 			"region": h.Region,
 		})
-		logging.Logger.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), h.Region, aws.StringValue(hostFailed.Error.Message))
+		logging.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), h.Region, aws.StringValue(hostFailed.Error.Message))
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostFailed.ResourceId),
 			ResourceType: "EC2 Dedicated Host",

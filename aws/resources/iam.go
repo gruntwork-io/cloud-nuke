@@ -56,10 +56,10 @@ func (iu *IAMUsers) detachUserPolicies(userName *string) error {
 			UserName:  userName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Debugf("Detached Policy %s from User %s", aws.StringValue(arn), aws.StringValue(userName))
+		logging.Debugf("Detached Policy %s from User %s", aws.StringValue(arn), aws.StringValue(userName))
 	}
 
 	return nil
@@ -70,7 +70,7 @@ func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
 		UserName: userName,
 	})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
+		logging.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -80,10 +80,10 @@ func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
 			UserName:   userName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Debugf("Deleted Inline Policy %s from User %s", aws.StringValue(policyName), aws.StringValue(userName))
+		logging.Debugf("Deleted Inline Policy %s from User %s", aws.StringValue(policyName), aws.StringValue(userName))
 	}
 
 	return nil
@@ -103,10 +103,10 @@ func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
 			UserName:  userName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Logger.Debugf("Removed user %s from group %s", aws.StringValue(userName), aws.StringValue(group.GroupName))
+		logging.Debugf("Removed user %s from group %s", aws.StringValue(userName), aws.StringValue(group.GroupName))
 	}
 
 	return nil
@@ -141,7 +141,7 @@ func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 				}
 			}
 
-			logging.Logger.Debugf("Deleted Login Profile from user %s", aws.StringValue(userName))
+			logging.Debugf("Deleted Login Profile from user %s", aws.StringValue(userName))
 			return nil
 		})
 }
@@ -151,7 +151,7 @@ func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
 		UserName: userName,
 	})
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -162,11 +162,11 @@ func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
 			UserName:    userName,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Logger.Debugf("Deleted Access Key %s from user %s", aws.StringValue(accessKeyId), aws.StringValue(userName))
+		logging.Debugf("Deleted Access Key %s from user %s", aws.StringValue(accessKeyId), aws.StringValue(userName))
 	}
 
 	return nil
@@ -177,7 +177,7 @@ func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
 		UserName: userName,
 	})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
+		logging.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -188,11 +188,11 @@ func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
 			UserName:      userName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Logger.Debugf("Deleted Signing Certificate ID %s from user %s", aws.StringValue(certificateId), aws.StringValue(userName))
+		logging.Debugf("Deleted Signing Certificate ID %s from user %s", aws.StringValue(certificateId), aws.StringValue(userName))
 	}
 
 	return nil
@@ -203,7 +203,7 @@ func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
 		UserName: userName,
 	})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
+		logging.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -214,11 +214,11 @@ func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
 			UserName:       userName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Logger.Debugf("Deleted SSH Public Key with ID %s from user %s", aws.StringValue(keyId), aws.StringValue(userName))
+		logging.Debugf("Deleted SSH Public Key with ID %s from user %s", aws.StringValue(keyId), aws.StringValue(userName))
 	}
 
 	return nil
@@ -235,7 +235,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 			UserName:    userName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
@@ -247,11 +247,11 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 				UserName:                    userName,
 			})
 			if err != nil {
-				logging.Logger.Errorf("[Failed] %s", err)
+				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}
 
-			logging.Logger.Debugf("Deleted Service Specific Credential with ID %s of service %s from user %s", aws.StringValue(serviceSpecificCredentialId), service, aws.StringValue(userName))
+			logging.Debugf("Deleted Service Specific Credential with ID %s of service %s from user %s", aws.StringValue(serviceSpecificCredentialId), service, aws.StringValue(userName))
 		}
 	}
 
@@ -263,7 +263,7 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 		UserName: userName,
 	})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] %s", err)
+		logging.Errorf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -276,11 +276,11 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 			UserName:     userName,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Logger.Debugf("Deactivated Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
+		logging.Debugf("Deactivated Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
 	}
 
 	// After their deactivation we can delete them
@@ -291,11 +291,11 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 			SerialNumber: serialNumber,
 		})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Logger.Debugf("Deleted Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
+		logging.Debugf("Deleted Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
 	}
 
 	return nil
@@ -343,11 +343,11 @@ func (iu *IAMUsers) nukeUser(userName *string) error {
 // Delete all IAM Users
 func (iu *IAMUsers) nukeAll(userNames []*string) error {
 	if len(userNames) == 0 {
-		logging.Logger.Info("No IAM Users to nuke")
+		logging.Info("No IAM Users to nuke")
 		return nil
 	}
 
-	logging.Logger.Info("Deleting all IAM Users")
+	logging.Info("Deleting all IAM Users")
 
 	deletedUsers := 0
 	multiErr := new(multierror.Error)
@@ -363,17 +363,17 @@ func (iu *IAMUsers) nukeAll(userNames []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			multierror.Append(multiErr, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM User",
 			}, map[string]interface{}{})
 		} else {
 			deletedUsers++
-			logging.Logger.Debugf("Deleted IAM User: %s", *userName)
+			logging.Debugf("Deleted IAM User: %s", *userName)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d IAM User(s) terminated", deletedUsers)
+	logging.Debugf("[OK] %d IAM User(s) terminated", deletedUsers)
 	return multiErr.ErrorOrNil()
 }

@@ -45,11 +45,11 @@ func (ddb *DynamoDB) getAll(c context.Context, configObj config.Config) ([]*stri
 
 func (ddb *DynamoDB) nukeAll(tables []*string) error {
 	if len(tables) == 0 {
-		logging.Logger.Debugf("No DynamoDB tables to nuke in region %s", ddb.Region)
+		logging.Debugf("No DynamoDB tables to nuke in region %s", ddb.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all DynamoDB tables in region %s", ddb.Region)
+	logging.Debugf("Deleting all DynamoDB tables in region %s", ddb.Region)
 	for _, table := range tables {
 
 		input := &dynamodb.DeleteTableInput{

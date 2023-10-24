@@ -64,7 +64,7 @@ func (mm *MacieMember) getAllMacieMembers() ([]*string, error) {
 			memberAccountIds = append(memberAccountIds, member.AccountId)
 		}
 	}
-	logging.Logger.Debugf("Found %d member accounts attached to macie", len(memberAccountIds))
+	logging.Debugf("Found %d member accounts attached to macie", len(memberAccountIds))
 	return memberAccountIds, nil
 }
 
@@ -76,21 +76,21 @@ func (mm *MacieMember) removeMacieMembers(memberAccountIds []*string) error {
 		if err != nil {
 			return err
 		}
-		logging.Logger.Debugf("%s member account disassociated", *accountId)
+		logging.Debugf("%s member account disassociated", *accountId)
 
 		// Once disassociated, member accounts can be deleted
 		_, err = mm.Client.DeleteMember(&macie2.DeleteMemberInput{Id: accountId})
 		if err != nil {
 			return err
 		}
-		logging.Logger.Debugf("%s member account deleted", *accountId)
+		logging.Debugf("%s member account deleted", *accountId)
 	}
 	return nil
 }
 
 func (mm *MacieMember) nukeAll(identifier []string) error {
 	if len(identifier) == 0 {
-		logging.Logger.Debugf("No Macie member accounts to nuke in region %s", mm.Region)
+		logging.Debugf("No Macie member accounts to nuke in region %s", mm.Region)
 		return nil
 	}
 
@@ -108,7 +108,7 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 	if err == nil && len(memberAccountIds) > 0 {
 		err = mm.removeMacieMembers(memberAccountIds)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to remove members from macie")
+			logging.Errorf("[Failed] Failed to remove members from macie")
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error removing members from macie",
 			}, map[string]interface{}{
@@ -123,9 +123,9 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 	adminAccount, err := mm.Client.GetAdministratorAccount(&macie2.GetAdministratorAccountInput{})
 	if err != nil {
 		if strings.Contains(err.Error(), "there isn't a delegated Macie administrator") {
-			logging.Logger.Debugf("No delegated Macie administrator found to remove.")
+			logging.Debugf("No delegated Macie administrator found to remove.")
 		} else {
-			logging.Logger.Errorf("[Failed] Failed to check for administrator account")
+			logging.Errorf("[Failed] Failed to check for administrator account")
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error checking for administrator account in Macie",
 			}, map[string]interface{}{
@@ -139,7 +139,7 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 	if adminAccount.Administrator != nil {
 		_, err := mm.Client.DisassociateFromAdministratorAccount(&macie2.DisassociateFromAdministratorAccountInput{})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to disassociate from administrator account")
+			logging.Errorf("[Failed] Failed to disassociate from administrator account")
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error disassociating administrator account in Macie",
 			}, map[string]interface{}{
@@ -152,7 +152,7 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 	// Disable Macie
 	_, err = mm.Client.DisableMacie(&macie2.DisableMacieInput{})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] Failed to disable macie.")
+		logging.Errorf("[Failed] Failed to disable macie.")
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking MACIE",
 		}, map[string]interface{}{
@@ -166,7 +166,7 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 		}
 		report.Record(e)
 	} else {
-		logging.Logger.Debugf("[OK] Macie disabled in %s", mm.Region)
+		logging.Debugf("[OK] Macie disabled in %s", mm.Region)
 		e := report.Entry{
 			Identifier:   mm.Region,
 			ResourceType: "Macie",
