@@ -92,6 +92,7 @@ func getRegisteredRegionalResources() []AwsResources {
 		&resources.DBInstances{},
 		&resources.DBSubnetGroups{},
 		&resources.DBClusters{},
+		&resources.RdsSnapshot{},
 		&resources.RedshiftClusters{},
 		&resources.S3Buckets{},
 		&resources.SageMakerNotebookInstances{},

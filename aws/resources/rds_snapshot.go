@@ -2,9 +2,11 @@ package resources
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
@@ -42,6 +44,14 @@ func (snapshot *RdsSnapshot) nukeAll(identifiers []*string) error {
 		} else {
 			logging.Debugf("[RDS Snapshot] Deleted RDS Snapshot %s", *identifier)
 		}
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(identifier),
+			ResourceType: snapshot.ResourceName(),
+			Error:        err,
+		}
+		report.Record(e)
 	}
 
 	return nil
