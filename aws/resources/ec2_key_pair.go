@@ -6,6 +6,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/hashicorp/go-multierror"
@@ -23,6 +24,7 @@ func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*str
 		if configObj.EC2KeyPairs.ShouldInclude(config.ResourceValue{
 			Name: keyPair.KeyName,
 			Time: keyPair.CreateTime,
+			Tags: util.ConvertEC2TagsToMap(keyPair.Tags),
 		}) {
 			ids = append(ids, keyPair.KeyPairId)
 		}
