@@ -24,7 +24,7 @@ func (ea *EIPAddresses) setFirstSeenTag(address ec2.Address, value time.Time) er
 		Tags: []*ec2.Tag{
 			{
 				Key:   awsgo.String(util.FirstSeenTagKey),
-				Value: awsgo.String(util.FormatTimestampTag(value)),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -39,7 +39,7 @@ func (ea *EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error)
 	tags := address.Tags
 	for _, tag := range tags {
 		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

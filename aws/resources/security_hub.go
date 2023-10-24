@@ -2,18 +2,17 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"strings"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/securityhub"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"strings"
 )
 
 func (sh *SecurityHub) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -39,14 +38,14 @@ func (sh *SecurityHub) getAll(c context.Context, configObj config.Config) ([]*st
 }
 
 func shouldIncludeHub(hub *securityhub.DescribeHubOutput, configObj config.Config) bool {
-	subscribedAt, err := time.Parse(time.RFC3339, *hub.SubscribedAt)
+	subscribedAt, err := util.ParseTimestamp(hub.SubscribedAt)
 	if err != nil {
 		logging.Debugf(
 			"Could not parse subscribedAt timestamp (%s) of security hub. Excluding from delete.", *hub.SubscribedAt)
 		return false
 	}
 
-	return configObj.SecurityHub.ShouldInclude(config.ResourceValue{Time: &subscribedAt})
+	return configObj.SecurityHub.ShouldInclude(config.ResourceValue{Time: subscribedAt})
 }
 
 func (sh *SecurityHub) getAllSecurityHubMembers() ([]*string, error) {

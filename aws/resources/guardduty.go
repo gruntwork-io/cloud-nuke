@@ -2,16 +2,15 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 type DetectorOutputWithID struct {
@@ -50,13 +49,12 @@ func (gd *GuardDuty) getAll(c context.Context, configObj config.Config) ([]*stri
 }
 
 func (gd *GuardDuty) shouldInclude(detector *guardduty.GetDetectorOutput, detectorId *string, configObj config.Config) bool {
-	detectorCreatedAt := aws.StringValue(detector.CreatedAt)
-	createdAtDateTime, err := time.Parse(time.RFC3339, detectorCreatedAt)
+	createdAtDateTime, err := util.ParseTimestamp(detector.CreatedAt)
 	if err != nil {
-		logging.Debugf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", detectorCreatedAt, *detectorId)
+		logging.Debugf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", *createdAtDateTime, *detectorId)
 	}
 
-	return configObj.GuardDuty.ShouldInclude(config.ResourceValue{Time: &createdAtDateTime})
+	return configObj.GuardDuty.ShouldInclude(config.ResourceValue{Time: createdAtDateTime})
 }
 
 func (gd *GuardDuty) nukeAll(detectorIds []string) error {

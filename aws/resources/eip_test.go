@@ -51,7 +51,7 @@ func TestEIPAddress_GetAll(t *testing.T) {
 							},
 							{
 								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestampTag(now)),
+								Value: awsgo.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
@@ -64,7 +64,7 @@ func TestEIPAddress_GetAll(t *testing.T) {
 							},
 							{
 								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestampTag(now.Add(1))),
+								Value: awsgo.String(util.FormatTimestamp(now.Add(1))),
 							},
 						},
 					},

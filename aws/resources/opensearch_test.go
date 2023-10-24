@@ -59,11 +59,11 @@ func TestOpenSearch_GetAll(t *testing.T) {
 				TagList: []*opensearchservice.Tag{
 					{
 						Key:   aws.String(firstSeenTagKey),
-						Value: aws.String(util.FormatTimestampTag(now)),
+						Value: aws.String(util.FormatTimestamp(now)),
 					},
 					{
 						Key:   aws.String(firstSeenTagKey),
-						Value: aws.String(util.FormatTimestampTag(now.Add(1))),
+						Value: aws.String(util.FormatTimestamp(now.Add(1))),
 					},
 				},
 			},

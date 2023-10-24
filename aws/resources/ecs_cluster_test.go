@@ -80,7 +80,7 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 				Tags: []*ecs.Tag{
 					{
 						Key:   aws.String(util.FirstSeenTagKey),
-						Value: aws.String(util.FormatTimestampTag(now)),
+						Value: aws.String(util.FormatTimestamp(now)),
 					},
 				},
 			},
