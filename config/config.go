@@ -67,6 +67,7 @@ type Config struct {
 	OIDCProvider                 ResourceType               `yaml:"OIDCProvider"`
 	OpenSearchDomain             ResourceType               `yaml:"OpenSearchDomain"`
 	Redshift                     ResourceType               `yaml:"Redshift"`
+	RdsSnapshot                  ResourceType               `yaml:"RdsSnapshot"`
 	S3                           ResourceType               `yaml:"s3"`
 	SNS                          ResourceType               `yaml:"SNS"`
 	SQS                          ResourceType               `yaml:"SQS"`
