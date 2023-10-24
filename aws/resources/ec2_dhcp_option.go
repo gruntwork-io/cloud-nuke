@@ -2,9 +2,11 @@ package resources
 
 import (
 	"context"
-	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/pterm/pterm"
 )
@@ -35,9 +37,18 @@ func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 			DhcpOptionsId: identifier,
 		})
 		if err != nil {
-			pterm.Debug.Println(fmt.Sprintf("Failed to delete DHCP option w/ err: %s.", err))
-			return errors.WithStackTrace(err)
+			logging.Debugf("Failed to delete DHCP option w/ err: %s.", err)
+		} else {
+			logging.Infof("Successfully deleted DHCP option %s.", pterm.Green(*identifier))
 		}
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(identifier),
+			ResourceType: v.ResourceName(),
+			Error:        err,
+		}
+		report.Record(e)
 	}
 
 	return nil
