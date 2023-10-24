@@ -428,14 +428,14 @@ s3:
 
 #### Tag Filter
 
-You can also exclude resources by tags. The following config will delete all s3 buckets that have a tag with key `foo`
+You can also exclude resources by tags. The following config will exclude all s3 buckets that have a tag with key `foo` and value `true` (case-insensitive).
 ```yaml
 s3:
   exclude:
     tag: 'foo'
 ```
 
-By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources. 
+By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources.
 _Note: it doesn't support including resources by tags._
 
 ### What's supported?
