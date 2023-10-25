@@ -29,7 +29,7 @@ func (v *EC2VPCs) setFirstSeenTag(vpc ec2.Vpc, value time.Time) error {
 		Tags: []*ec2.Tag{
 			{
 				Key:   awsgo.String(util.FirstSeenTagKey),
-				Value: awsgo.String(util.FormatTimestampTag(value)),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -44,7 +44,7 @@ func (v *EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
 	tags := vpc.Tags
 	for _, tag := range tags {
 		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

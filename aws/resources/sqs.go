@@ -2,17 +2,16 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of SQS Queue URLs
@@ -44,8 +43,8 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 		}
 
 		// Convert string timestamp to int64
-		createdAt := *queueAttributes.Attributes["CreatedTimestamp"]
-		createdAtTime, err := time.Parse(time.RFC3339, createdAt)
+		createdAt := queueAttributes.Attributes["CreatedTimestamp"]
+		createdAtTime, err := util.ParseTimestamp(createdAt)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -53,7 +52,7 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 		// Compare time as int64
 		if configObj.SQS.ShouldInclude(config.ResourceValue{
 			Name: queue,
-			Time: &createdAtTime,
+			Time: createdAtTime,
 		}) {
 			urls = append(urls, queue)
 		}

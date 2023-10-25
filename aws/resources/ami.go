@@ -2,11 +2,10 @@ package resources
 
 import (
 	"context"
-	"strings"
-	"time"
-
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -30,8 +29,7 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 
 	var imageIds []*string
 	for _, image := range output.Images {
-		layout := "2006-01-02T15:04:05.000Z"
-		createdTime, err := time.Parse(layout, *image.CreationDate)
+		createdTime, err := util.ParseTimestamp(image.CreationDate)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +50,7 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 
 		if configObj.AMI.ShouldInclude(config.ResourceValue{
 			Name: image.Name,
-			Time: &createdTime,
+			Time: createdTime,
 		}) {
 			imageIds = append(imageIds, image.ImageId)
 		}

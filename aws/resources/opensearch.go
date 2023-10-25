@@ -87,7 +87,7 @@ func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchserv
 // Tag an OpenSearch Domain identified by the given ARN when it's first seen by cloud-nuke
 func (osd *OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.Time) error {
 	logging.Debugf("Tagging the OpenSearch Domain with ARN %s with first seen timestamp", aws.StringValue(domainARN))
-	firstSeenTime := util.FormatTimestampTag(timestamp)
+	firstSeenTime := util.FormatTimestamp(timestamp)
 
 	input := &opensearchservice.AddTagsInput{
 		ARN: domainARN,
@@ -120,7 +120,7 @@ func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, er
 
 	for _, tag := range domainTags.TagList {
 		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
 				logging.Errorf("Error parsing the `cloud-nuke-first-seen` tag for OpenSearch Domain with ARN %s", aws.StringValue(domainARN))
 				return firstSeenTime, errors.WithStackTrace(err)

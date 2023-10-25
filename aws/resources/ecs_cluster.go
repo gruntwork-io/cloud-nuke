@@ -171,7 +171,7 @@ func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 
 // Tag an ECS cluster identified by the given cluster ARN when it's first seen by cloud-nuke
 func (clusters *ECSClusters) setFirstSeenTag(clusterArn *string, timestamp time.Time) error {
-	firstSeenTime := util.FormatTimestampTag(timestamp)
+	firstSeenTime := util.FormatTimestamp(timestamp)
 
 	input := &ecs.TagResourceInput{
 		ResourceArn: clusterArn,
@@ -208,7 +208,7 @@ func (clusters *ECSClusters) getFirstSeenTag(clusterArn *string) (*time.Time, er
 	for _, tag := range clusterTags.Tags {
 		if util.IsFirstSeenTag(tag.Key) {
 
-			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
 				logging.Debugf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
