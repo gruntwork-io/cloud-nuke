@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -55,12 +56,12 @@ func TestSqsQueue_GetAll(t *testing.T) {
 			GetQueueAttributesOutput: map[string]sqs.GetQueueAttributesOutput{
 				queue1: {
 					Attributes: map[string]*string{
-						"CreatedTimestamp": awsgo.String(now.Format(time.RFC3339)),
+						"CreatedTimestamp": awsgo.String(strconv.FormatInt(now.Unix(), 10)),
 					},
 				},
 				queue2: {
 					Attributes: map[string]*string{
-						"CreatedTimestamp": awsgo.String(now.Add(1).Format(time.RFC3339)),
+						"CreatedTimestamp": awsgo.String(strconv.FormatInt(now.Add(1).Unix(), 10)),
 					},
 				},
 			},
