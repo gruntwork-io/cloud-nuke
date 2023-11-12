@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"strconv"
+	"time"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -9,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
@@ -42,17 +43,17 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Convert string timestamp to int64
-		createdAt := queueAttributes.Attributes["CreatedTimestamp"]
-		createdAtTime, err := util.ParseTimestamp(createdAt)
+		// Convert string timestamp to int64 and then to time.Time
+		createdAt := *queueAttributes.Attributes["CreatedTimestamp"]
+		createdAtInt, err := strconv.ParseInt(createdAt, 10, 64)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
+		createdAtTime := time.Unix(createdAtInt, 0)
 
-		// Compare time as int64
 		if configObj.SQS.ShouldInclude(config.ResourceValue{
 			Name: queue,
-			Time: createdAtTime,
+			Time: &createdAtTime,
 		}) {
 			urls = append(urls, queue)
 		}
@@ -61,7 +62,7 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 	return urls, nil
 }
 
-// Deletes all Elastic Load Balancers
+// Deletes all Queues
 func (sq *SqsQueue) nukeAll(urls []*string) error {
 	if len(urls) == 0 {
 		logging.Debugf("No SQS Queues to nuke in region %s", sq.Region)
