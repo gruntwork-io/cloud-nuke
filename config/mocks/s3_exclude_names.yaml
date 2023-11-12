@@ -1,4 +1,0 @@
-s3:
-  exclude:
-    names_regex:
-      - public.*__TESTID__$

@@ -1,5 +1,0 @@
-APIGateway:
-  exclude:
-    names_regex:
-      - alice
-      - bob

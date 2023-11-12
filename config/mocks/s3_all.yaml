@@ -1,4 +1,0 @@
-s3:
-  include:
-    names_regex:
-      - .*__TESTID__$

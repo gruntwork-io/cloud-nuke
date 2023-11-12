@@ -1,8 +1,0 @@
-s3:
-  include:
-    names_regex:
-      - ^alb-.*-access-logs.*__TESTID__$
-      - prod.*__TESTID__$
-  exclude:
-    names_regex:
-      - public.*__TESTID__$
