@@ -30,6 +30,24 @@ type mockedTransitGatewayVpcAttachment struct {
 	DeleteTransitGatewayVpcAttachmentOutput    ec2.DeleteTransitGatewayVpcAttachmentOutput
 }
 
+type mockedTransitGatewayPeeringAttachment struct {
+	ec2iface.EC2API
+	DescribeTransitGatewayPeeringAttachmentsOutput ec2.DescribeTransitGatewayPeeringAttachmentsOutput
+	DeleteTransitGatewayPeeringAttachmentOutput    ec2.DeleteTransitGatewayPeeringAttachmentOutput
+}
+
+func (m mockedTransitGatewayPeeringAttachment) DescribeTransitGatewayPeeringAttachmentsPages(
+	input *ec2.DescribeTransitGatewayPeeringAttachmentsInput,
+	fn func(*ec2.DescribeTransitGatewayPeeringAttachmentsOutput, bool) bool) error {
+	fn(&m.DescribeTransitGatewayPeeringAttachmentsOutput, true)
+	return nil
+}
+
+func (m mockedTransitGatewayPeeringAttachment) DeleteTransitGatewayPeeringAttachment(
+	input *ec2.DeleteTransitGatewayPeeringAttachmentInput) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
+	return &m.DeleteTransitGatewayPeeringAttachmentOutput, nil
+}
+
 func (m mockedTransitGateway) DescribeTransitGateways(
 	input *ec2.DescribeTransitGatewaysInput) (*ec2.DescribeTransitGatewaysOutput, error) {
 	return &m.DescribeTransitGatewaysOutput, nil
@@ -252,6 +270,71 @@ func TestTransitGatewayVpcAttachments_NukeAll(t *testing.T) {
 	tgw := TransitGatewaysVpcAttachment{
 		Client: mockedTransitGatewayVpcAttachment{
 			DeleteTransitGatewayVpcAttachmentOutput: ec2.DeleteTransitGatewayVpcAttachmentOutput{},
+		},
+	}
+
+	err := tgw.nukeAll([]*string{aws.String("test-attachment")})
+	require.NoError(t, err)
+}
+
+func TestTransitGatewayPeeringAttachment_getAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	now := time.Now()
+	attachment1 := "attachement1"
+	attachment2 := "attachement2"
+	tgpa := TransitGatewayPeeringAttachment{
+		Client: mockedTransitGatewayPeeringAttachment{
+			DescribeTransitGatewayPeeringAttachmentsOutput: ec2.DescribeTransitGatewayPeeringAttachmentsOutput{
+				TransitGatewayPeeringAttachments: []*ec2.TransitGatewayPeeringAttachment{
+					{
+						TransitGatewayAttachmentId: aws.String(attachment1),
+						CreationTime:               aws.Time(now),
+					},
+					{
+						TransitGatewayAttachmentId: aws.String(attachment2),
+						CreationTime:               aws.Time(now.Add(1)),
+					},
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{attachment1, attachment2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{attachment1},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := tgpa.getAll(context.Background(), config.Config{
+				TransitGatewayPeeringAttachment: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+		})
+	}
+}
+
+func TestTransitGatewayPeeringAttachment_nukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	tgw := TransitGatewayPeeringAttachment{
+		Client: mockedTransitGatewayPeeringAttachment{
+			DeleteTransitGatewayPeeringAttachmentOutput: ec2.DeleteTransitGatewayPeeringAttachmentOutput{},
 		},
 	}
 

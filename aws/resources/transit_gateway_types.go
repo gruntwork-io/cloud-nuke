@@ -10,6 +10,47 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+// TransitGateways - represents all transit gateways
+type TransitGatewayPeeringAttachment struct {
+	Client ec2iface.EC2API
+	Region string
+	Ids    []string
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) Init(session *session.Session) {
+	tgpa.Client = ec2.New(session)
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) ResourceName() string {
+	return "transit-gateway-peering-attachment"
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) MaxBatchSize() int {
+	return maxBatchSize
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) ResourceIdentifiers() []string {
+	return tgpa.Ids
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := tgpa.getAll(c, configObj)
+	if err != nil {
+		return nil, err
+	}
+
+	tgpa.Ids = awsgo.StringValueSlice(identifiers)
+	return tgpa.Ids, nil
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) Nuke(identifiers []string) error {
+	if err := tgpa.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
 // TransitGatewaysVpcAttachment - represents all transit gateways vpc attachments
 type TransitGatewaysVpcAttachment struct {
 	Client ec2iface.EC2API
