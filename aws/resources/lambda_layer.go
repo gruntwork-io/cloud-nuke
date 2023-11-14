@@ -61,7 +61,8 @@ func (ll *LambdaLayers) shouldInclude(lambdaLayer *lambda.LayersListItem, config
 		return false
 	}
 
-	// fnLastModified := aws.StringValue(lambdaLayer.LastModified)
+	// Lambda layers are immutable, so the created date of the latest version
+	// is on par with last modified
 	fnLastModified := aws.StringValue(lambdaLayer.LatestMatchingVersion.CreatedDate)
 	fnName := lambdaLayer.LayerName
 	layout := "2006-01-02T15:04:05.000+0000"
@@ -93,7 +94,7 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 				LayerName: name,
 			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
 				for _, version := range page.LayerVersions {
-					logging.Logger.Infof("Found layer version! %s", version)
+					logging.Logger.Debugf("Found layer version! %s", version)
 					params := &lambda.DeleteLayerVersionInput{
 						LayerName:     name,
 						VersionNumber: version.Version,
