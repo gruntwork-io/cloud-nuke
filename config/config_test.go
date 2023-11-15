@@ -117,7 +117,7 @@ func TestConfig_Empty(t *testing.T) {
 
 // TestCircleCiConfig - sanity check to make sure that the circleCi cloud-nuke configuration file is valid
 func TestCircleCiConfig(t *testing.T) {
-	configFilePath := "./circleci/nuke_config.yaml"
+	configFilePath := "../.circleci/nuke_config.yaml"
 	_, err := GetConfig(configFilePath)
 
 	require.NoError(t, err)
