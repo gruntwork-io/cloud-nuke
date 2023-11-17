@@ -255,3 +255,8 @@ ACM:
   exclude:
     names_regex:
       - ".*gruntwork.in"
+
+DBSubnetGroups:
+  exclude:
+    names_regex:
+      - "gruntwork-test-db-subnet-group"
