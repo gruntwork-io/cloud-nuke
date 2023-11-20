@@ -185,3 +185,44 @@ func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 	logging.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), tgw.Region)
 	return nil
 }
+
+func (tgpa *TransitGatewayPeeringAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	var ids []*string
+	err := tgpa.Client.DescribeTransitGatewayPeeringAttachmentsPages(&ec2.DescribeTransitGatewayPeeringAttachmentsInput{}, func(result *ec2.DescribeTransitGatewayPeeringAttachmentsOutput, lastPage bool) bool {
+		for _, attachment := range result.TransitGatewayPeeringAttachments {
+			if configObj.TransitGatewayPeeringAttachment.ShouldInclude(config.ResourceValue{
+				Time: attachment.CreationTime,
+			}) {
+				ids = append(ids, attachment.TransitGatewayAttachmentId)
+			}
+		}
+
+		return !lastPage
+	})
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	return ids, nil
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) nukeAll(ids []*string) error {
+	for _, id := range ids {
+		_, err := tgpa.Client.DeleteTransitGatewayPeeringAttachment(&ec2.DeleteTransitGatewayPeeringAttachmentInput{
+			TransitGatewayAttachmentId: id,
+		})
+		// Record status of this resource
+		report.Record(report.Entry{
+			Identifier:   aws.StringValue(id),
+			ResourceType: tgpa.ResourceName(),
+			Error:        err,
+		})
+		if err != nil {
+			logging.Errorf("[Failed] %s", err)
+		} else {
+			logging.Debugf("Deleted Transit Gateway Peering Attachment: %s", *id)
+		}
+	}
+
+	return nil
+}
