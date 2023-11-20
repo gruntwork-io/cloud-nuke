@@ -1,6 +1,0 @@
-DynamoDB:
-  exclude:
-    names_regex:
-      - alice
-      - bob
-

@@ -1,5 +1,0 @@
-ECSCluster:
-  exclude:
-    names_regex:
-      - alice
-      - bob
