@@ -428,14 +428,14 @@ s3:
 
 #### Tag Filter
 
-You can also exclude resources by tags. The following config will delete all s3 buckets that have a tag with key `foo`
+You can also exclude resources by tags. The following config will exclude all s3 buckets that have a tag with key `foo` and value `true` (case-insensitive).
 ```yaml
 s3:
   exclude:
     tag: 'foo'
 ```
 
-By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources. 
+By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources.
 _Note: it doesn't support including resources by tags._
 
 ### What's supported?
@@ -467,7 +467,8 @@ of the file that are supported are listed here.
 | ebs                         | EBSVolume                    | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ✅    |
 | ec2                         | EC2                          | ✅ (Instance Name)                     | ✅ (Launch Time)                     | ✅    |
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
-| ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ❌    |
+| ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |
+| ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |

@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"strings"
 	"sync"
 	"time"
@@ -26,9 +27,9 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 	var snsTopics []*string
 	err := s.Client.ListTopicsPages(&sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {
 		for _, topic := range page.Topics {
-			firstSeenTime, err := s.getFirstSeenSNSTopicTag(*topic.TopicArn)
+			firstSeenTime, err := s.getFirstSeenTag(*topic.TopicArn)
 			if err != nil {
-				logging.Logger.Errorf(
+				logging.Errorf(
 					"Unable to retrieve tags for SNS Topic: %s, with error: %s", *topic.TopicArn, err)
 				continue
 			}
@@ -36,8 +37,8 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 			if firstSeenTime == nil {
 				now := time.Now().UTC()
 				firstSeenTime = &now
-				if err := s.setFirstSeenSNSTopicTag(*topic.TopicArn, now); err != nil {
-					logging.Logger.Errorf(
+				if err := s.setFirstSeenTag(*topic.TopicArn, now); err != nil {
+					logging.Errorf(
 						"Unable to apply first seen tag SNS Topic: %s, with error: %s", *topic.TopicArn, err)
 					continue
 				}
@@ -67,7 +68,7 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 
 // getFirstSeenSNSTopicTag will retrive the time that the topic was first seen, otherwise returning nil if the topic has not been
 // seen before.
-func (s *SNSTopic) getFirstSeenSNSTopicTag(topicArn string) (*time.Time, error) {
+func (s *SNSTopic) getFirstSeenTag(topicArn string) (*time.Time, error) {
 	response, err := s.Client.ListTagsForResource(&sns.ListTagsForResourceInput{
 		ResourceArn: &topicArn,
 	})
@@ -75,14 +76,14 @@ func (s *SNSTopic) getFirstSeenSNSTopicTag(topicArn string) (*time.Time, error) 
 		return nil, err
 	}
 
-	for i := range response.Tags {
-		if *response.Tags[i].Key == firstSeenTagKey {
-			firstSeenTime, err := time.Parse(firstSeenTimeFormat, *response.Tags[i].Value)
+	for _, tag := range response.Tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
-				return nil, err
+				return nil, errors.WithStackTrace(err)
 			}
 
-			return &firstSeenTime, nil
+			return firstSeenTime, nil
 		}
 	}
 
@@ -90,16 +91,14 @@ func (s *SNSTopic) getFirstSeenSNSTopicTag(topicArn string) (*time.Time, error) 
 }
 
 // setFirstSeenSNSTopic will append a tag to the SNS Topic that details the first seen time.
-func (s *SNSTopic) setFirstSeenSNSTopicTag(topicArn string, value time.Time) error {
-	timeValue := value.Format(firstSeenTimeFormat)
-
+func (s *SNSTopic) setFirstSeenTag(topicArn string, value time.Time) error {
 	_, err := s.Client.TagResource(
 		&sns.TagResourceInput{
 			ResourceArn: &topicArn,
 			Tags: []*sns.Tag{
 				{
-					Key:   aws.String(firstSeenTagKey),
-					Value: &timeValue,
+					Key:   aws.String(util.FirstSeenTagKey),
+					Value: aws.String(util.FormatTimestamp(value)),
 				},
 			},
 		},
@@ -127,16 +126,16 @@ func shouldIncludeSNS(topicArn string, excludeAfter, firstSeenTime time.Time, co
 
 func (s *SNSTopic) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No SNS Topics to nuke in region %s", s.Region)
+		logging.Debugf("No SNS Topics to nuke in region %s", s.Region)
 	}
 
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many SNS Topics (100): halting to avoid hitting AWS API rate limiting")
+		logging.Errorf("Nuking too many SNS Topics (100): halting to avoid hitting AWS API rate limiting")
 		return TooManySNSTopicsErr{}
 	}
 
 	// There is no bulk delete SNS API, so we delete the batch of SNS Topics concurrently using goroutines
-	logging.Logger.Debugf("Deleting SNS Topics in region %s", s.Region)
+	logging.Debugf("Deleting SNS Topics in region %s", s.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -150,7 +149,7 @@ func (s *SNSTopic) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking SNS Topic",
 			}, map[string]interface{}{
@@ -172,7 +171,7 @@ func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn 
 		TopicArn: topicArn,
 	}
 
-	logging.Logger.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
+	logging.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
 
 	_, err := s.Client.DeleteTopic(deleteParam)
 
@@ -187,8 +186,8 @@ func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn 
 	report.Record(e)
 
 	if err == nil {
-		logging.Logger.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
+		logging.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
 	} else {
-		logging.Logger.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), s.Region)
+		logging.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), s.Region)
 	}
 }

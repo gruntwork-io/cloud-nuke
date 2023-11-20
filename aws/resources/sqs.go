@@ -2,17 +2,17 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"strconv"
 	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of SQS Queue URLs
@@ -43,14 +43,14 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Convert string timestamp to int64
+		// Convert string timestamp to int64 and then to time.Time
 		createdAt := *queueAttributes.Attributes["CreatedTimestamp"]
-		createdAtTime, err := time.Parse(time.RFC3339, createdAt)
+		createdAtInt, err := strconv.ParseInt(createdAt, 10, 64)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
+		createdAtTime := time.Unix(createdAtInt, 0)
 
-		// Compare time as int64
 		if configObj.SQS.ShouldInclude(config.ResourceValue{
 			Name: queue,
 			Time: &createdAtTime,
@@ -62,14 +62,14 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 	return urls, nil
 }
 
-// Deletes all Elastic Load Balancers
+// Deletes all Queues
 func (sq *SqsQueue) nukeAll(urls []*string) error {
 	if len(urls) == 0 {
-		logging.Logger.Debugf("No SQS Queues to nuke in region %s", sq.Region)
+		logging.Debugf("No SQS Queues to nuke in region %s", sq.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all SQS Queues in region %s", sq.Region)
+	logging.Debugf("Deleting all SQS Queues in region %s", sq.Region)
 	var deletedUrls []*string
 
 	for _, url := range urls {
@@ -88,7 +88,7 @@ func (sq *SqsQueue) nukeAll(urls []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking SQS Queue",
 			}, map[string]interface{}{
@@ -96,11 +96,11 @@ func (sq *SqsQueue) nukeAll(urls []*string) error {
 			})
 		} else {
 			deletedUrls = append(deletedUrls, url)
-			logging.Logger.Debugf("Deleted SQS Queue: %s", *url)
+			logging.Debugf("Deleted SQS Queue: %s", *url)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), sq.Region)
+	logging.Debugf("[OK] %d SQS Queue(s) deleted in %s", len(deletedUrls), sq.Region)
 
 	return nil
 }

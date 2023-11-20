@@ -66,11 +66,11 @@ func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
 func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 
 	if len(snapshotIds) == 0 {
-		logging.Logger.Debugf("No Snapshots to nuke in region %s", s.Region)
+		logging.Debugf("No Snapshots to nuke in region %s", s.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Snapshots in region %s", s.Region)
+	logging.Debugf("Deleting all Snapshots in region %s", s.Region)
 	var deletedSnapshotIDs []*string
 
 	for _, snapshotID := range snapshotIds {
@@ -89,7 +89,7 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking EBS Snapshot",
 			}, map[string]interface{}{
@@ -97,10 +97,10 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 			})
 		} else {
 			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
-			logging.Logger.Debugf("Deleted Snapshot: %s", *snapshotID)
+			logging.Debugf("Deleted Snapshot: %s", *snapshotID)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), s.Region)
+	logging.Debugf("[OK] %d Snapshot(s) terminated in %s", len(deletedSnapshotIDs), s.Region)
 	return nil
 }

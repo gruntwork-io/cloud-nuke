@@ -68,6 +68,8 @@ func getRegisteredRegionalResources() []AwsResources {
 		&resources.EC2DedicatedHosts{},
 		&resources.EC2KeyPairs{},
 		&resources.EC2VPCs{},
+		// Note: nuking EC2 DHCP options after nuking EC2 VPC because DHCP options could be associated with VPCs.
+		&resources.EC2DhcpOption{},
 		&resources.ECR{},
 		&resources.ECSClusters{},
 		&resources.ECSServices{},
@@ -92,6 +94,7 @@ func getRegisteredRegionalResources() []AwsResources {
 		&resources.DBInstances{},
 		&resources.DBSubnetGroups{},
 		&resources.DBClusters{},
+		&resources.RdsSnapshot{},
 		&resources.RedshiftClusters{},
 		&resources.S3Buckets{},
 		&resources.SageMakerNotebookInstances{},

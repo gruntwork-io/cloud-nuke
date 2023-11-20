@@ -37,17 +37,17 @@ func (gateway *ApiGateway) getAll(c context.Context, configObj config.Config) ([
 
 func (gateway *ApiGateway) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Logger.Debugf("No API Gateways (v1) to nuke in region %s", gateway.Region)
+		logging.Debugf("No API Gateways (v1) to nuke in region %s", gateway.Region)
 	}
 
 	if len(identifiers) > 100 {
-		logging.Logger.Errorf("Nuking too many API Gateways (v1) at once (100): " +
+		logging.Errorf("Nuking too many API Gateways (v1) at once (100): " +
 			"halting to avoid hitting AWS API rate limiting")
 		return TooManyApiGatewayErr{}
 	}
 
 	// There is no bulk delete Api Gateway API, so we delete the batch of gateways concurrently using goroutines
-	logging.Logger.Debugf("Deleting Api Gateways (v1) in region %s", gateway.Region)
+	logging.Debugf("Deleting Api Gateways (v1) in region %s", gateway.Region)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -61,7 +61,7 @@ func (gateway *ApiGateway) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking API Gateway",
@@ -95,11 +95,11 @@ func (gateway *ApiGateway) nukeAsync(
 	report.Record(e)
 
 	if err == nil {
-		logging.Logger.Debugf("["+
+		logging.Debugf("["+
 			"OK] API Gateway (v1) %s deleted in %s", aws.StringValue(apigwID), gateway.Region)
 		return
 	}
 
-	logging.Logger.Debugf(
+	logging.Debugf(
 		"[Failed] Error deleting API Gateway (v1) %s in %s", aws.StringValue(apigwID), gateway.Region)
 }

@@ -45,7 +45,7 @@ func (lf *LambdaFunctions) shouldInclude(lambdaFn *lambda.FunctionConfiguration,
 	layout := "2006-01-02T15:04:05.000+0000"
 	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
 	if err != nil {
-		logging.Logger.Debugf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, *fnName)
+		logging.Debugf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, *fnName)
 		return false
 	}
 
@@ -57,11 +57,11 @@ func (lf *LambdaFunctions) shouldInclude(lambdaFn *lambda.FunctionConfiguration,
 
 func (lf *LambdaFunctions) nukeAll(names []*string) error {
 	if len(names) == 0 {
-		logging.Logger.Debugf("No Lambda Functions to nuke in region %s", lf.Region)
+		logging.Debugf("No Lambda Functions to nuke in region %s", lf.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Lambda Functions in region %s", lf.Region)
+	logging.Debugf("Deleting all Lambda Functions in region %s", lf.Region)
 	deletedNames := []*string{}
 
 	for _, name := range names {
@@ -80,7 +80,7 @@ func (lf *LambdaFunctions) nukeAll(names []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s: %s", *name, err)
+			logging.Errorf("[Failed] %s: %s", *name, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Lambda Function",
 			}, map[string]interface{}{
@@ -88,10 +88,10 @@ func (lf *LambdaFunctions) nukeAll(names []*string) error {
 			})
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Logger.Debugf("Deleted Lambda Function: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted Lambda Function: %s", awsgo.StringValue(name))
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), lf.Region)
+	logging.Debugf("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), lf.Region)
 	return nil
 }

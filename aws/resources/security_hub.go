@@ -2,18 +2,17 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"strings"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/securityhub"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"strings"
 )
 
 func (sh *SecurityHub) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -39,14 +38,14 @@ func (sh *SecurityHub) getAll(c context.Context, configObj config.Config) ([]*st
 }
 
 func shouldIncludeHub(hub *securityhub.DescribeHubOutput, configObj config.Config) bool {
-	subscribedAt, err := time.Parse(time.RFC3339, *hub.SubscribedAt)
+	subscribedAt, err := util.ParseTimestamp(hub.SubscribedAt)
 	if err != nil {
-		logging.Logger.Debugf(
+		logging.Debugf(
 			"Could not parse subscribedAt timestamp (%s) of security hub. Excluding from delete.", *hub.SubscribedAt)
 		return false
 	}
 
-	return configObj.SecurityHub.ShouldInclude(config.ResourceValue{Time: &subscribedAt})
+	return configObj.SecurityHub.ShouldInclude(config.ResourceValue{Time: subscribedAt})
 }
 
 func (sh *SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
@@ -70,7 +69,7 @@ func (sh *SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
 			hubMemberAccountIds = append(hubMemberAccountIds, member.AccountId)
 		}
 	}
-	logging.Logger.Debugf("Found %d member accounts attached to security hub", len(hubMemberAccountIds))
+	logging.Debugf("Found %d member accounts attached to security hub", len(hubMemberAccountIds))
 	return hubMemberAccountIds, nil
 }
 
@@ -81,21 +80,21 @@ func (sh *SecurityHub) removeMembersFromHub(accountIds []*string) error {
 	if err != nil {
 		return err
 	}
-	logging.Logger.Debugf("%d member accounts disassociated", len(accountIds))
+	logging.Debugf("%d member accounts disassociated", len(accountIds))
 
 	// Once disassociated, member accounts can be deleted
 	_, err = sh.Client.DeleteMembers(&securityhub.DeleteMembersInput{AccountIds: accountIds})
 	if err != nil {
 		return err
 	}
-	logging.Logger.Debugf("%d member accounts deleted", len(accountIds))
+	logging.Debugf("%d member accounts deleted", len(accountIds))
 
 	return nil
 }
 
 func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	if len(securityHubArns) == 0 {
-		logging.Logger.Debugf("No security hub resources to nuke in region %s", sh.Region)
+		logging.Debugf("No security hub resources to nuke in region %s", sh.Region)
 		return nil
 	}
 
@@ -115,7 +114,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	if err == nil && len(memberAccountIds) > 0 {
 		err = sh.removeMembersFromHub(memberAccountIds)
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to disassociate members from security hub")
+			logging.Errorf("[Failed] Failed to disassociate members from security hub")
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error disassociating members from security hub",
 			}, map[string]interface{}{
@@ -129,7 +128,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	// Security hub cannot be disabled with an active administrator account
 	adminAccount, err := sh.Client.GetAdministratorAccount(&securityhub.GetAdministratorAccountInput{})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] Failed to check for administrator account")
+		logging.Errorf("[Failed] Failed to check for administrator account")
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error checking for administrator account in security hub",
 		}, map[string]interface{}{
@@ -142,7 +141,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	if adminAccount.Administrator != nil {
 		_, err := sh.Client.DisassociateFromAdministratorAccount(&securityhub.DisassociateFromAdministratorAccountInput{})
 		if err != nil {
-			logging.Logger.Errorf("[Failed] Failed to disassociate from administrator account")
+			logging.Errorf("[Failed] Failed to disassociate from administrator account")
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error disassociating administrator account in security hub",
 			}, map[string]interface{}{
@@ -155,7 +154,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	// Disable security hub
 	_, err = sh.Client.DisableSecurityHub(&securityhub.DisableSecurityHubInput{})
 	if err != nil {
-		logging.Logger.Errorf("[Failed] Failed to disable security hub.")
+		logging.Errorf("[Failed] Failed to disable security hub.")
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error disabling security hub",
 		}, map[string]interface{}{
@@ -169,7 +168,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 		}
 		report.Record(e)
 	} else {
-		logging.Logger.Debugf("[OK] Security Hub %s disabled", securityHubArns[0])
+		logging.Debugf("[OK] Security Hub %s disabled", securityHubArns[0])
 		e := report.Entry{
 			Identifier:   aws.StringValue(&securityHubArns[0]),
 			ResourceType: "Security Hub",

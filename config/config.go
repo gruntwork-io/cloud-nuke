@@ -15,69 +15,72 @@ const DefaultAwsResourceExclusionTagKey = "cloud-nuke-excluded"
 
 // Config - the config object we pass around
 type Config struct {
-	ACM                          ResourceType               `yaml:"ACM"`
-	ACMPCA                       ResourceType               `yaml:"ACMPCA"`
-	AMI                          ResourceType               `yaml:"AMI"`
-	APIGateway                   ResourceType               `yaml:"APIGateway"`
-	APIGatewayV2                 ResourceType               `yaml:"APIGatewayV2"`
-	AccessAnalyzer               ResourceType               `yaml:"AccessAnalyzer"`
-	AutoScalingGroup             ResourceType               `yaml:"AutoScalingGroup"`
-	BackupVault                  ResourceType               `yaml:"BackupVault"`
-	CloudWatchAlarm              ResourceType               `yaml:"CloudWatchAlarm"`
-	CloudWatchDashboard          ResourceType               `yaml:"CloudWatchDashboard"`
-	CloudWatchLogGroup           ResourceType               `yaml:"CloudWatchLogGroup"`
-	CloudtrailTrail              ResourceType               `yaml:"CloudtrailTrail"`
-	CodeDeployApplications       ResourceType               `yaml:"CodeDeployApplications"`
-	ConfigServiceRecorder        ResourceType               `yaml:"ConfigServiceRecorder"`
-	ConfigServiceRule            ResourceType               `yaml:"ConfigServiceRule"`
-	DBClusters                   ResourceType               `yaml:"DBClusters"`
-	DBInstances                  ResourceType               `yaml:"DBInstances"`
-	DBSubnetGroups               ResourceType               `yaml:"DBSubnetGroups"`
-	DynamoDB                     ResourceType               `yaml:"DynamoDB"`
-	EBSVolume                    ResourceType               `yaml:"EBSVolume"`
-	EC2                          ResourceType               `yaml:"EC2"`
-	EC2DedicatedHosts            ResourceType               `yaml:"EC2DedicatedHosts"`
-	EC2KeyPairs                  ResourceType               `yaml:"EC2KeyPairs"`
-	ECRRepository                ResourceType               `yaml:"ECRRepository"`
-	ECSCluster                   ResourceType               `yaml:"ECSCluster"`
-	ECSService                   ResourceType               `yaml:"ECSService"`
-	EKSCluster                   ResourceType               `yaml:"EKSCluster"`
-	ELBv1                        ResourceType               `yaml:"ELBv1"`
-	ELBv2                        ResourceType               `yaml:"ELBv2"`
-	ElasticFileSystem            ResourceType               `yaml:"ElasticFileSystem"`
-	ElasticIP                    ResourceType               `yaml:"ElasticIP"`
-	Elasticache                  ResourceType               `yaml:"Elasticache"`
-	ElasticacheParameterGroups   ResourceType               `yaml:"ElasticacheParameterGroups"`
-	ElasticacheSubnetGroups      ResourceType               `yaml:"ElasticacheSubnetGroups"`
-	GuardDuty                    ResourceType               `yaml:"GuardDuty"`
-	IAMGroups                    ResourceType               `yaml:"IAMGroups"`
-	IAMPolicies                  ResourceType               `yaml:"IAMPolicies"`
-	IAMRoles                     ResourceType               `yaml:"IAMRoles"`
-	IAMServiceLinkedRoles        ResourceType               `yaml:"IAMServiceLinkedRoles"`
-	IAMUsers                     ResourceType               `yaml:"IAMUsers"`
-	KMSCustomerKeys              KMSCustomerKeyResourceType `yaml:"KMSCustomerKeys"`
-	KinesisStream                ResourceType               `yaml:"KinesisStream"`
-	LambdaFunction               ResourceType               `yaml:"LambdaFunction"`
-	LambdaLayer                  ResourceType               `yaml:"LambdaLayer"`
-	LaunchConfiguration          ResourceType               `yaml:"LaunchConfiguration"`
-	LaunchTemplate               ResourceType               `yaml:"LaunchTemplate"`
-	MacieMember                  ResourceType               `yaml:"MacieMember"`
-	MSKCluster                   ResourceType               `yaml:"MSKCluster"`
-	NatGateway                   ResourceType               `yaml:"NatGateway"`
-	OIDCProvider                 ResourceType               `yaml:"OIDCProvider"`
-	OpenSearchDomain             ResourceType               `yaml:"OpenSearchDomain"`
-	Redshift                     ResourceType               `yaml:"Redshift"`
-	S3                           ResourceType               `yaml:"s3"`
-	SNS                          ResourceType               `yaml:"SNS"`
-	SQS                          ResourceType               `yaml:"SQS"`
-	SageMakerNotebook            ResourceType               `yaml:"SageMakerNotebook"`
-	SecretsManagerSecrets        ResourceType               `yaml:"SecretsManager"`
-	SecurityHub                  ResourceType               `yaml:"SecurityHub"`
-	Snapshots                    ResourceType               `yaml:"Snapshots"`
-	TransitGateway               ResourceType               `yaml:"TransitGateway"`
-	TransitGatewayRouteTable     ResourceType               `yaml:"TransitGatewayRouteTable"`
-	TransitGatewaysVpcAttachment ResourceType               `yaml:"TransitGatewaysVpcAttachment"`
-	VPC                          ResourceType               `yaml:"VPC"`
+	ACM                             ResourceType               `yaml:"ACM"`
+	ACMPCA                          ResourceType               `yaml:"ACMPCA"`
+	AMI                             ResourceType               `yaml:"AMI"`
+	APIGateway                      ResourceType               `yaml:"APIGateway"`
+	APIGatewayV2                    ResourceType               `yaml:"APIGatewayV2"`
+	AccessAnalyzer                  ResourceType               `yaml:"AccessAnalyzer"`
+	AutoScalingGroup                ResourceType               `yaml:"AutoScalingGroup"`
+	BackupVault                     ResourceType               `yaml:"BackupVault"`
+	CloudWatchAlarm                 ResourceType               `yaml:"CloudWatchAlarm"`
+	CloudWatchDashboard             ResourceType               `yaml:"CloudWatchDashboard"`
+	CloudWatchLogGroup              ResourceType               `yaml:"CloudWatchLogGroup"`
+	CloudtrailTrail                 ResourceType               `yaml:"CloudtrailTrail"`
+	CodeDeployApplications          ResourceType               `yaml:"CodeDeployApplications"`
+	ConfigServiceRecorder           ResourceType               `yaml:"ConfigServiceRecorder"`
+	ConfigServiceRule               ResourceType               `yaml:"ConfigServiceRule"`
+	DBClusters                      ResourceType               `yaml:"DBClusters"`
+	DBInstances                     ResourceType               `yaml:"DBInstances"`
+	DBSubnetGroups                  ResourceType               `yaml:"DBSubnetGroups"`
+	DynamoDB                        ResourceType               `yaml:"DynamoDB"`
+	EBSVolume                       ResourceType               `yaml:"EBSVolume"`
+	EC2                             ResourceType               `yaml:"EC2"`
+	EC2DedicatedHosts               ResourceType               `yaml:"EC2DedicatedHosts"`
+	EC2DHCPOption                   ResourceType               `yaml:"EC2DhcpOption"`
+	EC2KeyPairs                     ResourceType               `yaml:"EC2KeyPairs"`
+	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
+	ECSCluster                      ResourceType               `yaml:"ECSCluster"`
+	ECSService                      ResourceType               `yaml:"ECSService"`
+	EKSCluster                      ResourceType               `yaml:"EKSCluster"`
+	ELBv1                           ResourceType               `yaml:"ELBv1"`
+	ELBv2                           ResourceType               `yaml:"ELBv2"`
+	ElasticFileSystem               ResourceType               `yaml:"ElasticFileSystem"`
+	ElasticIP                       ResourceType               `yaml:"ElasticIP"`
+	Elasticache                     ResourceType               `yaml:"Elasticache"`
+	ElasticacheParameterGroups      ResourceType               `yaml:"ElasticacheParameterGroups"`
+	ElasticacheSubnetGroups         ResourceType               `yaml:"ElasticacheSubnetGroups"`
+	GuardDuty                       ResourceType               `yaml:"GuardDuty"`
+	IAMGroups                       ResourceType               `yaml:"IAMGroups"`
+	IAMPolicies                     ResourceType               `yaml:"IAMPolicies"`
+	IAMRoles                        ResourceType               `yaml:"IAMRoles"`
+	IAMServiceLinkedRoles           ResourceType               `yaml:"IAMServiceLinkedRoles"`
+	IAMUsers                        ResourceType               `yaml:"IAMUsers"`
+	KMSCustomerKeys                 KMSCustomerKeyResourceType `yaml:"KMSCustomerKeys"`
+	KinesisStream                   ResourceType               `yaml:"KinesisStream"`
+	LambdaFunction                  ResourceType               `yaml:"LambdaFunction"`
+	LambdaLayer                     ResourceType               `yaml:"LambdaLayer"`
+	LaunchConfiguration             ResourceType               `yaml:"LaunchConfiguration"`
+	LaunchTemplate                  ResourceType               `yaml:"LaunchTemplate"`
+	MacieMember                     ResourceType               `yaml:"MacieMember"`
+	MSKCluster                      ResourceType               `yaml:"MSKCluster"`
+	NatGateway                      ResourceType               `yaml:"NatGateway"`
+	OIDCProvider                    ResourceType               `yaml:"OIDCProvider"`
+	OpenSearchDomain                ResourceType               `yaml:"OpenSearchDomain"`
+	Redshift                        ResourceType               `yaml:"Redshift"`
+	RdsSnapshot                     ResourceType               `yaml:"RdsSnapshot"`
+	S3                              ResourceType               `yaml:"s3"`
+	SNS                             ResourceType               `yaml:"SNS"`
+	SQS                             ResourceType               `yaml:"SQS"`
+	SageMakerNotebook               ResourceType               `yaml:"SageMakerNotebook"`
+	SecretsManagerSecrets           ResourceType               `yaml:"SecretsManager"`
+	SecurityHub                     ResourceType               `yaml:"SecurityHub"`
+	Snapshots                       ResourceType               `yaml:"Snapshots"`
+	TransitGateway                  ResourceType               `yaml:"TransitGateway"`
+	TransitGatewayRouteTable        ResourceType               `yaml:"TransitGatewayRouteTable"`
+	TransitGatewaysVpcAttachment    ResourceType               `yaml:"TransitGatewaysVpcAttachment"`
+	TransitGatewayPeeringAttachment ResourceType               `yaml:"TransitGatewayPeeringAttachment"`
+	VPC                             ResourceType               `yaml:"VPC"`
 }
 
 func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
@@ -87,15 +90,15 @@ func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
 	}
 
 	v := reflect.ValueOf(c).Elem()
-	filterRule := FilterRule{TimeAfter: timeFilter}
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		if field.Kind() == reflect.Struct {
-			ruleField := field.FieldByName(fieldName)
-			if ruleField.CanSet() {
-				ruleField.Set(reflect.ValueOf(filterRule))
-			}
+		if field.Kind() != reflect.Struct {
+			continue
 		}
+
+		ruleField := field.FieldByName(fieldName)
+		filterRule := ruleField.Addr().Interface().(*FilterRule)
+		filterRule.TimeAfter = timeFilter
 	}
 }
 

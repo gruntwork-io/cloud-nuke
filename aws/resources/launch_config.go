@@ -36,11 +36,11 @@ func (lc *LaunchConfigs) getAll(c context.Context, configObj config.Config) ([]*
 func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
 
 	if len(configNames) == 0 {
-		logging.Logger.Debugf("No Launch Configurations to nuke in region %s", lc.Region)
+		logging.Debugf("No Launch Configurations to nuke in region %s", lc.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Launch Configurations in region %s", lc.Region)
+	logging.Debugf("Deleting all Launch Configurations in region %s", lc.Region)
 	var deletedConfigNames []*string
 
 	for _, configName := range configNames {
@@ -59,7 +59,7 @@ func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Errorf("[Failed] %s", err)
+			logging.Errorf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Launch Configuration",
 			}, map[string]interface{}{
@@ -67,10 +67,10 @@ func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
 			})
 		} else {
 			deletedConfigNames = append(deletedConfigNames, configName)
-			logging.Logger.Debugf("Deleted Launch configuration: %s", *configName)
+			logging.Debugf("Deleted Launch configuration: %s", *configName)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Launch Configuration(s) deleted in %s", len(deletedConfigNames), lc.Region)
+	logging.Debugf("[OK] %d Launch Configuration(s) deleted in %s", len(deletedConfigNames), lc.Region)
 	return nil
 }

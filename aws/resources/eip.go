@@ -24,7 +24,7 @@ func (ea *EIPAddresses) setFirstSeenTag(address ec2.Address, value time.Time) er
 		Tags: []*ec2.Tag{
 			{
 				Key:   awsgo.String(util.FirstSeenTagKey),
-				Value: awsgo.String(util.FormatTimestampTag(value)),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -39,7 +39,7 @@ func (ea *EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error)
 	tags := address.Tags
 	for _, tag := range tags {
 		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestampTag(tag.Value)
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -94,11 +94,11 @@ func (ea *EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.T
 // Deletes all EIP allocation ids
 func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 	if len(allocationIds) == 0 {
-		logging.Logger.Debugf("No Elastic IPs to nuke in region %s", ea.Region)
+		logging.Debugf("No Elastic IPs to nuke in region %s", ea.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Elastic IPs in region %s", ea.Region)
+	logging.Debugf("Deleting all Elastic IPs in region %s", ea.Region)
 	var deletedAllocationIDs []*string
 
 	for _, allocationID := range allocationIds {
@@ -119,7 +119,7 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "AuthFailure" {
 				// TODO: Figure out why we get an AuthFailure
-				logging.Logger.Debugf("EIP %s can't be deleted, it is still attached to an active resource", *allocationID)
+				logging.Debugf("EIP %s can't be deleted, it is still attached to an active resource", *allocationID)
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EIP",
 				}, map[string]interface{}{
@@ -127,7 +127,7 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 					"reason": "Still Attached to an Active Resource",
 				})
 			} else {
-				logging.Logger.Debugf("[Failed] %s", err)
+				logging.Debugf("[Failed] %s", err)
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EIP",
 				}, map[string]interface{}{
@@ -136,10 +136,10 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 			}
 		} else {
 			deletedAllocationIDs = append(deletedAllocationIDs, allocationID)
-			logging.Logger.Debugf("Deleted Elastic IP: %s", *allocationID)
+			logging.Debugf("Deleted Elastic IP: %s", *allocationID)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Elastic IP(s) deleted in %s", len(deletedAllocationIDs), ea.Region)
+	logging.Debugf("[OK] %d Elastic IP(s) deleted in %s", len(deletedAllocationIDs), ea.Region)
 	return nil
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"github.com/pterm/pterm"
 )
 
 // Returns a list of strings of ACM ARNs
@@ -22,14 +21,14 @@ func (a *ACM) getAll(c context.Context, configObj config.Config) ([]*string, err
 	err := a.Client.ListCertificatesPages(params,
 		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
 			for i := range page.CertificateSummaryList {
-				pterm.Debug.Println(fmt.Sprintf("Found ACM %s with domain name %s",
+				logging.Debug(fmt.Sprintf("Found ACM %s with domain name %s",
 					*page.CertificateSummaryList[i].CertificateArn, *page.CertificateSummaryList[i].DomainName))
 				if a.shouldInclude(page.CertificateSummaryList[i], configObj) {
-					pterm.Debug.Println(fmt.Sprintf(
+					logging.Debug(fmt.Sprintf(
 						"Including ACM %s", *page.CertificateSummaryList[i].CertificateArn))
 					acmArns = append(acmArns, page.CertificateSummaryList[i].CertificateArn)
 				} else {
-					pterm.Debug.Println(fmt.Sprintf(
+					logging.Debug(fmt.Sprintf(
 						"Skipping ACM %s", *page.CertificateSummaryList[i].CertificateArn))
 				}
 			}
@@ -50,7 +49,7 @@ func (a *ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config
 	}
 
 	if acm.InUse != nil && *acm.InUse {
-		pterm.Debug.Println(fmt.Sprintf("ACM %s is in use", *acm.CertificateArn))
+		logging.Debug(fmt.Sprintf("ACM %s is in use", *acm.CertificateArn))
 		return false
 	}
 
@@ -58,7 +57,7 @@ func (a *ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config
 		Name: acm.DomainName,
 		Time: acm.CreatedAt,
 	})
-	pterm.Debug.Println(fmt.Sprintf("shouldInclude result for ACM: %s w/ domain name: %s, time: %s, and config: %+v",
+	logging.Debug(fmt.Sprintf("shouldInclude result for ACM: %s w/ domain name: %s, time: %s, and config: %+v",
 		*acm.CertificateArn, *acm.DomainName, acm.CreatedAt, configObj.ACM))
 	return shouldInclude
 }
@@ -66,11 +65,11 @@ func (a *ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config
 // Deletes all ACMs
 func (a *ACM) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
-		logging.Logger.Debugf("No ACMs to nuke in region %s", a.Region)
+		logging.Debugf("No ACMs to nuke in region %s", a.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all ACMs in region %s", a.Region)
+	logging.Debugf("Deleting all ACMs in region %s", a.Region)
 
 	deletedCount := 0
 	for _, acmArn := range arns {
@@ -80,7 +79,7 @@ func (a *ACM) nukeAll(arns []*string) error {
 
 		_, err := a.Client.DeleteCertificate(params)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ACM",
 			}, map[string]interface{}{
@@ -88,7 +87,7 @@ func (a *ACM) nukeAll(arns []*string) error {
 			})
 		} else {
 			deletedCount++
-			logging.Logger.Debugf("Deleted ACM: %s", *acmArn)
+			logging.Debugf("Deleted ACM: %s", *acmArn)
 		}
 
 		e := report.Entry{
@@ -99,6 +98,6 @@ func (a *ACM) nukeAll(arns []*string) error {
 		report.Record(e)
 	}
 
-	logging.Logger.Debugf("[OK] %d ACM(s) terminated in %s", deletedCount, a.Region)
+	logging.Debugf("[OK] %d ACM(s) terminated in %s", deletedCount, a.Region)
 	return nil
 }

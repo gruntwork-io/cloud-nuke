@@ -125,7 +125,7 @@ func renderTableWithHeader(headers []string, data [][]string, w io.Writer) {
 		Render()
 
 	if renderErr != nil {
-		logging.Logger.Infof("Error rendering report table: %s\n", renderErr)
+		logging.Infof("Error rendering report table: %s\n", renderErr)
 	}
 }
 
@@ -217,7 +217,7 @@ func RenderNukeConfirmationPrompt(prompt string, numRetryCount int) (bool, error
 		confirmPrompt := pterm.DefaultInteractiveTextInput.WithMultiLine(false)
 		input, err := confirmPrompt.Show(prompt)
 		if err != nil {
-			logging.Logger.Errorf("[Failed to render prompt] %s", err)
+			logging.Errorf("[Failed to render prompt] %s", err)
 			return false, errors.WithStackTrace(err)
 		}
 

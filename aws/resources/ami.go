@@ -2,11 +2,10 @@ package resources
 
 import (
 	"context"
-	"strings"
-	"time"
-
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -30,8 +29,7 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 
 	var imageIds []*string
 	for _, image := range output.Images {
-		layout := "2006-01-02T15:04:05.000Z"
-		createdTime, err := time.Parse(layout, *image.CreationDate)
+		createdTime, err := util.ParseTimestamp(image.CreationDate)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +50,7 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 
 		if configObj.AMI.ShouldInclude(config.ResourceValue{
 			Name: image.Name,
-			Time: &createdTime,
+			Time: createdTime,
 		}) {
 			imageIds = append(imageIds, image.ImageId)
 		}
@@ -64,11 +62,11 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 // Deletes all AMI
 func (ami *AMIs) nukeAll(imageIds []*string) error {
 	if len(imageIds) == 0 {
-		logging.Logger.Debugf("No AMI to nuke in region %s", ami.Region)
+		logging.Debugf("No AMI to nuke in region %s", ami.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all AMI in region %s", ami.Region)
+	logging.Debugf("Deleting all AMI in region %s", ami.Region)
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
@@ -87,7 +85,7 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking AMI",
 			}, map[string]interface{}{
@@ -95,10 +93,10 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 			})
 		} else {
 			deletedCount++
-			logging.Logger.Debugf("Deleted AMI: %s", *imageID)
+			logging.Debugf("Deleted AMI: %s", *imageID)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, ami.Region)
+	logging.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, ami.Region)
 	return nil
 }

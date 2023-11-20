@@ -2,16 +2,15 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 type DetectorOutputWithID struct {
@@ -50,23 +49,22 @@ func (gd *GuardDuty) getAll(c context.Context, configObj config.Config) ([]*stri
 }
 
 func (gd *GuardDuty) shouldInclude(detector *guardduty.GetDetectorOutput, detectorId *string, configObj config.Config) bool {
-	detectorCreatedAt := aws.StringValue(detector.CreatedAt)
-	createdAtDateTime, err := time.Parse(time.RFC3339, detectorCreatedAt)
+	createdAtDateTime, err := util.ParseTimestamp(detector.CreatedAt)
 	if err != nil {
-		logging.Logger.Debugf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", detectorCreatedAt, *detectorId)
+		logging.Debugf("Could not parse createdAt timestamp (%s) of GuardDuty detector %s. Excluding from delete.", *createdAtDateTime, *detectorId)
 	}
 
-	return configObj.GuardDuty.ShouldInclude(config.ResourceValue{Time: &createdAtDateTime})
+	return configObj.GuardDuty.ShouldInclude(config.ResourceValue{Time: createdAtDateTime})
 }
 
 func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 	if len(detectorIds) == 0 {
-		logging.Logger.Debugf("No GuardDuty detectors to nuke in region %s", gd.Region)
+		logging.Debugf("No GuardDuty detectors to nuke in region %s", gd.Region)
 
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all GuardDuty detectors in region %s", gd.Region)
+	logging.Debugf("Deleting all GuardDuty detectors in region %s", gd.Region)
 
 	deletedIds := []string{}
 
@@ -86,7 +84,7 @@ func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s: %s", detectorId, err)
+			logging.Debugf("[Failed] %s: %s", detectorId, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking GuardDuty Detector",
 			}, map[string]interface{}{
@@ -94,10 +92,10 @@ func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 			})
 		} else {
 			deletedIds = append(deletedIds, detectorId)
-			logging.Logger.Debugf("Deleted GuardDuty detector: %s", detectorId)
+			logging.Debugf("Deleted GuardDuty detector: %s", detectorId)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d GuardDuty Detector(s) deleted in %s", len(deletedIds), gd.Region)
+	logging.Debugf("[OK] %d GuardDuty Detector(s) deleted in %s", len(deletedIds), gd.Region)
 	return nil
 }

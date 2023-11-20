@@ -58,11 +58,11 @@ func shouldIncludeEBSVolume(volume *ec2.Volume, configObj config.Config) bool {
 // Deletes all EBS Volumes
 func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 	if len(volumeIds) == 0 {
-		logging.Logger.Debugf("No EBS volumes to nuke in region %s", ev.Region)
+		logging.Debugf("No EBS volumes to nuke in region %s", ev.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all EBS volumes in region %s", ev.Region)
+	logging.Debugf("Deleting all EBS volumes in region %s", ev.Region)
 	var deletedVolumeIDs []*string
 
 	for _, volumeID := range volumeIds {
@@ -88,7 +88,7 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 					"region": ev.Region,
 					"reason": "VolumeInUse",
 				})
-				logging.Logger.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
+				logging.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
 			} else if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidVolume.NotFound" {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EBS Volume",
@@ -96,18 +96,18 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 					"region": ev.Region,
 					"reason": "InvalidVolume.NotFound",
 				})
-				logging.Logger.Debugf("EBS volume %s has already been deleted", *volumeID)
+				logging.Debugf("EBS volume %s has already been deleted", *volumeID)
 			} else {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: "Error Nuking EBS Volume",
 				}, map[string]interface{}{
 					"region": ev.Region,
 				})
-				logging.Logger.Debugf("[Failed] %s", err)
+				logging.Debugf("[Failed] %s", err)
 			}
 		} else {
 			deletedVolumeIDs = append(deletedVolumeIDs, volumeID)
-			logging.Logger.Debugf("Deleted EBS Volume: %s", *volumeID)
+			logging.Debugf("Deleted EBS Volume: %s", *volumeID)
 		}
 	}
 
@@ -116,7 +116,7 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 			VolumeIds: deletedVolumeIDs,
 		})
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking EBS Volume",
 			}, map[string]interface{}{
@@ -126,6 +126,6 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), ev.Region)
+	logging.Debugf("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), ev.Region)
 	return nil
 }

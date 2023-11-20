@@ -108,7 +108,7 @@ func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string
 }
 
 func (cache *Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *string) error {
-	logging.Logger.Debugf("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.StringValue(clusterId))
+	logging.Debugf("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.StringValue(clusterId))
 	params := elasticache.DeleteCacheClusterInput{
 		CacheClusterId: clusterId,
 	}
@@ -123,7 +123,7 @@ func (cache *Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *
 }
 
 func (cache *Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterId *string) error {
-	logging.Logger.Debugf("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.StringValue(clusterId))
+	logging.Debugf("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.StringValue(clusterId))
 
 	params := &elasticache.DeleteReplicationGroupInput{
 		ReplicationGroupId: clusterId,
@@ -141,18 +141,18 @@ func (cache *Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterI
 		return waitErr
 	}
 
-	logging.Logger.Debugf("Successfully deleted replication group Id: %s", aws.StringValue(clusterId))
+	logging.Debugf("Successfully deleted replication group Id: %s", aws.StringValue(clusterId))
 
 	return nil
 }
 
 func (cache *Elasticaches) nukeAll(clusterIds []*string) error {
 	if len(clusterIds) == 0 {
-		logging.Logger.Debugf("No Elasticache clusters to nuke in region %s", cache.Region)
+		logging.Debugf("No Elasticache clusters to nuke in region %s", cache.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting %d Elasticache clusters in region %s", len(clusterIds), cache.Region)
+	logging.Debugf("Deleting %d Elasticache clusters in region %s", len(clusterIds), cache.Region)
 
 	var deletedClusterIds []*string
 	for _, clusterId := range clusterIds {
@@ -181,7 +181,7 @@ func (cache *Elasticaches) nukeAll(clusterIds []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Elasticache Cluster",
 			}, map[string]interface{}{
@@ -189,11 +189,11 @@ func (cache *Elasticaches) nukeAll(clusterIds []*string) error {
 			})
 		} else {
 			deletedClusterIds = append(deletedClusterIds, clusterId)
-			logging.Logger.Debugf("Deleted Elasticache cluster: %s", *clusterId)
+			logging.Debugf("Deleted Elasticache cluster: %s", *clusterId)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Elasticache clusters deleted in %s", len(deletedClusterIds), cache.Region)
+	logging.Debugf("[OK] %d Elasticache clusters deleted in %s", len(deletedClusterIds), cache.Region)
 	return nil
 }
 
@@ -244,7 +244,7 @@ func (pg *ElasticacheParameterGroups) shouldInclude(paramGroup *elasticache.Cach
 
 func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 	if len(paramGroupNames) == 0 {
-		logging.Logger.Debugf("No Elasticache parameter groups to nuke in region %s", pg.Region)
+		logging.Debugf("No Elasticache parameter groups to nuke in region %s", pg.Region)
 		return nil
 	}
 	var deletedGroupNames []*string
@@ -259,7 +259,7 @@ func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 		}
 		report.Record(e)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Elasticache Parameter Group",
 			}, map[string]interface{}{
@@ -267,10 +267,10 @@ func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, pgName)
-			logging.Logger.Debugf("Deleted Elasticache parameter group: %s", aws.StringValue(pgName))
+			logging.Debugf("Deleted Elasticache parameter group: %s", aws.StringValue(pgName))
 		}
 	}
-	logging.Logger.Debugf("[OK] %d Elasticache parameter groups deleted in %s", len(deletedGroupNames), pg.Region)
+	logging.Debugf("[OK] %d Elasticache parameter groups deleted in %s", len(deletedGroupNames), pg.Region)
 	return nil
 }
 
@@ -300,7 +300,7 @@ func (sg *ElasticacheSubnetGroups) getAll(c context.Context, configObj config.Co
 
 func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
 	if len(subnetGroupNames) == 0 {
-		logging.Logger.Debugf("No Elasticache subnet groups to nuke in region %s", sg.Region)
+		logging.Debugf("No Elasticache subnet groups to nuke in region %s", sg.Region)
 		return nil
 	}
 	var deletedGroupNames []*string
@@ -315,7 +315,7 @@ func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
 		}
 		report.Record(e)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Elasticache Subnet Group",
 			}, map[string]interface{}{
@@ -323,9 +323,9 @@ func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
 			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, sgName)
-			logging.Logger.Debugf("Deleted Elasticache subnet group: %s", aws.StringValue(sgName))
+			logging.Debugf("Deleted Elasticache subnet group: %s", aws.StringValue(sgName))
 		}
 	}
-	logging.Logger.Debugf("[OK] %d Elasticache subnet groups deleted in %s", len(deletedGroupNames), sg.Region)
+	logging.Debugf("[OK] %d Elasticache subnet groups deleted in %s", len(deletedGroupNames), sg.Region)
 	return nil
 }

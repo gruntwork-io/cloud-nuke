@@ -34,11 +34,11 @@ func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) (
 // Delete all TransitGateways
 func (tgw *TransitGateways) nukeAll(ids []*string) error {
 	if len(ids) == 0 {
-		logging.Logger.Debugf("No Transit Gateways to nuke in region %s", tgw.Region)
+		logging.Debugf("No Transit Gateways to nuke in region %s", tgw.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Transit Gateways in region %s", tgw.Region)
+	logging.Debugf("Deleting all Transit Gateways in region %s", tgw.Region)
 	var deletedIds []*string
 
 	for _, id := range ids {
@@ -57,7 +57,7 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking Transit Gateway Instance",
 			}, map[string]interface{}{
@@ -65,11 +65,11 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 			})
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Logger.Debugf("Deleted Transit Gateway: %s", *id)
+			logging.Debugf("Deleted Transit Gateway: %s", *id)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Transit Gateway(s) deleted in %s", len(deletedIds), tgw.Region)
+	logging.Debugf("[OK] %d Transit Gateway(s) deleted in %s", len(deletedIds), tgw.Region)
 	return nil
 }
 
@@ -106,11 +106,11 @@ func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj confi
 // Delete all TransitGatewayRouteTables
 func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 	if len(ids) == 0 {
-		logging.Logger.Debugf("No Transit Gateway Route Tables to nuke in region %s", tgw.Region)
+		logging.Debugf("No Transit Gateway Route Tables to nuke in region %s", tgw.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Transit Gateway Route Tables in region %s", tgw.Region)
+	logging.Debugf("Deleting all Transit Gateway Route Tables in region %s", tgw.Region)
 	var deletedIds []*string
 
 	for _, id := range ids {
@@ -120,14 +120,14 @@ func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 
 		_, err := tgw.Client.DeleteTransitGatewayRouteTable(param)
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Logger.Debugf("Deleted Transit Gateway Route Table: %s", *id)
+			logging.Debugf("Deleted Transit Gateway Route Table: %s", *id)
 		}
 	}
 
-	logging.Logger.Debugf("[OK] %d Transit Gateway Route Table(s) deleted in %s", len(deletedIds), tgw.Region)
+	logging.Debugf("[OK] %d Transit Gateway Route Table(s) deleted in %s", len(deletedIds), tgw.Region)
 	return nil
 }
 
@@ -152,11 +152,11 @@ func (tgw *TransitGatewaysVpcAttachment) getAll(c context.Context, configObj con
 // Delete all TransitGatewayVpcAttachments
 func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 	if len(ids) == 0 {
-		logging.Logger.Debugf("No Transit Gateway Vpc Attachments to nuke in region %s", tgw.Region)
+		logging.Debugf("No Transit Gateway Vpc Attachments to nuke in region %s", tgw.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Deleting all Transit Gateway Vpc Attachments in region %s", tgw.Region)
+	logging.Debugf("Deleting all Transit Gateway Vpc Attachments in region %s", tgw.Region)
 	var deletedIds []*string
 
 	for _, id := range ids {
@@ -175,13 +175,54 @@ func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Logger.Debugf("Deleted Transit Gateway Vpc Attachment: %s", *id)
+			logging.Debugf("Deleted Transit Gateway Vpc Attachment: %s", *id)
 		}
 	}
 
-	logging.Logger.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), tgw.Region)
+	logging.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), tgw.Region)
+	return nil
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	var ids []*string
+	err := tgpa.Client.DescribeTransitGatewayPeeringAttachmentsPages(&ec2.DescribeTransitGatewayPeeringAttachmentsInput{}, func(result *ec2.DescribeTransitGatewayPeeringAttachmentsOutput, lastPage bool) bool {
+		for _, attachment := range result.TransitGatewayPeeringAttachments {
+			if configObj.TransitGatewayPeeringAttachment.ShouldInclude(config.ResourceValue{
+				Time: attachment.CreationTime,
+			}) {
+				ids = append(ids, attachment.TransitGatewayAttachmentId)
+			}
+		}
+
+		return !lastPage
+	})
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	return ids, nil
+}
+
+func (tgpa *TransitGatewayPeeringAttachment) nukeAll(ids []*string) error {
+	for _, id := range ids {
+		_, err := tgpa.Client.DeleteTransitGatewayPeeringAttachment(&ec2.DeleteTransitGatewayPeeringAttachmentInput{
+			TransitGatewayAttachmentId: id,
+		})
+		// Record status of this resource
+		report.Record(report.Entry{
+			Identifier:   aws.StringValue(id),
+			ResourceType: tgpa.ResourceName(),
+			Error:        err,
+		})
+		if err != nil {
+			logging.Errorf("[Failed] %s", err)
+		} else {
+			logging.Debugf("Deleted Transit Gateway Peering Attachment: %s", *id)
+		}
+	}
+
 	return nil
 }

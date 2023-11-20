@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
-	"github.com/pterm/pterm"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"sync"
 
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -39,11 +39,11 @@ func (gw *ApiGatewayV2) getAll(c context.Context, configObj config.Config) ([]*s
 
 func (gw *ApiGatewayV2) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		pterm.Debug.Println(fmt.Sprintf("No API Gateways (v2) to nuke in region %s", gw.Region))
+		logging.Debug(fmt.Sprintf("No API Gateways (v2) to nuke in region %s", gw.Region))
 	}
 
 	if len(identifiers) > 100 {
-		pterm.Debug.Println(fmt.Sprintf(
+		logging.Debug(fmt.Sprintf(
 			"Nuking too many API Gateways (v2) at once (100): halting to avoid hitting AWS API rate limiting"))
 		return TooManyApiGatewayV2Err{}
 	}
@@ -54,7 +54,7 @@ func (gw *ApiGatewayV2) nukeAll(identifiers []*string) error {
 	}
 
 	// There is no bulk delete Api Gateway API, so we delete the batch of gateways concurrently using goroutines
-	pterm.Debug.Println(fmt.Sprintf("Deleting Api Gateways (v2) in region %s", gw.Region))
+	logging.Debug(fmt.Sprintf("Deleting Api Gateways (v2) in region %s", gw.Region))
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
@@ -98,9 +98,9 @@ func (gw *ApiGatewayV2) deleteAsync(wg *sync.WaitGroup, errChan chan error, apiI
 	report.Record(e)
 
 	if err == nil {
-		pterm.Debug.Println(fmt.Sprintf("Successfully deleted API Gateway (v2) %s in %s", aws.StringValue(apiId), gw.Region))
+		logging.Debug(fmt.Sprintf("Successfully deleted API Gateway (v2) %s in %s", aws.StringValue(apiId), gw.Region))
 	} else {
-		pterm.Debug.Println(fmt.Sprintf("Failed to delete API Gateway (v2) %s in %s", aws.StringValue(apiId), gw.Region))
+		logging.Debug(fmt.Sprintf("Failed to delete API Gateway (v2) %s in %s", aws.StringValue(apiId), gw.Region))
 	}
 }
 
@@ -114,17 +114,17 @@ func deleteAssociatedApiMappings(
 
 	domainNames, err := client.GetDomainNames(&apigatewayv2.GetDomainNamesInput{})
 	if err != nil {
-		pterm.Debug.Println(fmt.Sprintf("Failed to get domain names: %s", err))
+		logging.Debug(fmt.Sprintf("Failed to get domain names: %s", err))
 		return errors.WithStackTrace(err)
 	}
 
-	pterm.Debug.Println(fmt.Sprintf("Found %d domain names", len(domainNames.Items)))
+	logging.Debug(fmt.Sprintf("Found %d domain names", len(domainNames.Items)))
 	for _, domainName := range domainNames.Items {
 		apiMappings, err := client.GetApiMappings(&apigatewayv2.GetApiMappingsInput{
 			DomainName: domainName.DomainName,
 		})
 		if err != nil {
-			pterm.Debug.Println(fmt.Sprintf("Failed to get api mappings: %s", err))
+			logging.Debug(fmt.Sprintf("Failed to get api mappings: %s", err))
 			return errors.WithStackTrace(err)
 		}
 
@@ -138,11 +138,11 @@ func deleteAssociatedApiMappings(
 				DomainName:   domainName.DomainName,
 			})
 			if err != nil {
-				pterm.Debug.Println(fmt.Sprintf("Failed to delete api mapping: %s", err))
+				logging.Debug(fmt.Sprintf("Failed to delete api mapping: %s", err))
 				return errors.WithStackTrace(err)
 			}
 
-			pterm.Debug.Println(fmt.Sprintf("Deleted api mapping: %s", *apiMapping.ApiMappingId))
+			logging.Debug(fmt.Sprintf("Deleted api mapping: %s", *apiMapping.ApiMappingId))
 		}
 	}
 

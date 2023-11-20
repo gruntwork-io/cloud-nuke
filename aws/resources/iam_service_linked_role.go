@@ -67,7 +67,7 @@ func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) 
 			return gruntworkerrors.WithStackTrace(err)
 		}
 		if aws.StringValue(deletionStatus.Status) == "IN_PROGRESS" {
-			logging.Logger.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.StringValue(roleName))
+			logging.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.StringValue(roleName))
 			done = false
 			time.Sleep(3 * time.Second)
 		}
@@ -85,7 +85,7 @@ func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) 
 // Delete all IAM Roles
 func (islr *IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	if len(roleNames) == 0 {
-		logging.Logger.Debug("No IAM Service Linked Roles to nuke")
+		logging.Debug("No IAM Service Linked Roles to nuke")
 		return nil
 	}
 
@@ -94,12 +94,12 @@ func (islr *IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(roleNames) > 100 {
-		logging.Logger.Debugf("Nuking too many IAM Service Linked Roles at once (100): halting to avoid hitting AWS API rate limiting")
+		logging.Debugf("Nuking too many IAM Service Linked Roles at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyIamRoleErr{}
 	}
 
 	// There is no bulk delete IAM Roles API, so we delete the batch of IAM roles concurrently using go routines
-	logging.Logger.Debugf("Deleting all IAM Service Linked Roles")
+	logging.Debugf("Deleting all IAM Service Linked Roles")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(roleNames))
 	errChans := make([]chan error, len(roleNames))
@@ -114,7 +114,7 @@ func (islr *IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
-			logging.Logger.Debugf("[Failed] %s", err)
+			logging.Debugf("[Failed] %s", err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking IAM Service Linked Role",
 			}, map[string]interface{}{})
@@ -126,7 +126,7 @@ func (islr *IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	}
 
 	for _, roleName := range roleNames {
-		logging.Logger.Debugf("[OK] IAM Service Linked Role %s was deleted.", aws.StringValue(roleName))
+		logging.Debugf("[OK] IAM Service Linked Role %s was deleted.", aws.StringValue(roleName))
 	}
 	return nil
 }

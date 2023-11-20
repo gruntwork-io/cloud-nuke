@@ -91,11 +91,11 @@ func shouldIncludeInstanceId(instance *ec2.Instance, protected bool, configObj c
 // Deletes all non protected EC2 instances
 func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 	if len(instanceIds) == 0 {
-		logging.Logger.Debugf("No EC2 instances to nuke in region %s", ei.Region)
+		logging.Debugf("No EC2 instances to nuke in region %s", ei.Region)
 		return nil
 	}
 
-	logging.Logger.Debugf("Terminating all EC2 instances in region %s", ei.Region)
+	logging.Debugf("Terminating all EC2 instances in region %s", ei.Region)
 
 	params := &ec2.TerminateInstancesInput{
 		InstanceIds: instanceIds,
@@ -103,7 +103,7 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 
 	_, err := ei.Client.TerminateInstances(params)
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking EC2 Instance",
 		}, map[string]interface{}{
@@ -122,11 +122,11 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 	})
 
 	for _, instanceID := range instanceIds {
-		logging.Logger.Debugf("Terminated EC2 Instance: %s", *instanceID)
+		logging.Debugf("Terminated EC2 Instance: %s", *instanceID)
 	}
 
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error Nuking EC2 Instance",
 		}, map[string]interface{}{
@@ -135,7 +135,7 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Logger.Debugf("[OK] %d instance(s) terminated in %s", len(instanceIds), ei.Region)
+	logging.Debugf("[OK] %d instance(s) terminated in %s", len(instanceIds), ei.Region)
 	return nil
 }
 
@@ -175,7 +175,7 @@ func GetDefaultVpcId(vpc Vpc) (string, error) {
 	}
 	vpcs, err := vpc.svc.DescribeVpcs(input)
 	if err != nil {
-		logging.Logger.Debugf("[Failed] %s", err)
+		logging.Debugf("[Failed] %s", err)
 		return "", errors.WithStackTrace(err)
 	}
 	if len(vpcs.Vpcs) == 1 {
@@ -223,7 +223,7 @@ func (v Vpc) nukeInternetGateway(spinner *pterm.SpinnerPrinter) error {
 	if len(igw.InternetGateways) == 1 {
 		msg := fmt.Sprintf("...detaching Internet Gateway %s", awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId))
 		spinner.UpdateText(msg)
-		logging.Logger.Debug(msg)
+		logging.Debug(msg)
 		_, err := v.svc.DetachInternetGateway(
 			&ec2.DetachInternetGatewayInput{
 				InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
@@ -236,7 +236,7 @@ func (v Vpc) nukeInternetGateway(spinner *pterm.SpinnerPrinter) error {
 
 		spinnerMsg := fmt.Sprintf("...deleting Internet Gateway %s", awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId))
 		spinner.UpdateText(spinnerMsg)
-		logging.Logger.Debugf(spinnerMsg)
+		logging.Debugf(spinnerMsg)
 		_, err = v.svc.DeleteInternetGateway(
 			&ec2.DeleteInternetGatewayInput{
 				InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
@@ -247,7 +247,7 @@ func (v Vpc) nukeInternetGateway(spinner *pterm.SpinnerPrinter) error {
 		}
 	} else {
 		spinnerMsg := "...no Internet Gateway found"
-		logging.Logger.Debug(spinnerMsg)
+		logging.Debug(spinnerMsg)
 	}
 
 	return nil
@@ -268,7 +268,7 @@ func (v Vpc) nukeSubnets(spinner *pterm.SpinnerPrinter) error {
 		for _, subnet := range subnets.Subnets {
 			msg := fmt.Sprintf("...deleting subnet %s", awsgo.StringValue(subnet.SubnetId))
 			spinner.UpdateText(msg)
-			logging.Logger.Debug(msg)
+			logging.Debug(msg)
 			_, err := v.svc.DeleteSubnet(
 				&ec2.DeleteSubnetInput{
 					SubnetId: subnet.SubnetId,
@@ -280,7 +280,7 @@ func (v Vpc) nukeSubnets(spinner *pterm.SpinnerPrinter) error {
 		}
 	} else {
 		msg := "...no subnets found"
-		logging.Logger.Debug(msg)
+		logging.Debug(msg)
 	}
 	return nil
 }
@@ -304,7 +304,7 @@ func (v Vpc) nukeRouteTables(spinner *pterm.SpinnerPrinter) error {
 
 		msg := fmt.Sprintf("...deleting route table %s", awsgo.StringValue(routeTable.RouteTableId))
 		spinner.UpdateText(msg)
-		logging.Logger.Debug(msg)
+		logging.Debug(msg)
 		_, err := v.svc.DeleteRouteTable(
 			&ec2.DeleteRouteTableInput{
 				RouteTableId: routeTable.RouteTableId,
@@ -335,7 +335,7 @@ func (v Vpc) nukeNacls(spinner *pterm.SpinnerPrinter) error {
 	for _, networkACL := range networkACLs.NetworkAcls {
 		msg := fmt.Sprintf("...deleting Network ACL %s", awsgo.StringValue(networkACL.NetworkAclId))
 		spinner.UpdateText(msg)
-		logging.Logger.Debug(msg)
+		logging.Debug(msg)
 		_, err := v.svc.DeleteNetworkAcl(
 			&ec2.DeleteNetworkAclInput{
 				NetworkAclId: networkACL.NetworkAclId,
@@ -374,7 +374,7 @@ func (v Vpc) nukeSecurityGroups(spinner *pterm.SpinnerPrinter) error {
 		for _, securityGroupRule := range securityGroupRules.SecurityGroupRules {
 			msg := fmt.Sprintf("...deleting Security Group Rule %s", awsgo.StringValue(securityGroupRule.SecurityGroupRuleId))
 			spinner.UpdateText(msg)
-			logging.Logger.Debug(msg)
+			logging.Debug(msg)
 			if *securityGroupRule.IsEgress {
 				_, err := v.svc.RevokeSecurityGroupEgress(
 					&ec2.RevokeSecurityGroupEgressInput{
@@ -402,7 +402,7 @@ func (v Vpc) nukeSecurityGroups(spinner *pterm.SpinnerPrinter) error {
 	for _, securityGroup := range securityGroups.SecurityGroups {
 		msg := fmt.Sprintf("...deleting Security Group %s", awsgo.StringValue(securityGroup.GroupId))
 		spinner.UpdateText(msg)
-		logging.Logger.Debug(msg)
+		logging.Debug(msg)
 		if *securityGroup.GroupName != "default" {
 			_, err := v.svc.DeleteSecurityGroup(
 				&ec2.DeleteSecurityGroupInput{
@@ -435,13 +435,13 @@ func (v Vpc) nukeEndpoints(spinner *pterm.SpinnerPrinter) error {
 		endpointIds = append(endpointIds, endpoint.VpcEndpointId)
 		msg := fmt.Sprintf("...deleting VPC endpoint %s", awsgo.StringValue(endpoint.VpcEndpointId))
 		spinner.UpdateText(msg)
-		logging.Logger.Debugf(msg)
+		logging.Debugf(msg)
 	}
 
 	if len(endpointIds) == 0 {
 		msg := "...no endpoints found"
 		spinner.UpdateText(msg)
-		logging.Logger.Debug(msg)
+		logging.Debug(msg)
 		return nil
 	}
 
@@ -463,7 +463,7 @@ func (v Vpc) nukeEgressOnlyGateways(spinner *pterm.SpinnerPrinter) error {
 	allEgressGateways := []*string{}
 	msg := "Finding Egress Only Internet Gateways to Nuke"
 	spinner.UpdateText(msg)
-	logging.Logger.Debug(msg)
+	logging.Debug(msg)
 	err := v.svc.DescribeEgressOnlyInternetGatewaysPages(
 		&ec2.DescribeEgressOnlyInternetGatewaysInput{},
 		func(page *ec2.DescribeEgressOnlyInternetGatewaysOutput, lastPage bool) bool {
@@ -483,7 +483,7 @@ func (v Vpc) nukeEgressOnlyGateways(spinner *pterm.SpinnerPrinter) error {
 	}
 	finalMsg := fmt.Sprintf("Found %d Egress Only Internet Gateways to Nuke.", len(allEgressGateways))
 	spinner.UpdateText(finalMsg)
-	logging.Logger.Debug(finalMsg)
+	logging.Debug(finalMsg)
 
 	var allErrs *multierror.Error
 	for _, gateway := range allEgressGateways {
@@ -497,7 +497,7 @@ func (v Vpc) nukeNetworkInterfaces(spinner *pterm.SpinnerPrinter) error {
 	allNetworkInterfaces := []*string{}
 	msg := "Finding Elastic Network Interfaces to Nuke"
 	spinner.UpdateText(msg)
-	logging.Logger.Debug(msg)
+	logging.Debug(msg)
 	vpcIds := []string{v.VpcId}
 	filters := []*ec2.Filter{{Name: awsgo.String("vpc-id"), Values: awsgo.StringSlice(vpcIds)}}
 	err := v.svc.DescribeNetworkInterfacesPages(
@@ -517,7 +517,7 @@ func (v Vpc) nukeNetworkInterfaces(spinner *pterm.SpinnerPrinter) error {
 
 	finalMsg := fmt.Sprintf("Found %d ELastic Network Interfaces to Nuke.", len(allNetworkInterfaces))
 	spinner.UpdateText(finalMsg)
-	logging.Logger.Debug(finalMsg)
+	logging.Debug(finalMsg)
 
 	var allErrs *multierror.Error
 	for _, netInterface := range allNetworkInterfaces {
@@ -562,7 +562,7 @@ func waitForVPCEndpointsToBeDeleted(v Vpc) error {
 		}
 
 		time.Sleep(20 * time.Second)
-		logging.Logger.Debug("Waiting for VPC endpoints to be deleted...")
+		logging.Debug("Waiting for VPC endpoints to be deleted...")
 	}
 
 	return VPCEndpointDeleteTimeoutError{}
@@ -577,7 +577,7 @@ func (e VPCEndpointDeleteTimeoutError) Error() string {
 func (v Vpc) nukeVpc(spinner *pterm.SpinnerPrinter) error {
 	msg := fmt.Sprintf("Deleting VPC %s", v.VpcId)
 	spinner.UpdateText(msg)
-	logging.Logger.Debug(msg)
+	logging.Debug(msg)
 	input := &ec2.DeleteVpcInput{
 		VpcId: awsgo.String(v.VpcId),
 	}
@@ -589,73 +589,73 @@ func (v Vpc) nukeVpc(spinner *pterm.SpinnerPrinter) error {
 }
 
 func (v Vpc) nuke(spinner *pterm.SpinnerPrinter) error {
-	logging.Logger.Debugf("Nuking VPC %s in region %s", v.VpcId, v.Region)
+	logging.Debugf("Nuking VPC %s in region %s", v.VpcId, v.Region)
 	spinner.UpdateText(fmt.Sprintf("Nuking VPC %s in region %s", v.VpcId, v.Region))
 
 	err := v.nukeInternetGateway(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Internet Gateway for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Internet Gateway for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeEgressOnlyGateways(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Egress Only Internet Gateways for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Egress Only Internet Gateways for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeEndpoints(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Endpoints for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeNetworkInterfaces(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Elastic Network Interfaces for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Elastic Network Interfaces for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeSubnets(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Subnets for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Subnets for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeRouteTables(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Route Tables for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Route Tables for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeNacls(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Network ACLs for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Network ACLs for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeSecurityGroups(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up Security Groups for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up Security Groups for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.dissociateDhcpOptions(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error cleaning up DHCP Options for VPC %s: %s", v.VpcId, err.Error())
+		logging.Debugf("Error cleaning up DHCP Options for VPC %s: %s", v.VpcId, err.Error())
 		return err
 	}
 
 	err = v.nukeVpc(spinner)
 	if err != nil {
-		logging.Logger.Debugf("Error deleting VPC %s: %s ", v.VpcId, err)
+		logging.Debugf("Error deleting VPC %s: %s ", v.VpcId, err)
 		return err
 	}
 	return nil
 }
 
 func NukeVpcs(vpcs []Vpc) error {
-	logging.Logger.Debugf("Deleting the following VPCs:%+v\n", vpcs)
+	logging.Debugf("Deleting the following VPCs:%+v\n", vpcs)
 
 	spinnerMsg := fmt.Sprintf("Nuking the following vpcs: %+v\n", vpcs)
 	// Start a simple spinner to track progress reading all relevant AWS resources
@@ -678,11 +678,11 @@ func NukeVpcs(vpcs []Vpc) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("Skipping to the next default VPC")
+			logging.Debugf("Skipping to the next default VPC")
 			continue
 		}
 	}
-	logging.Logger.Debug("Finished nuking default VPCs in all regions")
+	logging.Debug("Finished nuking default VPCs in all regions")
 	return nil
 }
 
@@ -771,13 +771,13 @@ func (sg DefaultSecurityGroup) getDefaultSecurityGroupIPv6EgressRule() *ec2.Revo
 }
 
 func (sg DefaultSecurityGroup) nuke() error {
-	logging.Logger.Debugf("...revoking default rules from Security Group %s", sg.GroupId)
+	logging.Debugf("...revoking default rules from Security Group %s", sg.GroupId)
 	if sg.GroupName == "default" {
 		ingressRule := sg.getDefaultSecurityGroupIngressRule()
 		_, err := sg.svc.RevokeSecurityGroupIngress(ingressRule)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidPermission.NotFound" {
-				logging.Logger.Debugf("Egress rule not present (ok)")
+				logging.Debugf("Egress rule not present (ok)")
 			} else {
 				return fmt.Errorf("error deleting ingress rule: %s", errors.WithStackTrace(err))
 			}
@@ -787,7 +787,7 @@ func (sg DefaultSecurityGroup) nuke() error {
 		_, err = sg.svc.RevokeSecurityGroupEgress(egressRule)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidPermission.NotFound" {
-				logging.Logger.Debugf("Ingress rule not present (ok)")
+				logging.Debugf("Ingress rule not present (ok)")
 			} else {
 				return fmt.Errorf("error deleting eggress rule: %s", errors.WithStackTrace(err))
 			}
@@ -797,7 +797,7 @@ func (sg DefaultSecurityGroup) nuke() error {
 		_, err = sg.svc.RevokeSecurityGroupEgress(ipv6EgressRule)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidPermission.NotFound" {
-				logging.Logger.Debugf("Ingress rule not present (ok)")
+				logging.Debugf("Ingress rule not present (ok)")
 			} else {
 				return fmt.Errorf("error deleting eggress rule: %s", errors.WithStackTrace(err))
 			}
@@ -820,12 +820,12 @@ func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Logger.Debugf("Error: %s", err)
-			logging.Logger.Debugf("Skipping to the next default Security Group")
+			logging.Debugf("Error: %s", err)
+			logging.Debugf("Skipping to the next default Security Group")
 			continue
 		}
 	}
-	logging.Logger.Debug("Finished nuking default Security Groups in all regions")
+	logging.Debug("Finished nuking default Security Groups in all regions")
 	return nil
 }
 
