@@ -42,6 +42,10 @@ func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*s
 			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
 				for _, version := range page.LayerVersions {
 					logging.Logger.Debugf("Found layer version! %s", version)
+
+					// Currently the output is just the identifier which is the layer's name.
+					// There could be potentially multiple rows of the same identifier or
+					// layer name since there can be multiple versions of it.
 					names = append(names, layer.LayerName)
 				}
 
