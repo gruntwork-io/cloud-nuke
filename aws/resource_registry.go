@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"reflect"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
-	"reflect"
 )
 
 const Global = "global"
@@ -84,6 +85,7 @@ func getRegisteredRegionalResources() []AwsResources {
 		&resources.KinesisStreams{},
 		&resources.KmsCustomerKeys{},
 		&resources.LambdaFunctions{},
+		&resources.LambdaLayers{},
 		&resources.LaunchConfigs{},
 		&resources.LaunchTemplates{},
 		&resources.MacieMember{},

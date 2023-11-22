@@ -2,8 +2,6 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,6 +10,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (lf *LambdaFunctions) getAll(c context.Context, configObj config.Config) ([]*string, error) {

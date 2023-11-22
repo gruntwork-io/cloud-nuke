@@ -11,31 +11,31 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type LambdaFunctions struct {
+type LambdaLayers struct {
 	Client              lambdaiface.LambdaAPI
 	Region              string
 	LambdaFunctionNames []string
 }
 
-func (lf *LambdaFunctions) Init(session *session.Session) {
+func (lf *LambdaLayers) Init(session *session.Session) {
 	lf.Client = lambda.New(session)
 }
 
-func (lf *LambdaFunctions) ResourceName() string {
-	return "lambda"
+func (lf *LambdaLayers) ResourceName() string {
+	return "lambda_layer"
 }
 
 // ResourceIdentifiers - The names of the lambda functions
-func (lf *LambdaFunctions) ResourceIdentifiers() []string {
+func (lf *LambdaLayers) ResourceIdentifiers() []string {
 	return lf.LambdaFunctionNames
 }
 
-func (lf *LambdaFunctions) MaxBatchSize() int {
+func (lf *LambdaLayers) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (lf *LambdaFunctions) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+func (lf *LambdaLayers) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := lf.getAll(c, configObj)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func (lf *LambdaFunctions) GetAndSetIdentifiers(c context.Context, configObj con
 }
 
 // Nuke - nuke 'em all!!!
-func (lf *LambdaFunctions) Nuke(identifiers []string) error {
+func (lf *LambdaLayers) Nuke(identifiers []string) error {
 	if err := lf.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -54,10 +54,10 @@ func (lf *LambdaFunctions) Nuke(identifiers []string) error {
 	return nil
 }
 
-type LambdaDeleteError struct {
+type LambdaVersionDeleteError struct {
 	name string
 }
 
-func (e LambdaDeleteError) Error() string {
+func (e LambdaVersionDeleteError) Error() string {
 	return "Lambda Function:" + e.name + "was not deleted"
 }

@@ -638,6 +638,14 @@ cd aws
 go test -v -run TestListAMIs
 ```
 
+
+And to run a specific test, such as `TestLambdaFunction_GetAll` in package `aws/resources`:
+
+```bash
+cd aws/resources
+go test -v -run TestLambdaFunction_GetAll
+```
+
 Use env-vars to opt-in to special tests, which are expensive to run:
 
 ```bash
