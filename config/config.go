@@ -229,6 +229,14 @@ func (r ResourceType) getExclusionTag() string {
 	return DefaultAwsResourceExclusionTagKey
 }
 
+func (r ResourceType) getInclusionTag() string {
+	if r.IncludeRule.Tag != nil {
+		return *r.IncludeRule.Tag
+	}
+
+	return ""
+}
+
 func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 	// Handle exclude rule first
 	exclusionTag := r.getExclusionTag()
@@ -238,7 +246,17 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 		}
 	}
 
-	return true
+	// Then handle include rule
+	inclusionTag := r.getInclusionTag()
+	if inclusionTag != "" {
+		if value, ok := tags[inclusionTag]; ok {
+			if strings.ToLower(value) == "true" {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (r ResourceType) ShouldInclude(value ResourceValue) bool {
