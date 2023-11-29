@@ -2,15 +2,16 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
+	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 

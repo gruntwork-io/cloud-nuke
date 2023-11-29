@@ -2,10 +2,11 @@ package resources
 
 import (
 	"context"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/report"
 	"github.com/aws/aws-sdk-go/service/kafka"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
 func (m MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {

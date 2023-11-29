@@ -3,8 +3,8 @@ package aws
 import (
 	"reflect"
 
+	"github.com/andrewderr/cloud-nuke-a1/aws/resources"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 )
 
 const Global = "global"

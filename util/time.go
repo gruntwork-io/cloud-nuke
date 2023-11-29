@@ -1,10 +1,11 @@
 package util
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/errors"
 	"time"
+
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 const (

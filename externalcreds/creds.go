@@ -3,7 +3,7 @@ package externalcreds
 import (
 	"os"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"

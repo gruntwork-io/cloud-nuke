@@ -2,18 +2,19 @@ package commands
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/aws/resources"
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"os"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/andrewderr/cloud-nuke-a1/aws"
+	"github.com/andrewderr/cloud-nuke-a1/aws/resources"
+	"github.com/andrewderr/cloud-nuke-a1/progressbar"
+
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/ui"
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/ui"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli/v2"

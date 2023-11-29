@@ -2,15 +2,16 @@ package ui
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/go-commons/errors"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/andrewderr/cloud-nuke-a1/aws"
+	"github.com/gruntwork-io/go-commons/errors"
+
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/progressbar"
+	"github.com/andrewderr/cloud-nuke-a1/report"
 	"github.com/pterm/pterm"
 )
 

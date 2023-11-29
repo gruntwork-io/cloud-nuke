@@ -1,10 +1,11 @@
 package commands
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"testing"
 	"time"
+
+	"github.com/andrewderr/cloud-nuke-a1/aws"
+	"github.com/andrewderr/cloud-nuke-a1/aws/resources"
 
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"

@@ -274,8 +274,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/externalcreds"
+	nuke_aws "github.com/andrewderr/cloud-nuke-a1/aws"
+	"github.com/andrewderr/cloud-nuke-a1/externalcreds"
 )
 
 func main() {

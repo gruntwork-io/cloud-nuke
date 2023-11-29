@@ -2,16 +2,17 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"time"
 
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/report"
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )

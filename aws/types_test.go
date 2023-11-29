@@ -1,11 +1,12 @@
 package aws
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
 	"testing"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/aws/aws-sdk-go/aws"
+
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 
 	"github.com/stretchr/testify/require"
 )

@@ -2,10 +2,11 @@ package aws
 
 import (
 	"fmt"
+
+	"github.com/andrewderr/cloud-nuke-a1/externalcreds"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
 )
