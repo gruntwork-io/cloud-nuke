@@ -1,4 +1,4 @@
-module github.com/gruntwork-io/cloud-nuke
+module github.com/andrewderr/cloud-nuke-a1
 
 go 1.21
 
