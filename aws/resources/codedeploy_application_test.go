@@ -2,16 +2,17 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
+	"github.com/stretchr/testify/require"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
-	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
 type mockedCodeDeployApplications struct {

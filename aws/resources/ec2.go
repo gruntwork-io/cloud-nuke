@@ -3,22 +3,23 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/externalcreds"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
+
+	"github.com/andrewderr/cloud-nuke-a1/externalcreds"
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
+	"github.com/andrewderr/cloud-nuke-a1/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pterm/pterm"
 
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/report"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 

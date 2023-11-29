@@ -2,14 +2,15 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
 )
 
 type mockedCloudTrail struct {

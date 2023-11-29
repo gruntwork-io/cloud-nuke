@@ -1,9 +1,10 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"reflect"
 	"testing"
+
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 
 	"github.com/stretchr/testify/require"
 )

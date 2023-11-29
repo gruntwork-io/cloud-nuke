@@ -2,17 +2,18 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
+	"github.com/andrewderr/cloud-nuke-a1/util"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEIPAddresses struct {

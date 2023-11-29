@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andrewderr/cloud-nuke-a1/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kafka"
 	"github.com/aws/aws-sdk-go/service/kafka/kafkaiface"
-	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
 type mockMSKClient struct {

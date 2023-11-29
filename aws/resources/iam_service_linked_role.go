@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/report"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	gruntworkerrors "github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )

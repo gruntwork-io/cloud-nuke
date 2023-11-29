@@ -2,14 +2,15 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"testing"
 	"time"
 
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
+
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/securityhub"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 

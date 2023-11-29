@@ -3,10 +3,11 @@ package aws
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"strings"
 	"time"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 type AwsAccountResources struct {

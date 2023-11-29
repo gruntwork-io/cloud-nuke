@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/commands"
+	"github.com/andrewderr/cloud-nuke-a1/commands"
 	"github.com/gruntwork-io/go-commons/entrypoint"
 )
 

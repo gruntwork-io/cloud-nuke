@@ -2,16 +2,17 @@ package resources
 
 import (
 	"context"
+	"log"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/report"
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
-	"log"
 )
 
 func (ddb *DynamoDB) getAll(c context.Context, configObj config.Config) ([]*string, error) {

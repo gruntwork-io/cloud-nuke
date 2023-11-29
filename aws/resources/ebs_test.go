@@ -2,17 +2,18 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"regexp"
 	"testing"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 

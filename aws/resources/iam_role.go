@@ -2,17 +2,18 @@ package resources
 
 import (
 	"context"
+	"strings"
+	"sync"
+
+	"github.com/andrewderr/cloud-nuke-a1/config"
+	"github.com/andrewderr/cloud-nuke-a1/logging"
+	"github.com/andrewderr/cloud-nuke-a1/report"
+	"github.com/andrewderr/cloud-nuke-a1/telemetry"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
-	"strings"
-	"sync"
 )
 
 // List all IAM Roles in the AWS account
