@@ -8,6 +8,7 @@ import (
 	"github.com/andrewderr/cloud-nuke-a1/logging"
 	"github.com/andrewderr/cloud-nuke-a1/report"
 	"github.com/andrewderr/cloud-nuke-a1/telemetry"
+	"github.com/andrewderr/cloud-nuke-a1/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -26,6 +27,7 @@ func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*st
 				if configObj.IAMPolicies.ShouldInclude(config.ResourceValue{
 					Name: policy.PolicyName,
 					Time: policy.CreateDate,
+					Tags: util.ConvertIAMTagsToMap(policy.Tags),
 				}) {
 					allIamPolicies = append(allIamPolicies, policy.Arn)
 				}
