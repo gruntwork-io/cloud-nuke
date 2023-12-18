@@ -11,28 +11,28 @@ const Global = "global"
 
 // GetAllRegisteredResources - returns a list of all registered resources without initialization.
 // This is useful for listing all resources without initializing them.
-func GetAllRegisteredResources() []*AwsResources {
-	resources := getRegisteredGlobalResources()
-	resources = append(resources, getRegisteredRegionalResources()...)
+func GetAllRegisteredResources() []*AwsResource {
+	registeredResources := getRegisteredGlobalResources()
+	registeredResources = append(registeredResources, getRegisteredRegionalResources()...)
 
-	return toAwsResourcesPointer(resources)
+	return toAwsResourcesPointer(registeredResources)
 }
 
 // GetAndInitRegisteredResources - returns a list of all registered resources with initialization.
-func GetAndInitRegisteredResources(session *session.Session, region string) []*AwsResources {
-	var resources []AwsResources
+func GetAndInitRegisteredResources(session *session.Session, region string) []*AwsResource {
+	var registeredResources []AwsResource
 	if region == Global {
-		resources = getRegisteredGlobalResources()
+		registeredResources = getRegisteredGlobalResources()
 	} else {
-		resources = getRegisteredRegionalResources()
+		registeredResources = getRegisteredRegionalResources()
 	}
 
-	return initRegisteredResources(toAwsResourcesPointer(resources), session, region)
+	return initRegisteredResources(toAwsResourcesPointer(registeredResources), session, region)
 }
 
 // GetRegisteredGlobalResources - returns a list of registered global resources.
-func getRegisteredGlobalResources() []AwsResources {
-	return []AwsResources{
+func getRegisteredGlobalResources() []AwsResource {
+	return []AwsResource{
 		&resources.IAMUsers{},
 		&resources.IAMGroups{},
 		&resources.IAMPolicies{},
@@ -42,11 +42,11 @@ func getRegisteredGlobalResources() []AwsResources {
 	}
 }
 
-func getRegisteredRegionalResources() []AwsResources {
+func getRegisteredRegionalResources() []AwsResource {
 	// Note: The order is important because it determines the order of nuking resources. Some resources need to
 	// be deleted before others (Dependencies between resources exist). For example, we want to delete all EC2
 	// instances before deleting the VPC.
-	return []AwsResources{
+	return []AwsResource{
 		&resources.AccessAnalyzer{},
 		&resources.ACM{},
 		&resources.ACMPCA{},
@@ -109,8 +109,8 @@ func getRegisteredRegionalResources() []AwsResources {
 	}
 }
 
-func toAwsResourcesPointer(resources []AwsResources) []*AwsResources {
-	var awsResourcePointers []*AwsResources
+func toAwsResourcesPointer(resources []AwsResource) []*AwsResource {
+	var awsResourcePointers []*AwsResource
 	for i := range resources {
 		awsResourcePointers = append(awsResourcePointers, &resources[i])
 	}
@@ -118,7 +118,7 @@ func toAwsResourcesPointer(resources []AwsResources) []*AwsResources {
 	return awsResourcePointers
 }
 
-func initRegisteredResources(resources []*AwsResources, session *session.Session, region string) []*AwsResources {
+func initRegisteredResources(resources []*AwsResource, session *session.Session, region string) []*AwsResource {
 	for _, resource := range resources {
 		(*resource).Init(session)
 
@@ -129,7 +129,7 @@ func initRegisteredResources(resources []*AwsResources, session *session.Session
 	return resources
 }
 
-func setRegionForRegionalResource(regionResource *AwsResources, region string) {
+func setRegionForRegionalResource(regionResource *AwsResource, region string) {
 	// Use reflection to set the Region field if the resource type has it
 	resourceValue := reflect.ValueOf(*regionResource) // Dereference the pointer
 	resourceValue = resourceValue.Elem()              // Get the underlying value
