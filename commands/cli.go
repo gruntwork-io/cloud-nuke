@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"os"
 	"time"
 
@@ -411,10 +410,19 @@ func nukeDefaultVpcs(c *cli.Context, regions []string) error {
 
 	if proceed || c.Bool("force") {
 		// Start nuke progress bar with correct number of items
-		progressbar.StartProgressBarWithLength(len(targetedRegionList))
-		err := resources.NukeVpcs(vpcPerRegion)
+		progressBar, err := pterm.DefaultProgressbar.WithTotal(len(targetedRegionList)).Start()
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		err = resources.NukeVpcs(vpcPerRegion)
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
+		}
+
+		_, err = progressBar.Stop()
+		if err != nil {
+			return errors.WithStackTrace(err)
 		}
 	}
 	return nil

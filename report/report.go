@@ -2,14 +2,18 @@ package report
 
 import (
 	"sync"
-
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
 )
 
+/**
+Using a global variables to keep track of reports & errors.
+
+Generally, it is a bad idea to use global variables. However, in this case, it is the easiest way to keep track of
+data that are running in parallel. We can explore passing reports/errors from individual resources in the future.
+*/
+
+// Global variables to keep track of errors/progress when nuking resources.
 var m = &sync.Mutex{}
-
 var generalErrors = make(map[string]GeneralError)
-
 var records = make(map[string]Entry)
 
 func GetRecords() map[string]Entry {
@@ -32,9 +36,6 @@ func Record(e Entry) {
 	defer m.Unlock()
 	m.Lock()
 	records[e.Identifier] = e
-	// Increment the progressbar so the user feels measurable progress on long-running nuke jobs
-	p := progressbar.GetProgressbar()
-	p.Increment()
 }
 
 // RecordBatch accepts a BatchEntry that contains a slice of identifiers, loops through them and converts each identifier to
@@ -56,7 +57,6 @@ func RecordError(e GeneralError) {
 	generalErrors[e.Description] = e
 }
 
-// Custom types
 type Entry struct {
 	Identifier   string
 	ResourceType string
