@@ -3,13 +3,13 @@ package ui
 import (
 	"fmt"
 	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/pterm/pterm"
 )
@@ -20,12 +20,12 @@ import (
 // which prints its own findings out directly to os.Stdout
 func RenderRunReport() {
 	// Remove the progressbar, now that we're ready to display the table report
-	p := progressbar.GetProgressbar()
+	//p := GetProgressbar()
 	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up before the
 	// final run report table is printed
-	fmt.Print("\r")
-	p.Stop()
-	pterm.Println()
+	//fmt.Print("\r")
+	//p.Stop()
+	//pterm.Println()
 
 	// Conditionally print the general error report, if in fact there were errors
 	PrintGeneralErrorReport(os.Stdout)
@@ -95,7 +95,8 @@ func PrintRunReport(w io.Writer) {
 			// responsive within a terminal, and this truncation allows rows to situate nicely within the table
 			//
 			// If we upgrade to a library that can render flexbox tables in the terminal we should revisit this
-			errSymbol = fmt.Sprintf("%s %s", FailureEmoji, truncate(removeNewlines(entry.Error.Error()), 40))
+			errSymbol = fmt.Sprintf("%s %s", FailureEmoji, util.Truncate(
+				util.RemoveNewlines(entry.Error.Error()), 40))
 		} else {
 			errSymbol = SuccessEmoji
 		}
@@ -127,21 +128,6 @@ func renderTableWithHeader(headers []string, data [][]string, w io.Writer) {
 	if renderErr != nil {
 		logging.Infof("Error rendering report table: %s\n", renderErr)
 	}
-}
-
-// truncate accepts a string and a max length. If the max length is less than the string's current length,
-// then only the first maxLen characters of the string are returned
-func truncate(s string, maxLen int) string {
-	if len(s) > maxLen {
-		return s[:maxLen]
-	}
-	return s
-}
-
-// removeNewlines will delete all the newlines in a given string, which is useful for making error messages
-// "sit" more nicely within their specified table cells in the terminal
-func removeNewlines(s string) string {
-	return strings.ReplaceAll(s, "\n", "")
 }
 
 func RenderResourcesAsTable(account *aws.AwsAccountResources) error {

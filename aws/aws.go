@@ -13,7 +13,6 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/progressbar"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/collections"
@@ -75,7 +74,8 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 		}
 	}
 
-	pterm.Info.Println("Done searching for resources")
+	logging.Info("Done searching for resources")
+	logging.Infof("Found total of %d resources", account.TotalResourceCount())
 	err := spinner.Stop()
 	if err != nil {
 		return nil, err
@@ -110,19 +110,21 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
+func nukeAllResourcesInRegion(account *AwsAccountResources, region string, bar *pterm.ProgressbarPrinter) {
 	resourcesInRegion := account.Resources[region]
 
-	for _, resources := range resourcesInRegion.Resources {
-		length := len((*resources).ResourceIdentifiers())
+	for _, awsResource := range resourcesInRegion.Resources {
+		length := len((*awsResource).ResourceIdentifiers())
 
 		// Split api calls into batches
-		logging.Debugf("Terminating %d resources in batches", length)
-		batches := util.Split((*resources).ResourceIdentifiers(), (*resources).MaxBatchSize())
+		logging.Debugf("Terminating %d awsResource in batches", length)
+		batches := util.Split((*awsResource).ResourceIdentifiers(), (*awsResource).MaxBatchSize())
 
 		for i := 0; i < len(batches); i++ {
 			batch := batches[i]
-			if err := (*resources).Nuke(batch); err != nil {
+			bar.UpdateTitle(fmt.Sprintf("Nuking batch of %d %s resource(s) in %s",
+				len(batch), (*awsResource).ResourceName(), region))
+			if err := (*awsResource).Nuke(batch); err != nil {
 				// TODO: Figure out actual error type
 				if strings.Contains(err.Error(), "RequestLimitExceeded") {
 					logging.Debug(
@@ -142,6 +144,9 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
 				logging.Debug("Sleeping for 10 seconds before processing next batch...")
 				time.Sleep(10 * time.Second)
 			}
+
+			// Update the spinner to show the current resource type being nuked
+			bar.Add(len(batch))
 		}
 	}
 }
@@ -150,7 +155,10 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string) {
 func NukeAllResources(account *AwsAccountResources, regions []string) error {
 	// Set the progressbar width to the total number of nukeable resources found
 	// across all regions
-	progressbar.StartProgressBarWithLength(account.TotalResourceCount())
+	progressBar, err := pterm.DefaultProgressbar.WithTotal(account.TotalResourceCount()).Start()
+	if err != nil {
+		return err
+	}
 
 	telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "Begin nuking resources",
@@ -166,13 +174,18 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		// We intentionally do not handle an error returned from this method, because we collect individual errors
 		// on per-resource basis via the report package's Record method. In the run report displayed at the end of
 		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
-		nukeAllResourcesInRegion(account, region)
+		nukeAllResourcesInRegion(account, region, progressBar)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Done Nuking Region",
 		}, map[string]interface{}{
 			"region":        region,
 			"resourceCount": len(account.Resources[region].Resources),
 		})
+	}
+
+	_, err = progressBar.Stop()
+	if err != nil {
+		return err
 	}
 
 	return nil

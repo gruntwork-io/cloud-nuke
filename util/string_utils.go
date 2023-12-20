@@ -1,5 +1,7 @@
 package util
 
+import "strings"
+
 func Split(identifiers []string, limit int) [][]string {
 	if limit < 0 {
 		limit = -1 * limit
@@ -35,4 +37,19 @@ func Difference(a, b []*string) []*string {
 	}
 
 	return diff
+}
+
+// Truncate accepts a string and a max length. If the max length is less than the string's current length,
+// then only the first maxLen characters of the string are returned
+func Truncate(s string, maxLen int) string {
+	if len(s) > maxLen {
+		return s[:maxLen]
+	}
+	return s
+}
+
+// RemoveNewlines will delete all the newlines in a given string, which is useful for making error messages
+// "sit" more nicely within their specified table cells in the terminal
+func RemoveNewlines(s string) string {
+	return strings.ReplaceAll(s, "\n", "")
 }
