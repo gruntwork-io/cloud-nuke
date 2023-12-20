@@ -25,7 +25,7 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
 	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = query.ListUnaliasedKMSKeys
 	account := AwsAccountResources{
-		Resources: make(map[string]AwsRegionResource),
+		Resources: make(map[string]AwsResources),
 	}
 
 	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
@@ -37,7 +37,7 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 			c = context.WithValue(c, util.AccountIdKey, accountId)
 		}
 
-		awsResource := AwsRegionResource{}
+		awsResource := AwsResources{}
 		registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
 		for _, resource := range registeredResources {
 			if IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
