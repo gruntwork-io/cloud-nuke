@@ -4,11 +4,12 @@ import (
 	"context"
 	cerrors "errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/pterm/pterm"
-	"strings"
-	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -89,7 +90,7 @@ func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string,
 
 		if configObj.VPC.ShouldInclude(config.ResourceValue{
 			Time: firstSeenTime,
-			Name: GetEC2ResourceNameTagValue(vpc.Tags),
+			Name: util.GetEC2ResourceNameTagValue(vpc.Tags),
 		}) {
 			ids = append(ids, vpc.VpcId)
 		}

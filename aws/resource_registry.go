@@ -106,6 +106,12 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.TransitGatewaysVpcAttachment{},
 		&resources.TransitGatewaysRouteTables{},
 		&resources.TransitGateways{},
+		&resources.EC2IPAMs{},
+		&resources.EC2IpamScopes{},
+		&resources.EC2IPAMResourceDiscovery{},
+		&resources.EC2IPAMPool{},
+		&resources.EC2IPAMByoasn{},
+		&resources.EC2IPAMCustomAllocation{},
 	}
 }
 

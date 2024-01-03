@@ -39,6 +39,10 @@ type Config struct {
 	EC2DedicatedHosts               ResourceType               `yaml:"EC2DedicatedHosts"`
 	EC2DHCPOption                   ResourceType               `yaml:"EC2DhcpOption"`
 	EC2KeyPairs                     ResourceType               `yaml:"EC2KeyPairs"`
+	EC2IPAM                         ResourceType               `yaml:"EC2IPAM"`
+	EC2IPAMPool                     ResourceType               `yaml:"EC2IPAMPool"`
+	EC2IPAMResourceDiscovery        ResourceType               `yaml:"EC2IPAMResourceDiscovery"`
+	EC2IPAMScope                    ResourceType               `yaml:"EC2IPAMScope"`
 	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
 	ECSCluster                      ResourceType               `yaml:"ECSCluster"`
 	ECSService                      ResourceType               `yaml:"ECSService"`

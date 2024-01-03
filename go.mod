@@ -3,8 +3,8 @@ module github.com/gruntwork-io/cloud-nuke
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.44.304
-	github.com/aws/aws-sdk-go-v2 v1.18.1
+	github.com/aws/aws-sdk-go v1.49.13
+	github.com/aws/aws-sdk-go-v2 v1.24.0
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/gruntwork-io/go-commons v0.17.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
@@ -19,7 +19,7 @@ require (
 require (
 	atomicgo.dev/cursor v0.1.1 // indirect
 	atomicgo.dev/keyboard v0.2.8 // indirect
-	github.com/aws/smithy-go v1.13.5 // indirect
+	github.com/aws/smithy-go v1.19.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -41,7 +41,6 @@ require (
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
-	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect

@@ -23,12 +23,15 @@ Telemetry can be disabled entirely by setting the `DISABLE_TELEMETRY` environmen
 As an open source tool, you can see the exact statistics being collected by searching the code for
 `telemetry.TrackEvent(...)`
 
-
 # cloud-nuke
 
-This repo contains a CLI tool to delete all resources . cloud-nuke was created for situations when you might have an account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and permissive ingress/egress rules in default security groups.
+This repo contains a CLI tool to delete all resources . cloud-nuke was created for situations when you might have an
+account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for
+cleaning out accounts with redundant resources. Also great for removing unnecessary defaults like default VPCs and
+permissive ingress/egress rules in default security groups.
 
-In addition, cloud-nuke offers non-destructive inspecting functionality that can either be called via the command-line interface, or consumed as library methods, for scripting purposes.
+In addition, cloud-nuke offers non-destructive inspecting functionality that can either be called via the command-line
+interface, or consumed as library methods, for scripting purposes.
 
 The currently supported functionality includes:
 
@@ -37,7 +40,7 @@ The currently supported functionality includes:
 Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS resources:
 
 | Resource Family         | Resource type                                            |
-| ----------------------- | -------------------------------------------------------- |
+|-------------------------|----------------------------------------------------------|
 | EC2                     | Auto scaling groups                                      |
 | EC2                     | Elastic Load Balancers (v1 and v2)                       |
 | EC2                     | EBS Volumes                                              |
@@ -46,6 +49,12 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | Snapshots                                                |
 | EC2                     | Elastic IPs                                              |
 | EC2                     | Launch Configurations                                    |
+| EC2                     | IPAM (Amazon VPC IP Address Manager)                     |
+| EC2                     | IPAM Pool															                                 |
+| EC2                     | IPAM Scope														                                 |
+| EC2                     | IPAM Custom Allocation 								                          |
+| EC2                     | IPAM BYOASN	          								                           |
+| EC2                     | IPAM Resource Discovery 							                          |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -95,15 +104,24 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | AWS Certificate Manager | Certificates                                             |
 | CodeDeploy              | Applications                                             |
 
-> **WARNING:** The RDS APIs also interact with neptune and document db resources.  Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources in the account.
+> **WARNING:** The RDS APIs also interact with neptune and document db resources.
+> Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources
+> in
+> the account.
 
-> **NOTE: AWS Backup Resource:** Resources (such as AMIs) created by AWS Backup, while owned by your AWS account, are managed specifically by AWS Backup and cannot be deleted through standard APIs calls for that resource. These resources are tagged by AWS Backup and are filtered out so that `cloud-nuke` does not fail when trying to delete resources it cannot delete.
+> **NOTE: AWS Backup Resource:** Resources (such as AMIs) created by AWS Backup, while owned by your AWS account, are
+> managed specifically by AWS Backup and cannot be deleted through standard APIs calls for that resource. These
+> resources
+> are tagged by AWS Backup and are filtered out so that `cloud-nuke` does not fail when trying to delete resources it
+> cannot delete.
 
 ### BEWARE!
 
-When executed as `cloud-nuke aws`, this tool is **HIGHLY DESTRUCTIVE** and deletes all resources! This mode should never be used in a production environment!
+When executed as `cloud-nuke aws`, this tool is **HIGHLY DESTRUCTIVE** and deletes all resources! This mode should never
+be used in a production environment!
 
-When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs and the default ingress/egress rule for all default security groups. This should be used in production environments **WITH CAUTION**.
+When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs and the default ingress/egress rule for
+all default security groups. This should be used in production environments **WITH CAUTION**.
 
 ## Install
 
@@ -116,7 +134,11 @@ When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs a
 
 ### Install via package manager
 
-Note that package managers are third party. The third party cloud-nuke packages may not be updated with the latest version, but are often close. Please check your version against the latest available on the [releases page](https://github.com/gruntwork-io/cloud-nuke/releases). If you want the latest version, the recommended installation option is to [download from the releases page](https://github.com/gruntwork-io/cloud-nuke/releases).
+Note that package managers are third party. The third party cloud-nuke packages may not be updated with the latest
+version, but are often close. Please check your version against the latest available on
+the [releases page](https://github.com/gruntwork-io/cloud-nuke/releases). If you want the latest version, the
+recommended installation option is
+to [download from the releases page](https://github.com/gruntwork-io/cloud-nuke/releases).
 
 - **macOS:** You can install cloud-nuke using [Homebrew](https://brew.sh/): `brew install cloud-nuke`.
 
@@ -124,45 +146,55 @@ Note that package managers are third party. The third party cloud-nuke packages 
 
 ## Usage
 
-Simply running `cloud-nuke aws` will start the process of cleaning up your cloud account. You'll be shown a list of resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
+Simply running `cloud-nuke aws` will start the process of cleaning up your cloud account. You'll be shown a list of
+resources that'll be deleted as well as a prompt to confirm before any deletion actually takes place.
 
-In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will remove the default VPCs in each region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note that the default security group itself is unable to be deleted.
-
+In AWS, to delete only the default resources, run `cloud-nuke defaults-aws`. This will remove the default VPCs in each
+region, and will also revoke the ingress and egress rules associated with the default security group in each VPC. Note
+that the default security group itself is unable to be deleted.
 
 ### Nuke or inspect resources using AWS Profile
 
-When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can pass in the `AWS_PROFILE` env variable to target resources in certain regions for a specific AWS account. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions in the `gruntwork-dev` AWS account:
+When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can pass in the `AWS_PROFILE` env variable to target
+resources in certain regions for a specific AWS account. For example the following command will nuke resources only
+in `ap-south-1` and `ap-south-2` regions in the `gruntwork-dev` AWS account:
 
 ```shell
 AWS_PROFILE=gruntwork-dev cloud-nuke aws --region ap-south-1 --region ap-south-2
 ```
 
 Similarly, the following command will inspect resources only in `us-east-1`
+
 ```shell
 AWS_PROFILE=gruntwork-dev cloud-nuke inspect-aws --region us-east-1
 ```
 
 ### Nuke or inspect resources in certain regions
 
-When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can use the `--region` flag to target resources in certain regions. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions:
+When using `cloud-nuke aws`, or `cloud-nuke inspect-aws`, you can use the `--region` flag to target resources in certain
+regions. For example the following command will nuke resources only in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
 cloud-nuke aws --region ap-south-1 --region ap-south-2
 ```
 
 Similarly, the following command will inspect resources only in `us-east-1`
+
 ```shell
 cloud-nuke inspect-aws --region us-east-1
 ```
 
 Including regions is available within:
+
 - `cloud-nuke aws`
 - `cloud-nuke defaults-aws`
 - `cloud-nuke inspect-aws`
 
 ### Exclude resources in certain regions
 
-When using `cloud-nuke aws` or `cloud-nuke inspect-aws`, you can use the `--exclude-region` flag to exclude resources in certain regions from being deleted or inspected. For example the following command does not nuke resources in `ap-south-1` and `ap-south-2` regions:
+When using `cloud-nuke aws` or `cloud-nuke inspect-aws`, you can use the `--exclude-region` flag to exclude resources in
+certain regions from being deleted or inspected. For example the following command does not nuke resources
+in `ap-south-1` and `ap-south-2` regions:
 
 ```shell
 cloud-nuke aws --exclude-region ap-south-1 --exclude-region ap-south-2
@@ -177,22 +209,25 @@ cloud-nuke inspect-aws --exclude-region us-west-1
 `--region` and `--exclude-region` flags cannot be specified together i.e. they are mutually exclusive.
 
 Excluding regions is available within:
+
 - `cloud-nuke aws`
 - `cloud-nuke defaults-aws`
 - `cloud-nuke inspect-aws`
 
 ### Excluding Resources by Age
 
-You can use the `--older-than` flag to only nuke resources that were created before a certain period, the possible values are all valid values for [ParseDuration](https://golang.org/pkg/time/#ParseDuration) For example the following command nukes resources that are at least one day old:
+You can use the `--older-than` flag to only nuke resources that were created before a certain period, the possible
+values are all valid values for [ParseDuration](https://golang.org/pkg/time/#ParseDuration) For example the following
+command nukes resources that are at least one day old:
 
 ```shell
 cloud-nuke aws --older-than 24h
 ```
 
 Excluding resources by age is available within:
+
 - `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
-
 
 ### List supported resource types
 
@@ -203,9 +238,9 @@ cloud-nuke aws --list-resource-types
 ```
 
 Listing supported resource types is available within:
+
 - `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
-
 
 ### Terminate or inspect specific resource types
 
@@ -227,12 +262,14 @@ cloud-nuke inspect-aws --resource-type ec2
 ```
 
 Specifying target resource types is available within:
+
 - `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
 
 ### Exclude terminating specific resource types
 
-Just like you can select which resources to terminate using `--resource-type`, you can select which resources to skip using
+Just like you can select which resources to terminate using `--resource-type`, you can select which resources to skip
+using
 `--exclude-resource-type` flag:
 
 ```shell
@@ -244,6 +281,7 @@ This will terminate all resource types other than S3 and EC2.
 `--resource-type` and `--exclude-resource-type` flags cannot be specified together i.e. they are mutually exclusive.
 
 Specifying resource types to exclude is available within:
+
 - `cloud-nuke aws`
 - `cloud-nuke inspect-aws`
 
@@ -257,13 +295,13 @@ cloud-nuke aws --resource-type ec2 --dry-run
 ```
 
 Dry run mode is only available within:
+
 - `cloud-nuke aws`
-
-
 
 ### Using cloud-nuke as a library
 
-You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting resources.
+You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting
+resources.
 
 ```golang
 
@@ -341,7 +379,6 @@ func main() {
 }
 ```
 
-
 ## Config file
 
 You can also specify which resources to terminate with more granularity via using config files. The config file is a
@@ -361,7 +398,7 @@ s3:
     ...
 ```
 
-#### Names Regex Filter 
+#### Names Regex Filter
 
 Now given the following config, the s3 buckets that will be nuked are further filtered to only include ones that match
 any of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but a bucket
@@ -428,7 +465,9 @@ s3:
 
 #### Tag Filter
 
-You can also exclude resources by tags. The following config will exclude all s3 buckets that have a tag with key `foo` and value `true` (case-insensitive).
+You can also exclude resources by tags. The following config will exclude all s3 buckets that have a tag with key `foo`
+and value `true` (case-insensitive).
+
 ```yaml
 s3:
   exclude:
@@ -469,6 +508,10 @@ of the file that are supported are listed here.
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
 | ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |
 | ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam                	   | EC2IPAM			                   | ✅ (IPAM name)                    	    | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-pool               | EC2IPAMPool			               | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		   | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-scope              | EC2IPAMScope		 						        | ✅ (IPAM Scope Name)               		  | ✅ (Creation Time)                   | ✅    |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |
@@ -510,33 +553,38 @@ of the file that are supported are listed here.
 | vpc                         | VPC                          | ✅ (EC2 Name Tag)                      | ✅ (First Seen Tag Time)             | ❌    |
 
 ### How to Use
-Once you created your config file, you can run a command like this to nuke resources with your config file: 
+
+Once you created your config file, you can run a command like this to nuke resources with your config file:
 
 ```shell
 cloud-nuke aws --resource-type s3 --config path/to/file.yaml
 ```
 
 > **CLI options override config file options**
-> 
-> The options provided in the command line take precedence over those provided in any config file that gets passed in. For
-> example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `ec2:` at the
+>
+> The options provided in the command line take precedence over those provided in any config file that gets passed in.
+> For
+> example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `ec2:` at
+> the
 > top level but doesn't specify `s3:`. The command line argument filters the resource types to include only s3, so the
 > rules in the config file for `ec2:` are ignored, and ec2 resources are not nuked. All s3 resources would be nuked.
-> 
+>
 > In the same vein, say you do not provide a `--resource-type` option in the command line, but you do pass in a config
 > file that only lists rules for `s3:`, such as `cloud-nuke aws --config path/to/config.yaml`. In this case _all_
 > resources would be nuked, but among `s3` buckets, only those matching your config file rules would be nuked.
-> 
+>
 > Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will
 > list resources that would undergo nuking and wait for your confirmation before carrying it out.
 
-
 ## Log level
-By default, cloud-nuke sends most output to the `Debug` level logger, to enhance legibility, since the results of every deletion attempt will be displayed in the report that cloud-nuke prints after each run.
+
+By default, cloud-nuke sends most output to the `Debug` level logger, to enhance legibility, since the results of every
+deletion attempt will be displayed in the report that cloud-nuke prints after each run.
 
 However, sometimes it's helpful to see all output, such as when you're debugging something.
 
-You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log levels:
+You can set the log level by specifying the `--log-level` flag as per [logrus](https://github.com/sirupsen/logrus) log
+levels:
 
 ```shell
 cloud-nuke aws --log-level debug
@@ -548,9 +596,11 @@ OR
 LOG_LEVEL=debug cloud-nuke aws
 ```
 
-Default value is - `info`. Acceptable values are `debug, info, warn, error, panic, fatal, trace` as per [logrus log level parser](https://github.com/sirupsen/logrus/blob/master/logrus.go#L25).
+Default value is - `info`. Acceptable values are `debug, info, warn, error, panic, fatal, trace` as
+per [logrus log level parser](https://github.com/sirupsen/logrus/blob/master/logrus.go#L25).
 
 ### Nuking only default security group rules
+
 When deleting defaults with `cloud-nuke defaults-aws`, use the `--sg-only` flag to delete only the default
 security group rules and not the default VPCs.
 
@@ -573,13 +623,16 @@ When nuking VPCs cloud-nuke will attempt to remove dependency resources undernea
 - Network ACLs
 - Security Groups
 - DHCP Option Sets (Will be dissociated from VPC, not deleted. Must be cleaned up separately)
-- Elastic IPs (Supported as a separate resource that gets cleaned up first. If you are filtering what gets nuked, Elastic IPs may prevent VPCs from destroying.)
+- Elastic IPs (Supported as a separate resource that gets cleaned up first. If you are filtering what gets nuked,
+  Elastic IPs may prevent VPCs from destroying.)
 
 All other resources that get created within VPCs must be cleaned up prior to running cloud-nuke on VPC resources.
 
-> VPC resources may not be entirely cleaned up on the first run. We believe this is caused by an eventual consistency error in AWS.
-> 
-> If you see errors like `InvalidParameterValue: Network interface is currently in use.` We recommend waiting 30 minutes and trying again.
+> VPC resources may not be entirely cleaned up on the first run. We believe this is caused by an eventual consistency
+> error in AWS.
+>
+> If you see errors like `InvalidParameterValue: Network interface is currently in use.` We recommend waiting 30 minutes
+> and trying again.
 
 Happy Nuking!!!
 
@@ -587,7 +640,9 @@ Happy Nuking!!!
 
 ### AWS
 
-In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can use one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can use
+one of
+the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
 
 ## Running Tests
 
@@ -612,8 +667,10 @@ go run main.go
 
 ### Running tests
 
-**Note**: Many of the tests in the `aws` folder run against a real AWS account and will create and destroy actual resources. DO NOT
-hit `CTRL+C` while the tests are running, as this will prevent them from cleaning up properly. We are not responsible for any
+**Note**: Many of the tests in the `aws` folder run against a real AWS account and will create and destroy actual
+resources. DO NOT
+hit `CTRL+C` while the tests are running, as this will prevent them from cleaning up properly. We are not responsible
+for any
 charges you may incur.
 
 Before running the tests, you must configure your [AWS credentials](#credentials).
@@ -638,7 +695,6 @@ cd aws
 go test -v -run TestListAMIs
 ```
 
-
 And to run a specific test, such as `TestLambdaFunction_GetAll` in package `aws/resources`:
 
 ```bash
@@ -658,22 +714,32 @@ TEST_ACMPCA_EXPENSIVE_ENABLE=1 go test -v ./...
 Every source file in this project should be formatted with `go fmt`.
 
 ### Releasing new versions
-We try to follow the release process as deifned in our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48).
+
+We try to follow the release process as deifned in
+our [Coding Methodology](https://www.notion.so/gruntwork/Gruntwork-Coding-Methodology-02fdcd6e4b004e818553684760bf691e#08b68ee0e19143e89523dcf483d2bf48).
 
 #### Choosing a new release tag
-If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in v0.X.Y)
+
+If the new release contains any new resources that `cloud-nuke` will support, mark it as a minor version bump (X in
+v0.X.Y)
 to indicate backward incompatibilities.
 
-This is because since version `v0.2.0` `cloud-nuke` has been configured to automatically include new resources (so you have
-to explicitly opt-out). This is inherently not backward compatible, because users with CI practices around `cloud-nuke` would
-be surprised by new resources that are suddenly being picked up for deletion! This surprise is more alarming for resources
+This is because since version `v0.2.0` `cloud-nuke` has been configured to automatically include new resources (so you
+have
+to explicitly opt-out). This is inherently not backward compatible, because users with CI practices around `cloud-nuke`
+would
+be surprised by new resources that are suddenly being picked up for deletion! This surprise is more alarming for
+resources
 that are actively in use for any account, such as IAM Users.
 
-Therefore please mark your release as backward incompatible and bump the **minor version** (`X` in `v0.X.Y`) when it includes
+Therefore please mark your release as backward incompatible and bump the **minor version** (`X` in `v0.X.Y`) when it
+includes
 support for nuking new resources, so that we provide better signals for users when we introduce a new resource.
 
 #### To release a new version
-Go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and create a new release. The CircleCI job for this repo has been configured to:
+
+Go to the [Releases Page](https://github.com/gruntwork-io/cloud-nuke/releases) and create a new release. The CircleCI
+job for this repo has been configured to:
 
 1. Automatically detect new tags.
 1. Build binaries for every OS using that tag as a version number.
