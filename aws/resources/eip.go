@@ -2,10 +2,11 @@ package resources
 
 import (
 	"context"
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -83,7 +84,7 @@ func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*s
 func (ea *EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.Time, configObj config.Config) bool {
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	allocationName := GetEC2ResourceNameTagValue(address.Tags)
+	allocationName := util.GetEC2ResourceNameTagValue(address.Tags)
 	return configObj.ElasticIP.ShouldInclude(config.ResourceValue{
 		Time: &firstSeenTime,
 		Name: allocationName,

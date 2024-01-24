@@ -3,11 +3,12 @@ package resources
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pterm/pterm"
@@ -80,7 +81,7 @@ func shouldIncludeInstanceId(instance *ec2.Instance, protected bool, configObj c
 
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	instanceName := GetEC2ResourceNameTagValue(instance.Tags)
+	instanceName := util.GetEC2ResourceNameTagValue(instance.Tags)
 	return configObj.EC2.ShouldInclude(config.ResourceValue{
 		Name: instanceName,
 		Time: instance.LaunchTime,
@@ -826,20 +827,5 @@ func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
 		}
 	}
 	logging.Debug("Finished nuking default Security Groups in all regions")
-	return nil
-}
-
-// Given an slice of tags, return the value of the Name tag
-func GetEC2ResourceNameTagValue(tags []*ec2.Tag) *string {
-	t := make(map[string]string)
-
-	for _, v := range tags {
-		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
-	}
-
-	if name, ok := t["Name"]; ok {
-		return &name
-	}
-
 	return nil
 }

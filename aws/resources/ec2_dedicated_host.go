@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -10,6 +11,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
@@ -62,7 +64,7 @@ func shouldIncludeHostId(host *ec2.Host, configObj config.Config) bool {
 
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
-	hostNameTagValue := GetEC2ResourceNameTagValue(host.Tags)
+	hostNameTagValue := util.GetEC2ResourceNameTagValue(host.Tags)
 
 	return configObj.EC2DedicatedHosts.ShouldInclude(config.ResourceValue{
 		Name: hostNameTagValue,

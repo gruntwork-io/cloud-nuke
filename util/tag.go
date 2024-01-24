@@ -61,3 +61,12 @@ func ConvertRDSTagsToMap(tags []*rds.Tag) map[string]string {
 
 	return tagMap
 }
+
+func GetEC2ResourceNameTagValue(tags []*ec2.Tag) *string {
+	tagMap := ConvertEC2TagsToMap(tags)
+
+	if name, ok := tagMap["Name"]; ok {
+		return &name
+	}
+	return nil
+}
