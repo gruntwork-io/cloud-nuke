@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -11,6 +12,7 @@ import (
 )
 
 type EC2DhcpOption struct {
+	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	VPCIds []string

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
@@ -12,6 +13,7 @@ import (
 
 // SecretsManagerSecrets - represents all AWS secrets manager secrets that should be deleted.
 type SecretsManagerSecrets struct {
+	BaseAwsResource
 	Client    secretsmanageriface.SecretsManagerAPI
 	Region    string
 	SecretIDs []string

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/efs"
@@ -11,6 +12,7 @@ import (
 )
 
 type ElasticFileSystem struct {
+	BaseAwsResource
 	Client efsiface.EFSAPI
 	Region string
 	Ids    []string

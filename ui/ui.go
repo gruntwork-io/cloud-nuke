@@ -2,12 +2,13 @@ package ui
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -132,12 +133,16 @@ func renderTableWithHeader(headers []string, data [][]string, w io.Writer) {
 
 func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
 	var tableData [][]string
-	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier"})
+	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier", "Nukable"})
 
 	for region, resourcesInRegion := range account.Resources {
 		for _, foundResources := range resourcesInRegion.Resources {
 			for _, identifier := range (*foundResources).ResourceIdentifiers() {
-				tableData = append(tableData, []string{(*foundResources).ResourceName(), region, identifier})
+				isnukable := "-"
+				if marked, err := (*foundResources).IsNukable(identifier); err == nil {
+					isnukable = fmt.Sprintf("%v", marked)
+				}
+				tableData = append(tableData, []string{(*foundResources).ResourceName(), region, identifier, isnukable})
 			}
 		}
 	}

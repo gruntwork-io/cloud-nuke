@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/redshift"
@@ -11,6 +12,7 @@ import (
 )
 
 type RedshiftClusters struct {
+	BaseAwsResource
 	Client             redshiftiface.RedshiftAPI
 	Region             string
 	ClusterIdentifiers []string

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kafka"
@@ -12,6 +13,7 @@ import (
 
 // MSKCluster - represents all AWS Managed Streaming for Kafka clusters that should be deleted.
 type MSKCluster struct {
+	BaseAwsResource
 	Client      kafkaiface.KafkaAPI
 	Region      string
 	ClusterArns []string

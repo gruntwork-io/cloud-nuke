@@ -13,6 +13,7 @@ import (
 
 // IPAM Byoasn- represents all IPAMs
 type EC2IPAMByoasn struct {
+	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	Pools  []string

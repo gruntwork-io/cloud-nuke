@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache"
@@ -12,6 +13,7 @@ import (
 
 // Elasticaches - represents all Elasticache clusters
 type Elasticaches struct {
+	BaseAwsResource
 	Client     elasticacheiface.ElastiCacheAPI
 	Region     string
 	ClusterIds []string
@@ -60,6 +62,7 @@ Elasticache Parameter Groups
 */
 
 type ElasticacheParameterGroups struct {
+	BaseAwsResource
 	Client     elasticacheiface.ElastiCacheAPI
 	Region     string
 	GroupNames []string
@@ -108,6 +111,7 @@ Elasticache Subnet Groups
 */
 
 type ElasticacheSubnetGroups struct {
+	BaseAwsResource
 	Client     elasticacheiface.ElastiCacheAPI
 	Region     string
 	GroupNames []string

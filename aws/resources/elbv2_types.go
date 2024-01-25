@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -12,6 +13,7 @@ import (
 
 // LoadBalancersV2 - represents all load balancers
 type LoadBalancersV2 struct {
+	BaseAwsResource
 	Client elbv2iface.ELBV2API
 	Region string
 	Arns   []string

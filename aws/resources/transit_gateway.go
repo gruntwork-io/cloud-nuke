@@ -12,14 +12,37 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
+/*
+NOTE on the Apporach used:-Using the `dry run` approach on verifying the nuking permission in case of a scoped IAM role.
+IAM:simulateCustomPolicy : could also be used but the IAM role itself needs permission for simulateCustomPolicy method
+else this would not get the desired result. Also in case of multiple t-gateway, if only some has permssion to be nuked,
+the t-gateway resource ids needs to be passed individually inside the IAM:simulateCustomPolicy to get the desired result,
+else all would result in `Implicit-deny` as response- this might increase the time complexity.Using dry run to avoid this.
+*/
+func (tgw *TransitGateways) VerifyNukablePermissions(ctx context.Context, ids []*string) {
+	// check permissions without actually performing the nuke operation
+	for _, id := range ids {
+		// dry run set as true , checks permission without actualy making the request
+		params := &ec2.DeleteTransitGatewayInput{
+			TransitGatewayId: id,
+			DryRun:           aws.Bool(true),
+		}
+		_, err := tgw.Client.DeleteTransitGateway(params)
+		tgw.Nukable[*id] = !util.IsAwsUnauthorizedError(err)
+	}
+}
+
 // Returns a formatted string of TransitGateway IDs
 func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+
 	result, err := tgw.Client.DescribeTransitGateways(&ec2.DescribeTransitGatewaysInput{})
 	if err != nil {
+		logging.Debugf("[DescribeTransitGateways Failed] %s", err)
 		return nil, errors.WithStackTrace(err)
 	}
 
@@ -31,10 +54,14 @@ func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) (
 		}
 	}
 
+	// Check and verfiy the list of allowed nuke actions
+	tgw.VerifyNukablePermissions(c, ids)
+
 	return ids, nil
 }
 
 // Delete all TransitGateways
+// it attempts to nuke only those resources for which the current IAM user has permission
 func (tgw *TransitGateways) nukeAll(ids []*string) error {
 	if len(ids) == 0 {
 		logging.Debugf("No Transit Gateways to nuke in region %s", tgw.Region)
@@ -45,6 +72,13 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 	var deletedIds []*string
 
 	for _, id := range ids {
+		//check the id has the permission to nuke, if not. continue the execution
+		if nukable, err := tgw.IsNukable(*id); !nukable && err == nil {
+			//not adding the report on final result hence not adding a record entry here
+			logging.Debugf("[Skipping] %s nuke while you didn't have the permission", *id)
+			continue
+		}
+
 		params := &ec2.DeleteTransitGatewayInput{
 			TransitGatewayId: id,
 		}

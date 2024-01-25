@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/guardduty"
@@ -10,6 +11,7 @@ import (
 )
 
 type GuardDuty struct {
+	BaseAwsResource
 	Client      guarddutyiface.GuardDutyAPI
 	Region      string
 	detectorIds []string

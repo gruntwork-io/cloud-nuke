@@ -2,14 +2,15 @@ package resources
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type mockedTransitGateway struct {
@@ -86,6 +87,7 @@ func TestTransitGateways_GetAll(t *testing.T) {
 	gatewayId1 := "gateway1"
 	gatewayId2 := "gateway2"
 	tgw := TransitGateways{
+		Nukable: make(map[string]bool),
 		Client: mockedTransitGateway{
 			DescribeTransitGatewaysOutput: ec2.DescribeTransitGatewaysOutput{
 				TransitGateways: []*ec2.TransitGateway{

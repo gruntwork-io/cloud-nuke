@@ -3,11 +3,12 @@ package aws
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/pterm/pterm"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/pterm/pterm"
 
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 

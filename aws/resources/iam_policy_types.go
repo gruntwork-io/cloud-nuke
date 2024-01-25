@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -12,6 +13,7 @@ import (
 
 // IAMPolicies - represents all IAM Policies on the AWS account
 type IAMPolicies struct {
+	BaseAwsResource
 	Client     iamiface.IAMAPI
 	PolicyArns []string
 }

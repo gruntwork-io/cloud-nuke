@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
@@ -12,6 +13,7 @@ import (
 
 // CloudWatchAlarms - represents all CloudWatchAlarms that should be deleted.
 type CloudWatchAlarms struct {
+	BaseAwsResource
 	Client     cloudwatchiface.CloudWatchAPI
 	Region     string
 	AlarmNames []string

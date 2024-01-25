@@ -13,6 +13,7 @@ import (
 
 // IPAM Pool- represents all IPAMs
 type EC2IPAMPool struct {
+	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	Pools  []string

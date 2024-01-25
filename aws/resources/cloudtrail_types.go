@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
@@ -12,6 +13,7 @@ import (
 
 // CloudWatchLogGroup - represents all ec2 instances
 type CloudtrailTrail struct {
+	BaseAwsResource
 	Client cloudtrailiface.CloudTrailAPI
 	Region string
 	Arns   []string

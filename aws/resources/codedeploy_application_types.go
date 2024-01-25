@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
@@ -12,6 +13,7 @@ import (
 
 // CodeDeployApplications - represents all codedeploy applications
 type CodeDeployApplications struct {
+	BaseAwsResource
 	Client   codedeployiface.CodeDeployAPI
 	Region   string
 	AppNames []string

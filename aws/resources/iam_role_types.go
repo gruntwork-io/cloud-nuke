@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -12,6 +13,7 @@ import (
 
 // IAMRoles - represents all IAMRoles on the AWS Account
 type IAMRoles struct {
+	BaseAwsResource
 	Client    iamiface.IAMAPI
 	RoleNames []string
 }

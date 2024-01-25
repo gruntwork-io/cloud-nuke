@@ -13,6 +13,7 @@ import (
 
 // IPAM Byoasn- represents all IPAMs
 type EC2IPAMCustomAllocation struct {
+	BaseAwsResource
 	Client               ec2iface.EC2API
 	Region               string
 	Allocations          []string

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
@@ -12,6 +13,7 @@ import (
 
 // ECSServices - Represents all ECS services found in a region
 type ECSServices struct {
+	BaseAwsResource
 	Client            ecsiface.ECSAPI
 	Region            string
 	Services          []string
