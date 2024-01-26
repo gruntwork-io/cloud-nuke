@@ -2,6 +2,9 @@ package resources
 
 import (
 	"context"
+	cerrors "errors"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -182,6 +185,9 @@ func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 		}
 	}
 
+	if waiterr := waitForTransitGatewayAttachmentToBeDeleted(*tgw); waiterr != nil {
+		return errors.WithStackTrace(waiterr)
+	}
 	logging.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), tgw.Region)
 	return nil
 }
@@ -225,4 +231,30 @@ func (tgpa *TransitGatewayPeeringAttachment) nukeAll(ids []*string) error {
 	}
 
 	return nil
+}
+
+func waitForTransitGatewayAttachmentToBeDeleted(tgw TransitGatewaysVpcAttachment) error {
+	for i := 0; i < 30; i++ {
+		gateways, err := tgw.Client.DescribeTransitGatewayVpcAttachments(
+			&ec2.DescribeTransitGatewayVpcAttachmentsInput{
+				TransitGatewayAttachmentIds: aws.StringSlice(tgw.Ids),
+				Filters: []*ec2.Filter{
+					{
+						Name:   awsgo.String("state"),
+						Values: []*string{awsgo.String("deleting")},
+					},
+				},
+			},
+		)
+		if err != nil {
+			return err
+		}
+		if len(gateways.TransitGatewayVpcAttachments) == 0 {
+			return nil
+		}
+		logging.Info("Waiting for transit gateways attachemensts to be deleted...")
+		time.Sleep(10 * time.Second)
+	}
+
+	return cerrors.New("timed out waiting for transit gateway attachments to be successfully deleted")
 }
