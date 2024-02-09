@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elb"
@@ -12,6 +13,7 @@ import (
 
 // LoadBalancers - represents all load balancers
 type LoadBalancers struct {
+	BaseAwsResource
 	Client elbiface.ELBAPI
 	Region string
 	Names  []string

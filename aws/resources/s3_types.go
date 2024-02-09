@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -13,6 +14,7 @@ import (
 
 // S3Buckets - represents all S3 Buckets
 type S3Buckets struct {
+	BaseAwsResource
 	Client s3iface.S3API
 	Region string
 	Names  []string

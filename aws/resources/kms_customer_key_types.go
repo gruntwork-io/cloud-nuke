@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -15,6 +16,7 @@ import (
 const kmsRemovalWindow = 7
 
 type KmsCustomerKeys struct {
+	BaseAwsResource
 	Client     kmsiface.KMSAPI
 	Region     string
 	KeyIds     []string

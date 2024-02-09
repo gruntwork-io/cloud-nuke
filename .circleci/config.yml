@@ -1,5 +1,5 @@
 orbs:
-  go: circleci/go@1.7.3
+  go: circleci/go@1.11.0
 
 # The "sign binary" runs in a MacOS environment, so it's necessary to download GW's binaries
 env: &env

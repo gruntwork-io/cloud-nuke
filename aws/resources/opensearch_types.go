@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/opensearchservice"
@@ -12,6 +13,7 @@ import (
 
 // OpenSearchDomains represents all OpenSearch domains found in a region
 type OpenSearchDomains struct {
+	BaseAwsResource
 	Client      opensearchserviceiface.OpenSearchServiceAPI
 	Region      string
 	DomainNames []string

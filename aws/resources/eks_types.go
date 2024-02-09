@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -12,6 +13,7 @@ import (
 
 // EKSClusters - Represents all EKS clusters found in a region
 type EKSClusters struct {
+	BaseAwsResource
 	Client   eksiface.EKSAPI
 	Region   string
 	Clusters []string

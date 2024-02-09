@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -12,6 +13,7 @@ import (
 
 // TransitGateways - represents all transit gateways
 type TransitGatewayPeeringAttachment struct {
+	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	Ids    []string
@@ -53,6 +55,7 @@ func (tgpa *TransitGatewayPeeringAttachment) Nuke(identifiers []string) error {
 
 // TransitGatewaysVpcAttachment - represents all transit gateways vpc attachments
 type TransitGatewaysVpcAttachment struct {
+	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	Ids    []string
@@ -98,6 +101,7 @@ func (tgw *TransitGatewaysVpcAttachment) Nuke(identifiers []string) error {
 
 // TransitGatewaysRouteTables - represents all transit gateways route tables
 type TransitGatewaysRouteTables struct {
+	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	Ids    []string
@@ -143,13 +147,17 @@ func (tgw *TransitGatewaysRouteTables) Nuke(identifiers []string) error {
 
 // TransitGateways - represents all transit gateways
 type TransitGateways struct {
+	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	Ids    []string
+	// A key-value of identifiers and nukable status
+	Nukable map[string]bool
 }
 
 func (tgw *TransitGateways) Init(session *session.Session) {
 	tgw.Client = ec2.New(session)
+	tgw.Nukable = map[string]bool{}
 }
 
 // ResourceName - the simple name of the aws resource
@@ -184,4 +192,13 @@ func (tgw *TransitGateways) Nuke(identifiers []string) error {
 	}
 
 	return nil
+}
+
+// IsNukable - Checks whether the given identifier is authorized to nuke
+func (tgw *TransitGateways) IsNukable(identifier string) (bool, error) {
+	if status, ok := tgw.Nukable[identifier]; ok && status {
+		return true, nil
+	}
+
+	return false, nil
 }

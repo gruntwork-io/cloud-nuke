@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -12,6 +13,7 @@ import (
 
 // SqsQueue - represents all sqs queues
 type SqsQueue struct {
+	BaseAwsResource
 	Client    sqsiface.SQSAPI
 	Region    string
 	QueueUrls []string

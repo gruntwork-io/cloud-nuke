@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/macie2"
@@ -11,6 +12,7 @@ import (
 )
 
 type MacieMember struct {
+	BaseAwsResource
 	Client     macie2iface.Macie2API
 	Region     string
 	AccountIds []string

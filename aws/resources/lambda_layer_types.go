@@ -12,6 +12,7 @@ import (
 )
 
 type LambdaLayers struct {
+	BaseAwsResource
 	Client              lambdaiface.LambdaAPI
 	Region              string
 	LambdaFunctionNames []string

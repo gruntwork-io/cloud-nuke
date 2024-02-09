@@ -13,6 +13,7 @@ import (
 
 // scope - represents all scopes
 type EC2IpamScopes struct {
+	BaseAwsResource
 	Client    ec2iface.EC2API
 	Region    string
 	ScopreIDs []string

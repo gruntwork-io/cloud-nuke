@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -12,6 +13,7 @@ import (
 
 // KinesisStreams - represents all Kinesis streams
 type KinesisStreams struct {
+	BaseAwsResource
 	Client kinesisiface.KinesisAPI
 	Region string
 	Names  []string

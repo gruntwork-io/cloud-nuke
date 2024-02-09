@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
@@ -12,6 +13,7 @@ import (
 
 // CloudWatchLogGroup - represents all ec2 instances
 type CloudWatchLogGroups struct {
+	BaseAwsResource
 	Client cloudwatchlogsiface.CloudWatchLogsAPI
 	Region string
 	Names  []string

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
@@ -12,6 +13,7 @@ import (
 
 // AccessAnalyzer - represents all AWS secrets manager secrets that should be deleted.
 type AccessAnalyzer struct {
+	BaseAwsResource
 	Client        accessanalyzeriface.AccessAnalyzerAPI
 	Region        string
 	AnalyzerNames []string

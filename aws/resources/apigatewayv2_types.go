@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
@@ -11,6 +12,7 @@ import (
 )
 
 type ApiGatewayV2 struct {
+	BaseAwsResource
 	Client apigatewayv2iface.ApiGatewayV2API
 	Region string
 	Ids    []string

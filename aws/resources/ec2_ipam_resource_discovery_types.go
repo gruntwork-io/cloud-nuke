@@ -13,6 +13,7 @@ import (
 
 // IPAM - represents all IPAMs
 type EC2IPAMResourceDiscovery struct {
+	BaseAwsResource
 	Client       ec2iface.EC2API
 	Region       string
 	DiscoveryIDs []string
