@@ -304,79 +304,79 @@ You can import cloud-nuke into other projects and use it as a library for progra
 resources.
 
 ```golang
-
 package main
 
 import (
-	"fmt"
-	"time"
+  "context"
+  "fmt"
+  "time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/externalcreds"
+  "github.com/aws/aws-sdk-go/aws"
+  nuke_aws "github.com/gruntwork-io/cloud-nuke/aws"
+  nuke_config "github.com/gruntwork-io/cloud-nuke/config"
+  "github.com/gruntwork-io/cloud-nuke/externalcreds"
 )
 
 func main() {
-	// You can scan multiple regions at once, or just pass a single region for speed
-	targetRegions := []string{"us-east-1", "us-west-1", "us-west-2"}
-	excludeRegions := []string{}
-	// You can simultaneously target multiple resource types as well
-	resourceTypes := []string{"ec2", "vpc"}
-	excludeResourceTypes := []string{}
-	// excludeAfter is parsed identically to the --older-than flag
-	excludeAfter := time.Now()
+  // You can scan multiple regions at once, or just pass a single region for speed
+  targetRegions := []string{"us-east-1", "us-west-1", "us-west-2"}
+  excludeRegions := []string{}
+  // You can simultaneously target multiple resource types as well
+  resourceTypes := []string{"ec2", "vpc"}
+  excludeResourceTypes := []string{}
+  // excludeAfter is parsed identically to the --older-than flag
+  excludeAfter := time.Now()
+  // an optional start time- can pass null if the filter is not required
+  includeAfter := time.Now().AddDate(-1, 0, 0)
 
-	// Any custom settings you want
-	myCustomConfig := &aws.Config{}
+  // Any custom settings you want
+  myCustomConfig := &aws.Config{}
+  myCustomConfig.WithMaxRetries(3)
+  myCustomConfig.WithLogLevel(aws.LogDebugWithRequestErrors)
+  // Optionally, set custom credentials
+  // myCustomConfig.WithCredentials()
 
-	myCustomConfig.WithMaxRetries(3)
-	myCustomConfig.WithLogLevel(aws.LogDebugWithRequestErrors)
-	// Optionally, set custom credentials
-	// myCustomConfig.WithCredentials()
+  // Be sure to set your config prior to calling any library methods such as NewQuery
+  externalcreds.Set(myCustomConfig)
+  // this config can be configured to add include/exclude rule to filter the resources- for all resources pass an empty struct
+  nukeConfig := nuke_config.Config{}
 
-	// Be sure to set your config prior to calling any library methods such as NewQuery
-	externalcreds.Set(myCustomConfig)
+  // NewQuery is a convenience method for configuring parameters you want to pass to your resource search
+  query, err := nuke_aws.NewQuery(
+    targetRegions,
+    excludeRegions,
+    resourceTypes,
+    excludeResourceTypes,
+    &excludeAfter,
+    &includeAfter,
+    false,
+  )
+  if err != nil {
+    fmt.Println(err)
+  }
 
-	// NewQuery is a convenience method for configuring parameters you want to pass to your resource search
-	query, err := nuke_aws.NewQuery(
-		targetRegions,
-		excludeRegions,
-		resourceTypes,
-		excludeResourceTypes,
-		excludeAfter,
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// InspectResources still returns *AwsAccountResources, but this struct has been extended with several
-	// convenience methods for quickly determining if resources exist in a given region
-	accountResources, err := nuke_aws.InspectResources(query)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// You can call GetRegion to examine a single region's resources
-	usWest1Resources := accountResources.GetRegion("us-west-1")
-
-	// Then interrogate them with the new methods:
-
-	// Count the number of any resource type within the region
-	countOfEc2InUsWest1 := usWest1Resources.CountOfResourceType("ec2")
-
-	fmt.Printf("countOfEc2InUsWest1: %d\n", countOfEc2InUsWest1)
-	// countOfEc2InUsWest1: 2
-
-	fmt.Printf("usWest1Resources.ResourceTypePresent(\"ec2\"):%b\n", usWest1Resources.ResourceTypePresent("ec2"))
-	// usWest1Resources.ResourceTypePresent("ec2"): true
-
-	// Get all the resource identifiers for a given resource type
-	// In this example, we're only looking for ec2 instances
-	resourceIds := usWest1Resources.IdentifiersForResourceType("ec2")
-
-	fmt.Printf("resourceIds: %s", resourceIds)
-	// resourceIds:  [i-0c5d16c3ef28dda24 i-09d9739e1f4d27814]
+  // GetAllResources still returns *AwsAccountResources, but this struct has been extended with several
+  // convenience methods for quickly determining if resources exist in a given region
+  accountResources, err := nuke_aws.GetAllResources(context.Background(), query, nukeConfig)
+  if err != nil {
+    fmt.Println(err)
+  }
+  // You can call GetRegion to examine a single region's resources
+  usWest1Resources := accountResources.GetRegion("us-west-1")
+  // Then interrogate them with the new methods:
+  // Count the number of any resource type within the region
+  countOfEc2InUsWest1 := usWest1Resources.CountOfResourceType("ec2")
+  fmt.Printf("countOfEc2InUsWest1: %d\n", countOfEc2InUsWest1)
+  // countOfEc2InUsWest1: 2
+  fmt.Printf("usWest1Resources.ResourceTypePresent(\"ec2\"):%b\n", usWest1Resources.ResourceTypePresent("ec2"))
+  // usWest1Resources.ResourceTypePresent("ec2"): true
+  // Get all the resource identifiers for a given resource type
+  // In this example, we're only looking for ec2 instances
+  resourceIds := usWest1Resources.IdentifiersForResourceType("ec2")
+  fmt.Printf("resourceIds: %s", resourceIds)
+  // resourceIds:  [i-0c5d16c3ef28dda24 i-09d9739e1f4d27814]
 }
+
 ```
 
 ## Config file
