@@ -151,13 +151,14 @@ type TransitGateways struct {
 	Client ec2iface.EC2API
 	Region string
 	Ids    []string
-	// A key-value of identifiers and nukable status
-	Nukable map[string]bool
 }
 
 func (tgw *TransitGateways) Init(session *session.Session) {
+	// to initialize base resource
+	// NOTE : This is madatory to initialize the nukables map
+	tgw.BaseAwsResource.Init(session)
 	tgw.Client = ec2.New(session)
-	tgw.Nukable = map[string]bool{}
+
 }
 
 // ResourceName - the simple name of the aws resource
@@ -192,13 +193,4 @@ func (tgw *TransitGateways) Nuke(identifiers []string) error {
 	}
 
 	return nil
-}
-
-// IsNukable - Checks whether the given identifier is authorized to nuke
-func (tgw *TransitGateways) IsNukable(identifier string) (bool, error) {
-	if status, ok := tgw.Nukable[identifier]; ok && status {
-		return true, nil
-	}
-
-	return false, nil
 }

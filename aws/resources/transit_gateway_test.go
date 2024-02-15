@@ -87,7 +87,6 @@ func TestTransitGateways_GetAll(t *testing.T) {
 	gatewayId1 := "gateway1"
 	gatewayId2 := "gateway2"
 	tgw := TransitGateways{
-		Nukable: make(map[string]bool),
 		Client: mockedTransitGateway{
 			DescribeTransitGatewaysOutput: ec2.DescribeTransitGatewaysOutput{
 				TransitGateways: []*ec2.TransitGateway{
@@ -105,6 +104,8 @@ func TestTransitGateways_GetAll(t *testing.T) {
 			},
 		},
 	}
+	tgw.BaseAwsResource.Init(nil)
+
 	tests := map[string]struct {
 		configObj config.ResourceType
 		expected  []string

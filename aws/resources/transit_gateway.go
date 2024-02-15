@@ -2,12 +2,12 @@ package resources
 
 import (
 	"context"
-	cerrors "errors"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	goerror "github.com/go-errors/errors"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -17,25 +17,11 @@ import (
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
-/*
-NOTE on the Apporach used:-Using the `dry run` approach on verifying the nuking permission in case of a scoped IAM role.
-IAM:simulateCustomPolicy : could also be used but the IAM role itself needs permission for simulateCustomPolicy method
-else this would not get the desired result. Also in case of multiple t-gateway, if only some has permssion to be nuked,
-the t-gateway resource ids needs to be passed individually inside the IAM:simulateCustomPolicy to get the desired result,
-else all would result in `Implicit-deny` as response- this might increase the time complexity.Using dry run to avoid this.
-*/
-func (tgw *TransitGateways) VerifyNukablePermissions(ctx context.Context, ids []*string) {
-	// check permissions without actually performing the nuke operation
-	for _, id := range ids {
-		// dry run set as true , checks permission without actualy making the request
-		params := &ec2.DeleteTransitGatewayInput{
-			TransitGatewayId: id,
-			DryRun:           aws.Bool(true),
-		}
-		_, err := tgw.Client.DeleteTransitGateway(params)
-		tgw.Nukable[*id] = !util.IsAwsUnauthorizedError(err)
-	}
-}
+// [Note 1] :  NOTE on the Apporach used:-Using the `dry run` approach on verifying the nuking permission in case of a scoped IAM role.
+// IAM:simulateCustomPolicy : could also be used but the IAM role itself needs permission for simulateCustomPolicy method
+//else this would not get the desired result. Also in case of multiple t-gateway, if only some has permssion to be nuked,
+// the t-gateway resource ids needs to be passed individually inside the IAM:simulateCustomPolicy to get the desired result,
+// else all would result in `Implicit-deny` as response- this might increase the time complexity.Using dry run to avoid this.
 
 // Returns a formatted string of TransitGateway IDs
 func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -46,16 +32,32 @@ func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) (
 		return nil, errors.WithStackTrace(err)
 	}
 
+	currentOwner := c.Value(util.AccountIdKey)
 	var ids []*string
 	for _, transitGateway := range result.TransitGateways {
 		if configObj.TransitGateway.ShouldInclude(config.ResourceValue{Time: transitGateway.CreationTime}) &&
 			awsgo.StringValue(transitGateway.State) != "deleted" && awsgo.StringValue(transitGateway.State) != "deleting" {
 			ids = append(ids, transitGateway.TransitGatewayId)
 		}
+
+		if currentOwner != nil && transitGateway.OwnerId != nil && currentOwner != awsgo.StringValue(transitGateway.OwnerId) {
+			tgw.SetNukableStatus(*transitGateway.TransitGatewayId, util.ErrDifferentOwner)
+			continue
+		}
 	}
 
 	// Check and verfiy the list of allowed nuke actions
-	tgw.VerifyNukablePermissions(c, ids)
+	// VerifyNukablePermissions is used to iterate over a list of Transit Gateway IDs (ids) and execute a provided function (func(id *string) error).
+	// The function, attempts to delete a Transit Gateway with the specified ID in a dry-run mode (checking permissions without actually performing the delete operation). The result of this operation (error or success) is then captured.
+	// See more at [Note 1]
+	tgw.VerifyNukablePermissions(ids, func(id *string) error {
+		params := &ec2.DeleteTransitGatewayInput{
+			TransitGatewayId: id,
+			DryRun:           aws.Bool(true), // dry run set as true , checks permission without actualy making the request
+		}
+		_, err := tgw.Client.DeleteTransitGateway(params)
+		return err
+	})
 
 	return ids, nil
 }
@@ -73,9 +75,9 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 
 	for _, id := range ids {
 		//check the id has the permission to nuke, if not. continue the execution
-		if nukable, err := tgw.IsNukable(*id); !nukable && err == nil {
+		if nukable, err := tgw.IsNukable(*id); !nukable {
 			//not adding the report on final result hence not adding a record entry here
-			logging.Debugf("[Skipping] %s nuke while you didn't have the permission", *id)
+			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
 			continue
 		}
 
@@ -219,7 +221,7 @@ func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 		}
 	}
 
-	if waiterr := waitForTransitGatewayAttachmentToBeDeleted(*tgw); waiterr != nil {
+	if waiterr := waitForTransitGatewayAttachementToBeDeleted(*tgw); waiterr != nil {
 		return errors.WithStackTrace(waiterr)
 	}
 	logging.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), tgw.Region)
@@ -267,7 +269,7 @@ func (tgpa *TransitGatewayPeeringAttachment) nukeAll(ids []*string) error {
 	return nil
 }
 
-func waitForTransitGatewayAttachmentToBeDeleted(tgw TransitGatewaysVpcAttachment) error {
+func waitForTransitGatewayAttachementToBeDeleted(tgw TransitGatewaysVpcAttachment) error {
 	for i := 0; i < 30; i++ {
 		gateways, err := tgw.Client.DescribeTransitGatewayVpcAttachments(
 			&ec2.DescribeTransitGatewayVpcAttachmentsInput{
@@ -290,5 +292,5 @@ func waitForTransitGatewayAttachmentToBeDeleted(tgw TransitGatewaysVpcAttachment
 		time.Sleep(10 * time.Second)
 	}
 
-	return cerrors.New("timed out waiting for transit gateway attachments to be successfully deleted")
+	return goerror.New("timed out waiting for transit gateway attahcments to be successfully deleted")
 }

@@ -138,10 +138,12 @@ func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
 	for region, resourcesInRegion := range account.Resources {
 		for _, foundResources := range resourcesInRegion.Resources {
 			for _, identifier := range (*foundResources).ResourceIdentifiers() {
-				isnukable := "-"
-				if marked, err := (*foundResources).IsNukable(identifier); err == nil {
-					isnukable = fmt.Sprintf("%v", marked)
+				isnukable := SuccessEmoji
+				_, err := (*foundResources).IsNukable(identifier)
+				if err != nil {
+					isnukable = err.Error()
 				}
+
 				tableData = append(tableData, []string{(*foundResources).ResourceName(), region, identifier, isnukable})
 			}
 		}
