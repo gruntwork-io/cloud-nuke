@@ -74,6 +74,11 @@ type Config struct {
 	Redshift                        ResourceType               `yaml:"Redshift"`
 	RdsSnapshot                     ResourceType               `yaml:"RdsSnapshot"`
 	S3                              ResourceType               `yaml:"s3"`
+	SESIdentity                     ResourceType               `yaml:"SesIdentity"`
+	SESConfigurationSet             ResourceType               `yaml:"SesConfigurationset"`
+	SESReceiptRuleSet               ResourceType               `yaml:"SesReceiptRuleSet"`
+	SESReceiptFilter                ResourceType               `yaml:"SesReceiptFilter"`
+	SESEmailTemplates               ResourceType               `yaml:"SesEmailTemplates"`
 	SNS                             ResourceType               `yaml:"SNS"`
 	SQS                             ResourceType               `yaml:"SQS"`
 	SageMakerNotebook               ResourceType               `yaml:"SageMakerNotebook"`
