@@ -10,10 +10,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
-// This BaseAwsResource struct and its associated methods to serve as a placeholder or template for a resource
-// that is not yet fully implemented within a system or framework.
-// Its purpose is to provide a skeleton structure that adheres to a specific interface or contract expected by the
-// system without containing the actual implementation details.
+// BaseAwsResource struct and its associated methods to serve as a placeholder or template for a resource that is not
+// yet fully implemented within a system or framework. Its purpose is to provide a skeleton structure that adheres to a
+// specific interface or contract expected by the system without containing the actual implementation details.
 type BaseAwsResource struct {
 	// A key-value of identifiers and nukable status
 	Nukables map[string]error
@@ -47,8 +46,9 @@ func (umpl *BaseAwsResource) SetNukableStatus(identifier string, err error) {
 	umpl.Nukables[identifier] = err
 }
 
-// nukableCheckfn : performs nukable permission verification for each ID. For each ID,
-// the function is executed, and the result (error or success) is recorded using the SetNukableStatus method, indicating whether the specified action is nukable
+// VerifyNukablePermissions performs nukable permission verification for each ID. For each ID, the function is
+// executed, and the result (error or success) is recorded using the SetNukableStatus method, indicating whether
+// the specified action is nukable
 func (umpl *BaseAwsResource) VerifyNukablePermissions(ids []*string, nukableCheckfn func(id *string) error) {
 	for _, id := range ids {
 		// skip if the id is already exists
