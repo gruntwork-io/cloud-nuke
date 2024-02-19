@@ -747,6 +747,11 @@ job for this repo has been configured to:
 
 See `.circleci/config.yml` for details.
 
+## Nukable error statuses
+You'll encounter any of the following statuses when attempting to nuke resources, and here's what each status means:
+- `error:INSUFFICIENT_PERMISSION` : You don't have enough permission to nuke the resource.
+- `error:DIFFERENT_OWNER` : You are attempting to nuke a resource for which you are not the owner.
+
 ## License
 
 This code is released under the MIT License. See [LICENSE.txt](/LICENSE.txt).
