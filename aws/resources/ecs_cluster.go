@@ -2,8 +2,9 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -124,6 +125,33 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 	return filteredEcsClusters, nil
 }
 
+func (clusters *ECSClusters) stopClusterRunningTasks(clusterArn *string) error {
+	logging.Debugf("stopping tasks running on cluster %v", *clusterArn)
+	// before deleting the cluster, remove the active tasks on that cluster
+	runningTasks, err := clusters.Client.ListTasks(&ecs.ListTasksInput{
+		Cluster:       clusterArn,
+		DesiredStatus: aws.String("RUNNING"),
+	})
+
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	// stop the listed tasks
+	for _, task := range runningTasks.TaskArns {
+		_, err := clusters.Client.StopTask(&ecs.StopTaskInput{
+			Cluster: clusterArn,
+			Task:    task,
+			Reason:  aws.String("cluster is going to be deleted"),
+		})
+		if err != nil {
+			logging.Debugf("Unable to stop the task %s on cluster %s , Reason : %v", *task, *clusterArn, err)
+		}
+		logging.Debugf("task %v was stopped", *task)
+	}
+	return nil
+}
+
 func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 	numNuking := len(ecsClusterArns)
 
@@ -136,10 +164,18 @@ func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 
 	var nukedEcsClusters []*string
 	for _, clusterArn := range ecsClusterArns {
+
+		// before nuking the clusters, do check active tasks on the cluster and stop all of them
+		err := clusters.stopClusterRunningTasks(clusterArn)
+		if err != nil {
+			logging.Debugf("Error, unable to stop the running stasks on the cluster %s %s", aws.StringValue(clusterArn), err)
+			return errors.WithStackTrace(err)
+		}
+
 		params := &ecs.DeleteClusterInput{
 			Cluster: clusterArn,
 		}
-		_, err := clusters.Client.DeleteCluster(params)
+		_, err = clusters.Client.DeleteCluster(params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -150,7 +186,7 @@ func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 		report.Record(e)
 
 		if err != nil {
-			logging.Debugf("Error, failed to delete cluster with ARN %s", aws.StringValue(clusterArn))
+			logging.Debugf("Error, failed to delete cluster with ARN %s %s", aws.StringValue(clusterArn), err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error Nuking ECS Cluster",
 			}, map[string]interface{}{

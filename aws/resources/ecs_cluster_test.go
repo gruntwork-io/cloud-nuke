@@ -2,6 +2,10 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
@@ -9,9 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEC2Cluster struct {
@@ -21,6 +22,7 @@ type mockedEC2Cluster struct {
 	TagResourceOutput         ecs.TagResourceOutput
 	ListTagsForResourceOutput ecs.ListTagsForResourceOutput
 	DeleteClusterOutput       ecs.DeleteClusterOutput
+	ListTasksOutput           ecs.ListTasksOutput
 }
 
 func (m mockedEC2Cluster) ListClusters(*ecs.ListClustersInput) (*ecs.ListClustersOutput, error) {
@@ -41,6 +43,10 @@ func (m mockedEC2Cluster) ListTagsForResource(*ecs.ListTagsForResourceInput) (*e
 
 func (m mockedEC2Cluster) DeleteCluster(*ecs.DeleteClusterInput) (*ecs.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
+}
+
+func (m mockedEC2Cluster) ListTasks(*ecs.ListTasksInput) (*ecs.ListTasksOutput, error) {
+	return &m.ListTasksOutput, nil
 }
 
 func TestEC2Cluster_GetAll(t *testing.T) {
@@ -84,6 +90,7 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 					},
 				},
 			},
+			ListTasksOutput: ecs.ListTasksOutput{},
 		},
 	}
 
