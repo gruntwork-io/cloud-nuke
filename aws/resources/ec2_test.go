@@ -2,16 +2,18 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEC2Instances struct {
@@ -19,6 +21,8 @@ type mockedEC2Instances struct {
 	DescribeInstancesOutput         ec2.DescribeInstancesOutput
 	DescribeInstanceAttributeOutput map[string]ec2.DescribeInstanceAttributeOutput
 	TerminateInstancesOutput        ec2.TerminateInstancesOutput
+	DescribeAddressesOutput         ec2.DescribeAddressesOutput
+	ReleaseAddressOutput            ec2.ReleaseAddressOutput
 }
 
 func (m mockedEC2Instances) DescribeInstances(*ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
@@ -38,6 +42,12 @@ func (m mockedEC2Instances) TerminateInstances(*ec2.TerminateInstancesInput) (*e
 
 func (m mockedEC2Instances) WaitUntilInstanceTerminated(*ec2.DescribeInstancesInput) error {
 	return nil
+}
+func (m mockedEC2Instances) DescribeAddresses(input *ec2.DescribeAddressesInput) (*ec2.DescribeAddressesOutput, error) {
+	return &m.DescribeAddressesOutput, nil
+}
+func (m mockedEC2Instances) ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error) {
+	return &m.ReleaseAddressOutput, nil
 }
 
 func TestEc2Instances_GetAll(t *testing.T) {
@@ -137,6 +147,28 @@ func TestEc2Instances_NukeAll(t *testing.T) {
 	ei := EC2Instances{
 		Client: mockedEC2Instances{
 			TerminateInstancesOutput: ec2.TerminateInstancesOutput{},
+		},
+	}
+
+	err := ei.nukeAll([]*string{awsgo.String("testId1")})
+	require.NoError(t, err)
+}
+
+func TestEc2InstancesWithEIP_NukeAll(t *testing.T) {
+	logging.ParseLogLevel("debug")
+	t.Parallel()
+
+	ei := EC2Instances{
+		Client: mockedEC2Instances{
+			TerminateInstancesOutput: ec2.TerminateInstancesOutput{},
+			DescribeAddressesOutput: ec2.DescribeAddressesOutput{
+				Addresses: []*ec2.Address{
+					{
+						AllocationId: awsgo.String("alloc-test-id1"),
+						InstanceId:   awsgo.String("testId1"),
+					},
+				},
+			},
 		},
 	}
 
