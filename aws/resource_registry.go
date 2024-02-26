@@ -64,6 +64,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.ConfigServiceRule{},
 		&resources.DynamoDB{},
 		&resources.EBSVolumes{},
+		&resources.EBApplications{},
 		&resources.EC2Instances{},
 		&resources.EC2DedicatedHosts{},
 		&resources.EC2KeyPairs{},
