@@ -11,7 +11,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// EBSVolumes - represents all ebs volumes
+// EBApplications - represents all elastic beanstalk applications
 type EBApplications struct {
 	BaseAwsResource
 	Client elasticbeanstalkiface.ElasticBeanstalkAPI
@@ -28,7 +28,7 @@ func (eb *EBApplications) ResourceName() string {
 	return "elastic-beanstalk"
 }
 
-// ResourceIdentifiers - The volume ids of the ebs volumes
+// ResourceIdentifiers - The application ids of the elastic beanstalk
 func (eb *EBApplications) ResourceIdentifiers() []string {
 	return eb.appIds
 }
