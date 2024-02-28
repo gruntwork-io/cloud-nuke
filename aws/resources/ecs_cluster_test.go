@@ -2,6 +2,10 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
@@ -9,9 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEC2Cluster struct {
@@ -21,6 +22,8 @@ type mockedEC2Cluster struct {
 	TagResourceOutput         ecs.TagResourceOutput
 	ListTagsForResourceOutput ecs.ListTagsForResourceOutput
 	DeleteClusterOutput       ecs.DeleteClusterOutput
+	ListTasksOutput           ecs.ListTasksOutput
+	StopTaskOutput            ecs.StopTaskOutput
 }
 
 func (m mockedEC2Cluster) ListClusters(*ecs.ListClustersInput) (*ecs.ListClustersOutput, error) {
@@ -41,6 +44,13 @@ func (m mockedEC2Cluster) ListTagsForResource(*ecs.ListTagsForResourceInput) (*e
 
 func (m mockedEC2Cluster) DeleteCluster(*ecs.DeleteClusterInput) (*ecs.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
+}
+
+func (m mockedEC2Cluster) ListTasks(*ecs.ListTasksInput) (*ecs.ListTasksOutput, error) {
+	return &m.ListTasksOutput, nil
+}
+func (m mockedEC2Cluster) StopTask(*ecs.StopTaskInput) (*ecs.StopTaskOutput, error) {
+	return &m.StopTaskOutput, nil
 }
 
 func TestEC2Cluster_GetAll(t *testing.T) {
@@ -82,6 +92,12 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 						Key:   aws.String(util.FirstSeenTagKey),
 						Value: aws.String(util.FormatTimestamp(now)),
 					},
+				},
+			},
+			ListTasksOutput: ecs.ListTasksOutput{
+				TaskArns: []*string{
+					aws.String("task-arn-001"),
+					aws.String("task-arn-002"),
 				},
 			},
 		},
@@ -131,6 +147,26 @@ func TestEC2Cluster_NukeAll(t *testing.T) {
 	ec := ECSClusters{
 		Client: mockedEC2Cluster{
 			DeleteClusterOutput: ecs.DeleteClusterOutput{},
+		},
+	}
+
+	err := ec.nukeAll([]*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	require.NoError(t, err)
+}
+
+func TestEC2ClusterWithTasks_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	ec := ECSClusters{
+		Client: mockedEC2Cluster{
+			DeleteClusterOutput: ecs.DeleteClusterOutput{},
+			ListTasksOutput: ecs.ListTasksOutput{
+				TaskArns: []*string{
+					aws.String("task-arn-001"),
+					aws.String("task-arn-002"),
+				},
+			},
 		},
 	}
 
