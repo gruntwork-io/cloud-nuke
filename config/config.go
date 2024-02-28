@@ -35,6 +35,7 @@ type Config struct {
 	DBSubnetGroups                  ResourceType               `yaml:"DBSubnetGroups"`
 	DynamoDB                        ResourceType               `yaml:"DynamoDB"`
 	EBSVolume                       ResourceType               `yaml:"EBSVolume"`
+	ElasticBeanstalk                ResourceType               `yaml:"ElasticBeanstalk"`
 	EC2                             ResourceType               `yaml:"EC2"`
 	EC2DedicatedHosts               ResourceType               `yaml:"EC2DedicatedHosts"`
 	EC2DHCPOption                   ResourceType               `yaml:"EC2DhcpOption"`

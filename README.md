@@ -60,6 +60,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Elasticache             | Clusters                                                 |
 | Elasticache             | Parameter Groups                                         |
 | Elasticache             | Subnet Groups                                            |
+| Elastic Beanstalk       | Applications                                             |
 | ECS                     | Services                                                 |
 | ECS                     | Clusters                                                 |
 | EKS                     | Clusters                                                 |
@@ -509,6 +510,7 @@ of the file that are supported are listed here.
 | rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
 | dynamodb                    | DynamoDB                     | ✅ (Table Name)                        | ✅ (Creation Time)                   | ❌    |
 | ebs                         | EBSVolume                    | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ✅    |
+| elastic-beanstalk           | ElasticBeanstalk             | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    |
 | ec2                         | EC2                          | ✅ (Instance Name)                     | ✅ (Launch Time)                     | ✅    |
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
 | ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |
