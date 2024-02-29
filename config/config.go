@@ -91,6 +91,9 @@ type Config struct {
 	TransitGatewaysVpcAttachment    ResourceType               `yaml:"TransitGatewaysVpcAttachment"`
 	TransitGatewayPeeringAttachment ResourceType               `yaml:"TransitGatewayPeeringAttachment"`
 	VPC                             ResourceType               `yaml:"VPC"`
+	Route53HostedZone               ResourceType               `yaml:"Route53HostedZone"`
+	Route53CIDRCollection           ResourceType               `yaml:"Route53CIDRCollection"`
+	Route53TrafficPolicy            ResourceType               `yaml:"Route53TrafficPolicy"`
 }
 
 func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
