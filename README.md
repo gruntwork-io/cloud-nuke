@@ -64,9 +64,6 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | ECS                     | Services                                                 |
 | ECS                     | Clusters                                                 |
 | EKS                     | Clusters                                                 |
-| RDS                     | RDS databases                                            |
-| RDS                     | Neptune                                                  |
-| RDS                     | Document DB instances                                    |
 | DynamoDB                | Tables                                                   |
 | Lambda                  | Functions                                                |
 | SQS                     | Queues                                                   |
@@ -99,6 +96,10 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | ECR                     | Repositories                                             |
 | Config                  | Service recorders                                        |
 | Config                  | Service rules                                            |
+| RDS                     | RDS databases                                            |
+| RDS                     | Neptune                                                  |
+| RDS                     | Document DB instances                                    |
+| RDS                     | RDS parameter group                                      |
 | Security Hub            | Hubs                                                     |
 | Security Hub            | Members                                                  |
 | Security Hub            | Administrators                                           |
@@ -508,9 +509,6 @@ of the file that are supported are listed here.
 | codedeploy-application      | CodeDeployApplications       | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    |
 | config-recorders            | ConfigServiceRecorder        | ✅ (Recorder Name)                     | ❌                                   | ❌    |
 | config-rules                | ConfigServiceRule            | ✅ (Rule Name)                         | ❌                                   | ❌    |
-| rds-cluster                 | DBClusters                   | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    |
-| rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    |
-| rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
 | dynamodb                    | DynamoDB                     | ✅ (Table Name)                        | ✅ (Creation Time)                   | ❌    |
 | ebs                         | EBSVolume                    | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ✅    |
 | elastic-beanstalk           | ElasticBeanstalk             | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    |
@@ -518,10 +516,10 @@ of the file that are supported are listed here.
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
 | ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |
 | ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam                	   | EC2IPAM			               | ✅ (IPAM name)                    	   | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam-pool               | EC2IPAMPool			             | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		 | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam-scope              | EC2IPAMScope		 						 | ✅ (IPAM Scope Name)               		 | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam                	   | EC2IPAM			                   | ✅ (IPAM name)                    	    | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-pool               | EC2IPAMPool			               | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		   | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-scope              | EC2IPAMScope		 						        | ✅ (IPAM Scope Name)               	   | ✅ (Creation Time)                   | ✅    |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |
@@ -550,6 +548,10 @@ of the file that are supported are listed here.
 | oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |
 | opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |
 | redshift                    | Redshift                     | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    |
+| rds-cluster                 | DBClusters                   | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    |
+| rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    |
+| rds-parameter-group         | RdsParameterGroup            | ✅ (Group Name)                        | ❌                                   | ❌    |
+| rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
 | s3                          | s3                           | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    |
 | ses-configuration-set       | SesConfigurationset          | ✅ (Configuration set name)            | ❌                                   | ❌    |
 | ses-email-template          | SesEmailTemplates            | ✅ (Template Name)                     | ✅ (Creation Time)                   | ❌    |
@@ -766,7 +768,9 @@ job for this repo has been configured to:
 See `.circleci/config.yml` for details.
 
 ## Nukable error statuses
+
 You'll encounter any of the following statuses when attempting to nuke resources, and here's what each status means:
+
 - `error:INSUFFICIENT_PERMISSION` : You don't have enough permission to nuke the resource.
 - `error:DIFFERENT_OWNER` : You are attempting to nuke a resource for which you are not the owner.
 
