@@ -109,6 +109,9 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | SES                     | SES receipt filter                                       |
 | AWS Certificate Manager | Certificates                                             |
 | CodeDeploy              | Applications                                             |
+| Route53                 | Hosted Zones                                             |
+| Route53                 | CIDR collections                                         |
+| Route53                 | Traffic Policies                                         |
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.
 > Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources
@@ -515,10 +518,10 @@ of the file that are supported are listed here.
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
 | ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |
 | ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam                	   | EC2IPAM			                   | ✅ (IPAM name)                    	    | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam-pool               | EC2IPAMPool			               | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		   | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam-scope              | EC2IPAMScope		 						        | ✅ (IPAM Scope Name)               		  | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam                	   | EC2IPAM			               | ✅ (IPAM name)                    	   | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-pool               | EC2IPAMPool			             | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		 | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |
+| ec2-ipam-scope              | EC2IPAMScope		 						 | ✅ (IPAM Scope Name)               		 | ✅ (Creation Time)                   | ✅    |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |
@@ -563,6 +566,9 @@ of the file that are supported are listed here.
 | transit-gateway-route-table | TransitGatewayRouteTable     | ❌                                     | ✅ (Creation Time)                   | ❌    |
 | transit-gateway-attachment  | TransitGatewaysVpcAttachment | ❌                                     | ✅ (Creation Time)                   | ❌    |
 | vpc                         | VPC                          | ✅ (EC2 Name Tag)                      | ✅ (First Seen Tag Time)             | ❌    |
+| route53-hosted-zone         | Route53HostedZone            | ✅ (Hosted zone name)                  | ❌                                   | ❌    |
+| route53-cidr-collection     | Route53CIDRCollection        | ✅ (Cidr collection name)              | ❌                                   | ❌    |
+| route53-traffic-policy      | Route53TrafficPolicy         | ✅ (Traffic policy name)               | ❌                                   | ❌    |
 
 ### How to Use
 
