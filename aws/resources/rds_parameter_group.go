@@ -40,7 +40,7 @@ func (pg *RdsParameterGroup) nukeAll(identifiers []*string) error {
 	}
 
 	logging.Debugf("Deleting all DB parameter groups in region %s", pg.Region)
-	deleted := []*string{}
+	var deleted []*string
 
 	for _, identifier := range identifiers {
 		logging.Debugf("[RDS Parameter Group] Deleting %s in region %s", *identifier, pg.Region)
