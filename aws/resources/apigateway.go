@@ -78,12 +78,54 @@ func (gateway *ApiGateway) nukeAll(identifiers []*string) error {
 	return nil
 }
 
+func (gateway *ApiGateway) getAttachedStageClientCerts(apigwID *string) ([]*string, error) {
+	var clientCerts []*string
+
+	// remove the client certificate attached with the stages
+	stages, err := gateway.Client.GetStages(&apigateway.GetStagesInput{
+		RestApiId: apigwID,
+	})
+
+	if err != nil {
+		return clientCerts, err
+	}
+	// get the stages attached client certificates
+	for _, stage := range stages.Item {
+		clientCerts = append(clientCerts, stage.ClientCertificateId)
+	}
+	return clientCerts, nil
+}
+
+func (gateway *ApiGateway) removeAttachedClientCertificates(clientCerts []*string) error {
+
+	for _, cert := range clientCerts {
+		logging.Debugf("Deleting Client Certificate %s", *cert)
+		_, err := gateway.Client.DeleteClientCertificate(&apigateway.DeleteClientCertificateInput{
+			ClientCertificateId: cert,
+		})
+		if err != nil {
+			logging.Errorf("[Failed] Error deleting Client Certificate %s", *cert)
+			return err
+		}
+	}
+	return nil
+}
 func (gateway *ApiGateway) nukeAsync(
 	wg *sync.WaitGroup, errChan chan error, apigwID *string) {
 	defer wg.Done()
 
+	// get the attached client certificates
+	clientCerts, err := gateway.getAttachedStageClientCerts(apigwID)
+
 	input := &apigateway.DeleteRestApiInput{RestApiId: apigwID}
-	_, err := gateway.Client.DeleteRestApi(input)
+	_, err = gateway.Client.DeleteRestApi(input)
+
+	// When the rest-api endpoint delete successfully, then remove attached client certs
+	if err == nil {
+		err = gateway.removeAttachedClientCertificates(clientCerts)
+	}
+
+	// send the error data to channel
 	errChan <- err
 
 	// Record status of this resource

@@ -18,8 +18,10 @@ import (
 
 type mockedApiGateway struct {
 	apigatewayiface.APIGatewayAPI
-	GetRestApisResp   apigateway.GetRestApisOutput
-	DeleteRestApiResp apigateway.DeleteRestApiOutput
+	GetRestApisResp               apigateway.GetRestApisOutput
+	DeleteRestApiResp             apigateway.DeleteRestApiOutput
+	GetStagesOutput               apigateway.GetStagesOutput
+	DeleteClientCertificateOutput apigateway.DeleteClientCertificateOutput
 }
 
 func (m mockedApiGateway) GetRestApis(*apigateway.GetRestApisInput) (*apigateway.GetRestApisOutput, error) {
@@ -30,6 +32,13 @@ func (m mockedApiGateway) GetRestApis(*apigateway.GetRestApisInput) (*apigateway
 func (m mockedApiGateway) DeleteRestApi(*apigateway.DeleteRestApiInput) (*apigateway.DeleteRestApiOutput, error) {
 	// Only need to return mocked response output
 	return &m.DeleteRestApiResp, nil
+}
+func (m mockedApiGateway) GetStages(*apigateway.GetStagesInput) (*apigateway.GetStagesOutput, error) {
+	return &m.GetStagesOutput, nil
+}
+
+func (m mockedApiGateway) DeleteClientCertificate(*apigateway.DeleteClientCertificateInput) (*apigateway.DeleteClientCertificateOutput, error) {
+	return &m.DeleteClientCertificateOutput, nil
 }
 
 func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
@@ -111,6 +120,43 @@ func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 				},
 			},
 			DeleteRestApiResp: apigateway.DeleteRestApiOutput{},
+		},
+	}
+
+	apis, err := apiGateway.getAll(context.Background(), config.Config{})
+	require.NoError(t, err)
+	require.Contains(t, awsgo.StringValueSlice(apis), testApiID1)
+	require.Contains(t, awsgo.StringValueSlice(apis), testApiID2)
+
+	err = apiGateway.nukeAll([]*string{aws.String(testApiID1), aws.String(testApiID2)})
+	require.NoError(t, err)
+}
+
+func TestNukeAPIGatewayWithCertificates(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
+	t.Parallel()
+
+	testApiID1 := "aws-nuke-test-" + util.UniqueID()
+	testApiID2 := "aws-nuke-test-" + util.UniqueID()
+
+	clientCertID := "aws-client-cert" + util.UniqueID()
+	apiGateway := ApiGateway{
+		Client: mockedApiGateway{
+			GetRestApisResp: apigateway.GetRestApisOutput{
+				Items: []*apigateway.RestApi{
+					{Id: aws.String(testApiID1)},
+					{Id: aws.String(testApiID2)},
+				},
+			},
+			GetStagesOutput: apigateway.GetStagesOutput{
+				Item: []*apigateway.Stage{
+					{
+						ClientCertificateId: aws.String(clientCertID),
+					},
+				},
+			},
+			DeleteClientCertificateOutput: apigateway.DeleteClientCertificateOutput{},
+			DeleteRestApiResp:             apigateway.DeleteRestApiOutput{},
 		},
 	}
 
