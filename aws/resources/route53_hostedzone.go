@@ -10,12 +10,12 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (r Route53HostedZone) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (r *Route53HostedZone) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
 	result, err := r.Client.ListHostedZones(&route53.ListHostedZonesInput{})
 	if err != nil {
-		logging.Debugf("[Route53 Hosted Zones] Failed to list hosted-zones: %s", err)
+		logging.Errorf("[Failed] unable to list hosted-zones: %s", err)
 		return nil, err
 	}
 
@@ -29,7 +29,7 @@ func (r Route53HostedZone) getAll(c context.Context, configObj config.Config) ([
 	return ids, nil
 }
 
-func (r Route53HostedZone) nukeAll(identifiers []*string) (err error) {
+func (r *Route53HostedZone) nukeAll(identifiers []*string) (err error) {
 	if len(identifiers) == 0 {
 		logging.Debugf("No Route53 Hosted Zones to nuke in region %s", r.Region)
 		return nil

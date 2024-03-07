@@ -10,12 +10,12 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (r Route53TrafficPolicy) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (r *Route53TrafficPolicy) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
 	result, err := r.Client.ListTrafficPolicies(&route53.ListTrafficPoliciesInput{})
 	if err != nil {
-		logging.Debugf("[Route53 Cidr Collection] Failed to list cidr collection: %s", err)
+		logging.Errorf("[Failed] unable to list traffic policies: %v", err)
 		return nil, err
 	}
 
@@ -31,7 +31,7 @@ func (r Route53TrafficPolicy) getAll(c context.Context, configObj config.Config)
 	return ids, nil
 }
 
-func (r Route53TrafficPolicy) nukeAll(identifiers []*string) (err error) {
+func (r *Route53TrafficPolicy) nukeAll(identifiers []*string) (err error) {
 	if len(identifiers) == 0 {
 		logging.Debugf("No Route53 Traffic Policy to nuke in region %s", r.Region)
 		return nil

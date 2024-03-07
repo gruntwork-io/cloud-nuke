@@ -10,12 +10,12 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (r Route53CidrCollection) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (r *Route53CidrCollection) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
 	result, err := r.Client.ListCidrCollections(&route53.ListCidrCollectionsInput{})
 	if err != nil {
-		logging.Debugf("[Route53 Cidr Collection] Failed to list cidr collection: %s", err)
+		logging.Errorf("[Failed] unable to list cidr collection: %s", err)
 		return nil, err
 	}
 
@@ -29,13 +29,13 @@ func (r Route53CidrCollection) getAll(c context.Context, configObj config.Config
 	return ids, nil
 }
 
-// nukeCidrLocations
-func (r Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
+func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 	// get attached cidr blocks
 	loc, err := r.Client.ListCidrBlocks(&route53.ListCidrBlocksInput{
 		CollectionId: id,
 	})
 	if err != nil {
+		logging.Errorf("[Failed] unable to list cidr blocks: %v", err)
 		return err
 	}
 
@@ -53,13 +53,15 @@ func (r Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 		Changes: changes,
 	})
 	if err != nil {
+		logging.Errorf("[Failed] unable to list cidr collections: %v", err)
 		return err
 	}
 
+	logging.Debugf("[Route53 CIDR location] Successfully nuked cidr location(s)")
 	return nil
 }
 
-func (r Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
+func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 	if len(identifiers) == 0 {
 		logging.Debugf("No Route53 Cidr collection to nuke in region %s", r.Region)
 		return nil
@@ -80,6 +82,7 @@ func (r Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 			if _, err = r.Client.DeleteCidrCollection(&route53.DeleteCidrCollectionInput{
 				Id: id,
 			}); err != nil {
+				logging.Errorf("[Failed] unable to nuke the cidr collection: %v ", err)
 				return err
 			}
 
