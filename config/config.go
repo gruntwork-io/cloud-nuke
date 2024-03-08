@@ -74,6 +74,7 @@ type Config struct {
 	OpenSearchDomain                ResourceType               `yaml:"OpenSearchDomain"`
 	Redshift                        ResourceType               `yaml:"Redshift"`
 	RdsSnapshot                     ResourceType               `yaml:"RdsSnapshot"`
+	RdsParameterGroup               ResourceType               `yaml:"RdsParameterGroup"`
 	S3                              ResourceType               `yaml:"s3"`
 	SESIdentity                     ResourceType               `yaml:"SesIdentity"`
 	SESConfigurationSet             ResourceType               `yaml:"SesConfigurationset"`
