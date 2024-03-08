@@ -260,3 +260,8 @@ DBSubnetGroups:
   exclude:
     names_regex:
       - "gruntwork-test-db-subnet-group"
+
+RdsParameterGroup:
+  exclude:
+    names_regex:
+      - "gruntwork-test-.*"
