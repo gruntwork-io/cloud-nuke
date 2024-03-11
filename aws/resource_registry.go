@@ -100,6 +100,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.DBSubnetGroups{},
 		&resources.DBClusters{},
 		&resources.RdsSnapshot{},
+		&resources.RdsParameterGroup{},
 		&resources.RedshiftClusters{},
 		&resources.S3Buckets{},
 		&resources.S3AccessPoint{},
