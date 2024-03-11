@@ -50,11 +50,11 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | Elastic IPs                                              |
 | EC2                     | Launch Configurations                                    |
 | EC2                     | IPAM (Amazon VPC IP Address Manager)                     |
-| EC2                     | IPAM Pool															                   |
-| EC2                     | IPAM Scope														                   |
-| EC2                     | IPAM Custom Allocation 								                   |
-| EC2                     | IPAM BYOASN	          								                   |
-| EC2                     | IPAM Resource Discovery 							                   |
+| EC2                     | IPAM Pool															                                 |
+| EC2                     | IPAM Scope														                                 |
+| EC2                     | IPAM Custom Allocation 								                          |
+| EC2                     | IPAM BYOASN	          								                           |
+| EC2                     | IPAM Resource Discovery 							                          |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -64,10 +64,16 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | ECS                     | Services                                                 |
 | ECS                     | Clusters                                                 |
 | EKS                     | Clusters                                                 |
+| RDS                     | RDS databases                                            |
+| RDS                     | Neptune                                                  |
+| RDS                     | Document DB instances                                    |
 | DynamoDB                | Tables                                                   |
 | Lambda                  | Functions                                                |
 | SQS                     | Queues                                                   |
 | S3                      | Buckets                                                  |
+| S3                      | Access Points                                            |
+| S3                      | Object Lambda Access Points                              |
+| S3                      | Multi Region Access Points                               |
 | VPC                     | Default VPCs                                             |
 | VPC                     | Default rules in the un-deletable default security group |
 | VPC                     | NAT Gateways                                             |
@@ -96,10 +102,6 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | ECR                     | Repositories                                             |
 | Config                  | Service recorders                                        |
 | Config                  | Service rules                                            |
-| RDS                     | RDS databases                                            |
-| RDS                     | Neptune                                                  |
-| RDS                     | Document DB instances                                    |
-| RDS                     | RDS parameter group                                      |
 | Security Hub            | Hubs                                                     |
 | Security Hub            | Members                                                  |
 | Security Hub            | Administrators                                           |
@@ -492,8 +494,8 @@ _Note: it doesn't support including resources by tags._
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level
 of the file that are supported are listed here.
 
-| resource type               | config key                   | names_regex                            | time                                 | tags  | 
-|-----------------------------|------------------------------|----------------------------------------|--------------------------------------|-------|
+| resource type               | config key                   | names_regex                           | time                                | tags | 
+|-----------------------------|------------------------------|---------------------------------------|-------------------------------------|------|
 | acm                         | ACM                          | ✅ (Domain Name)                       | ✅ (Created Time)                    | ❌    |
 | acmpca                      | ACMPCA                       | ❌                                     | ✅ (LastStateChange or Created Time) | ❌    |
 | ami                         | AMI                          | ✅ (Image Name)                        | ✅ (Creation Time)                   | ❌    |
@@ -509,6 +511,9 @@ of the file that are supported are listed here.
 | codedeploy-application      | CodeDeployApplications       | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    |
 | config-recorders            | ConfigServiceRecorder        | ✅ (Recorder Name)                     | ❌                                   | ❌    |
 | config-rules                | ConfigServiceRule            | ✅ (Rule Name)                         | ❌                                   | ❌    |
+| rds-cluster                 | DBClusters                   | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    |
+| rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    |
+| rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
 | dynamodb                    | DynamoDB                     | ✅ (Table Name)                        | ✅ (Creation Time)                   | ❌    |
 | ebs                         | EBSVolume                    | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ✅    |
 | elastic-beanstalk           | ElasticBeanstalk             | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    |
@@ -516,7 +521,7 @@ of the file that are supported are listed here.
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |
 | ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |
 | ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    |
-| ec2-ipam                	  | EC2IPAM			               | ✅ (IPAM name)                    	   | ✅ (Creation Time)                     | ✅    |
+| ec2-ipam                	   | EC2IPAM			               | ✅ (IPAM name)                    	   | ✅ (Creation Time)                   | ✅    |
 | ec2-ipam-pool               | EC2IPAMPool			             | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |
 | ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		 | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |
 | ec2-ipam-scope              | EC2IPAMScope		 						 | ✅ (IPAM Scope Name)               		 | ✅ (Creation Time)                   | ✅    |
@@ -548,11 +553,10 @@ of the file that are supported are listed here.
 | oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |
 | opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |
 | redshift                    | Redshift                     | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    |
-| rds-cluster                 | DBClusters                   | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    |
-| rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    |
-| rds-parameter-group         | RdsParameterGroup            | ✅ (Group Name)                        | ❌                                   | ❌    |
-| rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
 | s3                          | s3                           | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    |
+| s3-ap                       | s3AccessPoint                | ✅ (Access point Name)                 | ❌                                   | ❌    |
+| s3-olap                     | S3ObjectLambdaAccessPoint    | ✅ (Object Lambda Access point Name)   | ❌                                   | ❌    |
+| s3-mrap                     | S3MultiRegionAccessPoint     | ✅ (Multi region Access point Name)    | ✅ (Creation Time)                   | ❌    |
 | ses-configuration-set       | SesConfigurationset          | ✅ (Configuration set name)            | ❌                                   | ❌    |
 | ses-email-template          | SesEmailTemplates            | ✅ (Template Name)                     | ✅ (Creation Time)                   | ❌    |
 | ses-identity                | SesIdentity                  | ✅ (Identity -Mail/Domain)             | ❌                                   | ❌    |
