@@ -76,6 +76,9 @@ type Config struct {
 	RdsSnapshot                     ResourceType               `yaml:"RdsSnapshot"`
 	RdsParameterGroup               ResourceType               `yaml:"RdsParameterGroup"`
 	S3                              ResourceType               `yaml:"s3"`
+	S3AccessPoint                   ResourceType               `yaml:"S3AccessPoint"`
+	S3ObjectLambdaAccessPoint       ResourceType               `yaml:"S3ObjectLambdaAccessPoint"`
+	S3MultiRegionAccessPoint        ResourceType               `yaml:"S3MultiRegionAccessPoint"`
 	SESIdentity                     ResourceType               `yaml:"SesIdentity"`
 	SESConfigurationSet             ResourceType               `yaml:"SesConfigurationset"`
 	SESReceiptRuleSet               ResourceType               `yaml:"SesReceiptRuleSet"`

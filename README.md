@@ -68,6 +68,9 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Lambda                  | Functions                                                |
 | SQS                     | Queues                                                   |
 | S3                      | Buckets                                                  |
+| S3                      | Access Points                                            |
+| S3                      | Object Lambda Access Points                              |
+| S3                      | Multi Region Access Points                               |
 | VPC                     | Default VPCs                                             |
 | VPC                     | Default rules in the un-deletable default security group |
 | VPC                     | NAT Gateways                                             |
@@ -553,6 +556,9 @@ of the file that are supported are listed here.
 | rds-parameter-group         | RdsParameterGroup            | ✅ (Group Name)                        | ❌                                   | ❌    |
 | rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |
 | s3                          | s3                           | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    |
+| s3-ap                       | s3AccessPoint                | ✅ (Access point Name)                 | ❌                                   | ❌    |
+| s3-olap                     | S3ObjectLambdaAccessPoint    | ✅ (Object Lambda Access point Name)   | ❌                                   | ❌    |
+| s3-mrap                     | S3MultiRegionAccessPoint     | ✅ (Multi region Access point Name)    | ✅ (Creation Time)                   | ❌    |
 | ses-configuration-set       | SesConfigurationset          | ✅ (Configuration set name)            | ❌                                   | ❌    |
 | ses-email-template          | SesEmailTemplates            | ✅ (Template Name)                     | ✅ (Creation Time)                   | ❌    |
 | ses-identity                | SesIdentity                  | ✅ (Identity -Mail/Domain)             | ❌                                   | ❌    |
