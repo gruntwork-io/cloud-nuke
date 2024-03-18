@@ -265,3 +265,10 @@ RdsParameterGroup:
   exclude:
     names_regex:
       - "gruntwork-test-.*"
+
+MSKCluster:
+  include:
+    names_regex:
+      - "^msk-cluster-[a-zA-Z0-9]{6}$"
+      - "^msk-cluster-[a-zA-Z0-9]{6}-.*"
+      - "^msk-tiered-storage-test.*"
