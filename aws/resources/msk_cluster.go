@@ -2,13 +2,15 @@ package resources
 
 import (
 	"context"
+
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kafka"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (m MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (m *MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var clusterIDs []*string
 
 	err := m.Client.ListClustersV2Pages(&kafka.ListClustersV2Input{}, func(page *kafka.ListClustersV2Output, lastPage bool) bool {
@@ -26,7 +28,7 @@ func (m MSKCluster) getAll(c context.Context, configObj config.Config) ([]*strin
 	return clusterIDs, nil
 }
 
-func (m MSKCluster) shouldInclude(cluster *kafka.Cluster, configObj config.Config) bool {
+func (m *MSKCluster) shouldInclude(cluster *kafka.Cluster, configObj config.Config) bool {
 	if *cluster.State == kafka.ClusterStateDeleting {
 		return false
 	}
@@ -37,16 +39,26 @@ func (m MSKCluster) shouldInclude(cluster *kafka.Cluster, configObj config.Confi
 		return false
 	}
 
+	// if cluster is in maintenance, skip it as it will only throw an error when attempting to delete it
+	// BadRequestException: You can't delete cluster in MAINTENANCE state.
+	if *cluster.State == kafka.ClusterStateMaintenance {
+		return false
+	}
+
 	return configObj.MSKCluster.ShouldInclude(config.ResourceValue{
 		Name: cluster.ClusterName,
 		Time: cluster.CreationTime,
 	})
 }
 
-func (m MSKCluster) nukeAll(identifiers []string) error {
+func (m *MSKCluster) nukeAll(identifiers []*string) error {
+	if len(identifiers) == 0 {
+		return nil
+	}
+
 	for _, clusterArn := range identifiers {
 		_, err := m.Client.DeleteCluster(&kafka.DeleteClusterInput{
-			ClusterArn: &clusterArn,
+			ClusterArn: clusterArn,
 		})
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
@@ -54,7 +66,7 @@ func (m MSKCluster) nukeAll(identifiers []string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   clusterArn,
+			Identifier:   aws.StringValue(clusterArn),
 			ResourceType: "MSKCluster",
 			Error:        err,
 		}
