@@ -2,10 +2,11 @@ package commands
 
 import (
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"os"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -94,6 +95,10 @@ func CreateCli(version string) *cli.App {
 				&cli.StringFlag{
 					Name:  "config",
 					Usage: "YAML file specifying matching rules.",
+				},
+				&cli.StringFlag{
+					Name:  "timeout",
+					Usage: "Resource execution timeout.",
 				},
 			},
 		}, {
@@ -191,6 +196,18 @@ func parseDurationParam(paramValue string) (*time.Time, error) {
 
 	excludeAfter := time.Now().Add(duration)
 	return &excludeAfter, nil
+}
+
+func parseTimeoutDurationParam(paramValue string) (*time.Duration, error) {
+	if paramValue == "0s" || paramValue == "" {
+		return nil, nil
+	}
+
+	duration, err := time.ParseDuration(paramValue)
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+	return &duration, nil
 }
 
 func awsNuke(c *cli.Context) error {
@@ -518,6 +535,11 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 		return nil, nil, errors.WithStackTrace(err)
 	}
 
+	timeout, err := parseTimeoutDurationParam(c.String("timeout"))
+	if err != nil {
+		return nil, nil, errors.WithStackTrace(err)
+	}
+
 	query, err := aws.NewQuery(
 		c.StringSlice("region"),
 		c.StringSlice("exclude-region"),
@@ -526,6 +548,7 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 		excludeAfter,
 		includeAfter,
 		includeUnaliasedKmsKeys,
+		timeout,
 	)
 	if err != nil {
 		return nil, nil, aws.QueryCreationError{Underlying: err}

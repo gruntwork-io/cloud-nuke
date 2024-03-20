@@ -21,9 +21,10 @@ import (
 
 // GetAllResources - Lists all aws resources
 func GetAllResources(c context.Context, query *Query, configObj config.Config) (*AwsAccountResources, error) {
-
 	configObj.AddExcludeAfterTime(query.ExcludeAfter)
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
+	configObj.AddTimeout(query.Timeout)
+
 	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = query.ListUnaliasedKMSKeys
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsResources),
@@ -42,11 +43,18 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 		registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
 		for _, resource := range registeredResources {
 			if IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
+
+				// PrepareContext sets up the resource context for execution, utilizing the context 'c' and the resource individual configuration.
+				// This function should be called after configuring the timeout to ensure proper execution context.
+				resourceConfig := (*resource).GetAndSetResourceConfig(configObj)
+				(*resource).PrepareContext(c, resourceConfig)
+
 				spinner.UpdateText(
 					fmt.Sprintf("Searching %s resources in %s", (*resource).ResourceName(), region))
 				start := time.Now()
 				identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
 				if err != nil {
+					logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
 					ge := report.GeneralError{
 						Error:        err,
 						Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),

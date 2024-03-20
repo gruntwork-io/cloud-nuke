@@ -19,40 +19,40 @@ type MSKCluster struct {
 	ClusterArns []string
 }
 
-func (m *MSKCluster) Init(session *session.Session) {
-	m.Client = kafka.New(session)
+func (msk MSKCluster) Init(session *session.Session) {
+	msk.Client = kafka.New(session)
 }
 
 // ResourceName - the simple name of the aws resource
-func (m *MSKCluster) ResourceName() string {
+func (msk MSKCluster) ResourceName() string {
 	return "msk-cluster"
 }
 
 // ResourceIdentifiers - The instance ids of the AWS Managed Streaming for Kafka clusters
-func (m *MSKCluster) ResourceIdentifiers() []string {
-	return m.ClusterArns
+func (msk MSKCluster) ResourceIdentifiers() []string {
+	return msk.ClusterArns
 }
 
-func (m *MSKCluster) MaxBatchSize() int {
+func (msk MSKCluster) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that nat gateway does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
 	// overloading the runtime and to avoid AWS throttling with many API calls.
 	return 10
 }
 
-func (m *MSKCluster) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
-	identifiers, err := m.getAll(c, configObj)
+func (msk MSKCluster) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := msk.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	m.ClusterArns = awsgo.StringValueSlice(identifiers)
-	return m.ClusterArns, nil
+	msk.ClusterArns = awsgo.StringValueSlice(identifiers)
+	return msk.ClusterArns, nil
 }
 
 // Nuke - nuke 'em all!!!
-func (m *MSKCluster) Nuke(identifiers []string) error {
-	if err := m.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+func (msk MSKCluster) Nuke(_ *session.Session, identifiers []string) error {
+	if err := msk.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

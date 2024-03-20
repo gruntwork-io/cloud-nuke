@@ -94,7 +94,6 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.LaunchConfigs{},
 		&resources.LaunchTemplates{},
 		&resources.MacieMember{},
-		&resources.MSKCluster{},
 		&resources.NatGateways{},
 		&resources.OpenSearchDomains{},
 		&resources.DBInstances{},

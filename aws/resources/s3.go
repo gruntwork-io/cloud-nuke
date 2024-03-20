@@ -3,12 +3,14 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"math"
 	"sync"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -19,7 +21,6 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
 const AwsResourceExclusionTagKey = "cloud-nuke-excluded"
@@ -30,7 +31,7 @@ func (sb S3Buckets) getS3BucketRegion(bucketName string) (string, error) {
 		Bucket: aws.String(bucketName),
 	}
 
-	result, err := sb.Client.GetBucketLocation(input)
+	result, err := sb.Client.GetBucketLocationWithContext(sb.Context, input)
 	if err != nil {
 		return "", err
 	}
@@ -51,7 +52,7 @@ func (bucket *S3Buckets) getS3BucketTags(bucketName string) (map[string]string, 
 
 	// Please note that svc argument should be created from a session object which is
 	// in the same region as the bucket or GetBucketTagging will fail.
-	result, err := bucket.Client.GetBucketTagging(input)
+	result, err := bucket.Client.GetBucketTaggingWithContext(bucket.Context, input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -77,8 +78,7 @@ type S3Bucket struct {
 
 // getAllS3Buckets returns a map of per region AWS S3 buckets which were created before excludeAfter
 func (sb S3Buckets) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	input := &s3.ListBucketsInput{}
-	output, err := sb.Client.ListBuckets(input)
+	output, err := sb.Client.ListBucketsWithContext(sb.Context, &s3.ListBucketsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -204,7 +204,8 @@ func (sb S3Buckets) emptyBucket(bucketName *string, isVersioned bool) error {
 
 	// Handle versioned buckets.
 	if isVersioned {
-		err := sb.Client.ListObjectVersionsPages(
+		err := sb.Client.ListObjectVersionsPagesWithContext(
+			sb.Context,
 			&s3.ListObjectVersionsInput{
 				Bucket:  bucketName,
 				MaxKeys: aws.Int64(int64(sb.MaxBatchSize())),
@@ -240,7 +241,8 @@ func (sb S3Buckets) emptyBucket(bucketName *string, isVersioned bool) error {
 	}
 
 	// Handle non versioned buckets.
-	err := sb.Client.ListObjectsV2Pages(
+	err := sb.Client.ListObjectsV2PagesWithContext(
+		sb.Context,
 		&s3.ListObjectsV2Input{
 			Bucket:  bucketName,
 			MaxKeys: aws.Int64(int64(sb.MaxBatchSize())),
@@ -280,7 +282,8 @@ func (sb S3Buckets) deleteObjects(bucketName *string, objects []*s3.Object) erro
 			Key: obj.Key,
 		})
 	}
-	_, err := sb.Client.DeleteObjects(
+	_, err := sb.Client.DeleteObjectsWithContext(
+		sb.Context,
 		&s3.DeleteObjectsInput{
 			Bucket: bucketName,
 			Delete: &s3.Delete{
@@ -306,7 +309,8 @@ func (sb S3Buckets) deleteObjectVersions(bucketName *string, objectVersions []*s
 			VersionId: obj.VersionId,
 		})
 	}
-	_, err := sb.Client.DeleteObjects(
+	_, err := sb.Client.DeleteObjectsWithContext(
+		sb.Context,
 		&s3.DeleteObjectsInput{
 			Bucket: bucketName,
 			Delete: &s3.Delete{
@@ -332,7 +336,8 @@ func (sb S3Buckets) deleteDeletionMarkers(bucketName *string, objectDelMarkers [
 			VersionId: obj.VersionId,
 		})
 	}
-	_, err := sb.Client.DeleteObjects(
+	_, err := sb.Client.DeleteObjectsWithContext(
+		sb.Context,
 		&s3.DeleteObjectsInput{
 			Bucket: bucketName,
 			Delete: &s3.Delete{
@@ -346,7 +351,7 @@ func (sb S3Buckets) deleteDeletionMarkers(bucketName *string, objectDelMarkers [
 
 // nukeAllS3BucketObjects batch deletes all objects in an S3 bucket
 func (sb S3Buckets) nukeAllS3BucketObjects(bucketName *string) error {
-	versioningResult, err := sb.Client.GetBucketVersioning(&s3.GetBucketVersioningInput{
+	versioningResult, err := sb.Client.GetBucketVersioningWithContext(sb.Context, &s3.GetBucketVersioningInput{
 		Bucket: bucketName,
 	})
 	if err != nil {
@@ -369,7 +374,8 @@ func (sb S3Buckets) nukeAllS3BucketObjects(bucketName *string) error {
 
 // nukeEmptyS3Bucket deletes an empty S3 bucket
 func (sb S3Buckets) nukeEmptyS3Bucket(bucketName *string, verifyBucketDeletion bool) error {
-	_, err := sb.Client.DeleteBucket(&s3.DeleteBucketInput{
+
+	_, err := sb.Client.DeleteBucketWithContext(sb.Context, &s3.DeleteBucketInput{
 		Bucket: bucketName,
 	})
 	if err != nil {
@@ -385,7 +391,7 @@ func (sb S3Buckets) nukeEmptyS3Bucket(bucketName *string, verifyBucketDeletion b
 	const maxRetries = 3
 	for i := 0; i < maxRetries; i++ {
 		logging.Debugf("Waiting until bucket (%s) deletion is propagated (attempt %d / %d)", aws.StringValue(bucketName), i+1, maxRetries)
-		err = sb.Client.WaitUntilBucketNotExists(&s3.HeadBucketInput{
+		err = sb.Client.WaitUntilBucketNotExistsWithContext(sb.Context, &s3.HeadBucketInput{
 			Bucket: bucketName,
 		})
 		// Exit early if no error
@@ -400,15 +406,36 @@ func (sb S3Buckets) nukeEmptyS3Bucket(bucketName *string, verifyBucketDeletion b
 }
 
 func (sb S3Buckets) nukeS3BucketPolicy(bucketName *string) error {
-	_, err := sb.Client.DeleteBucketPolicy(&s3.DeleteBucketPolicyInput{
-		Bucket: aws.String(*bucketName),
-	})
+	_, err := sb.Client.DeleteBucketPolicyWithContext(
+		sb.Context,
+		&s3.DeleteBucketPolicyInput{
+			Bucket: aws.String(*bucketName),
+		})
 	return err
+}
+
+func (sb S3Buckets) nukeBucket(bucketName *string) error {
+	verifyBucketDeletion := true
+
+	err := sb.nukeAllS3BucketObjects(bucketName)
+	if err != nil {
+		return err
+	}
+
+	err = sb.nukeS3BucketPolicy(bucketName)
+	if err != nil {
+		return err
+	}
+
+	err = sb.nukeEmptyS3Bucket(bucketName, verifyBucketDeletion)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // nukeAllS3Buckets deletes all S3 buckets passed as input
 func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
-	verifyBucketDeletion := true
 
 	if len(bucketNames) == 0 {
 		logging.Debugf("No S3 Buckets to nuke in region %s", sb.Region)
@@ -420,36 +447,23 @@ func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
 	logging.Debugf("Deleting - %d S3 Buckets in region %s", totalCount, sb.Region)
 
 	multiErr := new(multierror.Error)
+
+	var deleted []*string
 	for bucketIndex := 0; bucketIndex < totalCount; bucketIndex++ {
 
 		bucketName := bucketNames[bucketIndex]
 		logging.Debugf("Deleting - %d/%d - Bucket: %s", bucketIndex+1, totalCount, *bucketName)
 
-		err = sb.nukeAllS3BucketObjects(bucketName)
-		if err != nil {
-			logging.Debugf("[Failed] - %d/%d - Bucket: %s - object deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking S3 Bucket Objects",
-			}, map[string]interface{}{
-				"region": sb.Region,
-			})
-			multierror.Append(multiErr, err)
-			continue
-		}
+		err := sb.nukeBucket(bucketName)
 
-		err = sb.nukeS3BucketPolicy(bucketName)
-		if err != nil {
-			logging.Debugf("[Failed] - %d/%d - Bucket: %s - bucket policy cleanup error - %s", bucketIndex+1, totalCount, *bucketName, err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking S3 Bucket Polikcy",
-			}, map[string]interface{}{
-				"region": sb.Region,
-			})
-			multierror.Append(multiErr, err)
-			continue
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   aws.StringValue(bucketName),
+			ResourceType: "S3 Bucket",
+			Error:        err,
 		}
+		report.Record(e)
 
-		err = sb.nukeEmptyS3Bucket(bucketName, verifyBucketDeletion)
 		if err != nil {
 			logging.Debugf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
 			telemetry.TrackEvent(commonTelemetry.EventContext{
@@ -457,21 +471,15 @@ func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
 			}, map[string]interface{}{
 				"region": sb.Region,
 			})
-			multierror.Append(multiErr, err)
-			continue
+		} else {
+			deleted = append(deleted, bucketName)
+			logging.Debugf("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)
+			delCount++
 		}
 
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.StringValue(bucketName),
-			ResourceType: "S3 Bucket",
-			Error:        multiErr.ErrorOrNil(),
-		}
-		report.Record(e)
-
-		logging.Debugf("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)
-		delCount++
 	}
+
+	logging.Debugf("[OK] - %d Bucket(s) deleted in %s", len(deleted), sb.Region)
 
 	return delCount, multiErr.ErrorOrNil()
 }

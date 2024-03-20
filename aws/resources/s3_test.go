@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedS3Buckets struct {
@@ -25,40 +27,40 @@ type mockedS3Buckets struct {
 	DeleteBucketOutput            s3.DeleteBucketOutput
 }
 
-func (m mockedS3Buckets) ListBuckets(*s3.ListBucketsInput) (*s3.ListBucketsOutput, error) {
+func (m mockedS3Buckets) ListBucketsWithContext(aws.Context, *s3.ListBucketsInput, ...request.Option) (*s3.ListBucketsOutput, error) {
 	return &m.ListBucketsOutput, nil
 }
 
-func (m mockedS3Buckets) GetBucketLocation(*s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
+func (m mockedS3Buckets) GetBucketLocationWithContext(aws.Context, *s3.GetBucketLocationInput, ...request.Option) (*s3.GetBucketLocationOutput, error) {
 	return &m.GetBucketLocationOutput, nil
 }
 
-func (m mockedS3Buckets) GetBucketTagging(*s3.GetBucketTaggingInput) (*s3.GetBucketTaggingOutput, error) {
+func (m mockedS3Buckets) GetBucketTaggingWithContext(aws.Context, *s3.GetBucketTaggingInput, ...request.Option) (*s3.GetBucketTaggingOutput, error) {
 	return &m.GetBucketTaggingOutput, nil
 }
 
-func (m mockedS3Buckets) WaitUntilBucketNotExists(*s3.HeadBucketInput) error {
+func (m mockedS3Buckets) WaitUntilBucketNotExistsWithContext(aws.Context, *s3.HeadBucketInput, ...request.WaiterOption) error {
 	return nil
 }
 
-func (m mockedS3Buckets) GetBucketVersioning(*s3.GetBucketVersioningInput) (*s3.GetBucketVersioningOutput, error) {
+func (m mockedS3Buckets) GetBucketVersioningWithContext(aws.Context, *s3.GetBucketVersioningInput, ...request.Option) (*s3.GetBucketVersioningOutput, error) {
 	return &m.GetBucketVersioningOutput, nil
 }
 
-func (m mockedS3Buckets) ListObjectVersionsPages(input *s3.ListObjectVersionsInput, fn func(*s3.ListObjectVersionsOutput, bool) bool) error {
+func (m mockedS3Buckets) ListObjectVersionsPagesWithContext(_ aws.Context, _ *s3.ListObjectVersionsInput, fn func(*s3.ListObjectVersionsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListObjectVersionsPagesOutput, true)
 	return nil
 }
 
-func (m mockedS3Buckets) DeleteObjects(*s3.DeleteObjectsInput) (*s3.DeleteObjectsOutput, error) {
+func (m mockedS3Buckets) DeleteObjectsWithContext(aws.Context, *s3.DeleteObjectsInput, ...request.Option) (*s3.DeleteObjectsOutput, error) {
 	return &m.DeleteObjectsOutput, nil
 }
 
-func (m mockedS3Buckets) DeleteBucketPolicy(*s3.DeleteBucketPolicyInput) (*s3.DeleteBucketPolicyOutput, error) {
+func (m mockedS3Buckets) DeleteBucketPolicyWithContext(aws.Context, *s3.DeleteBucketPolicyInput, ...request.Option) (*s3.DeleteBucketPolicyOutput, error) {
 	return &m.DeleteBucketPolicyOutput, nil
 }
 
-func (m mockedS3Buckets) DeleteBucket(*s3.DeleteBucketInput) (*s3.DeleteBucketOutput, error) {
+func (m mockedS3Buckets) DeleteBucketWithContext(aws.Context, *s3.DeleteBucketInput, ...request.Option) (*s3.DeleteBucketOutput, error) {
 	return &m.DeleteBucketOutput, nil
 }
 

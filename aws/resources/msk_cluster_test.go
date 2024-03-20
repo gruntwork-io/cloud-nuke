@@ -194,7 +194,7 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 					IncludeRule: config.FilterRule{
 						NamesRegExp: []config.Expression{
 							{
-								RE: *regexp.MustCompile("^test-cluster"),
+								RE: *regexp.MustCompile("test-cluster"),
 							},
 						},
 					},
@@ -226,7 +226,7 @@ func TestNukeMSKCluster(t *testing.T) {
 		Client: &mockMskClient,
 	}
 
-	err := msk.Nuke([]string{})
+	err := msk.Nuke(nil, []string{})
 	if err != nil {
 		t.Fatalf("Unable to nuke MSK Clusters: %v", err)
 	}
