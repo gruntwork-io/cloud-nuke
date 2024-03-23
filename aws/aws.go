@@ -47,7 +47,10 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 				// PrepareContext sets up the resource context for execution, utilizing the context 'c' and the resource individual configuration.
 				// This function should be called after configuring the timeout to ensure proper execution context.
 				resourceConfig := (*resource).GetAndSetResourceConfig(configObj)
-				(*resource).PrepareContext(c, resourceConfig)
+				err := (*resource).PrepareContext(c, resourceConfig)
+				if err != nil {
+					return nil, err
+				}
 
 				spinner.UpdateText(
 					fmt.Sprintf("Searching %s resources in %s", (*resource).ResourceName(), region))

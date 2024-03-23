@@ -13,7 +13,7 @@ var ErrDifferentOwner = errors.New("error:DIFFERENT_OWNER")
 var ErrContextExecutionTimeout = errors.New("error:EXECUTION_TIMEOUT")
 
 const AWsUnauthorizedError string = "UnauthorizedOperation"
-const AwsDryrunSuccess string = "Request would have succeeded, but DryRun flag is set."
+const AwsDryRunSuccess string = "Request would have succeeded, but DryRun flag is set."
 
 // TransformAWSError
 // this function is used to handle AWS errors and mapping them to a custom error message
@@ -28,7 +28,7 @@ func TransformAWSError(err error) error {
 		return ErrContextExecutionTimeout
 	}
 
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "DryRunOperation" && awsErr.Message() == AwsDryrunSuccess {
+	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "DryRunOperation" && awsErr.Message() == AwsDryRunSuccess {
 		return nil
 	}
 	return err
@@ -41,12 +41,4 @@ type ResourceExecutionTimeout struct {
 
 func (err ResourceExecutionTimeout) Error() string {
 	return fmt.Sprintf("execution timed out after: %v", err.Timeout)
-}
-
-// Check if the error is due to context deadline exceeded
-func CheckDeadlineExceeded(err error) bool {
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "RequestCanceled" {
-		return true
-	}
-	return false
 }

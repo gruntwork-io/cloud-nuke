@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.49.13
 	github.com/aws/aws-sdk-go-v2 v1.24.0
 	github.com/charmbracelet/lipgloss v0.6.0
+	github.com/go-errors/errors v1.4.2
 	github.com/gruntwork-io/go-commons v0.17.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -23,7 +24,6 @@ require (
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/gookit/color v1.5.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
