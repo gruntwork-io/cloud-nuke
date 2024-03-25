@@ -2,8 +2,6 @@ package report
 
 import (
 	"sync"
-
-	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 /**
@@ -37,9 +35,6 @@ func ResetErrors() {
 func Record(e Entry) {
 	defer m.Unlock()
 	m.Lock()
-
-	// Transform the aws error into custom error format.
-	e.Error = util.TransformAWSError(e.Error)
 	records[e.Identifier] = e
 }
 

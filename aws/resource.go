@@ -17,9 +17,6 @@ type AwsResource interface {
 	Nuke(identifiers []string) error
 	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
 	IsNukable(string) (bool, error)
-
-	PrepareContext(context.Context, config.ResourceType) error
-	GetAndSetResourceConfig(config.Config) config.ResourceType
 }
 
 // AwsResources is a struct to hold multiple instances of AwsResource.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -17,75 +16,52 @@ import (
 type BaseAwsResource struct {
 	// A key-value of identifiers and nukable status
 	Nukables map[string]error
-	Timeout  time.Duration
-	Context  context.Context
-	cancel   context.CancelFunc
 }
 
-func (br *BaseAwsResource) Init(_ *session.Session) {
-	br.Nukables = make(map[string]error)
+func (umpl *BaseAwsResource) Init(_ *session.Session) {
+	umpl.Nukables = make(map[string]error)
 }
-func (br *BaseAwsResource) ResourceName() string {
+func (umpl *BaseAwsResource) ResourceName() string {
 	return "not implemented: ResourceName"
 }
-func (br *BaseAwsResource) ResourceIdentifiers() []string {
+func (umpl *BaseAwsResource) ResourceIdentifiers() []string {
 	return nil
 }
-func (br *BaseAwsResource) MaxBatchSize() int {
+func (umpl *BaseAwsResource) MaxBatchSize() int {
 	return 0
 }
-func (br *BaseAwsResource) Nuke(_ []string) error {
+func (umpl *BaseAwsResource) Nuke(_ []string) error {
 	return errors.New("not implemented: Nuke")
 }
-func (br *BaseAwsResource) GetAndSetIdentifiers(_ context.Context, _ config.Config) ([]string, error) {
+func (umpl *BaseAwsResource) GetAndSetIdentifiers(_ context.Context, _ config.Config) ([]string, error) {
 	return nil, errors.New("not implemented: GetAndSetIdentifiers")
 }
 
-func (br *BaseAwsResource) GetNukableStatus(identifier string) (error, bool) {
-	val, ok := br.Nukables[identifier]
+func (umpl *BaseAwsResource) GetNukableStatus(identifier string) (error, bool) {
+	val, ok := umpl.Nukables[identifier]
 	return val, ok
 }
 
-func (br *BaseAwsResource) SetNukableStatus(identifier string, err error) {
-	br.Nukables[identifier] = err
-}
-func (br *BaseAwsResource) GetAndSetResourceConfig(_ config.Config) config.ResourceType {
-	return config.ResourceType{
-		Timeout: "",
-	}
-}
-
-func (br *BaseAwsResource) PrepareContext(parentContext context.Context, resourceConfig config.ResourceType) error {
-	if resourceConfig.Timeout == "" {
-		br.Context = parentContext
-		return nil
-	}
-
-	duration, err := time.ParseDuration(resourceConfig.Timeout)
-	if err != nil {
-		return err
-	}
-
-	br.Context, _ = context.WithTimeout(parentContext, duration)
-	return nil
+func (umpl *BaseAwsResource) SetNukableStatus(identifier string, err error) {
+	umpl.Nukables[identifier] = err
 }
 
 // VerifyNukablePermissions performs nukable permission verification for each ID. For each ID, the function is
 // executed, and the result (error or success) is recorded using the SetNukableStatus method, indicating whether
 // the specified action is nukable
-func (br *BaseAwsResource) VerifyNukablePermissions(ids []*string, nukableCheckfn func(id *string) error) {
+func (umpl *BaseAwsResource) VerifyNukablePermissions(ids []*string, nukableCheckfn func(id *string) error) {
 	for _, id := range ids {
 		// skip if the id is already exists
-		if _, ok := br.GetNukableStatus(*id); ok {
+		if _, ok := umpl.GetNukableStatus(*id); ok {
 			continue
 		}
 		err := nukableCheckfn(id)
-		br.SetNukableStatus(*id, util.TransformAWSError(err))
+		umpl.SetNukableStatus(*id, util.TransformAWSError(err))
 	}
 }
 
-func (br *BaseAwsResource) IsNukable(identifier string) (bool, error) {
-	err, ok := br.Nukables[identifier]
+func (umpl *BaseAwsResource) IsNukable(identifier string) (bool, error) {
+	err, ok := umpl.Nukables[identifier]
 	if !ok {
 		return false, fmt.Errorf("-")
 	}

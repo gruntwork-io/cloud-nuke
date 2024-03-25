@@ -1,10 +1,9 @@
 package aws
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 
@@ -44,7 +43,7 @@ func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			_, err := NewQuery(tc.Regions, tc.ExcludeRegions, tc.ResourceTypes, tc.ExcludeResourceTypes, tc.ExcludeAfter, tc.IncludeAfter, false, nil)
+			_, err := NewQuery(tc.Regions, tc.ExcludeRegions, tc.ResourceTypes, tc.ExcludeResourceTypes, tc.ExcludeAfter, tc.IncludeAfter, false)
 			require.NoError(t, err)
 		})
 	}

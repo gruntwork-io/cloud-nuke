@@ -44,6 +44,7 @@ type Config struct {
 	EC2IPAMPool                     ResourceType               `yaml:"EC2IPAMPool"`
 	EC2IPAMResourceDiscovery        ResourceType               `yaml:"EC2IPAMResourceDiscovery"`
 	EC2IPAMScope                    ResourceType               `yaml:"EC2IPAMScope"`
+	EC2Subnet                       ResourceType               `yaml:"EC2Subnet"`
 	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
 	ECSCluster                      ResourceType               `yaml:"ECSCluster"`
 	ECSService                      ResourceType               `yaml:"ECSService"`
@@ -118,24 +119,6 @@ func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
 		filterRule.TimeAfter = timeFilter
 	}
 }
-func (c *Config) addTimeOut(timeout *time.Duration, fieldName string) {
-	// Do nothing if the time filter is nil or 0s
-	if timeout == nil || *timeout <= 0 {
-		return
-	}
-
-	v := reflect.ValueOf(c).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if field.Kind() != reflect.Struct {
-			continue
-		}
-
-		timeoutField := field.FieldByName(fieldName)
-		timeoutVal := timeoutField.Addr().Interface().(*string)
-		*timeoutVal = timeout.String()
-	}
-}
 
 func (c *Config) AddIncludeAfterTime(includeAfter *time.Time) {
 	// include after filter has been applied to all resources via `newer-than` flag, we are
@@ -149,12 +132,6 @@ func (c *Config) AddExcludeAfterTime(excludeAfter *time.Time) {
 	c.addTimeAfterFilter(excludeAfter, "ExcludeRule")
 }
 
-func (c *Config) AddTimeout(timeout *time.Duration) {
-	// include after filter has been applied to all resources via `newer-than` flag, we are
-	// setting this rule across all resource types.
-	c.addTimeOut(timeout, "Timeout")
-}
-
 type KMSCustomerKeyResourceType struct {
 	IncludeUnaliasedKeys bool `yaml:"include_unaliased_keys"`
 	ResourceType         `yaml:",inline"`
@@ -163,7 +140,6 @@ type KMSCustomerKeyResourceType struct {
 type ResourceType struct {
 	IncludeRule FilterRule `yaml:"include"`
 	ExcludeRule FilterRule `yaml:"exclude"`
-	Timeout     string     `yaml:"timeout"`
 }
 
 type FilterRule struct {
