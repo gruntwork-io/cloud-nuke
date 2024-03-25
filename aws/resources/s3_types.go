@@ -52,6 +52,11 @@ func (bucket *S3Buckets) ResourceIdentifiers() []string {
 	return bucket.Names
 }
 
+// To get the resource configuration
+func (bucket *S3Buckets) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.S3
+}
+
 func (bucket *S3Buckets) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := bucket.getAll(c, configObj)
 	if err != nil {
