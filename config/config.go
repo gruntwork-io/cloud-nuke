@@ -98,6 +98,7 @@ type Config struct {
 	Route53HostedZone               ResourceType               `yaml:"Route53HostedZone"`
 	Route53CIDRCollection           ResourceType               `yaml:"Route53CIDRCollection"`
 	Route53TrafficPolicy            ResourceType               `yaml:"Route53TrafficPolicy"`
+	InternetGateway                 ResourceType               `yaml:"InternetGateway"`
 }
 
 func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
