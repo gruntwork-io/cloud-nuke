@@ -5,7 +5,7 @@ orbs:
 env: &env
   environment:
     GRUNTWORK_INSTALLER_VERSION: v0.0.39
-    MODULE_CI_VERSION: v0.52.6
+    MODULE_CI_VERSION: v0.53.3
 
 defaults: &defaults
   resource_class: medium+
@@ -108,6 +108,9 @@ jobs:
       - run:
           name: Compile and sign the binaries
           command: |
+            export AC_PASSWORD=${MACOS_AC_PASSWORD}
+            export AC_PROVIDER=${MACOS_AC_PROVIDER}
+            
             sign-binary --install-macos-sign-dependencies --os mac .gon_amd64.hcl
             sign-binary --os mac .gon_arm64.hcl
             echo "Done signing the binary"
