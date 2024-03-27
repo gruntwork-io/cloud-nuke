@@ -42,7 +42,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 		testName1 = "cloud-nuke-igw-001"
 		testName2 = "cloud-nuke-igw-002"
 	)
-	ec2subnet := EgressOnlyInternetGateway{
+	object := EgressOnlyInternetGateway{
 		Client: mockedEgressOnlyIgw{
 			DescribeEgressOnlyInternetGatewaysOutput: ec2.DescribeEgressOnlyInternetGatewaysOutput{
 				EgressOnlyInternetGateways: []*ec2.EgressOnlyInternetGateway{
@@ -74,7 +74,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 			},
 		},
 	}
-	ec2subnet.BaseAwsResource.Init(nil)
+	object.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -110,7 +110,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ec2subnet.getAll(context.Background(), config.Config{
+			names, err := object.getAll(context.Background(), config.Config{
 				EgressOnlyInternetGateway: tc.configObj,
 			})
 			require.NoError(t, err)
