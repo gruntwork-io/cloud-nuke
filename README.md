@@ -1,28 +1,5 @@
 [![Maintained by Gruntwork.io](https://img.shields.io/badge/maintained%20by-gruntwork.io-%235849a6.svg)](https://gruntwork.io/?ref=repo_cloud_nuke)
 
-## Telemetry
-
-As of version `v0.29.0` cloud-nuke sends telemetry back to Gruntwork to help us better prioritize bug fixes and feature
-improvements. The following metrics are included:
-
-- Command and Arguments
-- Version Number
-- Timestamps
-- Resource Types
-- Resource Counts
-- A randomly generated Run ID
-- AWS Account ID
-
-We never collect
-
-- IP Addresses
-- Resource Names
-
-Telemetry can be disabled entirely by setting the `DISABLE_TELEMETRY` environment variable on the command line.
-
-As an open source tool, you can see the exact statistics being collected by searching the code for
-`telemetry.TrackEvent(...)`
-
 # cloud-nuke
 
 This repo contains a CLI tool to delete all resources . cloud-nuke was created for situations when you might have an
@@ -135,6 +112,29 @@ be used in a production environment!
 
 When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs and the default ingress/egress rule for
 all default security groups. This should be used in production environments **WITH CAUTION**.
+
+## Telemetry
+
+As of version `v0.29.0` cloud-nuke sends telemetry back to Gruntwork to help us better prioritize bug fixes and feature
+improvements. The following metrics are included:
+
+- Command and Arguments
+- Version Number
+- Timestamps
+- Resource Types
+- Resource Counts
+- A randomly generated Run ID
+- AWS Account ID
+
+We never collect
+
+- IP Addresses
+- Resource Names
+
+Telemetry can be disabled entirely by setting the `DISABLE_TELEMETRY` environment variable on the command line.
+
+As an open source tool, you can see the exact statistics being collected by searching the code for
+`telemetry.TrackEvent(...)`
 
 ## Install
 
