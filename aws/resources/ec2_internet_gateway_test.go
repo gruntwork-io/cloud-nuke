@@ -48,7 +48,7 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 		testName2 = "cloud-nuke-igw-002"
 	)
 
-	ec2subnet := InternetGateway{
+	igw := InternetGateway{
 		Client: mockedInternetGateway{
 			DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
 				InternetGateways: []*ec2.InternetGateway{
@@ -80,7 +80,7 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 			},
 		},
 	}
-	ec2subnet.BaseAwsResource.Init(nil)
+	igw.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -109,7 +109,7 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ec2subnet.getAll(context.Background(), config.Config{
+			names, err := igw.getAll(context.Background(), config.Config{
 				InternetGateway: tc.configObj,
 			})
 			require.NoError(t, err)
