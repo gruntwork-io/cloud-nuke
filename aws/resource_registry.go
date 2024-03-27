@@ -78,6 +78,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.ECR{},
 		&resources.ECSClusters{},
 		&resources.ECSServices{},
+		&resources.EgressOnlyInternetGateway{},
 		&resources.ElasticFileSystem{},
 		&resources.EIPAddresses{},
 		&resources.EKSClusters{},
