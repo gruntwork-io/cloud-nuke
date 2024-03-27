@@ -72,6 +72,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.TransitGatewaysRouteTables{},
 		// Note: nuking transitgateway vpc attachement before nuking the vpc since vpc could be associated with it.
 		&resources.TransitGatewaysVpcAttachment{},
+		&resources.EC2Endpoints{},
 		&resources.EC2VPCs{},
 		// Note: nuking EC2 DHCP options after nuking EC2 VPC because DHCP options could be associated with VPCs.
 		&resources.EC2DhcpOption{},

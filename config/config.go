@@ -44,7 +44,8 @@ type Config struct {
 	EC2IPAMPool                     ResourceType               `yaml:"EC2IPAMPool"`
 	EC2IPAMResourceDiscovery        ResourceType               `yaml:"EC2IPAMResourceDiscovery"`
 	EC2IPAMScope                    ResourceType               `yaml:"EC2IPAMScope"`
-	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
+	EC2Endpoint                     ResourceType               `yaml:"EC2Endpoint"`
+	ECRRepository                   ResourceType               `yaml:"EC2Endpoints"`
 	ECSCluster                      ResourceType               `yaml:"ECSCluster"`
 	ECSService                      ResourceType               `yaml:"ECSService"`
 	EKSCluster                      ResourceType               `yaml:"EKSCluster"`
