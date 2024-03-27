@@ -32,6 +32,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | IPAM Custom Allocation 								                   |
 | EC2                     | IPAM BYOASN	          								                   |
 | EC2                     | IPAM Resource Discovery 							                   |
+| EC2                     | Internet Gateway        							                   |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -565,6 +566,7 @@ of the file that are supported are listed here.
 | iam-role                    | IAMRoles                     | ✅ (Role Name)                         | ✅ (Creation Time)                   | ❌    |    ❌   |
 | iam-service-linked-role     | IAMServiceLinkedRoles        | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    |    ❌   |
 | iam                         | IAMUsers                     | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    |    ❌   |
+| internet-gateway            | InternetGateway              | ✅ (Gateway Name)                      | ✅ (Creation Time)                   | ✅    |    ❌   |
 | kmscustomerkeys             | KMSCustomerKeys              | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    |    ❌   |
 | kinesis-stream              | KinesisStream                | ✅ (Stream Name)                       | ❌                                   | ❌    |    ❌   |
 | lambda                      | LambdaFunction               | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ❌    |    ❌   |
@@ -602,6 +604,7 @@ of the file that are supported are listed here.
 | route53-hosted-zone         | Route53HostedZone            | ✅ (Hosted zone name)                  | ❌                                   | ❌    |    ❌   |
 | route53-cidr-collection     | Route53CIDRCollection        | ✅ (Cidr collection name)              | ❌                                   | ❌    |    ❌   |
 | route53-traffic-policy      | Route53TrafficPolicy         | ✅ (Traffic policy name)               | ❌                                   | ❌    |    ❌   |
+
 
 ### How to Use
 
