@@ -34,6 +34,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | IPAM Resource Discovery 							                   |
 | EC2                     | Internet Gateway        							                   |
 | EC2                     | Egress only internet gateway					                   |
+| EC2                     | Endpoint                							                   |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -551,6 +552,7 @@ of the file that are supported are listed here.
 | ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		 | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ec2-ipam-scope              | EC2IPAMScope		 						 | ✅ (IPAM Scope Name)               		 | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ec2-subnet              		| EC2Subnet		 						     | ✅ (Subnet Name)               		     | ✅ (Creation Time)                   | ✅    |    ❌   |
+| ec2-endpoint                | EC2Endpoint		 						   | ✅ (Endpoint Name)               		   | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |    ❌   |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |    ❌   |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |    ❌   |
