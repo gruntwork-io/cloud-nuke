@@ -1,5 +1,28 @@
 [![Maintained by Gruntwork.io](https://img.shields.io/badge/maintained%20by-gruntwork.io-%235849a6.svg)](https://gruntwork.io/?ref=repo_cloud_nuke)
 
+## Telemetry
+
+As of version `v0.29.0` cloud-nuke sends telemetry back to Gruntwork to help us better prioritize bug fixes and feature
+improvements. The following metrics are included:
+
+- Command and Arguments
+- Version Number
+- Timestamps
+- Resource Types
+- Resource Counts
+- A randomly generated Run ID
+- AWS Account ID
+
+We never collect
+
+- IP Addresses
+- Resource Names
+
+Telemetry can be disabled entirely by setting the `DISABLE_TELEMETRY` environment variable on the command line.
+
+As an open source tool, you can see the exact statistics being collected by searching the code for
+`telemetry.TrackEvent(...)`
+
 # cloud-nuke
 
 This repo contains a CLI tool to delete all resources . cloud-nuke was created for situations when you might have an
@@ -32,6 +55,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | IPAM Custom Allocation 								                   |
 | EC2                     | IPAM BYOASN	          								                   |
 | EC2                     | IPAM Resource Discovery 							                   |
+| EC2                     | Endpoint                							                   |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -112,29 +136,6 @@ be used in a production environment!
 
 When executed as `cloud-nuke defaults-aws`, this tool deletes all DEFAULT VPCs and the default ingress/egress rule for
 all default security groups. This should be used in production environments **WITH CAUTION**.
-
-## Telemetry
-
-As of version `v0.29.0` cloud-nuke sends telemetry back to Gruntwork to help us better prioritize bug fixes and feature
-improvements. The following metrics are included:
-
-- Command and Arguments
-- Version Number
-- Timestamps
-- Resource Types
-- Resource Counts
-- A randomly generated Run ID
-- AWS Account ID
-
-We never collect
-
-- IP Addresses
-- Resource Names
-
-Telemetry can be disabled entirely by setting the `DISABLE_TELEMETRY` environment variable on the command line.
-
-As an open source tool, you can see the exact statistics being collected by searching the code for
-`telemetry.TrackEvent(...)`
 
 ## Install
 
@@ -544,10 +545,11 @@ of the file that are supported are listed here.
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |    ❌   |
 | ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |    ❌   |
 | ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    |    ❌   |
-| ec2-ipam                	  | EC2IPAM			               | ✅ (IPAM name)                    	   | ✅ (Creation Time)                     | ✅    |    ❌   |
+| ec2-ipam                	  | EC2IPAM			                 | ✅ (IPAM name)                    	   | ✅ (Creation Time)                     | ✅    |    ❌   |
 | ec2-ipam-pool               | EC2IPAMPool			             | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		 | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ec2-ipam-scope              | EC2IPAMScope		 						 | ✅ (IPAM Scope Name)               		 | ✅ (Creation Time)                   | ✅    |    ❌   |
+| ec2-endpoint                | EC2Endpoint		 						   | ✅ (Endpoint Name)               		   | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |    ❌   |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |    ❌   |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |    ❌   |
