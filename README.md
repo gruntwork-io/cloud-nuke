@@ -1,6 +1,6 @@
 [![Maintained by Gruntwork.io](https://img.shields.io/badge/maintained%20by-gruntwork.io-%235849a6.svg)](https://gruntwork.io/?ref=repo_cloud_nuke)
 
-# cloud-nuke
+# cloud-nukesss
 
 This repo contains a CLI tool to delete all resources . cloud-nuke was created for situations when you might have an
 account you use for testing and need to clean up leftover resources so you're not charged for them. Also great for
