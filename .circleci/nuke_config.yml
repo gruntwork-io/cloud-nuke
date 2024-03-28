@@ -276,4 +276,5 @@ MSKCluster:
 InternetGateway:
   exclude:
     names_regex:
+      # Exclude the IGW for default VPCs in phxdevops
       - "gw-new-default-igw"
