@@ -100,7 +100,7 @@ func (ec2subnet *EC2Subnet) getAll(_ context.Context, configObj config.Config) (
 	ec2subnet.VerifyNukablePermissions(result, func(id *string) error {
 		params := &ec2.DeleteSubnetInput{
 			SubnetId: id,
-			DryRun:   aws.Bool(true), // dry run set as true , checks permission without actualy making the request
+			DryRun:   aws.Bool(true), // dry run set as true , checks permission without actually making the request
 		}
 		_, err := ec2subnet.Client.DeleteSubnet(params)
 		return err
