@@ -545,10 +545,11 @@ of the file that are supported are listed here.
 | ec2-dedicated-hosts         | EC2DedicatedHosts            | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    |    ❌   |
 | ec2-dhcp-option             | EC2DhcpOption                | ❌                                     | ❌                                   | ❌    |    ❌   |
 | ec2-keypairs                | EC2KeyPairs                  | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    |    ❌   |
-| ec2-ipam                	  | EC2IPAM			               | ✅ (IPAM name)                    	   | ✅ (Creation Time)                     | ✅    |    ❌   |
+| ec2-ipam                	  | EC2IPAM			                 | ✅ (IPAM name)                    	   | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ec2-ipam-pool               | EC2IPAMPool			             | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery		 | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ec2-ipam-scope              | EC2IPAMScope		 						 | ✅ (IPAM Scope Name)               		 | ✅ (Creation Time)                   | ✅    |    ❌   |
+| ec2-subnet              		| EC2Subnet		 						     | ✅ (Subnet Name)               		     | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ecr                         | ECRRepository                | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    |    ❌   |
 | ecscluster                  | ECSCluster                   | ✅ (Cluster Name)                      | ❌                                   | ❌    |    ❌   |
 | ecsserv                     | ECSService                   | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    |    ❌   |
