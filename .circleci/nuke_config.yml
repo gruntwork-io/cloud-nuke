@@ -272,3 +272,11 @@ MSKCluster:
       - "^msk-cluster-[a-zA-Z0-9]{6}$"
       - "^msk-cluster-[a-zA-Z0-9]{6}-.*"
       - "^msk-tiered-storage-test.*"
+  
+InternetGateway:
+  exclude:
+    names_regex:
+      # Exclude the IGW for default VPCs in phxdevops. This IGW is attached to the default VPC
+      # and is used by tests that require internet access from within the VPC. Without it, any
+      # VPC-based test that requires internet will fail.
+      - "gw-new-default-igw"
