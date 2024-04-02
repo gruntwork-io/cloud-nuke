@@ -33,6 +33,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | IPAM BYOASN	          								                   |
 | EC2                     | IPAM Resource Discovery 							                   |
 | EC2                     | Internet Gateway        							                   |
+| EC2                     | Egress only internet gateway					                   |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -568,6 +569,7 @@ of the file that are supported are listed here.
 | iam-service-linked-role     | IAMServiceLinkedRoles        | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    |    ❌   |
 | iam                         | IAMUsers                     | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    |    ❌   |
 | internet-gateway            | InternetGateway              | ✅ (Gateway Name)                      | ✅ (Creation Time)                   | ✅    |    ❌   |
+| egress-only-internet-gateway| EgressOnlyInternetGateway    | ✅ (Gateway name)                      | ✅ (Creation Time)                   | ✅    |    ❌   |
 | kmscustomerkeys             | KMSCustomerKeys              | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    |    ❌   |
 | kinesis-stream              | KinesisStream                | ✅ (Stream Name)                       | ❌                                   | ❌    |    ❌   |
 | lambda                      | LambdaFunction               | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ❌    |    ❌   |
