@@ -102,6 +102,7 @@ type Config struct {
 	Route53CIDRCollection           ResourceType               `yaml:"Route53CIDRCollection"`
 	Route53TrafficPolicy            ResourceType               `yaml:"Route53TrafficPolicy"`
 	InternetGateway                 ResourceType               `yaml:"InternetGateway"`
+	NetworkACL                      ResourceType               `yaml:"NetworkACL"`
 	SecurityGroup                   ResourceType               `yaml:"SecurityGroup"`
 	NetworkInterface                ResourceType               `yaml:"NetworkInterface"`
 }
