@@ -36,6 +36,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | Egress only internet gateway					                   |
 | EC2                     | Endpoint                							                   |
 | EC2                     | Security Group           							                   |
+| EC2                     | Network Interface        							                   |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -581,6 +582,7 @@ of the file that are supported are listed here.
 | macie-member                | MacieMember                  | ❌                                     | ✅ (Creation Time)                   | ❌    |    ❌   |
 | msk-cluster                 | MSKCluster                   | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    |    ❌   |
 | nat-gateway                 | NatGateway                   | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    |    ❌   |
+| network-interface           | NetworkInterface             | ✅ (Interface Name Tag)                | ✅ (Creation Time)                   | ✅    |    ❌   |
 | oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |    ❌   |
 | opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |    ❌   |
 | redshift                    | Redshift                     | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    |    ❌   |
