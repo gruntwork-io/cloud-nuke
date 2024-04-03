@@ -160,6 +160,8 @@ to [download from the releases page](https://github.com/gruntwork-io/cloud-nuke/
 
 - **Linux:** Most Linux users can use [Homebrew](https://docs.brew.sh/Homebrew-on-Linux): `brew install cloud-nuke`.
 
+- **Windows:** You can install cloud-nuke using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/): `winget install cloud-nuke`
+
 ## Usage
 
 Simply running `cloud-nuke aws` will start the process of cleaning up your cloud account. You'll be shown a list of
