@@ -325,6 +325,17 @@ cloud-nuke aws --resource-type s3 --timeout 10m
 ```
 This will attempt to nuke the specified resources within a 10-minute timeframe.
 
+
+### Exporting a CSV
+
+Cloud-nuke can export the list of resources to be nuked to a CSV file when using `cloud-nuke aws` or `cloud-nuke inspect-aws`:
+
+```shell
+cloud-nuke aws --csv
+```
+
+The csv file will be saved in the current working directory with the name `resources.csv`
+
 ### Using cloud-nuke as a library
 
 You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting
