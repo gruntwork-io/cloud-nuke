@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"time"
@@ -100,6 +101,10 @@ func CreateCli(version string) *cli.App {
 					Name:  "timeout",
 					Usage: "Resource execution timeout.",
 				},
+				&cli.BoolFlag{
+					Name:  "csv",
+					Usage: "Output a csv file of resources.",
+				},
 			},
 		}, {
 			Name:   "defaults-aws",
@@ -174,6 +179,10 @@ func CreateCli(version string) *cli.App {
 					Usage:   "Set log level",
 					EnvVars: []string{"LOG_LEVEL"},
 				},
+				&cli.BoolFlag{
+					Name:  "csv",
+					Usage: "Output a csv file of resources.",
+				},
 			},
 		},
 	}
@@ -244,7 +253,7 @@ func awsNuke(c *cli.Context) error {
 		configObj = *configObjPtr
 	}
 
-	query, account, err := handleGetResources(c, configObj, c.Bool("delete-unaliased-kms-keys"))
+	query, account, err := handleGetResources(c, configObj, c.Bool("delete-unaliased-kms-keys"), c.Bool("csv"))
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -519,11 +528,11 @@ func awsInspect(c *cli.Context) error {
 		return handleListResourceTypes()
 	}
 
-	_, _, err := handleGetResources(c, config.Config{}, c.Bool("list-unaliased-kms-keys"))
+	_, _, err := handleGetResources(c, config.Config{}, c.Bool("list-unaliased-kms-keys"), c.Bool("csv"))
 	return err
 }
 
-func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliasedKmsKeys bool) (
+func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliasedKmsKeys bool, outputCsv bool) (
 	*aws.Query, *aws.AwsAccountResources, error) {
 	excludeAfter, err := parseDurationParam(c.String("older-than"))
 	if err != nil {
@@ -569,10 +578,55 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 		return nil, nil, errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
+	if outputCsv {
+		err = writeResourcesToCsv(accountResources)
+		if err != nil {
+			return nil, nil, errors.WithStackTrace(err)
+		}
+	}
+
 	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
 	err = ui.RenderResourcesAsTable(accountResources)
 
 	return query, accountResources, err
+}
+
+//Writes all resources to a csv file
+func writeResourcesToCsv(accountResources *aws.AwsAccountResources) error {
+	file, err := os.Create("resources.csv")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write the headers to the CSV file
+	err = writer.Write([]string{"Resource Type", "Region", "Identifier", "Nukable"})
+	if err != nil {
+		return err
+	}
+
+	// Iterate over the resources and write each one to the CSV file
+	for region, resourcesInRegion := range accountResources.Resources {
+		for _, foundResources := range resourcesInRegion.Resources {
+			for _, identifier := range (*foundResources).ResourceIdentifiers() {
+				isnukable := "Success"
+				_, err := (*foundResources).IsNukable(identifier)
+				if err != nil {
+					isnukable = err.Error()
+				}
+
+				err = writer.Write([]string{(*foundResources).ResourceName(), region, identifier, isnukable})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func handleListResourceTypes() error {
