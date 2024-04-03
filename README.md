@@ -35,6 +35,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | Internet Gateway        							                   |
 | EC2                     | Egress only internet gateway					                   |
 | EC2                     | Endpoint                							                   |
+| EC2                     | Security Group           							                   |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -591,6 +592,7 @@ of the file that are supported are listed here.
 | s3-ap                       | s3AccessPoint                | ✅ (Access point Name)                 | ❌                                   | ❌    |    ❌   |
 | s3-olap                     | S3ObjectLambdaAccessPoint    | ✅ (Object Lambda Access point Name)   | ❌                                   | ❌    |    ❌   |
 | s3-mrap                     | S3MultiRegionAccessPoint     | ✅ (Multi region Access point Name)    | ✅ (Creation Time)                   | ❌    |    ❌   |
+| security-group              | SecurityGroup                | ✅ (Security group name)               | ✅ (Creation Time)                   | ✅    |    ❌   |
 | ses-configuration-set       | SesConfigurationset          | ✅ (Configuration set name)            | ❌                                   | ❌    |    ❌   |
 | ses-email-template          | SesEmailTemplates            | ✅ (Template Name)                     | ✅ (Creation Time)                   | ❌    |    ❌   |
 | ses-identity                | SesIdentity                  | ✅ (Identity -Mail/Domain)             | ❌                                   | ❌    |    ❌   |
