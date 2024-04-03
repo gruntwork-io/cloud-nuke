@@ -11,6 +11,7 @@ import (
 var ErrInSufficientPermission = errors.New("error:INSUFFICIENT_PERMISSION")
 var ErrDifferentOwner = errors.New("error:DIFFERENT_OWNER")
 var ErrContextExecutionTimeout = errors.New("error:EXECUTION_TIMEOUT")
+var ErrInterfaceIDNotFound = errors.New("error:InterfaceIdNotFound")
 
 const AWsUnauthorizedError string = "UnauthorizedOperation"
 const AwsDryRunSuccess string = "Request would have succeeded, but DryRun flag is set."
@@ -26,6 +27,10 @@ func TransformAWSError(err error) error {
 	}
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "RequestCanceled" {
 		return ErrContextExecutionTimeout
+	}
+
+	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "InvalidNetworkInterfaceID.NotFound" {
+		return ErrInterfaceIDNotFound
 	}
 
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "DryRunOperation" && awsErr.Message() == AwsDryRunSuccess {

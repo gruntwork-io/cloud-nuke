@@ -131,6 +131,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.Route53CidrCollection{},
 		&resources.Route53TrafficPolicy{},
 		&resources.InternetGateway{},
+		&resources.NetworkInterface{},
 		&resources.SecurityGroup{},
 	}
 }
