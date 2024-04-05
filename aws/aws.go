@@ -26,6 +26,11 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	configObj.AddTimeout(query.Timeout)
 
 	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = query.ListUnaliasedKMSKeys
+
+	// Setting the DefaultOnly field
+	// This function only sets the objects that have the `DefaultOnly` field, currently VPC, Subnet, and Security Group.
+	configObj.AddEC2DefaultOnly(query.DefaultOnly)
+
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsResources),
 	}

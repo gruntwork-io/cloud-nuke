@@ -2,6 +2,10 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -10,9 +14,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEC2VPCs struct {
@@ -74,27 +75,32 @@ func TestEC2VPC_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		configObj config.ResourceType
+		configObj config.EC2ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			configObj: config.ResourceType{},
+			configObj: config.EC2ResourceType{},
 			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+			configObj: config.EC2ResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{
+							RE: *regexp.MustCompile(testName1),
+						}},
+					},
+				},
 			},
 			expected: []string{testId2},
 		},
 		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
+			configObj: config.EC2ResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+					}},
+			},
 			expected: []string{},
 		},
 	}

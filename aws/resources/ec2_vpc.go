@@ -57,14 +57,21 @@ func (v *EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
 	return nil, nil
 }
 
-func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (v *EC2VPCs) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+	// Note: This filter initially handles non-default resources and can be overridden by passing the only-default filter to choose default VPCs.
+	var isdefault = "false"
+
+	// check the vpc needs to only include default
+	if configObj.VPC.DefaultOnly {
+		logging.Debugf("[default only] Retrieving the default vpcs")
+		isdefault = "true"
+	}
+
 	result, err := v.Client.DescribeVpcs(&ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
-			// Note: this filter omits the default since there is special
-			// handling for default resources already
 			{
 				Name:   awsgo.String("is-default"),
-				Values: awsgo.StringSlice([]string{"false"}),
+				Values: awsgo.StringSlice([]string{isdefault}),
 			},
 		},
 	})

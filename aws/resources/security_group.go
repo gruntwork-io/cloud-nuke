@@ -47,6 +47,12 @@ func (sg *SecurityGroup) getFirstSeenTag(securityGroup ec2.SecurityGroup) (*time
 // shouldIncludeSecurityGroup determines whether a security group should be included for deletion based on the provided configuration.
 func shouldIncludeSecurityGroup(sg *ec2.SecurityGroup, firstSeenTime *time.Time, configObj config.Config) bool {
 	var groupName = sg.GroupName
+
+	if !configObj.SecurityGroup.DefaultOnly && *groupName == "default" {
+		logging.Debugf("[default security group] skipping default security group including")
+		return false
+	}
+
 	return configObj.SecurityGroup.ShouldInclude(config.ResourceValue{
 		Name: groupName,
 		Tags: util.ConvertEC2TagsToMap(sg.Tags),
@@ -58,7 +64,24 @@ func shouldIncludeSecurityGroup(sg *ec2.SecurityGroup, firstSeenTime *time.Time,
 func (sg *SecurityGroup) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
 
-	resp, err := sg.Client.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{})
+	var filters []*ec2.Filter
+	if configObj.SecurityGroup.DefaultOnly {
+		// Note : we can't simply remove the default security groups. Instead, we're only able to revoke permissions on the security group rules.
+		// Setting a flag that can be accessed within the nuke method to check if the nuking is for default or not.
+		sg.NukeOnlyDefault = configObj.SecurityGroup.DefaultOnly
+
+		logging.Debugf("[default only] Retrieving the default security-groups")
+		filters = []*ec2.Filter{
+			{
+				Name:   aws.String("group-name"),
+				Values: aws.StringSlice([]string{"default"}),
+			},
+		}
+	}
+
+	resp, err := sg.Client.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{
+		Filters: filters,
+	})
 	if err != nil {
 		logging.Debugf("[Security Group] Failed to list security groups: %s", err)
 		return nil, errors.WithStackTrace(err)
@@ -106,9 +129,105 @@ func (sg *SecurityGroup) nuke(id *string) error {
 		return errors.WithStackTrace(err)
 	}
 
+	// check the nuking is only for default security groups, then nuke and return
+	if sg.NukeOnlyDefault {
+		// RevokeSecurityGroupIngress
+		if err := sg.RevokeSecurityGroupIngress(*id); err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		// RevokeSecurityGroupEgress
+		if err := sg.RevokeSecurityGroupEgress(*id); err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		// RevokeIPv6SecurityGroupEgress
+		if err := sg.RevokeIPv6SecurityGroupEgress(*id); err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		return nil
+	}
+
+	// nuke the securiy group which is not default one
 	if err := sg.nukeSecurityGroup(*id); err != nil {
 		return errors.WithStackTrace(err)
 	}
+	return nil
+}
+
+func (sg *SecurityGroup) RevokeSecurityGroupIngress(id string) error {
+	_, err := sg.Client.RevokeSecurityGroupIngress(&ec2.RevokeSecurityGroupIngressInput{
+		GroupId: aws.String(id),
+		IpPermissions: []*ec2.IpPermission{
+			{
+				IpProtocol:       aws.String("-1"),
+				FromPort:         aws.Int64(0),
+				ToPort:           aws.Int64(0),
+				UserIdGroupPairs: []*ec2.UserIdGroupPair{{GroupId: aws.String(id)}},
+			},
+		},
+	})
+	if err != nil {
+		if util.TransformAWSError(err) == util.ErrInvalidPermisionNotFound {
+			logging.Debugf("Ingress rule not present (ok)")
+			return nil
+		}
+
+		logging.Debugf("[Security Group] Failed to revoke security group ingress associated with security group %s: %s", id, err)
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (sg *SecurityGroup) RevokeSecurityGroupEgress(id string) error {
+	_, err := sg.Client.RevokeSecurityGroupEgress(&ec2.RevokeSecurityGroupEgressInput{
+		GroupId: aws.String(id),
+		IpPermissions: []*ec2.IpPermission{
+			{
+				IpProtocol: aws.String("-1"),
+				FromPort:   aws.Int64(0),
+				ToPort:     aws.Int64(0),
+				IpRanges:   []*ec2.IpRange{{CidrIp: aws.String("0.0.0.0/0")}},
+			},
+		},
+	})
+	if err != nil {
+		if util.TransformAWSError(err) == util.ErrInvalidPermisionNotFound {
+			logging.Debugf("Egress rule not present (ok)")
+			return nil
+		}
+
+		logging.Debugf("[Security Group] Failed to revoke security group egress associated with security group %s: %s", id, err)
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (sg *SecurityGroup) RevokeIPv6SecurityGroupEgress(id string) error {
+	_, err := sg.Client.RevokeSecurityGroupEgress(&ec2.RevokeSecurityGroupEgressInput{
+		GroupId: aws.String(id),
+		IpPermissions: []*ec2.IpPermission{
+			{
+				IpProtocol: aws.String("-1"),
+				FromPort:   aws.Int64(0),
+				ToPort:     aws.Int64(0),
+				Ipv6Ranges: []*ec2.Ipv6Range{{CidrIpv6: aws.String("::/0")}},
+			},
+		},
+	})
+	if err != nil {
+		if util.TransformAWSError(err) == util.ErrInvalidPermisionNotFound {
+			logging.Debugf("Ingress rule not present (ok)")
+			return nil
+		}
+
+		logging.Debugf("[Security Group] Failed to revoke security group egress associated with security group %s: %s", id, err)
+		return errors.WithStackTrace(err)
+	}
+
 	return nil
 }
 

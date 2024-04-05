@@ -45,7 +45,7 @@ type Config struct {
 	EC2IPAMResourceDiscovery        ResourceType               `yaml:"EC2IPAMResourceDiscovery"`
 	EC2IPAMScope                    ResourceType               `yaml:"EC2IPAMScope"`
 	EC2Endpoint                     ResourceType               `yaml:"EC2Endpoint"`
-	EC2Subnet                       ResourceType               `yaml:"EC2Subnet"`
+	EC2Subnet                       EC2ResourceType            `yaml:"EC2Subnet"`
 	EgressOnlyInternetGateway       ResourceType               `yaml:"EgressOnlyInternetGateway"`
 	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
 	ECSCluster                      ResourceType               `yaml:"ECSCluster"`
@@ -97,14 +97,14 @@ type Config struct {
 	TransitGatewayRouteTable        ResourceType               `yaml:"TransitGatewayRouteTable"`
 	TransitGatewaysVpcAttachment    ResourceType               `yaml:"TransitGatewaysVpcAttachment"`
 	TransitGatewayPeeringAttachment ResourceType               `yaml:"TransitGatewayPeeringAttachment"`
-	VPC                             ResourceType               `yaml:"VPC"`
+	VPC                             EC2ResourceType            `yaml:"VPC"`
 	Route53HostedZone               ResourceType               `yaml:"Route53HostedZone"`
 	Route53CIDRCollection           ResourceType               `yaml:"Route53CIDRCollection"`
 	Route53TrafficPolicy            ResourceType               `yaml:"Route53TrafficPolicy"`
 	InternetGateway                 ResourceType               `yaml:"InternetGateway"`
 	NetworkACL                      ResourceType               `yaml:"NetworkACL"`
-	SecurityGroup                   ResourceType               `yaml:"SecurityGroup"`
 	NetworkInterface                ResourceType               `yaml:"NetworkInterface"`
+	SecurityGroup                   EC2ResourceType            `yaml:"SecurityGroup"`
 }
 
 func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
@@ -144,6 +144,30 @@ func (c *Config) addTimeOut(timeout *time.Duration, fieldName string) {
 	}
 }
 
+func (c *Config) addDefautlOnly(flag bool) {
+	// Do nothing if the flag filter is false, by default it will be false
+	if flag == false {
+		return
+	}
+
+	v := reflect.ValueOf(c).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Kind() != reflect.Struct {
+			continue
+		}
+
+		defaultOnlyField := field.FieldByName("DefaultOnly")
+		// IsValid reports whether v represents a value.
+		// It returns false if v is the zero Value.
+		// If IsValid returns false, all other methods except String panic.
+		if defaultOnlyField.IsValid() {
+			defaultOnlyVal := defaultOnlyField.Addr().Interface().(*bool)
+			*defaultOnlyVal = flag
+		}
+	}
+}
+
 func (c *Config) AddIncludeAfterTime(includeAfter *time.Time) {
 	// include after filter has been applied to all resources via `newer-than` flag, we are
 	// setting this rule across all resource types.
@@ -157,14 +181,24 @@ func (c *Config) AddExcludeAfterTime(excludeAfter *time.Time) {
 }
 
 func (c *Config) AddTimeout(timeout *time.Duration) {
-	// include after filter has been applied to all resources via `newer-than` flag, we are
+	// timeout filter has been applied to all resources via `timeout` flag, we are
 	// setting this rule across all resource types.
 	c.addTimeOut(timeout, "Timeout")
+}
+
+func (c *Config) AddEC2DefaultOnly(flag bool) {
+	// The flag filter has been applied to all resources via the default-only flag.
+	// We are now setting this rule across all resource types that have a field named `DefaultOnly`.
+	c.addDefautlOnly(flag)
 }
 
 type KMSCustomerKeyResourceType struct {
 	IncludeUnaliasedKeys bool `yaml:"include_unaliased_keys"`
 	ResourceType         `yaml:",inline"`
+}
+type EC2ResourceType struct {
+	DefaultOnly  bool `yaml:"default_only"`
+	ResourceType `yaml:",inline"`
 }
 
 type ResourceType struct {
