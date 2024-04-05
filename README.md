@@ -33,6 +33,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | IPAM BYOASN	          								                   |
 | EC2                     | IPAM Resource Discovery 							                   |
 | EC2                     | Internet Gateway        							                   |
+| EC2                     | Network ACL             							                   |
 | EC2                     | Egress only internet gateway					                   |
 | EC2                     | Endpoint                							                   |
 | EC2                     | Security Group           							                   |
@@ -584,6 +585,7 @@ of the file that are supported are listed here.
 | macie-member                | MacieMember                  | ❌                                     | ✅ (Creation Time)                   | ❌    |    ❌   |
 | msk-cluster                 | MSKCluster                   | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    |    ❌   |
 | nat-gateway                 | NatGateway                   | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    |    ❌   |
+| network-acl                 | NetworkACL                   | ✅ (ACL Name Tag)                      | ✅ (Creation Time)                   | ✅    |    ❌   |
 | network-interface           | NetworkInterface             | ✅ (Interface Name Tag)                | ✅ (Creation Time)                   | ✅    |    ❌   |
 | oidcprovider                | OIDCProvider                 | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    |    ❌   |
 | opensearchdomain            | OpenSearchDomain             | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    |    ❌   |

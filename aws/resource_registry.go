@@ -133,6 +133,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.InternetGateway{},
 		&resources.NetworkInterface{},
 		&resources.SecurityGroup{},
+		&resources.NetworkACL{},
 	}
 }
 
