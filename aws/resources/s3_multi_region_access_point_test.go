@@ -42,6 +42,7 @@ func TestS3MultiRegionAccessPoint_GetAll(t *testing.T) {
 	now := time.Now()
 
 	ap := S3MultiRegionAccessPoint{
+		Region: "us-west-2",
 		Client: mockS3MultiRegionAccessPoint{
 			ListMultiRegionAccessPointsOutput: s3control.ListMultiRegionAccessPointsOutput{
 				AccessPoints: []*s3control.MultiRegionAccessPointReport{
@@ -101,6 +102,7 @@ func TestS3MultiRegionAccessPoint_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	rc := S3MultiRegionAccessPoint{
+		Region: "us-west-2",
 		Client: mockS3MultiRegionAccessPoint{
 			DeleteMultiRegionAccessPointOutput: s3control.DeleteMultiRegionAccessPointOutput{},
 		},
