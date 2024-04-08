@@ -14,6 +14,16 @@ import (
 )
 
 func (ap *S3MultiRegionAccessPoint) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	// NOTE: All control plane requests to create or maintain Multi-Region Access Points must be routed to the US West (Oregon) Region.
+	// Reference: https://docs.aws.amazon.com/AmazonS3/latest/userguide/MultiRegionAccessPointRestrictions.html
+	//
+	// To avoid receiving the error `PermanentRedirect: This API operation is only available in the following Regions: us-west-2. Make sure to send all future requests to a supported Region`,
+	// we must ensure that the region is set to us-west-2.
+	if ap.Region != "us-west-2" {
+		logging.Debugf("Listing Multi-Region Access Points is only available in the following Region: us-west-2.")
+		return nil, nil
+	}
+
 	accountID, ok := c.Value(util.AccountIdKey).(string)
 	if !ok {
 		logging.Errorf("unable to read the account-id from context")
@@ -37,6 +47,7 @@ func (ap *S3MultiRegionAccessPoint) getAll(c context.Context, configObj config.C
 		}
 		return !lastPage
 	})
+
 	if err != nil {
 		logging.Errorf("[FAILED] Multi region access point listing - %v", err)
 	}
