@@ -196,52 +196,51 @@ func (sb S3Buckets) getBucketInfo(bucket *s3.Bucket, bucketCh chan<- *S3Bucket, 
 // does not provide any API for getting the object count, and the only way to do that is to iterate through all the
 // objects. For memory and time efficiency, we opted to delete the objects as we retrieve each page, which means we
 // don't know how many are left until we complete all the operations.
-func (sb S3Buckets) emptyBucket(bucketName *string, isVersioned bool) error {
+func (sb S3Buckets) emptyBucket(bucketName *string) error {
 	// Since the error may happen in the inner function handler for the pager, we need a function scoped variable that
 	// the inner function can set when there is an error.
 	var errOut error
 	pageId := 1
 
-	// Handle versioned buckets.
-	if isVersioned {
-		err := sb.Client.ListObjectVersionsPagesWithContext(
-			sb.Context,
-			&s3.ListObjectVersionsInput{
-				Bucket:  bucketName,
-				MaxKeys: aws.Int64(int64(sb.MaxBatchSize())),
-			},
-			func(page *s3.ListObjectVersionsOutput, lastPage bool) (shouldContinue bool) {
-				logging.Debugf("Deleting page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
-				if err := sb.deleteObjectVersions(bucketName, page.Versions); err != nil {
-					logging.Errorf("Error deleting objects versions for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
-					errOut = err
-					return false
-				}
-				logging.Debugf("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+	// As bucket versioning is managed separately and you can turn off versioning after the bucket is created,
+	// we need to check if there are any versions in the bucket regardless of the versioning status.
+	err := sb.Client.ListObjectVersionsPagesWithContext(
+		sb.Context,
+		&s3.ListObjectVersionsInput{
+			Bucket:  bucketName,
+			MaxKeys: aws.Int64(int64(sb.MaxBatchSize())),
+		},
+		func(page *s3.ListObjectVersionsOutput, lastPage bool) (shouldContinue bool) {
+			logging.Debugf("Deleting page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
+			if err := sb.deleteObjectVersions(bucketName, page.Versions); err != nil {
+				logging.Errorf("Error deleting objects versions for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+				errOut = err
+				return false
+			}
+			logging.Debugf("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(page.Versions), aws.StringValue(bucketName))
 
-				logging.Debugf("Deleting page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
-				if err := sb.deleteDeletionMarkers(bucketName, page.DeleteMarkers); err != nil {
-					logging.Debugf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
-					errOut = err
-					return false
-				}
-				logging.Debugf("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+			logging.Debugf("Deleting page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
+			if err := sb.deleteDeletionMarkers(bucketName, page.DeleteMarkers); err != nil {
+				logging.Debugf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.StringValue(bucketName), err)
+				errOut = err
+				return false
+			}
+			logging.Debugf("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(page.DeleteMarkers), aws.StringValue(bucketName))
 
-				pageId++
-				return true
-			},
-		)
-		if err != nil {
-			return err
-		}
-		if errOut != nil {
-			return errOut
-		}
-		return nil
+			pageId++
+			return true
+		},
+	)
+	if err != nil {
+		return err
 	}
+	if errOut != nil {
+		return errOut
+	}
+	return nil
 
 	// Handle non versioned buckets.
-	err := sb.Client.ListObjectsV2PagesWithContext(
+	err = sb.Client.ListObjectsV2PagesWithContext(
 		sb.Context,
 		&s3.ListObjectsV2Input{
 			Bucket:  bucketName,
@@ -351,21 +350,12 @@ func (sb S3Buckets) deleteDeletionMarkers(bucketName *string, objectDelMarkers [
 
 // nukeAllS3BucketObjects batch deletes all objects in an S3 bucket
 func (sb S3Buckets) nukeAllS3BucketObjects(bucketName *string) error {
-	versioningResult, err := sb.Client.GetBucketVersioningWithContext(sb.Context, &s3.GetBucketVersioningInput{
-		Bucket: bucketName,
-	})
-	if err != nil {
-		return err
-	}
-
-	isVersioned := aws.StringValue(versioningResult.Status) == "Enabled"
-
 	if sb.MaxBatchSize() < 1 || sb.MaxBatchSize() > 1000 {
 		return fmt.Errorf("Invalid batchsize - %d - should be between %d and %d", sb.MaxBatchSize(), 1, 1000)
 	}
 
 	logging.Debugf("Emptying bucket %s", aws.StringValue(bucketName))
-	if err := sb.emptyBucket(bucketName, isVersioned); err != nil {
+	if err := sb.emptyBucket(bucketName); err != nil {
 		return err
 	}
 	logging.Debugf("[OK] - successfully emptied bucket %s", aws.StringValue(bucketName))
