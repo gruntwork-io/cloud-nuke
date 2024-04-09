@@ -135,7 +135,6 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			names, err := resourceObject.getAll(context.Background(), config.Config{
 				NetworkInterface: tc.configObj,
 			})

@@ -110,7 +110,6 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			names, err := object.getAll(context.Background(), config.Config{
 				EgressOnlyInternetGateway: tc.configObj,
 			})
