@@ -39,6 +39,10 @@ s3:
       - "^testlambdas3-[a-zA-Z0-9]{6}-images-test"
       - "^s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
       - "^redirect-s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^terragrunt-test-bucket-.*"
+      - "^tg-issue.*"
+      - "^test-.*-tf-.*"
+      - "^test-s3-test-tg.*"
 
 SecretsManager:
   include:
