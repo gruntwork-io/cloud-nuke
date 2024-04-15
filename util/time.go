@@ -1,10 +1,11 @@
 package util
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
-	"time"
 )
 
 const (
@@ -16,7 +17,8 @@ const (
 	FirstSeenTagKey = "cloud-nuke-first-seen"
 
 	// The time format of the `firstSeenTagKey` tag value.
-	firstSeenTimeFormat = time.RFC3339
+	firstSeenTimeFormat       = time.RFC3339
+	firstSeenTimeFormatLegacy = time.DateTime
 )
 
 func IsFirstSeenTag(key *string) bool {
@@ -26,9 +28,12 @@ func IsFirstSeenTag(key *string) bool {
 func ParseTimestamp(timestamp *string) (*time.Time, error) {
 	parsed, err := time.Parse(firstSeenTimeFormat, aws.StringValue(timestamp))
 	if err != nil {
-		logging.Debugf("Error parsing the timestamp into a `RFC3339` Time format")
-		return nil, errors.WithStackTrace(err)
-
+		logging.Debugf("Error parsing the timestamp into a `RFC3339` Time format. Trying parsing the timestamp using the legacy `time.DateTime` format.")
+		parsed, err = time.Parse(firstSeenTimeFormatLegacy, aws.StringValue(timestamp))
+		if err != nil {
+			logging.Debugf("Error parsing the timestamp into legacy `time.DateTime` Time format")
+			return nil, errors.WithStackTrace(err)
+		}
 	}
 
 	return &parsed, nil
