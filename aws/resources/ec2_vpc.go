@@ -4,6 +4,8 @@ import (
 	"context"
 	cerrors "errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,19 +61,13 @@ func (v *EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
 
 func (v *EC2VPCs) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	// Note: This filter initially handles non-default resources and can be overridden by passing the only-default filter to choose default VPCs.
-	var isdefault = "false"
-
-	// check the vpc needs to only include default
-	if configObj.VPC.DefaultOnly {
-		logging.Debugf("[default only] Retrieving the default vpcs")
-		isdefault = "true"
-	}
-
 	result, err := v.Client.DescribeVpcs(&ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   awsgo.String("is-default"),
-				Values: awsgo.StringSlice([]string{isdefault}),
+				Name: awsgo.String("is-default"),
+				Values: []*string{
+					aws.String(strconv.FormatBool(configObj.VPC.DefaultOnly)), // convert the bool status into string
+				},
 			},
 		},
 	})
