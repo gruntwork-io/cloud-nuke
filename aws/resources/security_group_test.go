@@ -89,27 +89,31 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		configObj config.ResourceType
+		configObj config.EC2ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			configObj: config.ResourceType{},
+			configObj: config.EC2ResourceType{},
 			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+			configObj: config.EC2ResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{
+							RE: *regexp.MustCompile(testName1),
+						}}},
+				},
 			},
 			expected: []string{testId2},
 		},
 		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
-				}},
+			configObj: config.EC2ResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						TimeAfter: aws.Time(now),
+					}},
+				},
 			expected: []string{testId1},
 		},
 	}

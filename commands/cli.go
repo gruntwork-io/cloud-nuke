@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
@@ -182,7 +181,7 @@ func CreateCli(version string) *cli.App {
 }
 
 func parseDurationParam(paramValue string) (*time.Time, error) {
-	if paramValue == "0s" {
+	if paramValue == "0s" || paramValue == "" {
 		return nil, nil
 	}
 
@@ -244,7 +243,65 @@ func awsNuke(c *cli.Context) error {
 		configObj = *configObjPtr
 	}
 
-	query, account, err := handleGetResources(c, configObj, c.Bool("delete-unaliased-kms-keys"))
+	query, err := generateQuery(c, c.Bool("delete-unaliased-kms-keys"), nil, false)
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return awsNukeHelper(c, configObj, query)
+}
+
+func awsDefaults(c *cli.Context) error {
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Start aws-defaults",
+	}, map[string]interface{}{})
+	defer telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "End aws-defaults",
+	}, map[string]interface{}{})
+	parseErr := logging.ParseLogLevel(c.String("log-level"))
+	if parseErr != nil {
+		return errors.WithStackTrace(parseErr)
+	}
+
+	// Depending on the flag, we need to populate resource-types to include/exclude
+	resourceTypes := []string{"vpc"} // nuking the vpc will remove the attached default security groups
+	if c.Bool("sg-only") {
+		resourceTypes = []string{"security-group"}
+	}
+
+	query, err := generateQuery(c, false, resourceTypes, true)
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	// Note: config feature only available for awsNuke command.
+	return awsNukeHelper(c, config.Config{}, query)
+}
+
+func awsInspect(c *cli.Context) error {
+	telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "Start aws-inspect",
+	}, map[string]interface{}{})
+	defer telemetry.TrackEvent(commonTelemetry.EventContext{
+		EventName: "End aws-inspect",
+	}, map[string]interface{}{})
+
+	// Handle the case where the user only wants to list resource types
+	if c.Bool("list-resource-types") {
+		return handleListResourceTypes()
+	}
+
+	query, err := generateQuery(c, c.Bool("list-unaliased-kms-keys"), nil, false)
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	_, err = handleGetResources(c, config.Config{}, query)
+	return err
+}
+
+func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query) error {
+	account, err := handleGetResources(c, configObj, query)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -305,259 +362,50 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	ui.RenderRunReport()
-
 	return nil
 }
 
-func awsDefaults(c *cli.Context) error {
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Start aws-defaults",
-	}, map[string]interface{}{})
-	defer telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "End aws-defaults",
-	}, map[string]interface{}{})
-	parseErr := logging.ParseLogLevel(c.String("log-level"))
-	if parseErr != nil {
-		return errors.WithStackTrace(parseErr)
-	}
-
-	logging.Debug("Identifying enabled regions")
-	regions, err := aws.GetEnabledRegions()
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-	for _, region := range regions {
-		logging.Debugf("Found enabled region %s", region)
-	}
-
-	selectedRegions := c.StringSlice("region")
-	excludedRegions := c.StringSlice("exclude-region")
-
-	// targetRegions uses selectedRegions and excludedRegions to create a final
-	// target region slice.
-	targetRegions, err := aws.GetTargetRegions(regions, selectedRegions, excludedRegions)
-	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error getting target regions",
-		}, map[string]interface{}{})
-		return fmt.Errorf("Failed to select regions: %s", err)
-	}
-
-	if c.Bool("sg-only") {
-		logging.Info("Not removing default VPCs.")
-	} else {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Nuking default VPCs",
-		}, map[string]interface{}{})
-		err = nukeDefaultVpcs(c, targetRegions)
-		if err != nil {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error nuking default vpcs",
-			}, map[string]interface{}{})
-			return errors.WithStackTrace(err)
-		}
-	}
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Nuking default security groups",
-	}, map[string]interface{}{})
-	err = nukeDefaultSecurityGroups(c, targetRegions)
-	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error nuking default security groups",
-		}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
-	}
-	ui.RenderRunReport()
-
-	return nil
-}
-
-func nukeDefaultVpcs(c *cli.Context, regions []string) error {
-	// Start a spinner so the user knows we're still performing work in the background
-	spinnerMsg := "Discovering default VPCs"
-
-	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
-		WithRemoveWhenDone(true).
-		Start(spinnerMsg)
-
-	if spinnerErr != nil {
-		return errors.WithStackTrace(spinnerErr)
-	}
-
-	vpcPerRegion := resources.NewVpcPerRegion(regions)
-	vpcPerRegion, err := resources.GetDefaultVpcs(vpcPerRegion)
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	// Stop the spinner
-	spinnerSuccess.Stop()
-
-	if len(vpcPerRegion) == 0 {
-		logging.Info("No default VPCs found.")
-		return nil
-	}
-
-	targetedRegionList := []pterm.BulletListItem{}
-
-	for _, vpc := range vpcPerRegion {
-		vpcDetailString := fmt.Sprintf("Default VPC %s %s", vpc.VpcId, vpc.Region)
-		targetedRegionList = append(targetedRegionList, pterm.BulletListItem{Level: 0, Text: vpcDetailString})
-	}
-
-	ui.WarningMessage("The following Default VPCs are targeted for destruction")
-
-	// Log which Default VPCs will be nuked
-	list := pterm.DefaultBulletList.
-		WithItems(targetedRegionList).
-		WithBullet(ui.TargetEmoji)
-
-	renderErr := list.Render()
-	if renderErr != nil {
-		return errors.WithStackTrace(renderErr)
-	}
-
-	var proceed bool
-	if !c.Bool("force") {
-		proceed, err = ui.RenderNukeConfirmationPrompt("Are you sure you want to nuke the default VPCs listed above? Enter 'nuke' to confirm (or exit with ^C)", 2)
-		if err != nil {
-			return err
-		}
-	}
-
-	if proceed || c.Bool("force") {
-		// Start nuke progress bar with correct number of items
-		progressBar, err := pterm.DefaultProgressbar.WithTotal(len(targetedRegionList)).Start()
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
-
-		err = resources.NukeVpcs(vpcPerRegion)
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-		}
-
-		_, err = progressBar.Stop()
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
-	}
-	return nil
-}
-
-func nukeDefaultSecurityGroups(c *cli.Context, regions []string) error {
-	// Start a spinner so the user knows we're still performing work in the background
-	spinnerMsg := "Discovering default security groups"
-
-	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
-		WithRemoveWhenDone(true).
-		Start(spinnerMsg)
-
-	if spinnerErr != nil {
-		return errors.WithStackTrace(spinnerErr)
-	}
-
-	defaultSgs, err := resources.GetDefaultSecurityGroups(regions)
-	spinnerSuccess.Stop()
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	if len(defaultSgs) == 0 {
-		logging.Info("No default security groups found.")
-		return nil
-	}
-
-	targetedRegionList := []pterm.BulletListItem{}
-
-	for _, sg := range defaultSgs {
-		defaultSgDetailText := fmt.Sprintf("* Default rules for SG %s %s %s", sg.GroupId, sg.GroupName, sg.Region)
-		targetedRegionList = append(targetedRegionList, pterm.BulletListItem{Level: 0, Text: defaultSgDetailText})
-	}
-
-	ui.WarningMessage("The following Default security group rules are targeted for destruction")
-
-	// Log which default security group rules will be nuked
-	list := pterm.DefaultBulletList.
-		WithItems(targetedRegionList).
-		WithBullet(ui.TargetEmoji)
-
-	renderErr := list.Render()
-	if renderErr != nil {
-		return errors.WithStackTrace(renderErr)
-	}
-
-	var proceed bool
-	if !c.Bool("force") {
-		prompt := "\nAre you sure you want to nuke the rules in these default security groups ? Enter 'nuke' to confirm (or exit with ^C)"
-		proceed, err = ui.RenderNukeConfirmationPrompt(prompt, 2)
-		if err != nil {
-			return err
-		}
-	}
-
-	if proceed || c.Bool("force") {
-		err := resources.NukeDefaultSecurityGroupRules(defaultSgs)
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-		}
-	}
-
-	return nil
-}
-
-func awsInspect(c *cli.Context) error {
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Start aws-inspect",
-	}, map[string]interface{}{})
-	defer telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "End aws-inspect",
-	}, map[string]interface{}{})
-
-	// Handle the case where the user only wants to list resource types
-	if c.Bool("list-resource-types") {
-		return handleListResourceTypes()
-	}
-
-	_, _, err := handleGetResources(c, config.Config{}, c.Bool("list-unaliased-kms-keys"))
-	return err
-}
-
-func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliasedKmsKeys bool) (
-	*aws.Query, *aws.AwsAccountResources, error) {
+func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResourceTypes []string, onlyDefault bool) (*aws.Query, error) {
 	excludeAfter, err := parseDurationParam(c.String("older-than"))
 	if err != nil {
-		return nil, nil, errors.WithStackTrace(err)
+		return nil, errors.WithStackTrace(err)
 	}
 
 	includeAfter, err := parseDurationParam(c.String("newer-than"))
 	if err != nil {
-		return nil, nil, errors.WithStackTrace(err)
+		return nil, errors.WithStackTrace(err)
 	}
 
 	timeout, err := parseTimeoutDurationParam(c.String("timeout"))
 	if err != nil {
-		return nil, nil, errors.WithStackTrace(err)
+		return nil, errors.WithStackTrace(err)
 	}
 
-	query, err := aws.NewQuery(
+	resourceTypes := c.StringSlice("resource-type")
+	if overridingResourceTypes != nil {
+		resourceTypes = overridingResourceTypes
+	}
+
+	return aws.NewQuery(
 		c.StringSlice("region"),
 		c.StringSlice("exclude-region"),
-		c.StringSlice("resource-type"),
+		resourceTypes,
 		c.StringSlice("exclude-resource-type"),
 		excludeAfter,
 		includeAfter,
 		includeUnaliasedKmsKeys,
 		timeout,
+		onlyDefault,
 	)
-	if err != nil {
-		return nil, nil, aws.QueryCreationError{Underlying: err}
-	}
+}
+
+func handleGetResources(c *cli.Context, configObj config.Config, query *aws.Query) (
+	*aws.AwsAccountResources, error) {
 
 	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")
-	err = ui.RenderQueryAsBulletList(query)
+	err := ui.RenderQueryAsBulletList(query)
 	if err != nil {
-		return nil, nil, errors.WithStackTrace(err)
+		return nil, errors.WithStackTrace(err)
 	}
 	pterm.Println()
 
@@ -566,13 +414,13 @@ func handleGetResources(c *cli.Context, configObj config.Config, includeUnaliase
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
 		}, map[string]interface{}{})
-		return nil, nil, errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
+		return nil, errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
 	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
 	err = ui.RenderResourcesAsTable(accountResources)
 
-	return query, accountResources, err
+	return accountResources, err
 }
 
 func handleListResourceTypes() error {

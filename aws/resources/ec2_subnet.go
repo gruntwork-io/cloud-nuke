@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -63,7 +64,21 @@ func shouldIncludeEc2Subnet(subnet *ec2.Subnet, firstSeenTime *time.Time, config
 // Returns a formatted string of EC2 subnets
 func (ec2subnet *EC2Subnet) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	result := []*string{}
-	err := ec2subnet.Client.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{}, func(pages *ec2.DescribeSubnetsOutput, lastPage bool) bool {
+	// Note: This filter initially handles non-default resources and can be overridden by passing the only-default filter to choose default subnets.
+	if configObj.EC2Subnet.DefaultOnly {
+		logging.Debugf("[default only] Retrieving the default subnets")
+	}
+
+	err := ec2subnet.Client.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("default-for-az"),
+				Values: []*string{
+					aws.String(strconv.FormatBool(configObj.EC2Subnet.DefaultOnly)), // convert the bool status into string
+				},
+			},
+		},
+	}, func(pages *ec2.DescribeSubnetsOutput, lastPage bool) bool {
 		for _, subnet := range pages.Subnets {
 
 			// check first seen tag

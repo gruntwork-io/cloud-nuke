@@ -13,9 +13,10 @@ import (
 
 type SecurityGroup struct {
 	BaseAwsResource
-	Client         ec2iface.EC2API
-	Region         string
-	SecurityGroups []string
+	Client          ec2iface.EC2API
+	Region          string
+	SecurityGroups  []string
+	NukeOnlyDefault bool
 }
 
 func (sg *SecurityGroup) Init(session *session.Session) {

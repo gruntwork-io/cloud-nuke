@@ -76,27 +76,32 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 	ec2subnet.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
-		configObj config.ResourceType
+		configObj config.EC2ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			configObj: config.ResourceType{},
+			configObj: config.EC2ResourceType{},
 			expected:  []string{subnet1, subnet2},
 		},
 		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+			configObj: config.EC2ResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						NamesRegExp: []config.Expression{{
+							RE: *regexp.MustCompile(testName1),
+						}},
+					},
+				},
 			},
 			expected: []string{subnet2},
 		},
 		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
+			configObj: config.EC2ResourceType{
+				ResourceType: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+					}},
+			},
 			expected: []string{},
 		},
 	}
