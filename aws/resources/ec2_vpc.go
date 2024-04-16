@@ -214,61 +214,6 @@ func nuke(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeInternetGateway(client ec2iface.EC2API, vpcID string) error {
-	logging.Debug(fmt.Sprintf("Start nuking Internet Gateway for vpc: %s", vpcID))
-	input := &ec2.DescribeInternetGatewaysInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   awsgo.String("attachment.vpc-id"),
-				Values: []*string{awsgo.String(vpcID)},
-			},
-		},
-	}
-	igw, err := client.DescribeInternetGateways(input)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe internet gateways for vpc: %s", vpcID))
-		return errors.WithStackTrace(err)
-	}
-
-	if len(igw.InternetGateways) < 1 {
-		logging.Debug(fmt.Sprintf("No Internet Gateway to delete."))
-		return nil
-	}
-
-	logging.Debug(fmt.Sprintf("Detaching Internet Gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-	_, err = client.DetachInternetGateway(
-		&ec2.DetachInternetGatewayInput{
-			InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
-			VpcId:             awsgo.String(vpcID),
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to detach internet gateway %s",
-			awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-		return errors.WithStackTrace(err)
-	}
-	logging.Debug(fmt.Sprintf("Successfully detached internet gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-
-	logging.Debug(fmt.Sprintf("Deleting internet gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-	_, err = client.DeleteInternetGateway(
-		&ec2.DeleteInternetGatewayInput{
-			InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to delete internet gateway %s",
-			awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-		return errors.WithStackTrace(err)
-	}
-	logging.Debug(fmt.Sprintf("Successfully deleted internet gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-
-	return nil
-}
-
 func nukeEgressOnlyGateways(client ec2iface.EC2API, vpcID string) error {
 	var allEgressGateways []*string
 	logging.Debug(fmt.Sprintf("Start nuking Egress Only Internet Gateways for vpc: %s", vpcID))
