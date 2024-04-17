@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -32,7 +31,7 @@ func (m mockedElbV2) WaitUntilLoadBalancersDeleted(input *elbv2.DescribeLoadBala
 }
 
 func TestElbV2_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "test-name-1"
@@ -97,7 +96,7 @@ func TestElbV2_GetAll(t *testing.T) {
 }
 
 func TestElbV2_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	balancer := LoadBalancersV2{

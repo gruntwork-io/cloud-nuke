@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/opensearchservice"
 	"github.com/aws/aws-sdk-go/service/opensearchservice/opensearchserviceiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 	"regexp"
@@ -40,7 +39,7 @@ func (m mockedOpenSearch) ListTags(*opensearchservice.ListTagsInput) (*opensearc
 
 // Test we can create an OpenSearch Domain, tag it, and then find the tag
 func TestOpenSearch_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "test-domain1"
@@ -122,7 +121,7 @@ func TestOpenSearch_GetAll(t *testing.T) {
 }
 
 func TestOpenSearch_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	osd := OpenSearchDomains{

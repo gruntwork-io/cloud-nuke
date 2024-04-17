@@ -7,10 +7,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 type DetectorOutputWithID struct {
@@ -85,11 +83,6 @@ func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s: %s", detectorId, err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking GuardDuty Detector",
-			}, map[string]interface{}{
-				"region": gd.Region,
-			})
 		} else {
 			deletedIds = append(deletedIds, detectorId)
 			logging.Debugf("Deleted GuardDuty detector: %s", detectorId)

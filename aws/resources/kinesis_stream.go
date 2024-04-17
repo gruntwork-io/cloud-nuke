@@ -4,9 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -70,11 +67,6 @@ func (ks *KinesisStreams) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() != "OperationAbortedException" {
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: "Error Nuking Kinesis Stream",
-				}, map[string]interface{}{
-					"region": ks.Region,
-				})
 				allErrs = multierror.Append(allErrs, err)
 			}
 		}

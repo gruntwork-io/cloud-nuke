@@ -7,10 +7,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (cw *CloudWatchAlarms) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -68,11 +66,6 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	})
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking Cloudwatch Alarm Dependency",
-		}, map[string]interface{}{
-			"region": cw.Region,
-		})
 	}
 
 	var compositeAlarmNames []*string
@@ -85,11 +78,6 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 		})
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Cloudwatch Composite Alarm",
-			}, map[string]interface{}{
-				"region": cw.Region,
-			})
 		}
 
 		// Note: for composite alarms, we need to delete one by one according to the documentation
@@ -120,11 +108,6 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking Cloudwatch Alarm",
-		}, map[string]interface{}{
-			"region": cw.Region,
-		})
 		return errors.WithStackTrace(err)
 	}
 

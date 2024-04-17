@@ -13,9 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/pterm/pterm"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -128,11 +125,6 @@ func (v *EC2VPCs) nukeAll(vpcIds []string) error {
 		if err != nil {
 
 			pterm.Error.Println(fmt.Sprintf("Failed to nuke vpc with err: %s", err))
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking VPC",
-			}, map[string]interface{}{
-				"region": v.Region,
-			})
 			multierror.Append(multiErr, err)
 		} else {
 			deletedVPCs++

@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -27,7 +26,7 @@ func (m mockedEC2DhcpOption) DeleteDhcpOptions(input *ec2.DeleteDhcpOptionsInput
 }
 
 func TestEC2DhcpOption_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testId1 := "test-id-1"
@@ -65,7 +64,7 @@ func TestEC2DhcpOption_GetAll(t *testing.T) {
 }
 
 func TestEC2DhcpOption_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	h := EC2DhcpOption{

@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"regexp"
@@ -30,7 +29,7 @@ func (m mockedRdsSnapshot) DeleteDBSnapshot(input *rds.DeleteDBSnapshotInput) (*
 }
 
 func TestRdsSnapshot_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -90,7 +89,7 @@ func TestRdsSnapshot_GetAll(t *testing.T) {
 }
 
 func TestRdsSnapshot_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName := "test-db-cluster"

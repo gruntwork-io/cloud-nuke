@@ -9,7 +9,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/securityhub"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,7 +52,7 @@ func (m mockedSecurityHub) DisableSecurityHub(*securityhub.DisableSecurityHubInp
 }
 
 func TestSecurityHub_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	now := time.Now()
@@ -96,7 +95,7 @@ func TestSecurityHub_GetAll(t *testing.T) {
 }
 
 func TestSecurityHub_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	sh := SecurityHub{

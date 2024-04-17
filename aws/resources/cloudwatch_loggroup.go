@@ -2,8 +2,6 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
@@ -80,11 +78,6 @@ func (csr *CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 		if err := <-errChan; err != nil {
 			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() != "OperationAbortedException" {
 				allErrs = multierror.Append(allErrs, err)
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: "Error Nuking Cloudwatch Log Group",
-				}, map[string]interface{}{
-					"region": csr.Region,
-				})
 			}
 		}
 	}

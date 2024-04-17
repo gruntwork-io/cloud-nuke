@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +34,7 @@ func (m mockedDBClusters) DescribeDBClusters(input *rds.DescribeDBClustersInput)
 }
 
 func TestRDSClusterGetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName := "test-db-cluster"
@@ -69,7 +68,7 @@ func TestRDSClusterGetAll(t *testing.T) {
 }
 
 func TestRDSClusterNukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName := "test-db-cluster"

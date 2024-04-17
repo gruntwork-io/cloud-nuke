@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -29,7 +28,7 @@ func (m mockedECR) DeleteRepository(input *ecr.DeleteRepositoryInput) (*ecr.Dele
 }
 
 func TestECR_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "test-repo1"
@@ -90,7 +89,7 @@ func TestECR_GetAll(t *testing.T) {
 }
 
 func TestECR_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	er := ECR{

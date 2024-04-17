@@ -2,16 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -90,11 +87,6 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking EBS Snapshot",
-			}, map[string]interface{}{
-				"region": s.Region,
-			})
 		} else {
 			deletedSnapshotIDs = append(deletedSnapshotIDs, snapshotID)
 			logging.Debugf("Deleted Snapshot: %s", *snapshotID)
