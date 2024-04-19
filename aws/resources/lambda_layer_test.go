@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +32,7 @@ func (m mockedLambdaLayer) ListLayerVersionsPages(input *lambda.ListLayerVersion
 }
 
 func TestLambdaLayer_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-lambda-layer1"
@@ -111,7 +112,7 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 }
 
 func TestLambdaLayer_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	ll := LambdaLayers{

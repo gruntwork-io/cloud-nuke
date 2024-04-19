@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -33,7 +34,7 @@ func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatus(input *i
 }
 
 func TestIAMServiceLinkedRoles_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	now := time.Now()
@@ -96,7 +97,7 @@ func TestIAMServiceLinkedRoles_GetAll(t *testing.T) {
 }
 
 func TestIAMServiceLinkedRoles_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	islr := IAMServiceLinkedRoles{

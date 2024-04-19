@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -35,7 +36,7 @@ func (m mockedNatGateway) DescribeNatGateways(input *ec2.DescribeNatGatewaysInpu
 }
 
 func TestNatGateway_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testId1 := "test-nat-gateway-id1"
@@ -109,7 +110,7 @@ func TestNatGateway_GetAll(t *testing.T) {
 }
 
 func TestNatGateway_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	ngw := NatGateways{

@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -130,7 +131,7 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 }
 
 func Test_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	er := SecurityGroup{

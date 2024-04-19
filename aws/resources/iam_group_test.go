@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -61,7 +62,7 @@ func (m mockedIAMGroups) RemoveUserFromGroup(input *iam.RemoveUserFromGroupInput
 }
 
 func TestIamGroups_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "group1"
@@ -121,7 +122,7 @@ func TestIamGroups_GetAll(t *testing.T) {
 }
 
 func TestIamGroups_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	ig := IAMGroups{

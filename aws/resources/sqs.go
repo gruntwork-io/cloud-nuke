@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"strconv"
+	"time"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
-	"strconv"
-	"time"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of SQS Queue URLs
@@ -87,6 +89,11 @@ func (sq *SqsQueue) nukeAll(urls []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking SQS Queue",
+			}, map[string]interface{}{
+				"region": sq.Region,
+			})
 		} else {
 			deletedUrls = append(deletedUrls, url)
 			logging.Debugf("Deleted SQS Queue: %s", *url)

@@ -7,8 +7,10 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of ASG Names
@@ -60,6 +62,11 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ASG",
+			}, map[string]interface{}{
+				"region": ag.Region,
+			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, groupName)
 			logging.Debugf("Deleted Auto Scaling Group: %s", *groupName)
@@ -72,6 +79,11 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 		})
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ASG",
+			}, map[string]interface{}{
+				"region": ag.Region,
+			})
 			return errors.WithStackTrace(err)
 		}
 	}

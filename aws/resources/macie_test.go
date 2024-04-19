@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/macie2"
 	"github.com/aws/aws-sdk-go/service/macie2/macie2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -51,7 +52,7 @@ func (m mockedMacie) DisableMacie(input *macie2.DisableMacieInput) (*macie2.Disa
 }
 
 func TestMacie_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	now := time.Now()
@@ -69,7 +70,7 @@ func TestMacie_GetAll(t *testing.T) {
 }
 
 func TestMacie_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	mm := MacieMember{

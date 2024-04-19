@@ -8,7 +8,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (smni *SageMakerNotebookInstances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -46,6 +48,12 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 		})
 		if err != nil {
 			logging.Errorf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Sagemaker Notebook Instance",
+			}, map[string]interface{}{
+				"region": smni.Region,
+				"reason": "Failed to Stop Notebook",
+			})
 		}
 
 		err = smni.Client.WaitUntilNotebookInstanceStopped(&sagemaker.DescribeNotebookInstanceInput{
@@ -53,6 +61,12 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 		})
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Sagemaker Notebook Instance",
+			}, map[string]interface{}{
+				"region": smni.Region,
+				"reason": "Failed waiting for notebook to stop",
+			})
 		}
 
 		_, err = smni.Client.DeleteNotebookInstance(&sagemaker.DeleteNotebookInstanceInput{
@@ -61,6 +75,12 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 
 		if err != nil {
 			logging.Errorf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Sagemaker Notebook Instance",
+			}, map[string]interface{}{
+				"region": smni.Region,
+				"reason": "Failed to Delete Notebook",
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Debugf("Deleted Sagemaker Notebook Instance: %s", awsgo.StringValue(name))
@@ -84,6 +104,12 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 
 			if err != nil {
 				logging.Errorf("[Failed] %s", err)
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking Sagemaker Notebook Instance",
+				}, map[string]interface{}{
+					"region": smni.Region,
+					"reason": "Failed waiting for notebook instance to delete",
+				})
 				return errors.WithStackTrace(err)
 			}
 		}

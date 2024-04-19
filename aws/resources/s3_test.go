@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,7 +65,7 @@ func (m mockedS3Buckets) DeleteBucketWithContext(aws.Context, *s3.DeleteBucketIn
 }
 
 func TestS3Bucket_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-bucket-1"
@@ -135,7 +136,7 @@ func TestS3Bucket_GetAll(t *testing.T) {
 }
 
 func TestS3Bucket_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	sb := S3Buckets{

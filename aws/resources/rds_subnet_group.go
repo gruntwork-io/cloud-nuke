@@ -11,7 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error {
@@ -79,6 +81,11 @@ func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking RDS DB subnet group",
+			}, map[string]interface{}{
+				"region": dsg.Region,
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Debugf("Deleted RDS DB subnet group: %s", awsgo.StringValue(name))

@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,7 +51,7 @@ func (m mockedEC2Instances) ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2
 }
 
 func TestEc2Instances_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testId1 := "testId1"
@@ -140,7 +141,7 @@ func TestEc2Instances_GetAll(t *testing.T) {
 }
 
 func TestEc2Instances_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	ei := EC2Instances{

@@ -7,7 +7,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (bv *BackupVault) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -57,6 +59,11 @@ func (bv *BackupVault) nukeAll(names []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking BackupVault",
+			}, map[string]interface{}{
+				"region": bv.Region,
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Debugf("Deleted backup vault: %s", aws.StringValue(name))

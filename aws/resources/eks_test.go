@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,7 +80,7 @@ func (m mockedEKSCluster) DeleteCluster(input *eks.DeleteClusterInput) (*eks.Del
 }
 
 func TestEKSClusterGetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testClusterName := "test_cluster1"
@@ -101,7 +102,7 @@ func TestEKSClusterGetAll(t *testing.T) {
 }
 
 func TestEKSClusterNukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testClusterName := "test_cluster1"

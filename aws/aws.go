@@ -63,15 +63,6 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 				identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
 				if err != nil {
 					logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
-
-					// Reporting resource-level failures encountered during the GetIdentifiers phase
-					// 	Note: This is useful to understand which resources are failing more often than others.
-					telemetry.TrackEvent(commonTelemetry.EventContext{
-						EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*resource).ResourceName()),
-					}, map[string]interface{}{
-						"region": region,
-					})
-
 					ge := report.GeneralError{
 						Error:        err,
 						Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),
@@ -164,14 +155,6 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, bar *
 				// of the current job.Since we handle each individual resource deletion error within its own resource-specific code,
 				// we can safely discard this error
 				_ = err
-
-				// Report to telemetry - aggregated metrics of failures per resources.
-				// 	Note: This is useful to understand which resources are failing more often than others.
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: fmt.Sprintf("error:Nuke:%s", (*awsResource).ResourceName()),
-				}, map[string]interface{}{
-					"region": region,
-				})
 			}
 
 			if i != len(batches)-1 {

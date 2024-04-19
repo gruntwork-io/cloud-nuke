@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"strconv"
@@ -38,7 +39,7 @@ func (m mockedSqsQueue) DeleteQueue(*sqs.DeleteQueueInput) (*sqs.DeleteQueueOutp
 }
 
 func TestSqsQueue_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	queue1 := "https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue1"
@@ -104,7 +105,7 @@ func TestSqsQueue_GetAll(t *testing.T) {
 }
 
 func TestSqsQueue_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	sq := SqsQueue{

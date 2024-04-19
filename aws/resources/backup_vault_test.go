@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/backup"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +31,7 @@ func (m mockedBackupVault) DeleteBackupVault(*backup.DeleteBackupVaultInput) (*b
 }
 
 func TestBackupVaultGetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-backup-vault-1"
@@ -90,7 +91,7 @@ func TestBackupVaultGetAll(t *testing.T) {
 }
 
 func TestBackupVaultNuke(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	bv := BackupVault{

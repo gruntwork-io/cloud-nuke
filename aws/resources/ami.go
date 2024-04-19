@@ -4,6 +4,7 @@ import (
 	"context"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,6 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -84,6 +86,11 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking AMI",
+			}, map[string]interface{}{
+				"region": ami.Region,
+			})
 		} else {
 			deletedCount++
 			logging.Debugf("Deleted AMI: %s", *imageID)

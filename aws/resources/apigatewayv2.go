@@ -3,15 +3,19 @@ package resources
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
+	"github.com/gruntwork-io/cloud-nuke/logging"
+	"sync"
+
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
-	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"sync"
 )
 
 func (gw *ApiGatewayV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -64,6 +68,11 @@ func (gw *ApiGatewayV2) nukeAll(identifiers []*string) error {
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking API Gateway V2",
+			}, map[string]interface{}{
+				"region": gw.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

@@ -7,7 +7,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (rc *RedshiftClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -44,6 +46,11 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 			SkipFinalClusterSnapshot: aws.Bool(true),
 		})
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking RedshiftCluster",
+			}, map[string]interface{}{
+				"region": rc.Region,
+			})
 			logging.Errorf("[Failed] %s: %s", *id, err)
 		} else {
 			deletedIds = append(deletedIds, id)
@@ -62,6 +69,11 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 			}
 			report.Record(e)
 			if err != nil {
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: "Error Nuking Redshift Cluster",
+				}, map[string]interface{}{
+					"region": rc.Region,
+				})
 				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}

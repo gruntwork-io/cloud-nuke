@@ -3,13 +3,17 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -18,11 +22,10 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ngw *NatGateways) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allNatGateways := []*string{}
-	input := &ec2.DescribeNatGatewaysInput{}
+func (ngw *NatGateways) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+	var allNatGateways []*string
 	err := ngw.Client.DescribeNatGatewaysPages(
-		input,
+		&ec2.DescribeNatGatewaysInput{},
 		func(page *ec2.DescribeNatGatewaysOutput, lastPage bool) bool {
 			for _, ngw := range page.NatGateways {
 				if shouldIncludeNatGateway(ngw, configObj) {
@@ -32,7 +35,6 @@ func (ngw *NatGateways) getAll(c context.Context, configObj config.Config) ([]*s
 			return !lastPage
 		},
 	)
-
 	return allNatGateways, errors.WithStackTrace(err)
 }
 
@@ -41,7 +43,7 @@ func shouldIncludeNatGateway(ngw *ec2.NatGateway, configObj config.Config) bool 
 		return false
 	}
 
-	ngwState := aws.StringValue(ngw.State)
+	ngwState := awsgo.StringValue(ngw.State)
 	if ngwState == ec2.NatGatewayStateDeleted || ngwState == ec2.NatGatewayStateDeleting {
 		return false
 	}
@@ -55,7 +57,7 @@ func shouldIncludeNatGateway(ngw *ec2.NatGateway, configObj config.Config) bool 
 
 func getNatGatewayName(ngw *ec2.NatGateway) *string {
 	for _, tag := range ngw.Tags {
-		if aws.StringValue(tag.Key) == "Name" {
+		if awsgo.StringValue(tag.Key) == "Name" {
 			return tag.Value
 		}
 	}
@@ -95,6 +97,11 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking NAT Gateway",
+			}, map[string]interface{}{
+				"region": ngw.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -123,7 +130,7 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 		return errors.WithStackTrace(err)
 	}
 	for _, ngwID := range identifiers {
-		logging.Debugf("[OK] NAT Gateway %s was deleted in %s", aws.StringValue(ngwID), ngw.Region)
+		logging.Debugf("[OK] NAT Gateway %s was deleted in %s", awsgo.StringValue(ngwID), ngw.Region)
 	}
 	return nil
 }
@@ -149,7 +156,7 @@ func (ngw *NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, e
 			continue
 		}
 
-		if aws.StringValue(ngw.State) != ec2.NatGatewayStateDeleted {
+		if awsgo.StringValue(ngw.State) != ec2.NatGatewayStateDeleted {
 			return false, nil
 		}
 	}
@@ -162,12 +169,10 @@ func (ngw *NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, e
 func (ngw *NatGateways) deleteAsync(wg *sync.WaitGroup, errChan chan error, ngwID *string) {
 	defer wg.Done()
 
-	input := &ec2.DeleteNatGatewayInput{NatGatewayId: ngwID}
-	_, err := ngw.Client.DeleteNatGateway(input)
-
+	err := nukeNATGateway(ngw.Client, ngwID)
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(ngwID),
+		Identifier:   awsgo.StringValue(ngwID),
 		ResourceType: "NAT Gateway",
 		Error:        err,
 	}
@@ -182,4 +187,16 @@ type TooManyNatErr struct{}
 
 func (err TooManyNatErr) Error() string {
 	return "Too many NAT Gateways requested at once."
+}
+
+func nukeNATGateway(client ec2iface.EC2API, gateway *string) error {
+	logging.Debugf("Deleting NAT gateway %s", awsgo.StringValue(gateway))
+
+	_, err := client.DeleteNatGateway(&ec2.DeleteNatGatewayInput{NatGatewayId: gateway})
+	if err != nil {
+		logging.Debugf("[Failed] Error deleting NAT gateway %s: %s", awsgo.StringValue(gateway), err)
+		return errors.WithStackTrace(err)
+	}
+	logging.Debugf("[Ok] NAT Gateway deleted successfully %s", awsgo.StringValue(gateway))
+	return nil
 }

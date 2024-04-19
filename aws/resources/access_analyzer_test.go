@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer/accessanalyzeriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -29,7 +30,7 @@ func (m mockedAccessAnalyzer) DeleteAnalyzer(input *accessanalyzer.DeleteAnalyze
 }
 
 func TestAccessAnalyzer_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	now := time.Now()
@@ -90,7 +91,7 @@ func TestAccessAnalyzer_GetAll(t *testing.T) {
 }
 
 func TestAccessAnalyzer_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	aa := AccessAnalyzer{

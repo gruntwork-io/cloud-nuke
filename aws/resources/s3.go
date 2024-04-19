@@ -7,15 +7,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/gruntwork-io/go-commons/errors"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
 const AwsResourceExclusionTagKey = "cloud-nuke-excluded"
@@ -451,6 +456,11 @@ func (sb S3Buckets) nukeAll(bucketNames []*string) (delCount int, err error) {
 
 		if err != nil {
 			logging.Debugf("[Failed] - %d/%d - Bucket: %s - bucket deletion error - %s", bucketIndex+1, totalCount, *bucketName, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking S3 Bucket",
+			}, map[string]interface{}{
+				"region": sb.Region,
+			})
 		} else {
 			deleted = append(deleted, bucketName)
 			logging.Debugf("[OK] - %d/%d - Bucket: %s - deleted", bucketIndex+1, totalCount, *bucketName)

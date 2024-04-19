@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -119,7 +120,7 @@ func (m mockedIAMUsers) DeleteUser(input *iam.DeleteUserInput) (*iam.DeleteUserO
 }
 
 func TestIAMUsers_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	now := time.Now()
@@ -180,7 +181,7 @@ func TestIAMUsers_GetAll(t *testing.T) {
 }
 
 func TestIAMUsers_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	iu := IAMUsers{

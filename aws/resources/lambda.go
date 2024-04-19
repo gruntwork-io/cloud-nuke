@@ -10,6 +10,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (lf *LambdaFunctions) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -79,6 +81,11 @@ func (lf *LambdaFunctions) nukeAll(names []*string) error {
 
 		if err != nil {
 			logging.Errorf("[Failed] %s: %s", *name, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Lambda Function",
+			}, map[string]interface{}{
+				"region": lf.Region,
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Debugf("Deleted Lambda Function: %s", awsgo.StringValue(name))

@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -47,7 +48,7 @@ func (m mockedKmsCustomerKeys) DeleteAlias(input *kms.DeleteAliasInput) (*kms.De
 }
 
 func TestKMS_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	key1 := "key1"
@@ -139,7 +140,7 @@ func TestKMS_GetAll(t *testing.T) {
 }
 
 func TestKMS_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	kck := KmsCustomerKeys{

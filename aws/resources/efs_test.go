@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/efs"
 	"github.com/aws/aws-sdk-go/service/efs/efsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -48,7 +49,7 @@ func (m mockedElasticFileSystem) DeleteFileSystem(input *efs.DeleteFileSystemInp
 }
 
 func TestEFS_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testId1 := "testId1"
@@ -113,7 +114,7 @@ func TestEFS_GetAll(t *testing.T) {
 }
 
 func TestEFS_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	ef := ElasticFileSystem{

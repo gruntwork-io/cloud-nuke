@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,7 +48,7 @@ func (m mockedApiGatewayV2) DeleteApiMapping(*apigatewayv2.DeleteApiMappingInput
 }
 
 func TestApiGatewayV2GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testApiID := "test-api-id"
@@ -92,7 +93,7 @@ func TestApiGatewayV2GetAll(t *testing.T) {
 }
 
 func TestApiGatewayV2NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	gw := ApiGatewayV2{

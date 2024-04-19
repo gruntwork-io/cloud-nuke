@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func (m mockedSnapshot) DescribeSnapshots(input *ec2.DescribeSnapshotsInput) (*e
 }
 
 func TestSnapshot_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testSnapshot1 := "test-snapshot1"
@@ -86,7 +87,7 @@ func TestSnapshot_GetAll(t *testing.T) {
 }
 
 func TestSnapshot_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	s := Snapshots{

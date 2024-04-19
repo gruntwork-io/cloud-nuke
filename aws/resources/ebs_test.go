@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -33,7 +35,7 @@ func (m mockedEBS) WaitUntilVolumeDeleted(input *ec2.DescribeVolumesInput) error
 }
 
 func TestEBSVolume_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -101,7 +103,7 @@ func TestEBSVolume_GetAll(t *testing.T) {
 }
 
 func TestEBSVolumne_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	ev := EBSVolumes{

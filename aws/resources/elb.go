@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -78,6 +80,11 @@ func (balancer *LoadBalancers) nukeAll(names []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Load Balancer (v1)",
+			}, map[string]interface{}{
+				"region": balancer.Region,
+			})
 		} else {
 			deletedNames = append(deletedNames, name)
 			logging.Debugf("Deleted ELB: %s", *name)

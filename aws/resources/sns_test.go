@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sns"
@@ -38,7 +40,7 @@ func (m mockedSNSTopic) DeleteTopic(input *sns.DeleteTopicInput) (*sns.DeleteTop
 }
 
 func TestSNS_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testTopic1 := "arn:aws:sns:us-east-1:123456789012:MyTopic1"
@@ -106,7 +108,7 @@ func TestSNS_GetAll(t *testing.T) {
 }
 
 func TestSNS_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	s := SNSTopic{

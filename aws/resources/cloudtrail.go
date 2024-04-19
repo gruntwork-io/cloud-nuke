@@ -7,7 +7,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (ct *CloudtrailTrail) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -60,6 +62,11 @@ func (ct *CloudtrailTrail) nukeAll(arns []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Cloudtrail",
+			}, map[string]interface{}{
+				"region": ct.Region,
+			})
 		} else {
 			deletedArns = append(deletedArns, arn)
 			logging.Debugf("Deleted Cloudtrail Trail: %s", aws.StringValue(arn))

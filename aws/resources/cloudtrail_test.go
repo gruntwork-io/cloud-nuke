@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -27,7 +28,7 @@ func (m mockedCloudTrail) DeleteTrail(input *cloudtrail.DeleteTrailInput) (*clou
 }
 
 func TestCloudTrailGetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -80,7 +81,7 @@ func TestCloudTrailGetAll(t *testing.T) {
 }
 
 func TestCloudTrailNukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	ct := CloudtrailTrail{

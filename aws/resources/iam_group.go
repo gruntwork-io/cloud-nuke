@@ -7,6 +7,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/hashicorp/go-multierror"
 	"sync"
@@ -65,6 +67,9 @@ func (ig *IAMGroups) nukeAll(groupNames []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking IAM Group",
+			}, map[string]interface{}{})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

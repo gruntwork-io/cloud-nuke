@@ -33,21 +33,21 @@ func (ngw *NatGateways) ResourceIdentifiers() []string {
 	return ngw.NatGatewayIDs
 }
 
-func (secret NatGateways) MaxBatchSize() int {
+func (ngw *NatGateways) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that nat gateway does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
 	// overloading the runtime and to avoid AWS throttling with many API calls.
 	return 10
 }
 
-func (secret NatGateways) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
-	identifiers, err := secret.getAll(c, configObj)
+func (ngw *NatGateways) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := ngw.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	secret.NatGatewayIDs = awsgo.StringValueSlice(identifiers)
-	return secret.NatGatewayIDs, nil
+	ngw.NatGatewayIDs = awsgo.StringValueSlice(identifiers)
+	return ngw.NatGatewayIDs, nil
 }
 
 // Nuke - nuke 'em all!!!

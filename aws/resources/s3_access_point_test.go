@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3control"
 	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +29,7 @@ func (m mocks3AccessPoint) DeleteAccessPoint(_ *s3control.DeleteAccessPointInput
 }
 
 func TestS3AccessPoint_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName01 := "test-access-point-01"
@@ -84,7 +85,7 @@ func TestS3AccessPoint_GetAll(t *testing.T) {
 }
 
 func TestS3AccessPoint_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	rc := S3AccessPoint{

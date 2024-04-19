@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/apigateway/apigatewayiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,7 @@ func (m mockedApiGateway) DeleteClientCertificate(*apigateway.DeleteClientCertif
 }
 
 func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testApiID := "aws-nuke-test-" + util.UniqueID()
@@ -65,7 +66,7 @@ func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
 }
 
 func TestAPIGatewayGetAllTimeFilter(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testApiID := "aws-nuke-test-" + util.UniqueID()
@@ -105,7 +106,7 @@ func TestAPIGatewayGetAllTimeFilter(t *testing.T) {
 }
 
 func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testApiID1 := "aws-nuke-test-" + util.UniqueID()
@@ -132,7 +133,7 @@ func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 }
 
 func TestNukeAPIGatewayWithCertificates(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testApiID1 := "aws-nuke-test-" + util.UniqueID()

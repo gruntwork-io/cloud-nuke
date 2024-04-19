@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -28,7 +29,7 @@ func (m mockedLaunchConfiguration) DeleteLaunchConfiguration(input *autoscaling.
 }
 
 func TestLaunchConfigurations_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-launch-config1"
@@ -88,7 +89,7 @@ func TestLaunchConfigurations_GetAll(t *testing.T) {
 }
 
 func TestLaunchConfigurations_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	lc := LaunchConfigs{

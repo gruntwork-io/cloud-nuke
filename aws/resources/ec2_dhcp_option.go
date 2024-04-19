@@ -2,8 +2,10 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -11,7 +13,7 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func (v *EC2DhcpOption) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var dhcpOptionIds []*string
 	err := v.Client.DescribeDhcpOptionsPages(&ec2.DescribeDhcpOptionsInput{}, func(page *ec2.DescribeDhcpOptionsOutput, lastPage bool) bool {
 		for _, dhcpOption := range page.DhcpOptions {
@@ -33,9 +35,8 @@ func (v *EC2DhcpOption) getAll(c context.Context, configObj config.Config) ([]*s
 
 func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
-		_, err := v.Client.DeleteDhcpOptions(&ec2.DeleteDhcpOptionsInput{
-			DhcpOptionsId: identifier,
-		})
+
+		err := nukeDhcpOption(v.Client, identifier)
 		if err != nil {
 			logging.Debugf("Failed to delete DHCP option w/ err: %s.", err)
 		} else {
@@ -44,12 +45,26 @@ func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(identifier),
+			Identifier:   awsgo.StringValue(identifier),
 			ResourceType: v.ResourceName(),
 			Error:        err,
 		}
 		report.Record(e)
 	}
 
+	return nil
+}
+
+func nukeDhcpOption(client ec2iface.EC2API, option *string) error {
+	logging.Debugf("Deleting DHCP Option %s", awsgo.StringValue(option))
+
+	_, err := client.DeleteDhcpOptions(&ec2.DeleteDhcpOptionsInput{
+		DhcpOptionsId: option,
+	})
+	if err != nil {
+		logging.Debugf("[Failed] Error deleting DHCP option %s: %s", awsgo.StringValue(option), err)
+		return errors.WithStackTrace(err)
+	}
+	logging.Debugf("[Ok] DHCP Option deleted successfully %s", awsgo.StringValue(option))
 	return nil
 }

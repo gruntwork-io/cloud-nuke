@@ -7,7 +7,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
 	"sync"
 )
@@ -104,6 +106,11 @@ func (cda *CodeDeployApplications) nukeAll(identifiers []string) error {
 		allErrors = multierror.Append(allErrors, err)
 
 		logging.Errorf("[Failed] Error deleting CodeDeploy Application: %s", err)
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking CodeDeploy Application",
+		}, map[string]interface{}{
+			"region": cda.Region,
+		})
 	}
 
 	finalErr := allErrors.ErrorOrNil()

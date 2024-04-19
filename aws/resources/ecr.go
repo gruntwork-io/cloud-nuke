@@ -7,7 +7,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -59,6 +61,11 @@ func (registry *ECR) nukeAll(repositoryNames []string) error {
 		report.Record(e)
 
 		if err != nil {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECR Repo",
+			}, map[string]interface{}{
+				"region": registry.Region,
+			})
 			logging.Debugf("[Failed] %s", err)
 		} else {
 

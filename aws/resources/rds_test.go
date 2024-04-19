@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -34,7 +35,7 @@ func (m mockedDBInstance) WaitUntilDBInstanceDeleted(*rds.DescribeDBInstancesInp
 }
 
 func TestDBInstances_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-db-instance1"
@@ -99,7 +100,7 @@ func TestDBInstances_GetAll(t *testing.T) {
 }
 
 func TestDBInstances_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	di := DBInstances{

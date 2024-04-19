@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -38,7 +39,7 @@ func (m mockedCloudWatchAlarms) DeleteAlarms(input *cloudwatch.DeleteAlarmsInput
 }
 
 func TestCloudWatchAlarm_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -92,7 +93,7 @@ func TestCloudWatchAlarm_GetAll(t *testing.T) {
 }
 
 func TestCloudWatchAlarms_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -114,7 +115,7 @@ func TestCloudWatchAlarms_NukeAll(t *testing.T) {
 }
 
 func TestCloudWatchCompositeAlarms_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testCompositeAlaram1 := "test-name1"

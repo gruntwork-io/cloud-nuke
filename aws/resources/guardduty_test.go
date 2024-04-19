@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/aws/aws-sdk-go/service/guardduty/guarddutyiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -32,7 +33,7 @@ func (m mockedGuardDuty) DeleteDetector(input *guardduty.DeleteDetectorInput) (*
 }
 
 func TestGuardDuty_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testId1 := "test-detector-id-1"
@@ -80,7 +81,7 @@ func TestGuardDuty_GetAll(t *testing.T) {
 }
 
 func TestGuardDuty_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	gd := GuardDuty{

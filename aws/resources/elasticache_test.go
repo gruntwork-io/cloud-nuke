@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/elasticache"
 	"github.com/aws/aws-sdk-go/service/elasticache/elasticacheiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -36,7 +37,7 @@ func (m mockedElasticache) WaitUntilReplicationGroupDeleted(input *elasticache.D
 }
 
 func TestElasticache_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	now := time.Now()
@@ -99,7 +100,7 @@ func TestElasticache_GetAll(t *testing.T) {
 }
 
 func TestElasticache_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	now := time.Now()

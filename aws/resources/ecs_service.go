@@ -2,7 +2,9 @@ package resources
 
 import (
 	"context"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -114,6 +116,12 @@ func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*strin
 		describeServicesOutput, err := services.Client.DescribeServices(describeParams)
 		if err != nil {
 			logging.Errorf("[Failed] Failed to describe service %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": services.Region,
+				"reason": "Unable to describe",
+			})
 		} else {
 
 			schedulingStrategy := *describeServicesOutput.Services[0].SchedulingStrategy
@@ -128,6 +136,12 @@ func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*strin
 				_, err = services.Client.UpdateService(params)
 				if err != nil {
 					logging.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
+					telemetry.TrackEvent(commonTelemetry.EventContext{
+						EventName: "Error Nuking ECS Service",
+					}, map[string]interface{}{
+						"region": services.Region,
+						"reason": "Unable to drain",
+					})
 				} else {
 					requestedDrains = append(requestedDrains, ecsServiceArn)
 				}
@@ -151,6 +165,12 @@ func (services *ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) 
 		err := services.Client.WaitUntilServicesStable(params)
 		if err != nil {
 			logging.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": services.Region,
+				"reason": "Failed Waiting for Drain",
+			})
 		} else {
 			logging.Debugf("Drained service: %s", *ecsServiceArn)
 			successfullyDrained = append(successfullyDrained, ecsServiceArn)
@@ -171,6 +191,12 @@ func (services *ECSServices) deleteEcsServices(ecsServiceArns []*string) []*stri
 		_, err := services.Client.DeleteService(params)
 		if err != nil {
 			logging.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": services.Region,
+				"reason": "Unable to Delete",
+			})
 		} else {
 			requestedDeletes = append(requestedDeletes, ecsServiceArn)
 		}
@@ -200,6 +226,12 @@ func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) 
 
 		if err != nil {
 			logging.Debugf("[Failed] Failed waiting for service to be deleted %s: %s", *ecsServiceArn, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking ECS Service",
+			}, map[string]interface{}{
+				"region": services.Region,
+				"reason": "Failed Waiting for Delete",
+			})
 		} else {
 			logging.Debugf("Deleted service: %s", *ecsServiceArn)
 			successfullyDeleted = append(successfullyDeleted, ecsServiceArn)

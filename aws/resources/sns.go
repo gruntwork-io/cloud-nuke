@@ -8,6 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -147,6 +150,11 @@ func (s *SNSTopic) nukeAll(identifiers []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking SNS Topic",
+			}, map[string]interface{}{
+				"region": s.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

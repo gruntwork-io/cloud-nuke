@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -27,7 +28,7 @@ func (m mockedLaunchTemplate) DeleteLaunchTemplate(input *ec2.DeleteLaunchTempla
 }
 
 func TestLaunchTemplate_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	now := time.Now()
@@ -87,7 +88,7 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 }
 
 func TestLaunchTemplate_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	lt := LaunchTemplates{

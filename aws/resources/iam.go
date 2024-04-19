@@ -3,7 +3,9 @@ package resources
 import (
 	"context"
 	"fmt"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -363,6 +365,9 @@ func (iu *IAMUsers) nukeAll(userNames []*string) error {
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
 			multierror.Append(multiErr, err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking IAM User",
+			}, map[string]interface{}{})
 		} else {
 			deletedUsers++
 			logging.Debugf("Deleted IAM User: %s", *userName)

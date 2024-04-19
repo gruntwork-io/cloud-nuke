@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +36,7 @@ func (mock mockedR53CidrCollection) DeleteCidrCollection(_ *route53.DeleteCidrCo
 }
 
 func TestR53CidrCollection_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testId1 := "d8c6f2db-89dd-5533-f30c-13e28eba8818"
@@ -91,7 +92,7 @@ func TestR53CidrCollection_GetAll(t *testing.T) {
 }
 
 func TestR53CidrCollection_Nuke(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	rc := Route53CidrCollection{

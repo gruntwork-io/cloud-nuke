@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -96,11 +98,23 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 	// Macie cannot be disabled with active member accounts
 	memberAccountIds, err := mm.getAllMacieMembers()
 	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error finding macie member accounts",
+		}, map[string]interface{}{
+			"region": mm.Region,
+			"reason": "Error finding macie member accounts",
+		})
 	}
 	if err == nil && len(memberAccountIds) > 0 {
 		err = mm.removeMacieMembers(memberAccountIds)
 		if err != nil {
 			logging.Errorf("[Failed] Failed to remove members from macie")
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error removing members from macie",
+			}, map[string]interface{}{
+				"region": mm.Region,
+				"reason": "Unable to remove members",
+			})
 		}
 	}
 
@@ -112,6 +126,12 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 			logging.Debugf("No delegated Macie administrator found to remove.")
 		} else {
 			logging.Errorf("[Failed] Failed to check for administrator account")
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error checking for administrator account in Macie",
+			}, map[string]interface{}{
+				"region": mm.Region,
+				"reason": "Unable to find admin account",
+			})
 		}
 	}
 
@@ -120,6 +140,12 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 		_, err := mm.Client.DisassociateFromAdministratorAccount(&macie2.DisassociateFromAdministratorAccountInput{})
 		if err != nil {
 			logging.Errorf("[Failed] Failed to disassociate from administrator account")
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error disassociating administrator account in Macie",
+			}, map[string]interface{}{
+				"region": mm.Region,
+				"reason": "Unable to disassociate admin account",
+			})
 		}
 	}
 
@@ -127,6 +153,12 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 	_, err = mm.Client.DisableMacie(&macie2.DisableMacieInput{})
 	if err != nil {
 		logging.Errorf("[Failed] Failed to disable macie.")
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error Nuking MACIE",
+		}, map[string]interface{}{
+			"region": mm.Region,
+			"reason": "Error Nuking MACIE",
+		})
 		e := report.Entry{
 			Identifier:   aws.StringValue(&identifier[0]),
 			ResourceType: "Macie",

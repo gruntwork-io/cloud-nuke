@@ -32,9 +32,8 @@ func TestParseDuration(t *testing.T) {
 }
 
 func TestParseDurationInvalidFormat(t *testing.T) {
-	value, err := parseDurationParam("")
-	assert.NoError(t, err)
-	assert.Nil(t, value)
+	_, err := parseDurationParam("")
+	assert.Error(t, err)
 }
 
 func TestListResourceTypes(t *testing.T) {

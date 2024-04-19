@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +30,7 @@ func (m mockedLambda) DeleteFunction(input *lambda.DeleteFunctionInput) (*lambda
 }
 
 func TestLambdaFunction_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-lambda-function1"
@@ -95,7 +96,7 @@ func TestLambdaFunction_GetAll(t *testing.T) {
 }
 
 func TestLambdaFunction_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	lf := LambdaFunctions{

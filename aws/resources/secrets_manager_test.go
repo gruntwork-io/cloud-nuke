@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -38,7 +39,7 @@ func (m mockedSecretsManager) RemoveRegionsFromReplication(input *secretsmanager
 }
 
 func TestSecretsManagerSecrets_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-name-1"
@@ -102,7 +103,7 @@ func TestSecretsManagerSecrets_GetAll(t *testing.T) {
 }
 
 func TestSecretsManagerSecrets_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	sms := SecretsManagerSecrets{

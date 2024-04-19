@@ -5,7 +5,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
 	"sync"
 )
@@ -62,6 +64,11 @@ func (analyzer *AccessAnalyzer) nukeAll(names []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Access Analyzer",
+			}, map[string]interface{}{
+				"region": analyzer.Region,
+			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

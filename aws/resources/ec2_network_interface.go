@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -18,8 +19,8 @@ func (ni *NetworkInterface) setFirstSeenTag(networkInterface ec2.NetworkInterfac
 		Resources: []*string{networkInterface.NetworkInterfaceId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   aws.String(util.FirstSeenTagKey),
-				Value: aws.String(util.FormatTimestamp(value)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -97,7 +98,7 @@ func (ni *NetworkInterface) getAll(_ context.Context, configObj config.Config) (
 	ni.VerifyNukablePermissions(identifiers, func(id *string) error {
 		_, err := ni.Client.DeleteNetworkInterface(&ec2.DeleteNetworkInterfaceInput{
 			NetworkInterfaceId: id,
-			DryRun:             aws.Bool(true),
+			DryRun:             awsgo.Bool(true),
 		})
 		return err
 	})
@@ -111,7 +112,7 @@ func (ni *NetworkInterface) nuke(id *string) error {
 		return errors.WithStackTrace(err)
 	}
 	// nuking the network interface
-	if err := ni.nukeNetworkInterface(id); err != nil {
+	if err := nukeNetworkInterface(ni.Client, id); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -119,13 +120,13 @@ func (ni *NetworkInterface) nuke(id *string) error {
 }
 
 func (ni *NetworkInterface) detachNetworkInterface(id *string) error {
-	logging.Debugf("Detaching network interface %s from instances ", aws.StringValue(id))
+	logging.Debugf("Detaching network interface %s from instances ", awsgo.StringValue(id))
 
 	output, err := ni.Client.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{
 		NetworkInterfaceIds: []*string{id},
 	})
 	if err != nil {
-		logging.Debugf("[Failed] Error describing network interface %s: %s", aws.StringValue(id), err)
+		logging.Debugf("[Failed] Error describing network interface %s: %s", awsgo.StringValue(id), err)
 		return errors.WithStackTrace(err)
 	}
 
@@ -139,7 +140,7 @@ func (ni *NetworkInterface) detachNetworkInterface(id *string) error {
 		// nuking the attached instance
 		// this will also remove the network interface
 		if err := ni.nukeInstance(networkInterface.Attachment.InstanceId); err != nil {
-			logging.Debugf("[Failed] Error nuking the attached instance %s on network interface %s %s", aws.StringValue(networkInterface.Attachment.InstanceId), aws.StringValue(id), err)
+			logging.Debugf("[Failed] Error nuking the attached instance %s on network interface %s %s", awsgo.StringValue(networkInterface.Attachment.InstanceId), awsgo.StringValue(id), err)
 			return errors.WithStackTrace(err)
 		}
 	}
@@ -150,12 +151,12 @@ func (ni *NetworkInterface) detachNetworkInterface(id *string) error {
 }
 
 func (ni *NetworkInterface) releaseEIPs(instance *string) error {
-	logging.Debugf("Releasing Elastic IP address(s) associated on instance %s", aws.StringValue(instance))
+	logging.Debugf("Releasing Elastic IP address(s) associated on instance %s", awsgo.StringValue(instance))
 	// get the elastic ip's associated with the EC2's
 	output, err := ni.Client.DescribeAddresses(&ec2.DescribeAddressesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name: aws.String("instance-id"),
+				Name: awsgo.String("instance-id"),
 				Values: []*string{
 					instance,
 				},
@@ -170,11 +171,11 @@ func (ni *NetworkInterface) releaseEIPs(instance *string) error {
 		if _, err := ni.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
 			AllocationId: address.AllocationId,
 		}); err != nil {
-			logging.Debugf("An error happened while releasing the elastic ip address %s, error %v", aws.StringValue(address.AllocationId), err)
+			logging.Debugf("An error happened while releasing the elastic ip address %s, error %v", awsgo.StringValue(address.AllocationId), err)
 			continue
 		}
 
-		logging.Debugf("Released Elastic IP address %s from instance %s", aws.StringValue(address.AllocationId), aws.StringValue(instance))
+		logging.Debugf("Released Elastic IP address %s from instance %s", awsgo.StringValue(address.AllocationId), awsgo.StringValue(instance))
 	}
 
 	logging.Debugf("[OK] successfully released Elastic IP address(s) associated on instances")
@@ -198,7 +199,7 @@ func (ni *NetworkInterface) nukeInstance(id *string) error {
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("[Instance Termination] waiting to terminate instance %s", aws.StringValue(id))
+	logging.Debugf("[Instance Termination] waiting to terminate instance %s", awsgo.StringValue(id))
 
 	// wait until the instance terminated.
 	if err := ni.Client.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
@@ -207,30 +208,7 @@ func (ni *NetworkInterface) nukeInstance(id *string) error {
 		logging.Debugf("[Instance Termination Waiting] Failed to terminate instance %s : %s", *id, err)
 		return errors.WithStackTrace(err)
 	}
-	logging.Debugf("[OK] successfully nuked instance %v", aws.StringValue(id))
-
-	return nil
-}
-
-func (ni *NetworkInterface) nukeNetworkInterface(id *string) error {
-	logging.Debugf("Deleting network interface %s", aws.StringValue(id))
-
-	// If the network interface was attached to an instance, then when we remove the instance above, the network interface will also be removed.
-	// However, when we attempt to nuke the interface here, we may encounter an error such as InvalidNetworkInterfaceID.NotFound.
-	// In other situations, such as when the network interface hasn't been attached to any instances, we won't encounter this error.
-	//
-	// Note: We are handling the situation here by checking the error response from AWS.
-
-	_, err := ni.Client.DeleteNetworkInterface(&ec2.DeleteNetworkInterfaceInput{
-		NetworkInterfaceId: id,
-	})
-
-	// check the error exists and it is not the interfaceid not found
-	if err != nil && util.TransformAWSError(err) != util.ErrInterfaceIDNotFound {
-		logging.Debugf("[Failed] Error deleting network interface %s: %s", aws.StringValue(id), err)
-		return errors.WithStackTrace(err)
-	}
-	logging.Debugf("[Ok] network interface deleted successfully %s", aws.StringValue(id))
+	logging.Debugf("[OK] successfully nuked instance %v", awsgo.StringValue(id))
 
 	return nil
 }
@@ -254,7 +232,7 @@ func (ni *NetworkInterface) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{ // Use the 'r' alias to refer to the package
-			Identifier:   aws.StringValue(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Network Interface",
 			Error:        err,
 		}
@@ -266,6 +244,29 @@ func (ni *NetworkInterface) nukeAll(identifiers []*string) error {
 	}
 
 	logging.Debugf("[OK] %d network interface(s) deleted in %s", len(deleted), ni.Region)
+
+	return nil
+}
+
+func nukeNetworkInterface(client ec2iface.EC2API, id *string) error {
+	logging.Debugf("Deleting network interface %s", awsgo.StringValue(id))
+
+	// If the network interface was attached to an instance, then when we remove the instance above, the network interface will also be removed.
+	// However, when we attempt to nuke the interface here, we may encounter an error such as InvalidNetworkInterfaceID.NotFound.
+	// In other situations, such as when the network interface hasn't been attached to any instances, we won't encounter this error.
+	//
+	// Note: We are handling the situation here by checking the error response from AWS.
+
+	_, err := client.DeleteNetworkInterface(&ec2.DeleteNetworkInterfaceInput{
+		NetworkInterfaceId: id,
+	})
+
+	// check the error exists and it is not the interfaceid not found
+	if err != nil && util.TransformAWSError(err) != util.ErrInterfaceIDNotFound {
+		logging.Debugf("[Failed] Error deleting network interface %s: %s", awsgo.StringValue(id), err)
+		return errors.WithStackTrace(err)
+	}
+	logging.Debugf("[Ok] network interface deleted successfully %s", awsgo.StringValue(id))
 
 	return nil
 }

@@ -7,7 +7,9 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of Launch config Names
@@ -58,6 +60,11 @@ func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
 
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Launch Configuration",
+			}, map[string]interface{}{
+				"region": lc.Region,
+			})
 		} else {
 			deletedConfigNames = append(deletedConfigNames, configName)
 			logging.Debugf("Deleted Launch configuration: %s", *configName)

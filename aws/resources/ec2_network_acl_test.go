@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -36,6 +37,7 @@ func (m mockedNetworkACL) ReplaceNetworkAclAssociation(*ec2.ReplaceNetworkAclAss
 }
 
 func TestNetworkAcl_GetAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
 
 	var (
 		now     = time.Now()
@@ -131,6 +133,7 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 }
 
 func TestNetworkAcl_NukeAll(t *testing.T) {
+	telemetry.InitTelemetry("cloud-nuke", "")
 
 	var (
 		testId1 = "acl-09e36c45cbdbfb001"

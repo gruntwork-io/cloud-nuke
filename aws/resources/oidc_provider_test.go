@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -35,7 +36,7 @@ func (m mockedOIDCProvider) GetOpenIDConnectProvider(input *iam.GetOpenIDConnect
 }
 
 func TestOIDCProvider_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testArn1 := "test-arn1"
@@ -102,7 +103,7 @@ func TestOIDCProvider_GetAll(t *testing.T) {
 }
 
 func TestOIDCProvider_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	oidcp := OIDCProviders{

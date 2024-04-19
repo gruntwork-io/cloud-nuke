@@ -44,16 +44,7 @@ func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			_, err := NewQuery(
-				tc.Regions,
-				tc.ExcludeRegions,
-				tc.ResourceTypes,
-				tc.ExcludeResourceTypes,
-				tc.ExcludeAfter,
-				tc.IncludeAfter,
-				false,
-				nil,
-				false)
+			_, err := NewQuery(tc.Regions, tc.ExcludeRegions, tc.ResourceTypes, tc.ExcludeResourceTypes, tc.ExcludeAfter, tc.IncludeAfter, false, nil)
 			require.NoError(t, err)
 		})
 	}

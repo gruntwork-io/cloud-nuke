@@ -11,8 +11,10 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // [Note 1] :  NOTE on the Apporach used:-Using the `dry run` approach on verifying the nuking permission in case of a scoped IAM role.
@@ -95,6 +97,11 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Error Nuking Transit Gateway Instance",
+			}, map[string]interface{}{
+				"region": tgw.Region,
+			})
 		} else {
 			deletedIds = append(deletedIds, id)
 			logging.Debugf("Deleted Transit Gateway: %s", *id)

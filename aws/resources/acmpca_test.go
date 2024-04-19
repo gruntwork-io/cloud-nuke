@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/acmpca"
 	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +45,7 @@ func (m mockedACMPCA) DeleteCertificateAuthority(
 }
 
 func TestAcmPcaGetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testArn := "test-arn"
@@ -78,7 +79,7 @@ func TestAcmPcaGetAll(t *testing.T) {
 }
 
 func TestAcmPcaNukeAll_DisabledCA(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testArn := "test-arn"
@@ -101,7 +102,7 @@ func TestAcmPcaNukeAll_DisabledCA(t *testing.T) {
 }
 
 func TestAcmPcaNukeAll_EnabledCA(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testArn := "test-arn"

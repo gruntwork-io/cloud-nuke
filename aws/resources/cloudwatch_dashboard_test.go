@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ func (m mockedCloudWatchDashboard) DeleteDashboards(input *cloudwatch.DeleteDash
 }
 
 func TestCloudWatchDashboard_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -89,7 +90,7 @@ func TestCloudWatchDashboard_GetAll(t *testing.T) {
 }
 
 func TestCloudWatchDashboard_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 	cw := CloudWatchDashboards{
 		Client: mockedCloudWatchDashboard{

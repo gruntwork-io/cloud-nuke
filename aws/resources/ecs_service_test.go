@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -50,7 +51,7 @@ func (m mockedEC2Service) WaitUntilServicesInactive(*ecs.DescribeServicesInput) 
 }
 
 func TestEC2Service_GetAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	testArn1 := "testArn1"
@@ -125,7 +126,7 @@ func TestEC2Service_GetAll(t *testing.T) {
 }
 
 func TestEC2Service_NukeAll(t *testing.T) {
-
+	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
 	es := ECSServices{
