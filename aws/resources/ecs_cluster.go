@@ -6,9 +6,6 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/util"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecs"
@@ -188,11 +185,6 @@ func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 
 		if err != nil {
 			logging.Debugf("Error, failed to delete cluster with ARN %s %s", aws.StringValue(clusterArn), err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking ECS Cluster",
-			}, map[string]interface{}{
-				"region": clusters.Region,
-			})
 			return errors.WithStackTrace(err)
 		}
 

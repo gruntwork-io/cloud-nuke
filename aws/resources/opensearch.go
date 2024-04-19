@@ -3,9 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
@@ -167,11 +165,6 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Errorf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Opensearch",
-			}, map[string]interface{}{
-				"region": osd.Region,
-			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

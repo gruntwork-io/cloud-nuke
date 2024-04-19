@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/aws/aws-sdk-go/service/acm/acmiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,7 +31,7 @@ func (m mockedACM) DeleteCertificate(input *acm.DeleteCertificateInput) (*acm.De
 }
 
 func TestACMGetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testDomainName := "test-domain-name"
@@ -80,7 +79,7 @@ func TestACMGetAll(t *testing.T) {
 }
 
 func TestACMGetAll_FilterInUse(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testDomainName := "test-domain-name"
@@ -105,7 +104,7 @@ func TestACMGetAll_FilterInUse(t *testing.T) {
 }
 
 func TestACMNukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testDomainName := "test-domain-name"

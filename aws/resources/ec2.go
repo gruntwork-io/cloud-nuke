@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pterm/pterm"
@@ -136,11 +134,6 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 	err := ei.releaseEIPs(instanceIds)
 	if err != nil {
 		logging.Debugf("[Failed EIP release] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2 Instance EPI release",
-		}, map[string]interface{}{
-			"region": ei.Region,
-		})
 		return errors.WithStackTrace(err)
 	}
 
@@ -153,11 +146,6 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 	_, err = ei.Client.TerminateInstances(params)
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2 Instance",
-		}, map[string]interface{}{
-			"region": ei.Region,
-		})
 		return errors.WithStackTrace(err)
 	}
 
@@ -175,11 +163,6 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2 Instance",
-		}, map[string]interface{}{
-			"region": ei.Region,
-		})
 		return errors.WithStackTrace(err)
 	}
 

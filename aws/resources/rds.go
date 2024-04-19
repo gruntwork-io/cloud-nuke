@@ -8,10 +8,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (di *DBInstances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -53,11 +51,6 @@ func (di *DBInstances) nukeAll(names []*string) error {
 		_, err := di.Client.DeleteDBInstance(params)
 
 		if err != nil {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking RDS Instance",
-			}, map[string]interface{}{
-				"region": di.Region,
-			})
 			logging.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
@@ -81,11 +74,6 @@ func (di *DBInstances) nukeAll(names []*string) error {
 			report.Record(e)
 
 			if err != nil {
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: "Error Nuking RDS Instance",
-				}, map[string]interface{}{
-					"region": di.Region,
-				})
 				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}

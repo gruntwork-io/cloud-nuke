@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -36,7 +35,7 @@ func (m mockedDynamoDB) DeleteTable(input *dynamodb.DeleteTableInput) (*dynamodb
 }
 
 func TestDynamoDB_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "table1"
@@ -104,7 +103,7 @@ func TestDynamoDB_GetAll(t *testing.T) {
 }
 
 func TestDynamoDb_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	ddb := DynamoDB{

@@ -10,10 +10,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 func (h *EC2DedicatedHosts) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -86,11 +84,6 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2 Dedicated Hosts",
-		}, map[string]interface{}{
-			"region": h.Region,
-		})
 		return errors.WithStackTrace(err)
 	}
 
@@ -105,11 +98,6 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 	}
 
 	for _, hostFailed := range releaseResult.Unsuccessful {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking EC2 Dedicated Host",
-		}, map[string]interface{}{
-			"region": h.Region,
-		})
 		logging.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), h.Region, aws.StringValue(hostFailed.Error.Message))
 		e := report.Entry{
 			Identifier:   aws.StringValue(hostFailed.ResourceId),

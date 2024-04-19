@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
@@ -80,7 +79,7 @@ func (m mockedTransitGatewayVpcAttachment) DeleteTransitGatewayVpcAttachment(
 }
 
 func TestTransitGateways_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	now := time.Now()
@@ -135,7 +134,7 @@ func TestTransitGateways_GetAll(t *testing.T) {
 }
 
 func TestTransitGateways_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	tgw := TransitGateways{
@@ -149,7 +148,7 @@ func TestTransitGateways_NukeAll(t *testing.T) {
 }
 
 func TestTransitGatewayRouteTables_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	now := time.Now()
@@ -201,7 +200,7 @@ func TestTransitGatewayRouteTables_GetAll(t *testing.T) {
 }
 
 func TestTransitGatewayRouteTables_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	tgw := TransitGatewaysRouteTables{
@@ -215,7 +214,7 @@ func TestTransitGatewayRouteTables_NukeAll(t *testing.T) {
 }
 
 func TestTransitGatewayVpcAttachments_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	now := time.Now()
@@ -267,7 +266,7 @@ func TestTransitGatewayVpcAttachments_GetAll(t *testing.T) {
 }
 
 func TestTransitGatewayVpcAttachments_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	tgw := TransitGatewaysVpcAttachment{
@@ -281,7 +280,7 @@ func TestTransitGatewayVpcAttachments_NukeAll(t *testing.T) {
 }
 
 func TestTransitGatewayPeeringAttachment_getAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	now := time.Now()
@@ -332,7 +331,7 @@ func TestTransitGatewayPeeringAttachment_getAll(t *testing.T) {
 }
 
 func TestTransitGatewayPeeringAttachment_nukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	tgw := TransitGatewayPeeringAttachment{

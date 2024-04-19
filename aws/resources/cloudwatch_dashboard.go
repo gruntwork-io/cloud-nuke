@@ -4,13 +4,10 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 func (cwdb *CloudWatchDashboards) getAll(c context.Context, configObj config.Config) ([]*string, error) {
@@ -63,11 +60,6 @@ func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error Nuking Cloudwatch Dashboard",
-		}, map[string]interface{}{
-			"region": cwdb.Region,
-		})
 		return errors.WithStackTrace(err)
 	}
 

@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +53,7 @@ func (m mockedEC2Cluster) StopTask(*ecs.StopTaskInput) (*ecs.StopTaskOutput, err
 }
 
 func TestEC2Cluster_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testArn1 := "arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"
@@ -141,7 +140,7 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 }
 
 func TestEC2Cluster_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	ec := ECSClusters{
@@ -155,7 +154,7 @@ func TestEC2Cluster_NukeAll(t *testing.T) {
 }
 
 func TestEC2ClusterWithTasks_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	ec := ECSClusters{

@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -62,7 +61,7 @@ func (m mockedIAMPolicies) DeletePolicy(input *iam.DeletePolicyInput) (*iam.Dele
 }
 
 func TestIAMPolicy_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "MyPolicy1"
@@ -126,7 +125,7 @@ func TestIAMPolicy_GetAll(t *testing.T) {
 }
 
 func TestIAMPolicy_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	ip := IAMPolicies{

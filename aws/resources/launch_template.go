@@ -7,9 +7,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of Launch Template Names
@@ -59,11 +57,6 @@ func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Launch Template",
-			}, map[string]interface{}{
-				"region": lt.Region,
-			})
 		} else {
 			deletedTemplateNames = append(deletedTemplateNames, templateName)
 			logging.Debugf("Deleted Launch template: %s", *templateName)

@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/sagemaker"
 	"github.com/aws/aws-sdk-go/service/sagemaker/sagemakeriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -46,7 +45,7 @@ func (m mockedSageMakerNotebookInstance) DeleteNotebookInstance(input *sagemaker
 }
 
 func TestSageMakerNotebookInstances_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	now := time.Now()
@@ -107,7 +106,7 @@ func TestSageMakerNotebookInstances_GetAll(t *testing.T) {
 }
 
 func TestSageMakerNotebookInstances_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	smni := SageMakerNotebookInstances{

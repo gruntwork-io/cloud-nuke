@@ -8,10 +8,8 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 )
 
@@ -102,12 +100,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	// Security Hub cannot be disabled with active member accounts
 	memberAccountIds, err := sh.getAllSecurityHubMembers()
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error finding security hub member accounts",
-		}, map[string]interface{}{
-			"region": sh.Region,
-			"reason": "Error finding security hub member accounts",
-		})
+		return err
 	}
 
 	// Remove any member accounts if they exist
@@ -115,12 +108,6 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 		err = sh.removeMembersFromHub(memberAccountIds)
 		if err != nil {
 			logging.Errorf("[Failed] Failed to disassociate members from security hub")
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error disassociating members from security hub",
-			}, map[string]interface{}{
-				"region": sh.Region,
-				"reason": "Unable to disassociate",
-			})
 		}
 	}
 
@@ -129,12 +116,6 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	adminAccount, err := sh.Client.GetAdministratorAccount(&securityhub.GetAdministratorAccountInput{})
 	if err != nil {
 		logging.Errorf("[Failed] Failed to check for administrator account")
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error checking for administrator account in security hub",
-		}, map[string]interface{}{
-			"region": sh.Region,
-			"reason": "Unable to find admin account",
-		})
 	}
 
 	// Disassociate administrator account if it exists
@@ -142,12 +123,6 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 		_, err := sh.Client.DisassociateFromAdministratorAccount(&securityhub.DisassociateFromAdministratorAccountInput{})
 		if err != nil {
 			logging.Errorf("[Failed] Failed to disassociate from administrator account")
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error disassociating administrator account in security hub",
-			}, map[string]interface{}{
-				"region": sh.Region,
-				"reason": "Unable to disassociate admin account",
-			})
 		}
 	}
 
@@ -155,12 +130,6 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	_, err = sh.Client.DisableSecurityHub(&securityhub.DisableSecurityHubInput{})
 	if err != nil {
 		logging.Errorf("[Failed] Failed to disable security hub.")
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Error disabling security hub",
-		}, map[string]interface{}{
-			"region": sh.Region,
-			"reason": "Error disabling security hub",
-		})
 		e := report.Entry{
 			Identifier:   aws.StringValue(&securityHubArns[0]),
 			ResourceType: "Security Hub",

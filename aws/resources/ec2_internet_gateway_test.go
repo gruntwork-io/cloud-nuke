@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +35,7 @@ func (m mockedInternetGateway) DeleteInternetGateway(_ *ec2.DeleteInternetGatewa
 }
 
 func TestEc2InternetGateway_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	var (
@@ -120,7 +119,7 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 }
 
 func TestEc2InternetGateway_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	var (

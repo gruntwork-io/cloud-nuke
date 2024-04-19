@@ -2,16 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -82,27 +79,10 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "VolumeInUse" {
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: "Error Nuking EBS Volume",
-				}, map[string]interface{}{
-					"region": ev.Region,
-					"reason": "VolumeInUse",
-				})
 				logging.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
 			} else if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "InvalidVolume.NotFound" {
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: "Error Nuking EBS Volume",
-				}, map[string]interface{}{
-					"region": ev.Region,
-					"reason": "InvalidVolume.NotFound",
-				})
 				logging.Debugf("EBS volume %s has already been deleted", *volumeID)
 			} else {
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: "Error Nuking EBS Volume",
-				}, map[string]interface{}{
-					"region": ev.Region,
-				})
 				logging.Debugf("[Failed] %s", err)
 			}
 		} else {
@@ -117,11 +97,6 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 		})
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking EBS Volume",
-			}, map[string]interface{}{
-				"region": ev.Region,
-			})
 			return errors.WithStackTrace(err)
 		}
 	}

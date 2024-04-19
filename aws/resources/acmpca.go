@@ -6,9 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/acmpca"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -84,11 +81,6 @@ func (ap *ACMPCA) nukeAll(arns []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Errorf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking ACMPCA",
-			}, map[string]interface{}{
-				"region": ap.Region,
-			})
 		}
 	}
 
