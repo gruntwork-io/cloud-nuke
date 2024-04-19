@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -28,7 +27,7 @@ func (m mockedKinesisClient) DeleteStream(input *kinesis.DeleteStreamInput) (*ki
 }
 
 func TestKinesisStreams_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "stream1"
@@ -72,7 +71,7 @@ func TestKinesisStreams_GetAll(t *testing.T) {
 }
 
 func TestKinesisStreams_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	ks := KinesisStreams{

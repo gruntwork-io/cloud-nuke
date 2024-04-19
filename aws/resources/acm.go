@@ -7,9 +7,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a list of strings of ACM ARNs
@@ -80,11 +78,6 @@ func (a *ACM) nukeAll(arns []*string) error {
 		_, err := a.Client.DeleteCertificate(params)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking ACM",
-			}, map[string]interface{}{
-				"region": a.Region,
-			})
 		} else {
 			deletedCount++
 			logging.Debugf("Deleted ACM: %s", *acmArn)

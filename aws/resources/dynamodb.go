@@ -8,8 +8,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"log"
 )
@@ -67,11 +65,6 @@ func (ddb *DynamoDB) nukeAll(tables []*string) error {
 
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: "Error Nuking DynamoDB Table",
-				}, map[string]interface{}{
-					"region": ddb.Region,
-				})
 				switch aerr.Error() {
 				case dynamodb.ErrCodeInternalServerError:
 					return errors.WithStackTrace(aerr)

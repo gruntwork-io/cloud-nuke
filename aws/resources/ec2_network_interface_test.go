@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +49,6 @@ func (m mockedNetworkInterface) WaitUntilInstanceTerminated(*ec2.DescribeInstanc
 }
 
 func TestNetworkInterface_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
 
 	var (
 		now     = time.Now()
@@ -146,7 +144,7 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 }
 
 func TestNetworkInterface_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	var (

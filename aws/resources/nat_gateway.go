@@ -3,9 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"sync"
 	"time"
 
@@ -97,11 +95,6 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 		if err := <-errChan; err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking NAT Gateway",
-			}, map[string]interface{}{
-				"region": ngw.Region,
-			})
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()

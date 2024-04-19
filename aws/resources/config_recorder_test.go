@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -27,7 +26,7 @@ func (m mockedConfigServiceRecorders) DeleteConfigurationRecorder(input *configs
 }
 
 func TestConfigServiceRecorder_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "test-recorder-1"
@@ -74,7 +73,7 @@ func TestConfigServiceRecorder_GetAll(t *testing.T) {
 }
 
 func TestConfigServiceRecorder_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	csr := ConfigServiceRecorders{

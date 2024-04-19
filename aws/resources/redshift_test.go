@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/redshift"
 	"github.com/aws/aws-sdk-go/service/redshift/redshiftiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -34,7 +33,7 @@ func (m mockedRedshift) WaitUntilClusterDeleted(*redshift.DescribeClustersInput)
 }
 
 func TestRedshiftCluster_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	now := time.Now()
@@ -94,7 +93,7 @@ func TestRedshiftCluster_GetAll(t *testing.T) {
 }
 
 func TestRedshiftCluster_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	rc := RedshiftClusters{

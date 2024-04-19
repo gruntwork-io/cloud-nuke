@@ -9,9 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"strings"
 )
 
@@ -182,11 +180,6 @@ func (cache *Elasticaches) nukeAll(clusterIds []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Elasticache Cluster",
-			}, map[string]interface{}{
-				"region": cache.Region,
-			})
 		} else {
 			deletedClusterIds = append(deletedClusterIds, clusterId)
 			logging.Debugf("Deleted Elasticache cluster: %s", *clusterId)
@@ -260,11 +253,6 @@ func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 		report.Record(e)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Elasticache Parameter Group",
-			}, map[string]interface{}{
-				"region": pg.Region,
-			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, pgName)
 			logging.Debugf("Deleted Elasticache parameter group: %s", aws.StringValue(pgName))
@@ -316,11 +304,6 @@ func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
 		report.Record(e)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Elasticache Subnet Group",
-			}, map[string]interface{}{
-				"region": sg.Region,
-			})
 		} else {
 			deletedGroupNames = append(deletedGroupNames, sgName)
 			logging.Debugf("Deleted Elasticache subnet group: %s", aws.StringValue(sgName))

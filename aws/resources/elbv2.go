@@ -7,9 +7,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 )
 
 // Returns a formatted string of ELBv2 Arns
@@ -59,11 +57,6 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Error Nuking Load Balancer V2",
-			}, map[string]interface{}{
-				"region": balancer.Region,
-			})
 		} else {
 			deletedArns = append(deletedArns, arn)
 			logging.Debugf("Deleted ELBv2: %s", *arn)

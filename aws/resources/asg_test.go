@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"regexp"
 	"testing"
 	"time"
@@ -33,7 +32,7 @@ func (m mockedASGroups) WaitUntilGroupNotExists(input *autoscaling.DescribeAutoS
 }
 
 func TestAutoScalingGroupGetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName := "cloud-nuke-test"
@@ -72,7 +71,7 @@ func TestAutoScalingGroupGetAll(t *testing.T) {
 }
 
 func TestAutoScalingGroupNukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	ag := ASGroups{

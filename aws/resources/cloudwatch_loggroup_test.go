@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
@@ -29,7 +28,7 @@ func (m mockedCloudWatchLogGroup) DeleteLogGroup(input *cloudwatchlogs.DeleteLog
 }
 
 func TestCloudWatchLogGroup_GetAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -90,7 +89,7 @@ func TestCloudWatchLogGroup_GetAll(t *testing.T) {
 }
 
 func TestCloudWatchLogGroup_NukeAll(t *testing.T) {
-	telemetry.InitTelemetry("cloud-nuke", "")
+
 	t.Parallel()
 	cw := CloudWatchLogGroups{
 		Client: mockedCloudWatchLogGroup{
