@@ -4,10 +4,11 @@ import (
 	"context"
 	cerrors "errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -156,7 +157,7 @@ func nuke(client ec2iface.EC2API, vpcID string) error {
 		return err
 	}
 
-	err = nukeNatGateway(client, vpcID)
+	err = nukeNatGateways(client, vpcID)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Error cleaning up NAT Gateways for VPC %s: %s", vpcID, err.Error()))
 		return err
@@ -168,7 +169,7 @@ func nuke(client ec2iface.EC2API, vpcID string) error {
 		return err
 	}
 
-	err = nukeInternetGateway(client, vpcID)
+	err = nukeInternetGateways(client, vpcID)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Error cleaning up Internet Gateway for VPC %s: %s", vpcID, err.Error()))
 		return err
@@ -209,7 +210,9 @@ func nuke(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeInternetGateway(client ec2iface.EC2API, vpcID string) error {
+// nukeVpcInternetGateways
+// This function is specifically for VPCs. It retrieves all the internet gateways attached to the given VPC ID and nuke them
+func nukeInternetGateways(client ec2iface.EC2API, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking Internet Gateway for vpc: %s", vpcID))
 	input := &ec2.DescribeInternetGatewaysInput{
 		Filters: []*ec2.Filter{
@@ -230,36 +233,13 @@ func nukeInternetGateway(client ec2iface.EC2API, vpcID string) error {
 		return nil
 	}
 
-	logging.Debug(fmt.Sprintf("Detaching Internet Gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-	_, err = client.DetachInternetGateway(
-		&ec2.DetachInternetGatewayInput{
-			InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
-			VpcId:             awsgo.String(vpcID),
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to detach internet gateway %s",
-			awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-		return errors.WithStackTrace(err)
-	}
-	logging.Debug(fmt.Sprintf("Successfully detached internet gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-
-	logging.Debug(fmt.Sprintf("Deleting internet gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
-	_, err = client.DeleteInternetGateway(
-		&ec2.DeleteInternetGatewayInput{
-			InternetGatewayId: igw.InternetGateways[0].InternetGatewayId,
-		},
-	)
+	// re-using the method inside internet gateway
+	err = nukeInternetGateway(client, igw.InternetGateways[0].InternetGatewayId, vpcID)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to delete internet gateway %s",
 			awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
 		return errors.WithStackTrace(err)
 	}
-	logging.Debug(fmt.Sprintf("Successfully deleted internet gateway %s",
-		awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
 
 	return nil
 }
@@ -287,17 +267,16 @@ func nukeEgressOnlyGateways(client ec2iface.EC2API, vpcID string) error {
 	}
 
 	logging.Debug(fmt.Sprintf("Found %d Egress Only Internet Gateways to nuke.", len(allEgressGateways)))
-	var allErrs *multierror.Error
-	for _, gateway := range allEgressGateways {
-		_, err := client.DeleteEgressOnlyInternetGateway(
-			&ec2.DeleteEgressOnlyInternetGatewayInput{EgressOnlyInternetGatewayId: gateway})
-		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to delete Egress Only Internet Gateway %s", *gateway))
-			allErrs = multierror.Append(allErrs, errors.WithStackTrace(err))
-		}
 
-		logging.Debug(fmt.Sprintf("Successfully deleted Egress Only Internet Gateway %s", *gateway))
+	for _, gateway := range allEgressGateways {
+		err := nukeEgressOnlyGateway(client, gateway)
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to delete Egress Only Internet Gateway %s for vpc %s", *gateway, vpcID))
+			return errors.WithStackTrace(err)
+		}
 	}
+
+	logging.Debug(fmt.Sprintf("Successfully deleted Egress Only Internet Gateways for %s", vpcID))
 
 	return nil
 }
@@ -333,9 +312,7 @@ func nukeEndpoints(client ec2iface.EC2API, vpcID string) error {
 		return nil
 	}
 
-	_, err := client.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
-		VpcEndpointIds: endpointIds,
-	})
+	err := nukeVpcEndpoint(client, endpointIds)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to delete VPC endpoints: %s", err.Error()))
 		return errors.WithStackTrace(err)
@@ -346,37 +323,6 @@ func nukeEndpoints(client ec2iface.EC2API, vpcID string) error {
 	}
 
 	logging.Debug(fmt.Sprintf("Successfully deleted VPC endpoints"))
-	return nil
-}
-
-func waitForVPCEndpointToBeDeleted(client ec2iface.EC2API, vpcID string) error {
-	for i := 0; i < 30; i++ {
-		endpoints, err := client.DescribeVpcEndpoints(
-			&ec2.DescribeVpcEndpointsInput{
-				Filters: []*ec2.Filter{
-					{
-						Name:   awsgo.String("vpc-id"),
-						Values: []*string{awsgo.String(vpcID)},
-					},
-					{
-						Name:   awsgo.String("vpc-endpoint-state"),
-						Values: []*string{awsgo.String("deleting")},
-					},
-				},
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		if len(endpoints.VpcEndpoints) == 0 {
-			return nil
-		}
-
-		time.Sleep(20 * time.Second)
-		logging.Debug(fmt.Sprintf("Waiting for VPC endpoints to be deleted..."))
-	}
-
 	return nil
 }
 
@@ -410,9 +356,7 @@ func nukeNetworkInterfaces(client ec2iface.EC2API, vpcID string) error {
 			continue
 		}
 
-		_, err = client.DeleteNetworkInterface(&ec2.DeleteNetworkInterfaceInput{
-			NetworkInterfaceId: netInterface.NetworkInterfaceId,
-		})
+		err = nukeNetworkInterface(client, netInterface.NetworkInterfaceId)
 		if err != nil {
 			logging.Debug(fmt.Sprintf("Failed to delete network interface: %s", *netInterface))
 			return errors.WithStackTrace(err)
@@ -437,30 +381,25 @@ func nukeSubnets(client ec2iface.EC2API, vpcID string) error {
 		},
 	)
 
-	logging.Debug(fmt.Sprintf("Found %d subnets to delete ", len(subnets.Subnets)))
-	if len(subnets.Subnets) > 0 {
-		for _, subnet := range subnets.Subnets {
-			_, err := client.DeleteSubnet(
-				&ec2.DeleteSubnetInput{
-					SubnetId: subnet.SubnetId,
-				},
-			)
-
-			if err != nil {
-				logging.Debug(fmt.Sprintf("Failed to delete subnet %s", awsgo.StringValue(subnet.SubnetId)))
-				return errors.WithStackTrace(err)
-			}
-			logging.Debug(fmt.Sprintf("Successfully deleted subnet %s", awsgo.StringValue(subnet.SubnetId)))
-		}
-
+	if len(subnets.Subnets) == 0 {
+		logging.Debug(fmt.Sprintf("No subnets found"))
 		return nil
 	}
 
-	logging.Debug(fmt.Sprintf("No subnets found"))
+	logging.Debug(fmt.Sprintf("Found %d subnets to delete ", len(subnets.Subnets)))
+	for _, subnet := range subnets.Subnets {
+		err := nukeSubnet(client, subnet.SubnetId)
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to delete subnet %s for vpc %s", awsgo.StringValue(subnet.SubnetId), vpcID))
+			return errors.WithStackTrace(err)
+		}
+	}
+	logging.Debug(fmt.Sprintf("Successfully deleted subnets for vpc %v", vpcID))
 	return nil
+
 }
 
-func nukeNatGateway(client ec2iface.EC2API, vpcID string) error {
+func nukeNatGateways(client ec2iface.EC2API, vpcID string) error {
 	gateways, err := client.DescribeNatGateways(&ec2.DescribeNatGatewaysInput{
 		Filter: []*ec2.Filter{
 			{
@@ -482,17 +421,14 @@ func nukeNatGateway(client ec2iface.EC2API, vpcID string) error {
 			continue
 		}
 
-		_, err := client.DeleteNatGateway(&ec2.DeleteNatGatewayInput{
-			NatGatewayId: gateway.NatGatewayId,
-		})
+		err := nukeNATGateway(client, gateway.NatGatewayId)
 		if err != nil {
 			logging.Debug(
-				fmt.Sprintf("Failed to delete NAT gateway %s", awsgo.StringValue(gateway.NatGatewayId)))
+				fmt.Sprintf("Failed to delete NAT gateway %s for vpc %v", awsgo.StringValue(gateway.NatGatewayId), vpcID))
 			return errors.WithStackTrace(err)
 		}
-		logging.Debug(
-			fmt.Sprintf("Successfully deleted NAT gateway %s", awsgo.StringValue(gateway.NatGatewayId)))
 	}
+	logging.Debugf("Successfully deleted NAT gateways for vpc %s", vpcID)
 
 	return nil
 }
@@ -554,6 +490,10 @@ func nukeRouteTables(client ec2iface.EC2API, vpcID string) error {
 
 // nukeNacls nukes all network ACLs in a VPC except the default one. It replaces all subnet associations with
 // the default in order to prevent dependency violations.
+// You can't delete the ACL if it's associated with any subnets.
+// You can't delete the default network ACL.
+//
+// https://docs.aws.amazon.com/cli/latest/reference/ec2/delete-network-acl.html
 func nukeNacls(client ec2iface.EC2API, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking network ACLs for vpc: %s", vpcID))
 	networkACLs, _ := client.DescribeNetworkAcls(
@@ -588,36 +528,19 @@ func nukeNacls(client ec2iface.EC2API, vpcID string) error {
 			continue
 		}
 
-		logging.Debug(fmt.Sprintf(
-			"Start nuking network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId)))
-		for _, association := range networkACL.Associations {
-			logging.Debug(fmt.Sprintf(
-				"Found %d network ACL associations to replace", len(networkACL.Associations)))
-			_, err := client.ReplaceNetworkAclAssociation(&ec2.ReplaceNetworkAclAssociationInput{
-				AssociationId: association.NetworkAclAssociationId,
-				NetworkAclId:  defaultNetworkAclID,
-			})
-			if err != nil {
-				logging.Debug(fmt.Sprintf("Failed to replace network ACL association: %s to default",
-					awsgo.StringValue(association.NetworkAclAssociationId)))
-				return errors.WithStackTrace(err)
-			}
-			logging.Debug(fmt.Sprintf("Successfully replaced network ACL association: %s to default",
-				awsgo.StringValue(association.NetworkAclAssociationId)))
-		}
-
-		_, err := client.DeleteNetworkAcl(
-			&ec2.DeleteNetworkAclInput{
-				NetworkAclId: networkACL.NetworkAclId,
-			},
-		)
+		logging.Debugf("Start nuking network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId))
+		err := replaceNetworkAclAssociation(client, defaultNetworkAclID, networkACL.Associations)
 		if err != nil {
-			logging.Debug(fmt.Sprintf(
-				"Failed to delete network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId)))
+			logging.Debugf("Failed to replace network ACL associations: %s", awsgo.StringValue(networkACL.NetworkAclId))
 			return errors.WithStackTrace(err)
 		}
-		logging.Debug(fmt.Sprintf(
-			"Successfully deleted network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId)))
+
+		err = nukeNetworkAcl(client, networkACL.NetworkAclId)
+		if err != nil {
+			logging.Debugf("Failed to delete network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId))
+			return errors.WithStackTrace(err)
+		}
+		logging.Debugf("Successfully deleted network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId))
 	}
 
 	return nil
@@ -687,11 +610,9 @@ func nukeSecurityGroups(client ec2iface.EC2API, vpcID string) error {
 
 	for _, securityGroup := range securityGroups.SecurityGroups {
 		if *securityGroup.GroupName != "default" {
-			_, err := client.DeleteSecurityGroup(
-				&ec2.DeleteSecurityGroupInput{
-					GroupId: securityGroup.GroupId,
-				},
-			)
+			logging.Debug(fmt.Sprintf("Deleting Security Group %s for vpc %s", awsgo.StringValue(securityGroup.GroupId), vpcID))
+
+			err := nukeSecurityGroup(client, securityGroup.GroupId)
 			if err != nil {
 				logging.Debug(fmt.Sprintf(
 					"Successfully deleted security group %s", awsgo.StringValue(securityGroup.GroupId)))
@@ -705,6 +626,8 @@ func nukeSecurityGroups(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
+// default option is not available for this, and it only supports deleting non-default resources
+// https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-dhcp-options.html
 func nukeDhcpOptions(client ec2iface.EC2API, vpcID string) error {
 
 	// Deletes the specified set of DHCP options. You must disassociate the set of DHCP options before you can delete it.

@@ -2,11 +2,11 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -19,8 +19,8 @@ func (nacl *NetworkACL) setFirstSeenTag(networkAcl ec2.NetworkAcl, value time.Ti
 		Resources: []*string{networkAcl.NetworkAclId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   aws.String(util.FirstSeenTagKey),
-				Value: aws.String(util.FormatTimestamp(value)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -65,9 +65,9 @@ func (nacl *NetworkACL) getAll(_ context.Context, configObj config.Config) ([]*s
 	resp, err := nacl.Client.DescribeNetworkAcls(&ec2.DescribeNetworkAclsInput{
 		Filters: []*ec2.Filter{
 			{
-				Name: aws.String("default"),
+				Name: awsgo.String("default"),
 				Values: []*string{
-					aws.String("false"), // can't able to nuke default nacl
+					awsgo.String("false"), // can't able to nuke default nacl
 				},
 			},
 		},
@@ -82,7 +82,7 @@ func (nacl *NetworkACL) getAll(_ context.Context, configObj config.Config) ([]*s
 		firstSeenTime, err := nacl.getFirstSeenTag(*networkAcl)
 		if err != nil {
 			logging.Errorf(
-				"Unable to retrieve tags for network acl: %s, with error: %s", aws.StringValue(networkAcl.NetworkAclId), err)
+				"Unable to retrieve tags for network acl: %s, with error: %s", awsgo.StringValue(networkAcl.NetworkAclId), err)
 			continue
 		}
 
@@ -92,7 +92,7 @@ func (nacl *NetworkACL) getAll(_ context.Context, configObj config.Config) ([]*s
 			firstSeenTime = &now
 			if err := nacl.setFirstSeenTag(*networkAcl, time.Now().UTC()); err != nil {
 				logging.Errorf(
-					"Unable to apply first seen tag network acl: %s, with error: %s", aws.StringValue(networkAcl.NetworkAclId), err)
+					"Unable to apply first seen tag network acl: %s, with error: %s", awsgo.StringValue(networkAcl.NetworkAclId), err)
 				continue
 			}
 		}
@@ -106,7 +106,7 @@ func (nacl *NetworkACL) getAll(_ context.Context, configObj config.Config) ([]*s
 	nacl.VerifyNukablePermissions(identifiers, func(id *string) error {
 		_, err := nacl.Client.DeleteNetworkAcl(&ec2.DeleteNetworkAclInput{
 			NetworkAclId: id,
-			DryRun:       aws.Bool(true),
+			DryRun:       awsgo.Bool(true),
 		})
 		return err
 	})
@@ -122,7 +122,7 @@ func (nacl *NetworkACL) nuke(id *string) error {
 	}
 
 	// nuking the network ACL
-	if err := nacl.nukeNetworkAcl(id); err != nil {
+	if err := nukeNetworkAcl(nacl.Client, id); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -144,7 +144,7 @@ func (nacl *NetworkACL) nukeAssociatedSubnets(id *string) error {
 	}
 
 	if len(resp.NetworkAcls) == 0 {
-		logging.Debugf("[Network ACL] Nothing found: %s", aws.StringValue(id))
+		logging.Debugf("[Network ACL] Nothing found: %s", awsgo.StringValue(id))
 		return nil
 	}
 
@@ -158,12 +158,12 @@ func (nacl *NetworkACL) nukeAssociatedSubnets(id *string) error {
 		&ec2.DescribeNetworkAclsInput{
 			Filters: []*ec2.Filter{
 				{
-					Name:   aws.String("vpc-id"),
+					Name:   awsgo.String("vpc-id"),
 					Values: []*string{vpcID},
 				}, {
-					Name: aws.String("default"),
+					Name: awsgo.String("default"),
 					Values: []*string{
-						aws.String("true"),
+						awsgo.String("true"),
 					},
 				},
 			},
@@ -175,41 +175,19 @@ func (nacl *NetworkACL) nukeAssociatedSubnets(id *string) error {
 	}
 
 	if len(networkACLs.NetworkAcls) == 0 {
-		logging.Debugf("[Network ACL] Nothing found to check the default association: %s", aws.StringValue(id))
+		logging.Debugf("[Network ACL] Nothing found to check the default association: %s", awsgo.StringValue(id))
 		return nil
 	}
 
 	var defaultNetworkAclID *string
 	defaultNetworkAclID = networkACLs.NetworkAcls[0].NetworkAclId
 
-	// repalce the association with default
-	for _, association := range networkAcl.Associations {
-		logging.Debug(fmt.Sprintf("Found %d network ACL associations to replace", len(networkAcl.Associations)))
-		_, err := nacl.Client.ReplaceNetworkAclAssociation(&ec2.ReplaceNetworkAclAssociationInput{
-			AssociationId: association.NetworkAclAssociationId,
-			NetworkAclId:  defaultNetworkAclID,
-		})
-		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to replace network ACL association: %s to default",
-				aws.StringValue(association.NetworkAclAssociationId)))
-			return errors.WithStackTrace(err)
-		}
-		logging.Debug(fmt.Sprintf("Successfully replaced network ACL association: %s to default", aws.StringValue(association.NetworkAclAssociationId)))
+	// replace the association with default
+	err = replaceNetworkAclAssociation(nacl.Client, defaultNetworkAclID, networkAcl.Associations)
+	if err != nil {
+		logging.Debugf("Failed to replace network ACL associations: %s", awsgo.StringValue(defaultNetworkAclID))
+		return errors.WithStackTrace(err)
 	}
-	return nil
-}
-
-func (nacl *NetworkACL) nukeNetworkAcl(id *string) error {
-	logging.Debugf("Deleting network Acl %s", aws.StringValue(id))
-
-	if _, err := nacl.Client.DeleteNetworkAcl(&ec2.DeleteNetworkAclInput{
-		NetworkAclId: id,
-	}); err != nil {
-		logging.Debugf("An error happened while nuking NACL %s, error %v", aws.StringValue(id), err)
-		return err
-	}
-	logging.Debugf("[Ok] network acl deleted successfully %s", aws.StringValue(id))
-
 	return nil
 }
 
@@ -232,7 +210,7 @@ func (nacl *NetworkACL) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{ // Use the 'r' alias to refer to the package
-			Identifier:   aws.StringValue(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Network ACL",
 			Error:        err,
 		}
@@ -244,6 +222,42 @@ func (nacl *NetworkACL) nukeAll(identifiers []*string) error {
 	}
 
 	logging.Debugf("[OK] %d network interface(s) deleted in %s", len(deleted), nacl.Region)
+
+	return nil
+}
+
+func replaceNetworkAclAssociation(client ec2iface.EC2API, networkAclId *string, associations []*ec2.NetworkAclAssociation) error {
+	logging.Debugf("Start replacing network ACL associations: %s", awsgo.StringValue(networkAclId))
+
+	for _, association := range associations {
+		logging.Debugf("Found %d network ACL associations to replace", len(associations))
+
+		_, err := client.ReplaceNetworkAclAssociation(&ec2.ReplaceNetworkAclAssociationInput{
+			AssociationId: association.NetworkAclAssociationId,
+			NetworkAclId:  networkAclId,
+		})
+		if err != nil {
+			logging.Debugf("Failed to replace network ACL association: %s to default",
+				awsgo.StringValue(association.NetworkAclAssociationId))
+			return errors.WithStackTrace(err)
+		}
+		logging.Debugf("Successfully replaced network ACL association: %s to default",
+			awsgo.StringValue(association.NetworkAclAssociationId))
+	}
+	logging.Debugf("Successfully replaced network ACL associations: %s", awsgo.StringValue(networkAclId))
+	return nil
+}
+
+func nukeNetworkAcl(client ec2iface.EC2API, id *string) error {
+	logging.Debugf("Deleting network Acl %s", awsgo.StringValue(id))
+
+	if _, err := client.DeleteNetworkAcl(&ec2.DeleteNetworkAclInput{
+		NetworkAclId: id,
+	}); err != nil {
+		logging.Debugf("An error happened while nuking NACL %s, error %v", awsgo.StringValue(id), err)
+		return err
+	}
+	logging.Debugf("[Ok] network acl deleted successfully %s", awsgo.StringValue(id))
 
 	return nil
 }
