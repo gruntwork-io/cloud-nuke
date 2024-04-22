@@ -2,15 +2,18 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/go-commons/retry"
 )
 
 func (e *EC2Endpoints) setFirstSeenTag(endpoint ec2.VpcEndpoint, value time.Time) error {
@@ -18,8 +21,8 @@ func (e *EC2Endpoints) setFirstSeenTag(endpoint ec2.VpcEndpoint, value time.Time
 		Resources: []*string{endpoint.VpcEndpointId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   aws.String(util.FirstSeenTagKey),
-				Value: aws.String(util.FormatTimestamp(value)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -95,7 +98,7 @@ func (e *EC2Endpoints) getAll(_ context.Context, configObj config.Config) ([]*st
 	e.VerifyNukablePermissions(result, func(id *string) error {
 		_, err := e.Client.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
 			VpcEndpointIds: []*string{id},
-			DryRun:         aws.Bool(true),
+			DryRun:         awsgo.Bool(true),
 		})
 		return err
 	})
@@ -118,13 +121,11 @@ func (e *EC2Endpoints) nukeAll(identifiers []*string) error {
 			continue
 		}
 
-		_, err := e.Client.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
-			VpcEndpointIds: []*string{id},
-		})
+		err := nukeVpcEndpoint(e.Client, []*string{id})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Vpc Endpoint",
 			Error:        err,
 		}
@@ -134,11 +135,61 @@ func (e *EC2Endpoints) nukeAll(identifiers []*string) error {
 			logging.Debugf("[Failed] %s", err)
 		} else {
 			deletedAddresses = append(deletedAddresses, id)
-			logging.Debugf("Deleted Vpc Endpoint: %s", *id)
 		}
 	}
 
 	logging.Debugf("[OK] %d Vpc Endpoint(s) deleted in %s", len(deletedAddresses), e.Region)
 
+	return nil
+}
+
+func nukeVpcEndpoint(client ec2iface.EC2API, endpointIds []*string) error {
+	logging.Debugf("Deleting VPC endpoints %s", awsgo.StringValueSlice(endpointIds))
+
+	_, err := client.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
+		VpcEndpointIds: endpointIds,
+	})
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Failed to delete VPC endpoints: %s", err.Error()))
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debug(fmt.Sprintf("Successfully deleted VPC endpoints %s",
+		awsgo.StringValueSlice(endpointIds)))
+
+	return nil
+}
+
+func waitForVPCEndpointToBeDeleted(client ec2iface.EC2API, vpcID string) error {
+	return retry.DoWithRetry(
+		logging.Logger.WithTime(time.Now()),
+		"Waiting for all VPC endpoints to be deleted",
+		10,
+		2*time.Second,
+		func() error {
+			endpoints, err := client.DescribeVpcEndpoints(
+				&ec2.DescribeVpcEndpointsInput{
+					Filters: []*ec2.Filter{
+						{
+							Name:   awsgo.String("vpc-id"),
+							Values: []*string{awsgo.String(vpcID)},
+						},
+						{
+							Name:   awsgo.String("vpc-endpoint-state"),
+							Values: []*string{awsgo.String("deleting")},
+						},
+					},
+				},
+			)
+			if err != nil {
+				return err
+			}
+
+			if len(endpoints.VpcEndpoints) == 0 {
+				return nil
+			}
+			return fmt.Errorf("Not all VPC endpoints deleted.")
+		},
+	)
 	return nil
 }

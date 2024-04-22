@@ -13,14 +13,20 @@ import (
 
 type InternetGateway struct {
 	BaseAwsResource
-	Client     ec2iface.EC2API
-	Region     string
-	GatewayIds []string
+	Client        ec2iface.EC2API
+	Region        string
+	GatewayIds    []string
+	GatewayVPCMap map[string]string
 }
 
 func (igw *InternetGateway) Init(session *session.Session) {
 	igw.BaseAwsResource.Init(session)
 	igw.Client = ec2.New(session)
+
+	// Since the nuking of the internet gateway requires the VPC ID, and to avoid redundant API calls for this information within the nuke method,
+	// we utilize the getAll method to retrieve it.
+	// This map is used to store the information and access the value within the nuke method.
+	igw.GatewayVPCMap = make(map[string]string)
 }
 
 func (igw *InternetGateway) ResourceName() string {

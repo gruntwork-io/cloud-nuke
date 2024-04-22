@@ -2,10 +2,12 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	r "github.com/gruntwork-io/cloud-nuke/report" // Alias the package as 'r'
@@ -18,8 +20,8 @@ func (igw *InternetGateway) setFirstSeenTag(gateway ec2.InternetGateway, value t
 		Resources: []*string{gateway.InternetGatewayId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   aws.String(util.FirstSeenTagKey),
-				Value: aws.String(util.FormatTimestamp(value)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -93,6 +95,11 @@ func (igw *InternetGateway) getAll(_ context.Context, configObj config.Config) (
 
 		if shouldIncludeGateway(ig, firstSeenTime, configObj) {
 			identifiers = append(identifiers, ig.InternetGatewayId)
+
+			// get vpc id for this igw and update the map
+			if len(ig.Attachments) > 0 {
+				igw.GatewayVPCMap[awsgo.StringValue(ig.InternetGatewayId)] = awsgo.StringValue(ig.Attachments[0].VpcId)
+			}
 		}
 	}
 
@@ -100,70 +107,13 @@ func (igw *InternetGateway) getAll(_ context.Context, configObj config.Config) (
 	igw.VerifyNukablePermissions(identifiers, func(id *string) error {
 		params := &ec2.DeleteInternetGatewayInput{
 			InternetGatewayId: id,
-			DryRun:            aws.Bool(true),
+			DryRun:            awsgo.Bool(true),
 		}
 		_, err := igw.Client.DeleteInternetGateway(params)
 		return err
 	})
 
 	return identifiers, nil
-}
-
-func (igw *InternetGateway) nuke(id *string) error {
-
-	// detaching the gateway from attached vpcs
-	if err := igw.detachInternetGateway(id); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	// nuking the gateway
-	if err := igw.nukeInternetGateway(id); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-func (igw *InternetGateway) nukeInternetGateway(id *string) error {
-	logging.Debugf("Deleting Internet gateway %s", *id)
-
-	_, err := igw.Client.DeleteInternetGateway(&ec2.DeleteInternetGatewayInput{
-		InternetGatewayId: id,
-	})
-	if err != nil {
-		logging.Debugf("[Failed] Error deleting internet gateway %s: %s", *id, err)
-		return errors.WithStackTrace(err)
-	}
-	logging.Debugf("[Ok] internet gateway deleted successfully %s", *id)
-
-	return nil
-}
-
-func (igw *InternetGateway) detachInternetGateway(id *string) error {
-	logging.Debugf("Detaching Internet gateway %s", *id)
-
-	output, err := igw.Client.DescribeInternetGateways(&ec2.DescribeInternetGatewaysInput{
-		InternetGatewayIds: []*string{id},
-	})
-	if err != nil {
-		logging.Debugf("[Failed] Error describing internet gateway %s: %s", *id, err)
-		return errors.WithStackTrace(err)
-	}
-
-	for _, gateway := range output.InternetGateways {
-		for _, attachments := range gateway.Attachments {
-			_, err := igw.Client.DetachInternetGateway(&ec2.DetachInternetGatewayInput{
-				InternetGatewayId: id,
-				VpcId:             attachments.VpcId,
-			})
-			if err != nil {
-				logging.Debugf("[Failed] Error detaching internet gateway %s: %s", *id, err)
-				return errors.WithStackTrace(err)
-			}
-		}
-	}
-	logging.Debugf("[Ok] internet gateway detached successfully %s", *id)
-	return nil
 }
 
 func (igw *InternetGateway) nukeAll(identifiers []*string) error {
@@ -184,7 +134,7 @@ func (igw *InternetGateway) nukeAll(identifiers []*string) error {
 		err := igw.nuke(id)
 		// Record status of this resource
 		e := r.Entry{ // Use the 'r' alias to refer to the package
-			Identifier:   aws.StringValue(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Internet Gateway",
 			Error:        err,
 		}
@@ -198,4 +148,60 @@ func (igw *InternetGateway) nukeAll(identifiers []*string) error {
 	logging.Debugf("[OK] %d internet gateway(s) deleted in %s", len(deletedGateways), igw.Region)
 
 	return nil
+}
+
+func (igw *InternetGateway) nuke(id *string) error {
+	// get the vpc id for current igw
+	vpcID, ok := igw.GatewayVPCMap[awsgo.StringValue(id)]
+	if !ok {
+		logging.Debug(fmt.Sprintf("Failed to read the vpc Id for %s",
+			awsgo.StringValue(id)))
+		return fmt.Errorf("Failed to retrieve the VPC ID for %s, which is mandatory for the internet gateway nuke operation.",
+			awsgo.StringValue(id))
+	}
+
+	err := nukeInternetGateway(igw.Client, id, vpcID)
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func nukeInternetGateway(client ec2iface.EC2API, gatewayId *string, vpcID string) error {
+	var err error
+	logging.Debug(fmt.Sprintf("Detaching Internet Gateway %s",
+		awsgo.StringValue(gatewayId)))
+	_, err = client.DetachInternetGateway(
+		&ec2.DetachInternetGatewayInput{
+			InternetGatewayId: gatewayId,
+			VpcId:             awsgo.String(vpcID),
+		},
+	)
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Failed to detach internet gateway %s",
+			awsgo.StringValue(gatewayId)))
+		return errors.WithStackTrace(err)
+	}
+	logging.Debug(fmt.Sprintf("Successfully detached internet gateway %s",
+		awsgo.StringValue(gatewayId)))
+
+	// nuking the internet gateway
+	logging.Debug(fmt.Sprintf("Deleting internet gateway %s",
+		awsgo.StringValue(gatewayId)))
+	_, err = client.DeleteInternetGateway(
+		&ec2.DeleteInternetGatewayInput{
+			InternetGatewayId: gatewayId,
+		},
+	)
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Failed to delete internet gateway %s",
+			awsgo.StringValue(gatewayId)))
+		return errors.WithStackTrace(err)
+	}
+	logging.Debug(fmt.Sprintf("Successfully deleted internet gateway %s",
+		awsgo.StringValue(gatewayId)))
+
+	return nil
+
 }

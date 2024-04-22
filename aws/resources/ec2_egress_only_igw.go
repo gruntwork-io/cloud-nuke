@@ -2,10 +2,12 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -18,8 +20,8 @@ func (egigw *EgressOnlyInternetGateway) setFirstSeenTag(eoig ec2.EgressOnlyInter
 		Resources: []*string{eoig.EgressOnlyInternetGatewayId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   aws.String(util.FirstSeenTagKey),
-				Value: aws.String(util.FormatTimestamp(value)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -97,7 +99,7 @@ func (egigw *EgressOnlyInternetGateway) getAll(_ context.Context, configObj conf
 	egigw.VerifyNukablePermissions(result, func(id *string) error {
 		_, err := egigw.Client.DeleteEgressOnlyInternetGateway(&ec2.DeleteEgressOnlyInternetGatewayInput{
 			EgressOnlyInternetGatewayId: id,
-			DryRun:                      aws.Bool(true),
+			DryRun:                      awsgo.Bool(true),
 		})
 		return err
 	})
@@ -123,13 +125,11 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 			continue
 		}
 
-		_, err := egigw.Client.DeleteEgressOnlyInternetGateway(&ec2.DeleteEgressOnlyInternetGatewayInput{
-			EgressOnlyInternetGatewayId: id,
-		})
+		err := nukeEgressOnlyGateway(egigw.Client, id)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Egress Only Internet Gateway",
 			Error:        err,
 		}
@@ -147,4 +147,19 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 
 	return nil
 
+}
+
+func nukeEgressOnlyGateway(client ec2iface.EC2API, gateway *string) error {
+	logging.Debugf("[Nuke] Egress only gateway %s", awsgo.StringValue(gateway))
+
+	_, err := client.DeleteEgressOnlyInternetGateway(&ec2.DeleteEgressOnlyInternetGatewayInput{
+		EgressOnlyInternetGatewayId: gateway,
+	})
+	if err != nil {
+		logging.Debug(fmt.Sprintf("[Failed] to delete Egress Only Internet Gateway %s", *gateway))
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debug(fmt.Sprintf("[Success] deleted Egress Only Internet Gateway %s", *gateway))
+	return nil
 }

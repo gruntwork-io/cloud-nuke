@@ -2,11 +2,13 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -19,8 +21,8 @@ func (ec2subnet *EC2Subnet) setFirstSeenTag(sb ec2.Subnet, value time.Time) erro
 		Resources: []*string{sb.SubnetId},
 		Tags: []*ec2.Tag{
 			{
-				Key:   aws.String(util.FirstSeenTagKey),
-				Value: aws.String(util.FormatTimestamp(value)),
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
 			},
 		},
 	})
@@ -72,9 +74,9 @@ func (ec2subnet *EC2Subnet) getAll(_ context.Context, configObj config.Config) (
 	err := ec2subnet.Client.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
-				Name: aws.String("default-for-az"),
+				Name: awsgo.String("default-for-az"),
 				Values: []*string{
-					aws.String(strconv.FormatBool(configObj.EC2Subnet.DefaultOnly)), // convert the bool status into string
+					awsgo.String(strconv.FormatBool(configObj.EC2Subnet.DefaultOnly)), // convert the bool status into string
 				},
 			},
 		},
@@ -115,7 +117,7 @@ func (ec2subnet *EC2Subnet) getAll(_ context.Context, configObj config.Config) (
 	ec2subnet.VerifyNukablePermissions(result, func(id *string) error {
 		params := &ec2.DeleteSubnetInput{
 			SubnetId: id,
-			DryRun:   aws.Bool(true), // dry run set as true , checks permission without actually making the request
+			DryRun:   awsgo.Bool(true), // dry run set as true , checks permission without actually making the request
 		}
 		_, err := ec2subnet.Client.DeleteSubnet(params)
 		return err
@@ -145,13 +147,10 @@ func (ec2subnet *EC2Subnet) nukeAll(ids []*string) error {
 			continue
 		}
 
-		_, err := ec2subnet.Client.DeleteSubnet(&ec2.DeleteSubnetInput{
-			SubnetId: id,
-		})
-
+		err := nukeSubnet(ec2subnet.Client, id)
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Subnet",
 			Error:        err,
 		}
@@ -167,5 +166,23 @@ func (ec2subnet *EC2Subnet) nukeAll(ids []*string) error {
 
 	logging.Debugf("[OK] %d EC2 Subnet(s) deleted in %s", len(deletedAddresses), ec2subnet.Region)
 
+	return nil
+}
+
+func nukeSubnet(client ec2iface.EC2API, id *string) error {
+	logging.Debug(fmt.Sprintf("Deleting subnet %s",
+		awsgo.StringValue(id)))
+
+	_, err := client.DeleteSubnet(&ec2.DeleteSubnetInput{
+		SubnetId: id,
+	})
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Failed to delete subnet %s",
+			awsgo.StringValue(id)))
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debug(fmt.Sprintf("Successfully deleted subnet %s",
+		awsgo.StringValue(id)))
 	return nil
 }
