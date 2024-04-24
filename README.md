@@ -99,6 +99,10 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Route53                 | Hosted Zones                                             |
 | Route53                 | CIDR collections                                         |
 | Route53                 | Traffic Policies                                         |
+| NetworkFirewall         | Network Firewall                                         |
+| NetworkFirewall         | Network Firewall Policy                                  |
+| NetworkFirewall         | Network Firewall Rule Group                              |
+| NetworkFirewall         | Network Firewall TLS inspection configuration            |
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.
 > Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources
@@ -617,6 +621,10 @@ of the file that are supported are listed here.
 | route53-hosted-zone         | Route53HostedZone            | ✅ (Hosted zone name)                  | ❌                                   | ❌    |    ❌   |
 | route53-cidr-collection     | Route53CIDRCollection        | ✅ (Cidr collection name)              | ❌                                   | ❌    |    ❌   |
 | route53-traffic-policy      | Route53TrafficPolicy         | ✅ (Traffic policy name)               | ❌                                   | ❌    |    ❌   |
+| network-firewall			      | NetworkFirewall 		         | ✅ (Firewall name)             			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
+| network-firewall-policy		  | NetworkFirewallPolicy        | ✅ (Firewall Policy name)       			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
+| network-firewall-rule-group | NetworkFirewallRuleGroup     | ✅ (Firewall Rule group name)   			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
+| network-firewall-tls-config | NetworkFirewallTLSConfig     | ✅ (Firewall TLS config name)   			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
 
 
 ### How to Use
