@@ -43,6 +43,8 @@ func emptyConfig() *Config {
 		ResourceType{FilterRule{}, FilterRule{}, ""},
 		ResourceType{FilterRule{}, FilterRule{}, ""},
 		ResourceType{FilterRule{}, FilterRule{}, ""},
+		ResourceType{FilterRule{}, FilterRule{}, ""},
+		ResourceType{FilterRule{}, FilterRule{}, ""},
 		EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, ""}},
 		ResourceType{FilterRule{}, FilterRule{}, ""},
 		ResourceType{FilterRule{}, FilterRule{}, ""},

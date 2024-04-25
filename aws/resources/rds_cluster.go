@@ -2,8 +2,9 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/util"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 
@@ -90,7 +91,6 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
-
 			err := instance.waitUntilRdsClusterDeleted(&rds.DescribeDBClustersInput{
 				DBClusterIdentifier: name,
 			})
