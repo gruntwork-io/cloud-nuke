@@ -103,6 +103,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | NetworkFirewall         | Network Firewall Policy                                  |
 | NetworkFirewall         | Network Firewall Rule Group                              |
 | NetworkFirewall         | Network Firewall TLS inspection configuration            |
+| NetworkFirewall         | Network Firewall Resource Policy 						             |
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.
 > Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources
@@ -625,6 +626,7 @@ of the file that are supported are listed here.
 | network-firewall-policy		  | NetworkFirewallPolicy        | ✅ (Firewall Policy name)       			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
 | network-firewall-rule-group | NetworkFirewallRuleGroup     | ✅ (Firewall Rule group name)   			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
 | network-firewall-tls-config | NetworkFirewallTLSConfig     | ✅ (Firewall TLS config name)   			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
+| network-firewall-resource-policy | NetworkFirewallResourcePolicy     | ✅ (Firewall Resource Policy ARN)   			  |  ❌             |  ❌    |    ❌   |
 
 
 ### How to Use

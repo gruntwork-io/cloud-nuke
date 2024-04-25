@@ -14,6 +14,7 @@ var ErrContextExecutionTimeout = errors.New("error:EXECUTION_TIMEOUT")
 var ErrInterfaceIDNotFound = errors.New("error:InterfaceIdNotFound")
 var ErrInvalidPermisionNotFound = errors.New("error:InvalidPermission.NotFound")
 var ErrDeleteProtectionEnabled = errors.New("error:DeleteProtectionEnabled")
+var ErrResourceNotFoundException = errors.New("error:ErrResourceNotFoundException")
 
 const AWsUnauthorizedError string = "UnauthorizedOperation"
 const AwsDryRunSuccess string = "Request would have succeeded, but DryRun flag is set."
@@ -40,6 +41,9 @@ func TransformAWSError(err error) error {
 	}
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "InvalidPermission.NotFound" {
 		return ErrInvalidPermisionNotFound
+	}
+	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "ResourceNotFoundException" {
+		return ErrResourceNotFoundException
 	}
 
 	return err
