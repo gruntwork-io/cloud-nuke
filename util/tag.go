@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -69,4 +70,13 @@ func GetEC2ResourceNameTagValue(tags []*ec2.Tag) *string {
 		return &name
 	}
 	return nil
+}
+
+func ConvertNetworkFirewallTagsToMap(tags []*networkfirewall.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+
+	return tagMap
 }
