@@ -134,6 +134,10 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.NetworkInterface{},
 		&resources.SecurityGroup{},
 		&resources.NetworkACL{},
+		&resources.NetworkFirewall{},
+		&resources.NetworkFirewallPolicy{},
+		&resources.NetworkFirewallRuleGroup{},
+		&resources.NetworkFirewallTLSConfig{},
 	}
 }
 
