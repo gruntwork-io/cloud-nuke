@@ -215,7 +215,7 @@ func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) e
 				},
 			)
 			if err != nil {
-				return err
+				return errors.WithStackTrace(err)
 			}
 
 			if len(interfaces.NetworkInterfaces) == 0 {
@@ -315,7 +315,7 @@ func nukePeeringConnections(client ec2iface.EC2API, vpcID string) error {
 	)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to describe vpc peering connections for vpc as requester: %s", vpcID))
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// check the peering connection as accepter
@@ -332,19 +332,22 @@ func nukePeeringConnections(client ec2iface.EC2API, vpcID string) error {
 	)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to describe vpc peering connections for vpc as accepter: %s", vpcID))
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	logging.Debug(fmt.Sprintf("Found %d VPC Peering connections to Nuke.", len(peerConnections)))
 
-	var allErrs *multierror.Error
 	for _, connection := range peerConnections {
-		_, e := client.DeleteVpcPeeringConnection(&ec2.DeleteVpcPeeringConnectionInput{
+		_, err := client.DeleteVpcPeeringConnection(&ec2.DeleteVpcPeeringConnectionInput{
 			VpcPeeringConnectionId: connection,
 		})
-		allErrs = multierror.Append(allErrs, e)
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to delete peering connection for vpc: %s", vpcID))
+			return errors.WithStackTrace(err)
+		}
 	}
-	return errors.WithStackTrace(allErrs.ErrorOrNil())
+
+	return nil
 }
 
 // nukeVpcInternetGateways
