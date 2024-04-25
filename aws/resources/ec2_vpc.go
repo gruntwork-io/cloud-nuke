@@ -4,18 +4,17 @@ import (
 	"context"
 	cerrors "errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/pterm/pterm"
-
-	"github.com/gruntwork-io/go-commons/retry"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -67,7 +66,7 @@ func (v *EC2VPCs) getAll(_ context.Context, configObj config.Config) ([]*string,
 			{
 				Name: awsgo.String("is-default"),
 				Values: []*string{
-					awsgo.String(strconv.FormatBool(configObj.VPC.DefaultOnly)), // convert the bool status into string
+					aws.String(strconv.FormatBool(configObj.VPC.DefaultOnly)), // convert the bool status into string
 				},
 			},
 		},
@@ -143,7 +142,7 @@ func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) e
 	var err error
 	// Note: order is quite important, otherwise you will encounter dependency violation errors.
 
-	err = nukeAttachedLB(client, elbClient, vpcID)
+	err = nukeAttachedLB(elbClient, vpcID)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Error nuking loadbalancer for VPC %s: %s", vpcID, err.Error()))
 		return err
@@ -192,44 +191,6 @@ func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) e
 		return err
 	}
 
-	// NOTE: Since the network interfaces attached to the load balancer may not be removed immediately after removing the load balancers,
-	// and attempting to remove the internet gateway without waiting for these network interfaces removal will result in an error.
-	// The actual error message states: 'has some mapped public address(es). Please unmap those public address(es) before detaching the gateway.'
-	// Therefore, it is recommended to wait until all the load balancer-related network interfaces are detached and deleted before proceeding.
-	//
-	// Important : The waiting should be happen before nuking the internet gateway
-	err = retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
-		"Waiting for all Network interfaces to be deleted.",
-		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
-		30, 10*time.Second,
-		func() error {
-			interfaces, err := client.DescribeNetworkInterfaces(
-				&ec2.DescribeNetworkInterfacesInput{
-					Filters: []*ec2.Filter{
-						{
-							Name:   awsgo.String("vpc-id"),
-							Values: []*string{awsgo.String(vpcID)},
-						},
-					},
-				},
-			)
-			if err != nil {
-				return err
-			}
-
-			if len(interfaces.NetworkInterfaces) == 0 {
-				return nil
-			}
-
-			return fmt.Errorf("Not all Network interfaces are deleted.")
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Error waiting up Network interfaces deletion for VPC %s: %s", vpcID, err.Error()))
-		return errors.WithStackTrace(err)
-	}
-
 	err = nukeInternetGateways(client, vpcID)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Error cleaning up Internet Gateway for VPC %s: %s", vpcID, err.Error()))
@@ -260,12 +221,6 @@ func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) e
 		return err
 	}
 
-	err = nukePeeringConnections(client, vpcID)
-	if err != nil {
-		pterm.Error.Println(fmt.Sprintf("Error deleting VPC Peer connection %s: %s ", vpcID, err))
-		return err
-	}
-
 	err = nukeVpc(client, vpcID)
 	if err != nil {
 		pterm.Error.Println(fmt.Sprintf("Error deleting VPC %s: %s ", vpcID, err))
@@ -275,76 +230,6 @@ func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) e
 	logging.Debug(fmt.Sprintf("Successfully nuked VPC %s", vpcID))
 	logging.Debug("")
 	return nil
-}
-
-func nukePeeringConnections(client ec2iface.EC2API, vpcID string) error {
-	logging.Debug(fmt.Sprintf("Finding VPC peering connections to nuke for: %s", vpcID))
-
-	peerConnections := []*string{}
-	vpcIds := []string{vpcID}
-	requesterFilters := []*ec2.Filter{
-		{
-			Name:   awsgo.String("requester-vpc-info.vpc-id"),
-			Values: awsgo.StringSlice(vpcIds),
-		}, {
-			Name:   awsgo.String("status-code"),
-			Values: awsgo.StringSlice([]string{"active"}),
-		},
-	}
-	accepterFilters := []*ec2.Filter{
-		{
-			Name:   awsgo.String("accepter-vpc-info.vpc-id"),
-			Values: awsgo.StringSlice(vpcIds),
-		}, {
-			Name:   awsgo.String("status-code"),
-			Values: awsgo.StringSlice([]string{"active"}),
-		},
-	}
-
-	// check the peering connection as requester
-	err := client.DescribeVpcPeeringConnectionsPages(
-		&ec2.DescribeVpcPeeringConnectionsInput{
-			Filters: requesterFilters,
-		},
-		func(page *ec2.DescribeVpcPeeringConnectionsOutput, lastPage bool) bool {
-			for _, connection := range page.VpcPeeringConnections {
-				peerConnections = append(peerConnections, connection.VpcPeeringConnectionId)
-			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe vpc peering connections for vpc as requester: %s", vpcID))
-		return err
-	}
-
-	// check the peering connection as accepter
-	err = client.DescribeVpcPeeringConnectionsPages(
-		&ec2.DescribeVpcPeeringConnectionsInput{
-			Filters: accepterFilters,
-		},
-		func(page *ec2.DescribeVpcPeeringConnectionsOutput, lastPage bool) bool {
-			for _, connection := range page.VpcPeeringConnections {
-				peerConnections = append(peerConnections, connection.VpcPeeringConnectionId)
-			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe vpc peering connections for vpc as accepter: %s", vpcID))
-		return err
-	}
-
-	logging.Debug(fmt.Sprintf("Found %d VPC Peering connections to Nuke.", len(peerConnections)))
-
-	var allErrs *multierror.Error
-	for _, connection := range peerConnections {
-		_, e := client.DeleteVpcPeeringConnection(&ec2.DeleteVpcPeeringConnectionInput{
-			VpcPeeringConnectionId: connection,
-		})
-		allErrs = multierror.Append(allErrs, e)
-	}
-	return errors.WithStackTrace(allErrs.ErrorOrNil())
 }
 
 // nukeVpcInternetGateways
@@ -816,72 +701,31 @@ func nukeVpc(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeAttachedLB(client ec2iface.EC2API, elbclient elbv2iface.ELBV2API, vpcID string) error {
+func nukeAttachedLB(client elbv2iface.ELBV2API, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Describing load balancers for %s", vpcID))
 
 	// get all loadbalancers
-	output, err := elbclient.DescribeLoadBalancers(nil)
+	output, err := client.DescribeLoadBalancers(nil)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to describe loadbalancer for %s", vpcID))
 		return errors.WithStackTrace(err)
 	}
-	var attachedLoadBalancers []string
+	var attachedLoadBalancers []*string
 
-	// get a list of load balancers which was attached on the vpc
 	for _, lb := range output.LoadBalancers {
 		if awsgo.StringValue(lb.VpcId) != vpcID {
 			continue
 		}
 
-		attachedLoadBalancers = append(attachedLoadBalancers, awsgo.StringValue(lb.LoadBalancerArn))
+		attachedLoadBalancers = append(attachedLoadBalancers, lb.LoadBalancerArn)
 	}
 
-	// check the load-balancers are attached with any vpc-endpoint-service, then nuke them first
-	esoutput, err := client.DescribeVpcEndpointServiceConfigurations(nil)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe vpc endpoint services for %s", vpcID))
-		return errors.WithStackTrace(err)
-	}
-
-	// since we don't want duplicating the endpoint service ids, using a map here
-	var nukableEndpointServices = make(map[*string]struct{})
-	for _, config := range esoutput.ServiceConfigurations {
-		// check through gateway load balancer attachments and select the service for nuking
-		for _, gwlb := range config.GatewayLoadBalancerArns {
-			if slices.Contains(attachedLoadBalancers, awsgo.StringValue(gwlb)) {
-				nukableEndpointServices[config.ServiceId] = struct{}{}
-			}
-		}
-
-		// check through network load balancer attachments and select the service for nuking
-		for _, nwlb := range config.NetworkLoadBalancerArns {
-			if slices.Contains(attachedLoadBalancers, awsgo.StringValue(nwlb)) {
-				nukableEndpointServices[config.ServiceId] = struct{}{}
-			}
-		}
-	}
-
-	logging.Debug(fmt.Sprintf("Found %d Endpoint services attached with the load balancers to nuke.", len(nukableEndpointServices)))
-
-	// nuke the endpoint services
-	for endpointService := range nukableEndpointServices {
-		_, err := client.DeleteVpcEndpointServiceConfigurations(&ec2.DeleteVpcEndpointServiceConfigurationsInput{
-			ServiceIds: []*string{endpointService},
-		})
-		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to delete endpoint service %v for %s", awsgo.StringValue(endpointService), vpcID))
-			return errors.WithStackTrace(err)
-		}
-	}
-	logging.Debug(fmt.Sprintf("Successfully deleted he endpoints attached with load balancers for %s", vpcID))
-
-	// nuke the load-balancers
 	for _, lb := range attachedLoadBalancers {
-		_, err := elbclient.DeleteLoadBalancer(&elbv2.DeleteLoadBalancerInput{
-			LoadBalancerArn: awsgo.String(lb),
+		_, err := client.DeleteLoadBalancer(&elbv2.DeleteLoadBalancerInput{
+			LoadBalancerArn: lb,
 		})
 		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to delete loadbalancer %v for %s", lb, vpcID))
+			logging.Debug(fmt.Sprintf("Failed to delete loadbalancer %v for %s", *lb, vpcID))
 			return errors.WithStackTrace(err)
 		}
 	}
@@ -900,17 +744,18 @@ func nukeTargetGroups(client elbv2iface.ELBV2API, vpcID string) error {
 	}
 
 	for _, tg := range output.TargetGroups {
-		// if the target group is not for this vpc, then skip
-		if tg.VpcId != nil && awsgo.StringValue(tg.VpcId) == vpcID {
-			_, err := client.DeleteTargetGroup(&elbv2.DeleteTargetGroupInput{
-				TargetGroupArn: tg.TargetGroupArn,
-			})
-			if err != nil {
-				logging.Debug(fmt.Sprintf("Failed to delete target group %v for %s", *tg.TargetGroupArn, vpcID))
-				return errors.WithStackTrace(err)
-			}
+		// if the target group is not for this vpc, then skipp
+		if *tg.VpcId != vpcID {
+			continue
 		}
 
+		_, err := client.DeleteTargetGroup(&elbv2.DeleteTargetGroupInput{
+			TargetGroupArn: tg.TargetGroupArn,
+		})
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to delete target group %v for %s", *tg.TargetGroupArn, vpcID))
+			return errors.WithStackTrace(err)
+		}
 	}
 
 	logging.Debug(fmt.Sprintf("Successfully deleted target group attached %s", vpcID))
