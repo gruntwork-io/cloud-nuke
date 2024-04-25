@@ -109,6 +109,7 @@ type Config struct {
 	NetworkFirewallPolicy           ResourceType               `yaml:"NetworkFirewallPolicy"`
 	NetworkFirewallRuleGroup        ResourceType               `yaml:"NetworkFirewallRuleGroup"`
 	NetworkFirewallTLSConfig        ResourceType               `yaml:"NetworkFirewallTLSConfig"`
+	NetworkFirewallResourcePolicy   ResourceType               `yaml:"NetworkFirewallResourcePolicy"`
 }
 
 func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
