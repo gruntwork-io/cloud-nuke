@@ -15,6 +15,12 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+// wait up to 15 minutes
+const (
+	dbGlobalClusterDeletionRetryDelay = 10 * time.Second
+	dbGlobalClusterDeletionRetryCount = 90
+)
+
 func (instance *DBGlobalClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := instance.Client.DescribeGlobalClustersWithContext(c, &rds.DescribeGlobalClustersInput{})
 	if err != nil {
@@ -80,8 +86,7 @@ func (instance *DBGlobalClusters) nukeAll(names []*string) error {
 }
 
 func (instance *DBGlobalClusters) waitUntilRDSGlobalClusterDeleted(name string) error {
-	// wait up to 15 minutes
-	for i := 0; i < 90; i++ {
+	for i := 0; i < dbGlobalClusterDeletionRetryCount; i++ {
 		_, err := instance.Client.DescribeGlobalClusters(&rds.DescribeGlobalClustersInput{
 			GlobalClusterIdentifier: &name,
 		})
@@ -90,10 +95,10 @@ func (instance *DBGlobalClusters) waitUntilRDSGlobalClusterDeleted(name string) 
 				return nil
 			}
 
-			return err
+			return errors.WithStackTrace(err)
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(dbGlobalClusterDeletionRetryDelay)
 		logging.Debug("Waiting for RDS Global Cluster to be deleted")
 	}
 

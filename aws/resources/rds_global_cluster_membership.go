@@ -16,6 +16,12 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+// wait up to 15 minutes
+const (
+	dbGlobalClusterMembershipsRemovalRetryDelay = 10 * time.Second
+	dbGlobalClusterMembershipsRemovalRetryCount = 90
+)
+
 func (instance *DBGlobalClusterMemberships) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result, err := instance.Client.DescribeGlobalClustersWithContext(c, &rds.DescribeGlobalClustersInput{})
 	if err != nil {
@@ -89,7 +95,7 @@ func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name s
 	for _, member := range gdbc.GlobalClusterMembers {
 		region := strings.Split(*member.DBClusterArn, ":")[3]
 		if instance.Region != "" && instance.Region != region {
-			logging.Debugf("Skip removing cluster '%s' from global cluster since it is in diferent region", *member.DBClusterArn)
+			logging.Debugf("Skip removing cluster '%s' from global cluster since it is in different region", *member.DBClusterArn)
 			continue
 		}
 
@@ -114,13 +120,12 @@ func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name s
 }
 
 func (instance *DBGlobalClusterMemberships) waitUntilRdsClusterRemovedFromGlobalCluster(arnGlobalCluster string, arnCluster string) error {
-	// wait up to 15 minutes
-	for i := 0; i < 90; i++ {
+	for i := 0; i < dbGlobalClusterMembershipsRemovalRetryCount; i++ {
 		gcs, err := instance.Client.DescribeGlobalClusters(&rds.DescribeGlobalClustersInput{
 			GlobalClusterIdentifier: &arnGlobalCluster,
 		})
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 
 		found := false
@@ -138,7 +143,7 @@ func (instance *DBGlobalClusterMemberships) waitUntilRdsClusterRemovedFromGlobal
 			return nil
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(dbGlobalClusterMembershipsRemovalRetryDelay)
 		logging.Debug("Waiting for RDS Cluster to be removed from RDS Global Cluster")
 	}
 
