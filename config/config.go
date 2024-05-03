@@ -30,10 +30,8 @@ type Config struct {
 	CodeDeployApplications          ResourceType               `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType               `yaml:"ConfigServiceRecorder"`
 	ConfigServiceRule               ResourceType               `yaml:"ConfigServiceRule"`
-	DBGlobalClusters                ResourceType               `yaml:"DBGlobalClusters"`
 	DBClusters                      ResourceType               `yaml:"DBClusters"`
 	DBInstances                     ResourceType               `yaml:"DBInstances"`
-	DBGlobalClusterMemberships      ResourceType               `yaml:"DBGlobalClusterMemberships"`
 	DBSubnetGroups                  ResourceType               `yaml:"DBSubnetGroups"`
 	DynamoDB                        ResourceType               `yaml:"DynamoDB"`
 	EBSVolume                       ResourceType               `yaml:"EBSVolume"`

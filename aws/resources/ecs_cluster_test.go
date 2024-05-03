@@ -56,6 +56,9 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 
 	t.Parallel()
 
+	// Set excludeFirstSeenTag to false for testing
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+
 	testArn1 := "arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"
 	testArn2 := "arn:aws:ecs:us-east-1:123456789012:cluster/cluster2"
 	testName1 := "cluster1"
@@ -103,14 +106,17 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
+		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
+			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{testArn1, testArn2},
 		},
 		"nameExclusionFilter": {
+			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -120,6 +126,7 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 			expected: []string{testArn2},
 		},
 		"timeAfterExclusionFilter": {
+			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
@@ -129,7 +136,7 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ec.getAll(context.Background(), config.Config{
+			names, err := ec.getAll(tc.ctx, config.Config{
 				ECSCluster: tc.configObj,
 			})
 			require.NoError(t, err)

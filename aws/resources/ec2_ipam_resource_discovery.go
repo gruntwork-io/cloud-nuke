@@ -13,39 +13,6 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (discovery *EC2IPAMResourceDiscovery) setFirstSeenTag(ipam ec2.IpamResourceDiscovery, value time.Time) error {
-	_, err := discovery.Client.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{ipam.IpamResourceDiscoveryId},
-		Tags: []*ec2.Tag{
-			{
-				Key:   awsgo.String(util.FirstSeenTagKey),
-				Value: awsgo.String(util.FormatTimestamp(value)),
-			},
-		},
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-func (discovery *EC2IPAMResourceDiscovery) getFirstSeenTag(ipam ec2.IpamResourceDiscovery) (*time.Time, error) {
-	tags := ipam.Tags
-	for _, tag := range tags {
-		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestamp(tag.Value)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-
-			return firstSeenTime, nil
-		}
-	}
-
-	return nil, nil
-}
-
 func shouldIncludeIpamResourceID(ipam *ec2.IpamResourceDiscovery, firstSeenTime *time.Time, configObj config.Config) bool {
 	var ipamResourceName string
 	// get the tags as map
@@ -64,27 +31,16 @@ func shouldIncludeIpamResourceID(ipam *ec2.IpamResourceDiscovery, firstSeenTime 
 // Returns a formatted string of IPAM Resource discovery
 func (discovery *EC2IPAMResourceDiscovery) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result := []*string{}
+	var firstSeenTime *time.Time
+	var err error
+
 	paginator := func(output *ec2.DescribeIpamResourceDiscoveriesOutput, lastPage bool) bool {
 		for _, d := range output.IpamResourceDiscoveries {
-			// check first seen tag
-			firstSeenTime, err := discovery.getFirstSeenTag(*d)
+			firstSeenTime, err = util.GetOrCreateFirstSeen(c, discovery.Client, d.IpamResourceDiscoveryId, util.ConvertEC2TagsToMap(d.Tags))
 			if err != nil {
-				logging.Errorf(
-					"Unable to retrieve tags for IPAM: %s, with error: %s", *d.IpamResourceDiscoveryId, err)
+				logging.Error("unable to retrieve firstseen tag")
 				continue
 			}
-
-			// if the first seen tag is not there, then create one
-			if firstSeenTime == nil {
-				now := time.Now().UTC()
-				firstSeenTime = &now
-				if err := discovery.setFirstSeenTag(*d, time.Now().UTC()); err != nil {
-					logging.Errorf(
-						"Unable to apply first seen tag IPAM: %s, with error: %s", *d.IpamResourceDiscoveryId, err)
-					continue
-				}
-			}
-			// Check for include this ipam resource ID
 			if shouldIncludeIpamResourceID(d, firstSeenTime, configObj) {
 				result = append(result, d.IpamResourceDiscoveryId)
 			}
@@ -102,7 +58,7 @@ func (discovery *EC2IPAMResourceDiscovery) getAll(c context.Context, configObj c
 		},
 	}
 
-	err := discovery.Client.DescribeIpamResourceDiscoveriesPages(params, paginator)
+	err = discovery.Client.DescribeIpamResourceDiscoveriesPages(params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}

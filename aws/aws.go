@@ -24,7 +24,6 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	configObj.AddExcludeAfterTime(query.ExcludeAfter)
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
 	configObj.AddTimeout(query.Timeout)
-
 	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = query.ListUnaliasedKMSKeys
 
 	// Setting the DefaultOnly field
@@ -35,6 +34,7 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 		Resources: make(map[string]AwsResources),
 	}
 
+	c = context.WithValue(c, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
 	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	for _, region := range query.Regions {
 		cloudNukeSession := NewSession(region)

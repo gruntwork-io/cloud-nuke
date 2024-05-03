@@ -16,39 +16,6 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (ec2subnet *EC2Subnet) setFirstSeenTag(sb ec2.Subnet, value time.Time) error {
-	_, err := ec2subnet.Client.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{sb.SubnetId},
-		Tags: []*ec2.Tag{
-			{
-				Key:   awsgo.String(util.FirstSeenTagKey),
-				Value: awsgo.String(util.FormatTimestamp(value)),
-			},
-		},
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-func (ec2subnet *EC2Subnet) getFirstSeenTag(sb ec2.Subnet) (*time.Time, error) {
-	tags := sb.Tags
-	for _, tag := range tags {
-		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestamp(tag.Value)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-
-			return firstSeenTime, nil
-		}
-	}
-
-	return nil, nil
-}
-
 func shouldIncludeEc2Subnet(subnet *ec2.Subnet, firstSeenTime *time.Time, configObj config.Config) bool {
 	var subnetName string
 	tagMap := util.ConvertEC2TagsToMap(subnet.Tags)
@@ -64,14 +31,17 @@ func shouldIncludeEc2Subnet(subnet *ec2.Subnet, firstSeenTime *time.Time, config
 }
 
 // Returns a formatted string of EC2 subnets
-func (ec2subnet *EC2Subnet) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+func (ec2subnet *EC2Subnet) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result := []*string{}
+	var firstSeenTime *time.Time
+	var err error
+
 	// Note: This filter initially handles non-default resources and can be overridden by passing the only-default filter to choose default subnets.
 	if configObj.EC2Subnet.DefaultOnly {
 		logging.Debugf("[default only] Retrieving the default subnets")
 	}
 
-	err := ec2subnet.Client.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{
+	err = ec2subnet.Client.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: awsgo.String("default-for-az"),
@@ -82,26 +52,11 @@ func (ec2subnet *EC2Subnet) getAll(_ context.Context, configObj config.Config) (
 		},
 	}, func(pages *ec2.DescribeSubnetsOutput, lastPage bool) bool {
 		for _, subnet := range pages.Subnets {
-
-			// check first seen tag
-			firstSeenTime, err := ec2subnet.getFirstSeenTag(*subnet)
+			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2subnet.Client, subnet.SubnetId, util.ConvertEC2TagsToMap(subnet.Tags))
 			if err != nil {
-				logging.Errorf(
-					"Unable to retrieve tags for Subnet: %s, with error: %s", *subnet.SubnetId, err)
+				logging.Error("unable to retrieve first seen tag")
 				continue
 			}
-
-			// if the first seen tag is not there, then create one
-			if firstSeenTime == nil {
-				now := time.Now().UTC()
-				firstSeenTime = &now
-				if err := ec2subnet.setFirstSeenTag(*subnet, time.Now().UTC()); err != nil {
-					logging.Errorf(
-						"Unable to apply first seen tag Subnet: %s, with error: %s", *subnet.SubnetId, err)
-					continue
-				}
-			}
-
 			if shouldIncludeEc2Subnet(subnet, firstSeenTime, configObj) {
 				result = append(result, subnet.SubnetId)
 			}
