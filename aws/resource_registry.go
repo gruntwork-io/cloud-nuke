@@ -33,6 +33,7 @@ func GetAndInitRegisteredResources(session *session.Session, region string) []*A
 // GetRegisteredGlobalResources - returns a list of registered global resources.
 func getRegisteredGlobalResources() []AwsResource {
 	return []AwsResource{
+		&resources.DBGlobalClusters{},
 		&resources.IAMUsers{},
 		&resources.IAMGroups{},
 		&resources.IAMPolicies{},
@@ -99,6 +100,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.MSKCluster{},
 		&resources.NatGateways{},
 		&resources.OpenSearchDomains{},
+		&resources.DBGlobalClusterMemberships{},
 		&resources.DBInstances{},
 		&resources.DBSubnetGroups{},
 		&resources.DBClusters{},
