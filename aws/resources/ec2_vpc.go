@@ -26,41 +26,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (v *EC2VPCs) setFirstSeenTag(vpc ec2.Vpc, value time.Time) error {
-	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
-	_, err := v.Client.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{vpc.VpcId},
-		Tags: []*ec2.Tag{
-			{
-				Key:   awsgo.String(util.FirstSeenTagKey),
-				Value: awsgo.String(util.FormatTimestamp(value)),
-			},
-		},
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-func (v *EC2VPCs) getFirstSeenTag(vpc ec2.Vpc) (*time.Time, error) {
-	tags := vpc.Tags
-	for _, tag := range tags {
-		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestamp(tag.Value)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-
-			return firstSeenTime, nil
-		}
-	}
-
-	return nil, nil
-}
-
-func (v *EC2VPCs) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	var firstSeenTime *time.Time
+	var err error
 	// Note: This filter initially handles non-default resources and can be overridden by passing the only-default filter to choose default VPCs.
 	result, err := v.Client.DescribeVpcs(&ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
@@ -78,18 +46,10 @@ func (v *EC2VPCs) getAll(_ context.Context, configObj config.Config) ([]*string,
 
 	var ids []*string
 	for _, vpc := range result.Vpcs {
-		firstSeenTime, err := v.getFirstSeenTag(*vpc)
+		firstSeenTime, err = util.GetOrCreateFirstSeen(c, v.Client, vpc.VpcId, util.ConvertEC2TagsToMap(vpc.Tags))
 		if err != nil {
 			logging.Error("Unable to retrieve tags")
 			return nil, errors.WithStackTrace(err)
-		}
-
-		if firstSeenTime == nil {
-			now := time.Now().UTC()
-			firstSeenTime = &now
-			if err := v.setFirstSeenTag(*vpc, time.Now().UTC()); err != nil {
-				return nil, err
-			}
 		}
 
 		if configObj.VPC.ShouldInclude(config.ResourceValue{

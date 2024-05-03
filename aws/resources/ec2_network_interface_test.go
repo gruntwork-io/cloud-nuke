@@ -50,6 +50,9 @@ func (m mockedNetworkInterface) WaitUntilInstanceTerminated(*ec2.DescribeInstanc
 
 func TestNetworkInterface_GetAll(t *testing.T) {
 
+	// Set excludeFirstSeenTag to false for testing
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+
 	var (
 		now     = time.Now()
 		testId1 = "eni-09e36c45cbdbfb001"
@@ -96,14 +99,17 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 	resourceObject.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
+		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
+			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
+			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -113,6 +119,7 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 			expected: []string{testId2},
 		},
 		"nameInclusionFilter": {
+			ctx: ctx,
 			configObj: config.ResourceType{
 				IncludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -122,6 +129,7 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 			expected: []string{testId1},
 		},
 		"timeAfterExclusionFilter": {
+			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: awsgo.Time(now),
@@ -133,7 +141,7 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := resourceObject.getAll(context.Background(), config.Config{
+			names, err := resourceObject.getAll(tc.ctx, config.Config{
 				NetworkInterface: tc.configObj,
 			})
 			require.NoError(t, err)

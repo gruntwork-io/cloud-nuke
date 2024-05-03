@@ -32,6 +32,9 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 
 	t.Parallel()
 
+	// Set excludeFirstSeenTag to false for testing
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+
 	var (
 		now       = time.Now()
 		subnet1   = "subnet-0631b58700ba3db41"
@@ -75,10 +78,12 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 	ec2subnet.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
+		ctx       context.Context
 		configObj config.EC2ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
+			ctx:       ctx,
 			configObj: config.EC2ResourceType{},
 			expected:  []string{subnet1, subnet2},
 		},
@@ -95,6 +100,7 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 			expected: []string{subnet2},
 		},
 		"timeAfterExclusionFilter": {
+			ctx: ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -106,7 +112,7 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ec2subnet.getAll(context.Background(), config.Config{
+			names, err := ec2subnet.getAll(tc.ctx, config.Config{
 				EC2Subnet: tc.configObj,
 			})
 			require.NoError(t, err)

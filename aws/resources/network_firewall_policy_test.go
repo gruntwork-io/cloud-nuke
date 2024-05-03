@@ -56,6 +56,7 @@ func TestNetworkFirewallPolicy_GetAll(t *testing.T) {
 		testId2   = "test-network-firewall-id2"
 		testName1 = "test-network-firewall-1"
 		testName2 = "test-network-firewall-2"
+		ctx       = context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 	)
 
 	nfw := NetworkFirewallPolicy{
@@ -134,7 +135,7 @@ func TestNetworkFirewallPolicy_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := nfw.getAll(context.Background(), config.Config{
+			names, err := nfw.getAll(ctx, config.Config{
 				NetworkFirewallPolicy: tc.configObj,
 			})
 			require.NoError(t, err)

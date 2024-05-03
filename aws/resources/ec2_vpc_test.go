@@ -60,6 +60,9 @@ func TestEC2VPC_GetAll(t *testing.T) {
 
 	t.Parallel()
 
+	// Set excludeFirstSeenTag to false for testing
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+
 	testName1 := "test-vpc-name1"
 	testName2 := "test-vpc-name2"
 	now := time.Now()
@@ -101,14 +104,17 @@ func TestEC2VPC_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
+		ctx       context.Context
 		configObj config.EC2ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
+			ctx:       ctx,
 			configObj: config.EC2ResourceType{},
 			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
+			ctx: ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -121,6 +127,7 @@ func TestEC2VPC_GetAll(t *testing.T) {
 			expected: []string{testId2},
 		},
 		"timeAfterExclusionFilter": {
+			ctx: ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -132,7 +139,7 @@ func TestEC2VPC_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := vpc.getAll(context.Background(), config.Config{
+			names, err := vpc.getAll(tc.ctx, config.Config{
 				VPC: tc.configObj,
 			})
 			require.NoError(t, err)

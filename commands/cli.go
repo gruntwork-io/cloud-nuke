@@ -173,6 +173,10 @@ func CreateCli(version string) *cli.App {
 					Usage:   "Set log level",
 					EnvVars: []string{"LOG_LEVEL"},
 				},
+				&cli.BoolFlag{
+					Name:  "exclude-first-seen",
+					Usage: "Set a flag for excluding first-seen-tag",
+				},
 			},
 		},
 	}
@@ -396,6 +400,7 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 		includeUnaliasedKmsKeys,
 		timeout,
 		onlyDefault,
+		c.Bool("exclude-first-seen"),
 	)
 }
 

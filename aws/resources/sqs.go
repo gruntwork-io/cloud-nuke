@@ -2,6 +2,9 @@ package resources
 
 import (
 	"context"
+	"strconv"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -9,8 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
-	"strconv"
-	"time"
 )
 
 // Returns a formatted string of SQS Queue URLs

@@ -14,39 +14,6 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (discovery *EC2IPAMPool) setFirstSeenTag(ipam ec2.IpamPool, value time.Time) error {
-	_, err := discovery.Client.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{ipam.IpamPoolId},
-		Tags: []*ec2.Tag{
-			{
-				Key:   awsgo.String(util.FirstSeenTagKey),
-				Value: awsgo.String(util.FormatTimestamp(value)),
-			},
-		},
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-func (discovery *EC2IPAMPool) getFirstSeenTag(ipam ec2.IpamPool) (*time.Time, error) {
-	tags := ipam.Tags
-	for _, tag := range tags {
-		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestamp(tag.Value)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-
-			return firstSeenTime, nil
-		}
-	}
-
-	return nil, nil
-}
-
 func shouldIncludeIpamPoolID(ipam *ec2.IpamPool, firstSeenTime *time.Time, configObj config.Config) bool {
 	var ipamPoolName string
 	// get the tags as map
@@ -65,27 +32,16 @@ func shouldIncludeIpamPoolID(ipam *ec2.IpamPool, firstSeenTime *time.Time, confi
 // Returns a formatted string of IPAM URLs
 func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result := []*string{}
+	var firstSeenTime *time.Time
+	var err error
+
 	paginator := func(output *ec2.DescribeIpamPoolsOutput, lastPage bool) bool {
 		for _, pool := range output.IpamPools {
-			// check first seen tag
-			firstSeenTime, err := ec2Pool.getFirstSeenTag(*pool)
+			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Pool.Client, pool.IpamPoolId, util.ConvertEC2TagsToMap(pool.Tags))
 			if err != nil {
-				logging.Errorf(
-					"Unable to retrieve tags for IPAM Pool: %s, with error: %s", *pool.IpamPoolId, err)
+				logging.Error("unable to retrieve firstseen tag")
 				continue
 			}
-
-			// if the first seen tag is not there, then create one
-			if firstSeenTime == nil {
-				now := time.Now().UTC()
-				firstSeenTime = &now
-				if err := ec2Pool.setFirstSeenTag(*pool, time.Now().UTC()); err != nil {
-					logging.Errorf(
-						"Unable to apply first seen tag IPAM Pool: %s, with error: %s", *pool.IpamPoolId, err)
-					continue
-				}
-			}
-			// Check for include this ipam
 			if shouldIncludeIpamPoolID(pool, firstSeenTime, configObj) {
 				result = append(result, pool.IpamPoolId)
 			}
@@ -103,7 +59,7 @@ func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) (
 		},
 	}
 
-	err := ec2Pool.Client.DescribeIpamPoolsPages(params, paginator)
+	err = ec2Pool.Client.DescribeIpamPoolsPages(params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}

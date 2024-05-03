@@ -3,9 +3,10 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"sync"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/opensearchservice"
@@ -22,27 +23,34 @@ import (
 // use the first-seen tagging pattern to track which OpenSearch Domains should be nuked based on time. This routine will
 // tag resources with the first-seen tag if it does not have one.
 func (osd *OpenSearchDomains) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	var firstSeenTime *time.Time
+	var err error
 	domains, err := osd.getAllActiveOpenSearchDomains()
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
+	excludeFirstSeenTag, err := util.GetBoolFromContext(c, util.ExcludeFirstSeenTagKey)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	domainsToNuke := []*string{}
 	for _, domain := range domains {
-
-		firstSeenTime, err := osd.getFirstSeenTag(domain.ARN)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		if firstSeenTime == nil {
-			err := osd.setFirstSeenTag(domain.ARN, time.Now().UTC())
+		if !excludeFirstSeenTag {
+			firstSeenTime, err = osd.getFirstSeenTag(domain.ARN)
 			if err != nil {
-				logging.Errorf("Error tagging the OpenSearch Domain with ARN %s with error: %s", aws.StringValue(domain.ARN), err.Error())
 				return nil, errors.WithStackTrace(err)
 			}
-		}
 
+			if firstSeenTime == nil {
+				err := osd.setFirstSeenTag(domain.ARN, time.Now().UTC())
+				if err != nil {
+					logging.Errorf("Error tagging the OpenSearch Domain with ARN %s with error: %s", aws.StringValue(domain.ARN), err.Error())
+					return nil, errors.WithStackTrace(err)
+				}
+			}
+		}
 		if configObj.OpenSearchDomain.ShouldInclude(config.ResourceValue{
 			Name: domain.DomainName,
 			Time: firstSeenTime,
