@@ -74,6 +74,11 @@ func (br *BaseAwsResource) PrepareContext(parentContext context.Context, resourc
 // executed, and the result (error or success) is recorded using the SetNukableStatus method, indicating whether
 // the specified action is nukable
 func (br *BaseAwsResource) VerifyNukablePermissions(ids []*string, nukableCheckfn func(id *string) error) {
+	// check if the 'Nukables' map is initialized, and if it's not, initialize it
+	if br.Nukables == nil {
+		br.Nukables = make(map[string]error)
+	}
+
 	for _, id := range ids {
 		// skip if the id is already exists
 		if _, ok := br.GetNukableStatus(*id); ok {

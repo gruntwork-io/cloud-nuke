@@ -36,6 +36,15 @@ func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*s
 		}
 	}
 
+	// checking the nukable permissions
+	ea.VerifyNukablePermissions(allocationIds, func(id *string) error {
+		_, err := ea.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+			AllocationId: id,
+			DryRun:       awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return allocationIds, nil
 }
 
@@ -61,11 +70,15 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 	var deletedAllocationIDs []*string
 
 	for _, allocationID := range allocationIds {
-		params := &ec2.ReleaseAddressInput{
-			AllocationId: allocationID,
+
+		if nukable, err := ea.IsNukable(awsgo.StringValue(allocationID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(allocationID), err)
+			continue
 		}
 
-		_, err := ea.Client.ReleaseAddress(params)
+		_, err := ea.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+			AllocationId: allocationID,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

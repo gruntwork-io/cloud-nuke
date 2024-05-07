@@ -60,6 +60,16 @@ func (ec2Ipam *EC2IPAMs) getAll(c context.Context, configObj config.Config) ([]*
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// checking the nukable permissions
+	ec2Ipam.VerifyNukablePermissions(result, func(id *string) error {
+		_, err := ec2Ipam.Client.DeleteIpam(&ec2.DeleteIpamInput{
+			IpamId:  id,
+			Cascade: aws.Bool(true),
+			DryRun:  awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return result, nil
 }
 
@@ -220,7 +230,7 @@ func (ec2Ipam *EC2IPAMs) nukeIPAM(id *string) error {
 	// items we need delete/detach them before actually deleting it.
 	// NOTE: The actual IPAM deletion should always be the last one. This way we
 	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(userName *string) error{
+	functions := []func(*string) error{
 		ec2Ipam.nukePublicIPAMPools,
 		ec2Ipam.deleteIPAM,
 	}
@@ -245,6 +255,11 @@ func (ec2Ipam *EC2IPAMs) nukeAll(ids []*string) error {
 	var deletedAddresses []*string
 
 	for _, id := range ids {
+
+		if nukable, err := ec2Ipam.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+			continue
+		}
 
 		err := ec2Ipam.nukeIPAM(id)
 

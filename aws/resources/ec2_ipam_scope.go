@@ -67,6 +67,15 @@ func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// checking the nukable permissions
+	ec2Scope.VerifyNukablePermissions(result, func(id *string) error {
+		_, err := ec2Scope.Client.DeleteIpamScope(&ec2.DeleteIpamScopeInput{
+			IpamScopeId: id,
+			DryRun:      awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return result, nil
 }
 
@@ -81,11 +90,14 @@ func (scope *EC2IpamScopes) nukeAll(ids []*string) error {
 	var deletedList []*string
 
 	for _, id := range ids {
-		params := &ec2.DeleteIpamScopeInput{
-			IpamScopeId: id,
+		if nukable, err := scope.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+			continue
 		}
 
-		_, err := scope.Client.DeleteIpamScope(params)
+		_, err := scope.Client.DeleteIpamScope(&ec2.DeleteIpamScopeInput{
+			IpamScopeId: id,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

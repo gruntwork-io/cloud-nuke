@@ -64,6 +64,15 @@ func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) (
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// checking the nukable permissions
+	ec2Pool.VerifyNukablePermissions(result, func(id *string) error {
+		_, err := ec2Pool.Client.DeleteIpamPool(&ec2.DeleteIpamPoolInput{
+			IpamPoolId: id,
+			DryRun:     awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return result, nil
 }
 
@@ -78,11 +87,15 @@ func (pool *EC2IPAMPool) nukeAll(ids []*string) error {
 	var deletedAddresses []*string
 
 	for _, id := range ids {
-		params := &ec2.DeleteIpamPoolInput{
-			IpamPoolId: id,
+
+		if nukable, err := pool.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+			continue
 		}
 
-		_, err := pool.Client.DeleteIpamPool(params)
+		_, err := pool.Client.DeleteIpamPool(&ec2.DeleteIpamPoolInput{
+			IpamPoolId: id,
+		})
 
 		// Record status of this resource
 		e := report.Entry{
