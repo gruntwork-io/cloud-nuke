@@ -14,6 +14,34 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (nfw *NetworkFirewallRuleGroup) setFirstSeenTag(resource *networkfirewall.RuleGroupResponse, value time.Time) error {
+	_, err := nfw.Client.TagResource(&networkfirewall.TagResourceInput{
+		ResourceArn: resource.RuleGroupArn,
+		Tags: []*networkfirewall.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	return errors.WithStackTrace(err)
+}
+
+func (nfw *NetworkFirewallRuleGroup) getFirstSeenTag(resource *networkfirewall.RuleGroupResponse) (*time.Time, error) {
+	for _, tag := range resource.Tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func shouldIncludeNetworkFirewallRuleGroup(group *networkfirewall.RuleGroupResponse, firstSeenTime *time.Time, configObj config.Config) bool {
 	// if the firewall policy has any attachments, then we can't remove that policy
 	if awsgo.Int64Value(group.NumberOfAssociations) > 0 {
@@ -36,12 +64,8 @@ func shouldIncludeNetworkFirewallRuleGroup(group *networkfirewall.RuleGroupRespo
 	})
 }
 
-func (nfw *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var (
-		identifiers   []*string
-		firstSeenTime *time.Time
-		err           error
-	)
+func (nfw *NetworkFirewallRuleGroup) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+	var identifiers []*string
 
 	meta, err := nfw.Client.ListRuleGroups(nil)
 	if err != nil {
@@ -62,10 +86,23 @@ func (nfw *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.
 			continue
 		}
 
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nfw.Client, group.Arn, util.ConvertNetworkFirewallTagsToMap(output.RuleGroupResponse.Tags))
+		// check first seen tag
+		firstSeenTime, err := nfw.getFirstSeenTag(output.RuleGroupResponse)
 		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
+			logging.Errorf(
+				"Unable to retrieve tags for Rule group: %s, with error: %s", awsgo.StringValue(group.Name), err)
+			continue
+		}
+
+		// if the first seen tag is not there, then create one
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := nfw.setFirstSeenTag(output.RuleGroupResponse, time.Now().UTC()); err != nil {
+				logging.Errorf(
+					"Unable to apply first seen tag Rule group: %s, with error: %s", awsgo.StringValue(group.Name), err)
+				continue
+			}
 		}
 
 		if shouldIncludeNetworkFirewallRuleGroup(output.RuleGroupResponse, firstSeenTime, configObj) {

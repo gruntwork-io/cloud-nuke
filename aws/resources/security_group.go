@@ -15,6 +15,37 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (sg *SecurityGroup) setFirstSeenTag(securityGroup ec2.SecurityGroup, value time.Time) error {
+	_, err := sg.Client.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{securityGroup.GroupId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+	return nil
+}
+
+func (sg *SecurityGroup) getFirstSeenTag(securityGroup ec2.SecurityGroup) (*time.Time, error) {
+	tags := securityGroup.Tags
+	for _, tag := range tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+	return nil, nil
+}
+
 // shouldIncludeSecurityGroup determines whether a security group should be included for deletion based on the provided configuration.
 func shouldIncludeSecurityGroup(sg *ec2.SecurityGroup, firstSeenTime *time.Time, configObj config.Config) bool {
 	var groupName = sg.GroupName
@@ -32,10 +63,8 @@ func shouldIncludeSecurityGroup(sg *ec2.SecurityGroup, firstSeenTime *time.Time,
 }
 
 // getAll retrieves all security group identifiers based on the provided configuration.
-func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (sg *SecurityGroup) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
-	var firstSeenTime *time.Time
-	var err error
 
 	var filters []*ec2.Filter
 	if configObj.SecurityGroup.DefaultOnly {
@@ -61,12 +90,24 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 	}
 
 	for _, group := range resp.SecurityGroups {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, sg.Client, group.GroupId, util.ConvertEC2TagsToMap(group.Tags))
+		// check first seen tag
+		firstSeenTime, err := sg.getFirstSeenTag(*group)
 		if err != nil {
-			logging.Error("unable to retrieve first seen tag")
-			return nil, errors.WithStackTrace(err)
+			logging.Errorf(
+				"Unable to retrieve tags for Security group: %s, with error: %s", *group.GroupId, err)
+			continue
 		}
 
+		// if the first seen tag is not there, then create one
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := sg.setFirstSeenTag(*group, time.Now().UTC()); err != nil {
+				logging.Errorf(
+					"Unable to apply first seen tag Security group: %s, with error: %s", *group.GroupId, err)
+				continue
+			}
+		}
 		if shouldIncludeSecurityGroup(group, firstSeenTime, configObj) {
 			identifiers = append(identifiers, group.GroupId)
 		}

@@ -53,9 +53,7 @@ func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
 				tc.IncludeAfter,
 				false,
 				nil,
-				false,
-				false,
-			)
+				false)
 			require.NoError(t, err)
 		})
 	}

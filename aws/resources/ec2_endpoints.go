@@ -16,6 +16,38 @@ import (
 	"github.com/gruntwork-io/go-commons/retry"
 )
 
+func (e *EC2Endpoints) setFirstSeenTag(endpoint ec2.VpcEndpoint, value time.Time) error {
+	_, err := e.Client.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{endpoint.VpcEndpointId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (e *EC2Endpoints) getFirstSeenTag(endpoint ec2.VpcEndpoint) (*time.Time, error) {
+	for _, tag := range endpoint.Tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func ShouldIncludeVpcEndpoint(endpoint *ec2.VpcEndpoint, firstSeenTime *time.Time, configObj config.Config) bool {
 	var endpointName string
 	// get the tags as map
@@ -31,26 +63,36 @@ func ShouldIncludeVpcEndpoint(endpoint *ec2.VpcEndpoint, firstSeenTime *time.Tim
 	})
 }
 
-func (e *EC2Endpoints) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (e *EC2Endpoints) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var result []*string
-	var firstSeenTime *time.Time
-	var err error
 	endpoints, err := e.Client.DescribeVpcEndpoints(&ec2.DescribeVpcEndpointsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, endpoint := range endpoints.VpcEndpoints {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, e.Client, endpoint.VpcEndpointId, util.ConvertEC2TagsToMap(endpoint.Tags))
+		// check first seen tag
+		firstSeenTime, err := e.getFirstSeenTag(*endpoint)
 		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
+			logging.Errorf(
+				"Unable to retrieve tags for Vpc Endpoint: %s, with error: %s", *endpoint.VpcEndpointId, err)
+			continue
+		}
+
+		// if the first seen tag is not there, then create one
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := e.setFirstSeenTag(*endpoint, time.Now().UTC()); err != nil {
+				logging.Errorf(
+					"Unable to apply first seen tag Vpc Endpoint: %s, with error: %s", *endpoint.VpcEndpointId, err)
+				continue
+			}
 		}
 
 		if ShouldIncludeVpcEndpoint(endpoint, firstSeenTime, configObj) {
 			result = append(result, endpoint.VpcEndpointId)
 		}
-
 	}
 
 	e.VerifyNukablePermissions(result, func(id *string) error {

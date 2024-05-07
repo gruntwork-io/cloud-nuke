@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -14,10 +15,42 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (ea *EIPAddresses) setFirstSeenTag(address ec2.Address, value time.Time) error {
+	// We set a first seen tag because an Elastic IP doesn't contain an attribute that gives us it's creation time
+	_, err := ea.Client.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{address.AllocationId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (ea *EIPAddresses) getFirstSeenTag(address ec2.Address) (*time.Time, error) {
+	tags := address.Tags
+	for _, tag := range tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // Returns a formatted string of EIP allocation ids
 func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var firstSeenTime *time.Time
-	var err error
 	result, err := ea.Client.DescribeAddresses(&ec2.DescribeAddressesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -25,16 +58,31 @@ func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*s
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, ea.Client, address.AllocationId, util.ConvertEC2TagsToMap(address.Tags))
+		firstSeenTime, err := ea.getFirstSeenTag(*address)
 		if err != nil {
-			logging.Error("unable to retrieve first seen tag")
 			return nil, errors.WithStackTrace(err)
 		}
 
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := ea.setFirstSeenTag(*address, *firstSeenTime); err != nil {
+				return nil, err
+			}
+		}
 		if ea.shouldInclude(address, *firstSeenTime, configObj) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
+
+	// checking the nukable permissions
+	ea.VerifyNukablePermissions(allocationIds, func(id *string) error {
+		_, err := ea.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+			AllocationId: id,
+			DryRun:       awsgo.Bool(true),
+		})
+		return err
+	})
 
 	return allocationIds, nil
 }
@@ -61,11 +109,15 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 	var deletedAllocationIDs []*string
 
 	for _, allocationID := range allocationIds {
-		params := &ec2.ReleaseAddressInput{
-			AllocationId: allocationID,
+
+		if nukable, err := ea.IsNukable(awsgo.StringValue(allocationID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(allocationID), err)
+			continue
 		}
 
-		_, err := ea.Client.ReleaseAddress(params)
+		_, err := ea.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+			AllocationId: allocationID,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

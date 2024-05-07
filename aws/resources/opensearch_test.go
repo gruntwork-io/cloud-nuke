@@ -42,9 +42,6 @@ func TestOpenSearch_GetAll(t *testing.T) {
 
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
 	testName1 := "test-domain1"
 	testName2 := "test-domain2"
 	now := time.Now()
@@ -88,17 +85,14 @@ func TestOpenSearch_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{testName1, testName2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -108,7 +102,6 @@ func TestOpenSearch_GetAll(t *testing.T) {
 			expected: []string{testName2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
@@ -118,7 +111,7 @@ func TestOpenSearch_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := osd.getAll(tc.ctx, config.Config{
+			names, err := osd.getAll(context.Background(), config.Config{
 				OpenSearchDomain: tc.configObj,
 			})
 			require.NoError(t, err)

@@ -14,16 +14,11 @@ type Query struct {
 	IncludeAfter         *time.Time
 	ListUnaliasedKMSKeys bool
 	Timeout              *time.Duration
-	ExcludeFirstSeen     bool
 	DefaultOnly          bool
 }
 
 // NewQuery configures and returns a Query struct that can be passed into the InspectResources method
-func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string,
-	excludeAfter, includeAfter *time.Time,
-	listUnaliasedKMSKeys bool, timeout *time.Duration,
-	defaultOnly, excludeFirstSeen bool,
-) (*Query, error) {
+func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string, excludeAfter, includeAfter *time.Time, listUnaliasedKMSKeys bool, timeout *time.Duration, defaultOnly bool) (*Query, error) {
 	q := &Query{
 		Regions:              regions,
 		ExcludeRegions:       excludeRegions,
@@ -34,7 +29,6 @@ func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []str
 		ListUnaliasedKMSKeys: listUnaliasedKMSKeys,
 		Timeout:              timeout,
 		DefaultOnly:          defaultOnly,
-		ExcludeFirstSeen:     excludeFirstSeen,
 	}
 
 	validationErr := q.Validate()

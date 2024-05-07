@@ -44,9 +44,6 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 		now       = time.Now()
 	)
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
 	sg := SecurityGroup{
 		BaseAwsResource: BaseAwsResource{
 			Nukables: map[string]error{
@@ -91,17 +88,14 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.EC2ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:ctx,
 			configObj: config.EC2ResourceType{},
 			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
-			ctx:ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -113,7 +107,6 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 			expected: []string{testId2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx:ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -127,7 +120,7 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			names, err := sg.getAll(tc.ctx, config.Config{
+			names, err := sg.getAll(context.Background(), config.Config{
 				SecurityGroup: tc.configObj,
 			})
 			require.NoError(t, err)

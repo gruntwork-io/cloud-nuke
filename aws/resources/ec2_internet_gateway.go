@@ -15,6 +15,39 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (igw *InternetGateway) setFirstSeenTag(gateway ec2.InternetGateway, value time.Time) error {
+	_, err := igw.Client.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{gateway.InternetGatewayId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (igw *InternetGateway) getFirstSeenTag(gateway ec2.InternetGateway) (*time.Time, error) {
+	tags := gateway.Tags
+	for _, tag := range tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func shouldIncludeGateway(ig *ec2.InternetGateway, firstSeenTime *time.Time, configObj config.Config) bool {
 	var internetGateway string
 	// get the tags as map
@@ -30,10 +63,8 @@ func shouldIncludeGateway(ig *ec2.InternetGateway, firstSeenTime *time.Time, con
 	})
 }
 
-func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (igw *InternetGateway) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
-	var firstSeenTime *time.Time
-	var err error
 
 	input := &ec2.DescribeInternetGatewaysInput{}
 	resp, err := igw.Client.DescribeInternetGateways(input)
@@ -41,11 +72,25 @@ func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) (
 		logging.Debugf("[Internet Gateway] Failed to list internet gateways: %s", err)
 		return nil, err
 	}
+
 	for _, ig := range resp.InternetGateways {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, igw.Client, ig.InternetGatewayId, util.ConvertEC2TagsToMap(ig.Tags))
+		// check first seen tag
+		firstSeenTime, err := igw.getFirstSeenTag(*ig)
 		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
+			logging.Errorf(
+				"Unable to retrieve tags for Internet gateway: %s, with error: %s", *ig.InternetGatewayId, err)
+			continue
+		}
+
+		// if the first seen tag is not there, then create one
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := igw.setFirstSeenTag(*ig, time.Now().UTC()); err != nil {
+				logging.Errorf(
+					"Unable to apply first seen tag Internet gateway: %s, with error: %s", *ig.InternetGatewayId, err)
+				continue
+			}
 		}
 
 		if shouldIncludeGateway(ig, firstSeenTime, configObj) {

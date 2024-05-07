@@ -14,6 +14,38 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (nacl *NetworkACL) setFirstSeenTag(networkAcl ec2.NetworkAcl, value time.Time) error {
+	_, err := nacl.Client.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{networkAcl.NetworkAclId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (nacl *NetworkACL) getFirstSeenTag(networkAcl ec2.NetworkAcl) (*time.Time, error) {
+	for _, tag := range networkAcl.Tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func shouldIncludeNetworkACL(networkAcl *ec2.NetworkAcl, firstSeenTime *time.Time, configObj config.Config) bool {
 	var naclName string
 	// get the tags as map
@@ -28,11 +60,8 @@ func shouldIncludeNetworkACL(networkAcl *ec2.NetworkAcl, firstSeenTime *time.Tim
 	})
 }
 
-func (nacl *NetworkACL) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (nacl *NetworkACL) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
-	var firstSeenTime *time.Time
-	var err error
-
 	resp, err := nacl.Client.DescribeNetworkAcls(&ec2.DescribeNetworkAclsInput{
 		Filters: []*ec2.Filter{
 			{
@@ -49,10 +78,23 @@ func (nacl *NetworkACL) getAll(c context.Context, configObj config.Config) ([]*s
 	}
 
 	for _, networkAcl := range resp.NetworkAcls {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nacl.Client, networkAcl.NetworkAclId, util.ConvertEC2TagsToMap(networkAcl.Tags))
+		// check first seen tag
+		firstSeenTime, err := nacl.getFirstSeenTag(*networkAcl)
 		if err != nil {
-			logging.Error("unable to retrieve first seen tag")
+			logging.Errorf(
+				"Unable to retrieve tags for network acl: %s, with error: %s", awsgo.StringValue(networkAcl.NetworkAclId), err)
 			continue
+		}
+
+		// if the first seen tag is not there, then create one
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := nacl.setFirstSeenTag(*networkAcl, time.Now().UTC()); err != nil {
+				logging.Errorf(
+					"Unable to apply first seen tag network acl: %s, with error: %s", awsgo.StringValue(networkAcl.NetworkAclId), err)
+				continue
+			}
 		}
 
 		if shouldIncludeNetworkACL(networkAcl, firstSeenTime, configObj) {

@@ -13,6 +13,34 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (nfw *NetworkFirewallTLSConfig) setFirstSeenTag(resource *networkfirewall.TLSInspectionConfigurationResponse, value time.Time) error {
+	_, err := nfw.Client.TagResource(&networkfirewall.TagResourceInput{
+		ResourceArn: resource.TLSInspectionConfigurationArn,
+		Tags: []*networkfirewall.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	return errors.WithStackTrace(err)
+}
+
+func (nfw *NetworkFirewallTLSConfig) getFirstSeenTag(resource *networkfirewall.TLSInspectionConfigurationResponse) (*time.Time, error) {
+	for _, tag := range resource.Tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func shouldIncludeNetworkFirewallTLSConfig(tlsconfig *networkfirewall.TLSInspectionConfigurationResponse, firstSeenTime *time.Time, configObj config.Config) bool {
 
 	var identifierName string
@@ -30,13 +58,8 @@ func shouldIncludeNetworkFirewallTLSConfig(tlsconfig *networkfirewall.TLSInspect
 	})
 }
 
-func (nftc *NetworkFirewallTLSConfig) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var (
-		identifiers   []*string
-		firstSeenTime *time.Time
-		err           error
-	)
-
+func (nftc *NetworkFirewallTLSConfig) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+	var identifiers []*string
 	meta, err := nftc.Client.ListTLSInspectionConfigurations(nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -56,10 +79,23 @@ func (nftc *NetworkFirewallTLSConfig) getAll(c context.Context, configObj config
 			continue
 		}
 
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nftc.Client, tlsconfig.Arn, util.ConvertNetworkFirewallTagsToMap(output.TLSInspectionConfigurationResponse.Tags))
+		// check first seen tag
+		firstSeenTime, err := nftc.getFirstSeenTag(output.TLSInspectionConfigurationResponse)
 		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
+			logging.Errorf(
+				"Unable to retrieve tags for TLS inspection configurations: %s, with error: %s", awsgo.StringValue(tlsconfig.Name), err)
+			continue
+		}
+
+		// if the first seen tag is not there, then create one
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := nftc.setFirstSeenTag(output.TLSInspectionConfigurationResponse, time.Now().UTC()); err != nil {
+				logging.Errorf(
+					"Unable to apply first seen tag TLS inspection configurations: %s, with error: %s", awsgo.StringValue(tlsconfig.Name), err)
+				continue
+			}
 		}
 
 		if shouldIncludeNetworkFirewallTLSConfig(output.TLSInspectionConfigurationResponse, firstSeenTime, configObj) {

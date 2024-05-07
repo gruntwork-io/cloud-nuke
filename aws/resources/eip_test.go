@@ -32,9 +32,6 @@ func TestEIPAddress_GetAll(t *testing.T) {
 
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
 	now := time.Now()
 	testName1 := "test-eip1"
 	testAllocId1 := "alloc1"
@@ -76,17 +73,14 @@ func TestEIPAddress_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{testAllocId1, testAllocId2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -96,7 +90,6 @@ func TestEIPAddress_GetAll(t *testing.T) {
 			expected: []string{testAllocId2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
@@ -106,7 +99,7 @@ func TestEIPAddress_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ea.getAll(tc.ctx, config.Config{
+			names, err := ea.getAll(context.Background(), config.Config{
 				ElasticIP: tc.configObj,
 			})
 			require.NoError(t, err)

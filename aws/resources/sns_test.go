@@ -2,13 +2,10 @@ package resources
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 	"regexp"
 	"testing"
 	"time"
-
-	"github.com/aws/aws-sdk-go/service/sns/snsiface"
-
-	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -44,9 +41,6 @@ func TestSNS_GetAll(t *testing.T) {
 
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
 	testTopic1 := "arn:aws:sns:us-east-1:123456789012:MyTopic1"
 	testTopic2 := "arn:aws:sns:us-east-1:123456789012:MyTopic2"
 	now := time.Now()
@@ -76,17 +70,14 @@ func TestSNS_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{testTopic1, testTopic2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -96,7 +87,6 @@ func TestSNS_GetAll(t *testing.T) {
 			expected: []string{testTopic2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
@@ -106,7 +96,7 @@ func TestSNS_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := s.getAll(tc.ctx, config.Config{
+			names, err := s.getAll(context.Background(), config.Config{
 				SNS: tc.configObj,
 			})
 			require.NoError(t, err)

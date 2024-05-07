@@ -2,12 +2,11 @@ package resources
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/aws/aws-sdk-go/service/sns"
-	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -23,33 +22,25 @@ import (
 func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
 	var snsTopics []*string
-	var firstSeenTime *time.Time
-	var err error
-
-	excludeFirstSeenTag, err := util.GetBoolFromContext(c, util.ExcludeFirstSeenTagKey)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-	err = s.Client.ListTopicsPages(&sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {
+	err := s.Client.ListTopicsPages(&sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {
 		for _, topic := range page.Topics {
-			if !excludeFirstSeenTag {
-				firstSeenTime, err = s.getFirstSeenTag(*topic.TopicArn)
-				if err != nil {
+			firstSeenTime, err := s.getFirstSeenTag(*topic.TopicArn)
+			if err != nil {
+				logging.Errorf(
+					"Unable to retrieve tags for SNS Topic: %s, with error: %s", *topic.TopicArn, err)
+				continue
+			}
+
+			if firstSeenTime == nil {
+				now := time.Now().UTC()
+				firstSeenTime = &now
+				if err := s.setFirstSeenTag(*topic.TopicArn, now); err != nil {
 					logging.Errorf(
-						"Unable to retrieve tags for SNS Topic: %s, with error: %s", *topic.TopicArn, err)
+						"Unable to apply first seen tag SNS Topic: %s, with error: %s", *topic.TopicArn, err)
 					continue
 				}
-
-				if firstSeenTime == nil {
-					now := time.Now().UTC()
-					firstSeenTime = &now
-					if err := s.setFirstSeenTag(*topic.TopicArn, now); err != nil {
-						logging.Errorf(
-							"Unable to apply first seen tag SNS Topic: %s, with error: %s", *topic.TopicArn, err)
-						continue
-					}
-				}
 			}
+
 			// a topic arn is of the form arn:aws:sns:us-east-1:123456789012:MyTopic
 			// so we can search for the index of the last colon, then slice the string to get the topic name
 			nameIndex := strings.LastIndex(*topic.TopicArn, ":")

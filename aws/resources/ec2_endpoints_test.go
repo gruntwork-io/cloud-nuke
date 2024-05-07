@@ -33,9 +33,6 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
 	var (
 		now       = time.Now()
 		endpoint1 = "vpce-0b201b2dcd4f77a2f001"
@@ -79,17 +76,14 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 	vpcEndpoint.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{endpoint1, endpoint2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -99,7 +93,6 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 			expected: []string{endpoint2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now),
@@ -107,7 +100,6 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 			expected: []string{endpoint1},
 		},
 		"timeBeforeExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeBefore: aws.Time(now.Add(1)),
@@ -117,7 +109,7 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := vpcEndpoint.getAll(tc.ctx, config.Config{
+			names, err := vpcEndpoint.getAll(context.Background(), config.Config{
 				EC2Endpoint: tc.configObj,
 			})
 			require.NoError(t, err)

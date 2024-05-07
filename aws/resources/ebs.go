@@ -2,7 +2,9 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -34,6 +36,15 @@ func (ev *EBSVolumes) getAll(c context.Context, configObj config.Config) ([]*str
 		}
 	}
 
+	// checking the nukable permissions
+	ev.VerifyNukablePermissions(volumeIds, func(id *string) error {
+		_, err := ev.Client.DeleteVolume(&ec2.DeleteVolumeInput{
+			VolumeId: id,
+			DryRun:   awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return volumeIds, nil
 }
 
@@ -63,6 +74,12 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 	var deletedVolumeIDs []*string
 
 	for _, volumeID := range volumeIds {
+
+		if nukable, err := ev.IsNukable(awsgo.StringValue(volumeID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(volumeID), err)
+			continue
+		}
+
 		params := &ec2.DeleteVolumeInput{
 			VolumeId: volumeID,
 		}

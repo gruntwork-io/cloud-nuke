@@ -32,9 +32,6 @@ func (m mockedIPAMPools) DeleteIpamPool(params *ec2.DeleteIpamPoolInput) (*ec2.D
 func TestIPAMPool_GetAll(t *testing.T) {
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
 	var (
 		now       = time.Now()
 		testId1   = "ipam-pool-0dfc56f901b2c3462"
@@ -79,17 +76,14 @@ func TestIPAMPool_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -99,7 +93,6 @@ func TestIPAMPool_GetAll(t *testing.T) {
 			expected: []string{testId2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
@@ -109,7 +102,7 @@ func TestIPAMPool_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			ids, err := ipam.getAll(tc.ctx, config.Config{
+			ids, err := ipam.getAll(context.Background(), config.Config{
 				EC2IPAMPool: tc.configObj,
 			})
 			require.NoError(t, err)

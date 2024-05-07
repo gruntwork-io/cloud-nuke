@@ -14,6 +14,34 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (nfw *NetworkFirewall) setFirstSeenTag(resource *networkfirewall.Firewall, value time.Time) error {
+	_, err := nfw.Client.TagResource(&networkfirewall.TagResourceInput{
+		ResourceArn: resource.FirewallArn,
+		Tags: []*networkfirewall.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	return errors.WithStackTrace(err)
+}
+
+func (nfw *NetworkFirewall) getFirstSeenTag(resource *networkfirewall.Firewall) (*time.Time, error) {
+	for _, tag := range resource.Tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func shouldIncludeNetworkFirewall(firewall *networkfirewall.Firewall, firstSeenTime *time.Time, configObj config.Config) bool {
 	var identifierName string
 	tags := util.ConvertNetworkFirewallTagsToMap(firewall.Tags)
@@ -30,10 +58,8 @@ func shouldIncludeNetworkFirewall(firewall *networkfirewall.Firewall, firstSeenT
 	})
 }
 
-func (nfw *NetworkFirewall) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (nfw *NetworkFirewall) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
-	var firstSeenTime *time.Time
-	var err error
 
 	metaOutput, err := nfw.Client.ListFirewalls(nil)
 	if err != nil {
@@ -56,10 +82,23 @@ func (nfw *NetworkFirewall) getAll(c context.Context, configObj config.Config) (
 			continue
 		}
 
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nfw.Client, firewall.FirewallArn, util.ConvertNetworkFirewallTagsToMap(output.Firewall.Tags))
+		// check first seen tag
+		firstSeenTime, err := nfw.getFirstSeenTag(output.Firewall)
 		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
+			logging.Errorf(
+				"Unable to retrieve tags for Firewall: %s, with error: %s", awsgo.StringValue(firewall.FirewallName), err)
+			continue
+		}
+
+		// if the first seen tag is not there, then create one
+		if firstSeenTime == nil {
+			now := time.Now().UTC()
+			firstSeenTime = &now
+			if err := nfw.setFirstSeenTag(output.Firewall, time.Now().UTC()); err != nil {
+				logging.Errorf(
+					"Unable to apply first seen tag Firewall: %s, with error: %s", awsgo.StringValue(firewall.FirewallName), err)
+				continue
+			}
 		}
 
 		// check the resource is delete protected

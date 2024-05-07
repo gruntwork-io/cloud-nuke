@@ -14,6 +14,39 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+func (scope *EC2IpamScopes) setFirstSeenTag(ipam ec2.IpamScope, value time.Time) error {
+	_, err := scope.Client.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{ipam.IpamScopeId},
+		Tags: []*ec2.Tag{
+			{
+				Key:   awsgo.String(util.FirstSeenTagKey),
+				Value: awsgo.String(util.FormatTimestamp(value)),
+			},
+		},
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (scope *EC2IpamScopes) getFirstSeenTag(ipam ec2.IpamScope) (*time.Time, error) {
+	tags := ipam.Tags
+	for _, tag := range tags {
+		if util.IsFirstSeenTag(tag.Key) {
+			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			return firstSeenTime, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func shouldIncludeIpamScopeID(ipam *ec2.IpamScope, firstSeenTime *time.Time, configObj config.Config) bool {
 	var ipamScopeName string
 	// get the tags as map
@@ -32,18 +65,26 @@ func shouldIncludeIpamScopeID(ipam *ec2.IpamScope, firstSeenTime *time.Time, con
 // Returns a formatted string of IPAM URLs
 func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	result := []*string{}
-	var firstSeenTime *time.Time
-	var err error
-
 	paginator := func(output *ec2.DescribeIpamScopesOutput, lastPage bool) bool {
 		for _, scope := range output.IpamScopes {
-
-			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Scope.Client, scope.IpamScopeId, util.ConvertEC2TagsToMap(scope.Tags))
+			// check first seen tag
+			firstSeenTime, err := ec2Scope.getFirstSeenTag(*scope)
 			if err != nil {
-				logging.Error("unable to retrieve firstseen tag")
+				logging.Errorf(
+					"Unable to retrieve tags for IPAM: %s, with error: %s", *scope.IpamScopeId, err)
 				continue
 			}
 
+			// if the first seen tag is not there, then create one
+			if firstSeenTime == nil {
+				now := time.Now().UTC()
+				firstSeenTime = &now
+				if err := ec2Scope.setFirstSeenTag(*scope, time.Now().UTC()); err != nil {
+					logging.Errorf(
+						"Unable to apply first seen tag IPAM: %s, with error: %s", *scope.IpamScopeId, err)
+					continue
+				}
+			}
 			// Check for include this ipam
 			if shouldIncludeIpamScopeID(scope, firstSeenTime, configObj) {
 				result = append(result, scope.IpamScopeId)
@@ -62,10 +103,19 @@ func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config
 		},
 	}
 
-	err = ec2Scope.Client.DescribeIpamScopesPages(params, paginator)
+	err := ec2Scope.Client.DescribeIpamScopesPages(params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
+
+	// checking the nukable permissions
+	ec2Scope.VerifyNukablePermissions(result, func(id *string) error {
+		_, err := ec2Scope.Client.DeleteIpamScope(&ec2.DeleteIpamScopeInput{
+			IpamScopeId: id,
+			DryRun:      awsgo.Bool(true),
+		})
+		return err
+	})
 
 	return result, nil
 }
@@ -81,11 +131,14 @@ func (scope *EC2IpamScopes) nukeAll(ids []*string) error {
 	var deletedList []*string
 
 	for _, id := range ids {
-		params := &ec2.DeleteIpamScopeInput{
-			IpamScopeId: id,
+		if nukable, err := scope.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+			continue
 		}
 
-		_, err := scope.Client.DeleteIpamScope(params)
+		_, err := scope.Client.DeleteIpamScope(&ec2.DeleteIpamScopeInput{
+			IpamScopeId: id,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

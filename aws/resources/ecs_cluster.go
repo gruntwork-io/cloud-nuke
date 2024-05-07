@@ -100,29 +100,23 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 		return nil, errors.WithStackTrace(err)
 	}
 
-	excludeFirstSeenTag, err := util.GetBoolFromContext(c, util.ExcludeFirstSeenTagKey)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
 	var filteredEcsClusters []*string
 	for _, clusterArn := range clusterArns {
-		if !excludeFirstSeenTag {
-			firstSeenTime, err := clusters.getFirstSeenTag(clusterArn)
+
+		firstSeenTime, err := clusters.getFirstSeenTag(clusterArn)
+		if err != nil {
+			logging.Debugf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+			return nil, errors.WithStackTrace(err)
+		}
+
+		if firstSeenTime == nil {
+			err := clusters.setFirstSeenTag(clusterArn, time.Now().UTC())
 			if err != nil {
-				logging.Debugf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Debugf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
 				return nil, errors.WithStackTrace(err)
 			}
-
-			if firstSeenTime == nil {
-				err := clusters.setFirstSeenTag(clusterArn, time.Now().UTC())
-				if err != nil {
-					logging.Debugf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
-					return nil, errors.WithStackTrace(err)
-				}
-			} else if configObj.ECSCluster.ShouldInclude(config.ResourceValue{Time: firstSeenTime}) {
-				filteredEcsClusters = append(filteredEcsClusters, clusterArn)
-			}
+		} else if configObj.ECSCluster.ShouldInclude(config.ResourceValue{Time: firstSeenTime}) {
+			filteredEcsClusters = append(filteredEcsClusters, clusterArn)
 		}
 	}
 	return filteredEcsClusters, nil

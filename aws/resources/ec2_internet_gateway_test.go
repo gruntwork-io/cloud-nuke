@@ -38,9 +38,6 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
 	var (
 		now      = time.Now()
 		gateway1 = "igw-0b44cfa6103932e1d001"
@@ -85,17 +82,14 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 	igw.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{gateway1, gateway2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
@@ -105,7 +99,6 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 			expected: []string{gateway2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: awsgo.Time(now.Add(-1 * time.Hour)),
@@ -115,7 +108,7 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := igw.getAll(tc.ctx, config.Config{
+			names, err := igw.getAll(context.Background(), config.Config{
 				InternetGateway: tc.configObj,
 			})
 			require.NoError(t, err)
