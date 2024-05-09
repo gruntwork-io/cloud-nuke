@@ -16,9 +16,10 @@ import (
 
 // Returns a formatted string of EIP allocation ids
 func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+
 	var firstSeenTime *time.Time
 	var err error
-	result, err := ea.Client.DescribeAddresses(&ec2.DescribeAddressesInput{})
+	result, err := ea.Client.DescribeAddressesWithContext(ea.Context, &ec2.DescribeAddressesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -65,7 +66,7 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 			AllocationId: allocationID,
 		}
 
-		_, err := ea.Client.ReleaseAddress(params)
+		_, err := ea.Client.ReleaseAddressWithContext(ea.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

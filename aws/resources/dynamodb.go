@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"log"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -9,13 +11,13 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
-	"log"
 )
 
 func (ddb *DynamoDB) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var tableNames []*string
 
-	err := ddb.Client.ListTablesPages(
+	err := ddb.Client.ListTablesPagesWithContext(
+		ddb.Context,
 		&dynamodb.ListTablesInput{}, func(page *dynamodb.ListTablesOutput, lastPage bool) bool {
 			for _, table := range page.TableNames {
 				tableDetail, err := ddb.Client.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
@@ -53,7 +55,7 @@ func (ddb *DynamoDB) nukeAll(tables []*string) error {
 		input := &dynamodb.DeleteTableInput{
 			TableName: aws.String(*table),
 		}
-		_, err := ddb.Client.DeleteTable(input)
+		_, err := ddb.Client.DeleteTableWithContext(ddb.Context, input)
 
 		// Record status of this resource
 		e := report.Entry{

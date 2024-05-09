@@ -38,6 +38,10 @@ func (scs *SesConfigurationSet) ResourceIdentifiers() []string {
 	return scs.Ids
 }
 
+func (scs *SesConfigurationSet) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SESConfigurationSet
+}
+
 func (scs *SesConfigurationSet) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := scs.getAll(c, configObj)
 	if err != nil {

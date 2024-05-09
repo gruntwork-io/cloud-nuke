@@ -13,7 +13,7 @@ import (
 
 // Returns a formatted string of receipt rule names
 func (s *SesReceiptRule) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := s.Client.ListReceiptRuleSets(&ses.ListReceiptRuleSetsInput{})
+	result, err := s.Client.ListReceiptRuleSetsWithContext(s.Context, &ses.ListReceiptRuleSetsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -46,7 +46,7 @@ func (s *SesReceiptRule) nukeAll(sets []*string) error {
 		param := &ses.DeleteReceiptRuleSetInput{
 			RuleSetName: set,
 		}
-		_, err := s.Client.DeleteReceiptRuleSet(param)
+		_, err := s.Client.DeleteReceiptRuleSetWithContext(s.Context, param)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(set),
@@ -72,7 +72,7 @@ func (s *SesReceiptRule) nukeAll(sets []*string) error {
 
 // Returns a formatted string of ses-identities IDs
 func (s *SesReceiptFilter) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := s.Client.ListReceiptFilters(&ses.ListReceiptFiltersInput{})
+	result, err := s.Client.ListReceiptFiltersWithContext(s.Context, &ses.ListReceiptFiltersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -104,7 +104,7 @@ func (s *SesReceiptFilter) nukeAll(filters []*string) error {
 		param := &ses.DeleteReceiptFilterInput{
 			FilterName: filter,
 		}
-		_, err := s.Client.DeleteReceiptFilter(param)
+		_, err := s.Client.DeleteReceiptFilterWithContext(s.Context, param)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(filter),

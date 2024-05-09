@@ -37,6 +37,10 @@ func (cw *CloudWatchAlarms) MaxBatchSize() int {
 	return 99
 }
 
+func (cw *CloudWatchAlarms) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.CloudWatchAlarm
+}
+
 func (cw *CloudWatchAlarms) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := cw.getAll(c, configObj)
 	if err != nil {

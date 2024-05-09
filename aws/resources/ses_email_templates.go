@@ -15,7 +15,7 @@ import (
 func (sem *SesEmailTemplates) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	param := &ses.ListTemplatesInput{}
 
-	result, err := sem.Client.ListTemplates(param)
+	result, err := sem.Client.ListTemplatesWithContext(sem.Context, param)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -49,7 +49,7 @@ func (sem *SesEmailTemplates) nukeAll(templates []*string) error {
 			TemplateName: template,
 		}
 
-		_, err := sem.Client.DeleteTemplate(params)
+		_, err := sem.Client.DeleteTemplateWithContext(sem.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

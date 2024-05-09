@@ -34,6 +34,10 @@ func (s *SNSTopic) MaxBatchSize() int {
 	return 50
 }
 
+func (s *SNSTopic) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SNS
+}
+
 func (s *SNSTopic) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := s.getAll(c, configObj)
 	if err != nil {

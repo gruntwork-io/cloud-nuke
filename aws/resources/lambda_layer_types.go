@@ -36,6 +36,10 @@ func (lf *LambdaLayers) MaxBatchSize() int {
 	return 49
 }
 
+func (lf *LambdaLayers) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.LambdaLayer
+}
+
 func (lf *LambdaLayers) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := lf.getAll(c, configObj)
 	if err != nil {

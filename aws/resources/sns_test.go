@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -24,7 +25,7 @@ type mockedSNSTopic struct {
 	DeleteTopicOutput            sns.DeleteTopicOutput
 }
 
-func (m mockedSNSTopic) ListTopicsPages(input *sns.ListTopicsInput, fn func(*sns.ListTopicsOutput, bool) bool) error {
+func (m mockedSNSTopic) ListTopicsPagesWithContext(_ awsgo.Context, _ *sns.ListTopicsInput, fn func(*sns.ListTopicsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListTopicsOutput, true)
 	return nil
 }
@@ -36,7 +37,7 @@ func (m mockedSNSTopic) ListTagsForResource(input *sns.ListTagsForResourceInput)
 	return &resp, nil
 }
 
-func (m mockedSNSTopic) DeleteTopic(input *sns.DeleteTopicInput) (*sns.DeleteTopicOutput, error) {
+func (m mockedSNSTopic) DeleteTopicWithContext(_ awsgo.Context, _ *sns.DeleteTopicInput, _ ...request.Option) (*sns.DeleteTopicOutput, error) {
 	return &m.DeleteTopicOutput, nil
 }
 

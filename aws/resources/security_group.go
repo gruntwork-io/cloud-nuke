@@ -52,7 +52,7 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 		}
 	}
 
-	resp, err := sg.Client.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{
+	resp, err := sg.Client.DescribeSecurityGroupsWithContext(sg.Context, &ec2.DescribeSecurityGroupsInput{
 		Filters: filters,
 	})
 	if err != nil {
@@ -74,7 +74,7 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 
 	// Check and verify the list of allowed nuke actions
 	sg.VerifyNukablePermissions(identifiers, func(id *string) error {
-		_, err := sg.Client.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
+		_, err := sg.Client.DeleteSecurityGroupWithContext(sg.Context, &ec2.DeleteSecurityGroupInput{
 			GroupId: id,
 			DryRun:  awsgo.Bool(true),
 		})
@@ -173,7 +173,7 @@ func revokeSecurityGroupEgress(client ec2iface.EC2API, id *string) error {
 }
 
 func (sg *SecurityGroup) RevokeIPv6SecurityGroupEgress(id string) error {
-	_, err := sg.Client.RevokeSecurityGroupEgress(&ec2.RevokeSecurityGroupEgressInput{
+	_, err := sg.Client.RevokeSecurityGroupEgressWithContext(sg.Context, &ec2.RevokeSecurityGroupEgressInput{
 		GroupId: awsgo.String(id),
 		IpPermissions: []*ec2.IpPermission{
 			{
@@ -199,7 +199,7 @@ func (sg *SecurityGroup) RevokeIPv6SecurityGroupEgress(id string) error {
 
 func (sg *SecurityGroup) terminateInstancesAssociatedWithSecurityGroup(id string) error {
 
-	resp, err := sg.Client.DescribeInstances(&ec2.DescribeInstancesInput{
+	resp, err := sg.Client.DescribeInstancesWithContext(sg.Context, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   awsgo.String("instance.group-id"),
@@ -223,7 +223,7 @@ func (sg *SecurityGroup) terminateInstancesAssociatedWithSecurityGroup(id string
 			}
 
 			// terminating the instances which used this security group
-			if _, err := sg.Client.TerminateInstances(&ec2.TerminateInstancesInput{
+			if _, err := sg.Client.TerminateInstancesWithContext(sg.Context, &ec2.TerminateInstancesInput{
 				InstanceIds: []*string{awsgo.String(instanceID)},
 			}); err != nil {
 				logging.Debugf("[Failed] Ec2 termination %s", err)
@@ -233,7 +233,7 @@ func (sg *SecurityGroup) terminateInstancesAssociatedWithSecurityGroup(id string
 			logging.Debugf("[Instance Termination] waiting to terminate instance %s", instanceID)
 
 			// wait until the instance terminated.
-			if err := sg.Client.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
+			if err := sg.Client.WaitUntilInstanceTerminatedWithContext(sg.Context, &ec2.DescribeInstancesInput{
 				InstanceIds: []*string{awsgo.String(instanceID)},
 			}); err != nil {
 				logging.Debugf("[Security Group] Failed to terminate instance %s associated with security group %s: %s", instanceID, id, err)
@@ -252,7 +252,7 @@ func (sg *SecurityGroup) releaseEIPs(instanceIds []*string) error {
 	for _, instanceID := range instanceIds {
 
 		// get the elastic ip's associated with the EC2's
-		output, err := sg.Client.DescribeAddresses(&ec2.DescribeAddressesInput{
+		output, err := sg.Client.DescribeAddressesWithContext(sg.Context, &ec2.DescribeAddressesInput{
 			Filters: []*ec2.Filter{
 				{
 					Name: awsgo.String("instance-id"),
@@ -267,7 +267,7 @@ func (sg *SecurityGroup) releaseEIPs(instanceIds []*string) error {
 		}
 
 		for _, address := range output.Addresses {
-			if _, err := sg.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+			if _, err := sg.Client.ReleaseAddressWithContext(sg.Context, &ec2.ReleaseAddressInput{
 				AllocationId: address.AllocationId,
 			}); err != nil {
 				logging.Debugf("An error happened while releasing the elastic ip address %s, error %v", *address.AllocationId, err)

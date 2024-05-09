@@ -2,13 +2,15 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/assert"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/stretchr/testify/assert"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -20,11 +22,11 @@ type mockedAMI struct {
 	DeregisterImageOutput ec2.DeregisterImageOutput
 }
 
-func (m mockedAMI) DescribeImages(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
+func (m mockedAMI) DescribeImagesWithContext(_ awsgo.Context, _ *ec2.DescribeImagesInput, _ ...request.Option) (*ec2.DescribeImagesOutput, error) {
 	return &m.DescribeImagesOutput, nil
 }
 
-func (m mockedAMI) DeregisterImage(input *ec2.DeregisterImageInput) (*ec2.DeregisterImageOutput, error) {
+func (m mockedAMI) DeregisterImageWithContext(_ awsgo.Context, _ *ec2.DeregisterImageInput, _ ...request.Option) (*ec2.DeregisterImageOutput, error) {
 	return &m.DeregisterImageOutput, nil
 }
 

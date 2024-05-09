@@ -16,7 +16,7 @@ import (
 
 func (ks *KinesisStreams) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allStreams := []*string{}
-	err := ks.Client.ListStreamsPages(&kinesis.ListStreamsInput{}, func(page *kinesis.ListStreamsOutput, lastPage bool) bool {
+	err := ks.Client.ListStreamsPagesWithContext(ks.Context, &kinesis.ListStreamsInput{}, func(page *kinesis.ListStreamsOutput, lastPage bool) bool {
 		for _, stream := range page.StreamNames {
 			if configObj.KinesisStream.ShouldInclude(config.ResourceValue{
 				Name: stream,
@@ -85,7 +85,7 @@ func (ks *KinesisStreams) deleteAsync(
 ) {
 	defer wg.Done()
 	input := &kinesis.DeleteStreamInput{StreamName: streamName}
-	_, err := ks.Client.DeleteStream(input)
+	_, err := ks.Client.DeleteStreamWithContext(ks.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{

@@ -2,9 +2,10 @@ package resources
 
 import (
 	"context"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -17,7 +18,8 @@ import (
 func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error {
 	// wait up to 15 minutes
 	for i := 0; i < 90; i++ {
-		_, err := dsg.Client.DescribeDBSubnetGroups(&rds.DescribeDBSubnetGroupsInput{DBSubnetGroupName: name})
+		_, err := dsg.Client.DescribeDBSubnetGroupsWithContext(
+			dsg.Context, &rds.DescribeDBSubnetGroupsInput{DBSubnetGroupName: name})
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBSubnetGroupNotFoundFault {
 				return nil
@@ -35,7 +37,8 @@ func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error 
 
 func (dsg *DBSubnetGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
-	err := dsg.Client.DescribeDBSubnetGroupsPages(
+	err := dsg.Client.DescribeDBSubnetGroupsPagesWithContext(
+		dsg.Context,
 		&rds.DescribeDBSubnetGroupsInput{},
 		func(page *rds.DescribeDBSubnetGroupsOutput, lastPage bool) bool {
 			for _, subnetGroup := range page.DBSubnetGroups {
@@ -65,7 +68,7 @@ func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		_, err := dsg.Client.DeleteDBSubnetGroup(&rds.DeleteDBSubnetGroupInput{
+		_, err := dsg.Client.DeleteDBSubnetGroupWithContext(dsg.Context, &rds.DeleteDBSubnetGroupInput{
 			DBSubnetGroupName: name,
 		})
 

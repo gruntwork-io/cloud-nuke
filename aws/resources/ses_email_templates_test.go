@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/ses/sesiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,11 +21,11 @@ type mockedSesEmailTemplates struct {
 	ListTemplatesOutput  ses.ListTemplatesOutput
 }
 
-func (m mockedSesEmailTemplates) ListTemplates(input *ses.ListTemplatesInput) (*ses.ListTemplatesOutput, error) {
+func (m mockedSesEmailTemplates) ListTemplatesWithContext(_ awsgo.Context, _ *ses.ListTemplatesInput, _ ...request.Option) (*ses.ListTemplatesOutput, error) {
 	return &m.ListTemplatesOutput, nil
 }
 
-func (m mockedSesEmailTemplates) DeleteTemplate(*ses.DeleteTemplateInput) (*ses.DeleteTemplateOutput, error) {
+func (m mockedSesEmailTemplates) DeleteTemplateWithContext(_ awsgo.Context, _ *ses.DeleteTemplateInput, _ ...request.Option) (*ses.DeleteTemplateOutput, error) {
 	return &m.DeleteTemplateOutput, nil
 }
 

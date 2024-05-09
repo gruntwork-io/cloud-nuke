@@ -2,10 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"regexp"
 	"testing"
 	"time"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -20,17 +23,17 @@ type mockedDynamoDB struct {
 	DeleteTableOutput      dynamodb.DeleteTableOutput
 }
 
-func (m mockedDynamoDB) ListTablesPages(input *dynamodb.ListTablesInput, fn func(*dynamodb.ListTablesOutput, bool) bool) error {
+func (m mockedDynamoDB) ListTablesPagesWithContext(_ awsgo.Context, _ *dynamodb.ListTablesInput, fn func(*dynamodb.ListTablesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListTablesOutput, true)
 	return nil
 }
 
-func (m mockedDynamoDB) DescribeTable(input *dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error) {
+func (m mockedDynamoDB) DescribeTableWithContext(_ awsgo.Context, input *dynamodb.DescribeTableInput, _ ...request.Option) (*dynamodb.DescribeTableOutput, error) {
 	output := m.DescribeTableOutputMap[*input.TableName]
 	return &output, nil
 }
 
-func (m mockedDynamoDB) DeleteTable(input *dynamodb.DeleteTableInput) (*dynamodb.DeleteTableOutput, error) {
+func (m mockedDynamoDB) DeleteTableWithContext(_ awsgo.Context, _ *dynamodb.DeleteTableInput, _ ...request.Option) (*dynamodb.DeleteTableOutput, error) {
 	return &m.DeleteTableOutput, nil
 }
 

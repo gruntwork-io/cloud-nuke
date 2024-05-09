@@ -43,13 +43,13 @@ func (nfw *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.
 		err           error
 	)
 
-	meta, err := nfw.Client.ListRuleGroups(nil)
+	meta, err := nfw.Client.ListRuleGroupsWithContext(nfw.Context, nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, group := range meta.RuleGroups {
-		output, err := nfw.Client.DescribeRuleGroup(&networkfirewall.DescribeRuleGroupInput{
+		output, err := nfw.Client.DescribeRuleGroupWithContext(nfw.Context, &networkfirewall.DescribeRuleGroupInput{
 			RuleGroupArn: group.Arn,
 		})
 		if err != nil {
@@ -100,7 +100,7 @@ func (nfw *NetworkFirewallRuleGroup) nukeAll(identifiers []*string) error {
 		}
 
 		// delete the rule group
-		_, err := nfw.Client.DeleteRuleGroup(&networkfirewall.DeleteRuleGroupInput{
+		_, err := nfw.Client.DeleteRuleGroupWithContext(nfw.Context, &networkfirewall.DeleteRuleGroupInput{
 			RuleGroupName: id,
 			Type:          group.Type,
 		})

@@ -36,6 +36,10 @@ func (instance *DBGlobalClusters) MaxBatchSize() int {
 	return 49
 }
 
+func (instance *DBGlobalClusters) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.DBGlobalClusters
+}
+
 func (instance *DBGlobalClusters) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := instance.getAll(c, configObj)
 	if err != nil {

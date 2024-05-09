@@ -58,7 +58,7 @@ func (discovery *EC2IPAMResourceDiscovery) getAll(c context.Context, configObj c
 		},
 	}
 
-	err = discovery.Client.DescribeIpamResourceDiscoveriesPages(params, paginator)
+	err = discovery.Client.DescribeIpamResourceDiscoveriesPagesWithContext(discovery.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -81,7 +81,7 @@ func (discovery *EC2IPAMResourceDiscovery) nukeAll(ids []*string) error {
 			IpamResourceDiscoveryId: id,
 		}
 
-		_, err := discovery.Client.DeleteIpamResourceDiscovery(params)
+		_, err := discovery.Client.DeleteIpamResourceDiscoveryWithContext(discovery.Context, params)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   awsgo.StringValue(id),

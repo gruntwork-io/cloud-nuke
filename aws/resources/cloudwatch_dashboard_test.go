@@ -2,10 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"regexp"
 	"testing"
 	"time"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
@@ -19,12 +22,12 @@ type mockedCloudWatchDashboard struct {
 	DeleteDashboardsOutput cloudwatch.DeleteDashboardsOutput
 }
 
-func (m mockedCloudWatchDashboard) ListDashboardsPages(input *cloudwatch.ListDashboardsInput, fn func(*cloudwatch.ListDashboardsOutput, bool) bool) error {
+func (m mockedCloudWatchDashboard) ListDashboardsPagesWithContext(_ awsgo.Context, _ *cloudwatch.ListDashboardsInput, fn func(*cloudwatch.ListDashboardsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListDashboardsOutput, true)
 	return nil
 }
 
-func (m mockedCloudWatchDashboard) DeleteDashboards(input *cloudwatch.DeleteDashboardsInput) (*cloudwatch.DeleteDashboardsOutput, error) {
+func (m mockedCloudWatchDashboard) DeleteDashboardsWithContext(_ awsgo.Context, _ *cloudwatch.DeleteDashboardsInput, _ ...request.Option) (*cloudwatch.DeleteDashboardsOutput, error) {
 	return &m.DeleteDashboardsOutput, nil
 }
 

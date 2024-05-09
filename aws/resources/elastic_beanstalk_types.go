@@ -38,6 +38,10 @@ func (eb *EBApplications) MaxBatchSize() int {
 	return 49
 }
 
+func (eb *EBApplications) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ElasticBeanstalk
+}
+
 func (eb *EBApplications) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := eb.getAll(c, configObj)
 	if err != nil {

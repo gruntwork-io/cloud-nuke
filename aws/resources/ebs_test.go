@@ -2,10 +2,11 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"

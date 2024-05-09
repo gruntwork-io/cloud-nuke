@@ -23,7 +23,7 @@ const (
 )
 
 func (instance *DBGlobalClusterMemberships) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := instance.Client.DescribeGlobalClustersWithContext(c, &rds.DescribeGlobalClustersInput{})
+	result, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -80,7 +80,7 @@ func (instance *DBGlobalClusterMemberships) nukeAll(names []*string) error {
 }
 
 func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name string) (deleted bool, err error) {
-	gdbcs, err := instance.Client.DescribeGlobalClusters(&rds.DescribeGlobalClustersInput{
+	gdbcs, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{
 		GlobalClusterIdentifier: &name,
 	})
 	if err != nil {
@@ -100,7 +100,7 @@ func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name s
 		}
 
 		logging.Debugf("Removing cluster '%s' from global cluster", *member.DBClusterArn)
-		_, err := instance.Client.RemoveFromGlobalCluster(&rds.RemoveFromGlobalClusterInput{
+		_, err := instance.Client.RemoveFromGlobalClusterWithContext(instance.Context, &rds.RemoveFromGlobalClusterInput{
 			GlobalClusterIdentifier: gdbc.GlobalClusterIdentifier,
 			DbClusterIdentifier:     member.DBClusterArn,
 		})
@@ -121,7 +121,7 @@ func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name s
 
 func (instance *DBGlobalClusterMemberships) waitUntilRdsClusterRemovedFromGlobalCluster(arnGlobalCluster string, arnCluster string) error {
 	for i := 0; i < dbGlobalClusterMembershipsRemovalRetryCount; i++ {
-		gcs, err := instance.Client.DescribeGlobalClusters(&rds.DescribeGlobalClustersInput{
+		gcs, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{
 			GlobalClusterIdentifier: &arnGlobalCluster,
 		})
 		if err != nil {

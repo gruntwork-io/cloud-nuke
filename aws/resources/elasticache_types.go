@@ -38,6 +38,10 @@ func (cache *Elasticaches) MaxBatchSize() int {
 	return 49
 }
 
+func (cache *Elasticaches) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.Elasticache
+}
+
 func (cache *Elasticaches) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := cache.getAll(c, configObj)
 	if err != nil {

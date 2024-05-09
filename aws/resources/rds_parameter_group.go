@@ -13,7 +13,8 @@ import (
 
 func (pg *RdsParameterGroup) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
-	err := pg.Client.DescribeDBParameterGroupsPages(
+	err := pg.Client.DescribeDBParameterGroupsPagesWithContext(
+		pg.Context,
 		&rds.DescribeDBParameterGroupsInput{},
 		func(page *rds.DescribeDBParameterGroupsOutput, lastPage bool) bool {
 			for _, parameterGroup := range page.DBParameterGroups {
@@ -45,9 +46,11 @@ func (pg *RdsParameterGroup) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
 		logging.Debugf("[RDS Parameter Group] Deleting %s in region %s", *identifier, pg.Region)
 
-		_, err := pg.Client.DeleteDBParameterGroup(&rds.DeleteDBParameterGroupInput{
-			DBParameterGroupName: identifier,
-		})
+		_, err := pg.Client.DeleteDBParameterGroupWithContext(
+			pg.Context,
+			&rds.DeleteDBParameterGroupInput{
+				DBParameterGroupName: identifier,
+			})
 		if err != nil {
 			logging.Errorf("[RDS Parameter Group] Error deleting RDS Parameter Group %s: %s", *identifier, err)
 		} else {

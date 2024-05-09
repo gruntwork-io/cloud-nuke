@@ -30,7 +30,7 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
-	err = s.Client.ListTopicsPages(&sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {
+	err = s.Client.ListTopicsPagesWithContext(s.Context, &sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {
 		for _, topic := range page.Topics {
 			if !excludeFirstSeenTag {
 				firstSeenTime, err = s.getFirstSeenTag(*topic.TopicArn)
@@ -174,7 +174,7 @@ func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn 
 
 	logging.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
 
-	_, err := s.Client.DeleteTopic(deleteParam)
+	_, err := s.Client.DeleteTopicWithContext(s.Context, deleteParam)
 
 	errChan <- err
 

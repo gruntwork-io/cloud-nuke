@@ -39,6 +39,10 @@ func (es *EC2Subnet) ResourceIdentifiers() []string {
 	return es.Subnets
 }
 
+// func (es *EC2Subnet) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+// 	return configObj.EC2Subnet
+// }
+
 func (es *EC2Subnet) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := es.getAll(c, configObj)
 	if err != nil {

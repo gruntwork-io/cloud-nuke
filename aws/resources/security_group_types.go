@@ -36,6 +36,10 @@ func (sg *SecurityGroup) MaxBatchSize() int {
 	return 50
 }
 
+// func (sg *SecurityGroup) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+// 	return configObj.SecurityGroup
+// }
+
 func (sg *SecurityGroup) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := sg.getAll(c, configObj)
 	if err != nil {

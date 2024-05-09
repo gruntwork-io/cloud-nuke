@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -9,12 +11,12 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 	"github.com/hashicorp/go-multierror"
-	"sync"
 )
 
 func (ig *IAMGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var allIamGroups []*string
-	err := ig.Client.ListGroupsPages(
+	err := ig.Client.ListGroupsPagesWithContext(
+		ig.Context,
 		&iam.ListGroupsInput{},
 		func(page *iam.ListGroupsOutput, lastPage bool) bool {
 			for _, iamGroup := range page.Groups {
@@ -84,13 +86,13 @@ func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupNa
 	getGroupInput := &iam.GetGroupInput{
 		GroupName: groupName,
 	}
-	grp, err := ig.Client.GetGroup(getGroupInput)
+	grp, err := ig.Client.GetGroupWithContext(ig.Context, getGroupInput)
 	for _, user := range grp.Users {
 		unlinkUserInput := &iam.RemoveUserFromGroupInput{
 			UserName:  user.UserName,
 			GroupName: groupName,
 		}
-		_, err := ig.Client.RemoveUserFromGroup(unlinkUserInput)
+		_, err := ig.Client.RemoveUserFromGroupWithContext(ig.Context, unlinkUserInput)
 		if err != nil {
 			multierr = multierror.Append(multierr, err)
 		}
@@ -98,7 +100,7 @@ func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupNa
 
 	//Detach any policies on the group
 	allPolicies := []*string{}
-	err = ig.Client.ListAttachedGroupPoliciesPages(&iam.ListAttachedGroupPoliciesInput{GroupName: groupName},
+	err = ig.Client.ListAttachedGroupPoliciesPagesWithContext(ig.Context, &iam.ListAttachedGroupPoliciesInput{GroupName: groupName},
 		func(page *iam.ListAttachedGroupPoliciesOutput, lastPage bool) bool {
 			for _, iamPolicy := range page.AttachedPolicies {
 				allPolicies = append(allPolicies, iamPolicy.PolicyArn)
@@ -112,12 +114,12 @@ func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupNa
 			GroupName: groupName,
 			PolicyArn: policy,
 		}
-		_, err = ig.Client.DetachGroupPolicy(unlinkPolicyInput)
+		_, err = ig.Client.DetachGroupPolicyWithContext(ig.Context, unlinkPolicyInput)
 	}
 
 	// Detach any inline policies on the group
 	allInlinePolicyNames := []*string{}
-	err = ig.Client.ListGroupPoliciesPages(&iam.ListGroupPoliciesInput{GroupName: groupName},
+	err = ig.Client.ListGroupPoliciesPagesWithContext(ig.Context, &iam.ListGroupPoliciesInput{GroupName: groupName},
 		func(page *iam.ListGroupPoliciesOutput, lastPage bool) bool {
 			for _, policyName := range page.PolicyNames {
 				allInlinePolicyNames = append(allInlinePolicyNames, policyName)
@@ -127,14 +129,14 @@ func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupNa
 	)
 
 	for _, policyName := range allInlinePolicyNames {
-		_, err = ig.Client.DeleteGroupPolicy(&iam.DeleteGroupPolicyInput{
+		_, err = ig.Client.DeleteGroupPolicyWithContext(ig.Context, &iam.DeleteGroupPolicyInput{
 			GroupName:  groupName,
 			PolicyName: policyName,
 		})
 	}
 
 	//Delete the group
-	_, err = ig.Client.DeleteGroup(&iam.DeleteGroupInput{
+	_, err = ig.Client.DeleteGroupWithContext(ig.Context, &iam.DeleteGroupInput{
 		GroupName: groupName,
 	})
 	if err != nil {

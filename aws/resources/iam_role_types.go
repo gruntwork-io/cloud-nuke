@@ -37,6 +37,10 @@ func (ir *IAMRoles) MaxBatchSize() int {
 	return 20
 }
 
+func (ir *IAMRoles) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.IAMRoles
+}
+
 func (ir *IAMRoles) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ir.getAll(c, configObj)
 	if err != nil {

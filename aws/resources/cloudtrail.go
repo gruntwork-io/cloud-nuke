@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -26,7 +27,7 @@ func (ct *CloudtrailTrail) getAll(c context.Context, configObj config.Config) ([
 		return !lastPage
 	}
 
-	err := ct.Client.ListTrailsPages(param, paginator)
+	err := ct.Client.ListTrailsPagesWithContext(ct.Context, param, paginator)
 	if err != nil {
 		return trailIds, errors.WithStackTrace(err)
 	}
@@ -48,7 +49,7 @@ func (ct *CloudtrailTrail) nukeAll(arns []*string) error {
 			Name: arn,
 		}
 
-		_, err := ct.Client.DeleteTrail(params)
+		_, err := ct.Client.DeleteTrailWithContext(ct.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

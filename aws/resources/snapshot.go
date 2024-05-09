@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -25,7 +26,7 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 		Filters:  []*ec2.Filter{&status_filter},
 	}
 
-	output, err := s.Client.DescribeSnapshots(params)
+	output, err := s.Client.DescribeSnapshotsWithContext(s.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -75,7 +76,7 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 			SnapshotId: snapshotID,
 		}
 
-		_, err := s.Client.DeleteSnapshot(params)
+		_, err := s.Client.DeleteSnapshotWithContext(s.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

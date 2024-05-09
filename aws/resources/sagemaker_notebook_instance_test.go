@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
 	"github.com/aws/aws-sdk-go/service/sagemaker/sagemakeriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 // There's a built-in function WaitUntilDBInstanceAvailable but
@@ -24,19 +26,19 @@ type mockedSageMakerNotebookInstance struct {
 	DeleteNotebookInstanceOutput sagemaker.DeleteNotebookInstanceOutput
 }
 
-func (m mockedSageMakerNotebookInstance) ListNotebookInstances(input *sagemaker.ListNotebookInstancesInput) (*sagemaker.ListNotebookInstancesOutput, error) {
+func (m mockedSageMakerNotebookInstance) ListNotebookInstancesWithContext(_ awsgo.Context, _ *sagemaker.ListNotebookInstancesInput, _ ...request.Option) (*sagemaker.ListNotebookInstancesOutput, error) {
 	return &m.ListNotebookInstancesOutput, nil
 }
 
-func (m mockedSageMakerNotebookInstance) StopNotebookInstance(input *sagemaker.StopNotebookInstanceInput) (*sagemaker.StopNotebookInstanceOutput, error) {
+func (m mockedSageMakerNotebookInstance) StopNotebookInstanceWithContext(_ awsgo.Context, _ *sagemaker.StopNotebookInstanceInput, _ ...request.Option) (*sagemaker.StopNotebookInstanceOutput, error) {
 	return &m.StopNotebookInstanceOutput, nil
 }
 
-func (m mockedSageMakerNotebookInstance) WaitUntilNotebookInstanceStopped(*sagemaker.DescribeNotebookInstanceInput) error {
+func (m mockedSageMakerNotebookInstance) WaitUntilNotebookInstanceStoppedWithContext(_ awsgo.Context, _ *sagemaker.DescribeNotebookInstanceInput, _ ...request.WaiterOption) error {
 	return nil
 }
 
-func (m mockedSageMakerNotebookInstance) WaitUntilNotebookInstanceDeleted(*sagemaker.DescribeNotebookInstanceInput) error {
+func (m mockedSageMakerNotebookInstance) WaitUntilNotebookInstanceDeletedWithContext(_ awsgo.Context, _ *sagemaker.DescribeNotebookInstanceInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

@@ -2,6 +2,9 @@ package resources
 
 import (
 	"context"
+	"strings"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -9,14 +12,13 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"strings"
-	"sync"
 )
 
 // List all IAM Roles in the AWS account
 func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allIAMRoles := []*string{}
-	err := ir.Client.ListRolesPages(
+	err := ir.Client.ListRolesPagesWithContext(
+		ir.Context,
 		&iam.ListRolesInput{},
 		func(page *iam.ListRolesOutput, lastPage bool) bool {
 			for _, iamRole := range page.Roles {
@@ -35,7 +37,7 @@ func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*strin
 }
 
 func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
-	policiesOutput, err := ir.Client.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
+	policiesOutput, err := ir.Client.ListAttachedRolePoliciesWithContext(ir.Context, &iam.ListAttachedRolePoliciesInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -44,7 +46,7 @@ func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
 
 	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
 		arn := attachedPolicy.PolicyArn
-		_, err = ir.Client.DetachRolePolicy(&iam.DetachRolePolicyInput{
+		_, err = ir.Client.DetachRolePolicyWithContext(ir.Context, &iam.DetachRolePolicyInput{
 			PolicyArn: arn,
 			RoleName:  roleName,
 		})
@@ -59,7 +61,7 @@ func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
 }
 
 func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
-	policyOutput, err := ir.Client.ListRolePolicies(&iam.ListRolePoliciesInput{
+	policyOutput, err := ir.Client.ListRolePoliciesWithContext(ir.Context, &iam.ListRolePoliciesInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -68,7 +70,7 @@ func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
 	}
 
 	for _, policyName := range policyOutput.PolicyNames {
-		_, err := ir.Client.DeleteRolePolicy(&iam.DeleteRolePolicyInput{
+		_, err := ir.Client.DeleteRolePolicyWithContext(ir.Context, &iam.DeleteRolePolicyInput{
 			PolicyName: policyName,
 			RoleName:   roleName,
 		})
@@ -83,7 +85,7 @@ func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
 }
 
 func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
-	profilesOutput, err := ir.Client.ListInstanceProfilesForRole(&iam.ListInstanceProfilesForRoleInput{
+	profilesOutput, err := ir.Client.ListInstanceProfilesForRoleWithContext(ir.Context, &iam.ListInstanceProfilesForRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -93,7 +95,7 @@ func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 	for _, profile := range profilesOutput.InstanceProfiles {
 
 		// Role needs to be removed from instance profile before it can be deleted
-		_, err := ir.Client.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
+		_, err := ir.Client.RemoveRoleFromInstanceProfileWithContext(ir.Context, &iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: profile.InstanceProfileName,
 			RoleName:            roleName,
 		})
@@ -101,7 +103,7 @@ func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		} else {
-			_, err := ir.Client.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
+			_, err := ir.Client.DeleteInstanceProfileWithContext(ir.Context, &iam.DeleteInstanceProfileInput{
 				InstanceProfileName: profile.InstanceProfileName,
 			})
 			if err != nil {
@@ -115,7 +117,7 @@ func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 }
 
 func (ir *IAMRoles) deleteIamRole(roleName *string) error {
-	_, err := ir.Client.DeleteRole(&iam.DeleteRoleInput{
+	_, err := ir.Client.DeleteRoleWithContext(ir.Context, &iam.DeleteRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {

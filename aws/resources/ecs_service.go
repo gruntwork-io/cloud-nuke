@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -17,7 +18,7 @@ import (
 // We need to get all clusters before we can get all services.
 func (services *ECSServices) getAllEcsClusters() ([]*string, error) {
 	clusterArns := []*string{}
-	result, err := services.Client.ListClusters(&ecs.ListClustersInput{})
+	result, err := services.Client.ListClustersWithContext(services.Context, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -25,7 +26,7 @@ func (services *ECSServices) getAllEcsClusters() ([]*string, error) {
 
 	// Handle pagination: continuously pull the next page if nextToken is set
 	for awsgo.StringValue(result.NextToken) != "" {
-		result, err = services.Client.ListClusters(&ecs.ListClustersInput{NextToken: result.NextToken})
+		result, err = services.Client.ListClustersWithContext(services.Context, &ecs.ListClustersInput{NextToken: result.NextToken})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -48,7 +49,7 @@ func (services *ECSServices) filterOutRecentServices(clusterArn *string, ecsServ
 			Cluster:  clusterArn,
 			Services: awsgo.StringSlice(batch),
 		}
-		describeResult, err := services.Client.DescribeServices(params)
+		describeResult, err := services.Client.DescribeServicesWithContext(services.Context, params)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -81,7 +82,7 @@ func (services *ECSServices) getAll(c context.Context, configObj config.Config) 
 	// ones.
 	var ecsServiceArns []*string
 	for _, clusterArn := range ecsClusterArns {
-		result, err := services.Client.ListServices(&ecs.ListServicesInput{Cluster: clusterArn})
+		result, err := services.Client.ListServicesWithContext(services.Context, &ecs.ListServicesInput{Cluster: clusterArn})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -111,7 +112,7 @@ func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*strin
 			Cluster:  awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
 			Services: []*string{ecsServiceArn},
 		}
-		describeServicesOutput, err := services.Client.DescribeServices(describeParams)
+		describeServicesOutput, err := services.Client.DescribeServicesWithContext(services.Context, describeParams)
 		if err != nil {
 			logging.Errorf("[Failed] Failed to describe service %s: %s", *ecsServiceArn, err)
 		} else {
@@ -125,7 +126,7 @@ func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*strin
 					Service:      ecsServiceArn,
 					DesiredCount: awsgo.Int64(0),
 				}
-				_, err = services.Client.UpdateService(params)
+				_, err = services.Client.UpdateServiceWithContext(services.Context, params)
 				if err != nil {
 					logging.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
 				} else {
@@ -148,7 +149,7 @@ func (services *ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) 
 			Cluster:  awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
 			Services: []*string{ecsServiceArn},
 		}
-		err := services.Client.WaitUntilServicesStable(params)
+		err := services.Client.WaitUntilServicesStableWithContext(services.Context, params)
 		if err != nil {
 			logging.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
 		} else {
@@ -168,7 +169,7 @@ func (services *ECSServices) deleteEcsServices(ecsServiceArns []*string) []*stri
 			Cluster: awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
 			Service: ecsServiceArn,
 		}
-		_, err := services.Client.DeleteService(params)
+		_, err := services.Client.DeleteServiceWithContext(services.Context, params)
 		if err != nil {
 			logging.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
 		} else {
@@ -188,7 +189,7 @@ func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) 
 			Cluster:  awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
 			Services: []*string{ecsServiceArn},
 		}
-		err := services.Client.WaitUntilServicesInactive(params)
+		err := services.Client.WaitUntilServicesInactiveWithContext(services.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

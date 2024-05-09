@@ -2,9 +2,10 @@ package resources
 
 import (
 	"context"
+	"strings"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -20,7 +21,7 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 		Owners: []*string{awsgo.String("self")},
 	}
 
-	output, err := ami.Client.DescribeImages(params)
+	output, err := ami.Client.DescribeImagesWithContext(ami.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -72,7 +73,7 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 			ImageId: imageID,
 		}
 
-		_, err := ami.Client.DeregisterImage(params)
+		_, err := ami.Client.DeregisterImageWithContext(ami.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

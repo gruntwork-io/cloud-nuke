@@ -36,6 +36,10 @@ func (smni *SageMakerNotebookInstances) MaxBatchSize() int {
 	return 49
 }
 
+func (smni *SageMakerNotebookInstances) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SageMakerNotebook
+}
+
 func (smni *SageMakerNotebookInstances) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := smni.getAll(c, configObj)
 	if err != nil {

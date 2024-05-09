@@ -2,12 +2,14 @@ package resources
 
 import (
 	"context"
+	"testing"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type mockedEC2DhcpOption struct {
@@ -16,12 +18,12 @@ type mockedEC2DhcpOption struct {
 	DeleteDhcpOptionsOutput   ec2.DeleteDhcpOptionsOutput
 }
 
-func (m mockedEC2DhcpOption) DescribeDhcpOptionsPages(input *ec2.DescribeDhcpOptionsInput, fn func(*ec2.DescribeDhcpOptionsOutput, bool) bool) error {
+func (m mockedEC2DhcpOption) DescribeDhcpOptionsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeDhcpOptionsInput, fn func(*ec2.DescribeDhcpOptionsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeDhcpOptionsOutput, true)
 	return nil
 }
 
-func (m mockedEC2DhcpOption) DeleteDhcpOptions(input *ec2.DeleteDhcpOptionsInput) (*ec2.DeleteDhcpOptionsOutput, error) {
+func (m mockedEC2DhcpOption) DeleteDhcpOptions(_ *ec2.DeleteDhcpOptionsInput) (*ec2.DeleteDhcpOptionsOutput, error) {
 	return &m.DeleteDhcpOptionsOutput, nil
 }
 

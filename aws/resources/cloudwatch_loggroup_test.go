@@ -2,14 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedCloudWatchLogGroup struct {
@@ -18,12 +21,12 @@ type mockedCloudWatchLogGroup struct {
 	DescribeLogGroupsOutput cloudwatchlogs.DescribeLogGroupsOutput
 }
 
-func (m mockedCloudWatchLogGroup) DescribeLogGroupsPages(input *cloudwatchlogs.DescribeLogGroupsInput, fn func(*cloudwatchlogs.DescribeLogGroupsOutput, bool) bool) error {
+func (m mockedCloudWatchLogGroup) DescribeLogGroupsPagesWithContext(_ awsgo.Context, _ *cloudwatchlogs.DescribeLogGroupsInput, fn func(*cloudwatchlogs.DescribeLogGroupsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeLogGroupsOutput, true)
 	return nil
 }
 
-func (m mockedCloudWatchLogGroup) DeleteLogGroup(input *cloudwatchlogs.DeleteLogGroupInput) (*cloudwatchlogs.DeleteLogGroupOutput, error) {
+func (m mockedCloudWatchLogGroup) DeleteLogGroupWithContext(_ awsgo.Context, _ *cloudwatchlogs.DeleteLogGroupInput, _ ...request.Option) (*cloudwatchlogs.DeleteLogGroupOutput, error) {
 	return &m.DeleteLogGroupOutput, nil
 }
 

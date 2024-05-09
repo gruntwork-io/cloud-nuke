@@ -37,7 +37,7 @@ func (nftc *NetworkFirewallTLSConfig) getAll(c context.Context, configObj config
 		err           error
 	)
 
-	meta, err := nftc.Client.ListTLSInspectionConfigurations(nil)
+	meta, err := nftc.Client.ListTLSInspectionConfigurationsWithContext(nftc.Context, nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -80,7 +80,7 @@ func (nftc *NetworkFirewallTLSConfig) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
-		_, err := nftc.Client.DeleteTLSInspectionConfiguration(&networkfirewall.DeleteTLSInspectionConfigurationInput{
+		_, err := nftc.Client.DeleteTLSInspectionConfigurationWithContext(nftc.Context, &networkfirewall.DeleteTLSInspectionConfigurationInput{
 			TLSInspectionConfigurationName: id,
 		})
 

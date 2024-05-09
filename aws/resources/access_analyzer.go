@@ -2,17 +2,19 @@ package resources
 
 import (
 	"context"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"sync"
 )
 
 func (analyzer *AccessAnalyzer) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allAnalyzers := []*string{}
-	err := analyzer.Client.ListAnalyzersPages(
+	err := analyzer.Client.ListAnalyzersPagesWithContext(
+		analyzer.Context,
 		&accessanalyzer.ListAnalyzersInput{},
 		func(page *accessanalyzer.ListAnalyzersOutput, lastPage bool) bool {
 			for _, analyzer := range page.Analyzers {
@@ -74,7 +76,9 @@ func (analyzer *AccessAnalyzer) deleteAccessAnalyzerAsync(wg *sync.WaitGroup, er
 	defer wg.Done()
 
 	input := &accessanalyzer.DeleteAnalyzerInput{AnalyzerName: analyzerName}
-	_, err := analyzer.Client.DeleteAnalyzer(input)
+	_, err := analyzer.Client.DeleteAnalyzerWithContext(
+		analyzer.Context, input,
+	)
 	errChan <- err
 }
 

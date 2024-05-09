@@ -18,7 +18,7 @@ func (byoasn *EC2IPAMByoasn) getAll(c context.Context, configObj config.Config) 
 		MaxResults: &MaxResultCount,
 	}
 
-	output, err := byoasn.Client.DescribeIpamByoasn(params)
+	output, err := byoasn.Client.DescribeIpamByoasnWithContext(byoasn.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -44,7 +44,7 @@ func (byoasn *EC2IPAMByoasn) nukeAll(asns []*string) error {
 			Asn: id,
 		}
 
-		_, err := byoasn.Client.DisassociateIpamByoasn(params)
+		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

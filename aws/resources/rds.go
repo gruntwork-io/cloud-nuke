@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -13,7 +14,7 @@ import (
 )
 
 func (di *DBInstances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := di.Client.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
+	result, err := di.Client.DescribeDBInstancesWithContext(di.Context, &rds.DescribeDBInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -48,7 +49,7 @@ func (di *DBInstances) nukeAll(names []*string) error {
 			SkipFinalSnapshot:    awsgo.Bool(true),
 		}
 
-		_, err := di.Client.DeleteDBInstance(params)
+		_, err := di.Client.DeleteDBInstanceWithContext(di.Context, params)
 
 		if err != nil {
 			logging.Errorf("[Failed] %s: %s", *name, err)
@@ -61,7 +62,7 @@ func (di *DBInstances) nukeAll(names []*string) error {
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			err := di.Client.WaitUntilDBInstanceDeleted(&rds.DescribeDBInstancesInput{
+			err := di.Client.WaitUntilDBInstanceDeletedWithContext(di.Context, &rds.DescribeDBInstancesInput{
 				DBInstanceIdentifier: name,
 			})
 

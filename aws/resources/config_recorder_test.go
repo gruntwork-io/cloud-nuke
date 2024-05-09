@@ -2,13 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
 )
 
 type mockedConfigServiceRecorders struct {
@@ -17,11 +20,11 @@ type mockedConfigServiceRecorders struct {
 	DeleteConfigurationRecorderOutput    configservice.DeleteConfigurationRecorderOutput
 }
 
-func (m mockedConfigServiceRecorders) DescribeConfigurationRecorders(input *configservice.DescribeConfigurationRecordersInput) (*configservice.DescribeConfigurationRecordersOutput, error) {
+func (m mockedConfigServiceRecorders) DescribeConfigurationRecordersWithContext(_ awsgo.Context, _ *configservice.DescribeConfigurationRecordersInput, _ ...request.Option) (*configservice.DescribeConfigurationRecordersOutput, error) {
 	return &m.DescribeConfigurationRecordersOutput, nil
 }
 
-func (m mockedConfigServiceRecorders) DeleteConfigurationRecorder(input *configservice.DeleteConfigurationRecorderInput) (*configservice.DeleteConfigurationRecorderOutput, error) {
+func (m mockedConfigServiceRecorders) DeleteConfigurationRecorderWithContext(_ awsgo.Context, _ *configservice.DeleteConfigurationRecorderInput, _ ...request.Option) (*configservice.DeleteConfigurationRecorderOutput, error) {
 	return &m.DeleteConfigurationRecorderOutput, nil
 }
 

@@ -62,7 +62,7 @@ func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config
 		},
 	}
 
-	err = ec2Scope.Client.DescribeIpamScopesPages(params, paginator)
+	err = ec2Scope.Client.DescribeIpamScopesPagesWithContext(ec2Scope.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -85,7 +85,7 @@ func (scope *EC2IpamScopes) nukeAll(ids []*string) error {
 			IpamScopeId: id,
 		}
 
-		_, err := scope.Client.DeleteIpamScope(params)
+		_, err := scope.Client.DeleteIpamScopeWithContext(scope.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

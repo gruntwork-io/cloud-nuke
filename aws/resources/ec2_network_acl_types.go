@@ -35,6 +35,10 @@ func (nacl *NetworkACL) MaxBatchSize() int {
 	return 50
 }
 
+func (nacl *NetworkACL) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.NetworkACL
+}
+
 func (nacl *NetworkACL) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := nacl.getAll(c, configObj)
 	if err != nil {

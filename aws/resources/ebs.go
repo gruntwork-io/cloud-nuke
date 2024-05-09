@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -19,7 +20,7 @@ func (ev *EBSVolumes) getAll(c context.Context, configObj config.Config) ([]*str
 	// We want to only list EBS volumes with a status of "available" or "creating"
 	// Since those are the only statuses that are eligible for deletion
 	statusFilter := ec2.Filter{Name: aws.String("status"), Values: aws.StringSlice([]string{"available", "creating", "error"})}
-	result, err := ev.Client.DescribeVolumes(&ec2.DescribeVolumesInput{
+	result, err := ev.Client.DescribeVolumesWithContext(ev.Context, &ec2.DescribeVolumesInput{
 		Filters: []*ec2.Filter{&statusFilter},
 	})
 
@@ -67,7 +68,7 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 			VolumeId: volumeID,
 		}
 
-		_, err := ev.Client.DeleteVolume(params)
+		_, err := ev.Client.DeleteVolumeWithContext(ev.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -92,7 +93,7 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 	}
 
 	if len(deletedVolumeIDs) > 0 {
-		err := ev.Client.WaitUntilVolumeDeleted(&ec2.DescribeVolumesInput{
+		err := ev.Client.WaitUntilVolumeDeletedWithContext(ev.Context, &ec2.DescribeVolumesInput{
 			VolumeIds: deletedVolumeIDs,
 		})
 		if err != nil {

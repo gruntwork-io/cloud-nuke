@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -12,7 +13,7 @@ import (
 
 // Returns a formatted string of ELBv2 Arns
 func (balancer *LoadBalancersV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := balancer.Client.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
+	result, err := balancer.Client.DescribeLoadBalancersWithContext(balancer.Context, &elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -45,7 +46,7 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 			LoadBalancerArn: arn,
 		}
 
-		_, err := balancer.Client.DeleteLoadBalancer(params)
+		_, err := balancer.Client.DeleteLoadBalancerWithContext(balancer.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -64,7 +65,7 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 	}
 
 	if len(deletedArns) > 0 {
-		err := balancer.Client.WaitUntilLoadBalancersDeleted(&elbv2.DescribeLoadBalancersInput{
+		err := balancer.Client.WaitUntilLoadBalancersDeletedWithContext(balancer.Context, &elbv2.DescribeLoadBalancersInput{
 			LoadBalancerArns: deletedArns,
 		})
 		if err != nil {

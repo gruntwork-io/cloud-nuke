@@ -38,6 +38,10 @@ func (sq *SqsQueue) ResourceIdentifiers() []string {
 	return sq.QueueUrls
 }
 
+func (sq *SqsQueue) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SQS
+}
+
 func (sq *SqsQueue) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := sq.getAll(c, configObj)
 	if err != nil {

@@ -34,7 +34,7 @@ func (egigw *EgressOnlyInternetGateway) getAll(c context.Context, configObj conf
 	var firstSeenTime *time.Time
 	var err error
 
-	output, err := egigw.Client.DescribeEgressOnlyInternetGateways(&ec2.DescribeEgressOnlyInternetGatewaysInput{})
+	output, err := egigw.Client.DescribeEgressOnlyInternetGatewaysWithContext(egigw.Context, &ec2.DescribeEgressOnlyInternetGatewaysInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}

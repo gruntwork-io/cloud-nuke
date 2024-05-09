@@ -2,12 +2,15 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
+	"github.com/stretchr/testify/require"
 
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,13 +23,12 @@ type mockedCodeDeployApplications struct {
 	DeleteApplicationOutput    codedeploy.DeleteApplicationOutput
 }
 
-func (m mockedCodeDeployApplications) ListApplicationsPages(input *codedeploy.ListApplicationsInput, fn func(*codedeploy.ListApplicationsOutput, bool) bool) error {
+func (m mockedCodeDeployApplications) ListApplicationsPagesWithContext(_ awsgo.Context, _ *codedeploy.ListApplicationsInput, fn func(*codedeploy.ListApplicationsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListApplicationsOutput, true)
 	return nil
 }
 
-func (m mockedCodeDeployApplications) BatchGetApplications(
-	input *codedeploy.BatchGetApplicationsInput) (*codedeploy.BatchGetApplicationsOutput, error) {
+func (m mockedCodeDeployApplications) BatchGetApplicationsWithContext(_ awsgo.Context, input *codedeploy.BatchGetApplicationsInput, _ ...request.Option) (*codedeploy.BatchGetApplicationsOutput, error) {
 	// Filter out applications that don't match the input names
 	names := make(map[string]bool)
 	for _, name := range input.ApplicationNames {
@@ -45,7 +47,7 @@ func (m mockedCodeDeployApplications) BatchGetApplications(
 	}, nil
 }
 
-func (m mockedCodeDeployApplications) DeleteApplication(input *codedeploy.DeleteApplicationInput) (*codedeploy.DeleteApplicationOutput, error) {
+func (m mockedCodeDeployApplications) DeleteApplicationWithContext(_ awsgo.Context, _ *codedeploy.DeleteApplicationInput, _ ...request.Option) (*codedeploy.DeleteApplicationOutput, error) {
 	return &m.DeleteApplicationOutput, nil
 }
 

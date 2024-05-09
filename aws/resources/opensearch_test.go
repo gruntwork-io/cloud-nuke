@@ -2,15 +2,18 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/opensearchservice"
 	"github.com/aws/aws-sdk-go/service/opensearchservice/opensearchserviceiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedOpenSearch struct {
@@ -21,15 +24,15 @@ type mockedOpenSearch struct {
 	DeleteDomainOutput    opensearchservice.DeleteDomainOutput
 }
 
-func (m mockedOpenSearch) DeleteDomain(*opensearchservice.DeleteDomainInput) (*opensearchservice.DeleteDomainOutput, error) {
+func (m mockedOpenSearch) DeleteDomainWithContext(_ awsgo.Context, _ *opensearchservice.DeleteDomainInput, _ ...request.Option) (*opensearchservice.DeleteDomainOutput, error) {
 	return &m.DeleteDomainOutput, nil
 }
 
-func (m mockedOpenSearch) ListDomainNames(*opensearchservice.ListDomainNamesInput) (*opensearchservice.ListDomainNamesOutput, error) {
+func (m mockedOpenSearch) ListDomainNamesWithContext(_ awsgo.Context, _ *opensearchservice.ListDomainNamesInput, _ ...request.Option) (*opensearchservice.ListDomainNamesOutput, error) {
 	return &m.ListDomainNamesOutput, nil
 }
 
-func (m mockedOpenSearch) DescribeDomains(*opensearchservice.DescribeDomainsInput) (*opensearchservice.DescribeDomainsOutput, error) {
+func (m mockedOpenSearch) DescribeDomainsWithContext(_ awsgo.Context, _ *opensearchservice.DescribeDomainsInput, _ ...request.Option) (*opensearchservice.DescribeDomainsOutput, error) {
 	return &m.DescribeDomainsOutput, nil
 }
 

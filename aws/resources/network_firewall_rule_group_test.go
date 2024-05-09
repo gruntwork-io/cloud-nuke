@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 
@@ -29,7 +30,7 @@ func (m mockedNetworkFirewallRuleGroup) TagResource(*networkfirewall.TagResource
 	return &m.TagResourceOutput, nil
 }
 
-func (m mockedNetworkFirewallRuleGroup) DescribeRuleGroup(req *networkfirewall.DescribeRuleGroupInput) (*networkfirewall.DescribeRuleGroupOutput, error) {
+func (m mockedNetworkFirewallRuleGroup) DescribeRuleGroupWithContext(_ awsgo.Context, req *networkfirewall.DescribeRuleGroupInput, _ ...request.Option) (*networkfirewall.DescribeRuleGroupOutput, error) {
 	raw := awsgo.StringValue(req.RuleGroupArn)
 	v, ok := m.DescribeRuleGroupOutput[raw]
 	if !ok {
@@ -38,11 +39,11 @@ func (m mockedNetworkFirewallRuleGroup) DescribeRuleGroup(req *networkfirewall.D
 	return &v, nil
 }
 
-func (m mockedNetworkFirewallRuleGroup) DeleteRuleGroup(*networkfirewall.DeleteRuleGroupInput) (*networkfirewall.DeleteRuleGroupOutput, error) {
+func (m mockedNetworkFirewallRuleGroup) DeleteRuleGroupWithContext(_ awsgo.Context, _ *networkfirewall.DeleteRuleGroupInput, _ ...request.Option) (*networkfirewall.DeleteRuleGroupOutput, error) {
 	return &m.DeleteRuleGroupOutput, nil
 }
 
-func (m mockedNetworkFirewallRuleGroup) ListRuleGroups(*networkfirewall.ListRuleGroupsInput) (*networkfirewall.ListRuleGroupsOutput, error) {
+func (m mockedNetworkFirewallRuleGroup) ListRuleGroupsWithContext(_ awsgo.Context, _ *networkfirewall.ListRuleGroupsInput, _ ...request.Option) (*networkfirewall.ListRuleGroupsOutput, error) {
 	return &m.ListRuleGroupsOutput, nil
 }
 

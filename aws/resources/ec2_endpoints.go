@@ -33,9 +33,11 @@ func ShouldIncludeVpcEndpoint(endpoint *ec2.VpcEndpoint, firstSeenTime *time.Tim
 
 func (e *EC2Endpoints) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var result []*string
+
 	var firstSeenTime *time.Time
 	var err error
-	endpoints, err := e.Client.DescribeVpcEndpoints(&ec2.DescribeVpcEndpointsInput{})
+	endpoints, err := e.Client.DescribeVpcEndpointsWithContext(e.Context, &ec2.DescribeVpcEndpointsInput{})
+
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}

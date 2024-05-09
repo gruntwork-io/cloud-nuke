@@ -30,10 +30,11 @@ func shouldIncludeNetworkInterface(networkInterface *ec2.NetworkInterface, first
 
 func (ni *NetworkInterface) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
+
 	var firstSeenTime *time.Time
 	var err error
 
-	resp, err := ni.Client.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{})
+	resp, err := ni.Client.DescribeNetworkInterfacesWithContext(ni.Context, &ec2.DescribeNetworkInterfacesInput{})
 	if err != nil {
 		logging.Debugf("[Internet Gateway] Failed to list internet gateways: %s", err)
 		return nil, err
@@ -53,7 +54,7 @@ func (ni *NetworkInterface) getAll(c context.Context, configObj config.Config) (
 
 	// Check and verify the list of allowed nuke actions
 	ni.VerifyNukablePermissions(identifiers, func(id *string) error {
-		_, err := ni.Client.DeleteNetworkInterface(&ec2.DeleteNetworkInterfaceInput{
+		_, err := ni.Client.DeleteNetworkInterfaceWithContext(ni.Context, &ec2.DeleteNetworkInterfaceInput{
 			NetworkInterfaceId: id,
 			DryRun:             awsgo.Bool(true),
 		})
@@ -79,7 +80,7 @@ func (ni *NetworkInterface) nuke(id *string) error {
 func (ni *NetworkInterface) detachNetworkInterface(id *string) error {
 	logging.Debugf("Detaching network interface %s from instances ", awsgo.StringValue(id))
 
-	output, err := ni.Client.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{
+	output, err := ni.Client.DescribeNetworkInterfacesWithContext(ni.Context, &ec2.DescribeNetworkInterfacesInput{
 		NetworkInterfaceIds: []*string{id},
 	})
 	if err != nil {
@@ -110,7 +111,7 @@ func (ni *NetworkInterface) detachNetworkInterface(id *string) error {
 func (ni *NetworkInterface) releaseEIPs(instance *string) error {
 	logging.Debugf("Releasing Elastic IP address(s) associated on instance %s", awsgo.StringValue(instance))
 	// get the elastic ip's associated with the EC2's
-	output, err := ni.Client.DescribeAddresses(&ec2.DescribeAddressesInput{
+	output, err := ni.Client.DescribeAddressesWithContext(ni.Context, &ec2.DescribeAddressesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: awsgo.String("instance-id"),
@@ -125,7 +126,7 @@ func (ni *NetworkInterface) releaseEIPs(instance *string) error {
 	}
 
 	for _, address := range output.Addresses {
-		if _, err := ni.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+		if _, err := ni.Client.ReleaseAddressWithContext(ni.Context, &ec2.ReleaseAddressInput{
 			AllocationId: address.AllocationId,
 		}); err != nil {
 			logging.Debugf("An error happened while releasing the elastic ip address %s, error %v", awsgo.StringValue(address.AllocationId), err)
@@ -149,7 +150,7 @@ func (ni *NetworkInterface) nukeInstance(id *string) error {
 	}
 
 	// terminating the instance
-	if _, err := ni.Client.TerminateInstances(&ec2.TerminateInstancesInput{
+	if _, err := ni.Client.TerminateInstancesWithContext(ni.Context, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{id},
 	}); err != nil {
 		logging.Debugf("[Failed] Ec2 termination %s", err)
@@ -159,7 +160,7 @@ func (ni *NetworkInterface) nukeInstance(id *string) error {
 	logging.Debugf("[Instance Termination] waiting to terminate instance %s", awsgo.StringValue(id))
 
 	// wait until the instance terminated.
-	if err := ni.Client.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
+	if err := ni.Client.WaitUntilInstanceTerminatedWithContext(ni.Context, &ec2.DescribeInstancesInput{
 		InstanceIds: []*string{id},
 	}); err != nil {
 		logging.Debugf("[Instance Termination Waiting] Failed to terminate instance %s : %s", *id, err)

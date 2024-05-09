@@ -2,13 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
 )
 
 type mockedCloudTrail struct {
@@ -17,12 +20,12 @@ type mockedCloudTrail struct {
 	DeleteTrailOutput cloudtrail.DeleteTrailOutput
 }
 
-func (m mockedCloudTrail) ListTrailsPages(input *cloudtrail.ListTrailsInput, fn func(*cloudtrail.ListTrailsOutput, bool) bool) error {
+func (m mockedCloudTrail) ListTrailsPagesWithContext(_ awsgo.Context, _ *cloudtrail.ListTrailsInput, fn func(*cloudtrail.ListTrailsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListTrailsOutput, true)
 	return nil
 }
 
-func (m mockedCloudTrail) DeleteTrail(input *cloudtrail.DeleteTrailInput) (*cloudtrail.DeleteTrailOutput, error) {
+func (m mockedCloudTrail) DeleteTrailWithContext(_ aws.Context, _ *cloudtrail.DeleteTrailInput, _ ...request.Option) (*cloudtrail.DeleteTrailOutput, error) {
 	return &m.DeleteTrailOutput, nil
 }
 

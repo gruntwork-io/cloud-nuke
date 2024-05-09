@@ -42,6 +42,10 @@ func (kck *KmsCustomerKeys) MaxBatchSize() int {
 	return 49
 }
 
+// func (kck *KmsCustomerKeys) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+// 	return configObj.KMSCustomerKeys
+// }
+
 func (kck *KmsCustomerKeys) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := kck.getAll(c, configObj)
 	if err != nil {

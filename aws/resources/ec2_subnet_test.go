@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,11 +22,11 @@ type mockedEC2Subnets struct {
 	DeleteSubnetOutput    ec2.DeleteSubnetOutput
 }
 
-func (m mockedEC2Subnets) DescribeSubnetsPages(_ *ec2.DescribeSubnetsInput, callback func(pages *ec2.DescribeSubnetsOutput, lastPage bool) bool) error {
+func (m mockedEC2Subnets) DescribeSubnetsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeSubnetsInput, callback func(*ec2.DescribeSubnetsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeSubnetsOutput, true)
 	return nil
 }
-func (m mockedEC2Subnets) DeleteSubnet(_ *ec2.DeleteSubnetInput) (*ec2.DeleteSubnetOutput, error) {
+func (m mockedEC2Subnets) DeleteSubnetWithContext(_ awsgo.Context, _ *ec2.DeleteSubnetInput, _ ...request.Option) (*ec2.DeleteSubnetOutput, error) {
 	return &m.DeleteSubnetOutput, nil
 }
 

@@ -38,6 +38,10 @@ func (r *Route53HostedZone) ResourceIdentifiers() []string {
 	return r.Ids
 }
 
+func (r *Route53HostedZone) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.Route53HostedZone
+}
+
 func (r *Route53HostedZone) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := r.getAll(c, configObj)
 	if err != nil {

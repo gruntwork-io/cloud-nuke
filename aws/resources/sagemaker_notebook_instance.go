@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
@@ -12,7 +13,9 @@ import (
 )
 
 func (smni *SageMakerNotebookInstances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := smni.Client.ListNotebookInstances(&sagemaker.ListNotebookInstancesInput{})
+	result, err := smni.Client.ListNotebookInstancesWithContext(
+		smni.Context,
+		&sagemaker.ListNotebookInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -41,14 +44,14 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		_, err := smni.Client.StopNotebookInstance(&sagemaker.StopNotebookInstanceInput{
+		_, err := smni.Client.StopNotebookInstanceWithContext(smni.Context, &sagemaker.StopNotebookInstanceInput{
 			NotebookInstanceName: name,
 		})
 		if err != nil {
 			logging.Errorf("[Failed] %s: %s", *name, err)
 		}
 
-		err = smni.Client.WaitUntilNotebookInstanceStopped(&sagemaker.DescribeNotebookInstanceInput{
+		err = smni.Client.WaitUntilNotebookInstanceStoppedWithContext(smni.Context, &sagemaker.DescribeNotebookInstanceInput{
 			NotebookInstanceName: name,
 		})
 		if err != nil {
@@ -70,7 +73,7 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			err := smni.Client.WaitUntilNotebookInstanceDeleted(&sagemaker.DescribeNotebookInstanceInput{
+			err := smni.Client.WaitUntilNotebookInstanceDeletedWithContext(smni.Context, &sagemaker.DescribeNotebookInstanceInput{
 				NotebookInstanceName: name,
 			})
 

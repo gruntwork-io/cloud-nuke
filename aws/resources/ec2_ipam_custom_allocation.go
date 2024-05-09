@@ -27,7 +27,7 @@ func (cs *EC2IPAMCustomAllocation) getPools() ([]*string, error) {
 		MaxResults: awsgo.Int64(10),
 	}
 
-	err := cs.Client.DescribeIpamPoolsPages(params, paginator)
+	err := cs.Client.DescribeIpamPoolsPagesWithContext(cs.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -43,7 +43,7 @@ func (cs *EC2IPAMCustomAllocation) getPoolAllocationCIDR(allocationID *string) (
 		return nil, errors.WithStackTrace(fmt.Errorf("unable to find the pool allocation with %s", *allocationID))
 	}
 
-	output, err := cs.Client.GetIpamPoolAllocations(&ec2.GetIpamPoolAllocationsInput{
+	output, err := cs.Client.GetIpamPoolAllocationsWithContext(cs.Context, &ec2.GetIpamPoolAllocationsInput{
 		IpamPoolId:           &allocationIPAMPoolID,
 		IpamPoolAllocationId: allocationID,
 	})
@@ -85,7 +85,7 @@ func (cs *EC2IPAMCustomAllocation) getAll(c context.Context, configObj config.Co
 			IpamPoolId: pool,
 		}
 
-		err := cs.Client.GetIpamPoolAllocationsPages(params, paginator)
+		err := cs.Client.GetIpamPoolAllocationsPagesWithContext(cs.Context, params, paginator)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 			continue
@@ -120,7 +120,7 @@ func (cs *EC2IPAMCustomAllocation) nukeAll(ids []*string) error {
 		}
 
 		// Release the allocation
-		_, err = cs.Client.ReleaseIpamPoolAllocation(&ec2.ReleaseIpamPoolAllocationInput{
+		_, err = cs.Client.ReleaseIpamPoolAllocationWithContext(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
 			IpamPoolId:           &allocationIPAMPoolID,
 			IpamPoolAllocationId: id,
 			Cidr:                 cidr,

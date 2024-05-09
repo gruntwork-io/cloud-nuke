@@ -37,6 +37,10 @@ func (ip *IAMPolicies) MaxBatchSize() int {
 	return 20
 }
 
+func (ip *IAMPolicies) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.IAMPolicies
+}
+
 func (ip *IAMPolicies) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ip.getAll(c, configObj)
 	if err != nil {

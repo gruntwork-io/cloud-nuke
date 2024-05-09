@@ -59,7 +59,7 @@ func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) (
 		},
 	}
 
-	err = ec2Pool.Client.DescribeIpamPoolsPages(params, paginator)
+	err = ec2Pool.Client.DescribeIpamPoolsPagesWithContext(ec2Pool.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -82,7 +82,7 @@ func (pool *EC2IPAMPool) nukeAll(ids []*string) error {
 			IpamPoolId: id,
 		}
 
-		_, err := pool.Client.DeleteIpamPool(params)
+		_, err := pool.Client.DeleteIpamPoolWithContext(pool.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

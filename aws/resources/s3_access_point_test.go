@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/s3control"
 	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,11 +21,11 @@ type mocks3AccessPoint struct {
 	DeleteAccessPointOutput s3control.DeleteAccessPointOutput
 }
 
-func (m mocks3AccessPoint) ListAccessPointsPages(_ *s3control.ListAccessPointsInput, fn func(*s3control.ListAccessPointsOutput, bool) bool) error {
+func (m mocks3AccessPoint) ListAccessPointsPagesWithContext(_ awsgo.Context, _ *s3control.ListAccessPointsInput, fn func(*s3control.ListAccessPointsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListAccessPointsOutput, true)
 	return nil
 }
-func (m mocks3AccessPoint) DeleteAccessPoint(_ *s3control.DeleteAccessPointInput) (*s3control.DeleteAccessPointOutput, error) {
+func (m mocks3AccessPoint) DeleteAccessPointWithContext(_ awsgo.Context, _ *s3control.DeleteAccessPointInput, _ ...request.Option) (*s3control.DeleteAccessPointOutput, error) {
 	return &m.DeleteAccessPointOutput, nil
 }
 

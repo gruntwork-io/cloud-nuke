@@ -38,6 +38,10 @@ func (nfrp *NetworkFirewallResourcePolicy) MaxBatchSize() int {
 	return 10
 }
 
+func (nfrp *NetworkFirewallResourcePolicy) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.NetworkFirewallResourcePolicy
+}
+
 func (nfrp *NetworkFirewallResourcePolicy) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := nfrp.getAll(c, configObj)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 
@@ -29,15 +30,15 @@ func (m mockedNetworkFirewallPolicy) TagResource(*networkfirewall.TagResourceInp
 	return &m.TagResourceOutput, nil
 }
 
-func (m mockedNetworkFirewallPolicy) DeleteFirewallPolicy(*networkfirewall.DeleteFirewallPolicyInput) (*networkfirewall.DeleteFirewallPolicyOutput, error) {
+func (m mockedNetworkFirewallPolicy) DeleteFirewallPolicyWithContext(_ awsgo.Context, _ *networkfirewall.DeleteFirewallPolicyInput, _ ...request.Option) (*networkfirewall.DeleteFirewallPolicyOutput, error) {
 	return &m.DeleteFirewallPolicyOutput, nil
 }
 
-func (m mockedNetworkFirewallPolicy) ListFirewallPolicies(*networkfirewall.ListFirewallPoliciesInput) (*networkfirewall.ListFirewallPoliciesOutput, error) {
+func (m mockedNetworkFirewallPolicy) ListFirewallPoliciesWithContext(_ awsgo.Context, _ *networkfirewall.ListFirewallPoliciesInput, _ ...request.Option) (*networkfirewall.ListFirewallPoliciesOutput, error) {
 	return &m.ListFirewallPoliciesOutput, nil
 }
 
-func (m mockedNetworkFirewallPolicy) DescribeFirewallPolicy(req *networkfirewall.DescribeFirewallPolicyInput) (*networkfirewall.DescribeFirewallPolicyOutput, error) {
+func (m mockedNetworkFirewallPolicy) DescribeFirewallPolicyWithContext(_ awsgo.Context, req *networkfirewall.DescribeFirewallPolicyInput, _ ...request.Option) (*networkfirewall.DescribeFirewallPolicyOutput, error) {
 	raw := awsgo.StringValue(req.FirewallPolicyArn)
 	v, ok := m.DescribeFirewallPolicyOutput[raw]
 	if !ok {

@@ -40,6 +40,10 @@ func (csr *CloudWatchLogGroups) MaxBatchSize() int {
 	return 35
 }
 
+func (csr *CloudWatchLogGroups) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.CloudWatchLogGroup
+}
+
 func (csr *CloudWatchLogGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := csr.getAll(c, configObj)
 	if err != nil {

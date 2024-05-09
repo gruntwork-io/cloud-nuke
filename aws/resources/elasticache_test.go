@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/elasticache"
 	"github.com/aws/aws-sdk-go/service/elasticache/elasticacheiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedElasticache struct {
@@ -19,19 +21,19 @@ type mockedElasticache struct {
 	DeleteReplicationGroupOutput    elasticache.DeleteReplicationGroupOutput
 }
 
-func (m mockedElasticache) DescribeCacheClusters(input *elasticache.DescribeCacheClustersInput) (*elasticache.DescribeCacheClustersOutput, error) {
+func (m mockedElasticache) DescribeCacheClustersWithContext(_ aws.Context, input *elasticache.DescribeCacheClustersInput, _ ...request.Option) (*elasticache.DescribeCacheClustersOutput, error) {
 	return &m.DescribeCacheClustersOutput, nil
 }
 
-func (m mockedElasticache) DescribeReplicationGroups(input *elasticache.DescribeReplicationGroupsInput) (*elasticache.DescribeReplicationGroupsOutput, error) {
+func (m mockedElasticache) DescribeReplicationGroupsWithContext(_ aws.Context, input *elasticache.DescribeReplicationGroupsInput, _ ...request.Option) (*elasticache.DescribeReplicationGroupsOutput, error) {
 	return &m.DescribeReplicationGroupsOutput, nil
 }
 
-func (m mockedElasticache) DeleteReplicationGroup(input *elasticache.DeleteReplicationGroupInput) (*elasticache.DeleteReplicationGroupOutput, error) {
+func (m mockedElasticache) DeleteReplicationGroupWithContext(_ aws.Context, input *elasticache.DeleteReplicationGroupInput, _ ...request.Option) (*elasticache.DeleteReplicationGroupOutput, error) {
 	return &m.DeleteReplicationGroupOutput, nil
 }
 
-func (m mockedElasticache) WaitUntilReplicationGroupDeleted(input *elasticache.DescribeReplicationGroupsInput) error {
+func (m mockedElasticache) WaitUntilReplicationGroupDeletedWithContext(_ aws.Context, input *elasticache.DescribeReplicationGroupsInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

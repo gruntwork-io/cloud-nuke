@@ -35,6 +35,10 @@ func (Sid *SesIdentities) ResourceIdentifiers() []string {
 	return Sid.Ids
 }
 
+func (Sid *SesIdentities) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SESIdentity
+}
+
 func (Sid *SesIdentities) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := Sid.getAll(c, configObj)
 	if err != nil {

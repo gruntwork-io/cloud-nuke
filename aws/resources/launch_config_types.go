@@ -38,6 +38,10 @@ func (lc *LaunchConfigs) ResourceIdentifiers() []string {
 	return lc.LaunchConfigurationNames
 }
 
+func (lc *LaunchConfigs) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.LaunchConfiguration
+}
+
 func (lc *LaunchConfigs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := lc.getAll(c, configObj)
 	if err != nil {

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -21,11 +23,11 @@ type mockedEc2VpcEndpoints struct {
 	DescribeVpcEndpointsOutput ec2.DescribeVpcEndpointsOutput
 }
 
-func (m mockedEc2VpcEndpoints) DescribeVpcEndpoints(_ *ec2.DescribeVpcEndpointsInput) (*ec2.DescribeVpcEndpointsOutput, error) {
+func (m mockedEc2VpcEndpoints) DescribeVpcEndpointsWithContext(_ awsgo.Context, _ *ec2.DescribeVpcEndpointsInput, _ ...request.Option) (*ec2.DescribeVpcEndpointsOutput, error) {
 	return &m.DescribeVpcEndpointsOutput, nil
 }
 
-func (m mockedEc2VpcEndpoints) DeleteVpcEndpoints(_ *ec2.DeleteVpcEndpointsInput) (*ec2.DeleteVpcEndpointsOutput, error) {
+func (m mockedEc2VpcEndpoints) DeleteVpcEndpointsWithContext(_ awsgo.Context, _ *ec2.DeleteVpcEndpointsInput, _ ...request.Option) (*ec2.DeleteVpcEndpointsOutput, error) {
 	return &m.DeleteVpcEndpointsOutput, nil
 }
 

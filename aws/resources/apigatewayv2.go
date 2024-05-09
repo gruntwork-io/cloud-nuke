@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
@@ -11,11 +13,10 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"sync"
 )
 
 func (gw *ApiGatewayV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	output, err := gw.Client.GetApis(&apigatewayv2.GetApisInput{})
+	output, err := gw.Client.GetApisWithContext(gw.Context, &apigatewayv2.GetApisInput{})
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
 	}
@@ -77,7 +78,7 @@ func (gw *ApiGatewayV2) deleteAsync(wg *sync.WaitGroup, errChan chan error, apiI
 	defer wg.Done()
 
 	input := &apigatewayv2.DeleteApiInput{ApiId: apiId}
-	_, err := gw.Client.DeleteApi(input)
+	_, err := gw.Client.DeleteApiWithContext(gw.Context, input)
 	errChan <- err
 
 	// Record status of this resource

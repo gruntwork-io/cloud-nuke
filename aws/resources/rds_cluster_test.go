@@ -2,10 +2,12 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -25,11 +27,11 @@ func (m mockedDBClusters) waitUntilRdsClusterDeleted(*rds.DescribeDBClustersInpu
 	return nil
 }
 
-func (m mockedDBClusters) DeleteDBCluster(input *rds.DeleteDBClusterInput) (*rds.DeleteDBClusterOutput, error) {
+func (m mockedDBClusters) DeleteDBClusterWithContext(_ awsgo.Context, _ *rds.DeleteDBClusterInput, _ ...request.Option) (*rds.DeleteDBClusterOutput, error) {
 	return &m.DeleteDBClusterOutput, nil
 }
 
-func (m mockedDBClusters) DescribeDBClusters(input *rds.DescribeDBClustersInput) (*rds.DescribeDBClustersOutput, error) {
+func (m mockedDBClusters) DescribeDBClustersWithContext(_ awsgo.Context, _ *rds.DescribeDBClustersInput, _ ...request.Option) (*rds.DescribeDBClustersOutput, error) {
 	return &m.DescribeDBClustersOutput, m.DescribeDBClustersError
 }
 

@@ -3,8 +3,9 @@ package resources
 import (
 	"context"
 	"fmt"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -22,7 +23,7 @@ func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*strin
 	input := &iam.ListUsersInput{}
 
 	var userNames []*string
-	err := iu.Client.ListUsersPages(input, func(page *iam.ListUsersOutput, lastPage bool) bool {
+	err := iu.Client.ListUsersPagesWithContext(iu.Context, input, func(page *iam.ListUsersOutput, lastPage bool) bool {
 		for _, user := range page.Users {
 			if configObj.IAMUsers.ShouldInclude(config.ResourceValue{
 				Name: user.UserName,
@@ -40,7 +41,7 @@ func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*strin
 }
 
 func (iu *IAMUsers) detachUserPolicies(userName *string) error {
-	policiesOutput, err := iu.Client.ListAttachedUserPolicies(&iam.ListAttachedUserPoliciesInput{
+	policiesOutput, err := iu.Client.ListAttachedUserPoliciesWithContext(iu.Context, &iam.ListAttachedUserPoliciesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -49,7 +50,7 @@ func (iu *IAMUsers) detachUserPolicies(userName *string) error {
 
 	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
 		arn := attachedPolicy.PolicyArn
-		_, err = iu.Client.DetachUserPolicy(&iam.DetachUserPolicyInput{
+		_, err = iu.Client.DetachUserPolicyWithContext(iu.Context, &iam.DetachUserPolicyInput{
 			PolicyArn: arn,
 			UserName:  userName,
 		})
@@ -64,7 +65,7 @@ func (iu *IAMUsers) detachUserPolicies(userName *string) error {
 }
 
 func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
-	policyOutput, err := iu.Client.ListUserPolicies(&iam.ListUserPoliciesInput{
+	policyOutput, err := iu.Client.ListUserPoliciesWithContext(iu.Context, &iam.ListUserPoliciesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -73,7 +74,7 @@ func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
 	}
 
 	for _, policyName := range policyOutput.PolicyNames {
-		_, err := iu.Client.DeleteUserPolicy(&iam.DeleteUserPolicyInput{
+		_, err := iu.Client.DeleteUserPolicyWithContext(iu.Context, &iam.DeleteUserPolicyInput{
 			PolicyName: policyName,
 			UserName:   userName,
 		})
@@ -88,7 +89,7 @@ func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
 }
 
 func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
-	groupsOutput, err := iu.Client.ListGroupsForUser(&iam.ListGroupsForUserInput{
+	groupsOutput, err := iu.Client.ListGroupsForUserWithContext(iu.Context, &iam.ListGroupsForUserInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -96,7 +97,7 @@ func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
 	}
 
 	for _, group := range groupsOutput.Groups {
-		_, err := iu.Client.RemoveUserFromGroup(&iam.RemoveUserFromGroupInput{
+		_, err := iu.Client.RemoveUserFromGroupWithContext(iu.Context, &iam.RemoveUserFromGroupInput{
 			GroupName: group.GroupName,
 			UserName:  userName,
 		})
@@ -118,7 +119,7 @@ func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 		2*time.Second,
 		func() error {
 			// Delete Login Profile attached to the user
-			_, err := iu.Client.DeleteLoginProfile(&iam.DeleteLoginProfileInput{
+			_, err := iu.Client.DeleteLoginProfileWithContext(iu.Context, &iam.DeleteLoginProfileInput{
 				UserName: userName,
 			})
 			if err != nil {
@@ -145,7 +146,7 @@ func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 }
 
 func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
-	output, err := iu.Client.ListAccessKeys(&iam.ListAccessKeysInput{
+	output, err := iu.Client.ListAccessKeysWithContext(iu.Context, &iam.ListAccessKeysInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -155,7 +156,7 @@ func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
 
 	for _, md := range output.AccessKeyMetadata {
 		accessKeyId := md.AccessKeyId
-		_, err := iu.Client.DeleteAccessKey(&iam.DeleteAccessKeyInput{
+		_, err := iu.Client.DeleteAccessKeyWithContext(iu.Context, &iam.DeleteAccessKeyInput{
 			AccessKeyId: accessKeyId,
 			UserName:    userName,
 		})
@@ -171,7 +172,7 @@ func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
 }
 
 func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
-	output, err := iu.Client.ListSigningCertificates(&iam.ListSigningCertificatesInput{
+	output, err := iu.Client.ListSigningCertificatesWithContext(iu.Context, &iam.ListSigningCertificatesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -181,7 +182,7 @@ func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
 
 	for _, cert := range output.Certificates {
 		certificateId := cert.CertificateId
-		_, err := iu.Client.DeleteSigningCertificate(&iam.DeleteSigningCertificateInput{
+		_, err := iu.Client.DeleteSigningCertificateWithContext(iu.Context, &iam.DeleteSigningCertificateInput{
 			CertificateId: certificateId,
 			UserName:      userName,
 		})
@@ -197,7 +198,7 @@ func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
 }
 
 func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
-	output, err := iu.Client.ListSSHPublicKeys(&iam.ListSSHPublicKeysInput{
+	output, err := iu.Client.ListSSHPublicKeysWithContext(iu.Context, &iam.ListSSHPublicKeysInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -207,7 +208,7 @@ func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
 
 	for _, key := range output.SSHPublicKeys {
 		keyId := key.SSHPublicKeyId
-		_, err := iu.Client.DeleteSSHPublicKey(&iam.DeleteSSHPublicKeyInput{
+		_, err := iu.Client.DeleteSSHPublicKeyWithContext(iu.Context, &iam.DeleteSSHPublicKeyInput{
 			SSHPublicKeyId: keyId,
 			UserName:       userName,
 		})
@@ -228,7 +229,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 		"codecommit.amazonaws.com",
 	}
 	for _, service := range services {
-		output, err := iu.Client.ListServiceSpecificCredentials(&iam.ListServiceSpecificCredentialsInput{
+		output, err := iu.Client.ListServiceSpecificCredentialsWithContext(iu.Context, &iam.ListServiceSpecificCredentialsInput{
 			ServiceName: aws.String(service),
 			UserName:    userName,
 		})
@@ -240,7 +241,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 		for _, metadata := range output.ServiceSpecificCredentials {
 			serviceSpecificCredentialId := metadata.ServiceSpecificCredentialId
 
-			_, err := iu.Client.DeleteServiceSpecificCredential(&iam.DeleteServiceSpecificCredentialInput{
+			_, err := iu.Client.DeleteServiceSpecificCredentialWithContext(iu.Context, &iam.DeleteServiceSpecificCredentialInput{
 				ServiceSpecificCredentialId: serviceSpecificCredentialId,
 				UserName:                    userName,
 			})
@@ -257,7 +258,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 }
 
 func (iu *IAMUsers) deleteMFADevices(userName *string) error {
-	output, err := iu.Client.ListMFADevices(&iam.ListMFADevicesInput{
+	output, err := iu.Client.ListMFADevicesWithContext(iu.Context, &iam.ListMFADevicesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -269,7 +270,7 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 	for _, device := range output.MFADevices {
 		serialNumber := device.SerialNumber
 
-		_, err := iu.Client.DeactivateMFADevice(&iam.DeactivateMFADeviceInput{
+		_, err := iu.Client.DeactivateMFADeviceWithContext(iu.Context, &iam.DeactivateMFADeviceInput{
 			SerialNumber: serialNumber,
 			UserName:     userName,
 		})
@@ -285,7 +286,7 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 	for _, device := range output.MFADevices {
 		serialNumber := device.SerialNumber
 
-		_, err := iu.Client.DeleteVirtualMFADevice(&iam.DeleteVirtualMFADeviceInput{
+		_, err := iu.Client.DeleteVirtualMFADeviceWithContext(iu.Context, &iam.DeleteVirtualMFADeviceInput{
 			SerialNumber: serialNumber,
 		})
 		if err != nil {
@@ -300,7 +301,7 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 }
 
 func (iu *IAMUsers) deleteUser(userName *string) error {
-	_, err := iu.Client.DeleteUser(&iam.DeleteUserInput{
+	_, err := iu.Client.DeleteUserWithContext(iu.Context, &iam.DeleteUserInput{
 		UserName: userName,
 	})
 	if err != nil {

@@ -24,7 +24,7 @@ func (nfw *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj co
 	// list the firewall policies and rule group
 
 	{
-		policyMeta, err := nfw.Client.ListFirewallPolicies(nil)
+		policyMeta, err := nfw.Client.ListFirewallPoliciesWithContext(nfw.Context, nil)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -43,7 +43,7 @@ func (nfw *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj co
 
 	// get the resource policies attached on these arns
 	for _, arn := range resourceArns {
-		output, err := nfw.Client.DescribeResourcePolicy(&networkfirewall.DescribeResourcePolicyInput{
+		output, err := nfw.Client.DescribeResourcePolicyWithContext(nfw.Context, &networkfirewall.DescribeResourcePolicyInput{
 			ResourceArn: arn,
 		})
 		if err != nil && util.TransformAWSError(err) != util.ErrResourceNotFoundException {
@@ -72,7 +72,7 @@ func (nfw *NetworkFirewallResourcePolicy) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
-		_, err := nfw.Client.DeleteResourcePolicy(&networkfirewall.DeleteResourcePolicyInput{
+		_, err := nfw.Client.DeleteResourcePolicyWithContext(nfw.Context, &networkfirewall.DeleteResourcePolicyInput{
 			ResourceArn: id,
 		})
 

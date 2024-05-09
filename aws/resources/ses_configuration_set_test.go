@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/ses/sesiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,11 +20,11 @@ type mockedSesConfigurationSet struct {
 	ListConfigurationSetsOutput  ses.ListConfigurationSetsOutput
 }
 
-func (m mockedSesConfigurationSet) ListConfigurationSets(input *ses.ListConfigurationSetsInput) (*ses.ListConfigurationSetsOutput, error) {
+func (m mockedSesConfigurationSet) ListConfigurationSetsWithContext(_ awsgo.Context, _ *ses.ListConfigurationSetsInput, _ ...request.Option) (*ses.ListConfigurationSetsOutput, error) {
 	return &m.ListConfigurationSetsOutput, nil
 }
 
-func (m mockedSesConfigurationSet) DeleteConfigurationSet(*ses.DeleteConfigurationSetInput) (*ses.DeleteConfigurationSetOutput, error) {
+func (m mockedSesConfigurationSet) DeleteConfigurationSetWithContext(_ awsgo.Context, _ *ses.DeleteConfigurationSetInput, _ ...request.Option) (*ses.DeleteConfigurationSetOutput, error) {
 	return &m.DeleteConfigurationSetOutput, nil
 }
 

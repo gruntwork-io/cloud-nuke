@@ -33,6 +33,10 @@ func (clusters *EKSClusters) ResourceIdentifiers() []string {
 	return clusters.Clusters
 }
 
+func (clusters *EKSClusters) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EKSCluster
+}
+
 func (clusters *EKSClusters) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that deleting EKS clusters involves deleting many
 	// associated sub resources in tight loops, and they happen in parallel in go routines. We conservatively pick 10
