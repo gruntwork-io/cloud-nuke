@@ -15,15 +15,13 @@ version: 2.1
 jobs:
   test:
     <<: *defaults
+    parallelism: 4  # Number of containers to run tests in parallel
     steps:
       - checkout
       - run:
           command: |
-            mkdir -p /tmp/logs
-            # Run the tests. Note that we set the "-p 1" flag to tell Go to run tests in each package sequentially. Without
-            # this, Go buffers all log output until all packages are done, which with slower running tests can cause CircleCI
-            # to kill the build after more than 45 minutes without log output.
-            DISABLE_TELEMETRY=true run-go-tests --extra-flags '-p 1' --timeout 45m | tee /tmp/logs/all.log
+            TESTFILES=$(circleci tests glob "tests/**/*.go" | circleci tests split --split-by=timings)
+            DISABLE_TELEMETRY=true run-go-tests --extra-flags '-p 1' --timeout 45m ${TESTFILES} | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
           name: parse test output
@@ -36,12 +34,16 @@ jobs:
 
   build:
     <<: *defaults
+    parallelism: 4  # Adjust based on your resource capacity and needs
     steps:
       - checkout
-      - run: build-go-binaries --parallel 2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
+      - run:
+          command: build-go-binaries --parallel 4 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
       - persist_to_workspace:
           root: .
-          paths: bin
+          paths:
+            bin
+
   nuke_phx_devops:
     <<: *defaults
     steps:
