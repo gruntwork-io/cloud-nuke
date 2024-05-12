@@ -15,7 +15,7 @@ version: 2.1
 jobs:
   test:
     <<: *defaults
-    parallelism: 4  # Number of containers to split the tests across
+    parallelism: 4  # Adjust based on how many containers you want to use
     steps:
       - checkout
       - run:
@@ -24,16 +24,16 @@ jobs:
       - run:
           name: Discover and Split Test Files
           command: |
-            # Find all test files under 'aws/resources' and split them by name
-            TEST_FILES=$(find aws/resources/ -type f -name "*_test.go" | sort -u)
+            # Finding all test files under 'aws/resources'
+            TEST_FILES=$(find aws/resources/ -type f -name "*_test.go")
+            # Splitting test files for parallel execution
             SPLIT_TEST_FILES=$(echo "$TEST_FILES" | circleci tests split --split-by=name)
             echo "Test files assigned to this container: $SPLIT_TEST_FILES"
             for FILE in $SPLIT_TEST_FILES; do
-              # Extract the directory path from each file and run tests in those directories
-              DIR=$(dirname $FILE)
-              echo "Running tests in directory: $DIR"
-              DISABLE_TELEMETRY=true run-go-tests --path "$DIR" --packages "./$DIR"
-            done | tee /tmp/logs/all.log
+              echo "Running tests for file: $FILE"
+              # Running tests directly on the file
+              go test -v -timeout 45m -parallel 1 $FILE | tee -a /tmp/logs/all.log
+            done
       - run:
           name: Parse Test Output
           command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
@@ -41,7 +41,7 @@ jobs:
       - store_artifacts:
           path: /tmp/logs
       - store_test_results:
-          path: /tmp/logss
+          path: /tmp/logs
 
   build:
     <<: *defaults
