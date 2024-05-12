@@ -27,13 +27,13 @@ jobs:
             # Find all directories containing Go test files under 'aws/resources'
             PACKAGES=$(find aws/resources -type f -name "*_test.go" | sed 's|/[^/]*$||' | sort -u)
             # Split packages by name for simpler distribution
-            SPLIT_PACKAGES=$(echo "$PACKAGES" | circleci tests split --split-by=alphabetical)
+            SPLIT_PACKAGES=$(echo "$PACKAGES" | circleci tests split --split-by=name)
             echo "Packages to test: $SPLIT_PACKAGES"
             for PACKAGE in $SPLIT_PACKAGES; do
               echo "Running tests in package: $PACKAGE"
               # Adjust the path to be correct for the `run-go-tests` script
               PACKAGE_PATH=$(echo "$PACKAGE" | sed 's|^./||') # Ensure there's no leading './'
-              DISABLE_TELEMETRY=true ./run-go-tests --path "$PACKAGE_PATH" --packages "$PACKAGE_PATH" | tee -a /tmp/logs/all.log
+              DISABLE_TELEMETRY=true run-go-tests --path "$PACKAGE_PATH" --packages "$PACKAGE_PATH" | tee -a /tmp/logs/all.log
             done
       - run:
           name: Parse Test Output
