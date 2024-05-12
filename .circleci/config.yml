@@ -24,12 +24,15 @@ jobs:
       - run:
           name: Run Tests in Parallel Across Containers
           command: |
-            PACKAGES=$(find . -type f -name "*_test.go" | sed 's|/[^/]*$||' | sort -u)
-            SPLIT_PACKAGES=$(echo "$PACKAGES" | circleci tests split --split-by=timings)
+            # Find all directories containing Go test files under 'aws/resources'
+            PACKAGES=$(find aws/resources -type f -name "*_test.go" | sed 's|/[^/]*$||' | sort -u)
+            # Split packages by name for simpler distribution
+            SPLIT_PACKAGES=$(echo "$PACKAGES" | circleci tests split --split-by=alphabetical)
             echo "Packages to test: $SPLIT_PACKAGES"
             for PACKAGE in $SPLIT_PACKAGES; do
               echo "Running tests in package: $PACKAGE"
-              PACKAGE_PATH=$(echo "$PACKAGE" | sed 's|^./||') # Remove leading './' if present
+              # Adjust the path to be correct for the `run-go-tests` script
+              PACKAGE_PATH=$(echo "$PACKAGE" | sed 's|^./||') # Ensure there's no leading './'
               DISABLE_TELEMETRY=true ./run-go-tests --path "$PACKAGE_PATH" --packages "$PACKAGE_PATH" | tee -a /tmp/logs/all.log
             done
       - run:
@@ -39,7 +42,7 @@ jobs:
       - store_artifacts:
           path: /tmp/logs
       - store_test_results:
-          path: /tmp/logs
+          path: /tmp/logss
 
   build:
     <<: *defaults
