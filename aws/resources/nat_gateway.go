@@ -172,8 +172,8 @@ func (ngw *NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, e
 func (ngw *NatGateways) deleteAsync(wg *sync.WaitGroup, errChan chan error, ngwID *string) {
 	defer wg.Done()
 
-	if nukable, err := ngw.IsNukable(awsgo.StringValue(ngwID)); !nukable {
-		logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(ngwID), err)
+	if nukable, reason := ngw.IsNukable(awsgo.StringValue(ngwID)); !nukable {
+		logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(ngwID), reason)
 		errChan <- nil
 		return
 	}

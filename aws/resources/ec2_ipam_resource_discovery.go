@@ -87,8 +87,8 @@ func (discovery *EC2IPAMResourceDiscovery) nukeAll(ids []*string) error {
 
 	for _, id := range ids {
 
-		if nukable, err := discovery.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+		if nukable, reason := discovery.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
 			continue
 		}
 

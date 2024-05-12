@@ -84,8 +84,8 @@ func (v *EC2VPCs) nukeAll(vpcIds []string) error {
 	multiErr := new(multierror.Error)
 
 	for _, id := range vpcIds {
-		if nukable, err := v.IsNukable(id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", id, err)
+		if nukable, reason := v.IsNukable(id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", id, reason)
 			continue
 		}
 

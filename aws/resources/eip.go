@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -71,8 +72,8 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 
 	for _, allocationID := range allocationIds {
 
-		if nukable, err := ea.IsNukable(awsgo.StringValue(allocationID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(allocationID), err)
+		if nukable, reason := ea.IsNukable(awsgo.StringValue(allocationID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(allocationID), reason)
 			continue
 		}
 

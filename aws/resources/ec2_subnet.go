@@ -93,12 +93,12 @@ func (ec2subnet *EC2Subnet) nukeAll(ids []*string) error {
 
 	for _, id := range ids {
 		// check the id has the permission to nuke, if not. continue the execution
-		if nukable, err := ec2subnet.IsNukable(*id); !nukable {
+		if nukable, reason := ec2subnet.IsNukable(*id); !nukable {
 			// not adding the report on final result hence not adding a record entry here
 			// NOTE: We can skip the error checking and return it here, since it is already being checked while
 			// displaying the identifiers. Here, `err` refers to the error indicating whether the identifier is eligible for nuke or not,
 			// and it is not a programming error.
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

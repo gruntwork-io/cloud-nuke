@@ -73,8 +73,8 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 		// NOTE : We can skip the error checking and return it here, since it is already being checked while displaying the identifiers with the Nukable  field.
 		// Here, `err` refers to the error indicating whether the identifier is eligible for nuke or not (an error which we got from aws when tried to delete the resource with dryRun),
 		// and it is not a programming error. (edited)
-		if nukable, err := egigw.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := egigw.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

@@ -68,8 +68,8 @@ func (k *EC2KeyPairs) nukeAll(keypairIds []*string) error {
 	deletedKeyPairs := 0
 	var multiErr *multierror.Error
 	for _, keypair := range keypairIds {
-		if nukable, err := k.IsNukable(awsgo.StringValue(keypair)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(keypair), err)
+		if nukable, reason := k.IsNukable(awsgo.StringValue(keypair)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(keypair), reason)
 			continue
 		}
 

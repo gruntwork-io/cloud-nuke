@@ -79,8 +79,8 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
-		if nukable, err := ami.IsNukable(awsgo.StringValue(imageID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(imageID), err)
+		if nukable, reason := ami.IsNukable(awsgo.StringValue(imageID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(imageID), reason)
 			continue
 		}
 

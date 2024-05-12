@@ -90,8 +90,8 @@ func (scope *EC2IpamScopes) nukeAll(ids []*string) error {
 	var deletedList []*string
 
 	for _, id := range ids {
-		if nukable, err := scope.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+		if nukable, reason := scope.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
 			continue
 		}
 

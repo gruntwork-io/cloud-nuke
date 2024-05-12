@@ -50,8 +50,8 @@ func (byoasn *EC2IPAMByoasn) nukeAll(asns []*string) error {
 	var list []*string
 
 	for _, id := range asns {
-		if nukable, err := byoasn.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+		if nukable, reason := byoasn.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
 			continue
 		}
 

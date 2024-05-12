@@ -73,9 +73,9 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 
 	for _, id := range ids {
 		//check the id has the permission to nuke, if not. continue the execution
-		if nukable, err := tgw.IsNukable(*id); !nukable {
+		if nukable, reason := tgw.IsNukable(*id); !nukable {
 			//not adding the report on final result hence not adding a record entry here
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

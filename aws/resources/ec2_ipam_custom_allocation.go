@@ -130,8 +130,8 @@ func (cs *EC2IPAMCustomAllocation) nukeAll(ids []*string) error {
 
 	for _, id := range ids {
 
-		if nukable, err := cs.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), err)
+		if nukable, reason := cs.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
 			continue
 		}
 

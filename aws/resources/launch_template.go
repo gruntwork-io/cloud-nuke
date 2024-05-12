@@ -53,8 +53,8 @@ func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 
 	for _, templateName := range templateNames {
 
-		if nukable, err := lt.IsNukable(awsgo.StringValue(templateName)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(templateName), err)
+		if nukable, reason := lt.IsNukable(awsgo.StringValue(templateName)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(templateName), reason)
 			continue
 		}
 

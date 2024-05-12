@@ -82,8 +82,8 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 
 	for _, snapshotID := range snapshotIds {
 
-		if nukable, err := s.IsNukable(awsgo.StringValue(snapshotID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(snapshotID), err)
+		if nukable, reason := s.IsNukable(awsgo.StringValue(snapshotID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(snapshotID), reason)
 			continue
 		}
 

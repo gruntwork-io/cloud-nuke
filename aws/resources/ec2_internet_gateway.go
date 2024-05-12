@@ -81,8 +81,8 @@ func (igw *InternetGateway) nukeAll(identifiers []*string) error {
 	var deletedGateways []*string
 
 	for _, id := range identifiers {
-		if nukable, err := igw.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := igw.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

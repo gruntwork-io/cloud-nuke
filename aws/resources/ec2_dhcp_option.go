@@ -44,8 +44,8 @@ func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*s
 
 func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
-		if nukable, err := v.IsNukable(awsgo.StringValue(identifier)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(identifier), err)
+		if nukable, reason := v.IsNukable(awsgo.StringValue(identifier)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(identifier), reason)
 			continue
 		}
 

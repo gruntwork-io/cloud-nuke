@@ -75,8 +75,8 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 
 	for _, volumeID := range volumeIds {
 
-		if nukable, err := ev.IsNukable(awsgo.StringValue(volumeID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(volumeID), err)
+		if nukable, reason := ev.IsNukable(awsgo.StringValue(volumeID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(volumeID), reason)
 			continue
 		}
 
