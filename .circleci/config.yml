@@ -22,18 +22,14 @@ jobs:
           name: Prepare Logs Directory
           command: mkdir -p /tmp/logs
       - run:
-          name: Discover and Split Test Files
+          name: Run Tests
           command: |
-            # Finding all test files under 'aws/resources'
-            TEST_FILES=$(find aws/resources/ -type f -name "*_test.go")
-            # Splitting test files for parallel execution
-            SPLIT_TEST_FILES=$(echo "$TEST_FILES" | circleci tests split --split-by=name)
-            echo "Test files assigned to this container: $SPLIT_TEST_FILES"
-            for FILE in $SPLIT_TEST_FILES; do
-              echo "Running tests for file: $FILE"
-              # Running tests directly on the file
-              go test -v -timeout 45m -parallel 1 $FILE | tee -a /tmp/logs/all.log
-            done
+            mkdir -p /tmp/logs
+            # Run the tests. Note that we set the "-p 1" flag to tell Go to run tests in each package sequentially. Without
+            # this, Go buffers all log output until all packages are done, which with slower running tests can cause CircleCI
+            # to kill the build after more than 45 minutes without log output.
+            DISABLE_TELEMETRY=true run-go-tests --parallelism 4 --timeout 45m | tee /tmp/logs/all.log
+          no_output_timeout: 45m
       - run:
           name: Parse Test Output
           command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
