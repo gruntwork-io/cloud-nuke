@@ -15,26 +15,27 @@ version: 2.1
 jobs:
   test:
     <<: *defaults
-    parallelism: 4  # Using 4 containers
+    parallelism: 4  # Number of containers to split the tests across
     steps:
       - checkout
+      - run:
+          name: Install Git (if necessary)
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y git
       - run:
           name: Prepare Logs Directory
           command: mkdir -p /tmp/logs
       - run:
           name: Run Tests in Parallel Across Containers
           command: |
-            PACKAGES=$(circleci tests glob "aws/**/*.go" | grep '_test.go' | sed 's|/[^/]*$||' | sort -u)
-            echo "Unique package paths: $PACKAGES"
-            if [ -z "$PACKAGES" ]; then
-              echo "No test packages to run."
-              exit 0
-            fi
-            for PACKAGE in $PACKAGES; do
+            PACKAGES=$(find . -name "*_test.go" | sed 's|/[^/]*$||' | sort -u)
+            SPLIT_PACKAGES=$(echo $PACKAGES | tr ' ' '\n' | circleci tests split --split-by=timings)
+            echo "Packages to test: $SPLIT_PACKAGES"
+            for PACKAGE in $SPLIT_PACKAGES; do
               echo "Running tests in package: $PACKAGE"
-              go test -v -timeout 45m $PACKAGE
+              DISABLE_TELEMETRY=true ./run-go-tests --path "$PACKAGE" --packages "./$PACKAGE" | tee -a /tmp/logs/all.log
             done
-          no_output_timeout: 45m
       - run:
           name: Parse Test Output
           command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
