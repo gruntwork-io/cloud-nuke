@@ -32,7 +32,7 @@ func (nfw *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj co
 		for _, policy := range policyMeta.FirewallPolicies {
 			resourceArns = append(resourceArns, policy.Arn)
 		}
-		groupMeta, err := nfw.Client.ListRuleGroups(nil)
+		groupMeta, err := nfw.Client.ListRuleGroupsWithContext(nfw.Context, nil)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}

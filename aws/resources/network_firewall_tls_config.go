@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
@@ -43,7 +44,7 @@ func (nftc *NetworkFirewallTLSConfig) getAll(c context.Context, configObj config
 	}
 
 	for _, tlsconfig := range meta.TLSInspectionConfigurations {
-		output, err := nftc.Client.DescribeTLSInspectionConfiguration(&networkfirewall.DescribeTLSInspectionConfigurationInput{
+		output, err := nftc.Client.DescribeTLSInspectionConfigurationWithContext(nftc.Context, &networkfirewall.DescribeTLSInspectionConfigurationInput{
 			TLSInspectionConfigurationArn: tlsconfig.Arn,
 		})
 		if err != nil {
@@ -80,6 +81,7 @@ func (nftc *NetworkFirewallTLSConfig) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
+		fmt.Println(":nftc.Client:::", nftc.Client)
 		_, err := nftc.Client.DeleteTLSInspectionConfigurationWithContext(nftc.Context, &networkfirewall.DeleteTLSInspectionConfigurationInput{
 			TLSInspectionConfigurationName: id,
 		})

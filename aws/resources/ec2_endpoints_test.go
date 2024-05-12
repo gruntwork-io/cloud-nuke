@@ -27,6 +27,10 @@ func (m mockedEc2VpcEndpoints) DescribeVpcEndpointsWithContext(_ awsgo.Context, 
 	return &m.DescribeVpcEndpointsOutput, nil
 }
 
+func (m mockedEc2VpcEndpoints) DeleteVpcEndpoints(_ *ec2.DeleteVpcEndpointsInput) (*ec2.DeleteVpcEndpointsOutput, error) {
+	return &m.DeleteVpcEndpointsOutput, nil
+}
+
 func (m mockedEc2VpcEndpoints) DeleteVpcEndpointsWithContext(_ awsgo.Context, _ *ec2.DeleteVpcEndpointsInput, _ ...request.Option) (*ec2.DeleteVpcEndpointsOutput, error) {
 	return &m.DeleteVpcEndpointsOutput, nil
 }

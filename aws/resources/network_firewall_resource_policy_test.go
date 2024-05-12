@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 
@@ -22,18 +23,18 @@ type mockedNetworkFirewallResourcePolicy struct {
 	DescribeResourcePolicyOutput networkfirewall.DescribeResourcePolicyOutput
 }
 
-func (m mockedNetworkFirewallResourcePolicy) ListFirewallPolicies(*networkfirewall.ListFirewallPoliciesInput) (*networkfirewall.ListFirewallPoliciesOutput, error) {
+func (m mockedNetworkFirewallResourcePolicy) ListFirewallPoliciesWithContext(_ awsgo.Context, _ *networkfirewall.ListFirewallPoliciesInput, _ ...request.Option) (*networkfirewall.ListFirewallPoliciesOutput, error) {
 	return &m.ListFirewallPoliciesOutput, nil
 }
 
-func (m mockedNetworkFirewallResourcePolicy) ListRuleGroups(*networkfirewall.ListRuleGroupsInput) (*networkfirewall.ListRuleGroupsOutput, error) {
+func (m mockedNetworkFirewallResourcePolicy) ListRuleGroupsWithContext(awsgo.Context, *networkfirewall.ListRuleGroupsInput, ...request.Option) (*networkfirewall.ListRuleGroupsOutput, error) {
 	return &m.ListRuleGroupsOutput, nil
 }
-func (m mockedNetworkFirewallResourcePolicy) DeleteResourcePolicy(*networkfirewall.DeleteResourcePolicyInput) (*networkfirewall.DeleteResourcePolicyOutput, error) {
+func (m mockedNetworkFirewallResourcePolicy) DeleteResourcePolicyWithContext(awsgo.Context, *networkfirewall.DeleteResourcePolicyInput, ...request.Option) (*networkfirewall.DeleteResourcePolicyOutput, error) {
 	return &m.DeleteResourcePolicyOutput, nil
 }
 
-func (m mockedNetworkFirewallResourcePolicy) DescribeResourcePolicy(*networkfirewall.DescribeResourcePolicyInput) (*networkfirewall.DescribeResourcePolicyOutput, error) {
+func (m mockedNetworkFirewallResourcePolicy) DescribeResourcePolicyWithContext(awsgo.Context, *networkfirewall.DescribeResourcePolicyInput, ...request.Option) (*networkfirewall.DescribeResourcePolicyOutput, error) {
 	return &m.DescribeResourcePolicyOutput, nil
 }
 

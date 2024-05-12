@@ -30,6 +30,10 @@ func (m mockedEgressOnlyIgw) DeleteEgressOnlyInternetGatewayWithContext(_ awsgo.
 	return &m.DeleteEgressOnlyInternetGatewayOutput, nil
 }
 
+func (m mockedEgressOnlyIgw) DeleteEgressOnlyInternetGateway(_ *ec2.DeleteEgressOnlyInternetGatewayInput) (*ec2.DeleteEgressOnlyInternetGatewayOutput, error) {
+	return &m.DeleteEgressOnlyInternetGatewayOutput, nil
+}
+
 func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 
 	t.Parallel()

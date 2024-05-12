@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,15 +22,15 @@ type mockedEBS struct {
 	DescribeVolumesOutput ec2.DescribeVolumesOutput
 }
 
-func (m mockedEBS) DeleteVolume(input *ec2.DeleteVolumeInput) (*ec2.DeleteVolumeOutput, error) {
+func (m mockedEBS) DeleteVolumeWithContext(_ awsgo.Context, input *ec2.DeleteVolumeInput, _ ...request.Option) (*ec2.DeleteVolumeOutput, error) {
 	return &m.DeleteVolumeOutput, nil
 }
 
-func (m mockedEBS) DescribeVolumes(input *ec2.DescribeVolumesInput) (*ec2.DescribeVolumesOutput, error) {
+func (m mockedEBS) DescribeVolumesWithContext(_ awsgo.Context, input *ec2.DescribeVolumesInput, _ ...request.Option) (*ec2.DescribeVolumesOutput, error) {
 	return &m.DescribeVolumesOutput, nil
 }
 
-func (m mockedEBS) WaitUntilVolumeDeleted(input *ec2.DescribeVolumesInput) error {
+func (m mockedEBS) WaitUntilVolumeDeletedWithContext(_ awsgo.Context, input *ec2.DescribeVolumesInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

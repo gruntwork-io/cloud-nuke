@@ -20,7 +20,7 @@ func (ddb *DynamoDB) getAll(c context.Context, configObj config.Config) ([]*stri
 		ddb.Context,
 		&dynamodb.ListTablesInput{}, func(page *dynamodb.ListTablesOutput, lastPage bool) bool {
 			for _, table := range page.TableNames {
-				tableDetail, err := ddb.Client.DescribeTable(&dynamodb.DescribeTableInput{TableName: table})
+				tableDetail, err := ddb.Client.DescribeTableWithContext(ddb.Context, &dynamodb.DescribeTableInput{TableName: table})
 				if err != nil {
 					log.Fatalf("There was an error describing table: %v\n", err)
 				}

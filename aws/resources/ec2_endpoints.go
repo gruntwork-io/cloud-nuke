@@ -56,7 +56,7 @@ func (e *EC2Endpoints) getAll(c context.Context, configObj config.Config) ([]*st
 	}
 
 	e.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := e.Client.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
+		_, err := e.Client.DeleteVpcEndpointsWithContext(e.Context, &ec2.DeleteVpcEndpointsInput{
 			VpcEndpointIds: []*string{id},
 			DryRun:         awsgo.Bool(true),
 		})

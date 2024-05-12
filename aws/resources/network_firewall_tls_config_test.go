@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 
@@ -29,7 +30,7 @@ func (m mockedNetworkFirewallTLSConfig) TagResource(*networkfirewall.TagResource
 	return &m.TagResourceOutput, nil
 }
 
-func (m mockedNetworkFirewallTLSConfig) DescribeTLSInspectionConfiguration(req *networkfirewall.DescribeTLSInspectionConfigurationInput) (*networkfirewall.DescribeTLSInspectionConfigurationOutput, error) {
+func (m mockedNetworkFirewallTLSConfig) DescribeTLSInspectionConfigurationWithContext(_ aws.Context, req *networkfirewall.DescribeTLSInspectionConfigurationInput, _ ...request.Option) (*networkfirewall.DescribeTLSInspectionConfigurationOutput, error) {
 	raw := awsgo.StringValue(req.TLSInspectionConfigurationArn)
 	v, ok := m.DescribeTLSInspectionConfigurationOutput[raw]
 	if !ok {
@@ -38,11 +39,11 @@ func (m mockedNetworkFirewallTLSConfig) DescribeTLSInspectionConfiguration(req *
 	return &v, nil
 }
 
-func (m mockedNetworkFirewallTLSConfig) DeleteTLSInspectionConfiguration(*networkfirewall.DeleteTLSInspectionConfigurationInput) (*networkfirewall.DeleteTLSInspectionConfigurationOutput, error) {
+func (m mockedNetworkFirewallTLSConfig) DeleteTLSInspectionConfigurationWithContext(aws.Context, *networkfirewall.DeleteTLSInspectionConfigurationInput, ...request.Option) (*networkfirewall.DeleteTLSInspectionConfigurationOutput, error) {
 	return &m.DeleteTLSInspectionConfigurationOutput, nil
 }
 
-func (m mockedNetworkFirewallTLSConfig) ListTLSInspectionConfigurations(*networkfirewall.ListTLSInspectionConfigurationsInput) (*networkfirewall.ListTLSInspectionConfigurationsOutput, error) {
+func (m mockedNetworkFirewallTLSConfig) ListTLSInspectionConfigurationsWithContext(aws.Context, *networkfirewall.ListTLSInspectionConfigurationsInput, ...request.Option) (*networkfirewall.ListTLSInspectionConfigurationsOutput, error) {
 	return &m.ListTLSInspectionConfigurationsOutput, nil
 }
 
