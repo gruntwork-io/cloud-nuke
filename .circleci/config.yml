@@ -19,24 +19,18 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Git (if necessary)
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y git
-      - run:
           name: Prepare Logs Directory
           command: mkdir -p /tmp/logs
       - run:
           name: Run Tests in Parallel Across Containers
           command: |
-            PACKAGES=$(find . -name "*_test.go" | sed 's|/[^/]*$||' | sort -u)
-            SPLIT_PACKAGES=$(echo $PACKAGES | tr ' ' '\n' | circleci tests split --split-by=timings)
+            PACKAGES=$(find . -type f -name "*_test.go" | sed 's|/[^/]*$||' | sort -u)
+            SPLIT_PACKAGES=$(echo "$PACKAGES" | circleci tests split --split-by=timings)
             echo "Packages to test: $SPLIT_PACKAGES"
             for PACKAGE in $SPLIT_PACKAGES; do
               echo "Running tests in package: $PACKAGE"
-              # Ensuring paths are relative and removing any potential leading './' which might be causing the issue
-              REL_PACKAGE="${PACKAGE#./}"
-              DISABLE_TELEMETRY=true run-go-tests --path "$REL_PACKAGE" --packages "$REL_PACKAGE" | tee -a /tmp/logs/all.log
+              PACKAGE_PATH=$(echo "$PACKAGE" | sed 's|^./||') # Remove leading './' if present
+              DISABLE_TELEMETRY=true ./run-go-tests --path "$PACKAGE_PATH" --packages "$PACKAGE_PATH" | tee -a /tmp/logs/all.log
             done
       - run:
           name: Parse Test Output
