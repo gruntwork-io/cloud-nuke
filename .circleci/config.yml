@@ -15,16 +15,22 @@ version: 2.1
 jobs:
   test:
     <<: *defaults
-    parallelism: 4  # Adjust based on your CI resource allocation and needs
+    parallelism: 4  # Using 4 containers
     steps:
       - checkout
       - run:
           name: Prepare Logs Directory
           command: mkdir -p /tmp/logs
       - run:
-          name: Run Tests with Parallel Execution
+          name: Run Tests in Parallel Across Containers
           command: |
-            DISABLE_TELEMETRY=true run-go-tests --extra-flags '--timeout 45m' --parallelism 4 --packages "./aws/..."
+            TESTFILES=$(circleci tests glob "**/*.go" | circleci tests split --split-by=timings)
+            if [ -z "$TESTFILES" ]; then
+              echo "No test files to run."
+              exit 0
+            fi
+            echo "Running tests on these files: $TESTFILES"
+            DISABLE_TELEMETRY=true run-go-tests --extra-flags '--timeout 45m' --parallelism 1 --path $TESTFILES
             | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
