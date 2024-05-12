@@ -22,19 +22,18 @@ jobs:
           name: Prepare Logs Directory
           command: mkdir -p /tmp/logs
       - run:
-          name: Run Tests in Parallel Across Containers
+          name: Discover and Split Test Files
           command: |
-            # Find all directories containing Go test files under 'aws/resources'
-            PACKAGES=$(find aws/resources -type f -name "*_test.go" | sed 's|/[^/]*$||' | sort -u)
-            # Split packages by name for simpler distribution
-            SPLIT_PACKAGES=$(echo "$PACKAGES" | circleci tests split --split-by=name)
-            echo "Packages to test: $SPLIT_PACKAGES"
-            for PACKAGE in $SPLIT_PACKAGES; do
-              echo "Running tests in package: $PACKAGE"
-              # Adjust the path to be correct for the `run-go-tests` script
-              PACKAGE_PATH=$(echo "$PACKAGE" | sed 's|^./||') # Ensure there's no leading './'
-              DISABLE_TELEMETRY=true run-go-tests --path "$PACKAGE_PATH" --packages "$PACKAGE_PATH" | tee -a /tmp/logs/all.log
-            done
+            # Find all test files under 'aws/resources' and split them by name
+            TEST_FILES=$(find aws/resources/ -type f -name "*_test.go" | sort -u)
+            SPLIT_TEST_FILES=$(echo "$TEST_FILES" | circleci tests split --split-by=name)
+            echo "Test files assigned to this container: $SPLIT_TEST_FILES"
+            for FILE in $SPLIT_TEST_FILES; do
+              # Extract the directory path from each file and run tests in those directories
+              DIR=$(dirname $FILE)
+              echo "Running tests in directory: $DIR"
+              DISABLE_TELEMETRY=true run-go-tests --path "$DIR" --packages "./$DIR"
+            done | tee /tmp/logs/all.log
       - run:
           name: Parse Test Output
           command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
