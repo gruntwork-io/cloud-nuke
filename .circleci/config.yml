@@ -34,7 +34,7 @@ jobs:
             echo "Packages to test: $SPLIT_PACKAGES"
             for PACKAGE in $SPLIT_PACKAGES; do
               echo "Running tests in package: $PACKAGE"
-              DISABLE_TELEMETRY=true ./run-go-tests --path "$PACKAGE" --packages "./$PACKAGE" | tee -a /tmp/logs/all.log
+              DISABLE_TELEMETRY=true run-go-tests --path "$PACKAGE" --packages "./$PACKAGE" | tee -a /tmp/logs/all.log
             done
       - run:
           name: Parse Test Output
