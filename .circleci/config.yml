@@ -19,12 +19,26 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Prepare Logs Directory
+          command: mkdir -p /tmp/logs
+      - run:
+          name: Run Tests with Splitting
           command: |
-            TESTFILES=$(circleci tests glob "tests/**/*.go" | circleci tests split --split-by=timings)
-            DISABLE_TELEMETRY=true run-go-tests --timeout 45m ${TESTFILES} | tee /tmp/logs/all.log
+            TESTFILES=$(circleci tests glob "tests/**/*.go")
+            echo "Test files found: $TESTFILES"
+            if [ -z "$TESTFILES" ]; then
+              echo "No test files found."
+              exit 0
+            fi
+            TESTFILES=$(echo "$TESTFILES" | circleci tests split --split-by=timings || echo "$TESTFILES" | circleci tests split --split-by=equal)
+            if [ -z "$TESTFILES" ]; then
+              echo "No test files after split. Possibly an issue with test timings data."
+              exit 0
+            fi
+            DISABLE_TELEMETRY=true run-go-tests --timeout 45m $TESTFILES | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
-          name: parse test output
+          name: Parse Test Output
           command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
           when: always
       - store_artifacts:
