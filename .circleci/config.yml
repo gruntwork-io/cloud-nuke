@@ -24,15 +24,16 @@ jobs:
       - run:
           name: Run Tests in Parallel Across Containers
           command: |
-            PACKAGES=$(circleci tests glob "aws/**/*_test.go" | circleci tests split --split-by=timings)
+            PACKAGES=$(circleci tests glob "aws/**/*.go" | grep '_test.go' | sed 's|/[^/]*$||' | sort -u)
+            echo "Unique package paths: $PACKAGES"
             if [ -z "$PACKAGES" ]; then
               echo "No test packages to run."
               exit 0
             fi
-            echo "Running tests on these packages: $PACKAGES"
-            PACKAGES=$(echo "$PACKAGES" | sed 's|/[^/]*$||' | sort -u)  # Convert file paths to package paths and remove duplicates
-            echo "Unique package paths: $PACKAGES"
-            DISABLE_TELEMETRY=true run-go-tests --extra-flags '--timeout 45m' --packages "$PACKAGES"
+            for PACKAGE in $PACKAGES; do
+              echo "Running tests in package: $PACKAGE"
+              go test -v -timeout 45m $PACKAGE
+            done
           no_output_timeout: 45m
       - run:
           name: Parse Test Output
