@@ -15,7 +15,7 @@ version: 2.1
 jobs:
   test:
     <<: *defaults
-    parallelism: 4  # Number of containers to run tests in parallel
+    parallelism: 4  # Adjust based on your CI resource allocation and needs
     steps:
       - checkout
       - run:
@@ -24,7 +24,7 @@ jobs:
       - run:
           name: Run Tests with Splitting
           command: |
-            TESTFILES=$(circleci tests glob "tests/**/*.go")
+            TESTFILES=$(circleci tests glob "**/*.go")
             echo "Test files found: $TESTFILES"
             if [ -z "$TESTFILES" ]; then
               echo "No test files found."
@@ -35,7 +35,7 @@ jobs:
               echo "No test files after split. Possibly an issue with test timings data."
               exit 0
             fi
-            DISABLE_TELEMETRY=true run-go-tests --timeout 45m $TESTFILES | tee /tmp/logs/all.log
+            DISABLE_TELEMETRY=true run-go-tests --extra-flags '--timeout 45m' $TESTFILES | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
           name: Parse Test Output
