@@ -34,7 +34,9 @@ jobs:
             echo "Packages to test: $SPLIT_PACKAGES"
             for PACKAGE in $SPLIT_PACKAGES; do
               echo "Running tests in package: $PACKAGE"
-              DISABLE_TELEMETRY=true run-go-tests --path "$PACKAGE" --packages "./$PACKAGE" | tee -a /tmp/logs/all.log
+              # Ensuring paths are relative and removing any potential leading './' which might be causing the issue
+              REL_PACKAGE="${PACKAGE#./}"
+              DISABLE_TELEMETRY=true run-go-tests --path "$REL_PACKAGE" --packages "$REL_PACKAGE" | tee -a /tmp/logs/all.log
             done
       - run:
           name: Parse Test Output
