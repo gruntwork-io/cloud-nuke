@@ -56,7 +56,7 @@ jobs:
       - run:
           name: Build Binaries
           command: |
-            ./build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
+            build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
                                 --ld-flags "-X main.VERSION=$CIRCLE_TAG" --os << parameters.os >> --arch << parameters.arch >>
       - persist_to_workspace:
           root: .
