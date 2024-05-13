@@ -49,7 +49,7 @@ jobs:
       - run:
           name: Build Binaries
           command: |
-            ./build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
+            build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
                                 --ld-flags "-X main.VERSION=$CIRCLE_TAG" --os << parameters.os >> --arch << parameters.arch >>
 
   nuke_phx_devops:
@@ -154,6 +154,10 @@ workflows:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
       - build:
+          matrix:
+            parameters:
+              os: [ "linux", "windows", "darwin" ]
+              arch: [ "386", "amd64", "arm64" ]
           filters:
             tags:
               only: /^v.*/
@@ -193,10 +197,3 @@ workflows:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
             - AWS__SANDBOX__circle-ci
-  build_all_combinations:
-    jobs:
-      - build:
-          matrix:
-            parameters:
-              os: [ "linux", "windows", "darwin" ]
-              arch: [ "386", "amd64", "arm64" ]
