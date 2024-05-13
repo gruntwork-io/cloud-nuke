@@ -88,6 +88,7 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 			expected:  []string{subnet1, subnet2},
 		},
 		"nameExclusionFilter": {
+			ctx: ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{

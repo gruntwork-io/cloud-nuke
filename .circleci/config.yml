@@ -18,15 +18,16 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Prepare Logs Directory
+          command: mkdir -p /tmp/logs
+      - run:
+          name: Run Tests
           command: |
             mkdir -p /tmp/logs
-            # Run the tests. Note that we set the "-p 1" flag to tell Go to run tests in each package sequentially. Without
-            # this, Go buffers all log output until all packages are done, which with slower running tests can cause CircleCI
-            # to kill the build after more than 45 minutes without log output.
-            DISABLE_TELEMETRY=true run-go-tests --extra-flags '-p 1' --timeout 45m | tee /tmp/logs/all.log
+            DISABLE_TELEMETRY=true run-go-tests --parallelism 4 --timeout 45m | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
-          name: parse test output
+          name: Parse Test Output
           command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
           when: always
       - store_artifacts:
@@ -34,14 +35,33 @@ jobs:
       - store_test_results:
           path: /tmp/logs
 
+
   build:
     <<: *defaults
+    parameters:
+      os:
+        type: string
+      arch:
+        type: string
     steps:
+      - run:
+          # darwin/386 is no longer supported by the newer versions of Go.
+          name: Check Combination
+          command: |
+            if [ "<< parameters.os >>" == "darwin" ] && [ "<< parameters.arch >>" == "386" ]; then
+              echo "Skipping build for darwin/386."
+              circleci-agent step halt
+            fi
       - checkout
-      - run: build-go-binaries --parallel 2 --app-name cloud-nuke --dest-path bin --ld-flags "-X main.VERSION=$CIRCLE_TAG"
+      - run:
+          name: Build Binaries
+          command: |
+            build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
+                                --ld-flags "-X main.VERSION=$CIRCLE_TAG" --os << parameters.os >> --arch << parameters.arch >>
       - persist_to_workspace:
           root: .
           paths: bin
+
   nuke_phx_devops:
     <<: *defaults
     steps:
@@ -144,6 +164,10 @@ workflows:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
       - build:
+          matrix:
+            parameters:
+              os: [ "linux", "windows", "darwin" ]
+              arch: [ "386", "amd64", "arm64" ]
           filters:
             tags:
               only: /^v.*/
