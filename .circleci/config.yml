@@ -35,6 +35,7 @@ jobs:
       - store_test_results:
           path: /tmp/logs
 
+
   build:
     <<: *defaults
     parameters:
@@ -43,11 +44,15 @@ jobs:
       arch:
         type: string
     steps:
+      - checkout
       - run:
           name: Build Binaries
           command: |
             build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
                                 --ld-flags "-X main.VERSION=$CIRCLE_TAG" --os << parameters.os >> --arch << parameters.arch >>
+      - persist_to_workspace:
+          root: .
+          paths: bin
 
   nuke_phx_devops:
     <<: *defaults
