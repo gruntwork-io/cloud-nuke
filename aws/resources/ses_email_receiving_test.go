@@ -43,6 +43,7 @@ func TestSesReceiptRule_GetAll(t *testing.T) {
 	t.Parallel()
 
 	sesRule := SesReceiptRule{
+		Region: "us-east-1",
 		Client: mockedSesReceiptRule{
 			ListReceiptRuleSetsOutput: ses.ListReceiptRuleSetsOutput{
 				RuleSets: []*ses.ReceiptRuleSetMetadata{
@@ -129,6 +130,7 @@ func TestSesReceiptFilter_GetAll(t *testing.T) {
 	t.Parallel()
 
 	sesRule := SesReceiptFilter{
+		Region: "us-east-1",
 		Client: mockedSesReceiptFilter{
 			ListReceiptFiltersOutput: ses.ListReceiptFiltersOutput{
 				Filters: []*ses.ReceiptFilter{

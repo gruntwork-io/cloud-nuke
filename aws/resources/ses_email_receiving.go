@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"slices"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ses"
@@ -11,8 +12,24 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+var ReceiptRuleAllowedRegions = []string{
+	"us-east-1", "us-east-2", "us-west-2", "ap-southeast-3", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
+	"ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2",
+}
+
 // Returns a formatted string of receipt rule names
 func (s *SesReceiptRule) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	// NOTE : SES does not support email receiving in the following Regions: US West (N. California), Africa (Cape Town), Asia Pacific (Mumbai), Asia Pacific (Osaka),
+	// Asia Pacific (Seoul), Europe (Milan), Europe (Paris), Europe (Stockholm), Israel (Tel Aviv), Middle East (Bahrain), South America (São Paulo),
+	// AWS GovCloud (US-West), and AWS GovCloud (US-East).
+	// Reference : https://docs.aws.amazon.com/ses/latest/dg/regions.html#region-receive-email
+
+	// since the aws doesn't provide an api to check the ses receipt rule is allowed for the region
+	if !slices.Contains(ReceiptRuleAllowedRegions, s.Region) {
+		logging.Debugf("Region %s is not allowed for Email receiving", s.Region)
+		return nil, nil
+	}
+
 	result, err := s.Client.ListReceiptRuleSets(&ses.ListReceiptRuleSetsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
