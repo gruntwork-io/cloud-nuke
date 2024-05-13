@@ -42,10 +42,7 @@ jobs:
         type: string
       arch:
         type: string
-    docker:
-      - image: cimg/go:1.18
     steps:
-      - checkout
       - run:
           name: Build Binaries
           command: |
