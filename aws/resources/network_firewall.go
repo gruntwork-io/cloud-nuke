@@ -93,8 +93,8 @@ func (nfw *NetworkFirewall) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
-		if nukable, err := nfw.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := nfw.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

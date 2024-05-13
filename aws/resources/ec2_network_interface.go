@@ -180,8 +180,8 @@ func (ni *NetworkInterface) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
-		if nukable, err := ni.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := ni.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

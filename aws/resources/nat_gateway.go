@@ -33,6 +33,16 @@ func (ngw *NatGateways) getAll(_ context.Context, configObj config.Config) ([]*s
 			return !lastPage
 		},
 	)
+
+	// checking the nukable permissions
+	ngw.VerifyNukablePermissions(allNatGateways, func(id *string) error {
+		_, err := ngw.Client.DeleteNatGateway(&ec2.DeleteNatGatewayInput{
+			NatGatewayId: id,
+			DryRun:       awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return allNatGateways, errors.WithStackTrace(err)
 }
 
@@ -161,6 +171,12 @@ func (ngw *NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, e
 // concurrency control and a return channel for errors.
 func (ngw *NatGateways) deleteAsync(wg *sync.WaitGroup, errChan chan error, ngwID *string) {
 	defer wg.Done()
+
+	if nukable, reason := ngw.IsNukable(awsgo.StringValue(ngwID)); !nukable {
+		logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(ngwID), reason)
+		errChan <- nil
+		return
+	}
 
 	err := nukeNATGateway(ngw.Client, ngwID)
 	// Record status of this resource

@@ -74,8 +74,8 @@ func (e *EC2Endpoints) nukeAll(identifiers []*string) error {
 	var deletedAddresses []*string
 
 	for _, id := range identifiers {
-		if nukable, err := e.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := e.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

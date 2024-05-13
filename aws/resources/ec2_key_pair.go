@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -27,6 +29,15 @@ func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*str
 			ids = append(ids, keyPair.KeyPairId)
 		}
 	}
+
+	// checking the nukable permissions
+	k.VerifyNukablePermissions(ids, func(id *string) error {
+		_, err := k.Client.DeleteKeyPair(&ec2.DeleteKeyPairInput{
+			KeyPairId: id,
+			DryRun:    awsgo.Bool(true),
+		})
+		return err
+	})
 
 	return ids, nil
 }
@@ -57,6 +68,11 @@ func (k *EC2KeyPairs) nukeAll(keypairIds []*string) error {
 	deletedKeyPairs := 0
 	var multiErr *multierror.Error
 	for _, keypair := range keypairIds {
+		if nukable, reason := k.IsNukable(awsgo.StringValue(keypair)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(keypair), reason)
+			continue
+		}
+
 		if err := k.deleteKeyPair(keypair); err != nil {
 			logging.Errorf("[Failed] %s", err)
 			multiErr = multierror.Append(multiErr, err)

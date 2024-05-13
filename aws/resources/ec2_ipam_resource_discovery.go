@@ -63,6 +63,15 @@ func (discovery *EC2IPAMResourceDiscovery) getAll(c context.Context, configObj c
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// checking the nukable permissions
+	discovery.VerifyNukablePermissions(result, func(id *string) error {
+		_, err := discovery.Client.DeleteIpamResourceDiscovery(&ec2.DeleteIpamResourceDiscoveryInput{
+			IpamResourceDiscoveryId: id,
+			DryRun:                  awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return result, nil
 }
 
@@ -77,11 +86,15 @@ func (discovery *EC2IPAMResourceDiscovery) nukeAll(ids []*string) error {
 	var deletedAddresses []*string
 
 	for _, id := range ids {
-		params := &ec2.DeleteIpamResourceDiscoveryInput{
-			IpamResourceDiscoveryId: id,
+
+		if nukable, reason := discovery.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
+			continue
 		}
 
-		_, err := discovery.Client.DeleteIpamResourceDiscovery(params)
+		_, err := discovery.Client.DeleteIpamResourceDiscovery(&ec2.DeleteIpamResourceDiscoveryInput{
+			IpamResourceDiscoveryId: id,
+		})
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   awsgo.StringValue(id),

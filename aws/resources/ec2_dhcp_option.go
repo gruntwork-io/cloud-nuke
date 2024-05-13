@@ -30,11 +30,24 @@ func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*s
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// checking the nukable permissions
+	v.VerifyNukablePermissions(dhcpOptionIds, func(id *string) error {
+		_, err := v.Client.DeleteDhcpOptions(&ec2.DeleteDhcpOptionsInput{
+			DhcpOptionsId: id,
+			DryRun:        awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return dhcpOptionIds, nil
 }
 
 func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
+		if nukable, reason := v.IsNukable(awsgo.StringValue(identifier)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(identifier), reason)
+			continue
+		}
 
 		err := nukeDhcpOption(v.Client, identifier)
 		if err != nil {
