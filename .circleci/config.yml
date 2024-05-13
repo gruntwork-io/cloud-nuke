@@ -8,7 +8,7 @@ env: &env
     MODULE_CI_VERSION: v0.53.3
 
 defaults: &defaults
-  resource_class: large
+  resource_class: medium+
   docker:
     - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.21-tf1.5-tg39.1-pck1.8-ci50.7
 version: 2.1
@@ -46,9 +46,16 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Check Combination
+          command: |
+            if [ "<< parameters.os >>" == "darwin" ] && [ "<< parameters.arch >>" == "386" ]; then
+              echo "Skipping build for darwin/386."
+              circleci-agent step halt
+            fi
+      - run:
           name: Build Binaries
           command: |
-            build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
+            ./build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
                                 --ld-flags "-X main.VERSION=$CIRCLE_TAG" --os << parameters.os >> --arch << parameters.arch >>
       - persist_to_workspace:
           root: .
