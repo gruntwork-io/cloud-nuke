@@ -44,14 +44,15 @@ jobs:
       arch:
         type: string
     steps:
-      - checkout
       - run:
+          # darwin/386 is no longer supported by the newer versions of Go.
           name: Check Combination
           command: |
             if [ "<< parameters.os >>" == "darwin" ] && [ "<< parameters.arch >>" == "386" ]; then
               echo "Skipping build for darwin/386."
               circleci-agent step halt
             fi
+      - checkout
       - run:
           name: Build Binaries
           command: |
