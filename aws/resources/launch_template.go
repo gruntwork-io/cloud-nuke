@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -28,6 +29,15 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 		}
 	}
 
+	// checking the nukable permissions
+	lt.VerifyNukablePermissions(templateNames, func(id *string) error {
+		_, err := lt.Client.DeleteLaunchTemplateWithContext(lt.Context, &ec2.DeleteLaunchTemplateInput{
+			LaunchTemplateName: id,
+			DryRun:             awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return templateNames, nil
 }
 
@@ -42,11 +52,15 @@ func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 	var deletedTemplateNames []*string
 
 	for _, templateName := range templateNames {
-		params := &ec2.DeleteLaunchTemplateInput{
-			LaunchTemplateName: templateName,
+
+		if nukable, reason := lt.IsNukable(awsgo.StringValue(templateName)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(templateName), reason)
+			continue
 		}
 
-		_, err := lt.Client.DeleteLaunchTemplateWithContext(lt.Context, params)
+		_, err := lt.Client.DeleteLaunchTemplateWithContext(lt.Context, &ec2.DeleteLaunchTemplateInput{
+			LaunchTemplateName: templateName,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

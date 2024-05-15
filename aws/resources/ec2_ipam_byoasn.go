@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -26,6 +27,15 @@ func (byoasn *EC2IPAMByoasn) getAll(c context.Context, configObj config.Config) 
 	for _, out := range output.Byoasns {
 		result = append(result, out.Asn)
 	}
+
+	// checking the nukable permissions
+	byoasn.VerifyNukablePermissions(result, func(id *string) error {
+		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
+			Asn:    id,
+			DryRun: awsgo.Bool(true),
+		})
+		return err
+	})
 	return result, nil
 }
 
@@ -40,11 +50,14 @@ func (byoasn *EC2IPAMByoasn) nukeAll(asns []*string) error {
 	var list []*string
 
 	for _, id := range asns {
-		params := &ec2.DisassociateIpamByoasnInput{
-			Asn: id,
+		if nukable, reason := byoasn.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
+			continue
 		}
 
-		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, params)
+		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
+			Asn: id,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

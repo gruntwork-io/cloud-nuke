@@ -92,6 +92,29 @@ func (cs *EC2IPAMCustomAllocation) getAll(c context.Context, configObj config.Co
 		}
 	}
 
+	// checking the nukable permissions
+	cs.VerifyNukablePermissions(result, func(id *string) error {
+		cidr, err := cs.getPoolAllocationCIDR(id)
+		if err != nil {
+			logging.Errorf("[Failed] %s", err)
+			return err
+		}
+
+		allocationIPAMPoolID, ok := cs.PoolAndAllocationMap[*id]
+		if !ok {
+			logging.Errorf("[Failed] %s", fmt.Errorf("unable to find the pool allocation with %s", *id))
+			return fmt.Errorf("unable to find the pool allocation with %s", *id)
+		}
+
+		_, err = cs.Client.ReleaseIpamPoolAllocationWithContext(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
+			IpamPoolId:           &allocationIPAMPoolID,
+			IpamPoolAllocationId: id,
+			Cidr:                 cidr,
+			DryRun:               awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return result, nil
 }
 
@@ -106,6 +129,11 @@ func (cs *EC2IPAMCustomAllocation) nukeAll(ids []*string) error {
 	var deletedAddresses []*string
 
 	for _, id := range ids {
+
+		if nukable, reason := cs.IsNukable(awsgo.StringValue(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
+			continue
+		}
 
 		// get the IPamPool details
 		cidr, err := cs.getPoolAllocationCIDR(id)

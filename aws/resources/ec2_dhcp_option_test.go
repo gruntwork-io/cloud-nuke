@@ -27,6 +27,10 @@ func (m mockedEC2DhcpOption) DeleteDhcpOptions(_ *ec2.DeleteDhcpOptionsInput) (*
 	return &m.DeleteDhcpOptionsOutput, nil
 }
 
+func (m mockedEC2DhcpOption) DeleteDhcpOptionsWithContext(_ awsgo.Context, _ *ec2.DeleteDhcpOptionsInput, _ ...request.Option) (*ec2.DeleteDhcpOptionsOutput, error) {
+	return &m.DeleteDhcpOptionsOutput, nil
+}
+
 func TestEC2DhcpOption_GetAll(t *testing.T) {
 
 	t.Parallel()

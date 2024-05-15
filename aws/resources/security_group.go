@@ -305,8 +305,8 @@ func (sg *SecurityGroup) nukeAll(identifiers []*string) error {
 
 	for _, id := range identifiers {
 
-		if nukable, err := sg.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := sg.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

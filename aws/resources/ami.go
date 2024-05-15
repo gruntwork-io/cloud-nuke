@@ -55,6 +55,15 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 		}
 	}
 
+	// checking the nukable permissions
+	ami.VerifyNukablePermissions(imageIds, func(id *string) error {
+		_, err := ami.Client.DeregisterImageWithContext(ami.Context, &ec2.DeregisterImageInput{
+			ImageId: id,
+			DryRun:  awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return imageIds, nil
 }
 
@@ -63,17 +72,21 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 	if len(imageIds) == 0 {
 		logging.Debugf("No AMI to nuke in region %s", ami.Region)
 		return nil
+
 	}
 
 	logging.Debugf("Deleting all AMI in region %s", ami.Region)
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
-		params := &ec2.DeregisterImageInput{
-			ImageId: imageID,
+		if nukable, reason := ami.IsNukable(awsgo.StringValue(imageID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(imageID), reason)
+			continue
 		}
 
-		_, err := ami.Client.DeregisterImageWithContext(ami.Context, params)
+		_, err := ami.Client.DeregisterImageWithContext(ami.Context, &ec2.DeregisterImageInput{
+			ImageId: imageID,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

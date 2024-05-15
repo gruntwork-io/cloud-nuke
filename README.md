@@ -629,6 +629,40 @@ of the file that are supported are listed here.
 | network-firewall-resource-policy | NetworkFirewallResourcePolicy     | ✅ (Firewall Resource Policy ARN)   			  |  ❌             |  ❌    |    ✅   |
 
 
+### Resource Deletion and 'IsNukable' Check Option
+#### Supported Resources for 'IsNukable' Check
+For certain resources, such as `AMI`, `EBS`, `DHCP Option`, and others listed below, we support an option to verify whether the user has sufficient permissions to nuke the resources. If not, it will raise `error: INSUFFICIENT_PERMISSION` error.
+
+Supported resources:
+- AMI
+- EBS
+- DHCP Option
+- Egress only Internet Gateway
+- Endpoints
+- Internet Gatway
+- IPAM
+- IPAM BYOASN
+- IPAM Custom Allocation
+- IPAM Pool
+- IPAM Resource Discovery
+- IPAM Scope
+- Key Pair
+- Network ACL
+- Network Interface
+- Subnet
+- VPC
+- Elastic IP
+- Launch Template
+- NAT Gateway
+- Network Firewall
+- Security Group
+- SnapShot
+- Transit Gateway
+
+#### Unsupported Resources
+Please note that the eligibility check for nukability relies on the `DryRun` feature provided by AWS. Regrettably, this feature is not available for all delete APIs of resource types. Hence, the 'eligibility check for nukability' option may not be accessible for all resource types
+
+
 ### How to Use
 
 Once you created your config file, you can run a command like this to nuke resources with your config file:

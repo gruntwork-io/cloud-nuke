@@ -41,6 +41,15 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 		}
 	}
 
+	// checking the nukable permissions
+	s.VerifyNukablePermissions(snapshotIds, func(id *string) error {
+		_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
+			SnapshotId: id,
+			DryRun:     awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return snapshotIds, nil
 }
 
@@ -72,11 +81,15 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 	var deletedSnapshotIDs []*string
 
 	for _, snapshotID := range snapshotIds {
-		params := &ec2.DeleteSnapshotInput{
-			SnapshotId: snapshotID,
+
+		if nukable, reason := s.IsNukable(awsgo.StringValue(snapshotID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(snapshotID), reason)
+			continue
 		}
 
-		_, err := s.Client.DeleteSnapshotWithContext(s.Context, params)
+		_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
+			SnapshotId: snapshotID,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

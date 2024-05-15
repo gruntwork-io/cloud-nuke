@@ -51,7 +51,7 @@ func (egigw *EgressOnlyInternetGateway) getAll(c context.Context, configObj conf
 	}
 	// checking the nukable permissions
 	egigw.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := egigw.Client.DeleteEgressOnlyInternetGateway(&ec2.DeleteEgressOnlyInternetGatewayInput{
+		_, err := egigw.Client.DeleteEgressOnlyInternetGatewayWithContext(egigw.Context, &ec2.DeleteEgressOnlyInternetGatewayInput{
 			EgressOnlyInternetGatewayId: id,
 			DryRun:                      awsgo.Bool(true),
 		})
@@ -73,8 +73,8 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 		// NOTE : We can skip the error checking and return it here, since it is already being checked while displaying the identifiers with the Nukable  field.
 		// Here, `err` refers to the error indicating whether the identifier is eligible for nuke or not (an error which we got from aws when tried to delete the resource with dryRun),
 		// and it is not a programming error. (edited)
-		if nukable, err := egigw.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := egigw.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 

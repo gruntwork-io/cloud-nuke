@@ -60,6 +60,15 @@ func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string,
 		}
 	}
 
+	// checking the nukable permissions
+	v.VerifyNukablePermissions(ids, func(id *string) error {
+		_, err := v.Client.DeleteVpc(&ec2.DeleteVpcInput{
+			VpcId:  id,
+			DryRun: awsgo.Bool(true),
+		})
+		return err
+	})
+
 	return ids, nil
 }
 
@@ -75,6 +84,11 @@ func (v *EC2VPCs) nukeAll(vpcIds []string) error {
 	multiErr := new(multierror.Error)
 
 	for _, id := range vpcIds {
+		if nukable, reason := v.IsNukable(id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", id, reason)
+			continue
+		}
+
 		var err error
 		err = nuke(v.Client, v.ELBClient, id)
 

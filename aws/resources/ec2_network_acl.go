@@ -161,8 +161,8 @@ func (nacl *NetworkACL) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
-		if nukable, err := nacl.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
+		if nukable, reason := nacl.IsNukable(*id); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
 			continue
 		}
 
