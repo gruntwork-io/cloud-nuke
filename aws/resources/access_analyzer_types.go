@@ -40,6 +40,11 @@ func (analyzer *AccessAnalyzer) MaxBatchSize() int {
 	return 10
 }
 
+// To get the resource configuration
+func (analyzer *AccessAnalyzer) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.AccessAnalyzer
+}
+
 func (analyzer *AccessAnalyzer) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := analyzer.getAll(c, configObj)
 	if err != nil {

@@ -2,14 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedLaunchTemplate struct {
@@ -18,11 +21,11 @@ type mockedLaunchTemplate struct {
 	DeleteLaunchTemplateOutput    ec2.DeleteLaunchTemplateOutput
 }
 
-func (m mockedLaunchTemplate) DescribeLaunchTemplates(input *ec2.DescribeLaunchTemplatesInput) (*ec2.DescribeLaunchTemplatesOutput, error) {
+func (m mockedLaunchTemplate) DescribeLaunchTemplatesWithContext(_ aws.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	return &m.DescribeLaunchTemplatesOutput, nil
 }
 
-func (m mockedLaunchTemplate) DeleteLaunchTemplate(input *ec2.DeleteLaunchTemplateInput) (*ec2.DeleteLaunchTemplateOutput, error) {
+func (m mockedLaunchTemplate) DeleteLaunchTemplateWithContext(_ aws.Context, input *ec2.DeleteLaunchTemplateInput, _ ...request.Option) (*ec2.DeleteLaunchTemplateOutput, error) {
 	return &m.DeleteLaunchTemplateOutput, nil
 }
 

@@ -41,6 +41,10 @@ func (igw *InternetGateway) MaxBatchSize() int {
 	return 50
 }
 
+func (igw *InternetGateway) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.InternetGateway
+}
+
 func (igw *InternetGateway) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := igw.getAll(c, configObj)
 	if err != nil {

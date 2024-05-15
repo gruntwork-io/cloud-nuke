@@ -35,6 +35,10 @@ func (tgpa *TransitGatewayPeeringAttachment) ResourceIdentifiers() []string {
 	return tgpa.Ids
 }
 
+func (tgpa *TransitGatewayPeeringAttachment) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.TransitGateway
+}
+
 func (tgpa *TransitGatewayPeeringAttachment) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := tgpa.getAll(c, configObj)
 	if err != nil {

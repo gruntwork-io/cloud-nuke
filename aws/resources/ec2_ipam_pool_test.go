@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -21,11 +22,11 @@ type mockedIPAMPools struct {
 	DeleteIpamPoolOutput    ec2.DeleteIpamPoolOutput
 }
 
-func (m mockedIPAMPools) DescribeIpamPoolsPages(input *ec2.DescribeIpamPoolsInput, callback func(*ec2.DescribeIpamPoolsOutput, bool) bool) error {
+func (m mockedIPAMPools) DescribeIpamPoolsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamPoolsInput, callback func(*ec2.DescribeIpamPoolsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeIpamPoolsOutput, true)
 	return nil
 }
-func (m mockedIPAMPools) DeleteIpamPool(params *ec2.DeleteIpamPoolInput) (*ec2.DeleteIpamPoolOutput, error) {
+func (m mockedIPAMPools) DeleteIpamPoolWithContext(_ awsgo.Context, _ *ec2.DeleteIpamPoolInput, _ ...request.Option) (*ec2.DeleteIpamPoolOutput, error) {
 	return &m.DeleteIpamPoolOutput, nil
 }
 

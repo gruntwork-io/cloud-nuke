@@ -34,6 +34,10 @@ func (registry *ECR) MaxBatchSize() int {
 	return 50
 }
 
+func (registry *ECR) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ECRRepository
+}
+
 func (registry *ECR) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := registry.getAll(c, configObj)
 	if err != nil {

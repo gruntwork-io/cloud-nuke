@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
 )
 
 type mockedDBSubnetGroups struct {
@@ -19,16 +21,16 @@ type mockedDBSubnetGroups struct {
 	DeleteDBSubnetGroupOutput    rds.DeleteDBSubnetGroupOutput
 }
 
-func (m mockedDBSubnetGroups) DescribeDBSubnetGroupsPages(input *rds.DescribeDBSubnetGroupsInput, fn func(*rds.DescribeDBSubnetGroupsOutput, bool) bool) error {
+func (m mockedDBSubnetGroups) DescribeDBSubnetGroupsPagesWithContext(_ awsgo.Context, _ *rds.DescribeDBSubnetGroupsInput, fn func(*rds.DescribeDBSubnetGroupsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeDBSubnetGroupsOutput, true)
 	return nil
 }
 
-func (m mockedDBSubnetGroups) DescribeDBSubnetGroups(*rds.DescribeDBSubnetGroupsInput) (*rds.DescribeDBSubnetGroupsOutput, error) {
+func (m mockedDBSubnetGroups) DescribeDBSubnetGroupsWithContext(_ awsgo.Context, _ *rds.DescribeDBSubnetGroupsInput, _ ...request.Option) (*rds.DescribeDBSubnetGroupsOutput, error) {
 	return &m.DescribeDBSubnetGroupsOutput, m.DescribeDBSubnetGroupError
 }
 
-func (m mockedDBSubnetGroups) DeleteDBSubnetGroup(*rds.DeleteDBSubnetGroupInput) (*rds.DeleteDBSubnetGroupOutput, error) {
+func (m mockedDBSubnetGroups) DeleteDBSubnetGroupWithContext(_ awsgo.Context, _ *rds.DeleteDBSubnetGroupInput, _ ...request.Option) (*rds.DeleteDBSubnetGroupOutput, error) {
 	return &m.DeleteDBSubnetGroupOutput, nil
 }
 

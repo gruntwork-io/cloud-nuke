@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -12,7 +13,8 @@ import (
 
 func (rc *RedshiftClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var clusterIds []*string
-	err := rc.Client.DescribeClustersPages(
+	err := rc.Client.DescribeClustersPagesWithContext(
+		rc.Context,
 		&redshift.DescribeClustersInput{},
 		func(page *redshift.DescribeClustersOutput, lastPage bool) bool {
 			for _, cluster := range page.Clusters {
@@ -39,7 +41,7 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 	logging.Debugf("Deleting all Redshift Clusters in region %s", rc.Region)
 	deletedIds := []*string{}
 	for _, id := range identifiers {
-		_, err := rc.Client.DeleteCluster(&redshift.DeleteClusterInput{
+		_, err := rc.Client.DeleteClusterWithContext(rc.Context, &redshift.DeleteClusterInput{
 			ClusterIdentifier:        id,
 			SkipFinalClusterSnapshot: aws.Bool(true),
 		})
@@ -53,7 +55,7 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 
 	if len(deletedIds) > 0 {
 		for _, id := range deletedIds {
-			err := rc.Client.WaitUntilClusterDeleted(&redshift.DescribeClustersInput{ClusterIdentifier: id})
+			err := rc.Client.WaitUntilClusterDeletedWithContext(rc.Context, &redshift.DescribeClustersInput{ClusterIdentifier: id})
 			// Record status of this resource
 			e := report.Entry{
 				Identifier:   aws.StringValue(id),

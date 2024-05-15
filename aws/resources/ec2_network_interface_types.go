@@ -35,6 +35,10 @@ func (ni *NetworkInterface) MaxBatchSize() int {
 	return 50
 }
 
+func (ni *NetworkInterface) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.NetworkInterface
+}
+
 func (ni *NetworkInterface) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ni.getAll(c, configObj)
 	if err != nil {

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -13,7 +14,8 @@ import (
 func (cwdb *CloudWatchDashboards) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allDashboards := []*string{}
 	input := &cloudwatch.ListDashboardsInput{}
-	err := cwdb.Client.ListDashboardsPages(
+	err := cwdb.Client.ListDashboardsPagesWithContext(
+		cwdb.Context,
 		input,
 		func(page *cloudwatch.ListDashboardsOutput, lastPage bool) bool {
 			for _, dashboard := range page.DashboardEntries {
@@ -48,7 +50,7 @@ func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 
 	logging.Debugf("Deleting CloudWatch Dashboards in region %s", cwdb.Region)
 	input := cloudwatch.DeleteDashboardsInput{DashboardNames: identifiers}
-	_, err := cwdb.Client.DeleteDashboards(&input)
+	_, err := cwdb.Client.DeleteDashboardsWithContext(cwdb.Context, &input)
 
 	// Record status of this resource
 	e := report.BatchEntry{

@@ -38,6 +38,10 @@ func (services *ECSServices) MaxBatchSize() int {
 	return 49
 }
 
+func (services *ECSServices) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ECSService
+}
+
 func (services *ECSServices) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := services.getAll(c, configObj)
 	if err != nil {

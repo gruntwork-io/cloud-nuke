@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -26,35 +27,35 @@ type mockedIPAM struct {
 	GetIpamPoolAllocationsOutput ec2.GetIpamPoolAllocationsOutput
 }
 
-func (m mockedIPAM) DeleteIpamPool(input *ec2.DeleteIpamPoolInput) (*ec2.DeleteIpamPoolOutput, error) {
+func (m mockedIPAM) DeleteIpamPoolWithContext(_ awsgo.Context, _ *ec2.DeleteIpamPoolInput, _ ...request.Option) (*ec2.DeleteIpamPoolOutput, error) {
 	return nil, nil
 }
-func (m mockedIPAM) ReleaseIpamPoolAllocation(input *ec2.ReleaseIpamPoolAllocationInput) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
+func (m mockedIPAM) ReleaseIpamPoolAllocationWithContext(_ awsgo.Context, _ *ec2.ReleaseIpamPoolAllocationInput, _ ...request.Option) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
 	return nil, nil
 }
-func (m mockedIPAM) GetIpamPoolAllocations(input *ec2.GetIpamPoolAllocationsInput) (*ec2.GetIpamPoolAllocationsOutput, error) {
+func (m mockedIPAM) GetIpamPoolAllocationsWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolAllocationsInput, _ ...request.Option) (*ec2.GetIpamPoolAllocationsOutput, error) {
 	return &m.GetIpamPoolAllocationsOutput, nil
 }
-func (m mockedIPAM) DeprovisionIpamPoolCidr(input *ec2.DeprovisionIpamPoolCidrInput) (*ec2.DeprovisionIpamPoolCidrOutput, error) {
+func (m mockedIPAM) DeprovisionIpamPoolCidrWithContext(_ awsgo.Context, _ *ec2.DeprovisionIpamPoolCidrInput, _ ...request.Option) (*ec2.DeprovisionIpamPoolCidrOutput, error) {
 	return &m.DeprovisionIpamPoolCidrOuput, nil
 }
-func (m mockedIPAM) GetIpamPoolCidrs(input *ec2.GetIpamPoolCidrsInput) (*ec2.GetIpamPoolCidrsOutput, error) {
+func (m mockedIPAM) GetIpamPoolCidrsWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolCidrsInput, _ ...request.Option) (*ec2.GetIpamPoolCidrsOutput, error) {
 	return &m.GetIpamPoolCidrsOutput, nil
 }
-func (m mockedIPAM) DescribeIpamScopes(input *ec2.DescribeIpamScopesInput) (*ec2.DescribeIpamScopesOutput, error) {
+func (m mockedIPAM) DescribeIpamScopesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamScopesInput, _ ...request.Option) (*ec2.DescribeIpamScopesOutput, error) {
 	return &m.DescribeIpamScopesOutput, nil
 }
-func (m mockedIPAM) DescribeIpamPools(input *ec2.DescribeIpamPoolsInput) (*ec2.DescribeIpamPoolsOutput, error) {
+func (m mockedIPAM) DescribeIpamPoolsWithContext(_ awsgo.Context, _ *ec2.DescribeIpamPoolsInput, _ ...request.Option) (*ec2.DescribeIpamPoolsOutput, error) {
 	return &m.DescribeIpamPoolsOutput, nil
 }
-func (m mockedIPAM) DescribeIpams(input *ec2.DescribeIpamsInput) (*ec2.DescribeIpamsOutput, error) {
+func (m mockedIPAM) DescribeIpamsWithContext(_ awsgo.Context, _ *ec2.DescribeIpamsInput, _ ...request.Option) (*ec2.DescribeIpamsOutput, error) {
 	return &m.DescribeIpamsOutput, nil
 }
-func (m mockedIPAM) DescribeIpamsPages(input *ec2.DescribeIpamsInput, callback func(*ec2.DescribeIpamsOutput, bool) bool) error {
+func (m mockedIPAM) DescribeIpamsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamsInput, callback func(*ec2.DescribeIpamsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeIpamsOutput, true)
 	return nil
 }
-func (m mockedIPAM) DeleteIpam(params *ec2.DeleteIpamInput) (*ec2.DeleteIpamOutput, error) {
+func (m mockedIPAM) DeleteIpamWithContext(_ awsgo.Context, _ *ec2.DeleteIpamInput, _ ...request.Option) (*ec2.DeleteIpamOutput, error) {
 	return &m.DeleteIpamOutput, nil
 }
 

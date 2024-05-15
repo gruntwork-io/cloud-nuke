@@ -2,10 +2,12 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -19,15 +21,15 @@ type mockedASGroups struct {
 	DeleteAutoScalingGroupResp    autoscaling.DeleteAutoScalingGroupOutput
 }
 
-func (m mockedASGroups) DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+func (m mockedASGroups) DescribeAutoScalingGroupsWithContext(_ awsgo.Context, _ *autoscaling.DescribeAutoScalingGroupsInput, _ ...request.Option) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 	return &m.DescribeAutoScalingGroupsResp, nil
 }
 
-func (m mockedASGroups) DeleteAutoScalingGroup(input *autoscaling.DeleteAutoScalingGroupInput) (*autoscaling.DeleteAutoScalingGroupOutput, error) {
+func (m mockedASGroups) DeleteAutoScalingGroupWithContext(_ awsgo.Context, _ *autoscaling.DeleteAutoScalingGroupInput, _ ...request.Option) (*autoscaling.DeleteAutoScalingGroupOutput, error) {
 	return &m.DeleteAutoScalingGroupResp, nil
 }
 
-func (m mockedASGroups) WaitUntilGroupNotExists(input *autoscaling.DescribeAutoScalingGroupsInput) error {
+func (m mockedASGroups) WaitUntilGroupNotExistsWithContext(_ awsgo.Context, _ *autoscaling.DescribeAutoScalingGroupsInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

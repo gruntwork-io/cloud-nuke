@@ -6,6 +6,7 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
@@ -28,53 +29,57 @@ type mockedEKSCluster struct {
 	DeleteNodegroupOutput   eks.DeleteNodegroupOutput
 }
 
-func (m mockedEKSCluster) ListClusters(*eks.ListClustersInput) (*eks.ListClustersOutput, error) {
+func (m mockedEKSCluster) ListClustersWithContext(_ awsgo.Context, _ *eks.ListClustersInput, _ ...request.Option) (*eks.ListClustersOutput, error) {
 	// Only need to return mocked response output
 	return &m.ListClustersOutput, nil
 }
 
-func (m mockedEKSCluster) DescribeCluster(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
+func (m mockedEKSCluster) DescribeClusterWithContext(_ awsgo.Context, _ *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
 	// Only need to return mocked response output
 	return &m.DescribeClusterOutput, nil
 }
 
-func (m mockedEKSCluster) ListNodegroupsPages(
-	input *eks.ListNodegroupsInput, fn func(*eks.ListNodegroupsOutput, bool) bool) error {
+func (m mockedEKSCluster) ListNodegroupsPagesWithContext(
+	_ awsgo.Context,
+	input *eks.ListNodegroupsInput, fn func(*eks.ListNodegroupsOutput, bool) bool,
+	_ ...request.Option) error {
 	// Only need to return mocked response output
 	fn(&m.ListNodegroupsOutput, true)
 	return nil
 }
 
-func (m mockedEKSCluster) DeleteNodegroup(*eks.DeleteNodegroupInput) (*eks.DeleteNodegroupOutput, error) {
+func (m mockedEKSCluster) DeleteNodegroupWithContext(_ awsgo.Context, _ *eks.DeleteNodegroupInput, _ ...request.Option) (*eks.DeleteNodegroupOutput, error) {
 	// Only need to return mocked response output
 	return &m.DeleteNodegroupOutput, nil
 }
 
-func (m mockedEKSCluster) WaitUntilNodegroupDeleted(input *eks.DescribeNodegroupInput) error {
+func (m mockedEKSCluster) WaitUntilNodegroupDeletedWithContext(_ awsgo.Context, input *eks.DescribeNodegroupInput, _ ...request.WaiterOption) error {
 	return nil
 }
 
-func (m mockedEKSCluster) ListFargateProfilesPages(
-	input *eks.ListFargateProfilesInput, fn func(*eks.ListFargateProfilesOutput, bool) bool) error {
+func (m mockedEKSCluster) ListFargateProfilesPagesWithContext(
+	_ awsgo.Context,
+	input *eks.ListFargateProfilesInput, fn func(*eks.ListFargateProfilesOutput, bool) bool,
+	_ ...request.Option) error {
 	// Only need to return mocked response output
 	fn(&m.ListFargateProfilesOutput, true)
 	return nil
 }
 
-func (m mockedEKSCluster) DeleteFargateProfile(input *eks.DeleteFargateProfileInput) (*eks.DeleteFargateProfileOutput, error) {
+func (m mockedEKSCluster) DeleteFargateProfileWithContext(_ awsgo.Context, input *eks.DeleteFargateProfileInput, _ ...request.Option) (*eks.DeleteFargateProfileOutput, error) {
 	// Only need to return mocked response output
 	return &m.DeleteFargateProfileOutput, nil
 }
 
-func (m mockedEKSCluster) WaitUntilFargateProfileDeleted(input *eks.DescribeFargateProfileInput) error {
+func (m mockedEKSCluster) WaitUntilFargateProfileDeletedWithContext(_ awsgo.Context, input *eks.DescribeFargateProfileInput, _ ...request.WaiterOption) error {
 	return nil
 }
 
-func (m mockedEKSCluster) WaitUntilClusterDeleted(input *eks.DescribeClusterInput) error {
+func (m mockedEKSCluster) WaitUntilClusterDeletedWithContext(_ awsgo.Context, input *eks.DescribeClusterInput, _ ...request.WaiterOption) error {
 	return nil
 }
 
-func (m mockedEKSCluster) DeleteCluster(input *eks.DeleteClusterInput) (*eks.DeleteClusterOutput, error) {
+func (m mockedEKSCluster) DeleteClusterWithContext(_ awsgo.Context, input *eks.DeleteClusterInput, _ ...request.Option) (*eks.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
 }
 

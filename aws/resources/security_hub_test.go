@@ -2,10 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"testing"
 	"time"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/securityhub"
@@ -23,31 +26,31 @@ type mockedSecurityHub struct {
 	DisableSecurityHubOutput                   securityhub.DisableSecurityHubOutput
 }
 
-func (m mockedSecurityHub) DescribeHub(*securityhub.DescribeHubInput) (*securityhub.DescribeHubOutput, error) {
+func (m mockedSecurityHub) DescribeHubWithContext(_ awsgo.Context, _ *securityhub.DescribeHubInput, _ ...request.Option) (*securityhub.DescribeHubOutput, error) {
 	return &m.DescribeHubOutput, nil
 }
 
-func (m mockedSecurityHub) ListMembers(*securityhub.ListMembersInput) (*securityhub.ListMembersOutput, error) {
+func (m mockedSecurityHub) ListMembersWithContext(_ awsgo.Context, _ *securityhub.ListMembersInput, _ ...request.Option) (*securityhub.ListMembersOutput, error) {
 	return &m.ListMembersOutput, nil
 }
 
-func (m mockedSecurityHub) DisassociateMembers(*securityhub.DisassociateMembersInput) (*securityhub.DisassociateMembersOutput, error) {
+func (m mockedSecurityHub) DisassociateMembersWithContext(_ awsgo.Context, _ *securityhub.DisassociateMembersInput, _ ...request.Option) (*securityhub.DisassociateMembersOutput, error) {
 	return &m.DisassociateMembersOutput, nil
 }
 
-func (m mockedSecurityHub) DeleteMembers(*securityhub.DeleteMembersInput) (*securityhub.DeleteMembersOutput, error) {
+func (m mockedSecurityHub) DeleteMembersWithContext(_ awsgo.Context, _ *securityhub.DeleteMembersInput, _ ...request.Option) (*securityhub.DeleteMembersOutput, error) {
 	return &m.DeleteMembersOutput, nil
 }
 
-func (m mockedSecurityHub) GetAdministratorAccount(*securityhub.GetAdministratorAccountInput) (*securityhub.GetAdministratorAccountOutput, error) {
+func (m mockedSecurityHub) GetAdministratorAccountWithContext(_ awsgo.Context, _ *securityhub.GetAdministratorAccountInput, _ ...request.Option) (*securityhub.GetAdministratorAccountOutput, error) {
 	return &m.GetAdministratorAccountOutput, nil
 }
 
-func (m mockedSecurityHub) DisassociateFromAdministratorAccount(*securityhub.DisassociateFromAdministratorAccountInput) (*securityhub.DisassociateFromAdministratorAccountOutput, error) {
+func (m mockedSecurityHub) DisassociateFromAdministratorAccountWithContext(_ awsgo.Context, _ *securityhub.DisassociateFromAdministratorAccountInput, _ ...request.Option) (*securityhub.DisassociateFromAdministratorAccountOutput, error) {
 	return &m.DisassociateFromAdministratorAccountOutput, nil
 }
 
-func (m mockedSecurityHub) DisableSecurityHub(*securityhub.DisableSecurityHubInput) (*securityhub.DisableSecurityHubOutput, error) {
+func (m mockedSecurityHub) DisableSecurityHubWithContext(_ awsgo.Context, _ *securityhub.DisableSecurityHubInput, _ ...request.Option) (*securityhub.DisableSecurityHubOutput, error) {
 	return &m.DisableSecurityHubOutput, nil
 }
 

@@ -55,14 +55,14 @@ func (ec2Ipam *EC2IPAMs) getAll(c context.Context, configObj config.Config) ([]*
 		MaxResults: awsgo.Int64(10),
 	}
 
-	err = ec2Ipam.Client.DescribeIpamsPages(params, paginator)
+	err = ec2Ipam.Client.DescribeIpamsPagesWithContext(ec2Ipam.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	// checking the nukable permissions
 	ec2Ipam.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Ipam.Client.DeleteIpam(&ec2.DeleteIpamInput{
+		_, err := ec2Ipam.Client.DeleteIpamWithContext(ec2Ipam.Context, &ec2.DeleteIpamInput{
 			IpamId:  id,
 			Cascade: aws.Bool(true),
 			DryRun:  awsgo.Bool(true),
@@ -75,7 +75,7 @@ func (ec2Ipam *EC2IPAMs) getAll(c context.Context, configObj config.Config) ([]*
 
 // deProvisionPoolCIDRs : Detach the CIDR provisiond on the pool
 func (ec2Ipam *EC2IPAMs) deProvisionPoolCIDRs(poolID *string) error {
-	output, err := ec2Ipam.Client.GetIpamPoolCidrs(&ec2.GetIpamPoolCidrsInput{
+	output, err := ec2Ipam.Client.GetIpamPoolCidrsWithContext(ec2Ipam.Context, &ec2.GetIpamPoolCidrsInput{
 		IpamPoolId: poolID,
 		Filters: []*ec2.Filter{
 			{
@@ -89,7 +89,7 @@ func (ec2Ipam *EC2IPAMs) deProvisionPoolCIDRs(poolID *string) error {
 	}
 
 	for _, poolCidr := range output.IpamPoolCidrs {
-		_, err := ec2Ipam.Client.DeprovisionIpamPoolCidr(&ec2.DeprovisionIpamPoolCidrInput{
+		_, err := ec2Ipam.Client.DeprovisionIpamPoolCidrWithContext(ec2Ipam.Context, &ec2.DeprovisionIpamPoolCidrInput{
 			IpamPoolId: poolID,
 			Cidr:       poolCidr.Cidr,
 		})
@@ -105,7 +105,7 @@ func (ec2Ipam *EC2IPAMs) deProvisionPoolCIDRs(poolID *string) error {
 
 // releaseCustomAllocations : Release the custom allocated CIDR(s) from the pool
 func (ec2Ipam *EC2IPAMs) releaseCustomAllocations(poolID *string) error {
-	output, err := ec2Ipam.Client.GetIpamPoolAllocations(&ec2.GetIpamPoolAllocationsInput{
+	output, err := ec2Ipam.Client.GetIpamPoolAllocationsWithContext(ec2Ipam.Context, &ec2.GetIpamPoolAllocationsInput{
 		IpamPoolId: poolID,
 	})
 	if err != nil {
@@ -117,7 +117,7 @@ func (ec2Ipam *EC2IPAMs) releaseCustomAllocations(poolID *string) error {
 		if *poolAllocation.ResourceType != "custom" {
 			continue
 		}
-		_, err := ec2Ipam.Client.ReleaseIpamPoolAllocation(&ec2.ReleaseIpamPoolAllocationInput{
+		_, err := ec2Ipam.Client.ReleaseIpamPoolAllocationWithContext(ec2Ipam.Context, &ec2.ReleaseIpamPoolAllocationInput{
 			IpamPoolId:           poolID,
 			IpamPoolAllocationId: poolAllocation.IpamPoolAllocationId,
 			Cidr:                 poolAllocation.Cidr,
@@ -139,7 +139,7 @@ func (ec2Ipam *EC2IPAMs) releaseCustomAllocations(poolID *string) error {
 // We cannot delete an IPAM pool if there are allocations in it or CIDRs provisioned to it. We must first release the allocations and Deprovision CIDRs
 // from a pool before we can delete the pool
 func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
-	ipam, err := ec2Ipam.Client.DescribeIpams(&ec2.DescribeIpamsInput{
+	ipam, err := ec2Ipam.Client.DescribeIpamsWithContext(ec2Ipam.Context, &ec2.DescribeIpamsInput{
 		IpamIds: aws.StringSlice([]string{*ipamID}),
 	})
 	if err != nil {
@@ -148,7 +148,7 @@ func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
 	}
 
 	// Describe the scope to read the scope arn
-	scope, err := ec2Ipam.Client.DescribeIpamScopes(&ec2.DescribeIpamScopesInput{
+	scope, err := ec2Ipam.Client.DescribeIpamScopesWithContext(ec2Ipam.Context, &ec2.DescribeIpamScopesInput{
 		IpamScopeIds: aws.StringSlice([]string{
 			*ipam.Ipams[0].PublicDefaultScopeId,
 		}),
@@ -160,7 +160,7 @@ func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
 	}
 
 	// get the pools which is assigned on the public scope of the IPAM
-	output, err := ec2Ipam.Client.DescribeIpamPools(&ec2.DescribeIpamPoolsInput{
+	output, err := ec2Ipam.Client.DescribeIpamPoolsWithContext(ec2Ipam.Context, &ec2.DescribeIpamPoolsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: aws.String("ipam-scope-arn"),
@@ -191,7 +191,7 @@ func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
 		}
 
 		// delete ipam pool
-		_, err = ec2Ipam.Client.DeleteIpamPool(&ec2.DeleteIpamPoolInput{
+		_, err = ec2Ipam.Client.DeleteIpamPoolWithContext(ec2Ipam.Context, &ec2.DeleteIpamPoolInput{
 			IpamPoolId: pool.IpamPoolId,
 		})
 		if err != nil {
@@ -220,7 +220,7 @@ func (ec2Ipam *EC2IPAMs) deleteIPAM(id *string) error {
 		Cascade: aws.Bool(true),
 	}
 
-	_, err := ec2Ipam.Client.DeleteIpam(params)
+	_, err := ec2Ipam.Client.DeleteIpamWithContext(ec2Ipam.Context, params)
 
 	return err
 }

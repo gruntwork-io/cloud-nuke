@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/s3control"
 	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,11 +21,11 @@ type mocks3ObjectLambdaAccessPoint struct {
 	DeleteAccessPointForObjectLambdaOutput s3control.DeleteAccessPointForObjectLambdaOutput
 }
 
-func (m mocks3ObjectLambdaAccessPoint) ListAccessPointsForObjectLambdaPages(_ *s3control.ListAccessPointsForObjectLambdaInput, fn func(*s3control.ListAccessPointsForObjectLambdaOutput, bool) bool) error {
+func (m mocks3ObjectLambdaAccessPoint) ListAccessPointsForObjectLambdaPagesWithContext(_ awsgo.Context, _ *s3control.ListAccessPointsForObjectLambdaInput, fn func(*s3control.ListAccessPointsForObjectLambdaOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListAccessPointsForObjectLambdaOutput, true)
 	return nil
 }
-func (m mocks3ObjectLambdaAccessPoint) DeleteAccessPointForObjectLambda(_ *s3control.DeleteAccessPointForObjectLambdaInput) (*s3control.DeleteAccessPointForObjectLambdaOutput, error) {
+func (m mocks3ObjectLambdaAccessPoint) DeleteAccessPointForObjectLambdaWithContext(_ awsgo.Context, _ *s3control.DeleteAccessPointForObjectLambdaInput, _ ...request.Option) (*s3control.DeleteAccessPointForObjectLambdaOutput, error) {
 	return &m.DeleteAccessPointForObjectLambdaOutput, nil
 }
 

@@ -35,6 +35,10 @@ func (ddb *DynamoDB) MaxBatchSize() int {
 	return 49
 }
 
+func (ddb *DynamoDB) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.DynamoDB
+}
+
 func (ddb *DynamoDB) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ddb.getAll(c, configObj)
 	if err != nil {

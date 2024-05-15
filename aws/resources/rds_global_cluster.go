@@ -22,7 +22,7 @@ const (
 )
 
 func (instance *DBGlobalClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := instance.Client.DescribeGlobalClustersWithContext(c, &rds.DescribeGlobalClustersInput{})
+	result, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -51,7 +51,7 @@ func (instance *DBGlobalClusters) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		_, err := instance.Client.DeleteGlobalCluster(&rds.DeleteGlobalClusterInput{
+		_, err := instance.Client.DeleteGlobalClusterWithContext(instance.Context, &rds.DeleteGlobalClusterInput{
 			GlobalClusterIdentifier: name,
 		})
 
@@ -87,7 +87,7 @@ func (instance *DBGlobalClusters) nukeAll(names []*string) error {
 
 func (instance *DBGlobalClusters) waitUntilRDSGlobalClusterDeleted(name string) error {
 	for i := 0; i < dbGlobalClusterDeletionRetryCount; i++ {
-		_, err := instance.Client.DescribeGlobalClusters(&rds.DescribeGlobalClustersInput{
+		_, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{
 			GlobalClusterIdentifier: &name,
 		})
 		if err != nil {

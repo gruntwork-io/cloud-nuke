@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk/elasticbeanstalkiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -18,11 +19,11 @@ type mockedEBApplication struct {
 	DescribeApplicationsOutput elasticbeanstalk.DescribeApplicationsOutput
 }
 
-func (mock *mockedEBApplication) DescribeApplications(req *elasticbeanstalk.DescribeApplicationsInput) (*elasticbeanstalk.DescribeApplicationsOutput, error) {
+func (mock *mockedEBApplication) DescribeApplicationsWithContext(_ aws.Context, req *elasticbeanstalk.DescribeApplicationsInput, _ ...request.Option) (*elasticbeanstalk.DescribeApplicationsOutput, error) {
 	return &mock.DescribeApplicationsOutput, nil
 }
 
-func (mock *mockedEBApplication) DeleteApplication(*elasticbeanstalk.DeleteApplicationInput) (*elasticbeanstalk.DeleteApplicationOutput, error) {
+func (mock *mockedEBApplication) DeleteApplicationWithContext(_ aws.Context, _ *elasticbeanstalk.DeleteApplicationInput, _ ...request.Option) (*elasticbeanstalk.DeleteApplicationOutput, error) {
 	return nil, nil
 }
 

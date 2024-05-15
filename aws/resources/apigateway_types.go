@@ -34,6 +34,10 @@ func (gateway *ApiGateway) MaxBatchSize() int {
 	return 10
 }
 
+func (gateway *ApiGateway) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.APIGateway
+}
+
 func (gateway *ApiGateway) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := gateway.getAll(c, configObj)
 	if err != nil {

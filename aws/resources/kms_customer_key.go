@@ -17,7 +17,7 @@ import (
 func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// Collect all keys in the account
 	var keys []string
-	err := kck.Client.ListKeysPages(&kms.ListKeysInput{}, func(page *kms.ListKeysOutput, lastPage bool) bool {
+	err := kck.Client.ListKeysPagesWithContext(kck.Context, &kms.ListKeysInput{}, func(page *kms.ListKeysOutput, lastPage bool) bool {
 		for _, key := range page.Keys {
 			keys = append(keys, *key.KeyId)
 		}
@@ -30,7 +30,7 @@ func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) (
 
 	// Collect key to alias mapping
 	keyAliases := map[string][]string{}
-	err = kck.Client.ListAliasesPages(&kms.ListAliasesInput{}, func(page *kms.ListAliasesOutput, lastPage bool) bool {
+	err = kck.Client.ListAliasesPagesWithContext(kck.Context, &kms.ListAliasesInput{}, func(page *kms.ListAliasesOutput, lastPage bool) bool {
 		for _, alias := range page.Aliases {
 			key := alias.TargetKeyId
 			if key == nil {
@@ -134,7 +134,7 @@ func (kck *KmsCustomerKeys) shouldInclude(
 		return
 	}
 	// additional request to describe key and get information about creation date, removal status
-	details, err := kck.Client.DescribeKey(&kms.DescribeKeyInput{KeyId: &key})
+	details, err := kck.Client.DescribeKeyWithContext(kck.Context, &kms.DescribeKeyInput{KeyId: &key})
 	if err != nil {
 		resultsChan <- &KmsCheckIncludeResult{Error: err}
 		return
@@ -217,7 +217,7 @@ func (kck *KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) 
 func (kck *KmsCustomerKeys) requestKeyDeletion(wg *sync.WaitGroup, errChan chan error, key *string) {
 	defer wg.Done()
 	input := &kms.ScheduleKeyDeletionInput{KeyId: key, PendingWindowInDays: aws.Int64(int64(kmsRemovalWindow))}
-	_, err := kck.Client.ScheduleKeyDeletion(input)
+	_, err := kck.Client.ScheduleKeyDeletionWithContext(kck.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{

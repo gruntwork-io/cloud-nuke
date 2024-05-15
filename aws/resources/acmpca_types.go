@@ -37,6 +37,9 @@ func (ap *ACMPCA) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 10
 }
+func (ap *ACMPCA) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ACMPCA
+}
 
 func (ap *ACMPCA) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ap.getAll(c, configObj)

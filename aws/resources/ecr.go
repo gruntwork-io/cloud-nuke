@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -26,7 +27,7 @@ func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*stri
 	}
 
 	param := &ecr.DescribeRepositoriesInput{}
-	err := registry.Client.DescribeRepositoriesPages(param, paginator)
+	err := registry.Client.DescribeRepositoriesPagesWithContext(registry.Context, param, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -48,7 +49,7 @@ func (registry *ECR) nukeAll(repositoryNames []string) error {
 			RepositoryName: aws.String(repositoryName),
 		}
 
-		_, err := registry.Client.DeleteRepository(params)
+		_, err := registry.Client.DeleteRepositoryWithContext(registry.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

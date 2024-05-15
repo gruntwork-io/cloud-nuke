@@ -35,6 +35,10 @@ func (ap *S3ObjectLambdaAccessPoint) MaxBatchSize() int {
 	return 5
 }
 
+func (ap *S3ObjectLambdaAccessPoint) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.S3ObjectLambdaAccessPoint
+}
+
 func (ap *S3ObjectLambdaAccessPoint) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ap.getAll(c, configObj)
 	if err != nil {

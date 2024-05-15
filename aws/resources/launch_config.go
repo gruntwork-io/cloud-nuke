@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -12,7 +13,7 @@ import (
 
 // Returns a formatted string of Launch config Names
 func (lc *LaunchConfigs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := lc.Client.DescribeLaunchConfigurations(&autoscaling.DescribeLaunchConfigurationsInput{})
+	result, err := lc.Client.DescribeLaunchConfigurationsWithContext(lc.Context, &autoscaling.DescribeLaunchConfigurationsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -46,7 +47,7 @@ func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
 			LaunchConfigurationName: configName,
 		}
 
-		_, err := lc.Client.DeleteLaunchConfiguration(params)
+		_, err := lc.Client.DeleteLaunchConfigurationWithContext(lc.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

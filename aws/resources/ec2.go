@@ -28,7 +28,7 @@ func (ei *EC2Instances) filterOutProtectedInstances(output *ec2.DescribeInstance
 		for _, instance := range reservation.Instances {
 			instanceID := *instance.InstanceId
 
-			attr, err := ei.Client.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
+			attr, err := ei.Client.DescribeInstanceAttributeWithContext(ei.Context, &ec2.DescribeInstanceAttributeInput{
 				Attribute:  awsgo.String("disableApiTermination"),
 				InstanceId: awsgo.String(instanceID),
 			})
@@ -59,7 +59,7 @@ func (ei *EC2Instances) getAll(c context.Context, configObj config.Config) ([]*s
 		},
 	}
 
-	output, err := ei.Client.DescribeInstances(params)
+	output, err := ei.Client.DescribeInstancesWithContext(ei.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -92,7 +92,7 @@ func (ei *EC2Instances) releaseEIPs(instanceIds []*string) error {
 	for _, instanceID := range instanceIds {
 
 		// get the elastic ip's associated with the EC2's
-		output, err := ei.Client.DescribeAddresses(&ec2.DescribeAddressesInput{
+		output, err := ei.Client.DescribeAddressesWithContext(ei.Context, &ec2.DescribeAddressesInput{
 			Filters: []*ec2.Filter{
 				{
 					Name: awsgo.String("instance-id"),
@@ -107,7 +107,7 @@ func (ei *EC2Instances) releaseEIPs(instanceIds []*string) error {
 		}
 
 		for _, address := range output.Addresses {
-			_, err := ei.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+			_, err := ei.Client.ReleaseAddressWithContext(ei.Context, &ec2.ReleaseAddressInput{
 				AllocationId: address.AllocationId,
 			})
 
@@ -143,13 +143,13 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 		InstanceIds: instanceIds,
 	}
 
-	_, err = ei.Client.TerminateInstances(params)
+	_, err = ei.Client.TerminateInstancesWithContext(ei.Context, params)
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
-	err = ei.Client.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
+	err = ei.Client.WaitUntilInstanceTerminatedWithContext(ei.Context, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   awsgo.String("instance-id"),

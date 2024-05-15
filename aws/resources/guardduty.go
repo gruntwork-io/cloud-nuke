@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,7 +20,7 @@ type DetectorOutputWithID struct {
 func (gd *GuardDuty) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var detectorIdsToInclude []*string
 	var detectorIds []*string
-	err := gd.Client.ListDetectorsPages(&guardduty.ListDetectorsInput{}, func(page *guardduty.ListDetectorsOutput, lastPage bool) bool {
+	err := gd.Client.ListDetectorsPagesWithContext(gd.Context, &guardduty.ListDetectorsInput{}, func(page *guardduty.ListDetectorsOutput, lastPage bool) bool {
 		detectorIds = append(detectorIds, page.DetectorIds...)
 		return !lastPage
 	})
@@ -31,7 +32,7 @@ func (gd *GuardDuty) getAll(c context.Context, configObj config.Config) ([]*stri
 	// each detector with a separate call to GetDetector for metadata including when it was created, which we need to make the
 	// determination about whether or not the given detector should be included
 	for _, detectorId := range detectorIds {
-		detector, err := gd.Client.GetDetector(&guardduty.GetDetectorInput{
+		detector, err := gd.Client.GetDetectorWithContext(gd.Context, &guardduty.GetDetectorInput{
 			DetectorId: detectorId,
 		})
 		if err != nil {
@@ -71,7 +72,7 @@ func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 			DetectorId: aws.String(detectorId),
 		}
 
-		_, err := gd.Client.DeleteDetector(params)
+		_, err := gd.Client.DeleteDetectorWithContext(gd.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

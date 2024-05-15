@@ -36,7 +36,7 @@ func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) (
 	var err error
 
 	input := &ec2.DescribeInternetGatewaysInput{}
-	resp, err := igw.Client.DescribeInternetGateways(input)
+	resp, err := igw.Client.DescribeInternetGatewaysWithContext(igw.Context, input)
 	if err != nil {
 		logging.Debugf("[Internet Gateway] Failed to list internet gateways: %s", err)
 		return nil, err
@@ -64,7 +64,7 @@ func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) (
 			InternetGatewayId: id,
 			DryRun:            awsgo.Bool(true),
 		}
-		_, err := igw.Client.DeleteInternetGateway(params)
+		_, err := igw.Client.DeleteInternetGatewayWithContext(igw.Context, params)
 		return err
 	})
 

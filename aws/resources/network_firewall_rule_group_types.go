@@ -47,6 +47,10 @@ func (nfrg *NetworkFirewallRuleGroup) MaxBatchSize() int {
 	return 10
 }
 
+func (nfrg *NetworkFirewallRuleGroup) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.NetworkFirewallRuleGroup
+}
+
 func (nfrg *NetworkFirewallRuleGroup) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := nfrg.getAll(c, configObj)
 	if err != nil {

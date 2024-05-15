@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,12 +21,12 @@ type mockedLambdaLayer struct {
 	DeleteLayerVersionOutput lambda.DeleteLayerVersionOutput
 }
 
-func (m mockedLambdaLayer) ListLayersPages(input *lambda.ListLayersInput, fn func(*lambda.ListLayersOutput, bool) bool) error {
+func (m mockedLambdaLayer) ListLayersPagesWithContext(_ aws.Context, input *lambda.ListLayersInput, fn func(*lambda.ListLayersOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListLayersOutput, true)
 	return nil
 }
 
-func (m mockedLambdaLayer) ListLayerVersionsPages(input *lambda.ListLayerVersionsInput, fn func(*lambda.ListLayerVersionsOutput, bool) bool) error {
+func (m mockedLambdaLayer) ListLayerVersionsPagesWithContext(_ aws.Context, input *lambda.ListLayerVersionsInput, fn func(*lambda.ListLayerVersionsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListLayerVersionsOutput, true)
 	return nil
 }

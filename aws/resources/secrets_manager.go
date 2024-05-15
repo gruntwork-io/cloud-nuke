@@ -18,7 +18,8 @@ import (
 func (sms *SecretsManagerSecrets) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allSecrets := []*string{}
 	input := &secretsmanager.ListSecretsInput{}
-	err := sms.Client.ListSecretsPages(
+	err := sms.Client.ListSecretsPagesWithContext(
+		sms.Context,
 		input,
 		func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
 			for _, secret := range page.SecretList {
@@ -87,7 +88,7 @@ func (sms *SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan e
 
 	// If this region's secret is primary, and it has replicated secrets, remove replication first.
 	// Get replications
-	secret, err := sms.Client.DescribeSecret(&secretsmanager.DescribeSecretInput{
+	secret, err := sms.Client.DescribeSecretWithContext(sms.Context, &secretsmanager.DescribeSecretInput{
 		SecretId: secretID,
 	})
 
@@ -100,7 +101,7 @@ func (sms *SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan e
 			replicationRegion = append(replicationRegion, replicationStatus.Region)
 		}
 
-		_, err = sms.Client.RemoveRegionsFromReplication(&secretsmanager.RemoveRegionsFromReplicationInput{
+		_, err = sms.Client.RemoveRegionsFromReplicationWithContext(sms.Context, &secretsmanager.RemoveRegionsFromReplicationInput{
 			SecretId:             secretID,
 			RemoveReplicaRegions: replicationRegion,
 		})
@@ -110,7 +111,7 @@ func (sms *SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan e
 		ForceDeleteWithoutRecovery: aws.Bool(true),
 		SecretId:                   secretID,
 	}
-	_, err = sms.Client.DeleteSecret(input)
+	_, err = sms.Client.DeleteSecretWithContext(sms.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{

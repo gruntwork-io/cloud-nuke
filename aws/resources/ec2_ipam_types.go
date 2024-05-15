@@ -38,6 +38,10 @@ func (ipam *EC2IPAMs) ResourceIdentifiers() []string {
 	return ipam.IDs
 }
 
+func (ipam *EC2IPAMs) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2IPAM
+}
+
 func (ipam *EC2IPAMs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ipam.getAll(c, configObj)
 	if err != nil {

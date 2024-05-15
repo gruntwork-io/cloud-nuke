@@ -24,18 +24,20 @@ func (ap *S3ObjectLambdaAccessPoint) getAll(c context.Context, configObj config.
 	ap.AccountID = aws.String(accountID)
 
 	var accessPoints []*string
-	err := ap.Client.ListAccessPointsForObjectLambdaPages(&s3control.ListAccessPointsForObjectLambdaInput{
-		AccountId: ap.AccountID,
-	}, func(lapo *s3control.ListAccessPointsForObjectLambdaOutput, lastPage bool) bool {
-		for _, accessPoint := range lapo.ObjectLambdaAccessPointList {
-			if configObj.S3ObjectLambdaAccessPoint.ShouldInclude(config.ResourceValue{
-				Name: accessPoint.Name,
-			}) {
-				accessPoints = append(accessPoints, accessPoint.Name)
+	err := ap.Client.ListAccessPointsForObjectLambdaPagesWithContext(
+		ap.Context,
+		&s3control.ListAccessPointsForObjectLambdaInput{
+			AccountId: ap.AccountID,
+		}, func(lapo *s3control.ListAccessPointsForObjectLambdaOutput, lastPage bool) bool {
+			for _, accessPoint := range lapo.ObjectLambdaAccessPointList {
+				if configObj.S3ObjectLambdaAccessPoint.ShouldInclude(config.ResourceValue{
+					Name: accessPoint.Name,
+				}) {
+					accessPoints = append(accessPoints, accessPoint.Name)
+				}
 			}
-		}
-		return !lastPage
-	})
+			return !lastPage
+		})
 	return accessPoints, errors.WithStackTrace(err)
 }
 
@@ -50,10 +52,12 @@ func (ap *S3ObjectLambdaAccessPoint) nukeAll(identifiers []*string) error {
 
 	for _, id := range identifiers {
 
-		_, err := ap.Client.DeleteAccessPointForObjectLambda(&s3control.DeleteAccessPointForObjectLambdaInput{
-			AccountId: ap.AccountID,
-			Name:      id,
-		})
+		_, err := ap.Client.DeleteAccessPointForObjectLambdaWithContext(
+			ap.Context,
+			&s3control.DeleteAccessPointForObjectLambdaInput{
+				AccountId: ap.AccountID,
+				Name:      id,
+			})
 
 		// Record status of this resource
 		e := report.Entry{

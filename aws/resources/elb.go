@@ -2,8 +2,9 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/config"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -15,7 +16,7 @@ import (
 
 func (balancer *LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalancersInput) error {
 	for i := 0; i < 30; i++ {
-		_, err := balancer.Client.DescribeLoadBalancers(input)
+		_, err := balancer.Client.DescribeLoadBalancersWithContext(balancer.Context, input)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "LoadBalancerNotFound" {
 				return nil
@@ -33,7 +34,7 @@ func (balancer *LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalanc
 
 // Returns a formatted string of ELB names
 func (balancer *LoadBalancers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := balancer.Client.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{})
+	result, err := balancer.Client.DescribeLoadBalancersWithContext(balancer.Context, &elb.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -66,7 +67,7 @@ func (balancer *LoadBalancers) nukeAll(names []*string) error {
 			LoadBalancerName: name,
 		}
 
-		_, err := balancer.Client.DeleteLoadBalancer(params)
+		_, err := balancer.Client.DeleteLoadBalancerWithContext(balancer.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

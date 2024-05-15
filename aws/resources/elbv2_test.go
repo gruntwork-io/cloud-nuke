@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedElbV2 struct {
@@ -18,15 +20,15 @@ type mockedElbV2 struct {
 	DeleteLoadBalancerOutput    elbv2.DeleteLoadBalancerOutput
 }
 
-func (m mockedElbV2) DescribeLoadBalancers(input *elbv2.DescribeLoadBalancersInput) (*elbv2.DescribeLoadBalancersOutput, error) {
+func (m mockedElbV2) DescribeLoadBalancersWithContext(_ aws.Context, input *elbv2.DescribeLoadBalancersInput, _ ...request.Option) (*elbv2.DescribeLoadBalancersOutput, error) {
 	return &m.DescribeLoadBalancersOutput, nil
 }
 
-func (m mockedElbV2) DeleteLoadBalancer(input *elbv2.DeleteLoadBalancerInput) (*elbv2.DeleteLoadBalancerOutput, error) {
+func (m mockedElbV2) DeleteLoadBalancerWithContext(_ aws.Context, input *elbv2.DeleteLoadBalancerInput, _ ...request.Option) (*elbv2.DeleteLoadBalancerOutput, error) {
 	return &m.DeleteLoadBalancerOutput, nil
 }
 
-func (m mockedElbV2) WaitUntilLoadBalancersDeleted(input *elbv2.DescribeLoadBalancersInput) error {
+func (m mockedElbV2) WaitUntilLoadBalancersDeletedWithContext(_ aws.Context, input *elbv2.DescribeLoadBalancersInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

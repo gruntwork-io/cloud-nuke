@@ -2,13 +2,15 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
 )
 
 type mockedKinesisClient struct {
@@ -17,12 +19,12 @@ type mockedKinesisClient struct {
 	DeleteStreamOutput kinesis.DeleteStreamOutput
 }
 
-func (m mockedKinesisClient) ListStreamsPages(input *kinesis.ListStreamsInput, fn func(*kinesis.ListStreamsOutput, bool) bool) error {
+func (m mockedKinesisClient) ListStreamsPagesWithContext(_ aws.Context, input *kinesis.ListStreamsInput, fn func(*kinesis.ListStreamsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListStreamsOutput, true)
 	return nil
 }
 
-func (m mockedKinesisClient) DeleteStream(input *kinesis.DeleteStreamInput) (*kinesis.DeleteStreamOutput, error) {
+func (m mockedKinesisClient) DeleteStreamWithContext(_ aws.Context, input *kinesis.DeleteStreamInput, _ ...request.Option) (*kinesis.DeleteStreamOutput, error) {
 	return &m.DeleteStreamOutput, nil
 }
 

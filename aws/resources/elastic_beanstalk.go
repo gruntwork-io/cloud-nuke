@@ -20,7 +20,7 @@ func shouldIncludeEBApplication(app *elasticbeanstalk.ApplicationDescription, co
 
 // Returns a formatted string of EB application ids
 func (eb *EBApplications) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	output, err := eb.Client.DescribeApplications(&elasticbeanstalk.DescribeApplicationsInput{})
+	output, err := eb.Client.DescribeApplicationsWithContext(eb.Context, &elasticbeanstalk.DescribeApplicationsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -44,7 +44,7 @@ func (eb *EBApplications) nukeAll(appIds []*string) error {
 	var deletedApps []*string
 
 	for _, id := range appIds {
-		_, err := eb.Client.DeleteApplication(&elasticbeanstalk.DeleteApplicationInput{
+		_, err := eb.Client.DeleteApplicationWithContext(eb.Context, &elasticbeanstalk.DeleteApplicationInput{
 			ApplicationName:     id,
 			TerminateEnvByForce: aws.Bool(true),
 		})

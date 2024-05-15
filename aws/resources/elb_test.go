@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elb/elbiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedLoadBalancers struct {
@@ -20,11 +22,11 @@ type mockedLoadBalancers struct {
 	DescribeLoadBalancersError  error
 }
 
-func (m mockedLoadBalancers) DescribeLoadBalancers(input *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error) {
+func (m mockedLoadBalancers) DescribeLoadBalancersWithContext(_ aws.Context, input *elb.DescribeLoadBalancersInput, _ ...request.Option) (*elb.DescribeLoadBalancersOutput, error) {
 	return &m.DescribeLoadBalancersOutput, nil
 }
 
-func (m mockedLoadBalancers) DeleteLoadBalancer(input *elb.DeleteLoadBalancerInput) (*elb.DeleteLoadBalancerOutput, error) {
+func (m mockedLoadBalancers) DeleteLoadBalancerWithContext(_ aws.Context, input *elb.DeleteLoadBalancerInput, _ ...request.Option) (*elb.DeleteLoadBalancerOutput, error) {
 	return &m.DeleteLoadBalancerOutput, m.DescribeLoadBalancersError
 }
 

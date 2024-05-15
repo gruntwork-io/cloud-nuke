@@ -2,14 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/redshift"
 	"github.com/aws/aws-sdk-go/service/redshift/redshiftiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedRedshift struct {
@@ -19,16 +22,16 @@ type mockedRedshift struct {
 	DescribeClustersOutput redshift.DescribeClustersOutput
 }
 
-func (m mockedRedshift) DescribeClustersPages(input *redshift.DescribeClustersInput, fn func(*redshift.DescribeClustersOutput, bool) bool) error {
+func (m mockedRedshift) DescribeClustersPagesWithContext(_ awsgo.Context, _ *redshift.DescribeClustersInput, fn func(*redshift.DescribeClustersOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeClustersOutput, true)
 	return nil
 }
 
-func (m mockedRedshift) DeleteCluster(input *redshift.DeleteClusterInput) (*redshift.DeleteClusterOutput, error) {
+func (m mockedRedshift) DeleteClusterWithContext(_ awsgo.Context, _ *redshift.DeleteClusterInput, _ ...request.Option) (*redshift.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
 }
 
-func (m mockedRedshift) WaitUntilClusterDeleted(*redshift.DescribeClustersInput) error {
+func (m mockedRedshift) WaitUntilClusterDeletedWithContext(_ awsgo.Context, _ *redshift.DescribeClustersInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

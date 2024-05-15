@@ -2,10 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -25,38 +28,41 @@ type mockedIAMGroups struct {
 	DeleteGroupPolicyOutput              iam.DeleteGroupPolicyOutput
 }
 
-func (m mockedIAMGroups) ListGroupsPages(input *iam.ListGroupsInput, fn func(*iam.ListGroupsOutput, bool) bool) error {
+func (m mockedIAMGroups) ListGroupsPagesWithContext(
+	_ aws.Context, input *iam.ListGroupsInput, fn func(*iam.ListGroupsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListGroupsPagesOutput, true)
 	return nil
 }
 
-func (m mockedIAMGroups) DeleteGroup(input *iam.DeleteGroupInput) (*iam.DeleteGroupOutput, error) {
+func (m mockedIAMGroups) DeleteGroupWithContext(_ aws.Context, input *iam.DeleteGroupInput, _ ...request.Option) (*iam.DeleteGroupOutput, error) {
 	return &m.DeleteGroupOutput, nil
 }
 
-func (m mockedIAMGroups) ListAttachedGroupPoliciesPages(input *iam.ListAttachedGroupPoliciesInput, fn func(*iam.ListAttachedGroupPoliciesOutput, bool) bool) error {
+func (m mockedIAMGroups) ListAttachedGroupPoliciesPagesWithContext(
+	_ aws.Context, input *iam.ListAttachedGroupPoliciesInput, fn func(*iam.ListAttachedGroupPoliciesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListAttachedGroupPoliciesPagesOutput, true)
 	return nil
 }
 
-func (m mockedIAMGroups) ListGroupPoliciesPages(input *iam.ListGroupPoliciesInput, fn func(*iam.ListGroupPoliciesOutput, bool) bool) error {
+func (m mockedIAMGroups) ListGroupPoliciesPagesWithContext(
+	_ aws.Context, input *iam.ListGroupPoliciesInput, fn func(*iam.ListGroupPoliciesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListGroupPoliciesOutput, true)
 	return nil
 }
 
-func (m mockedIAMGroups) DetachGroupPolicy(input *iam.DetachGroupPolicyInput) (*iam.DetachGroupPolicyOutput, error) {
+func (m mockedIAMGroups) DetachGroupPolicyWithContext(_ aws.Context, input *iam.DetachGroupPolicyInput, _ ...request.Option) (*iam.DetachGroupPolicyOutput, error) {
 	return &m.DetachGroupPolicyOutput, nil
 }
 
-func (m mockedIAMGroups) DeleteGroupPolicy(input *iam.DeleteGroupPolicyInput) (*iam.DeleteGroupPolicyOutput, error) {
+func (m mockedIAMGroups) DeleteGroupPolicyWithContext(_ aws.Context, input *iam.DeleteGroupPolicyInput, _ ...request.Option) (*iam.DeleteGroupPolicyOutput, error) {
 	return &m.DeleteGroupPolicyOutput, nil
 }
 
-func (m mockedIAMGroups) GetGroup(input *iam.GetGroupInput) (*iam.GetGroupOutput, error) {
+func (m mockedIAMGroups) GetGroupWithContext(_ aws.Context, input *iam.GetGroupInput, _ ...request.Option) (*iam.GetGroupOutput, error) {
 	return &m.GetGroupOutput, nil
 }
 
-func (m mockedIAMGroups) RemoveUserFromGroup(input *iam.RemoveUserFromGroupInput) (*iam.RemoveUserFromGroupOutput, error) {
+func (m mockedIAMGroups) RemoveUserFromGroupWithContext(_ aws.Context, input *iam.RemoveUserFromGroupInput, _ ...request.Option) (*iam.RemoveUserFromGroupOutput, error) {
 	return &m.RemoveUserFromGroupOutput, nil
 }
 

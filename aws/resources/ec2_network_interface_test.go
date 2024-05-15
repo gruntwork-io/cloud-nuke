@@ -7,6 +7,7 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -24,27 +25,30 @@ type mockedNetworkInterface struct {
 	ReleaseAddressOutput            ec2.ReleaseAddressOutput
 }
 
-func (m mockedNetworkInterface) DescribeNetworkInterfaces(*ec2.DescribeNetworkInterfacesInput) (*ec2.DescribeNetworkInterfacesOutput, error) {
+func (m mockedNetworkInterface) DescribeNetworkInterfacesWithContext(_ awsgo.Context, _ *ec2.DescribeNetworkInterfacesInput, _ ...request.Option) (*ec2.DescribeNetworkInterfacesOutput, error) {
 	return &m.DescribeNetworkInterfacesOutput, nil
 }
 
-func (m mockedNetworkInterface) DeleteNetworkInterface(*ec2.DeleteNetworkInterfaceInput) (*ec2.DeleteNetworkInterfaceOutput, error) {
+func (m mockedNetworkInterface) DeleteNetworkInterface(_ *ec2.DeleteNetworkInterfaceInput) (*ec2.DeleteNetworkInterfaceOutput, error) {
+	return &m.DeleteNetworkInterfaceOutput, nil
+}
+func (m mockedNetworkInterface) DeleteNetworkInterfaceWithContext(_ awsgo.Context, _ *ec2.DeleteNetworkInterfaceInput, _ ...request.Option) (*ec2.DeleteNetworkInterfaceOutput, error) {
 	return &m.DeleteNetworkInterfaceOutput, nil
 }
 
-func (m mockedNetworkInterface) DescribeAddresses(*ec2.DescribeAddressesInput) (*ec2.DescribeAddressesOutput, error) {
+func (m mockedNetworkInterface) DescribeAddressesWithContext(_ awsgo.Context, _ *ec2.DescribeAddressesInput, _ ...request.Option) (*ec2.DescribeAddressesOutput, error) {
 	return &m.DescribeAddressesOutput, nil
 }
 
-func (m mockedNetworkInterface) ReleaseAddress(*ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error) {
+func (m mockedNetworkInterface) ReleaseAddressWithContext(_ awsgo.Context, _ *ec2.ReleaseAddressInput, _ ...request.Option) (*ec2.ReleaseAddressOutput, error) {
 	return &m.ReleaseAddressOutput, nil
 }
 
-func (m mockedNetworkInterface) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
+func (m mockedNetworkInterface) TerminateInstancesWithContext(_ awsgo.Context, _ *ec2.TerminateInstancesInput, _ ...request.Option) (*ec2.TerminateInstancesOutput, error) {
 	return &m.TerminateInstancesOutput, nil
 }
 
-func (m mockedNetworkInterface) WaitUntilInstanceTerminated(*ec2.DescribeInstancesInput) error {
+func (m mockedNetworkInterface) WaitUntilInstanceTerminatedWithContext(_ awsgo.Context, _ *ec2.DescribeInstancesInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

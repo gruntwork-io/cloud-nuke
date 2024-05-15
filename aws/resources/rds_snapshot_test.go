@@ -2,15 +2,18 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedRdsSnapshot struct {
@@ -19,12 +22,12 @@ type mockedRdsSnapshot struct {
 	DeleteDBSnapshotOutput         rds.DeleteDBSnapshotOutput
 }
 
-func (m mockedRdsSnapshot) DescribeDBSnapshotsPages(input *rds.DescribeDBSnapshotsInput, callback func(*rds.DescribeDBSnapshotsOutput, bool) bool) error {
+func (m mockedRdsSnapshot) DescribeDBSnapshotsPagesWithContext(_ awsgo.Context, _ *rds.DescribeDBSnapshotsInput, callback func(*rds.DescribeDBSnapshotsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeDBSnapshotsPagesOutput, true)
 	return nil
 }
 
-func (m mockedRdsSnapshot) DeleteDBSnapshot(input *rds.DeleteDBSnapshotInput) (*rds.DeleteDBSnapshotOutput, error) {
+func (m mockedRdsSnapshot) DeleteDBSnapshotWithContext(_ awsgo.Context, _ *rds.DeleteDBSnapshotInput, _ ...request.Option) (*rds.DeleteDBSnapshotOutput, error) {
 	return &m.DeleteDBSnapshotOutput, nil
 }
 

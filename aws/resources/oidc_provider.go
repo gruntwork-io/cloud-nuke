@@ -28,7 +28,7 @@ type oidcProvider struct {
 // information to implement the filters, we use goroutines to asynchronously and concurrently fetch the details for all
 // the providers that are found in the account.
 func (oidcprovider *OIDCProviders) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	output, err := oidcprovider.Client.ListOpenIDConnectProviders(&iam.ListOpenIDConnectProvidersInput{})
+	output, err := oidcprovider.Client.ListOpenIDConnectProvidersWithContext(oidcprovider.Context, &iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -99,7 +99,7 @@ func (oidcprovider *OIDCProviders) getAllOIDCProviderDetails(providerARNs []*str
 func (oidcprovider *OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvider, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
-	resp, err := oidcprovider.Client.GetOpenIDConnectProvider(&iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
+	resp, err := oidcprovider.Client.GetOpenIDConnectProviderWithContext(oidcprovider.Context, &iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
 	if err != nil {
 		// If we get a 404, meaning the OIDC Provider was deleted between retrieving it with list and detail fetching,
 		// we ignore the error and return nothing.
@@ -176,7 +176,8 @@ func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 func (oidcprovider *OIDCProviders) deleteAsync(wg *sync.WaitGroup, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
-	_, err := oidcprovider.Client.DeleteOpenIDConnectProvider(
+	_, err := oidcprovider.Client.DeleteOpenIDConnectProviderWithContext(
+		oidcprovider.Context,
 		&iam.DeleteOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
 	// Record status of this resource
 	e := report.Entry{

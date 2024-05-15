@@ -38,6 +38,10 @@ func (ami *AMIs) MaxBatchSize() int {
 	return 49
 }
 
+func (ami *AMIs) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.AMI
+}
+
 func (ami *AMIs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ami.getAll(c, configObj)
 	if err != nil {

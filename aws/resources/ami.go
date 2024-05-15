@@ -21,7 +21,7 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 		Owners: []*string{awsgo.String("self")},
 	}
 
-	output, err := ami.Client.DescribeImages(params)
+	output, err := ami.Client.DescribeImagesWithContext(ami.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -57,7 +57,7 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 
 	// checking the nukable permissions
 	ami.VerifyNukablePermissions(imageIds, func(id *string) error {
-		_, err := ami.Client.DeregisterImage(&ec2.DeregisterImageInput{
+		_, err := ami.Client.DeregisterImageWithContext(ami.Context, &ec2.DeregisterImageInput{
 			ImageId: id,
 			DryRun:  awsgo.Bool(true),
 		})
@@ -84,7 +84,7 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 			continue
 		}
 
-		_, err := ami.Client.DeregisterImage(&ec2.DeregisterImageInput{
+		_, err := ami.Client.DeregisterImageWithContext(ami.Context, &ec2.DeregisterImageInput{
 			ImageId: imageID,
 		})
 

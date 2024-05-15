@@ -37,6 +37,10 @@ func (ct *CloudtrailTrail) MaxBatchSize() int {
 	return 50
 }
 
+func (ct *CloudtrailTrail) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.CloudtrailTrail
+}
+
 func (ct *CloudtrailTrail) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ct.getAll(c, configObj)
 	if err != nil {

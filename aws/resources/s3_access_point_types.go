@@ -35,6 +35,10 @@ func (ap *S3AccessPoint) MaxBatchSize() int {
 	return 5
 }
 
+func (ap *S3AccessPoint) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.S3AccessPoint
+}
+
 func (ap *S3AccessPoint) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ap.getAll(c, configObj)
 	if err != nil {

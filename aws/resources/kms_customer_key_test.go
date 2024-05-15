@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedKmsCustomerKeys struct {
@@ -21,28 +23,28 @@ type mockedKmsCustomerKeys struct {
 	DeleteAliasOutput         kms.DeleteAliasOutput
 }
 
-func (m mockedKmsCustomerKeys) ListKeysPages(input *kms.ListKeysInput, fn func(*kms.ListKeysOutput, bool) bool) error {
+func (m mockedKmsCustomerKeys) ListKeysPagesWithContext(_ aws.Context, input *kms.ListKeysInput, fn func(*kms.ListKeysOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListKeysPagesOutput, true)
 	return nil
 }
 
-func (m mockedKmsCustomerKeys) ListAliasesPages(input *kms.ListAliasesInput, fn func(*kms.ListAliasesOutput, bool) bool) error {
+func (m mockedKmsCustomerKeys) ListAliasesPagesWithContext(_ aws.Context, input *kms.ListAliasesInput, fn func(*kms.ListAliasesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListAliasesPagesOutput, true)
 	return nil
 }
 
-func (m mockedKmsCustomerKeys) DescribeKey(input *kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+func (m mockedKmsCustomerKeys) DescribeKeyWithContext(_ aws.Context, input *kms.DescribeKeyInput, _ ...request.Option) (*kms.DescribeKeyOutput, error) {
 	id := input.KeyId
 	output := m.DescribeKeyOutput[*id]
 
 	return &output, nil
 }
 
-func (m mockedKmsCustomerKeys) ScheduleKeyDeletion(input *kms.ScheduleKeyDeletionInput) (*kms.ScheduleKeyDeletionOutput, error) {
+func (m mockedKmsCustomerKeys) ScheduleKeyDeletionWithContext(_ aws.Context, input *kms.ScheduleKeyDeletionInput, _ ...request.Option) (*kms.ScheduleKeyDeletionOutput, error) {
 	return &m.ScheduleKeyDeletionOutput, nil
 }
 
-func (m mockedKmsCustomerKeys) DeleteAlias(input *kms.DeleteAliasInput) (*kms.DeleteAliasOutput, error) {
+func (m mockedKmsCustomerKeys) DeleteAliasWithContext(_ aws.Context, input *kms.DeleteAliasInput, _ ...request.Option) (*kms.DeleteAliasOutput, error) {
 	return &m.DeleteAliasOutput, nil
 }
 

@@ -39,6 +39,10 @@ func (egigw *EgressOnlyInternetGateway) ResourceIdentifiers() []string {
 	return egigw.Pools
 }
 
+func (egigw *EgressOnlyInternetGateway) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EgressOnlyInternetGateway
+}
+
 func (egigw *EgressOnlyInternetGateway) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := egigw.getAll(c, configObj)
 	if err != nil {

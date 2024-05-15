@@ -19,7 +19,7 @@ import (
 func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClustersInput) error {
 	// wait up to 15 minutes
 	for i := 0; i < 90; i++ {
-		_, err := instance.Client.DescribeDBClusters(input)
+		_, err := instance.Client.DescribeDBClustersWithContext(instance.Context, input)
 		if err != nil {
 			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBClusterNotFoundFault {
 				return nil
@@ -36,7 +36,7 @@ func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClus
 }
 
 func (instance *DBClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := instance.Client.DescribeDBClusters(&rds.DescribeDBClustersInput{})
+	result, err := instance.Client.DescribeDBClustersWithContext(instance.Context, &rds.DescribeDBClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -70,7 +70,7 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 			SkipFinalSnapshot:   awsgo.Bool(true),
 		}
 
-		_, err := instance.Client.DeleteDBCluster(params)
+		_, err := instance.Client.DeleteDBClusterWithContext(instance.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

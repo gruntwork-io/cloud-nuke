@@ -38,6 +38,10 @@ func (h *EC2DedicatedHosts) MaxBatchSize() int {
 	return 49
 }
 
+func (h *EC2DedicatedHosts) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2DedicatedHosts
+}
+
 func (h *EC2DedicatedHosts) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := h.getAll(c, configObj)
 	if err != nil {

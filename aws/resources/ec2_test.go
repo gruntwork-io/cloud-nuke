@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -24,28 +25,32 @@ type mockedEC2Instances struct {
 	ReleaseAddressOutput            ec2.ReleaseAddressOutput
 }
 
-func (m mockedEC2Instances) DescribeInstances(*ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
+func (m mockedEC2Instances) DescribeInstancesWithContext(
+	_ awsgo.Context, _ *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
 	return &m.DescribeInstancesOutput, nil
 }
 
-func (m mockedEC2Instances) DescribeInstanceAttribute(input *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
+func (m mockedEC2Instances) DescribeInstanceAttributeWithContext(
+	_ awsgo.Context, input *ec2.DescribeInstanceAttributeInput, _ ...request.Option) (*ec2.DescribeInstanceAttributeOutput, error) {
 	id := input.InstanceId
 	output := m.DescribeInstanceAttributeOutput[*id]
 
 	return &output, nil
 }
 
-func (m mockedEC2Instances) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
+func (m mockedEC2Instances) TerminateInstancesWithContext(
+	_ awsgo.Context, _ *ec2.TerminateInstancesInput, _ ...request.Option) (*ec2.TerminateInstancesOutput, error) {
 	return &m.TerminateInstancesOutput, nil
 }
 
-func (m mockedEC2Instances) WaitUntilInstanceTerminated(*ec2.DescribeInstancesInput) error {
+func (m mockedEC2Instances) WaitUntilInstanceTerminatedWithContext(
+	_ awsgo.Context, _ *ec2.DescribeInstancesInput, _ ...request.WaiterOption) error {
 	return nil
 }
-func (m mockedEC2Instances) DescribeAddresses(input *ec2.DescribeAddressesInput) (*ec2.DescribeAddressesOutput, error) {
+func (m mockedEC2Instances) DescribeAddressesWithContext(_ awsgo.Context, _ *ec2.DescribeAddressesInput, _ ...request.Option) (*ec2.DescribeAddressesOutput, error) {
 	return &m.DescribeAddressesOutput, nil
 }
-func (m mockedEC2Instances) ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error) {
+func (m mockedEC2Instances) ReleaseAddressWithContext(_ awsgo.Context, _ *ec2.ReleaseAddressInput, _ ...request.Option) (*ec2.ReleaseAddressOutput, error) {
 	return &m.ReleaseAddressOutput, nil
 }
 

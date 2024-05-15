@@ -41,7 +41,7 @@ func (ec2subnet *EC2Subnet) getAll(c context.Context, configObj config.Config) (
 		logging.Debugf("[default only] Retrieving the default subnets")
 	}
 
-	err = ec2subnet.Client.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{
+	err = ec2subnet.Client.DescribeSubnetsPagesWithContext(ec2subnet.Context, &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: awsgo.String("default-for-az"),
@@ -74,7 +74,7 @@ func (ec2subnet *EC2Subnet) getAll(c context.Context, configObj config.Config) (
 			SubnetId: id,
 			DryRun:   awsgo.Bool(true), // dry run set as true , checks permission without actually making the request
 		}
-		_, err := ec2subnet.Client.DeleteSubnet(params)
+		_, err := ec2subnet.Client.DeleteSubnetWithContext(ec2subnet.Context, params)
 		return err
 	})
 

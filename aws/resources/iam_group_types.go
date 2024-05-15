@@ -38,6 +38,10 @@ func (ig *IAMGroups) MaxBatchSize() int {
 	return 49
 }
 
+func (ig *IAMGroups) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.IAMGroups
+}
+
 func (ig *IAMGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ig.getAll(c, configObj)
 	if err != nil {

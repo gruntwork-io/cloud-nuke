@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -16,7 +17,7 @@ func (a *ACM) getAll(c context.Context, configObj config.Config) ([]*string, err
 	params := &acm.ListCertificatesInput{}
 
 	acmArns := []*string{}
-	err := a.Client.ListCertificatesPages(params,
+	err := a.Client.ListCertificatesPagesWithContext(a.Context, params,
 		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
 			for i := range page.CertificateSummaryList {
 				logging.Debug(fmt.Sprintf("Found ACM %s with domain name %s",
@@ -75,7 +76,7 @@ func (a *ACM) nukeAll(arns []*string) error {
 			CertificateArn: acmArn,
 		}
 
-		_, err := a.Client.DeleteCertificate(params)
+		_, err := a.Client.DeleteCertificateWithContext(a.Context, params)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 		} else {

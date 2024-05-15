@@ -33,6 +33,10 @@ func (clusters *ECSClusters) ResourceIdentifiers() []string {
 	return clusters.ClusterArns
 }
 
+func (clusters *ECSClusters) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ECSCluster
+}
+
 func (clusters *ECSClusters) MaxBatchSize() int {
 	return maxBatchSize
 }

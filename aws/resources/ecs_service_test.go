@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEC2Service struct {
@@ -21,31 +23,31 @@ type mockedEC2Service struct {
 	DeleteServiceOutput    ecs.DeleteServiceOutput
 }
 
-func (m mockedEC2Service) ListClusters(*ecs.ListClustersInput) (*ecs.ListClustersOutput, error) {
+func (m mockedEC2Service) ListClustersWithContext(_ aws.Context, _ *ecs.ListClustersInput, _ ...request.Option) (*ecs.ListClustersOutput, error) {
 	return &m.ListClustersOutput, nil
 }
 
-func (m mockedEC2Service) DescribeServices(*ecs.DescribeServicesInput) (*ecs.DescribeServicesOutput, error) {
+func (m mockedEC2Service) DescribeServicesWithContext(_ aws.Context, _ *ecs.DescribeServicesInput, _ ...request.Option) (*ecs.DescribeServicesOutput, error) {
 	return &m.DescribeServicesOutput, nil
 }
 
-func (m mockedEC2Service) ListServices(*ecs.ListServicesInput) (*ecs.ListServicesOutput, error) {
+func (m mockedEC2Service) ListServicesWithContext(_ aws.Context, _ *ecs.ListServicesInput, _ ...request.Option) (*ecs.ListServicesOutput, error) {
 	return &m.ListServicesOutput, nil
 }
 
-func (m mockedEC2Service) UpdateService(*ecs.UpdateServiceInput) (*ecs.UpdateServiceOutput, error) {
+func (m mockedEC2Service) UpdateServiceWithContext(_ aws.Context, _ *ecs.UpdateServiceInput, _ ...request.Option) (*ecs.UpdateServiceOutput, error) {
 	return &m.UpdateServiceOutput, nil
 }
 
-func (m mockedEC2Service) WaitUntilServicesStable(*ecs.DescribeServicesInput) error {
+func (m mockedEC2Service) WaitUntilServicesStableWithContext(_ aws.Context, _ *ecs.DescribeServicesInput, _ ...request.WaiterOption) error {
 	return nil
 }
 
-func (m mockedEC2Service) DeleteService(*ecs.DeleteServiceInput) (*ecs.DeleteServiceOutput, error) {
+func (m mockedEC2Service) DeleteServiceWithContext(_ aws.Context, _ *ecs.DeleteServiceInput, _ ...request.Option) (*ecs.DeleteServiceOutput, error) {
 	return &m.DeleteServiceOutput, nil
 }
 
-func (m mockedEC2Service) WaitUntilServicesInactive(*ecs.DescribeServicesInput) error {
+func (m mockedEC2Service) WaitUntilServicesInactiveWithContext(_ aws.Context, _ *ecs.DescribeServicesInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

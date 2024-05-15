@@ -33,6 +33,10 @@ func (sms *SecretsManagerSecrets) ResourceIdentifiers() []string {
 	return sms.SecretIDs
 }
 
+func (sms *SecretsManagerSecrets) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SecretsManagerSecrets
+}
+
 func (sms *SecretsManagerSecrets) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle. Note that secrets manager does not support bulk delete, so
 	// we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit

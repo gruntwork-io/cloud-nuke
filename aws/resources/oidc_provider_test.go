@@ -2,14 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedOIDCProvider struct {
@@ -19,15 +22,15 @@ type mockedOIDCProvider struct {
 	DeleteOpenIDConnectProviderOutput iam.DeleteOpenIDConnectProviderOutput
 }
 
-func (m mockedOIDCProvider) DeleteOpenIDConnectProvider(input *iam.DeleteOpenIDConnectProviderInput) (*iam.DeleteOpenIDConnectProviderOutput, error) {
+func (m mockedOIDCProvider) DeleteOpenIDConnectProviderWithContext(_ awsgo.Context, _ *iam.DeleteOpenIDConnectProviderInput, _ ...request.Option) (*iam.DeleteOpenIDConnectProviderOutput, error) {
 	return &m.DeleteOpenIDConnectProviderOutput, nil
 }
 
-func (m mockedOIDCProvider) ListOpenIDConnectProviders(input *iam.ListOpenIDConnectProvidersInput) (*iam.ListOpenIDConnectProvidersOutput, error) {
+func (m mockedOIDCProvider) ListOpenIDConnectProvidersWithContext(_ awsgo.Context, _ *iam.ListOpenIDConnectProvidersInput, _ ...request.Option) (*iam.ListOpenIDConnectProvidersOutput, error) {
 	return &m.ListOpenIDConnectProvidersOutput, nil
 }
 
-func (m mockedOIDCProvider) GetOpenIDConnectProvider(input *iam.GetOpenIDConnectProviderInput) (*iam.GetOpenIDConnectProviderOutput, error) {
+func (m mockedOIDCProvider) GetOpenIDConnectProviderWithContext(_ awsgo.Context, input *iam.GetOpenIDConnectProviderInput, _ ...request.Option) (*iam.GetOpenIDConnectProviderOutput, error) {
 	arn := input.OpenIDConnectProviderArn
 	resp := m.GetOpenIDConnectProviderOutput[*arn]
 

@@ -24,7 +24,7 @@ import (
 // Returns a formatted string of TransitGateway IDs
 func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
-	result, err := tgw.Client.DescribeTransitGateways(&ec2.DescribeTransitGatewaysInput{})
+	result, err := tgw.Client.DescribeTransitGatewaysWithContext(tgw.Context, &ec2.DescribeTransitGatewaysInput{})
 	if err != nil {
 		logging.Debugf("[DescribeTransitGateways Failed] %s", err)
 		return nil, errors.WithStackTrace(err)
@@ -53,7 +53,7 @@ func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) (
 			TransitGatewayId: id,
 			DryRun:           aws.Bool(true), // dry run set as true , checks permission without actualy making the request
 		}
-		_, err := tgw.Client.DeleteTransitGateway(params)
+		_, err := tgw.Client.DeleteTransitGatewayWithContext(tgw.Context, params)
 		return err
 	})
 
@@ -83,7 +83,7 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 			TransitGatewayId: id,
 		}
 
-		_, err := tgw.Client.DeleteTransitGateway(params)
+		_, err := tgw.Client.DeleteTransitGatewayWithContext(tgw.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -119,7 +119,7 @@ func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj confi
 		},
 	}
 
-	result, err := tgw.Client.DescribeTransitGatewayRouteTables(param)
+	result, err := tgw.Client.DescribeTransitGatewayRouteTablesWithContext(tgw.Context, param)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -150,7 +150,7 @@ func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 			TransitGatewayRouteTableId: id,
 		}
 
-		_, err := tgw.Client.DeleteTransitGatewayRouteTable(param)
+		_, err := tgw.Client.DeleteTransitGatewayRouteTableWithContext(tgw.Context, param)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 		} else {
@@ -165,7 +165,7 @@ func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 
 // Returns a formated string of TransitGatewayVpcAttachment IDs
 func (tgw *TransitGatewaysVpcAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := tgw.Client.DescribeTransitGatewayVpcAttachments(&ec2.DescribeTransitGatewayVpcAttachmentsInput{})
+	result, err := tgw.Client.DescribeTransitGatewayVpcAttachmentsWithContext(tgw.Context, &ec2.DescribeTransitGatewayVpcAttachmentsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -196,7 +196,7 @@ func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 			TransitGatewayAttachmentId: id,
 		}
 
-		_, err := tgw.Client.DeleteTransitGatewayVpcAttachment(param)
+		_, err := tgw.Client.DeleteTransitGatewayVpcAttachmentWithContext(tgw.Context, param)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -223,7 +223,7 @@ func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 
 func (tgpa *TransitGatewayPeeringAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
-	err := tgpa.Client.DescribeTransitGatewayPeeringAttachmentsPages(&ec2.DescribeTransitGatewayPeeringAttachmentsInput{}, func(result *ec2.DescribeTransitGatewayPeeringAttachmentsOutput, lastPage bool) bool {
+	err := tgpa.Client.DescribeTransitGatewayPeeringAttachmentsPagesWithContext(tgpa.Context, &ec2.DescribeTransitGatewayPeeringAttachmentsInput{}, func(result *ec2.DescribeTransitGatewayPeeringAttachmentsOutput, lastPage bool) bool {
 		for _, attachment := range result.TransitGatewayPeeringAttachments {
 			if configObj.TransitGatewayPeeringAttachment.ShouldInclude(config.ResourceValue{
 				Time: attachment.CreationTime,
@@ -243,7 +243,7 @@ func (tgpa *TransitGatewayPeeringAttachment) getAll(c context.Context, configObj
 
 func (tgpa *TransitGatewayPeeringAttachment) nukeAll(ids []*string) error {
 	for _, id := range ids {
-		_, err := tgpa.Client.DeleteTransitGatewayPeeringAttachment(&ec2.DeleteTransitGatewayPeeringAttachmentInput{
+		_, err := tgpa.Client.DeleteTransitGatewayPeeringAttachmentWithContext(tgpa.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
 			TransitGatewayAttachmentId: id,
 		})
 		// Record status of this resource

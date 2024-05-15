@@ -38,6 +38,10 @@ func (cda *CodeDeployApplications) MaxBatchSize() int {
 	return 100
 }
 
+func (cda *CodeDeployApplications) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.CodeDeployApplications
+}
+
 func (cda *CodeDeployApplications) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := cda.getAll(c, configObj)
 	if err != nil {

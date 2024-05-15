@@ -37,6 +37,10 @@ func (islr *IAMServiceLinkedRoles) MaxBatchSize() int {
 	return 49
 }
 
+func (islr *IAMServiceLinkedRoles) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.IAMServiceLinkedRoles
+}
+
 func (islr *IAMServiceLinkedRoles) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := islr.getAll(c, configObj)
 	if err != nil {
