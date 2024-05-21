@@ -104,6 +104,9 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | NetworkFirewall         | Network Firewall Rule Group                              |
 | NetworkFirewall         | Network Firewall TLS inspection configuration            |
 | NetworkFirewall         | Network Firewall Resource Policy 						             |
+| VPCLattice         			| VPC Lattice Service							 						             |
+| VPCLattice         			| VPC Lattice Service Network			 						             |
+| VPCLattice         			| VPC Lattice Target Group    		 						             |
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.
 > Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources
@@ -627,6 +630,10 @@ of the file that are supported are listed here.
 | network-firewall-rule-group | NetworkFirewallRuleGroup     | ✅ (Firewall Rule group name)   			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
 | network-firewall-tls-config | NetworkFirewallTLSConfig     | ✅ (Firewall TLS config name)   			  | ✅ (First Seen Tag Time)             | ✅    |    ❌   |
 | network-firewall-resource-policy | NetworkFirewallResourcePolicy     | ✅ (Firewall Resource Policy ARN)   			  |  ❌             |  ❌    |    ❌   |
+| vpc-lattice-service				  | VPCLatticeService 			     | ✅ (VPC Lattice service ARN)   			  |  (Creation Time) 											|  ❌   |    ✅ 	|
+| vpc-lattice-service-network | VPCLatticeServiceNetwork     | ✅ (VPC Lattice service network ARN)   |  (Creation Time) 											|  ❌   |    ✅ 	|
+| vpc-lattice-target-group 		| VPCLatticeTargetGroup   		 | ✅ (VPC Lattice target group ARN)   		|  (Creation Time) 											|  ❌   |    ✅ 	|
+
 
 
 ### Resource Deletion and 'IsNukable' Check Option

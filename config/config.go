@@ -112,6 +112,9 @@ type Config struct {
 	NetworkFirewallRuleGroup        ResourceType               `yaml:"NetworkFirewallRuleGroup"`
 	NetworkFirewallTLSConfig        ResourceType               `yaml:"NetworkFirewallTLSConfig"`
 	NetworkFirewallResourcePolicy   ResourceType               `yaml:"NetworkFirewallResourcePolicy"`
+	VPCLatticeServiceNetwork        ResourceType               `yaml:"VPCLatticeServiceNetwork"`
+	VPCLatticeService               ResourceType               `yaml:"VPCLatticeService"`
+	VPCLatticeTargetGroup           ResourceType               `yaml:"VPCLatticeTargetGroup"`
 }
 
 func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	commonErr "github.com/gruntwork-io/go-commons/errors"
 )
 
 var ErrInSufficientPermission = errors.New("error:INSUFFICIENT_PERMISSION")
@@ -30,6 +31,15 @@ func TransformAWSError(err error) error {
 	}
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "RequestCanceled" {
 		return ErrContextExecutionTimeout
+	}
+
+	// check the error is wrapped with errors.WithStackTrace(), then we can't check the actuall error is aws. So handling the situation here
+	// as unwrap the error and check the underhood error type is awserr
+	// NOTE : is this is not checked, then it will not print `error:EXECUTION_TIMEOUT` if the error is wrapped with WithStackTrace
+	if err := commonErr.Unwrap(err); err != nil {
+		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "RequestCanceled" {
+			return ErrContextExecutionTimeout
+		}
 	}
 
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "InvalidNetworkInterfaceID.NotFound" {
