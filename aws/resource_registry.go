@@ -141,6 +141,9 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.NetworkFirewallRuleGroup{},
 		&resources.NetworkFirewallTLSConfig{},
 		&resources.NetworkFirewallResourcePolicy{},
+		&resources.VPCLatticeServiceNetwork{},
+		&resources.VPCLatticeService{},
+		&resources.VPCLatticeTargetGroup{},
 	}
 }
 
