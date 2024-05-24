@@ -56,8 +56,9 @@ jobs:
       - run:
           name: Build Binaries
           command: |
+            export DEFAULT_OSARCH="<< parameters.os >>/<< parameters.arch >>"
             build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
-                                --ld-flags "-X main.VERSION=$CIRCLE_TAG" --osarch "" --os << parameters.os >> --arch << parameters.arch >>
+                                --ld-flags "-X main.VERSION=$CIRCLE_TAG"  --os << parameters.os >> --arch << parameters.arch >>
       - persist_to_workspace:
           root: .
           paths: bin
