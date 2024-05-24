@@ -1,8 +1,9 @@
 package telemetry
 
 import (
-	"github.com/gruntwork-io/go-commons/telemetry"
 	"os"
+
+	"github.com/gruntwork-io/go-commons/telemetry"
 )
 
 var sendTelemetry = true
@@ -16,8 +17,10 @@ func InitTelemetry(name string, version string) {
 	isCircleCi = os.Getenv("CIRCLECI") == "true"
 	sendTelemetry = !disableTelemetryFlag
 	if sendTelemetry {
-		cmd = os.Args[1]
 		telemetryClient = telemetry.NewMixPanelTelemetryClient("https://t.gruntwork.io/", name, version)
+	}
+	if len(os.Args) > 1 {
+		cmd = os.Args[1]
 	}
 }
 
