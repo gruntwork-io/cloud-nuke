@@ -52,12 +52,16 @@ jobs:
               echo "Skipping build for darwin/386."
               circleci-agent step halt
             fi
+            if [ "<< parameters.os >>" == "windows" ] && [ "<< parameters.arch >>" == "arm64" ]; then
+              echo "Skipping build for windows/arm64, not valid build platform."
+              circleci-agent step halt
+            fi
       - checkout
       - run:
           name: Build Binaries
           command: |
-            build-go-binaries --parallel 1 --app-name cloud-nuke --dest-path bin \
-                                --ld-flags "-X main.VERSION=$CIRCLE_TAG" --os << parameters.os >> --arch << parameters.arch >>
+            build-go-binaries --osarch "<< parameters.os >>/<< parameters.arch >>" --os << parameters.os >> --arch << parameters.arch >> --parallel 1 --app-name cloud-nuke --dest-path bin \
+                                --ld-flags "-X main.VERSION=$CIRCLE_TAG"  --os << parameters.os >> --arch << parameters.arch >>
       - persist_to_workspace:
           root: .
           paths: bin
