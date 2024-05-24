@@ -52,6 +52,10 @@ jobs:
               echo "Skipping build for darwin/386."
               circleci-agent step halt
             fi
+            if [ "<< parameters.os >>" == "windows" ] && [ "<< parameters.arch >>" == "arm64" ]; then
+              echo "Skipping build for windows/arm64, No valid platforms to build."
+              circleci-agent step halt
+            fi
       - checkout
       - run:
           name: Build Binaries
