@@ -32,7 +32,7 @@ func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*s
 			return nil, errors.WithStackTrace(err)
 		}
 
-		if ea.shouldInclude(address, *firstSeenTime, configObj) {
+		if ea.shouldInclude(address, firstSeenTime, configObj) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
@@ -49,12 +49,12 @@ func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*s
 	return allocationIds, nil
 }
 
-func (ea *EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime time.Time, configObj config.Config) bool {
+func (ea *EIPAddresses) shouldInclude(address *ec2.Address, firstSeenTime *time.Time, configObj config.Config) bool {
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
 	allocationName := util.GetEC2ResourceNameTagValue(address.Tags)
 	return configObj.ElasticIP.ShouldInclude(config.ResourceValue{
-		Time: &firstSeenTime,
+		Time: firstSeenTime,
 		Name: allocationName,
 		Tags: util.ConvertEC2TagsToMap(address.Tags),
 	})
