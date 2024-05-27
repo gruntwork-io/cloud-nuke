@@ -38,6 +38,10 @@ func (set *SesEmailTemplates) ResourceIdentifiers() []string {
 	return set.Ids
 }
 
+func (set *SesEmailTemplates) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SESEmailTemplates
+}
+
 func (set *SesEmailTemplates) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := set.getAll(c, configObj)
 	if err != nil {

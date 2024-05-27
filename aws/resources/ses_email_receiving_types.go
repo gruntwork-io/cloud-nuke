@@ -39,6 +39,10 @@ func (sef *SesReceiptFilter) ResourceIdentifiers() []string {
 	return sef.Ids
 }
 
+func (sef *SesReceiptFilter) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SESReceiptFilter
+}
+
 func (sef *SesReceiptFilter) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := sef.getAll(c, configObj)
 	if err != nil {
@@ -85,6 +89,10 @@ func (ser *SesReceiptRule) MaxBatchSize() int {
 // ResourceIdentifiers - The names of the rule set
 func (ser *SesReceiptRule) ResourceIdentifiers() []string {
 	return ser.Ids
+}
+
+func (sef *SesReceiptRule) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SESReceiptRuleSet
 }
 
 func (ser *SesReceiptRule) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {

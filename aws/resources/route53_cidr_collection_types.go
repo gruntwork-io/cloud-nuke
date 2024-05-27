@@ -38,6 +38,10 @@ func (r *Route53CidrCollection) ResourceIdentifiers() []string {
 	return r.Ids
 }
 
+func (rc *Route53CidrCollection) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.Route53CIDRCollection
+}
+
 func (r *Route53CidrCollection) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := r.getAll(c, configObj)
 	if err != nil {

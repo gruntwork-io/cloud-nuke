@@ -2,12 +2,14 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -21,15 +23,15 @@ type mockedDBInstance struct {
 	DeleteDBInstanceOutput    rds.DeleteDBInstanceOutput
 }
 
-func (m mockedDBInstance) DescribeDBInstances(*rds.DescribeDBInstancesInput) (*rds.DescribeDBInstancesOutput, error) {
+func (m mockedDBInstance) DescribeDBInstancesWithContext(_ awsgo.Context, _ *rds.DescribeDBInstancesInput, _ ...request.Option) (*rds.DescribeDBInstancesOutput, error) {
 	return &m.DescribeDBInstancesOutput, nil
 }
 
-func (m mockedDBInstance) DeleteDBInstance(*rds.DeleteDBInstanceInput) (*rds.DeleteDBInstanceOutput, error) {
+func (m mockedDBInstance) DeleteDBInstanceWithContext(_ awsgo.Context, _ *rds.DeleteDBInstanceInput, _ ...request.Option) (*rds.DeleteDBInstanceOutput, error) {
 	return &m.DeleteDBInstanceOutput, nil
 }
 
-func (m mockedDBInstance) WaitUntilDBInstanceDeleted(*rds.DescribeDBInstancesInput) error {
+func (m mockedDBInstance) WaitUntilDBInstanceDeletedWithContext(_ awsgo.Context, _ *rds.DescribeDBInstancesInput, _ ...request.WaiterOption) error {
 	return nil
 }
 

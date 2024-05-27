@@ -30,10 +30,11 @@ func shouldIncludeNetworkACL(networkAcl *ec2.NetworkAcl, firstSeenTime *time.Tim
 
 func (nacl *NetworkACL) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
+
 	var firstSeenTime *time.Time
 	var err error
 
-	resp, err := nacl.Client.DescribeNetworkAcls(&ec2.DescribeNetworkAclsInput{
+	resp, err := nacl.Client.DescribeNetworkAclsWithContext(nacl.Context, &ec2.DescribeNetworkAclsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: awsgo.String("default"),
@@ -62,7 +63,7 @@ func (nacl *NetworkACL) getAll(c context.Context, configObj config.Config) ([]*s
 
 	// Check and verify the list of allowed nuke actions
 	nacl.VerifyNukablePermissions(identifiers, func(id *string) error {
-		_, err := nacl.Client.DeleteNetworkAcl(&ec2.DeleteNetworkAclInput{
+		_, err := nacl.Client.DeleteNetworkAclWithContext(nacl.Context, &ec2.DeleteNetworkAclInput{
 			NetworkAclId: id,
 			DryRun:       awsgo.Bool(true),
 		})
@@ -93,7 +94,7 @@ func (nacl *NetworkACL) nuke(id *string) error {
 // Thus, to remove the association, it requires another network ACL ID. Here, we check the default network ACL of the VPC to which the current network ACL is attached,
 // and then associate that network ACL with the association.
 func (nacl *NetworkACL) nukeAssociatedSubnets(id *string) error {
-	resp, err := nacl.Client.DescribeNetworkAcls(&ec2.DescribeNetworkAclsInput{
+	resp, err := nacl.Client.DescribeNetworkAclsWithContext(nacl.Context, &ec2.DescribeNetworkAclsInput{
 		NetworkAclIds: []*string{id},
 	})
 	if err != nil {
@@ -112,7 +113,8 @@ func (nacl *NetworkACL) nukeAssociatedSubnets(id *string) error {
 	)
 
 	// Get the default nacl association id
-	networkACLs, err := nacl.Client.DescribeNetworkAcls(
+	networkACLs, err := nacl.Client.DescribeNetworkAclsWithContext(
+		nacl.Context,
 		&ec2.DescribeNetworkAclsInput{
 			Filters: []*ec2.Filter{
 				{

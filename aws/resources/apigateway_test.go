@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/apigateway/apigatewayiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -23,20 +24,20 @@ type mockedApiGateway struct {
 	DeleteClientCertificateOutput apigateway.DeleteClientCertificateOutput
 }
 
-func (m mockedApiGateway) GetRestApis(*apigateway.GetRestApisInput) (*apigateway.GetRestApisOutput, error) {
+func (m mockedApiGateway) GetRestApisWithContext(_ awsgo.Context, _ *apigateway.GetRestApisInput, _ ...request.Option) (*apigateway.GetRestApisOutput, error) {
 	// Only need to return mocked response output
 	return &m.GetRestApisResp, nil
 }
 
-func (m mockedApiGateway) DeleteRestApi(*apigateway.DeleteRestApiInput) (*apigateway.DeleteRestApiOutput, error) {
+func (m mockedApiGateway) DeleteRestApiWithContext(_ awsgo.Context, _ *apigateway.DeleteRestApiInput, _ ...request.Option) (*apigateway.DeleteRestApiOutput, error) {
 	// Only need to return mocked response output
 	return &m.DeleteRestApiResp, nil
 }
-func (m mockedApiGateway) GetStages(*apigateway.GetStagesInput) (*apigateway.GetStagesOutput, error) {
+func (m mockedApiGateway) GetStagesWithContext(_ awsgo.Context, _ *apigateway.GetStagesInput, _ ...request.Option) (*apigateway.GetStagesOutput, error) {
 	return &m.GetStagesOutput, nil
 }
 
-func (m mockedApiGateway) DeleteClientCertificate(*apigateway.DeleteClientCertificateInput) (*apigateway.DeleteClientCertificateOutput, error) {
+func (m mockedApiGateway) DeleteClientCertificateWithContext(_ awsgo.Context, _ *apigateway.DeleteClientCertificateInput, _ ...request.Option) (*apigateway.DeleteClientCertificateOutput, error) {
 	return &m.DeleteClientCertificateOutput, nil
 }
 

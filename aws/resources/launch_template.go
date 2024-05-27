@@ -14,7 +14,7 @@ import (
 
 // Returns a formatted string of Launch Template Names
 func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := lt.Client.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{})
+	result, err := lt.Client.DescribeLaunchTemplatesWithContext(lt.Context, &ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -31,7 +31,7 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 
 	// checking the nukable permissions
 	lt.VerifyNukablePermissions(templateNames, func(id *string) error {
-		_, err := lt.Client.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{
+		_, err := lt.Client.DeleteLaunchTemplateWithContext(lt.Context, &ec2.DeleteLaunchTemplateInput{
 			LaunchTemplateName: id,
 			DryRun:             awsgo.Bool(true),
 		})
@@ -58,7 +58,7 @@ func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 			continue
 		}
 
-		_, err := lt.Client.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{
+		_, err := lt.Client.DeleteLaunchTemplateWithContext(lt.Context, &ec2.DeleteLaunchTemplateInput{
 			LaunchTemplateName: templateName,
 		})
 

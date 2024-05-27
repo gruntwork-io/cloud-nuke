@@ -27,7 +27,7 @@ const describeClustersRequestBatchSize = 100
 // We need to get all clusters before we can get all services.
 func (clusters *ECSClusters) getAllEcsClusters() ([]*string, error) {
 	clusterArns := []*string{}
-	result, err := clusters.Client.ListClusters(&ecs.ListClustersInput{})
+	result, err := clusters.Client.ListClustersWithContext(clusters.Context, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -35,7 +35,7 @@ func (clusters *ECSClusters) getAllEcsClusters() ([]*string, error) {
 
 	// Handle pagination: continuously pull the next page if nextToken is set
 	for awsgo.StringValue(result.NextToken) != "" {
-		result, err = clusters.Client.ListClusters(&ecs.ListClustersInput{NextToken: result.NextToken})
+		result, err = clusters.Client.ListClustersWithContext(clusters.Context, &ecs.ListClustersInput{NextToken: result.NextToken})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -61,7 +61,7 @@ func (clusters *ECSClusters) getAllActiveEcsClusterArns(configObj config.Config)
 			Clusters: awsgo.StringSlice(batch),
 		}
 
-		describedClusters, describeErr := clusters.Client.DescribeClusters(input)
+		describedClusters, describeErr := clusters.Client.DescribeClustersWithContext(clusters.Context, input)
 		if describeErr != nil {
 			logging.Debugf("Error describing ECS clusters from input %s: ", input)
 			return nil, errors.WithStackTrace(describeErr)
@@ -131,7 +131,7 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 func (clusters *ECSClusters) stopClusterRunningTasks(clusterArn *string) error {
 	logging.Debugf("[TASK] stopping tasks running on cluster %v", *clusterArn)
 	// before deleting the cluster, remove the active tasks on that cluster
-	runningTasks, err := clusters.Client.ListTasks(&ecs.ListTasksInput{
+	runningTasks, err := clusters.Client.ListTasksWithContext(clusters.Context, &ecs.ListTasksInput{
 		Cluster:       clusterArn,
 		DesiredStatus: aws.String("RUNNING"),
 	})
@@ -142,7 +142,7 @@ func (clusters *ECSClusters) stopClusterRunningTasks(clusterArn *string) error {
 
 	// stop the listed tasks
 	for _, task := range runningTasks.TaskArns {
-		_, err := clusters.Client.StopTask(&ecs.StopTaskInput{
+		_, err := clusters.Client.StopTaskWithContext(clusters.Context, &ecs.StopTaskInput{
 			Cluster: clusterArn,
 			Task:    task,
 			Reason:  aws.String("Terminating task due to cluster deletion"),
@@ -179,7 +179,7 @@ func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 		params := &ecs.DeleteClusterInput{
 			Cluster: clusterArn,
 		}
-		_, err = clusters.Client.DeleteCluster(params)
+		_, err = clusters.Client.DeleteClusterWithContext(clusters.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

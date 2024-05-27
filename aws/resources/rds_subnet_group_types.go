@@ -36,6 +36,10 @@ func (dsg *DBSubnetGroups) MaxBatchSize() int {
 	return 49
 }
 
+func (dsg *DBSubnetGroups) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.DBSubnetGroups
+}
+
 func (dsg *DBSubnetGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := dsg.getAll(c, configObj)
 	if err != nil {

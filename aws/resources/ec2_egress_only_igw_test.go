@@ -7,6 +7,7 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -21,8 +22,12 @@ type mockedEgressOnlyIgw struct {
 	DeleteEgressOnlyInternetGatewayOutput    ec2.DeleteEgressOnlyInternetGatewayOutput
 }
 
-func (m mockedEgressOnlyIgw) DescribeEgressOnlyInternetGateways(_ *ec2.DescribeEgressOnlyInternetGatewaysInput) (*ec2.DescribeEgressOnlyInternetGatewaysOutput, error) {
+func (m mockedEgressOnlyIgw) DescribeEgressOnlyInternetGatewaysWithContext(_ awsgo.Context, _ *ec2.DescribeEgressOnlyInternetGatewaysInput, _ ...request.Option) (*ec2.DescribeEgressOnlyInternetGatewaysOutput, error) {
 	return &m.DescribeEgressOnlyInternetGatewaysOutput, nil
+}
+
+func (m mockedEgressOnlyIgw) DeleteEgressOnlyInternetGatewayWithContext(_ awsgo.Context, _ *ec2.DeleteEgressOnlyInternetGatewayInput, _ ...request.Option) (*ec2.DeleteEgressOnlyInternetGatewayOutput, error) {
+	return &m.DeleteEgressOnlyInternetGatewayOutput, nil
 }
 
 func (m mockedEgressOnlyIgw) DeleteEgressOnlyInternetGateway(_ *ec2.DeleteEgressOnlyInternetGatewayInput) (*ec2.DeleteEgressOnlyInternetGatewayOutput, error) {

@@ -36,6 +36,10 @@ func (lf *LambdaFunctions) MaxBatchSize() int {
 	return 49
 }
 
+func (lf *LambdaFunctions) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.LambdaFunction
+}
+
 func (lf *LambdaFunctions) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := lf.getAll(c, configObj)
 	if err != nil {

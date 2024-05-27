@@ -2,12 +2,15 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/stretchr/testify/require"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -19,11 +22,11 @@ type mockedLaunchConfiguration struct {
 	DeleteLaunchConfigurationOutput    autoscaling.DeleteLaunchConfigurationOutput
 }
 
-func (m mockedLaunchConfiguration) DescribeLaunchConfigurations(input *autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
+func (m mockedLaunchConfiguration) DescribeLaunchConfigurationsWithContext(_ aws.Context, input *autoscaling.DescribeLaunchConfigurationsInput, _ ...request.Option) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
 	return &m.DescribeLaunchConfigurationsOutput, nil
 }
 
-func (m mockedLaunchConfiguration) DeleteLaunchConfiguration(input *autoscaling.DeleteLaunchConfigurationInput) (*autoscaling.DeleteLaunchConfigurationOutput, error) {
+func (m mockedLaunchConfiguration) DeleteLaunchConfigurationWithContext(_ aws.Context, input *autoscaling.DeleteLaunchConfigurationInput, _ ...request.Option) (*autoscaling.DeleteLaunchConfigurationOutput, error) {
 	return &m.DeleteLaunchConfigurationOutput, nil
 }
 

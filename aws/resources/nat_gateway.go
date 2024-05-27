@@ -22,7 +22,8 @@ import (
 
 func (ngw *NatGateways) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var allNatGateways []*string
-	err := ngw.Client.DescribeNatGatewaysPages(
+	err := ngw.Client.DescribeNatGatewaysPagesWithContext(
+		ngw.Context,
 		&ec2.DescribeNatGatewaysInput{},
 		func(page *ec2.DescribeNatGatewaysOutput, lastPage bool) bool {
 			for _, ngw := range page.NatGateways {
@@ -144,7 +145,7 @@ func (ngw *NatGateways) nukeAll(identifiers []*string) error {
 func (ngw *NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, error) {
 	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
 	// based on NatGateways.MaxBatchSize.
-	resp, err := ngw.Client.DescribeNatGateways(&ec2.DescribeNatGatewaysInput{NatGatewayIds: identifiers})
+	resp, err := ngw.Client.DescribeNatGatewaysWithContext(ngw.Context, &ec2.DescribeNatGatewaysInput{NatGatewayIds: identifiers})
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "NatGatewayNotFound" {
 			return true, nil

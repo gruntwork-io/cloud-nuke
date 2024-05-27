@@ -38,6 +38,10 @@ func (ei *EC2Instances) MaxBatchSize() int {
 	return 49
 }
 
+func (ei *EC2Instances) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2
+}
+
 func (ei *EC2Instances) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ei.getAll(c, configObj)
 	if err != nil {

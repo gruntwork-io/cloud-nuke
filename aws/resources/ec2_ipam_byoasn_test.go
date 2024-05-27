@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -18,10 +19,10 @@ type mockedIPAMByoASN struct {
 	DisassociateIpamByoasnOutput ec2.DisassociateIpamByoasnOutput
 }
 
-func (m mockedIPAMByoASN) DescribeIpamByoasn(params *ec2.DescribeIpamByoasnInput) (*ec2.DescribeIpamByoasnOutput, error) {
+func (m mockedIPAMByoASN) DescribeIpamByoasnWithContext(_ awsgo.Context, _ *ec2.DescribeIpamByoasnInput, _ ...request.Option) (*ec2.DescribeIpamByoasnOutput, error) {
 	return &m.DescribeIpamByoasnOutput, nil
 }
-func (m mockedIPAMByoASN) DisassociateIpamByoasn(params *ec2.DisassociateIpamByoasnInput) (*ec2.DisassociateIpamByoasnOutput, error) {
+func (m mockedIPAMByoASN) DisassociateIpamByoasnWithContext(_ awsgo.Context, _ *ec2.DisassociateIpamByoasnInput, _ ...request.Option) (*ec2.DisassociateIpamByoasnOutput, error) {
 	return &m.DisassociateIpamByoasnOutput, nil
 }
 

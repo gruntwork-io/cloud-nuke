@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -18,11 +20,11 @@ type mockedR53TrafficPolicy struct {
 	DeleteTrafficPolicyOutput route53.DeleteTrafficPolicyOutput
 }
 
-func (mock mockedR53TrafficPolicy) ListTrafficPolicies(_ *route53.ListTrafficPoliciesInput) (*route53.ListTrafficPoliciesOutput, error) {
+func (mock mockedR53TrafficPolicy) ListTrafficPoliciesWithContext(_ awsgo.Context, _ *route53.ListTrafficPoliciesInput, _ ...request.Option) (*route53.ListTrafficPoliciesOutput, error) {
 	return &mock.ListTrafficPoliciesOutput, nil
 }
 
-func (mock mockedR53TrafficPolicy) DeleteTrafficPolicy(_ *route53.DeleteTrafficPolicyInput) (*route53.DeleteTrafficPolicyOutput, error) {
+func (mock mockedR53TrafficPolicy) DeleteTrafficPolicyWithContext(_ awsgo.Context, _ *route53.DeleteTrafficPolicyInput, _ ...request.Option) (*route53.DeleteTrafficPolicyOutput, error) {
 	return &mock.DeleteTrafficPolicyOutput, nil
 }
 

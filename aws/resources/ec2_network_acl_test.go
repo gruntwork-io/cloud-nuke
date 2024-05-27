@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -23,15 +25,19 @@ type mockedNetworkACL struct {
 	ReplaceNetworkAclAssociationOutput ec2.ReplaceNetworkAclAssociationOutput
 }
 
-func (m mockedNetworkACL) DescribeNetworkAcls(*ec2.DescribeNetworkAclsInput) (*ec2.DescribeNetworkAclsOutput, error) {
+func (m mockedNetworkACL) DescribeNetworkAclsWithContext(_ awsgo.Context, _ *ec2.DescribeNetworkAclsInput, _ ...request.Option) (*ec2.DescribeNetworkAclsOutput, error) {
 	return &m.DescribeNetworkAclsOutput, nil
 }
 
-func (m mockedNetworkACL) DeleteNetworkAcl(*ec2.DeleteNetworkAclInput) (*ec2.DeleteNetworkAclOutput, error) {
+func (m mockedNetworkACL) DeleteNetworkAcl(_ *ec2.DeleteNetworkAclInput) (*ec2.DeleteNetworkAclOutput, error) {
 	return &m.DeleteNetworkAclOutput, nil
 }
 
-func (m mockedNetworkACL) ReplaceNetworkAclAssociation(*ec2.ReplaceNetworkAclAssociationInput) (*ec2.ReplaceNetworkAclAssociationOutput, error) {
+func (m mockedNetworkACL) DeleteNetworkAclWithContext(_ awsgo.Context, _ *ec2.DeleteNetworkAclInput, _ ...request.Option) (*ec2.DeleteNetworkAclOutput, error) {
+	return &m.DeleteNetworkAclOutput, nil
+}
+
+func (m mockedNetworkACL) ReplaceNetworkAclAssociation(_ *ec2.ReplaceNetworkAclAssociationInput) (*ec2.ReplaceNetworkAclAssociationOutput, error) {
 	return &m.ReplaceNetworkAclAssociationOutput, nil
 }
 

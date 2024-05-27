@@ -38,6 +38,9 @@ func (ag *ASGroups) ResourceIdentifiers() []string {
 	return ag.GroupNames
 }
 
+func (ag *ASGroups) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.AutoScalingGroup
+}
 func (ag *ASGroups) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ag.getAll(c, configObj)
 	if err != nil {

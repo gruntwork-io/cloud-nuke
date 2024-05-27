@@ -13,7 +13,7 @@ import (
 func (r *Route53HostedZone) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
-	result, err := r.Client.ListHostedZones(&route53.ListHostedZonesInput{})
+	result, err := r.Client.ListHostedZonesWithContext(r.Context, &route53.ListHostedZonesInput{})
 	if err != nil {
 		logging.Errorf("[Failed] unable to list hosted-zones: %s", err)
 		return nil, err
@@ -38,7 +38,7 @@ func (r *Route53HostedZone) nukeAll(identifiers []*string) (err error) {
 
 	var deletedIds []*string
 	for _, id := range identifiers {
-		_, err := r.Client.DeleteHostedZone(&route53.DeleteHostedZoneInput{
+		_, err := r.Client.DeleteHostedZoneWithContext(r.Context, &route53.DeleteHostedZoneInput{
 			Id: id,
 		})
 

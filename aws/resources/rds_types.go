@@ -36,6 +36,10 @@ func (di *DBInstances) MaxBatchSize() int {
 	return 49
 }
 
+func (di *DBInstances) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.DBInstances
+}
+
 func (di *DBInstances) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := di.getAll(c, configObj)
 	if err != nil {

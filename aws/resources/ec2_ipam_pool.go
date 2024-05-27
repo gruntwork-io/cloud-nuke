@@ -59,14 +59,14 @@ func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) (
 		},
 	}
 
-	err = ec2Pool.Client.DescribeIpamPoolsPages(params, paginator)
+	err = ec2Pool.Client.DescribeIpamPoolsPagesWithContext(ec2Pool.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	// checking the nukable permissions
 	ec2Pool.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Pool.Client.DeleteIpamPool(&ec2.DeleteIpamPoolInput{
+		_, err := ec2Pool.Client.DeleteIpamPoolWithContext(ec2Pool.Context, &ec2.DeleteIpamPoolInput{
 			IpamPoolId: id,
 			DryRun:     awsgo.Bool(true),
 		})
@@ -93,7 +93,7 @@ func (pool *EC2IPAMPool) nukeAll(ids []*string) error {
 			continue
 		}
 
-		_, err := pool.Client.DeleteIpamPool(&ec2.DeleteIpamPoolInput{
+		_, err := pool.Client.DeleteIpamPoolWithContext(pool.Context, &ec2.DeleteIpamPoolInput{
 			IpamPoolId: id,
 		})
 

@@ -40,6 +40,10 @@ func (ngw *NatGateways) MaxBatchSize() int {
 	return 10
 }
 
+func (ngw *NatGateways) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.NatGateway
+}
+
 func (ngw *NatGateways) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ngw.getAll(c, configObj)
 	if err != nil {

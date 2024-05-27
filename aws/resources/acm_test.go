@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"github.com/aws/aws-sdk-go/service/acm/acmiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,14 +20,18 @@ type mockedACM struct {
 	DeleteCertificateOutput acm.DeleteCertificateOutput
 }
 
-func (m mockedACM) ListCertificatesPages(
-	input *acm.ListCertificatesInput, fn func(*acm.ListCertificatesOutput, bool) bool) error {
+func (m mockedACM) ListCertificatesPagesWithContext(
+	_ aws.Context,
+	_ *acm.ListCertificatesInput,
+	fn func(*acm.ListCertificatesOutput, bool) bool,
+	_ ...request.Option,
+) error {
 	// Only need to return mocked response output
 	fn(&m.ListCertificatesOutput, true)
 	return nil
 }
 
-func (m mockedACM) DeleteCertificate(input *acm.DeleteCertificateInput) (*acm.DeleteCertificateOutput, error) {
+func (m mockedACM) DeleteCertificateWithContext(_ aws.Context, input *acm.DeleteCertificateInput, _ ...request.Option) (*acm.DeleteCertificateOutput, error) {
 	return &m.DeleteCertificateOutput, nil
 }
 

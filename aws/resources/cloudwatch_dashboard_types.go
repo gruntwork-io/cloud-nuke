@@ -37,6 +37,9 @@ func (cwdb *CloudWatchDashboards) MaxBatchSize() int {
 	return 49
 }
 
+func (cwdb *CloudWatchDashboards) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.CloudWatchDashboard
+}
 func (cwdb *CloudWatchDashboards) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := cwdb.getAll(c, configObj)
 	if err != nil {

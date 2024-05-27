@@ -38,6 +38,10 @@ func (ipam *EC2IPAMResourceDiscovery) ResourceIdentifiers() []string {
 	return ipam.DiscoveryIDs
 }
 
+func (ipam *EC2IPAMResourceDiscovery) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2IPAMResourceDiscovery
+}
+
 func (ipam *EC2IPAMResourceDiscovery) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ipam.getAll(c, configObj)
 	if err != nil {

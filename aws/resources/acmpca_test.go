@@ -6,6 +6,7 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/service/acmpca"
 	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
@@ -21,25 +22,21 @@ type mockedACMPCA struct {
 	DeleteCertificateAuthorityOutput   acmpca.DeleteCertificateAuthorityOutput
 }
 
-func (m mockedACMPCA) ListCertificateAuthoritiesPages(
-	input *acmpca.ListCertificateAuthoritiesInput, fn func(*acmpca.ListCertificateAuthoritiesOutput, bool) bool) error {
+func (m mockedACMPCA) ListCertificateAuthoritiesPagesWithContext(_ awsgo.Context, _ *acmpca.ListCertificateAuthoritiesInput, fn func(*acmpca.ListCertificateAuthoritiesOutput, bool) bool, _ ...request.Option) error {
 	// Only need to return mocked response output
 	fn(&m.ListCertificateAuthoritiesOutput, true)
 	return nil
 }
 
-func (m mockedACMPCA) DescribeCertificateAuthority(
-	input *acmpca.DescribeCertificateAuthorityInput) (*acmpca.DescribeCertificateAuthorityOutput, error) {
+func (m mockedACMPCA) DescribeCertificateAuthorityWithContext(_ awsgo.Context, _ *acmpca.DescribeCertificateAuthorityInput, _ ...request.Option) (*acmpca.DescribeCertificateAuthorityOutput, error) {
 	return &m.DescribeCertificateAuthorityOutput, nil
 }
 
-func (m mockedACMPCA) UpdateCertificateAuthority(
-	input *acmpca.UpdateCertificateAuthorityInput) (*acmpca.UpdateCertificateAuthorityOutput, error) {
+func (m mockedACMPCA) UpdateCertificateAuthorityWithContext(_ awsgo.Context, _ *acmpca.UpdateCertificateAuthorityInput, _ ...request.Option) (*acmpca.UpdateCertificateAuthorityOutput, error) {
 	return &m.UpdateCertificateAuthorityOutput, nil
 }
 
-func (m mockedACMPCA) DeleteCertificateAuthority(
-	input *acmpca.DeleteCertificateAuthorityInput) (*acmpca.DeleteCertificateAuthorityOutput, error) {
+func (m mockedACMPCA) DeleteCertificateAuthorityWithContext(_ awsgo.Context, _ *acmpca.DeleteCertificateAuthorityInput, _ ...request.Option) (*acmpca.DeleteCertificateAuthorityOutput, error) {
 	return &m.DeleteCertificateAuthorityOutput, nil
 }
 

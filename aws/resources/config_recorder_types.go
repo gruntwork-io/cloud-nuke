@@ -34,6 +34,10 @@ func (csr *ConfigServiceRecorders) MaxBatchSize() int {
 	return 50
 }
 
+func (csr *ConfigServiceRecorders) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ConfigServiceRecorder
+}
+
 func (csr *ConfigServiceRecorders) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := csr.getAll(c, configObj)
 	if err != nil {

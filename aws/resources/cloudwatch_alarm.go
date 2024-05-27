@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -16,7 +17,8 @@ func (cw *CloudWatchAlarms) getAll(c context.Context, configObj config.Config) (
 	input := &cloudwatch.DescribeAlarmsInput{
 		AlarmTypes: aws.StringSlice([]string{cloudwatch.AlarmTypeMetricAlarm, cloudwatch.AlarmTypeCompositeAlarm}),
 	}
-	err := cw.Client.DescribeAlarmsPages(
+	err := cw.Client.DescribeAlarmsPagesWithContext(
+		cw.Context,
 		input,
 		func(page *cloudwatch.DescribeAlarmsOutput, lastPage bool) bool {
 			for _, alarm := range page.MetricAlarms {
@@ -60,7 +62,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	logging.Debugf("Deleting CloudWatch Alarms in region %s", cw.Region)
 
 	// If the alarm's type is composite alarm, remove the dependency by removing the rule.
-	alarms, err := cw.Client.DescribeAlarms(&cloudwatch.DescribeAlarmsInput{
+	alarms, err := cw.Client.DescribeAlarmsWithContext(cw.Context, &cloudwatch.DescribeAlarmsInput{
 		AlarmTypes: aws.StringSlice([]string{cloudwatch.AlarmTypeMetricAlarm, cloudwatch.AlarmTypeCompositeAlarm}),
 		AlarmNames: identifiers,
 	})
@@ -72,7 +74,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	for _, compositeAlarm := range alarms.CompositeAlarms {
 		compositeAlarmNames = append(compositeAlarmNames, compositeAlarm.AlarmName)
 
-		_, err := cw.Client.PutCompositeAlarm(&cloudwatch.PutCompositeAlarmInput{
+		_, err := cw.Client.PutCompositeAlarmWithContext(cw.Context, &cloudwatch.PutCompositeAlarmInput{
 			AlarmName: compositeAlarm.AlarmName,
 			AlarmRule: aws.String("FALSE"),
 		})
@@ -82,7 +84,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 
 		// Note: for composite alarms, we need to delete one by one according to the documentation
 		// - https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DeleteAlarms.html.
-		_, err = cw.Client.DeleteAlarms(&cloudwatch.DeleteAlarmsInput{
+		_, err = cw.Client.DeleteAlarmsWithContext(cw.Context, &cloudwatch.DeleteAlarmsInput{
 			AlarmNames: []*string{compositeAlarm.AlarmName},
 		})
 
@@ -96,7 +98,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 
 	nonCompositeAlarms := util.Difference(identifiers, compositeAlarmNames)
 	input := cloudwatch.DeleteAlarmsInput{AlarmNames: nonCompositeAlarms}
-	_, err = cw.Client.DeleteAlarms(&input)
+	_, err = cw.Client.DeleteAlarmsWithContext(cw.Context, &input)
 
 	// Record status of this resource
 	e := report.BatchEntry{

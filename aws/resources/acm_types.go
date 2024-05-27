@@ -38,6 +38,11 @@ func (a *ACM) MaxBatchSize() int {
 	return 10
 }
 
+// To get the resource configuration
+func (a *ACM) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ACM
+}
+
 func (a *ACM) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := a.getAll(c, configObj)
 	if err != nil {

@@ -62,14 +62,14 @@ func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config
 		},
 	}
 
-	err = ec2Scope.Client.DescribeIpamScopesPages(params, paginator)
+	err = ec2Scope.Client.DescribeIpamScopesPagesWithContext(ec2Scope.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	// checking the nukable permissions
 	ec2Scope.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Scope.Client.DeleteIpamScope(&ec2.DeleteIpamScopeInput{
+		_, err := ec2Scope.Client.DeleteIpamScopeWithContext(ec2Scope.Context, &ec2.DeleteIpamScopeInput{
 			IpamScopeId: id,
 			DryRun:      awsgo.Bool(true),
 		})
@@ -95,7 +95,7 @@ func (scope *EC2IpamScopes) nukeAll(ids []*string) error {
 			continue
 		}
 
-		_, err := scope.Client.DeleteIpamScope(&ec2.DeleteIpamScopeInput{
+		_, err := scope.Client.DeleteIpamScopeWithContext(scope.Context, &ec2.DeleteIpamScopeInput{
 			IpamScopeId: id,
 		})
 

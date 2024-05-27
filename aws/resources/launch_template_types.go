@@ -38,6 +38,10 @@ func (lt *LaunchTemplates) ResourceIdentifiers() []string {
 	return lt.LaunchTemplateNames
 }
 
+func (lt *LaunchTemplates) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.LaunchTemplate
+}
+
 func (lt *LaunchTemplates) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := lt.getAll(c, configObj)
 	if err != nil {

@@ -37,6 +37,10 @@ func (k *EC2KeyPairs) MaxBatchSize() int {
 	return 200
 }
 
+func (k *EC2KeyPairs) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2KeyPairs
+}
+
 func (k *EC2KeyPairs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := k.getAll(c, configObj)
 	if err != nil {

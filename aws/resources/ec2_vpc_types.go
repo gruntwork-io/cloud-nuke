@@ -41,6 +41,10 @@ func (v *EC2VPCs) MaxBatchSize() int {
 	return 49
 }
 
+// func (v *EC2VPCs) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+// 	return configObj.VPC
+// }
+
 func (v *EC2VPCs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := v.getAll(c, configObj)
 	if err != nil {

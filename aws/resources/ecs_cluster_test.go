@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -25,11 +26,11 @@ type mockedEC2Cluster struct {
 	StopTaskOutput            ecs.StopTaskOutput
 }
 
-func (m mockedEC2Cluster) ListClusters(*ecs.ListClustersInput) (*ecs.ListClustersOutput, error) {
+func (m mockedEC2Cluster) ListClustersWithContext(_ aws.Context, _ *ecs.ListClustersInput, _ ...request.Option) (*ecs.ListClustersOutput, error) {
 	return &m.ListClustersOutput, nil
 }
 
-func (m mockedEC2Cluster) DescribeClusters(*ecs.DescribeClustersInput) (*ecs.DescribeClustersOutput, error) {
+func (m mockedEC2Cluster) DescribeClustersWithContext(_ aws.Context, _ *ecs.DescribeClustersInput, _ ...request.Option) (*ecs.DescribeClustersOutput, error) {
 	return &m.DescribeClustersOutput, nil
 }
 
@@ -41,14 +42,14 @@ func (m mockedEC2Cluster) ListTagsForResource(*ecs.ListTagsForResourceInput) (*e
 	return &m.ListTagsForResourceOutput, nil
 }
 
-func (m mockedEC2Cluster) DeleteCluster(*ecs.DeleteClusterInput) (*ecs.DeleteClusterOutput, error) {
+func (m mockedEC2Cluster) DeleteClusterWithContext(_ aws.Context, _ *ecs.DeleteClusterInput, _ ...request.Option) (*ecs.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
 }
 
-func (m mockedEC2Cluster) ListTasks(*ecs.ListTasksInput) (*ecs.ListTasksOutput, error) {
+func (m mockedEC2Cluster) ListTasksWithContext(_ aws.Context, _ *ecs.ListTasksInput, _ ...request.Option) (*ecs.ListTasksOutput, error) {
 	return &m.ListTasksOutput, nil
 }
-func (m mockedEC2Cluster) StopTask(*ecs.StopTaskInput) (*ecs.StopTaskOutput, error) {
+func (m mockedEC2Cluster) StopTaskWithContext(_ aws.Context, _ *ecs.StopTaskInput, _ ...request.Option) (*ecs.StopTaskOutput, error) {
 	return &m.StopTaskOutput, nil
 }
 

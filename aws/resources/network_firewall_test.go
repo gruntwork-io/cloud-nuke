@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 
@@ -29,7 +30,7 @@ func (m mockedNetworkFirewall) TagResource(*networkfirewall.TagResourceInput) (*
 	return &m.TagResourceOutput, nil
 }
 
-func (m mockedNetworkFirewall) DeleteFirewall(*networkfirewall.DeleteFirewallInput) (*networkfirewall.DeleteFirewallOutput, error) {
+func (m mockedNetworkFirewall) DeleteFirewallWithContext(_ awsgo.Context, _ *networkfirewall.DeleteFirewallInput, _ ...request.Option) (*networkfirewall.DeleteFirewallOutput, error) {
 	return &m.DeleteFirewallOutput, nil
 }
 
@@ -37,7 +38,7 @@ func (m mockedNetworkFirewall) ListFirewalls(*networkfirewall.ListFirewallsInput
 	return &m.ListFirewallsOutput, nil
 }
 
-func (m mockedNetworkFirewall) DescribeFirewall(req *networkfirewall.DescribeFirewallInput) (*networkfirewall.DescribeFirewallOutput, error) {
+func (m mockedNetworkFirewall) DescribeFirewallWithContext(_ awsgo.Context, req *networkfirewall.DescribeFirewallInput, _ ...request.Option) (*networkfirewall.DescribeFirewallOutput, error) {
 	raw := awsgo.StringValue(req.FirewallArn)
 	v, ok := m.DescribeFirewallOutput[raw]
 	if !ok {

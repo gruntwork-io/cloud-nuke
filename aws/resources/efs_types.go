@@ -34,6 +34,10 @@ func (ef *ElasticFileSystem) MaxBatchSize() int {
 	return 10
 }
 
+func (ef *ElasticFileSystem) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ElasticFileSystem
+}
+
 func (ef *ElasticFileSystem) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ef.getAll(c, configObj)
 	if err != nil {

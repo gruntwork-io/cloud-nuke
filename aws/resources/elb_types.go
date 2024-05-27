@@ -38,6 +38,10 @@ func (balancer *LoadBalancers) MaxBatchSize() int {
 	return 49
 }
 
+func (balancer *LoadBalancers) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ELBv1
+}
+
 func (balancer *LoadBalancers) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := balancer.getAll(c, configObj)
 	if err != nil {

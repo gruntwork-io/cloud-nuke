@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedIAMPolicies struct {
@@ -25,38 +27,41 @@ type mockedIAMPolicies struct {
 	DeletePolicyOutput               iam.DeletePolicyOutput
 }
 
-func (m mockedIAMPolicies) ListPoliciesPages(input *iam.ListPoliciesInput, fn func(*iam.ListPoliciesOutput, bool) bool) error {
+func (m mockedIAMPolicies) ListPoliciesPagesWithContext(
+	_ aws.Context, input *iam.ListPoliciesInput, fn func(*iam.ListPoliciesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListPoliciesPagesOutput, true)
 	return nil
 }
 
-func (m mockedIAMPolicies) ListEntitiesForPolicyPages(input *iam.ListEntitiesForPolicyInput, fn func(*iam.ListEntitiesForPolicyOutput, bool) bool) error {
+func (m mockedIAMPolicies) ListEntitiesForPolicyPagesWithContext(
+	_ aws.Context, input *iam.ListEntitiesForPolicyInput, fn func(*iam.ListEntitiesForPolicyOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListEntitiesForPolicyPagesOutput, true)
 	return nil
 }
 
-func (m mockedIAMPolicies) DetachUserPolicy(input *iam.DetachUserPolicyInput) (*iam.DetachUserPolicyOutput, error) {
+func (m mockedIAMPolicies) DetachUserPolicyWithContext(_ aws.Context, input *iam.DetachUserPolicyInput, _ ...request.Option) (*iam.DetachUserPolicyOutput, error) {
 	return &m.DetachUserPolicyOutput, nil
 }
 
-func (m mockedIAMPolicies) DetachGroupPolicy(input *iam.DetachGroupPolicyInput) (*iam.DetachGroupPolicyOutput, error) {
+func (m mockedIAMPolicies) DetachGroupPolicyWithContext(_ aws.Context, input *iam.DetachGroupPolicyInput, _ ...request.Option) (*iam.DetachGroupPolicyOutput, error) {
 	return &m.DetachGroupPolicyOutput, nil
 }
 
-func (m mockedIAMPolicies) DetachRolePolicy(input *iam.DetachRolePolicyInput) (*iam.DetachRolePolicyOutput, error) {
+func (m mockedIAMPolicies) DetachRolePolicyWithContext(_ aws.Context, input *iam.DetachRolePolicyInput, _ ...request.Option) (*iam.DetachRolePolicyOutput, error) {
 	return &m.DetachRolePolicyOutput, nil
 }
 
-func (m mockedIAMPolicies) ListPolicyVersionsPages(input *iam.ListPolicyVersionsInput, fn func(*iam.ListPolicyVersionsOutput, bool) bool) error {
+func (m mockedIAMPolicies) ListPolicyVersionsPagesWithContext(
+	_ aws.Context, input *iam.ListPolicyVersionsInput, fn func(*iam.ListPolicyVersionsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListPolicyVersionsPagesOutput, true)
 	return nil
 }
 
-func (m mockedIAMPolicies) DeletePolicyVersion(input *iam.DeletePolicyVersionInput) (*iam.DeletePolicyVersionOutput, error) {
+func (m mockedIAMPolicies) DeletePolicyVersionWithContext(_ aws.Context, input *iam.DeletePolicyVersionInput, _ ...request.Option) (*iam.DeletePolicyVersionOutput, error) {
 	return &m.DeletePolicyVersionOutput, nil
 }
 
-func (m mockedIAMPolicies) DeletePolicy(input *iam.DeletePolicyInput) (*iam.DeletePolicyOutput, error) {
+func (m mockedIAMPolicies) DeletePolicyWithContext(_ aws.Context, input *iam.DeletePolicyInput, _ ...request.Option) (*iam.DeletePolicyOutput, error) {
 	return &m.DeletePolicyOutput, nil
 }
 

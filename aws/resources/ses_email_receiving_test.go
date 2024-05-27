@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/ses/sesiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,11 +21,11 @@ type mockedSesReceiptRule struct {
 	ListReceiptRuleSetsOutput  ses.ListReceiptRuleSetsOutput
 }
 
-func (m mockedSesReceiptRule) ListReceiptRuleSets(input *ses.ListReceiptRuleSetsInput) (*ses.ListReceiptRuleSetsOutput, error) {
+func (m mockedSesReceiptRule) ListReceiptRuleSetsWithContext(_ awsgo.Context, _ *ses.ListReceiptRuleSetsInput, _ ...request.Option) (*ses.ListReceiptRuleSetsOutput, error) {
 	return &m.ListReceiptRuleSetsOutput, nil
 }
 
-func (m mockedSesReceiptRule) DeleteReceiptRuleSet(*ses.DeleteReceiptRuleSetInput) (*ses.DeleteReceiptRuleSetOutput, error) {
+func (m mockedSesReceiptRule) DeleteReceiptRuleSetWithContext(_ awsgo.Context, _ *ses.DeleteReceiptRuleSetInput, _ ...request.Option) (*ses.DeleteReceiptRuleSetOutput, error) {
 	return &m.DeleteReceiptRuleSetOutput, nil
 }
 
@@ -109,11 +110,11 @@ type mockedSesReceiptFilter struct {
 	ListReceiptFiltersOutput  ses.ListReceiptFiltersOutput
 }
 
-func (m mockedSesReceiptFilter) ListReceiptFilters(input *ses.ListReceiptFiltersInput) (*ses.ListReceiptFiltersOutput, error) {
+func (m mockedSesReceiptFilter) ListReceiptFiltersWithContext(_ awsgo.Context, _ *ses.ListReceiptFiltersInput, _ ...request.Option) (*ses.ListReceiptFiltersOutput, error) {
 	return &m.ListReceiptFiltersOutput, nil
 }
 
-func (m mockedSesReceiptFilter) DeleteReceiptFilter(*ses.DeleteReceiptFilterInput) (*ses.DeleteReceiptFilterOutput, error) {
+func (m mockedSesReceiptFilter) DeleteReceiptFilterWithContext(_ awsgo.Context, _ *ses.DeleteReceiptFilterInput, _ ...request.Option) (*ses.DeleteReceiptFilterOutput, error) {
 	return &m.DeleteReceiptFilterOutput, nil
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -21,11 +22,11 @@ type mockedIPAMResourceDiscovery struct {
 	DeleteIpamResourceDiscoveryOutput     ec2.DeleteIpamResourceDiscoveryOutput
 }
 
-func (m mockedIPAMResourceDiscovery) DescribeIpamResourceDiscoveriesPages(input *ec2.DescribeIpamResourceDiscoveriesInput, callback func(*ec2.DescribeIpamResourceDiscoveriesOutput, bool) bool) error {
+func (m mockedIPAMResourceDiscovery) DescribeIpamResourceDiscoveriesPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamResourceDiscoveriesInput, callback func(*ec2.DescribeIpamResourceDiscoveriesOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeIpamResourceDiscoveriesOutput, true)
 	return nil
 }
-func (m mockedIPAMResourceDiscovery) DeleteIpamResourceDiscovery(params *ec2.DeleteIpamResourceDiscoveryInput) (*ec2.DeleteIpamResourceDiscoveryOutput, error) {
+func (m mockedIPAMResourceDiscovery) DeleteIpamResourceDiscoveryWithContext(_ awsgo.Context, _ *ec2.DeleteIpamResourceDiscoveryInput, _ ...request.Option) (*ec2.DeleteIpamResourceDiscoveryOutput, error) {
 	return &m.DeleteIpamResourceDiscoveryOutput, nil
 }
 

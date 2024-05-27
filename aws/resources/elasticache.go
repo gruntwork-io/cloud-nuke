@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/elasticache"
@@ -10,13 +12,12 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
-	"strings"
 )
 
 // Returns a formatted string of Elasticache cluster Ids
 func (cache *Elasticaches) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// First, get any cache clusters that are replication groups, which will be the case for all multi-node Redis clusters
-	replicationGroupsResult, replicationGroupsErr := cache.Client.DescribeReplicationGroups(&elasticache.DescribeReplicationGroupsInput{})
+	replicationGroupsResult, replicationGroupsErr := cache.Client.DescribeReplicationGroupsWithContext(cache.Context, &elasticache.DescribeReplicationGroupsInput{})
 	if replicationGroupsErr != nil {
 		return nil, errors.WithStackTrace(replicationGroupsErr)
 	}
@@ -24,9 +25,11 @@ func (cache *Elasticaches) getAll(c context.Context, configObj config.Config) ([
 	// Next, get any cache clusters that are not members of a replication group: meaning:
 	// 1. any cache clusters with a Engine of "memcached"
 	// 2. any single node Redis clusters
-	cacheClustersResult, cacheClustersErr := cache.Client.DescribeCacheClusters(&elasticache.DescribeCacheClustersInput{
-		ShowCacheClustersNotInReplicationGroups: aws.Bool(true),
-	})
+	cacheClustersResult, cacheClustersErr := cache.Client.DescribeCacheClustersWithContext(
+		cache.Context,
+		&elasticache.DescribeCacheClustersInput{
+			ShowCacheClustersNotInReplicationGroups: aws.Bool(true),
+		})
 	if cacheClustersErr != nil {
 		return nil, errors.WithStackTrace(cacheClustersErr)
 	}
@@ -65,7 +68,7 @@ func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string
 		ReplicationGroupId: clusterId,
 	}
 
-	replicationGroupOutput, describeReplicationGroupsErr := cache.Client.DescribeReplicationGroups(replicationGroupDescribeParams)
+	replicationGroupOutput, describeReplicationGroupsErr := cache.Client.DescribeReplicationGroupsWithContext(cache.Context, replicationGroupDescribeParams)
 	if describeReplicationGroupsErr != nil {
 		if awsErr, ok := describeReplicationGroupsErr.(awserr.Error); ok {
 			if awsErr.Code() == elasticache.ErrCodeReplicationGroupNotFoundFault {
@@ -87,7 +90,7 @@ func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string
 		CacheClusterId: clusterId,
 	}
 
-	cacheClustersOutput, describeErr := cache.Client.DescribeCacheClusters(describeParams)
+	cacheClustersOutput, describeErr := cache.Client.DescribeCacheClustersWithContext(cache.Context, describeParams)
 	if describeErr != nil {
 		if awsErr, ok := describeErr.(awserr.Error); ok {
 			if awsErr.Code() == elasticache.ErrCodeCacheClusterNotFoundFault {
@@ -110,12 +113,12 @@ func (cache *Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *
 	params := elasticache.DeleteCacheClusterInput{
 		CacheClusterId: clusterId,
 	}
-	_, err := cache.Client.DeleteCacheCluster(&params)
+	_, err := cache.Client.DeleteCacheClusterWithContext(cache.Context, &params)
 	if err != nil {
 		return err
 	}
 
-	return cache.Client.WaitUntilCacheClusterDeleted(&elasticache.DescribeCacheClustersInput{
+	return cache.Client.WaitUntilCacheClusterDeletedWithContext(cache.Context, &elasticache.DescribeCacheClustersInput{
 		CacheClusterId: clusterId,
 	})
 }
@@ -126,12 +129,12 @@ func (cache *Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterI
 	params := &elasticache.DeleteReplicationGroupInput{
 		ReplicationGroupId: clusterId,
 	}
-	_, err := cache.Client.DeleteReplicationGroup(params)
+	_, err := cache.Client.DeleteReplicationGroupWithContext(cache.Context, params)
 	if err != nil {
 		return err
 	}
 
-	waitErr := cache.Client.WaitUntilReplicationGroupDeleted(&elasticache.DescribeReplicationGroupsInput{
+	waitErr := cache.Client.WaitUntilReplicationGroupDeletedWithContext(cache.Context, &elasticache.DescribeReplicationGroupsInput{
 		ReplicationGroupId: clusterId,
 	})
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -28,32 +29,32 @@ type mockedEC2VPCs struct {
 	DeleteVpcEndpointServiceConfigurationsOutput   ec2.DeleteVpcEndpointServiceConfigurationsOutput
 }
 
-func (m mockedEC2VPCs) DescribeVpcs(input *ec2.DescribeVpcsInput) (*ec2.DescribeVpcsOutput, error) {
+func (m mockedEC2VPCs) DescribeVpcsWithContext(_ awsgo.Context, _ *ec2.DescribeVpcsInput, _ ...request.Option) (*ec2.DescribeVpcsOutput, error) {
 	return &m.DescribeVpcsOutput, nil
 }
 
-func (m mockedEC2VPCs) DeleteVpc(input *ec2.DeleteVpcInput) (*ec2.DeleteVpcOutput, error) {
+func (m mockedEC2VPCs) DeleteVpc(_ *ec2.DeleteVpcInput) (*ec2.DeleteVpcOutput, error) {
 	return &m.DeleteVpcOutput, nil
 }
-func (m mockedEC2VPCs) DescribeVpcPeeringConnectionsPages(input *ec2.DescribeVpcPeeringConnectionsInput, callback func(page *ec2.DescribeVpcPeeringConnectionsOutput, lastPage bool) bool) error {
+func (m mockedEC2VPCs) DescribeVpcPeeringConnectionsPages(_ *ec2.DescribeVpcPeeringConnectionsInput, callback func(*ec2.DescribeVpcPeeringConnectionsOutput, bool) bool) error {
 	callback(&m.DescribeVpcPeeringConnectionsOutput, true)
 	return nil
 }
-func (m mockedEC2VPCs) DescribeInstances(*ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
+func (m mockedEC2VPCs) DescribeInstances(_ *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
 	return &m.DescribeInstancesOutput, nil
 }
 
-func (m mockedEC2VPCs) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
+func (m mockedEC2VPCs) TerminateInstances(_ *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
 	return &m.TerminateInstancesOutput, nil
 }
-func (m mockedEC2VPCs) WaitUntilInstanceTerminated(*ec2.DescribeInstancesInput) error {
+func (m mockedEC2VPCs) WaitUntilInstanceTerminated(_ *ec2.DescribeInstancesInput) error {
 	return nil
 }
 
-func (m mockedEC2VPCs) DescribeVpcEndpointServiceConfigurations(*ec2.DescribeVpcEndpointServiceConfigurationsInput) (*ec2.DescribeVpcEndpointServiceConfigurationsOutput, error) {
+func (m mockedEC2VPCs) DescribeVpcEndpointServiceConfigurations(_ *ec2.DescribeVpcEndpointServiceConfigurationsInput) (*ec2.DescribeVpcEndpointServiceConfigurationsOutput, error) {
 	return &m.DescribeVpcEndpointServiceConfigurationsOutput, nil
 }
-func (m mockedEC2VPCs) DeleteVpcEndpointServiceConfigurations(*ec2.DeleteVpcEndpointServiceConfigurationsInput) (*ec2.DeleteVpcEndpointServiceConfigurationsOutput, error) {
+func (m mockedEC2VPCs) DeleteVpcEndpointServiceConfigurations(_ *ec2.DeleteVpcEndpointServiceConfigurationsInput) (*ec2.DeleteVpcEndpointServiceConfigurationsOutput, error) {
 	return &m.DeleteVpcEndpointServiceConfigurationsOutput, nil
 }
 func TestEC2VPC_GetAll(t *testing.T) {

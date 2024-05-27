@@ -24,7 +24,7 @@ func (ap *S3AccessPoint) getAll(c context.Context, configObj config.Config) ([]*
 	ap.AccountID = aws.String(accountID)
 
 	var accessPoints []*string
-	err := ap.Client.ListAccessPointsPages(&s3control.ListAccessPointsInput{
+	err := ap.Client.ListAccessPointsPagesWithContext(ap.Context, &s3control.ListAccessPointsInput{
 		AccountId: ap.AccountID,
 	}, func(lapo *s3control.ListAccessPointsOutput, lastPage bool) bool {
 		for _, accessPoint := range lapo.AccessPointList {
@@ -50,7 +50,7 @@ func (ap *S3AccessPoint) nukeAll(identifiers []*string) error {
 
 	for _, id := range identifiers {
 
-		_, err := ap.Client.DeleteAccessPoint(&s3control.DeleteAccessPointInput{
+		_, err := ap.Client.DeleteAccessPointWithContext(ap.Context, &s3control.DeleteAccessPointInput{
 			AccountId: ap.AccountID,
 			Name:      id,
 		})

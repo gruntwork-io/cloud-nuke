@@ -2,10 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"regexp"
 	"testing"
 	"time"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
@@ -20,20 +23,20 @@ type mockedCloudWatchAlarms struct {
 	PutCompositeAlarmOutput cloudwatch.PutCompositeAlarmOutput
 }
 
-func (m mockedCloudWatchAlarms) DescribeAlarmsPages(input *cloudwatch.DescribeAlarmsInput, fn func(*cloudwatch.DescribeAlarmsOutput, bool) bool) error {
+func (m mockedCloudWatchAlarms) DescribeAlarmsPagesWithContext(_ awsgo.Context, _ *cloudwatch.DescribeAlarmsInput, fn func(*cloudwatch.DescribeAlarmsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeAlarmsOutput, true)
 	return nil
 }
 
-func (m mockedCloudWatchAlarms) PutCompositeAlarm(input *cloudwatch.PutCompositeAlarmInput) (*cloudwatch.PutCompositeAlarmOutput, error) {
+func (m mockedCloudWatchAlarms) PutCompositeAlarmWithContext(_ awsgo.Context, _ *cloudwatch.PutCompositeAlarmInput, _ ...request.Option) (*cloudwatch.PutCompositeAlarmOutput, error) {
 	return &m.PutCompositeAlarmOutput, nil
 }
 
-func (m mockedCloudWatchAlarms) DescribeAlarms(input *cloudwatch.DescribeAlarmsInput) (*cloudwatch.DescribeAlarmsOutput, error) {
+func (m mockedCloudWatchAlarms) DescribeAlarmsWithContext(_ awsgo.Context, _ *cloudwatch.DescribeAlarmsInput, _ ...request.Option) (*cloudwatch.DescribeAlarmsOutput, error) {
 	return &m.DescribeAlarmsOutput, nil
 }
 
-func (m mockedCloudWatchAlarms) DeleteAlarms(input *cloudwatch.DeleteAlarmsInput) (*cloudwatch.DeleteAlarmsOutput, error) {
+func (m mockedCloudWatchAlarms) DeleteAlarmsWithContext(_ awsgo.Context, _ *cloudwatch.DeleteAlarmsInput, _ ...request.Option) (*cloudwatch.DeleteAlarmsOutput, error) {
 	return &m.DeleteAlarmsOutput, nil
 }
 

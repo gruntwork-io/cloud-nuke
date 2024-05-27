@@ -40,14 +40,14 @@ func (nfw *NetworkFirewallPolicy) getAll(c context.Context, configObj config.Con
 		err           error
 	)
 
-	metaOutput, err := nfw.Client.ListFirewallPolicies(nil)
+	metaOutput, err := nfw.Client.ListFirewallPoliciesWithContext(nfw.Context, nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, policy := range metaOutput.FirewallPolicies {
 
-		output, err := nfw.Client.DescribeFirewallPolicy(&networkfirewall.DescribeFirewallPolicyInput{
+		output, err := nfw.Client.DescribeFirewallPolicyWithContext(nfw.Context, &networkfirewall.DescribeFirewallPolicyInput{
 			FirewallPolicyArn: policy.Arn,
 		})
 		if err != nil {
@@ -84,7 +84,7 @@ func (nfw *NetworkFirewallPolicy) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
-		_, err := nfw.Client.DeleteFirewallPolicy(&networkfirewall.DeleteFirewallPolicyInput{
+		_, err := nfw.Client.DeleteFirewallPolicyWithContext(nfw.Context, &networkfirewall.DeleteFirewallPolicyInput{
 			FirewallPolicyName: id,
 		})
 

@@ -37,6 +37,10 @@ func (iu *IAMUsers) MaxBatchSize() int {
 	return 49
 }
 
+func (iu *IAMUsers) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.IAMUsers
+}
+
 func (iu *IAMUsers) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := iu.getAll(c, configObj)
 	if err != nil {

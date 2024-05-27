@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,12 +20,12 @@ type mockedRdsDBParameterGroup struct {
 	DeleteDBParameterGroupOutput    rds.DeleteDBParameterGroupOutput
 }
 
-func (m mockedRdsDBParameterGroup) DescribeDBParameterGroupsPages(_ *rds.DescribeDBParameterGroupsInput, callback func(*rds.DescribeDBParameterGroupsOutput, bool) bool) error {
+func (m mockedRdsDBParameterGroup) DescribeDBParameterGroupsPagesWithContext(_ awsgo.Context, _ *rds.DescribeDBParameterGroupsInput, callback func(*rds.DescribeDBParameterGroupsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeDBParameterGroupsOutput, true)
 	return nil
 }
 
-func (m mockedRdsDBParameterGroup) DeleteDBParameterGroup(*rds.DeleteDBParameterGroupInput) (*rds.DeleteDBParameterGroupOutput, error) {
+func (m mockedRdsDBParameterGroup) DeleteDBParameterGroupWithContext(_ awsgo.Context, _ *rds.DeleteDBParameterGroupInput, _ ...request.Option) (*rds.DeleteDBParameterGroupOutput, error) {
 	return &m.DeleteDBParameterGroupOutput, nil
 }
 

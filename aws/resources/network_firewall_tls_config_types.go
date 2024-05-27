@@ -38,6 +38,10 @@ func (nftc *NetworkFirewallTLSConfig) MaxBatchSize() int {
 	return 10
 }
 
+func (nftc *NetworkFirewallTLSConfig) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.NetworkFirewallTLSConfig
+}
+
 func (nftc *NetworkFirewallTLSConfig) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := nftc.getAll(c, configObj)
 	if err != nil {
