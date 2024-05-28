@@ -2,16 +2,17 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"regexp"
+	"testing"
+	"time"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEIPAddresses struct {
@@ -20,11 +21,11 @@ type mockedEIPAddresses struct {
 	ReleaseAddressOutput    ec2.ReleaseAddressOutput
 }
 
-func (m mockedEIPAddresses) DescribeAddresses(*ec2.DescribeAddressesInput) (*ec2.DescribeAddressesOutput, error) {
+func (m mockedEIPAddresses) DescribeAddressesWithContext(_ awsgo.Context, _ *ec2.DescribeAddressesInput, _ ...request.Option) (*ec2.DescribeAddressesOutput, error) {
 	return &m.DescribeAddressesOutput, nil
 }
 
-func (m mockedEIPAddresses) ReleaseAddress(*ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error) {
+func (m mockedEIPAddresses) ReleaseAddressWithContext(_ awsgo.Context, _ *ec2.ReleaseAddressInput, _ ...request.Option) (*ec2.ReleaseAddressOutput, error) {
 	return &m.ReleaseAddressOutput, nil
 }
 
@@ -99,7 +100,7 @@ func TestEIPAddress_GetAll(t *testing.T) {
 			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+					TimeAfter: awsgo.Time(now.Add(-1 * time.Hour)),
 				}},
 			expected: []string{},
 		},

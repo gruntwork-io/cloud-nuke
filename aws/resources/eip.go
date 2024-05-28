@@ -17,9 +17,10 @@ import (
 
 // Returns a formatted string of EIP allocation ids
 func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+
 	var firstSeenTime *time.Time
 	var err error
-	result, err := ea.Client.DescribeAddresses(&ec2.DescribeAddressesInput{})
+	result, err := ea.Client.DescribeAddressesWithContext(ea.Context, &ec2.DescribeAddressesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -39,7 +40,7 @@ func (ea *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*s
 
 	// checking the nukable permissions
 	ea.VerifyNukablePermissions(allocationIds, func(id *string) error {
-		_, err := ea.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+		_, err := ea.Client.ReleaseAddressWithContext(ea.Context, &ec2.ReleaseAddressInput{
 			AllocationId: id,
 			DryRun:       awsgo.Bool(true),
 		})
@@ -77,7 +78,7 @@ func (ea *EIPAddresses) nukeAll(allocationIds []*string) error {
 			continue
 		}
 
-		_, err := ea.Client.ReleaseAddress(&ec2.ReleaseAddressInput{
+		_, err := ea.Client.ReleaseAddressWithContext(ea.Context, &ec2.ReleaseAddressInput{
 			AllocationId: allocationID,
 		})
 

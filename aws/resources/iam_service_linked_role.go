@@ -20,7 +20,8 @@ import (
 // List all IAM Roles in the AWS account
 func (islr *IAMServiceLinkedRoles) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allIAMServiceLinkedRoles := []*string{}
-	err := islr.Client.ListRolesPages(
+	err := islr.Client.ListRolesPagesWithContext(
+		islr.Context,
 		&iam.ListRolesInput{},
 		func(page *iam.ListRolesOutput, lastPage bool) bool {
 			for _, iamServiceLinkedRole := range page.Roles {
@@ -42,7 +43,7 @@ func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) 
 	//{
 	//	DeletionTaskId: "task/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_2/d3c4c9fc-7fd3-4a36-974a-afb0eb78f102"
 	//}
-	deletionData, err := islr.Client.DeleteServiceLinkedRole(&iam.DeleteServiceLinkedRoleInput{
+	deletionData, err := islr.Client.DeleteServiceLinkedRoleWithContext(islr.Context, &iam.DeleteServiceLinkedRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -58,7 +59,7 @@ func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) 
 	for !done {
 		done = true
 		// Check if the deletion is complete
-		deletionStatus, err = islr.Client.GetServiceLinkedRoleDeletionStatus(&iam.GetServiceLinkedRoleDeletionStatusInput{
+		deletionStatus, err = islr.Client.GetServiceLinkedRoleDeletionStatusWithContext(islr.Context, &iam.GetServiceLinkedRoleDeletionStatusInput{
 			DeletionTaskId: deletionData.DeletionTaskId,
 		})
 		if err != nil {

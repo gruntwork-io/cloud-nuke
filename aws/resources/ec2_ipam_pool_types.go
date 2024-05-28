@@ -38,6 +38,10 @@ func (pool *EC2IPAMPool) ResourceIdentifiers() []string {
 	return pool.Pools
 }
 
+func (pool *EC2IPAMPool) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2IPAMPool
+}
+
 func (pool *EC2IPAMPool) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := pool.getAll(c, configObj)
 	if err != nil {

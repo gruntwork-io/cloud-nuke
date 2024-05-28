@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/s3control"
 	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,11 +22,11 @@ type mockS3MultiRegionAccessPoint struct {
 	DeleteMultiRegionAccessPointOutput s3control.DeleteMultiRegionAccessPointOutput
 }
 
-func (m mockS3MultiRegionAccessPoint) ListMultiRegionAccessPointsPages(_ *s3control.ListMultiRegionAccessPointsInput, fn func(*s3control.ListMultiRegionAccessPointsOutput, bool) bool) error {
+func (m mockS3MultiRegionAccessPoint) ListMultiRegionAccessPointsPagesWithContext(_ awsgo.Context, _ *s3control.ListMultiRegionAccessPointsInput, fn func(*s3control.ListMultiRegionAccessPointsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListMultiRegionAccessPointsOutput, true)
 	return nil
 }
-func (m mockS3MultiRegionAccessPoint) DeleteMultiRegionAccessPoint(_ *s3control.DeleteMultiRegionAccessPointInput) (*s3control.DeleteMultiRegionAccessPointOutput, error) {
+func (m mockS3MultiRegionAccessPoint) DeleteMultiRegionAccessPointWithContext(_ awsgo.Context, _ *s3control.DeleteMultiRegionAccessPointInput, _ ...request.Option) (*s3control.DeleteMultiRegionAccessPointOutput, error) {
 	return &m.DeleteMultiRegionAccessPointOutput, nil
 }
 

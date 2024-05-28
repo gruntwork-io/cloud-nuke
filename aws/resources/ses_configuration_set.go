@@ -16,7 +16,7 @@ func (s *SesConfigurationSet) getAll(c context.Context, configObj config.Config)
 	// Remove default route table, that will be deleted along with its TransitGateway
 	param := &ses.ListConfigurationSetsInput{}
 
-	result, err := s.Client.ListConfigurationSets(param)
+	result, err := s.Client.ListConfigurationSetsWithContext(s.Context, param)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -42,7 +42,7 @@ func (s *SesConfigurationSet) nukeAll(sets []*string) error {
 	var deletedSets []*string
 
 	for _, set := range sets {
-		_, err := s.Client.DeleteConfigurationSet(&ses.DeleteConfigurationSetInput{
+		_, err := s.Client.DeleteConfigurationSetWithContext(s.Context, &ses.DeleteConfigurationSetInput{
 			ConfigurationSetName: set,
 		})
 

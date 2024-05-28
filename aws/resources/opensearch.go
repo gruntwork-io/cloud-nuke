@@ -65,7 +65,7 @@ func (osd *OpenSearchDomains) getAll(c context.Context, configObj config.Config)
 // getAllActiveOpenSearchDomains filters all active OpenSearch domains, which are those that have the `Created` flag true and `Deleted` flag false.
 func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchservice.DomainStatus, error) {
 	allDomains := []*string{}
-	resp, err := osd.Client.ListDomainNames(&opensearchservice.ListDomainNamesInput{})
+	resp, err := osd.Client.ListDomainNamesWithContext(osd.Context, &opensearchservice.ListDomainNamesInput{})
 	if err != nil {
 		logging.Errorf("Error getting all OpenSearch domains")
 		return nil, errors.WithStackTrace(err)
@@ -75,7 +75,7 @@ func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchserv
 	}
 
 	input := &opensearchservice.DescribeDomainsInput{DomainNames: allDomains}
-	describedDomains, describeErr := osd.Client.DescribeDomains(input)
+	describedDomains, describeErr := osd.Client.DescribeDomainsWithContext(osd.Context, input)
 	if describeErr != nil {
 		logging.Errorf("Error describing Domains from input %s: ", input)
 		return nil, errors.WithStackTrace(describeErr)
@@ -187,7 +187,7 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
 		30, 10*time.Second,
 		func() error {
-			resp, err := osd.Client.DescribeDomains(&opensearchservice.DescribeDomainsInput{DomainNames: identifiers})
+			resp, err := osd.Client.DescribeDomainsWithContext(osd.Context, &opensearchservice.DescribeDomainsInput{DomainNames: identifiers})
 			if err != nil {
 				return errors.WithStackTrace(retry.FatalError{Underlying: err})
 			}
@@ -212,7 +212,7 @@ func (osd *OpenSearchDomains) deleteAsync(wg *sync.WaitGroup, errChan chan error
 	defer wg.Done()
 
 	input := &opensearchservice.DeleteDomainInput{DomainName: domainName}
-	_, err := osd.Client.DeleteDomain(input)
+	_, err := osd.Client.DeleteDomainWithContext(osd.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{

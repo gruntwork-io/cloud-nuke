@@ -34,6 +34,10 @@ func (mm *MacieMember) MaxBatchSize() int {
 	return 10
 }
 
+func (mm *MacieMember) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.MacieMember
+}
+
 func (mm *MacieMember) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := mm.getAll(c, configObj)
 	if err != nil {

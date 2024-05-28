@@ -34,6 +34,10 @@ func (sh *SecurityHub) MaxBatchSize() int {
 	return 5
 }
 
+func (sh *SecurityHub) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.SecurityHub
+}
+
 func (sh *SecurityHub) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := sh.getAll(c, configObj)
 	if err != nil {

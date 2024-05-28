@@ -2,16 +2,18 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/stretchr/testify/require"
 )
 
 type mockedSqsQueue struct {
@@ -21,19 +23,19 @@ type mockedSqsQueue struct {
 	ListQueuesOutput         sqs.ListQueuesOutput
 }
 
-func (m mockedSqsQueue) ListQueuesPages(input *sqs.ListQueuesInput, fn func(*sqs.ListQueuesOutput, bool) bool) error {
+func (m mockedSqsQueue) ListQueuesPagesWithContext(_ awsgo.Context, _ *sqs.ListQueuesInput, fn func(*sqs.ListQueuesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListQueuesOutput, true)
 	return nil
 }
 
-func (m mockedSqsQueue) GetQueueAttributes(input *sqs.GetQueueAttributesInput) (*sqs.GetQueueAttributesOutput, error) {
+func (m mockedSqsQueue) GetQueueAttributesWithContext(_ awsgo.Context, input *sqs.GetQueueAttributesInput, _ ...request.Option) (*sqs.GetQueueAttributesOutput, error) {
 	url := input.QueueUrl
 	resp := m.GetQueueAttributesOutput[*url]
 
 	return &resp, nil
 }
 
-func (m mockedSqsQueue) DeleteQueue(*sqs.DeleteQueueInput) (*sqs.DeleteQueueOutput, error) {
+func (m mockedSqsQueue) DeleteQueueWithContext(_ awsgo.Context, _ *sqs.DeleteQueueInput, _ ...request.Option) (*sqs.DeleteQueueOutput, error) {
 	return &m.DeleteQueueOutput, nil
 }
 

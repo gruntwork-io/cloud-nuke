@@ -16,7 +16,7 @@ func (sid *SesIdentities) getAll(c context.Context, configObj config.Config) ([]
 
 	param := &ses.ListIdentitiesInput{}
 
-	result, err := sid.Client.ListIdentities(param)
+	result, err := sid.Client.ListIdentitiesWithContext(sid.Context, param)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -45,7 +45,7 @@ func (sid *SesIdentities) nukeAll(ids []*string) error {
 		params := &ses.DeleteIdentityInput{
 			Identity: id,
 		}
-		_, err := sid.Client.DeleteIdentity(params)
+		_, err := sid.Client.DeleteIdentityWithContext(sid.Context, params)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(id),

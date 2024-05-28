@@ -7,6 +7,7 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -22,15 +23,15 @@ type mockedInternetGateway struct {
 	DeleteInternetGatewayOutput    ec2.DeleteInternetGatewayOutput
 }
 
-func (m mockedInternetGateway) DescribeInternetGateways(_ *ec2.DescribeInternetGatewaysInput) (*ec2.DescribeInternetGatewaysOutput, error) {
+func (m mockedInternetGateway) DescribeInternetGatewaysWithContext(_ awsgo.Context, _ *ec2.DescribeInternetGatewaysInput, _ ...request.Option) (*ec2.DescribeInternetGatewaysOutput, error) {
 	return &m.DescribeInternetGatewaysOutput, nil
 }
 
-func (m mockedInternetGateway) DetachInternetGateway(_ *ec2.DetachInternetGatewayInput) (*ec2.DetachInternetGatewayOutput, error) {
+func (m mockedInternetGateway) DetachInternetGatewayWithContext(_ awsgo.Context, _ *ec2.DetachInternetGatewayInput, _ ...request.Option) (*ec2.DetachInternetGatewayOutput, error) {
 	return &m.DetachInternetGatewayOutput, nil
 }
 
-func (m mockedInternetGateway) DeleteInternetGateway(_ *ec2.DeleteInternetGatewayInput) (*ec2.DeleteInternetGatewayOutput, error) {
+func (m mockedInternetGateway) DeleteInternetGatewayWithContext(_ awsgo.Context, _ *ec2.DeleteInternetGatewayInput, _ ...request.Option) (*ec2.DeleteInternetGatewayOutput, error) {
 	return &m.DeleteInternetGatewayOutput, nil
 }
 

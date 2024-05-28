@@ -38,6 +38,10 @@ func (scope *EC2IpamScopes) ResourceIdentifiers() []string {
 	return scope.ScopreIDs
 }
 
+func (scope *EC2IpamScopes) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2IPAMScope
+}
+
 func (scope *EC2IpamScopes) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := scope.getAll(c, configObj)
 	if err != nil {

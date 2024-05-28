@@ -2,14 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedSecretsManager struct {
@@ -20,20 +23,20 @@ type mockedSecretsManager struct {
 	RemoveRegionsFromReplicationOutput secretsmanager.RemoveRegionsFromReplicationOutput
 }
 
-func (m mockedSecretsManager) ListSecretsPages(input *secretsmanager.ListSecretsInput, fn func(*secretsmanager.ListSecretsOutput, bool) bool) error {
+func (m mockedSecretsManager) ListSecretsPagesWithContext(_ awsgo.Context, _ *secretsmanager.ListSecretsInput, fn func(*secretsmanager.ListSecretsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListSecretsOutput, true)
 	return nil
 }
 
-func (m mockedSecretsManager) DescribeSecret(input *secretsmanager.DescribeSecretInput) (*secretsmanager.DescribeSecretOutput, error) {
+func (m mockedSecretsManager) DescribeSecretWithContext(_ awsgo.Context, _ *secretsmanager.DescribeSecretInput, _ ...request.Option) (*secretsmanager.DescribeSecretOutput, error) {
 	return &m.DescribeSecretOutput, nil
 }
 
-func (m mockedSecretsManager) DeleteSecret(input *secretsmanager.DeleteSecretInput) (*secretsmanager.DeleteSecretOutput, error) {
+func (m mockedSecretsManager) DeleteSecretWithContext(_ awsgo.Context, _ *secretsmanager.DeleteSecretInput, _ ...request.Option) (*secretsmanager.DeleteSecretOutput, error) {
 	return &m.DeleteSecretOutput, nil
 }
 
-func (m mockedSecretsManager) RemoveRegionsFromReplication(input *secretsmanager.RemoveRegionsFromReplicationInput) (*secretsmanager.RemoveRegionsFromReplicationOutput, error) {
+func (m mockedSecretsManager) RemoveRegionsFromReplicationWithContext(_ awsgo.Context, _ *secretsmanager.RemoveRegionsFromReplicationInput, _ ...request.Option) (*secretsmanager.RemoveRegionsFromReplicationOutput, error) {
 	return &m.RemoveRegionsFromReplicationOutput, nil
 }
 

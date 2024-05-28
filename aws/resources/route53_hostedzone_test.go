@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -18,11 +20,11 @@ type mockedR53HostedZone struct {
 	DeleteHostedZoneOutput route53.DeleteHostedZoneOutput
 }
 
-func (mock mockedR53HostedZone) ListHostedZones(_ *route53.ListHostedZonesInput) (*route53.ListHostedZonesOutput, error) {
+func (mock mockedR53HostedZone) ListHostedZonesWithContext(_ awsgo.Context, _ *route53.ListHostedZonesInput, _ ...request.Option) (*route53.ListHostedZonesOutput, error) {
 	return &mock.ListHostedZonesOutput, nil
 }
 
-func (mock mockedR53HostedZone) DeleteHostedZone(_ *route53.DeleteHostedZoneInput) (*route53.DeleteHostedZoneOutput, error) {
+func (mock mockedR53HostedZone) DeleteHostedZoneWithContext(_ awsgo.Context, _ *route53.DeleteHostedZoneInput, _ ...request.Option) (*route53.DeleteHostedZoneOutput, error) {
 	return &mock.DeleteHostedZoneOutput, nil
 }
 

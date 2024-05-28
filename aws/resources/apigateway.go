@@ -14,7 +14,7 @@ import (
 )
 
 func (gateway *ApiGateway) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := gateway.Client.GetRestApis(&apigateway.GetRestApisInput{})
+	result, err := gateway.Client.GetRestApisWithContext(gateway.Context, &apigateway.GetRestApisInput{})
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
 	}
@@ -73,7 +73,7 @@ func (gateway *ApiGateway) getAttachedStageClientCerts(apigwID *string) ([]*stri
 	var clientCerts []*string
 
 	// remove the client certificate attached with the stages
-	stages, err := gateway.Client.GetStages(&apigateway.GetStagesInput{
+	stages, err := gateway.Client.GetStagesWithContext(gateway.Context, &apigateway.GetStagesInput{
 		RestApiId: apigwID,
 	})
 
@@ -91,7 +91,7 @@ func (gateway *ApiGateway) removeAttachedClientCertificates(clientCerts []*strin
 
 	for _, cert := range clientCerts {
 		logging.Debugf("Deleting Client Certificate %s", *cert)
-		_, err := gateway.Client.DeleteClientCertificate(&apigateway.DeleteClientCertificateInput{
+		_, err := gateway.Client.DeleteClientCertificateWithContext(gateway.Context, &apigateway.DeleteClientCertificateInput{
 			ClientCertificateId: cert,
 		})
 		if err != nil {
@@ -109,7 +109,7 @@ func (gateway *ApiGateway) nukeAsync(
 	clientCerts, err := gateway.getAttachedStageClientCerts(apigwID)
 
 	input := &apigateway.DeleteRestApiInput{RestApiId: apigwID}
-	_, err = gateway.Client.DeleteRestApi(input)
+	_, err = gateway.Client.DeleteRestApiWithContext(gateway.Context, input)
 
 	// When the rest-api endpoint delete successfully, then remove attached client certs
 	if err == nil {

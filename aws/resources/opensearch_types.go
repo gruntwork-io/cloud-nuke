@@ -41,6 +41,10 @@ func (osd *OpenSearchDomains) MaxBatchSize() int {
 	return 10
 }
 
+func (osd *OpenSearchDomains) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.OpenSearchDomain
+}
+
 func (osd *OpenSearchDomains) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := osd.getAll(c, configObj)
 	if err != nil {

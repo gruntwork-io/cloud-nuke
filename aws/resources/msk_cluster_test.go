@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/kafka"
 	"github.com/aws/aws-sdk-go/service/kafka/kafkaiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -20,11 +21,11 @@ type mockMSKClient struct {
 	deleteClusterFn       func(input *kafka.DeleteClusterInput) (*kafka.DeleteClusterOutput, error)
 }
 
-func (m mockMSKClient) ListClustersV2Pages(input *kafka.ListClustersV2Input, callback func(*kafka.ListClustersV2Output, bool) bool) error {
+func (m mockMSKClient) ListClustersV2PagesWithContext(_ aws.Context, input *kafka.ListClustersV2Input, callback func(*kafka.ListClustersV2Output, bool) bool, _ ...request.Option) error {
 	return m.listClustersV2PagesFn(input, callback)
 }
 
-func (m mockMSKClient) DeleteCluster(input *kafka.DeleteClusterInput) (*kafka.DeleteClusterOutput, error) {
+func (m mockMSKClient) DeleteClusterWithContext(_ aws.Context, input *kafka.DeleteClusterInput, _ ...request.Option) (*kafka.DeleteClusterOutput, error) {
 	return nil, nil
 }
 

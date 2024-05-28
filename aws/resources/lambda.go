@@ -15,7 +15,8 @@ import (
 func (lf *LambdaFunctions) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
 
-	err := lf.Client.ListFunctionsPages(
+	err := lf.Client.ListFunctionsPagesWithContext(
+		lf.Context,
 		&lambda.ListFunctionsInput{}, func(page *lambda.ListFunctionsOutput, lastPage bool) bool {
 			for _, lambda := range page.Functions {
 				if lf.shouldInclude(lambda, configObj) {
@@ -67,7 +68,7 @@ func (lf *LambdaFunctions) nukeAll(names []*string) error {
 			FunctionName: name,
 		}
 
-		_, err := lf.Client.DeleteFunction(params)
+		_, err := lf.Client.DeleteFunctionWithContext(lf.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

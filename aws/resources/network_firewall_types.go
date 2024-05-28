@@ -39,6 +39,10 @@ func (nfw *NetworkFirewall) MaxBatchSize() int {
 	return 10
 }
 
+func (nfw *NetworkFirewall) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.NetworkFirewall
+}
+
 func (nfw *NetworkFirewall) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := nfw.getAll(c, configObj)
 	if err != nil {

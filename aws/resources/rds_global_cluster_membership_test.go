@@ -21,7 +21,7 @@ type mockedDBGlobalClusterMemberships struct {
 	RemoveFromGlobalClusterOutput rds.RemoveFromGlobalClusterOutput
 }
 
-func (m mockedDBGlobalClusterMemberships) RemoveFromGlobalCluster(input *rds.RemoveFromGlobalClusterInput) (*rds.RemoveFromGlobalClusterOutput, error) {
+func (m mockedDBGlobalClusterMemberships) RemoveFromGlobalClusterWithContext(_ awsgo.Context, _ *rds.RemoveFromGlobalClusterInput, _ ...request.Option) (*rds.RemoveFromGlobalClusterOutput, error) {
 	return &m.RemoveFromGlobalClusterOutput, nil
 }
 
@@ -29,7 +29,7 @@ func (m mockedDBGlobalClusterMemberships) DescribeGlobalClusters(input *rds.Desc
 	return &m.DescribeGlobalClustersOutput, m.DescribeGlobalClustersError
 }
 
-func (m mockedDBGlobalClusterMemberships) DescribeGlobalClustersWithContext(ctx context.Context, input *rds.DescribeGlobalClustersInput, _ ...request.Option) (*rds.DescribeGlobalClustersOutput, error) {
+func (m mockedDBGlobalClusterMemberships) DescribeGlobalClustersWithContext(_ awsgo.Context, _ *rds.DescribeGlobalClustersInput, _ ...request.Option) (*rds.DescribeGlobalClustersOutput, error) {
 	return &m.DescribeGlobalClustersOutput, m.DescribeGlobalClustersError
 }
 

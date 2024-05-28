@@ -36,6 +36,10 @@ func (pg *RdsParameterGroup) MaxBatchSize() int {
 	return 49
 }
 
+func (pg *RdsParameterGroup) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.RdsParameterGroup
+}
+
 func (pg *RdsParameterGroup) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := pg.getAll(c, configObj)
 	if err != nil {

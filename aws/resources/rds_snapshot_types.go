@@ -34,6 +34,10 @@ func (snapshot *RdsSnapshot) MaxBatchSize() int {
 	return 49
 }
 
+func (snapshot *RdsSnapshot) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.RdsSnapshot
+}
+
 func (snapshot *RdsSnapshot) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := snapshot.getAll(c, configObj)
 	if err != nil {

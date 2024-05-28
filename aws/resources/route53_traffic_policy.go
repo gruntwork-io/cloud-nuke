@@ -13,7 +13,7 @@ import (
 func (r *Route53TrafficPolicy) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
-	result, err := r.Client.ListTrafficPolicies(&route53.ListTrafficPoliciesInput{})
+	result, err := r.Client.ListTrafficPoliciesWithContext(r.Context, &route53.ListTrafficPoliciesInput{})
 	if err != nil {
 		logging.Errorf("[Failed] unable to list traffic policies: %v", err)
 		return nil, err
@@ -40,7 +40,7 @@ func (r *Route53TrafficPolicy) nukeAll(identifiers []*string) (err error) {
 
 	var deletedIds []*string
 	for _, id := range identifiers {
-		_, err := r.Client.DeleteTrafficPolicy(&route53.DeleteTrafficPolicyInput{
+		_, err := r.Client.DeleteTrafficPolicyWithContext(r.Context, &route53.DeleteTrafficPolicyInput{
 			Id:      id,
 			Version: r.versionMap[*id],
 		})

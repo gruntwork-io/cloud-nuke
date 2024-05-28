@@ -15,7 +15,7 @@ import (
 
 func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var dhcpOptionIds []*string
-	err := v.Client.DescribeDhcpOptionsPages(&ec2.DescribeDhcpOptionsInput{}, func(page *ec2.DescribeDhcpOptionsOutput, lastPage bool) bool {
+	err := v.Client.DescribeDhcpOptionsPagesWithContext(v.Context, &ec2.DescribeDhcpOptionsInput{}, func(page *ec2.DescribeDhcpOptionsOutput, lastPage bool) bool {
 		for _, dhcpOption := range page.DhcpOptions {
 			// No specific filters to apply at this point, we can think about introducing
 			// filtering with name tag in the future. In the initial version, we just getAll
@@ -32,7 +32,7 @@ func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*s
 
 	// checking the nukable permissions
 	v.VerifyNukablePermissions(dhcpOptionIds, func(id *string) error {
-		_, err := v.Client.DeleteDhcpOptions(&ec2.DeleteDhcpOptionsInput{
+		_, err := v.Client.DeleteDhcpOptionsWithContext(v.Context, &ec2.DeleteDhcpOptionsInput{
 			DhcpOptionsId: id,
 			DryRun:        awsgo.Bool(true),
 		})

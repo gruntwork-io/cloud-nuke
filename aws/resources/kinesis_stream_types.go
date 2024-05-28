@@ -40,6 +40,10 @@ func (ks *KinesisStreams) MaxBatchSize() int {
 	return 35
 }
 
+func (ks *KinesisStreams) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.KinesisStream
+}
+
 func (ks *KinesisStreams) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ks.getAll(c, configObj)
 	if err != nil {

@@ -2,10 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/service/backup/backupiface"
 	"regexp"
 	"testing"
 	"time"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/backup/backupiface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/backup"
@@ -19,13 +22,12 @@ type mockedBackupVault struct {
 	DeleteBackupVaultOutput backup.DeleteBackupVaultOutput
 }
 
-func (m mockedBackupVault) ListBackupVaultsPages(
-	input *backup.ListBackupVaultsInput, fn func(*backup.ListBackupVaultsOutput, bool) bool) error {
+func (m mockedBackupVault) ListBackupVaultsPagesWithContext(_ awsgo.Context, _ *backup.ListBackupVaultsInput, fn func(*backup.ListBackupVaultsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListBackupVaultsOutput, true)
 	return nil
 }
 
-func (m mockedBackupVault) DeleteBackupVault(*backup.DeleteBackupVaultInput) (*backup.DeleteBackupVaultOutput, error) {
+func (m mockedBackupVault) DeleteBackupVaultWithContext(_ awsgo.Context, _ *backup.DeleteBackupVaultInput, _ ...request.Option) (*backup.DeleteBackupVaultOutput, error) {
 	return &m.DeleteBackupVaultOutput, nil
 }
 

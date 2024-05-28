@@ -18,7 +18,8 @@ import (
 // GetAll returns a list of all arns of ACMPCA, which can be deleted.
 func (ap *ACMPCA) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var arns []*string
-	paginationErr := ap.Client.ListCertificateAuthoritiesPages(
+	paginationErr := ap.Client.ListCertificateAuthoritiesPagesWithContext(
+		ap.Context,
 		&acmpca.ListCertificateAuthoritiesInput{},
 		func(p *acmpca.ListCertificateAuthoritiesOutput, lastPage bool) bool {
 			for _, ca := range p.CertificateAuthorities {
@@ -93,7 +94,8 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 	defer wg.Done()
 
 	logging.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, ap.Region)
-	details, detailsErr := ap.Client.DescribeCertificateAuthority(
+	details, detailsErr := ap.Client.DescribeCertificateAuthorityWithContext(
+		ap.Context,
 		&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
 	if detailsErr != nil {
 		errChan <- detailsErr
@@ -117,7 +119,7 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 
 	if shouldUpdateStatus {
 		logging.Debugf("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, ap.Region)
-		if _, updateStatusErr := ap.Client.UpdateCertificateAuthority(&acmpca.UpdateCertificateAuthorityInput{
+		if _, updateStatusErr := ap.Client.UpdateCertificateAuthorityWithContext(ap.Context, &acmpca.UpdateCertificateAuthorityInput{
 			CertificateAuthorityArn: arn,
 			Status:                  aws.String(acmpca.CertificateAuthorityStatusDisabled),
 		}); updateStatusErr != nil {
@@ -128,7 +130,7 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 		logging.Debugf("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, ap.Region)
 	}
 
-	_, deleteErr := ap.Client.DeleteCertificateAuthority(&acmpca.DeleteCertificateAuthorityInput{
+	_, deleteErr := ap.Client.DeleteCertificateAuthorityWithContext(ap.Context, &acmpca.DeleteCertificateAuthorityInput{
 		CertificateAuthorityArn: arn,
 		// the range is 7 to 30 days.
 		// since cloud-nuke should not be used in production,

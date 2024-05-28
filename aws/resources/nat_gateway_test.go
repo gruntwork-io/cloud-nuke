@@ -2,11 +2,13 @@ package resources
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -25,12 +27,12 @@ func (m mockedNatGateway) DeleteNatGateway(input *ec2.DeleteNatGatewayInput) (*e
 	return &m.DeleteNatGatewayOutput, nil
 }
 
-func (m mockedNatGateway) DescribeNatGatewaysPages(input *ec2.DescribeNatGatewaysInput, fn func(*ec2.DescribeNatGatewaysOutput, bool) bool) error {
+func (m mockedNatGateway) DescribeNatGatewaysPagesWithContext(_ aws.Context, input *ec2.DescribeNatGatewaysInput, fn func(*ec2.DescribeNatGatewaysOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeNatGatewaysOutput, true)
 	return nil
 }
 
-func (m mockedNatGateway) DescribeNatGateways(input *ec2.DescribeNatGatewaysInput) (*ec2.DescribeNatGatewaysOutput, error) {
+func (m mockedNatGateway) DescribeNatGatewaysWithContext(_ aws.Context, input *ec2.DescribeNatGatewaysInput, _ ...request.Option) (*ec2.DescribeNatGatewaysOutput, error) {
 	return &m.DescribeNatGatewaysOutput, m.DescribeNatGatewaysError
 }
 

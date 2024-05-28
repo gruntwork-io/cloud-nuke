@@ -38,6 +38,10 @@ func (balancer *LoadBalancersV2) ResourceIdentifiers() []string {
 	return balancer.Arns
 }
 
+func (balancer *LoadBalancersV2) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ELBv2
+}
+
 func (balancer *LoadBalancersV2) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := balancer.getAll(c, configObj)
 	if err != nil {

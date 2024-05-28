@@ -36,6 +36,10 @@ func (rc *RedshiftClusters) MaxBatchSize() int {
 	return 49
 }
 
+func (rc *RedshiftClusters) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.Redshift
+}
+
 func (rc *RedshiftClusters) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := rc.getAll(c, configObj)
 	if err != nil {

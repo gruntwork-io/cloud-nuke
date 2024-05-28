@@ -26,7 +26,7 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 		Filters:  []*ec2.Filter{&status_filter},
 	}
 
-	output, err := s.Client.DescribeSnapshots(params)
+	output, err := s.Client.DescribeSnapshotsWithContext(s.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -43,7 +43,7 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 
 	// checking the nukable permissions
 	s.VerifyNukablePermissions(snapshotIds, func(id *string) error {
-		_, err := s.Client.DeleteSnapshot(&ec2.DeleteSnapshotInput{
+		_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
 			SnapshotId: id,
 			DryRun:     awsgo.Bool(true),
 		})
@@ -87,7 +87,7 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 			continue
 		}
 
-		_, err := s.Client.DeleteSnapshot(&ec2.DeleteSnapshotInput{
+		_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
 			SnapshotId: snapshotID,
 		})
 

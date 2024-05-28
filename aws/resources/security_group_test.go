@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -22,15 +24,15 @@ type mockedSecurityGroup struct {
 	DescribeInstancesOutput      ec2.DescribeInstancesOutput
 }
 
-func (m mockedSecurityGroup) DescribeSecurityGroups(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
+func (m mockedSecurityGroup) DescribeSecurityGroupsWithContext(_ awsgo.Context, _ *ec2.DescribeSecurityGroupsInput, _ ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
 	return &m.DescribeSecurityGroupsOutput, nil
 }
 
-func (m mockedSecurityGroup) DescribeInstances(input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
+func (m mockedSecurityGroup) DescribeInstancesWithContext(_ awsgo.Context, _ *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
 	return &m.DescribeInstancesOutput, nil
 }
 
-func (m mockedSecurityGroup) DeleteSecurityGroup(input *ec2.DeleteSecurityGroupInput) (*ec2.DeleteSecurityGroupOutput, error) {
+func (m mockedSecurityGroup) DeleteSecurityGroupWithContext(_ awsgo.Context, _ *ec2.DeleteSecurityGroupInput, _ ...request.Option) (*ec2.DeleteSecurityGroupOutput, error) {
 	return &m.DeleteSecurityGroupOutput, nil
 }
 
@@ -119,7 +121,7 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 					ExcludeRule: config.FilterRule{
 						TimeAfter: aws.Time(now),
 					}},
-				},
+			},
 			expected: []string{testId1},
 		},
 	}

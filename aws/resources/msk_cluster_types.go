@@ -40,6 +40,10 @@ func (m *MSKCluster) MaxBatchSize() int {
 	return 10
 }
 
+func (mm *MSKCluster) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.MSKCluster
+}
+
 func (m *MSKCluster) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := m.getAll(c, configObj)
 	if err != nil {

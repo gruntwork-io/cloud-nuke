@@ -7,6 +7,7 @@ import (
 	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/apigatewayv2"
@@ -24,25 +25,25 @@ type mockedApiGatewayV2 struct {
 	DeleteApiMappingOutput apigatewayv2.DeleteApiMappingOutput
 }
 
-func (m mockedApiGatewayV2) GetApis(*apigatewayv2.GetApisInput) (*apigatewayv2.GetApisOutput, error) {
+func (m mockedApiGatewayV2) GetApisWithContext(_ awsgo.Context, _ *apigatewayv2.GetApisInput, _ ...request.Option) (*apigatewayv2.GetApisOutput, error) {
 	// Only need to return mocked response output
 	return &m.GetApisOutput, nil
 }
 
-func (m mockedApiGatewayV2) DeleteApi(*apigatewayv2.DeleteApiInput) (*apigatewayv2.DeleteApiOutput, error) {
+func (m mockedApiGatewayV2) DeleteApiWithContext(_ awsgo.Context, _ *apigatewayv2.DeleteApiInput, _ ...request.Option) (*apigatewayv2.DeleteApiOutput, error) {
 	// Only need to return mocked response output
 	return &m.DeleteApiOutput, nil
 }
 
-func (m mockedApiGatewayV2) GetDomainNames(*apigatewayv2.GetDomainNamesInput) (*apigatewayv2.GetDomainNamesOutput, error) {
+func (m mockedApiGatewayV2) GetDomainNames(_ *apigatewayv2.GetDomainNamesInput) (*apigatewayv2.GetDomainNamesOutput, error) {
 	return &m.GetDomainNamesOutput, nil
 }
 
-func (m mockedApiGatewayV2) GetApiMappings(*apigatewayv2.GetApiMappingsInput) (*apigatewayv2.GetApiMappingsOutput, error) {
+func (m mockedApiGatewayV2) GetApiMappings(_ *apigatewayv2.GetApiMappingsInput) (*apigatewayv2.GetApiMappingsOutput, error) {
 	return &m.GetApiMappingsOutput, nil
 }
 
-func (m mockedApiGatewayV2) DeleteApiMapping(*apigatewayv2.DeleteApiMappingInput) (*apigatewayv2.DeleteApiMappingOutput, error) {
+func (m mockedApiGatewayV2) DeleteApiMappingWithContext(_ awsgo.Context, _ *apigatewayv2.DeleteApiMappingInput, _ ...request.Option) (*apigatewayv2.DeleteApiMappingOutput, error) {
 	return &m.DeleteApiMappingOutput, nil
 }
 

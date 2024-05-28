@@ -30,7 +30,7 @@ func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string,
 	var firstSeenTime *time.Time
 	var err error
 	// Note: This filter initially handles non-default resources and can be overridden by passing the only-default filter to choose default VPCs.
-	result, err := v.Client.DescribeVpcs(&ec2.DescribeVpcsInput{
+	result, err := v.Client.DescribeVpcsWithContext(v.Context, &ec2.DescribeVpcsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: awsgo.String("is-default"),

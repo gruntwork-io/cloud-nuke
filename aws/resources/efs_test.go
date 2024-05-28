@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/efs"
 	"github.com/aws/aws-sdk-go/service/efs/efsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedElasticFileSystem struct {
@@ -22,28 +24,28 @@ type mockedElasticFileSystem struct {
 	DeleteFileSystemOutput         efs.DeleteFileSystemOutput
 }
 
-func (m mockedElasticFileSystem) DescribeFileSystemsPages(input *efs.DescribeFileSystemsInput, callback func(*efs.DescribeFileSystemsOutput, bool) bool) error {
+func (m mockedElasticFileSystem) DescribeFileSystemsPagesWithContext(_ aws.Context, input *efs.DescribeFileSystemsInput, callback func(*efs.DescribeFileSystemsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeFileSystemsPagesOutput, true)
 	return nil
 }
 
-func (m mockedElasticFileSystem) DescribeAccessPoints(input *efs.DescribeAccessPointsInput) (*efs.DescribeAccessPointsOutput, error) {
+func (m mockedElasticFileSystem) DescribeAccessPointsWithContext(_ aws.Context, input *efs.DescribeAccessPointsInput, _ ...request.Option) (*efs.DescribeAccessPointsOutput, error) {
 	return &m.DescribeAccessPointsOutput, nil
 }
 
-func (m mockedElasticFileSystem) DeleteAccessPoint(input *efs.DeleteAccessPointInput) (*efs.DeleteAccessPointOutput, error) {
+func (m mockedElasticFileSystem) DeleteAccessPointWithContext(_ aws.Context, input *efs.DeleteAccessPointInput, _ ...request.Option) (*efs.DeleteAccessPointOutput, error) {
 	return &m.DeleteAccessPointOutput, nil
 }
 
-func (m mockedElasticFileSystem) DescribeMountTargets(input *efs.DescribeMountTargetsInput) (*efs.DescribeMountTargetsOutput, error) {
+func (m mockedElasticFileSystem) DescribeMountTargetsWithContext(_ aws.Context, input *efs.DescribeMountTargetsInput, _ ...request.Option) (*efs.DescribeMountTargetsOutput, error) {
 	return &m.DescribeMountTargetsOutput, nil
 }
 
-func (m mockedElasticFileSystem) DeleteMountTarget(input *efs.DeleteMountTargetInput) (*efs.DeleteMountTargetOutput, error) {
+func (m mockedElasticFileSystem) DeleteMountTargetWithContext(_ aws.Context, input *efs.DeleteMountTargetInput, _ ...request.Option) (*efs.DeleteMountTargetOutput, error) {
 	return &m.DeleteMountTargetOutput, nil
 }
 
-func (m mockedElasticFileSystem) DeleteFileSystem(input *efs.DeleteFileSystemInput) (*efs.DeleteFileSystemOutput, error) {
+func (m mockedElasticFileSystem) DeleteFileSystemWithContext(_ aws.Context, input *efs.DeleteFileSystemInput, _ ...request.Option) (*efs.DeleteFileSystemOutput, error) {
 	return &m.DeleteFileSystemOutput, nil
 }
 

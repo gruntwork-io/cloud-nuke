@@ -38,6 +38,10 @@ func (ev *EBSVolumes) MaxBatchSize() int {
 	return 49
 }
 
+func (ev *EBSVolumes) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EBSVolume
+}
+
 func (ev *EBSVolumes) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ev.getAll(c, configObj)
 	if err != nil {

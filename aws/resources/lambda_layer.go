@@ -16,7 +16,8 @@ func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*s
 	var layers []*lambda.LayersListItem
 	var names []*string
 
-	err := ll.Client.ListLayersPages(
+	err := ll.Client.ListLayersPagesWithContext(
+		ll.Context,
 		&lambda.ListLayersInput{}, func(page *lambda.ListLayersOutput, lastPage bool) bool {
 			for _, layer := range page.Layers {
 				logging.Logger.Debugf("Found layer! %s", layer)
@@ -34,7 +35,8 @@ func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*s
 	}
 
 	for _, layer := range layers {
-		err := ll.Client.ListLayerVersionsPages(
+		err := ll.Client.ListLayerVersionsPagesWithContext(
+			ll.Context,
 			&lambda.ListLayerVersionsInput{
 				LayerName: layer.LayerName,
 			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
@@ -91,7 +93,8 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 	deleteLayerVersions := []*lambda.DeleteLayerVersionInput{}
 
 	for _, name := range names {
-		err := ll.Client.ListLayerVersionsPages(
+		err := ll.Client.ListLayerVersionsPagesWithContext(
+			ll.Context,
 			&lambda.ListLayerVersionsInput{
 				LayerName: name,
 			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
@@ -114,7 +117,7 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 
 	for _, params := range deleteLayerVersions {
 
-		_, err := ll.Client.DeleteLayerVersion(params)
+		_, err := ll.Client.DeleteLayerVersionWithContext(ll.Context, params)
 
 		if err != nil {
 			return err

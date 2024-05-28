@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/backup"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -25,7 +26,7 @@ func (bv *BackupVault) getAll(c context.Context, configObj config.Config) ([]*st
 		return !lastPage
 	}
 
-	err := bv.Client.ListBackupVaultsPages(&backup.ListBackupVaultsInput{}, paginator)
+	err := bv.Client.ListBackupVaultsPagesWithContext(bv.Context, &backup.ListBackupVaultsInput{}, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -43,7 +44,7 @@ func (bv *BackupVault) nukeAll(names []*string) error {
 	var deletedNames []*string
 
 	for _, name := range names {
-		_, err := bv.Client.DeleteBackupVault(&backup.DeleteBackupVaultInput{
+		_, err := bv.Client.DeleteBackupVaultWithContext(bv.Context, &backup.DeleteBackupVaultInput{
 			BackupVaultName: name,
 		})
 

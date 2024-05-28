@@ -17,7 +17,8 @@ import (
 
 func (csr *CloudWatchLogGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allLogGroups := []*string{}
-	err := csr.Client.DescribeLogGroupsPages(
+	err := csr.Client.DescribeLogGroupsPagesWithContext(
+		csr.Context,
 		&cloudwatchlogs.DescribeLogGroupsInput{},
 		func(page *cloudwatchlogs.DescribeLogGroupsOutput, lastPage bool) bool {
 			for _, logGroup := range page.LogGroups {
@@ -93,7 +94,7 @@ func (csr *CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 func (csr *CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, logGroupName *string) {
 	defer wg.Done()
 	input := &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: logGroupName}
-	_, err := csr.Client.DeleteLogGroup(input)
+	_, err := csr.Client.DeleteLogGroupWithContext(csr.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -36,45 +38,39 @@ type mockedTransitGatewayPeeringAttachment struct {
 	DeleteTransitGatewayPeeringAttachmentOutput    ec2.DeleteTransitGatewayPeeringAttachmentOutput
 }
 
-func (m mockedTransitGatewayPeeringAttachment) DescribeTransitGatewayPeeringAttachmentsPages(
-	input *ec2.DescribeTransitGatewayPeeringAttachmentsInput,
-	fn func(*ec2.DescribeTransitGatewayPeeringAttachmentsOutput, bool) bool) error {
+func (m mockedTransitGatewayPeeringAttachment) DescribeTransitGatewayPeeringAttachmentsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewayPeeringAttachmentsInput, fn func(*ec2.DescribeTransitGatewayPeeringAttachmentsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeTransitGatewayPeeringAttachmentsOutput, true)
 	return nil
 }
 
-func (m mockedTransitGatewayPeeringAttachment) DeleteTransitGatewayPeeringAttachment(
-	input *ec2.DeleteTransitGatewayPeeringAttachmentInput) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
+func (m mockedTransitGatewayPeeringAttachment) DeleteTransitGatewayPeeringAttachmentWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayPeeringAttachmentInput, _ ...request.Option) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
 	return &m.DeleteTransitGatewayPeeringAttachmentOutput, nil
 }
 
-func (m mockedTransitGateway) DescribeTransitGateways(
-	input *ec2.DescribeTransitGatewaysInput) (*ec2.DescribeTransitGatewaysOutput, error) {
+func (m mockedTransitGateway) DescribeTransitGatewaysWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewaysInput, _ ...request.Option) (*ec2.DescribeTransitGatewaysOutput, error) {
 	return &m.DescribeTransitGatewaysOutput, nil
 }
 
-func (m mockedTransitGateway) DeleteTransitGateway(
-	input *ec2.DeleteTransitGatewayInput) (*ec2.DeleteTransitGatewayOutput, error) {
+func (m mockedTransitGateway) DeleteTransitGatewayWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayInput, _ ...request.Option) (*ec2.DeleteTransitGatewayOutput, error) {
 	return &m.DeleteTransitGatewayOutput, nil
 }
 
-func (m mockedTransitGatewayRouteTable) DescribeTransitGatewayRouteTables(
-	input *ec2.DescribeTransitGatewayRouteTablesInput) (*ec2.DescribeTransitGatewayRouteTablesOutput, error) {
+func (m mockedTransitGatewayRouteTable) DescribeTransitGatewayRouteTablesWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewayRouteTablesInput, _ ...request.Option) (*ec2.DescribeTransitGatewayRouteTablesOutput, error) {
 	return &m.DescribeTransitGatewayRouteTablesOutput, nil
 }
 
-func (m mockedTransitGatewayRouteTable) DeleteTransitGatewayRouteTable(
-	input *ec2.DeleteTransitGatewayRouteTableInput) (*ec2.DeleteTransitGatewayRouteTableOutput, error) {
+func (m mockedTransitGatewayRouteTable) DeleteTransitGatewayRouteTableWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayRouteTableInput, _ ...request.Option) (*ec2.DeleteTransitGatewayRouteTableOutput, error) {
 	return &m.DeleteTransitGatewayRouteTableOutput, nil
 }
 
-func (m mockedTransitGatewayVpcAttachment) DescribeTransitGatewayVpcAttachments(
-	input *ec2.DescribeTransitGatewayVpcAttachmentsInput) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error) {
+func (m mockedTransitGatewayVpcAttachment) DescribeTransitGatewayVpcAttachmentsWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewayVpcAttachmentsInput, _ ...request.Option) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error) {
+	return &m.DescribeTransitGatewayVpcAttachmentsOutput, nil
+}
+func (m mockedTransitGatewayVpcAttachment) DescribeTransitGatewayVpcAttachments(_ *ec2.DescribeTransitGatewayVpcAttachmentsInput) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error) {
 	return &m.DescribeTransitGatewayVpcAttachmentsOutput, nil
 }
 
-func (m mockedTransitGatewayVpcAttachment) DeleteTransitGatewayVpcAttachment(
-	input *ec2.DeleteTransitGatewayVpcAttachmentInput) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error) {
+func (m mockedTransitGatewayVpcAttachment) DeleteTransitGatewayVpcAttachmentWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayVpcAttachmentInput, _ ...request.Option) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error) {
 	return &m.DeleteTransitGatewayVpcAttachmentOutput, nil
 }
 

@@ -2,12 +2,14 @@ package resources
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -19,11 +21,11 @@ type mockedSnapshot struct {
 	DescribeSnapshotsOutput ec2.DescribeSnapshotsOutput
 }
 
-func (m mockedSnapshot) DeleteSnapshot(input *ec2.DeleteSnapshotInput) (*ec2.DeleteSnapshotOutput, error) {
+func (m mockedSnapshot) DeleteSnapshotWithContext(_ awsgo.Context, _ *ec2.DeleteSnapshotInput, _ ...request.Option) (*ec2.DeleteSnapshotOutput, error) {
 	return &m.DeleteSnapshotOutput, nil
 }
 
-func (m mockedSnapshot) DescribeSnapshots(input *ec2.DescribeSnapshotsInput) (*ec2.DescribeSnapshotsOutput, error) {
+func (m mockedSnapshot) DescribeSnapshotsWithContext(_ awsgo.Context, _ *ec2.DescribeSnapshotsInput, _ ...request.Option) (*ec2.DescribeSnapshotsOutput, error) {
 	return &m.DescribeSnapshotsOutput, nil
 }
 

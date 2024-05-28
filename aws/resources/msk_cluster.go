@@ -13,7 +13,7 @@ import (
 func (m *MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var clusterIDs []*string
 
-	err := m.Client.ListClustersV2Pages(&kafka.ListClustersV2Input{}, func(page *kafka.ListClustersV2Output, lastPage bool) bool {
+	err := m.Client.ListClustersV2PagesWithContext(m.Context, &kafka.ListClustersV2Input{}, func(page *kafka.ListClustersV2Output, lastPage bool) bool {
 		for _, cluster := range page.ClusterInfoList {
 			if m.shouldInclude(cluster, configObj) {
 				clusterIDs = append(clusterIDs, cluster.ClusterArn)
@@ -57,7 +57,7 @@ func (m *MSKCluster) nukeAll(identifiers []*string) error {
 	}
 
 	for _, clusterArn := range identifiers {
-		_, err := m.Client.DeleteCluster(&kafka.DeleteClusterInput{
+		_, err := m.Client.DeleteClusterWithContext(m.Context, &kafka.DeleteClusterInput{
 			ClusterArn: clusterArn,
 		})
 		if err != nil {

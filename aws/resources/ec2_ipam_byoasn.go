@@ -19,7 +19,7 @@ func (byoasn *EC2IPAMByoasn) getAll(c context.Context, configObj config.Config) 
 		MaxResults: &MaxResultCount,
 	}
 
-	output, err := byoasn.Client.DescribeIpamByoasn(params)
+	output, err := byoasn.Client.DescribeIpamByoasnWithContext(byoasn.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -30,7 +30,7 @@ func (byoasn *EC2IPAMByoasn) getAll(c context.Context, configObj config.Config) 
 
 	// checking the nukable permissions
 	byoasn.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := byoasn.Client.DisassociateIpamByoasn(&ec2.DisassociateIpamByoasnInput{
+		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
 			Asn:    id,
 			DryRun: awsgo.Bool(true),
 		})
@@ -55,7 +55,7 @@ func (byoasn *EC2IPAMByoasn) nukeAll(asns []*string) error {
 			continue
 		}
 
-		_, err := byoasn.Client.DisassociateIpamByoasn(&ec2.DisassociateIpamByoasnInput{
+		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
 			Asn: id,
 		})
 

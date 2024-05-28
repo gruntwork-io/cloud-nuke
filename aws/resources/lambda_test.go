@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,12 +20,12 @@ type mockedLambda struct {
 	DeleteFunctionOutput lambda.DeleteFunctionOutput
 }
 
-func (m mockedLambda) ListFunctionsPages(input *lambda.ListFunctionsInput, fn func(*lambda.ListFunctionsOutput, bool) bool) error {
+func (m mockedLambda) ListFunctionsPagesWithContext(_ aws.Context, input *lambda.ListFunctionsInput, fn func(*lambda.ListFunctionsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListFunctionsOutput, true)
 	return nil
 }
 
-func (m mockedLambda) DeleteFunction(input *lambda.DeleteFunctionInput) (*lambda.DeleteFunctionOutput, error) {
+func (m mockedLambda) DeleteFunctionWithContext(_ aws.Context, input *lambda.DeleteFunctionInput, _ ...request.Option) (*lambda.DeleteFunctionOutput, error) {
 	return &m.DeleteFunctionOutput, nil
 }
 

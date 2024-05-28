@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -9,13 +11,13 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"sync"
 )
 
 func (cda *CodeDeployApplications) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	codeDeployApplicationsFilteredByName := []string{}
 
-	err := cda.Client.ListApplicationsPages(
+	err := cda.Client.ListApplicationsPagesWithContext(
+		cda.Context,
 		&codedeploy.ListApplicationsInput{}, func(page *codedeploy.ListApplicationsOutput, lastPage bool) bool {
 			for _, application := range page.Applications {
 				// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
@@ -57,7 +59,8 @@ func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, 
 		// get the next batch of identifiers
 		batch := aws.StringSlice(identifiers[:batchSize])
 		// then using that batch of identifiers, get the applicationsinfo
-		resp, err := cda.Client.BatchGetApplications(
+		resp, err := cda.Client.BatchGetApplicationsWithContext(
+			cda.Context,
 			&codedeploy.BatchGetApplicationsInput{ApplicationNames: batch},
 		)
 		if err != nil {
@@ -117,7 +120,7 @@ func (cda *CodeDeployApplications) nukeAll(identifiers []string) error {
 func (cda *CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
 	defer wg.Done()
 
-	_, err := cda.Client.DeleteApplication(&codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
+	_, err := cda.Client.DeleteApplicationWithContext(cda.Context, &codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
 	if err != nil {
 		errChan <- err
 	}

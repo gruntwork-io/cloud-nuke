@@ -39,6 +39,10 @@ func (oidcprovider *OIDCProviders) MaxBatchSize() int {
 	return 10
 }
 
+func (oidcprovider *OIDCProviders) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.OIDCProvider
+}
+
 func (oidcprovider *OIDCProviders) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := oidcprovider.getAll(c, configObj)
 	if err != nil {

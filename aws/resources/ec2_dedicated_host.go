@@ -30,7 +30,8 @@ func (h *EC2DedicatedHosts) getAll(c context.Context, configObj config.Config) (
 		},
 	}
 
-	err := h.Client.DescribeHostsPages(
+	err := h.Client.DescribeHostsPagesWithContext(
+		h.Context,
 		describeHostsInput,
 		func(page *ec2.DescribeHostsOutput, lastPage bool) bool {
 			for _, host := range page.Hosts {
@@ -80,7 +81,7 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 
 	input := &ec2.ReleaseHostsInput{HostIds: hostIds}
 
-	releaseResult, err := h.Client.ReleaseHosts(input)
+	releaseResult, err := h.Client.ReleaseHostsWithContext(h.Context, input)
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)

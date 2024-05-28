@@ -35,6 +35,10 @@ func (ap *S3MultiRegionAccessPoint) MaxBatchSize() int {
 	return 5
 }
 
+func (ap *S3MultiRegionAccessPoint) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.S3MultiRegionAccessPoint
+}
+
 func (ap *S3MultiRegionAccessPoint) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := ap.getAll(c, configObj)
 	if err != nil {

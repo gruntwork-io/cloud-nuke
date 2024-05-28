@@ -33,6 +33,10 @@ func (gd *GuardDuty) MaxBatchSize() int {
 	return 10
 }
 
+func (gd *GuardDuty) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.GuardDuty
+}
+
 func (gd *GuardDuty) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := gd.getAll(c, configObj)
 	if err != nil {

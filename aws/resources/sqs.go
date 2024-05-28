@@ -25,7 +25,7 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 	param := &sqs.ListQueuesInput{
 		MaxResults: awsgo.Int64(10),
 	}
-	err := sq.Client.ListQueuesPages(param, paginator)
+	err := sq.Client.ListQueuesPagesWithContext(sq.Context, param, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -37,7 +37,7 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 			QueueUrl:       queue,
 			AttributeNames: awsgo.StringSlice([]string{"CreatedTimestamp"}),
 		}
-		queueAttributes, err := sq.Client.GetQueueAttributes(param)
+		queueAttributes, err := sq.Client.GetQueueAttributesWithContext(sq.Context, param)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -76,7 +76,7 @@ func (sq *SqsQueue) nukeAll(urls []*string) error {
 			QueueUrl: url,
 		}
 
-		_, err := sq.Client.DeleteQueue(params)
+		_, err := sq.Client.DeleteQueueWithContext(sq.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

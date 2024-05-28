@@ -58,14 +58,14 @@ func (discovery *EC2IPAMResourceDiscovery) getAll(c context.Context, configObj c
 		},
 	}
 
-	err = discovery.Client.DescribeIpamResourceDiscoveriesPages(params, paginator)
+	err = discovery.Client.DescribeIpamResourceDiscoveriesPagesWithContext(discovery.Context, params, paginator)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	// checking the nukable permissions
 	discovery.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := discovery.Client.DeleteIpamResourceDiscovery(&ec2.DeleteIpamResourceDiscoveryInput{
+		_, err := discovery.Client.DeleteIpamResourceDiscoveryWithContext(discovery.Context, &ec2.DeleteIpamResourceDiscoveryInput{
 			IpamResourceDiscoveryId: id,
 			DryRun:                  awsgo.Bool(true),
 		})
@@ -92,7 +92,7 @@ func (discovery *EC2IPAMResourceDiscovery) nukeAll(ids []*string) error {
 			continue
 		}
 
-		_, err := discovery.Client.DeleteIpamResourceDiscovery(&ec2.DeleteIpamResourceDiscoveryInput{
+		_, err := discovery.Client.DeleteIpamResourceDiscoveryWithContext(discovery.Context, &ec2.DeleteIpamResourceDiscoveryInput{
 			IpamResourceDiscoveryId: id,
 		})
 		// Record status of this resource

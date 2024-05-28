@@ -38,6 +38,10 @@ func (address *EIPAddresses) MaxBatchSize() int {
 	return 49
 }
 
+func (address *EIPAddresses) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.ElasticIP
+}
+
 func (address *EIPAddresses) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := address.getAll(c, configObj)
 	if err != nil {

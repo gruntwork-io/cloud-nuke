@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -10,12 +12,11 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
-	"sync"
 )
 
 // getAll returns a list of strings of EKS Cluster Names that uniquely identify each cluster.
 func (clusters *EKSClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := clusters.Client.ListClusters(&eks.ListClustersInput{})
+	result, err := clusters.Client.ListClustersWithContext(clusters.Context, &eks.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -38,7 +39,8 @@ func (clusters *EKSClusters) filter(clusterNames []*string, configObj config.Con
 			continue
 		}
 
-		describeResult, err := clusters.Client.DescribeCluster(
+		describeResult, err := clusters.Client.DescribeClusterWithContext(
+			clusters.Context,
 			&eks.DescribeClusterInput{Name: clusterName})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
@@ -80,7 +82,7 @@ func (clusters *EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 
 	// Make sure the node groups are actually deleted before returning.
 	for _, nodeGroup := range deletedNodeGroups {
-		err := clusters.Client.WaitUntilNodegroupDeleted(&eks.DescribeNodegroupInput{
+		err := clusters.Client.WaitUntilNodegroupDeletedWithContext(clusters.Context, &eks.DescribeNodegroupInput{
 			ClusterName:   aws.String(eksClusterName),
 			NodegroupName: nodeGroup,
 		})
@@ -98,7 +100,7 @@ func (clusters *EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 
 	// At this point, all the sub resources of the EKS cluster has been confirmed to be deleted, so we can go ahead to
 	// request to delete the EKS cluster.
-	_, deleteErr := clusters.Client.DeleteCluster(&eks.DeleteClusterInput{Name: aws.String(eksClusterName)})
+	_, deleteErr := clusters.Client.DeleteClusterWithContext(clusters.Context, &eks.DeleteClusterInput{Name: aws.String(eksClusterName)})
 	if deleteErr != nil {
 		logging.Debugf("[Failed] Failed deleting EKS cluster %s: %s", eksClusterName, deleteErr)
 	}
@@ -110,7 +112,8 @@ func (clusters *EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 // will return the list of Node Groups that were successfully scheduled for deletion.
 func (clusters *EKSClusters) scheduleDeleteEKSClusterManagedNodeGroup(eksClusterName string) ([]*string, error) {
 	allNodeGroups := []*string{}
-	err := clusters.Client.ListNodegroupsPages(
+	err := clusters.Client.ListNodegroupsPagesWithContext(
+		clusters.Context,
 		&eks.ListNodegroupsInput{ClusterName: aws.String(eksClusterName)},
 		func(page *eks.ListNodegroupsOutput, lastPage bool) bool {
 			allNodeGroups = append(allNodeGroups, page.Nodegroups...)
@@ -128,10 +131,12 @@ func (clusters *EKSClusters) scheduleDeleteEKSClusterManagedNodeGroup(eksCluster
 	var allDeleteErrs error
 	deletedNodeGroups := []*string{}
 	for _, nodeGroup := range allNodeGroups {
-		_, err := clusters.Client.DeleteNodegroup(&eks.DeleteNodegroupInput{
-			ClusterName:   aws.String(eksClusterName),
-			NodegroupName: nodeGroup,
-		})
+		_, err := clusters.Client.DeleteNodegroupWithContext(
+			clusters.Context,
+			&eks.DeleteNodegroupInput{
+				ClusterName:   aws.String(eksClusterName),
+				NodegroupName: nodeGroup,
+			})
 		if err != nil {
 			logging.Debugf("[Failed] Failed deleting Node Group %s associated with cluster %s: %s", aws.StringValue(nodeGroup), eksClusterName, err)
 			allDeleteErrs = multierror.Append(allDeleteErrs, err)
@@ -147,7 +152,8 @@ func (clusters *EKSClusters) scheduleDeleteEKSClusterManagedNodeGroup(eksCluster
 // Fargate Profile is actually deleted for each one before moving on to the next one.
 func (clusters *EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName string) error {
 	allFargateProfiles := []*string{}
-	err := clusters.Client.ListFargateProfilesPages(
+	err := clusters.Client.ListFargateProfilesPagesWithContext(
+		clusters.Context,
 		&eks.ListFargateProfilesInput{ClusterName: aws.String(eksClusterName)},
 		func(page *eks.ListFargateProfilesOutput, lastPage bool) bool {
 			allFargateProfiles = append(allFargateProfiles, page.FargateProfileNames...)
@@ -166,20 +172,24 @@ func (clusters *EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName stri
 	// Note that we aggregate deletion errors so that we at least attempt to delete all of them once.
 	var allDeleteErrs error
 	for _, fargateProfile := range allFargateProfiles {
-		_, err := clusters.Client.DeleteFargateProfile(&eks.DeleteFargateProfileInput{
-			ClusterName:        aws.String(eksClusterName),
-			FargateProfileName: fargateProfile,
-		})
+		_, err := clusters.Client.DeleteFargateProfileWithContext(
+			clusters.Context,
+			&eks.DeleteFargateProfileInput{
+				ClusterName:        aws.String(eksClusterName),
+				FargateProfileName: fargateProfile,
+			})
 		if err != nil {
 			logging.Debugf("[Failed] Failed deleting Fargate Profile %s associated with cluster %s: %s", aws.StringValue(fargateProfile), eksClusterName, err)
 			allDeleteErrs = multierror.Append(allDeleteErrs, err)
 			continue
 		}
 
-		waitErr := clusters.Client.WaitUntilFargateProfileDeleted(&eks.DescribeFargateProfileInput{
-			ClusterName:        aws.String(eksClusterName),
-			FargateProfileName: fargateProfile,
-		})
+		waitErr := clusters.Client.WaitUntilFargateProfileDeletedWithContext(
+			clusters.Context,
+			&eks.DescribeFargateProfileInput{
+				ClusterName:        aws.String(eksClusterName),
+				FargateProfileName: fargateProfile,
+			})
 		if waitErr != nil {
 			logging.Debugf("[Failed] Failed waiting for Fargate Profile %s associated with cluster %s to be deleted: %s", aws.StringValue(fargateProfile), eksClusterName, waitErr)
 			allDeleteErrs = multierror.Append(allDeleteErrs, waitErr)
@@ -195,7 +205,7 @@ func (clusters *EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName stri
 func (clusters *EKSClusters) waitUntilEksClustersDeleted(eksClusterNames []*string) []*string {
 	var successfullyDeleted []*string
 	for _, eksClusterName := range eksClusterNames {
-		err := clusters.Client.WaitUntilClusterDeleted(&eks.DescribeClusterInput{Name: eksClusterName})
+		err := clusters.Client.WaitUntilClusterDeletedWithContext(clusters.Context, &eks.DescribeClusterInput{Name: eksClusterName})
 
 		// Record status of this resource
 		e := report.Entry{

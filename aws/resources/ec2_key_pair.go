@@ -14,7 +14,7 @@ import (
 
 // getAllEc2KeyPairs extracts the list of existing ec2 key pairs.
 func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := k.Client.DescribeKeyPairs(&ec2.DescribeKeyPairsInput{})
+	result, err := k.Client.DescribeKeyPairsWithContext(k.Context, &ec2.DescribeKeyPairsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -32,7 +32,7 @@ func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*str
 
 	// checking the nukable permissions
 	k.VerifyNukablePermissions(ids, func(id *string) error {
-		_, err := k.Client.DeleteKeyPair(&ec2.DeleteKeyPairInput{
+		_, err := k.Client.DeleteKeyPairWithContext(k.Context, &ec2.DeleteKeyPairInput{
 			KeyPairId: id,
 			DryRun:    awsgo.Bool(true),
 		})
@@ -48,7 +48,7 @@ func (k *EC2KeyPairs) deleteKeyPair(keyPairId *string) error {
 		KeyPairId: keyPairId,
 	}
 
-	_, err := k.Client.DeleteKeyPair(params)
+	_, err := k.Client.DeleteKeyPairWithContext(k.Context, params)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -17,18 +17,20 @@ import (
 func (ef *ElasticFileSystem) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
 	allEfs := []*string{}
-	err := ef.Client.DescribeFileSystemsPages(&efs.DescribeFileSystemsInput{}, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
-		for _, system := range page.FileSystems {
-			if configObj.ElasticFileSystem.ShouldInclude(config.ResourceValue{
-				Name: system.Name,
-				Time: system.CreationTime,
-			}) {
-				allEfs = append(allEfs, system.FileSystemId)
+	err := ef.Client.DescribeFileSystemsPagesWithContext(
+		ef.Context,
+		&efs.DescribeFileSystemsInput{}, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
+			for _, system := range page.FileSystems {
+				if configObj.ElasticFileSystem.ShouldInclude(config.ResourceValue{
+					Name: system.Name,
+					Time: system.CreationTime,
+				}) {
+					allEfs = append(allEfs, system.FileSystemId)
+				}
 			}
-		}
 
-		return !lastPage
-	})
+			return !lastPage
+		})
 
 	return allEfs, err
 }
@@ -83,7 +85,7 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 		FileSystemId: efsID,
 	}
 
-	out, err := ef.Client.DescribeAccessPoints(accessPointParam)
+	out, err := ef.Client.DescribeAccessPointsWithContext(ef.Context, accessPointParam)
 	if err != nil {
 		allErrs = multierror.Append(allErrs, err)
 	}
@@ -100,7 +102,7 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 
 		logging.Debugf("Deleting access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(apID), aws.StringValue(efsID), ef.Region)
 
-		_, err := ef.Client.DeleteAccessPoint(deleteParam)
+		_, err := ef.Client.DeleteAccessPointWithContext(ef.Context, deleteParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
@@ -128,7 +130,7 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 			mountTargetParam.Marker = marker
 		}
 
-		mountTargetsOutput, describeMountsErr := ef.Client.DescribeMountTargets(mountTargetParam)
+		mountTargetsOutput, describeMountsErr := ef.Client.DescribeMountTargetsWithContext(ef.Context, mountTargetParam)
 		if describeMountsErr != nil {
 			allErrs = multierror.Append(allErrs, err)
 		}
@@ -153,7 +155,7 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 
 		logging.Debugf("Deleting mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.StringValue(mtID), aws.StringValue(efsID), ef.Region)
 
-		_, err := ef.Client.DeleteMountTarget(deleteMtParam)
+		_, err := ef.Client.DeleteMountTargetWithContext(ef.Context, deleteMtParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
@@ -169,7 +171,7 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 		FileSystemId: efsID,
 	}
 
-	_, deleteErr := ef.Client.DeleteFileSystem(deleteEfsParam)
+	_, deleteErr := ef.Client.DeleteFileSystemWithContext(ef.Context, deleteEfsParam)
 	// Record status of this resource
 	e := report.Entry{
 		Identifier:   aws.StringValue(efsID),

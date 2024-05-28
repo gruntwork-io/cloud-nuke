@@ -2,13 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/configservice"
 	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
 )
 
 type mockedConfigServiceRule struct {
@@ -18,16 +21,16 @@ type mockedConfigServiceRule struct {
 	DeleteRemediationConfigurationOutput configservice.DeleteRemediationConfigurationOutput
 }
 
-func (m mockedConfigServiceRule) DescribeConfigRulesPages(input *configservice.DescribeConfigRulesInput, fn func(*configservice.DescribeConfigRulesOutput, bool) bool) error {
+func (m mockedConfigServiceRule) DescribeConfigRulesPagesWithContext(_ awsgo.Context, _ *configservice.DescribeConfigRulesInput, fn func(*configservice.DescribeConfigRulesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeConfigRulesOutput, true)
 	return nil
 }
 
-func (m mockedConfigServiceRule) DeleteConfigRule(input *configservice.DeleteConfigRuleInput) (*configservice.DeleteConfigRuleOutput, error) {
+func (m mockedConfigServiceRule) DeleteConfigRuleWithContext(_ awsgo.Context, _ *configservice.DeleteConfigRuleInput, _ ...request.Option) (*configservice.DeleteConfigRuleOutput, error) {
 	return &m.DeleteConfigRuleOutput, nil
 }
 
-func (m mockedConfigServiceRule) DeleteRemediationConfiguration(input *configservice.DeleteRemediationConfigurationInput) (*configservice.DeleteRemediationConfigurationOutput, error) {
+func (m mockedConfigServiceRule) DeleteRemediationConfigurationWithContext(_ awsgo.Context, _ *configservice.DeleteRemediationConfigurationInput, _ ...request.Option) (*configservice.DeleteRemediationConfigurationOutput, error) {
 	return &m.DeleteRemediationConfigurationOutput, nil
 }
 

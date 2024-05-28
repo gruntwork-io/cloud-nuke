@@ -43,7 +43,7 @@ func (nfw *NetworkFirewall) getAll(c context.Context, configObj config.Config) (
 	var deleteprotected []string
 	// describe the firewalls to get more info
 	for _, firewall := range metaOutput.Firewalls {
-		output, err := nfw.Client.DescribeFirewall(&networkfirewall.DescribeFirewallInput{
+		output, err := nfw.Client.DescribeFirewallWithContext(nfw.Context, &networkfirewall.DescribeFirewallInput{
 			FirewallArn: firewall.FirewallArn,
 		})
 		if err != nil {
@@ -98,7 +98,7 @@ func (nfw *NetworkFirewall) nukeAll(identifiers []*string) error {
 			continue
 		}
 
-		_, err := nfw.Client.DeleteFirewall(&networkfirewall.DeleteFirewallInput{
+		_, err := nfw.Client.DeleteFirewallWithContext(nfw.Context, &networkfirewall.DeleteFirewallInput{
 			FirewallName: id,
 		})
 

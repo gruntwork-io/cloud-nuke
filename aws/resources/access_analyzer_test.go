@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/aws/aws-sdk-go/service/accessanalyzer/accessanalyzeriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedAccessAnalyzer struct {
@@ -19,12 +21,12 @@ type mockedAccessAnalyzer struct {
 	DeleteAnalyzerOutput     accessanalyzer.DeleteAnalyzerOutput
 }
 
-func (m mockedAccessAnalyzer) ListAnalyzersPages(input *accessanalyzer.ListAnalyzersInput, callback func(*accessanalyzer.ListAnalyzersOutput, bool) bool) error {
+func (m mockedAccessAnalyzer) ListAnalyzersPagesWithContext(_ awsgo.Context, _ *accessanalyzer.ListAnalyzersInput, callback func(*accessanalyzer.ListAnalyzersOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.ListAnalyzersPagesOutput, true)
 	return nil
 }
 
-func (m mockedAccessAnalyzer) DeleteAnalyzer(input *accessanalyzer.DeleteAnalyzerInput) (*accessanalyzer.DeleteAnalyzerOutput, error) {
+func (m mockedAccessAnalyzer) DeleteAnalyzerWithContext(awsgo.Context, *accessanalyzer.DeleteAnalyzerInput, ...request.Option) (*accessanalyzer.DeleteAnalyzerOutput, error) {
 	return &m.DeleteAnalyzerOutput, nil
 }
 

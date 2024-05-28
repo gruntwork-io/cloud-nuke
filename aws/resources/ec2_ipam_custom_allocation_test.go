@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,21 +20,21 @@ type mockedIPAMCustomAllocations struct {
 	DescribeIpamPoolsOutput         ec2.DescribeIpamPoolsOutput
 }
 
-func (m mockedIPAMCustomAllocations) GetIpamPoolAllocationsPages(input *ec2.GetIpamPoolAllocationsInput, callback func(*ec2.GetIpamPoolAllocationsOutput, bool) bool) error {
+func (m mockedIPAMCustomAllocations) GetIpamPoolAllocationsPagesWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolAllocationsInput, callback func(*ec2.GetIpamPoolAllocationsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.GetIpamPoolAllocationsOutput, true)
 	return nil
 }
 
-func (m mockedIPAMCustomAllocations) DescribeIpamPoolsPages(input *ec2.DescribeIpamPoolsInput, callback func(*ec2.DescribeIpamPoolsOutput, bool) bool) error {
+func (m mockedIPAMCustomAllocations) DescribeIpamPoolsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamPoolsInput, callback func(*ec2.DescribeIpamPoolsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeIpamPoolsOutput, true)
 	return nil
 }
 
-func (m mockedIPAMCustomAllocations) GetIpamPoolAllocations(params *ec2.GetIpamPoolAllocationsInput) (*ec2.GetIpamPoolAllocationsOutput, error) {
+func (m mockedIPAMCustomAllocations) GetIpamPoolAllocationsWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolAllocationsInput, _ ...request.Option) (*ec2.GetIpamPoolAllocationsOutput, error) {
 	return &m.GetIpamPoolAllocationsOutput, nil
 }
 
-func (m mockedIPAMCustomAllocations) ReleaseIpamPoolAllocation(params *ec2.ReleaseIpamPoolAllocationInput) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
+func (m mockedIPAMCustomAllocations) ReleaseIpamPoolAllocationWithContext(_ awsgo.Context, _ *ec2.ReleaseIpamPoolAllocationInput, _ ...request.Option) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
 	return &m.ReleaseIpamPoolAllocationOutput, nil
 }
 

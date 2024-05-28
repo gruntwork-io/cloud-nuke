@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedIAMServiceLinkedRoles struct {
@@ -19,16 +21,16 @@ type mockedIAMServiceLinkedRoles struct {
 	GetServiceLinkedRoleDeletionStatusOutput iam.GetServiceLinkedRoleDeletionStatusOutput
 }
 
-func (m mockedIAMServiceLinkedRoles) ListRolesPages(input *iam.ListRolesInput, fn func(*iam.ListRolesOutput, bool) bool) error {
+func (m mockedIAMServiceLinkedRoles) ListRolesPagesWithContext(_ aws.Context, input *iam.ListRolesInput, fn func(*iam.ListRolesOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.ListRolesPagesOutput, true)
 	return nil
 }
 
-func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRole(input *iam.DeleteServiceLinkedRoleInput) (*iam.DeleteServiceLinkedRoleOutput, error) {
+func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRoleWithContext(_ aws.Context, input *iam.DeleteServiceLinkedRoleInput, _ ...request.Option) (*iam.DeleteServiceLinkedRoleOutput, error) {
 	return &m.DeleteServiceLinkedRoleOutput, nil
 }
 
-func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatus(input *iam.GetServiceLinkedRoleDeletionStatusInput) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error) {
+func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatusWithContext(_ aws.Context, input *iam.GetServiceLinkedRoleDeletionStatusInput, _ ...request.Option) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error) {
 	return &m.GetServiceLinkedRoleDeletionStatusOutput, nil
 }
 

@@ -39,6 +39,9 @@ func (r *Route53TrafficPolicy) MaxBatchSize() int {
 func (r *Route53TrafficPolicy) ResourceIdentifiers() []string {
 	return r.Ids
 }
+func (r *Route53TrafficPolicy) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.Route53TrafficPolicy
+}
 
 func (r *Route53TrafficPolicy) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := r.getAll(c, configObj)

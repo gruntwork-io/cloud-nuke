@@ -36,6 +36,9 @@ func (bv *BackupVault) MaxBatchSize() int {
 	return 50
 }
 
+func (bv *BackupVault) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.BackupVault
+}
 func (bv *BackupVault) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := bv.getAll(c, configObj)
 	if err != nil {

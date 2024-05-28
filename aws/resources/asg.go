@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -13,7 +14,7 @@ import (
 
 // Returns a formatted string of ASG Names
 func (ag *ASGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := ag.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{})
+	result, err := ag.Client.DescribeAutoScalingGroupsWithContext(ag.Context, &autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -48,7 +49,7 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 			ForceDelete:          awsgo.Bool(true),
 		}
 
-		_, err := ag.Client.DeleteAutoScalingGroup(params)
+		_, err := ag.Client.DeleteAutoScalingGroupWithContext(ag.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -67,7 +68,7 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 	}
 
 	if len(deletedGroupNames) > 0 {
-		err := ag.Client.WaitUntilGroupNotExists(&autoscaling.DescribeAutoScalingGroupsInput{
+		err := ag.Client.WaitUntilGroupNotExistsWithContext(ag.Context, &autoscaling.DescribeAutoScalingGroupsInput{
 			AutoScalingGroupNames: deletedGroupNames,
 		})
 		if err != nil {

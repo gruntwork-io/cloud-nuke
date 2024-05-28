@@ -2,13 +2,15 @@ package resources
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/guardduty"
 	"github.com/aws/aws-sdk-go/service/guardduty/guarddutyiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type mockedGuardDuty struct {
@@ -18,16 +20,16 @@ type mockedGuardDuty struct {
 	DeleteDetectorOutput     guardduty.DeleteDetectorOutput
 }
 
-func (m mockedGuardDuty) ListDetectorsPages(input *guardduty.ListDetectorsInput, callback func(*guardduty.ListDetectorsOutput, bool) bool) error {
+func (m mockedGuardDuty) ListDetectorsPagesWithContext(_ aws.Context, input *guardduty.ListDetectorsInput, callback func(*guardduty.ListDetectorsOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.ListDetectorsPagesOutput, true)
 	return nil
 }
 
-func (m mockedGuardDuty) GetDetector(input *guardduty.GetDetectorInput) (*guardduty.GetDetectorOutput, error) {
+func (m mockedGuardDuty) GetDetectorWithContext(_ aws.Context, input *guardduty.GetDetectorInput, _ ...request.Option) (*guardduty.GetDetectorOutput, error) {
 	return &m.GetDetectorOutput, nil
 }
 
-func (m mockedGuardDuty) DeleteDetector(input *guardduty.DeleteDetectorInput) (*guardduty.DeleteDetectorOutput, error) {
+func (m mockedGuardDuty) DeleteDetectorWithContext(_ aws.Context, input *guardduty.DeleteDetectorInput, _ ...request.Option) (*guardduty.DeleteDetectorOutput, error) {
 	return &m.DeleteDetectorOutput, nil
 }
 

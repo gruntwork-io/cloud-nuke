@@ -39,6 +39,10 @@ func (e *EC2Endpoints) ResourceIdentifiers() []string {
 	return e.Endpoints
 }
 
+func (e *EC2Endpoints) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+	return configObj.EC2Endpoint
+}
+
 func (e *EC2Endpoints) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
 	identifiers, err := e.getAll(c, configObj)
 	if err != nil {

@@ -2,14 +2,16 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedECR struct {
@@ -18,12 +20,12 @@ type mockedECR struct {
 	DeleteRepositoryOutput          ecr.DeleteRepositoryOutput
 }
 
-func (m mockedECR) DescribeRepositoriesPages(input *ecr.DescribeRepositoriesInput, callback func(*ecr.DescribeRepositoriesOutput, bool) bool) error {
+func (m mockedECR) DescribeRepositoriesPagesWithContext(_ aws.Context, input *ecr.DescribeRepositoriesInput, callback func(*ecr.DescribeRepositoriesOutput, bool) bool, _ ...request.Option) error {
 	callback(&m.DescribeRepositoriesPagesOutput, true)
 	return nil
 }
 
-func (m mockedECR) DeleteRepository(input *ecr.DeleteRepositoryInput) (*ecr.DeleteRepositoryOutput, error) {
+func (m mockedECR) DeleteRepositoryWithContext(_ aws.Context, input *ecr.DeleteRepositoryInput, _ ...request.Option) (*ecr.DeleteRepositoryOutput, error) {
 	return &m.DeleteRepositoryOutput, nil
 }
 

@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEC2KeyPairs struct {
@@ -19,11 +21,11 @@ type mockedEC2KeyPairs struct {
 	DeleteKeyPairOutput    ec2.DeleteKeyPairOutput
 }
 
-func (m mockedEC2KeyPairs) DescribeKeyPairs(input *ec2.DescribeKeyPairsInput) (*ec2.DescribeKeyPairsOutput, error) {
+func (m mockedEC2KeyPairs) DescribeKeyPairsWithContext(_ awsgo.Context, _ *ec2.DescribeKeyPairsInput, _ ...request.Option) (*ec2.DescribeKeyPairsOutput, error) {
 	return &m.DescribeKeyPairsOutput, nil
 }
 
-func (m mockedEC2KeyPairs) DeleteKeyPair(input *ec2.DeleteKeyPairInput) (*ec2.DeleteKeyPairOutput, error) {
+func (m mockedEC2KeyPairs) DeleteKeyPairWithContext(_ awsgo.Context, _ *ec2.DeleteKeyPairInput, _ ...request.Option) (*ec2.DeleteKeyPairOutput, error) {
 	return &m.DeleteKeyPairOutput, nil
 }
 

@@ -13,7 +13,7 @@ import (
 func (r *Route53CidrCollection) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
-	result, err := r.Client.ListCidrCollections(&route53.ListCidrCollectionsInput{})
+	result, err := r.Client.ListCidrCollectionsWithContext(r.Context, &route53.ListCidrCollectionsInput{})
 	if err != nil {
 		logging.Errorf("[Failed] unable to list cidr collection: %s", err)
 		return nil, err
@@ -31,7 +31,7 @@ func (r *Route53CidrCollection) getAll(c context.Context, configObj config.Confi
 
 func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 	// get attached cidr blocks
-	loc, err := r.Client.ListCidrBlocks(&route53.ListCidrBlocksInput{
+	loc, err := r.Client.ListCidrBlocksWithContext(r.Context, &route53.ListCidrBlocksInput{
 		CollectionId: id,
 	})
 	if err != nil {
@@ -48,7 +48,7 @@ func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 		})
 	}
 
-	_, err = r.Client.ChangeCidrCollection(&route53.ChangeCidrCollectionInput{
+	_, err = r.Client.ChangeCidrCollectionWithContext(r.Context, &route53.ChangeCidrCollectionInput{
 		Id:      id,
 		Changes: changes,
 	})
@@ -79,7 +79,7 @@ func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 			}
 
 			// delete the cidr collection
-			if _, err = r.Client.DeleteCidrCollection(&route53.DeleteCidrCollectionInput{
+			if _, err = r.Client.DeleteCidrCollectionWithContext(r.Context, &route53.DeleteCidrCollectionInput{
 				Id: id,
 			}); err != nil {
 				logging.Errorf("[Failed] unable to nuke the cidr collection: %v ", err)

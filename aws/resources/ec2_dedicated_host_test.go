@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"regexp"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-	"regexp"
-	"testing"
-	"time"
 )
 
 type mockedEC2DedicatedHosts struct {
@@ -19,12 +21,12 @@ type mockedEC2DedicatedHosts struct {
 	ReleaseHostsOutput       ec2.ReleaseHostsOutput
 }
 
-func (m mockedEC2DedicatedHosts) DescribeHostsPages(input *ec2.DescribeHostsInput, fn func(*ec2.DescribeHostsOutput, bool) bool) error {
+func (m mockedEC2DedicatedHosts) DescribeHostsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeHostsInput, fn func(*ec2.DescribeHostsOutput, bool) bool, _ ...request.Option) error {
 	fn(&m.DescribeHostsPagesOutput, true)
 	return nil
 }
 
-func (m mockedEC2DedicatedHosts) ReleaseHosts(input *ec2.ReleaseHostsInput) (*ec2.ReleaseHostsOutput, error) {
+func (m mockedEC2DedicatedHosts) ReleaseHostsWithContext(_ awsgo.Context, _ *ec2.ReleaseHostsInput, _ ...request.Option) (*ec2.ReleaseHostsOutput, error) {
 	return &m.ReleaseHostsOutput, nil
 }
 
