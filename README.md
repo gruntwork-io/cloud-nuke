@@ -615,7 +615,7 @@ of the file that are supported are listed here.
 | snstopic                    | SNS                          | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    |    ✅   |
 | sqs                         | SQS                          | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    |    ✅   |
 | sagemaker-notebook-smni     | SageMakerNotebook            | ✅ (Notebook Instnace Name)            | ✅ (Creation Time)                   | ❌    |    ✅   |
-| secretsmanager              | SecretsManagerSecrets        | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    |    ✅   |
+| secretsmanager              | SecretsManager               | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    |    ✅   |
 | security-hub                | SecurityHub                  | ❌                                     | ✅ (Created Time)                    | ❌    |    ✅   |
 | snap                        | Snapshots                    | ❌                                     | ✅ (Creation Time)                   | ✅    |    ✅   |
 | transit-gateway             | TransitGateway               | ❌                                     | ✅ (Creation Time)                   | ❌    |    ✅   |
