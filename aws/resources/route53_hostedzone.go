@@ -10,7 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (r *Route53HostedZone) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
 	result, err := r.Client.ListHostedZonesWithContext(r.Context, &route53.ListHostedZonesInput{})
