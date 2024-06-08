@@ -262,6 +262,7 @@ ACM:
   exclude:
     names_regex:
       - ".*gruntwork.in"
+      - ".*gruntwork-dev.io"
 
 DBSubnetGroups:
   exclude:
@@ -287,3 +288,9 @@ InternetGateway:
       # and is used by tests that require internet access from within the VPC. Without it, any
       # VPC-based test that requires internet will fail.
       - "gw-new-default-igw"
+
+Route53HostedZone:
+  exclude:
+    names_regex:
+      - ".*gruntwork.in"
+      - ".*gruntwork-dev.io"
