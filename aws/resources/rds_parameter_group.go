@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/rds"
@@ -18,6 +19,13 @@ func (pg *RdsParameterGroup) getAll(c context.Context, configObj config.Config) 
 		&rds.DescribeDBParameterGroupsInput{},
 		func(page *rds.DescribeDBParameterGroupsOutput, lastPage bool) bool {
 			for _, parameterGroup := range page.DBParameterGroups {
+				// we can't delete default paramter group
+				// Default parameter group names can include a period, such as default.mysql8.0. However, custom parameter group names can't include a period.
+				if strings.HasPrefix(aws.StringValue(parameterGroup.DBParameterGroupName), "default.") {
+					logging.Debugf("Skipping %s since it is a default parameter group", aws.StringValue(parameterGroup.DBParameterGroupName))
+					continue
+				}
+
 				if configObj.RdsParameterGroup.ShouldInclude(config.ResourceValue{
 					Name: parameterGroup.DBParameterGroupName,
 				}) {
