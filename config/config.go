@@ -68,6 +68,7 @@ type Config struct {
 	IAMUsers                        ResourceType               `yaml:"IAMUsers"`
 	KMSCustomerKeys                 KMSCustomerKeyResourceType `yaml:"KMSCustomerKeys"`
 	KinesisStream                   ResourceType               `yaml:"KinesisStream"`
+	KinesisFirehose                 ResourceType               `yaml:"KinesisFirehose"`
 	LambdaFunction                  ResourceType               `yaml:"LambdaFunction"`
 	LambdaLayer                     ResourceType               `yaml:"LambdaLayer"`
 	LaunchConfiguration             ResourceType               `yaml:"LaunchConfiguration"`

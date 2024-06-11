@@ -93,6 +93,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.LoadBalancers{},
 		&resources.LoadBalancersV2{},
 		&resources.GuardDuty{},
+		&resources.KinesisFirehose{},
 		&resources.KinesisStreams{},
 		&resources.KmsCustomerKeys{},
 		&resources.LambdaFunctions{},
