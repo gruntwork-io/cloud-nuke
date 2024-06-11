@@ -16,30 +16,16 @@ import (
 
 type mockedR53HostedZone struct {
 	route53iface.Route53API
-	ListResourceRecordSetsOutput      route53.ListResourceRecordSetsOutput
-	ChangeResourceRecordSetsOutput    route53.ChangeResourceRecordSetsOutput
-	ListHostedZonesOutput             route53.ListHostedZonesOutput
-	DeleteHostedZoneOutput            route53.DeleteHostedZoneOutput
-	DeleteTrafficPolicyInstanceOutput route53.DeleteTrafficPolicyInstanceOutput
+	ListHostedZonesOutput  route53.ListHostedZonesOutput
+	DeleteHostedZoneOutput route53.DeleteHostedZoneOutput
 }
 
 func (mock mockedR53HostedZone) ListHostedZonesWithContext(_ awsgo.Context, _ *route53.ListHostedZonesInput, _ ...request.Option) (*route53.ListHostedZonesOutput, error) {
 	return &mock.ListHostedZonesOutput, nil
 }
 
-func (mock mockedR53HostedZone) ListResourceRecordSets(*route53.ListResourceRecordSetsInput) (*route53.ListResourceRecordSetsOutput, error) {
-	return &mock.ListResourceRecordSetsOutput, nil
-}
-func (mock mockedR53HostedZone) ChangeResourceRecordSets(*route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error) {
-	return &mock.ChangeResourceRecordSetsOutput, nil
-}
-
 func (mock mockedR53HostedZone) DeleteHostedZoneWithContext(_ awsgo.Context, _ *route53.DeleteHostedZoneInput, _ ...request.Option) (*route53.DeleteHostedZoneOutput, error) {
 	return &mock.DeleteHostedZoneOutput, nil
-}
-
-func (mock mockedR53HostedZone) DeleteTrafficPolicyInstance(*route53.DeleteTrafficPolicyInstanceInput) (*route53.DeleteTrafficPolicyInstanceOutput, error) {
-	return &mock.DeleteTrafficPolicyInstanceOutput, nil
 }
 
 func TestR53HostedZone_GetAll(t *testing.T) {

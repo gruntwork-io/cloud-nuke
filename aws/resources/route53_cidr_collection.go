@@ -48,15 +48,13 @@ func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 		})
 	}
 
-	if len(changes) > 0 {
-		_, err = r.Client.ChangeCidrCollectionWithContext(r.Context, &route53.ChangeCidrCollectionInput{
-			Id:      id,
-			Changes: changes,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] unable to list cidr collections: %v", err)
-			return err
-		}
+	_, err = r.Client.ChangeCidrCollectionWithContext(r.Context, &route53.ChangeCidrCollectionInput{
+		Id:      id,
+		Changes: changes,
+	})
+	if err != nil {
+		logging.Errorf("[Failed] unable to list cidr collections: %v", err)
+		return err
 	}
 
 	logging.Debugf("[Route53 CIDR location] Successfully nuked cidr location(s)")
@@ -65,10 +63,10 @@ func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 
 func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 	if len(identifiers) == 0 {
-		logging.Debugf("No Route53 Cidr collection to nuke")
+		logging.Debugf("No Route53 Cidr collection to nuke in region %s", r.Region)
 		return nil
 	}
-	logging.Debugf("Deleting all Route53 Cidr collection")
+	logging.Debugf("Deleting all Route53 Cidr collection in region %s", r.Region)
 
 	var deletedIds []*string
 	for _, id := range identifiers {
@@ -107,7 +105,7 @@ func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 		}
 	}
 
-	logging.Debugf("[OK] %d Route53 cidr collection(s) deleted", len(deletedIds))
+	logging.Debugf("[OK] %d Route53 cidr collection(s) deleted in %s", len(deletedIds), r.Region)
 
 	return nil
 }
