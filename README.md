@@ -87,6 +87,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | RDS                     | Neptune                                                  |
 | RDS                     | Document DB instances                                    |
 | RDS                     | RDS parameter group                                      |
+| RDS                     | RDS Proxy			                                     |
 | Security Hub            | Hubs                                                     |
 | Security Hub            | Members                                                  |
 | Security Hub            | Administrators                                           |
@@ -604,6 +605,7 @@ of the file that are supported are listed here.
 | rds                         | DBInstances                  | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    |    ✅   |
 | rds-parameter-group         | RdsParameterGroup            | ✅ (Group Name)                        | ❌                                   | ❌    |    ✅   |
 | rds-subnet-group            | DBSubnetGroups               | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    |    ✅   |
+| rds-proxy			          | RDSProxy	                 | ✅ (proxy Name)             			 | ✅ (Creation Time)                   | ❌    |    ✅   |
 | s3                          | s3                           | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    |    ✅   |
 | s3-ap                       | s3AccessPoint                | ✅ (Access point Name)                 | ❌                                   | ❌    |    ✅   |
 | s3-olap                     | S3ObjectLambdaAccessPoint    | ✅ (Object Lambda Access point Name)   | ❌                                   | ❌    |    ✅   |

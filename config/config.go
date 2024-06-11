@@ -81,6 +81,7 @@ type Config struct {
 	Redshift                        ResourceType               `yaml:"Redshift"`
 	RdsSnapshot                     ResourceType               `yaml:"RdsSnapshot"`
 	RdsParameterGroup               ResourceType               `yaml:"RdsParameterGroup"`
+	RdsProxy                        ResourceType               `yaml:"RdsProxy"`
 	S3                              ResourceType               `yaml:"s3"`
 	S3AccessPoint                   ResourceType               `yaml:"S3AccessPoint"`
 	S3ObjectLambdaAccessPoint       ResourceType               `yaml:"S3ObjectLambdaAccessPoint"`
