@@ -75,6 +75,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Macie                   | Member accounts                                          |
 | SageMaker               | Notebook instances                                       |
 | Kinesis                 | Streams                                                  |
+| Kinesis                 | Firehose                                                 |
 | API Gateway             | Gateways (v1 and v2)                                     |
 | EFS                     | File systems                                             |
 | SNS                     | Topics                                                   |
@@ -587,6 +588,7 @@ of the file that are supported are listed here.
 | egress-only-internet-gateway| EgressOnlyInternetGateway    | ✅ (Gateway name)                      | ✅ (Creation Time)                   | ✅    |    ✅   |
 | kmscustomerkeys             | KMSCustomerKeys              | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    |    ❌   |
 | kinesis-stream              | KinesisStream                | ✅ (Stream Name)                       | ❌                                   | ❌    |    ✅   |
+| kinesis-firehose            | KinesisFirehose              | ✅ (Delivery Stream Name)              | ❌                                   | ❌    |    ✅   |
 | lambda                      | LambdaFunction               | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ❌    |    ✅   |
 | lc                          | LaunchConfiguration          | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    |    ✅   |
 | lt                          | LaunchTemplate               | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    |    ✅   |
@@ -615,7 +617,7 @@ of the file that are supported are listed here.
 | snstopic                    | SNS                          | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    |    ✅   |
 | sqs                         | SQS                          | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    |    ✅   |
 | sagemaker-notebook-smni     | SageMakerNotebook            | ✅ (Notebook Instnace Name)            | ✅ (Creation Time)                   | ❌    |    ✅   |
-| secretsmanager              | SecretsManager               | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    |    ✅   |
+| secretsmanager              | SecretsManagerSecrets        | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    |    ✅   |
 | security-hub                | SecurityHub                  | ❌                                     | ✅ (Created Time)                    | ❌    |    ✅   |
 | snap                        | Snapshots                    | ❌                                     | ✅ (Creation Time)                   | ✅    |    ✅   |
 | transit-gateway             | TransitGateway               | ❌                                     | ✅ (Creation Time)                   | ❌    |    ✅   |

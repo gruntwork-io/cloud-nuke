@@ -40,9 +40,6 @@ func getRegisteredGlobalResources() []AwsResource {
 		&resources.IAMRoles{},
 		&resources.IAMServiceLinkedRoles{},
 		&resources.OIDCProviders{},
-		&resources.Route53HostedZone{},
-		&resources.Route53CidrCollection{},
-		&resources.Route53TrafficPolicy{},
 	}
 }
 
@@ -93,6 +90,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.LoadBalancers{},
 		&resources.LoadBalancersV2{},
 		&resources.GuardDuty{},
+		&resources.KinesisFirehose{},
 		&resources.KinesisStreams{},
 		&resources.KmsCustomerKeys{},
 		&resources.LambdaFunctions{},
@@ -132,6 +130,9 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.EC2IPAMByoasn{},
 		&resources.EC2IPAMCustomAllocation{},
 		&resources.EC2Subnet{},
+		&resources.Route53HostedZone{},
+		&resources.Route53CidrCollection{},
+		&resources.Route53TrafficPolicy{},
 		&resources.InternetGateway{},
 		&resources.NetworkInterface{},
 		&resources.SecurityGroup{},
