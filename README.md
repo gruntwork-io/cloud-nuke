@@ -18,6 +18,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 
 | Resource Family         | Resource type                                            |
 |-------------------------|----------------------------------------------------------|
+| App Runner              | Service                                                  |
 | EC2                     | Auto scaling groups                                      |
 | EC2                     | Elastic Load Balancers (v1 and v2)                       |
 | EC2                     | EBS Volumes                                              |
@@ -547,6 +548,7 @@ of the file that are supported are listed here.
 | apigatewayv2                | APIGatewayV2                 | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    |    ✅   |
 | accessanalyzer              | AccessAnalyzer               | ✅ (Analyzer Name)                     | ✅ (Created Time)                    | ❌    |    ✅   |
 | asg                         | AutoScalingGroup             | ✅ (ASG Name)                          | ✅ (Created Time)                    | ✅    |    ✅   |
+| app-runner-service          | AppRunnerService             | ✅ (App Runner Service Name)           | ✅ (Created Time)                    | ❌    |    ✅   |
 | backup-vault                | BackupVault                  | ✅ (Backup Vault Name)                 | ✅ (Created Time)                    | ❌    |    ✅   |
 | cloudwatch-alarm            | CloudWatchAlarm              | ✅ (Alarm Name)                        | ✅ (AlarmConfigurationUpdated Time)  | ❌    |    ✅   |
 | cloudwatch-dashboard        | CloudWatchDashboard          | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    |    ✅   |

@@ -58,6 +58,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.ApiGateway{},
 		&resources.ApiGatewayV2{},
 		&resources.ASGroups{},
+		&resources.AppRunnerService{},
 		&resources.BackupVault{},
 		&resources.CloudtrailTrail{},
 		&resources.CloudWatchAlarms{},

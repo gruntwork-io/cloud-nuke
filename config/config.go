@@ -22,6 +22,7 @@ type Config struct {
 	APIGatewayV2                    ResourceType               `yaml:"APIGatewayV2"`
 	AccessAnalyzer                  ResourceType               `yaml:"AccessAnalyzer"`
 	AutoScalingGroup                ResourceType               `yaml:"AutoScalingGroup"`
+	AppRunnerService                ResourceType               `yaml:"AppRunnerService"`
 	BackupVault                     ResourceType               `yaml:"BackupVault"`
 	CloudWatchAlarm                 ResourceType               `yaml:"CloudWatchAlarm"`
 	CloudWatchDashboard             ResourceType               `yaml:"CloudWatchDashboard"`
