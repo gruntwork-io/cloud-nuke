@@ -11,15 +11,22 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type DHCPOption struct {
+	Id    *string
+	VpcId *string
+}
+
 type EC2DhcpOption struct {
 	BaseAwsResource
 	Client ec2iface.EC2API
 	Region string
 	VPCIds []string
+	DhcpOptions map[string]DHCPOption
 }
 
 func (v *EC2DhcpOption) Init(session *session.Session) {
 	v.Client = ec2.New(session)
+	v.DhcpOptions = make(map[string]DHCPOption)
 }
 
 // ResourceName - the simple name of the aws resource
