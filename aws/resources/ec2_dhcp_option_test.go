@@ -16,6 +16,8 @@ type mockedEC2DhcpOption struct {
 	ec2iface.EC2API
 	DescribeDhcpOptionsOutput ec2.DescribeDhcpOptionsOutput
 	DeleteDhcpOptionsOutput   ec2.DeleteDhcpOptionsOutput
+	DescribeVpcsOutput   ec2.DescribeVpcsOutput
+	AssociateDhcpOptionsOutput   ec2.AssociateDhcpOptionsOutput
 }
 
 func (m mockedEC2DhcpOption) DescribeDhcpOptionsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeDhcpOptionsInput, fn func(*ec2.DescribeDhcpOptionsOutput, bool) bool, _ ...request.Option) error {
@@ -29,6 +31,13 @@ func (m mockedEC2DhcpOption) DeleteDhcpOptions(_ *ec2.DeleteDhcpOptionsInput) (*
 
 func (m mockedEC2DhcpOption) DeleteDhcpOptionsWithContext(_ awsgo.Context, _ *ec2.DeleteDhcpOptionsInput, _ ...request.Option) (*ec2.DeleteDhcpOptionsOutput, error) {
 	return &m.DeleteDhcpOptionsOutput, nil
+}
+
+func (m mockedEC2DhcpOption) DescribeVpcsWithContext(awsgo.Context, *ec2.DescribeVpcsInput, ...request.Option) (*ec2.DescribeVpcsOutput, error) {
+	return &m.DescribeVpcsOutput, nil
+}
+func (m mockedEC2DhcpOption) AssociateDhcpOptionsWithContext(awsgo.Context, *ec2.AssociateDhcpOptionsInput, ...request.Option) (*ec2.AssociateDhcpOptionsOutput, error){
+	return &m.AssociateDhcpOptionsOutput, nil
 }
 
 func TestEC2DhcpOption_GetAll(t *testing.T) {
