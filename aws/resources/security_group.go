@@ -84,9 +84,83 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 	return identifiers, nil
 }
 
+func (sg *SecurityGroup) detachAssociatedSecurityGroups(id *string) error {
+	logging.Debugf("[Security Group detach from dependancy] detaching the security group %s from dependant", awsgo.StringValue(id))
+
+	resp, err := sg.Client.DescribeSecurityGroupsWithContext(sg.Context, &ec2.DescribeSecurityGroupsInput{})
+	if err != nil {
+		logging.Debugf("[Security Group] Failed to list security groups: %s", err)
+		return errors.WithStackTrace(err)
+	}
+
+	for _, securityGroup := range resp.SecurityGroups {
+		// omit the check for current security group
+		if awsgo.StringValue(id) == awsgo.StringValue(securityGroup.GroupId) {
+			continue
+		}
+
+		hasMatching, revokeIpPermissions := hasMatchingGroupIdRule(id, securityGroup.IpPermissions)
+		if hasMatching && len(revokeIpPermissions) > 0 {
+			logging.Debugf("[Security Group revoke ingress] revoking the ingress rules of %s", awsgo.StringValue(securityGroup.GroupId))
+			_, err := sg.Client.RevokeSecurityGroupIngress(&ec2.RevokeSecurityGroupIngressInput{
+				GroupId:       securityGroup.GroupId,
+				IpPermissions: revokeIpPermissions,
+			})
+			if err != nil {
+				logging.Debugf("[Security Group] Failed to revoke ingress rules: %s", err)
+				return errors.WithStackTrace(err)
+			}
+		}
+
+		// check egress rule
+		hasMatchingEgress, revokeIpPermissions := hasMatchingGroupIdRule(id, securityGroup.IpPermissionsEgress)
+		if hasMatchingEgress && len(revokeIpPermissions) > 0 {
+			logging.Debugf("[Security Group revoke ingress] revoking the egress rules of %s", awsgo.StringValue(securityGroup.GroupId))
+			_, err := sg.Client.RevokeSecurityGroupEgress(&ec2.RevokeSecurityGroupEgressInput{
+				GroupId:       securityGroup.GroupId,
+				IpPermissions: revokeIpPermissions,
+			})
+			if err != nil {
+				logging.Debugf("[Security Group] Failed to revoke egress rules: %s", err)
+				return errors.WithStackTrace(err)
+			}
+		}
+
+	}
+	return nil
+}
+
+func hasMatchingGroupIdRule(checkingGroup *string, IpPermission []*ec2.IpPermission) (bool, []*ec2.IpPermission) {
+	var hasMatching bool
+	var revokeIpPermissions []*ec2.IpPermission
+
+	for _, ipPermission := range IpPermission {
+		revokeIdGroupPairs := make([]*ec2.UserIdGroupPair, 0) // Create a new slice to store filtered pairs
+
+		for _, pair := range ipPermission.UserIdGroupPairs {
+			// Check if GroupId match the checkingGroup
+			if awsgo.StringValue(pair.GroupId) == awsgo.StringValue(checkingGroup) {
+				revokeIdGroupPairs = append(revokeIdGroupPairs, pair) // Append to the filtered slice
+				hasMatching = true                                    // Set the flag if a match is found
+			}
+		}
+
+		if len(revokeIdGroupPairs) > 0 {
+			ipPermission.UserIdGroupPairs = revokeIdGroupPairs
+			revokeIpPermissions = append(revokeIpPermissions, ipPermission)
+		}
+	}
+
+	return hasMatching, revokeIpPermissions
+}
+
 func (sg *SecurityGroup) nuke(id *string) error {
 
 	if err := sg.terminateInstancesAssociatedWithSecurityGroup(*id); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	if err := sg.detachAssociatedSecurityGroups(id); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
