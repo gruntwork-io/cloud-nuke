@@ -67,6 +67,8 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.CodeDeployApplications{},
 		&resources.ConfigServiceRecorders{},
 		&resources.ConfigServiceRule{},
+		&resources.DataSyncTask{},
+		&resources.DataSyncLocation{},
 		&resources.DynamoDB{},
 		&resources.EBSVolumes{},
 		&resources.EBApplications{},

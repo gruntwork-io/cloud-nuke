@@ -29,6 +29,8 @@ func emptyConfig() *Config {
 		CodeDeployApplications:          ResourceType{FilterRule{}, FilterRule{}, ""},
 		ConfigServiceRecorder:           ResourceType{FilterRule{}, FilterRule{}, ""},
 		ConfigServiceRule:               ResourceType{FilterRule{}, FilterRule{}, ""},
+		DataSyncLocation:                ResourceType{FilterRule{}, FilterRule{}, ""},
+		DataSyncTask:                    ResourceType{FilterRule{}, FilterRule{}, ""},
 		DBGlobalClusters:                ResourceType{FilterRule{}, FilterRule{}, ""},
 		DBClusters:                      ResourceType{FilterRule{}, FilterRule{}, ""},
 		DBInstances:                     ResourceType{FilterRule{}, FilterRule{}, ""},
