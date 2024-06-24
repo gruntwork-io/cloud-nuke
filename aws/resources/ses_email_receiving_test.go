@@ -19,6 +19,7 @@ type mockedSesReceiptRule struct {
 	sesiface.SESAPI
 	DeleteReceiptRuleSetOutput ses.DeleteReceiptRuleSetOutput
 	ListReceiptRuleSetsOutput  ses.ListReceiptRuleSetsOutput
+	DescribeActiveReceiptRuleSetOutput  ses.DescribeActiveReceiptRuleSetOutput
 }
 
 func (m mockedSesReceiptRule) ListReceiptRuleSetsWithContext(_ awsgo.Context, _ *ses.ListReceiptRuleSetsInput, _ ...request.Option) (*ses.ListReceiptRuleSetsOutput, error) {
@@ -27,6 +28,10 @@ func (m mockedSesReceiptRule) ListReceiptRuleSetsWithContext(_ awsgo.Context, _ 
 
 func (m mockedSesReceiptRule) DeleteReceiptRuleSetWithContext(_ awsgo.Context, _ *ses.DeleteReceiptRuleSetInput, _ ...request.Option) (*ses.DeleteReceiptRuleSetOutput, error) {
 	return &m.DeleteReceiptRuleSetOutput, nil
+}
+
+func (m mockedSesReceiptRule) DescribeActiveReceiptRuleSetWithContext(_ awsgo.Context, _ *ses.DescribeActiveReceiptRuleSetInput, _ ...request.Option) (*ses.DescribeActiveReceiptRuleSetOutput, error) {
+	return &m.DescribeActiveReceiptRuleSetOutput, nil
 }
 
 func TestSesReceiptRule_GetAll(t *testing.T) {

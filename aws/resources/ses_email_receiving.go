@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -30,6 +31,13 @@ func (s *SesReceiptRule) getAll(c context.Context, configObj config.Config) ([]*
 		return nil, nil
 	}
 
+	// https://docs.aws.amazon.com/cli/latest/reference/ses/delete-receipt-rule-set.html
+	// Important : The currently active rule set cannot be deleted.
+	activeRule, err := s.Client.DescribeActiveReceiptRuleSetWithContext(s.Context, &ses.DescribeActiveReceiptRuleSetInput{})
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
 	result, err := s.Client.ListReceiptRuleSetsWithContext(s.Context, &ses.ListReceiptRuleSetsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -37,6 +45,11 @@ func (s *SesReceiptRule) getAll(c context.Context, configObj config.Config) ([]*
 
 	var rulesets []*string
 	for _, sets := range result.RuleSets {
+		// checking the rule set is the active one
+		if activeRule != nil && activeRule.Metadata != nil && awsgo.StringValue(activeRule.Metadata.Name) == awsgo.StringValue(sets.Name) {
+			logging.Debugf("The Ruleset %s is active and you wont able to delete it", awsgo.StringValue(sets.Name))
+			continue
+		}
 		if configObj.SESReceiptRuleSet.ShouldInclude(config.ResourceValue{
 			Name: sets.Name,
 			Time: sets.CreatedTimestamp,
