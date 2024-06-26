@@ -31,6 +31,8 @@ type Config struct {
 	CodeDeployApplications          ResourceType               `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType               `yaml:"ConfigServiceRecorder"`
 	ConfigServiceRule               ResourceType               `yaml:"ConfigServiceRule"`
+	DataSyncLocation                ResourceType               `yaml:"DataSyncLocation"`
+	DataSyncTask                    ResourceType               `yaml:"DataSyncTask"`
 	DBGlobalClusters                ResourceType               `yaml:"DBGlobalClusters"`
 	DBClusters                      ResourceType               `yaml:"DBClusters"`
 	DBInstances                     ResourceType               `yaml:"DBInstances"`
