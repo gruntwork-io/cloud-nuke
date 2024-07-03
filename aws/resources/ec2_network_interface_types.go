@@ -11,6 +11,10 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+const (
+	NetworkInterfaceTypeInterface = "interface"
+)
+
 type NetworkInterface struct {
 	BaseAwsResource
 	Client       ec2iface.EC2API

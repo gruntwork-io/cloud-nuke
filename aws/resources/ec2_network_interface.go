@@ -47,6 +47,17 @@ func (ni *NetworkInterface) getAll(c context.Context, configObj config.Config) (
 			continue
 		}
 
+		// NOTE: Not all network interface types can be detached programmatically, and some may take longer to nuke.
+		// Interfaces attached to Lambda or other AWS services may have specific detachment mechanisms managed by
+		// those services. Attempting to detach these via the API can cause errors. Skipping non-interface types
+		// ensures they are cleaned up automatically upon service deletion.
+		if awsgo.StringValue(networkInterface.InterfaceType) != NetworkInterfaceTypeInterface {
+			logging.Debugf("[Skip] Can't detach network interface of type '%v' via API. "+
+				"Detachment for this type is managed by the dependent service and will occur automatically upon "+
+				"resource deletion.", awsgo.StringValue(networkInterface.InterfaceType))
+			continue
+		}
+
 		if shouldIncludeNetworkInterface(networkInterface, firstSeenTime, configObj) {
 			identifiers = append(identifiers, networkInterface.NetworkInterfaceId)
 		}
