@@ -2,8 +2,11 @@ package resources
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/backup"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -34,6 +37,94 @@ func (bv *BackupVault) getAll(c context.Context, configObj config.Config) ([]*st
 	return names, nil
 }
 
+func (bv *BackupVault) nuke(name *string) error {
+	if err := bv.nukeRecoveryPoints(name); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	if err := bv.nukeBackupVault(name); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+func (bv *BackupVault) nukeBackupVault(name *string) error {
+	_, err := bv.Client.DeleteBackupVaultWithContext(bv.Context, &backup.DeleteBackupVaultInput{
+		BackupVaultName: name,
+	})
+	if err != nil {
+		logging.Debugf("[Failed] nuking the backup vault %s: %v", awsgo.StringValue(name), err)
+		return errors.WithStackTrace(err)
+	}
+	return nil
+}
+
+func (bv *BackupVault) nukeRecoveryPoints(name *string) error {
+	logging.Debugf("Nuking the recovery points of backup vault %s", awsgo.StringValue(name))
+
+	output, err := bv.Client.ListRecoveryPointsByBackupVaultWithContext(bv.Context, &backup.ListRecoveryPointsByBackupVaultInput{
+		BackupVaultName: name,
+	})
+
+	if err != nil {
+		logging.Debugf("[Failed] listing the recovery points of backup vault %s: %v", awsgo.StringValue(name), err)
+		return errors.WithStackTrace(err)
+	}
+
+	for _, recoveryPoint := range output.RecoveryPoints {
+		logging.Debugf("Deleting recovery point %s from backup vault %s", awsgo.StringValue(recoveryPoint.RecoveryPointArn), awsgo.StringValue(name))
+		_, err := bv.Client.DeleteRecoveryPointWithContext(bv.Context, &backup.DeleteRecoveryPointInput{
+			BackupVaultName:  name,
+			RecoveryPointArn: recoveryPoint.RecoveryPointArn,
+		})
+
+		if err != nil {
+			logging.Debugf("[Failed] nuking the backup vault %s: %v", awsgo.StringValue(name), err)
+			return errors.WithStackTrace(err)
+		}
+	}
+
+	// wait until all the recovery points nuked successfully
+	err = bv.WaitUntilRecoveryPointsDeleted(name)
+	if err != nil {
+		logging.Debugf("[Failed] waiting deletion of recovery points for backup vault %s: %v", awsgo.StringValue(name), err)
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debugf("[Ok] successfully nuked recovery points of backup vault %s", awsgo.StringValue(name))
+
+	return nil
+}
+
+func (bv *BackupVault) WaitUntilRecoveryPointsDeleted(name *string) error {
+	timeoutCtx, cancel := context.WithTimeout(bv.Context, 1*time.Minute)
+	defer cancel()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			return fmt.Errorf("recovery point deletion check timed out after 1 minute")
+		case <-ticker.C:
+			output, err := bv.Client.ListRecoveryPointsByBackupVaultWithContext(bv.Context, &backup.ListRecoveryPointsByBackupVaultInput{
+				BackupVaultName: name,
+			})
+			if err != nil {
+				logging.Debugf("recovery point(s) existance checking error : %v", err)
+				return err
+			}
+
+			if len(output.RecoveryPoints) == 0 {
+				return nil
+			}
+			logging.Debugf("%v Recovery point(s) still exists, waiting...", len(output.RecoveryPoints))
+		}
+	}
+}
+
 func (bv *BackupVault) nukeAll(names []*string) error {
 	if len(names) == 0 {
 		logging.Debugf("No backup vaults to nuke in region %s", bv.Region)
@@ -44,10 +135,7 @@ func (bv *BackupVault) nukeAll(names []*string) error {
 	var deletedNames []*string
 
 	for _, name := range names {
-		_, err := bv.Client.DeleteBackupVaultWithContext(bv.Context, &backup.DeleteBackupVaultInput{
-			BackupVaultName: name,
-		})
-
+		err := bv.nuke(name)
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(name),
