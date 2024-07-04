@@ -172,20 +172,20 @@ workflows:
             parameters:
               os: [ "linux", "windows", "darwin" ]
               arch: [ "386", "amd64", "arm64" ]
-#          filters:
-#            tags:
-#              only: /^v.*/
+          filters:
+            tags:
+              only: /^v.*/
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
       - deploy:
           requires:
             - build
-#          filters:
-#            tags:
-#              only: /^v.*/
-#            branches:
-#              ignore: /.*/
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
