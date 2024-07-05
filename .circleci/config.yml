@@ -5,7 +5,7 @@ orbs:
 env: &env
   environment:
     GRUNTWORK_INSTALLER_VERSION: v0.0.39
-    MODULE_CI_VERSION: v0.53.3
+    MODULE_CI_VERSION: v0.57.0
 
 defaults: &defaults
   resource_class: large
@@ -116,8 +116,8 @@ jobs:
   deploy:
     <<: *env
     macos:
-      xcode: 14.2.0
-    resource_class: macos.x86.medium.gen2
+      xcode: 15.3.0
+    resource_class: macos.m1.medium.gen1
     steps:
       - checkout
       - attach_workspace:
