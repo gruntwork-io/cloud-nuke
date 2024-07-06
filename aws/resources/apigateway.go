@@ -82,6 +82,10 @@ func (gateway *ApiGateway) getAttachedStageClientCerts(apigwID *string) ([]*stri
 	}
 	// get the stages attached client certificates
 	for _, stage := range stages.Item {
+		if stage.ClientCertificateId == nil {
+			logging.Debugf("Skipping certyficate for stage %s, certyficate ID is nil", *stage.StageName)
+			continue
+		}
 		clientCerts = append(clientCerts, stage.ClientCertificateId)
 	}
 	return clientCerts, nil
