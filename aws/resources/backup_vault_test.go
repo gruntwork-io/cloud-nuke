@@ -18,8 +18,10 @@ import (
 
 type mockedBackupVault struct {
 	backupiface.BackupAPI
-	ListBackupVaultsOutput  backup.ListBackupVaultsOutput
-	DeleteBackupVaultOutput backup.DeleteBackupVaultOutput
+	ListBackupVaultsOutput                backup.ListBackupVaultsOutput
+	ListRecoveryPointsByBackupVaultOutput backup.ListRecoveryPointsByBackupVaultOutput
+	DeleteRecoveryPointOutput             backup.DeleteRecoveryPointOutput
+	DeleteBackupVaultOutput               backup.DeleteBackupVaultOutput
 }
 
 func (m mockedBackupVault) ListBackupVaultsPagesWithContext(_ awsgo.Context, _ *backup.ListBackupVaultsInput, fn func(*backup.ListBackupVaultsOutput, bool) bool, _ ...request.Option) error {
@@ -31,6 +33,18 @@ func (m mockedBackupVault) DeleteBackupVaultWithContext(_ awsgo.Context, _ *back
 	return &m.DeleteBackupVaultOutput, nil
 }
 
+func (m mockedBackupVault) ListRecoveryPointsByBackupVaultWithContext(aws.Context, *backup.ListRecoveryPointsByBackupVaultInput, ...request.Option) (*backup.ListRecoveryPointsByBackupVaultOutput, error) {
+	return &m.ListRecoveryPointsByBackupVaultOutput, nil
+}
+
+func (m mockedBackupVault) WaitUntilRecoveryPointsDeleted(*string) error {
+	return nil
+}
+
+func (m mockedBackupVault) DeleteRecoveryPointWithContext(aws.Context, *backup.DeleteRecoveryPointInput, ...request.Option) (*backup.DeleteRecoveryPointOutput, error) {
+	return &m.DeleteRecoveryPointOutput, nil
+}
+
 func TestBackupVaultGetAll(t *testing.T) {
 
 	t.Parallel()
@@ -39,6 +53,7 @@ func TestBackupVaultGetAll(t *testing.T) {
 	testName2 := "test-backup-vault-2"
 	now := time.Now()
 	bv := BackupVault{
+
 		Client: mockedBackupVault{
 			ListBackupVaultsOutput: backup.ListBackupVaultsOutput{
 				BackupVaultList: []*backup.VaultListMember{
@@ -52,6 +67,7 @@ func TestBackupVaultGetAll(t *testing.T) {
 					},
 				}}},
 	}
+	bv.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -100,6 +116,8 @@ func TestBackupVaultNuke(t *testing.T) {
 			DeleteBackupVaultOutput: backup.DeleteBackupVaultOutput{},
 		},
 	}
+	bv.BaseAwsResource.Init(nil)
+	bv.Context = context.Background()
 
 	err := bv.nukeAll([]*string{aws.String("test-backup-vault")})
 	require.NoError(t, err)
