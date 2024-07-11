@@ -8,10 +8,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"gopkg.in/yaml.v2"
 )
 
-const DefaultAwsResourceExclusionTagKey = "cloud-nuke-excluded"
+const (
+	DefaultAwsResourceExclusionTagKey = "cloud-nuke-excluded"
+	CloudNukeAfterExclusionTagKey     = "cloud-nuke-after"
+	CloudNukeAfterTimeFormat          = time.RFC3339
+	CloudNukeAfterTimeFormatLegacy    = time.DateTime
+)
 
 // Config - the config object we pass around
 type Config struct {
@@ -183,6 +189,30 @@ func (c *Config) addDefautlOnly(flag bool) {
 	}
 }
 
+func (c *Config) addBoolFlag(flag bool, fieldName string) {
+	// Do nothing if the flag filter is false, by default it will be false
+	if flag == false {
+		return
+	}
+
+	v := reflect.ValueOf(c).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Kind() != reflect.Struct {
+			continue
+		}
+
+		defaultOnlyField := field.FieldByName(fieldName)
+		// IsValid reports whether v represents a value.
+		// It returns false if v is the zero Value.
+		// If IsValid returns false, all other methods except String panic.
+		if defaultOnlyField.IsValid() {
+			defaultOnlyVal := defaultOnlyField.Addr().Interface().(*bool)
+			*defaultOnlyVal = flag
+		}
+	}
+}
+
 func (c *Config) AddIncludeAfterTime(includeAfter *time.Time) {
 	// include after filter has been applied to all resources via `newer-than` flag, we are
 	// setting this rule across all resource types.
@@ -204,7 +234,12 @@ func (c *Config) AddTimeout(timeout *time.Duration) {
 func (c *Config) AddEC2DefaultOnly(flag bool) {
 	// The flag filter has been applied to all resources via the default-only flag.
 	// We are now setting this rule across all resource types that have a field named `DefaultOnly`.
-	c.addDefautlOnly(flag)
+	c.addBoolFlag(flag, "DefaultOnly")
+}
+
+func (c *Config) AddProtectUntilExpireFlag(flag bool) {
+	// We are now setting this rule across all resource types that have a field named `ProtectUntilExpire`.
+	c.addBoolFlag(flag, "ProtectUntilExpire")
 }
 
 type KMSCustomerKeyResourceType struct {
@@ -217,9 +252,10 @@ type EC2ResourceType struct {
 }
 
 type ResourceType struct {
-	IncludeRule FilterRule `yaml:"include"`
-	ExcludeRule FilterRule `yaml:"exclude"`
-	Timeout     string     `yaml:"timeout"`
+	IncludeRule        FilterRule `yaml:"include"`
+	ExcludeRule        FilterRule `yaml:"exclude"`
+	Timeout            string     `yaml:"timeout"`
+	ProtectUntilExpire bool       `yaml:"protect_until_expire"`
 }
 
 type FilterRule struct {
@@ -327,6 +363,20 @@ func (r ResourceType) getExclusionTag() string {
 	return DefaultAwsResourceExclusionTagKey
 }
 
+func ParseTimestamp(timestamp string) (*time.Time, error) {
+	parsed, err := time.Parse(CloudNukeAfterTimeFormat, timestamp)
+	if err != nil {
+		logging.Debugf("Error parsing the timestamp into a `%v` Time format. Trying parsing the timestamp using the legacy `time.DateTime` format.", CloudNukeAfterTimeFormat)
+		parsed, err = time.Parse(CloudNukeAfterTimeFormatLegacy, timestamp)
+		if err != nil {
+			logging.Debugf("Error parsing the timestamp into legacy `time.DateTime` Time format")
+			return nil, err
+		}
+	}
+
+	return &parsed, nil
+}
+
 func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 	// Handle exclude rule first
 	exclusionTag := r.getExclusionTag()
@@ -336,6 +386,18 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 		}
 	}
 
+	if r.ProtectUntilExpire {
+		// Check if the tags contain "cloud-nuke-after" and if the date is before today.
+		if value, ok := tags[CloudNukeAfterExclusionTagKey]; ok {
+			nukeDate, err := ParseTimestamp(value)
+			if err == nil {
+				if !nukeDate.Before(time.Now()) {
+					logging.Debugf("[Skip] the resource is protected until %v", nukeDate)
+					return false
+				}
+			}
+		}
+	}
 	return true
 }
 
