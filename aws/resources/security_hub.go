@@ -105,7 +105,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	}
 
 	// Remove any member accounts if they exist
-	if err == nil && len(memberAccountIds) > 0 {
+	if len(memberAccountIds) > 0 {
 		err = sh.removeMembersFromHub(memberAccountIds)
 		if err != nil {
 			logging.Errorf("[Failed] Failed to disassociate members from security hub")
