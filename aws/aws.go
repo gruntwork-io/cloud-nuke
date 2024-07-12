@@ -30,6 +30,9 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	// This function only sets the objects that have the `DefaultOnly` field, currently VPC, Subnet, and Security Group.
 	configObj.AddEC2DefaultOnly(query.DefaultOnly)
 
+	// This will protect dated resources by nuking them until the specified date has passed
+	configObj.AddProtectUntilExpireFlag(query.ProtectUntilExpire)
+
 	account := AwsAccountResources{
 		Resources: make(map[string]AwsResources),
 	}
