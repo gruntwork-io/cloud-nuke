@@ -74,6 +74,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | CloudWatch              | Alarms                                                   |
 | OpenSearch              | Domains                                                  |
 | KMS                     | Custgomer managed keys (and associated key aliases)      |
+| Managed Prometheus      | Prometheus Workspace                                     |
 | GuardDuty               | Detectors                                                |
 | Macie                   | Member accounts                                          |
 | SageMaker               | Notebook instances                                       |
@@ -606,6 +607,7 @@ of the file that are supported are listed here.
 | lt                               | LaunchTemplate                | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    | ✅       |
 | macie-member                     | MacieMember                   | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | msk-cluster                      | MSKCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| managed-prometheus               | ManagedPrometheus             | ✅ (Workspace Alias)                   | ✅ (Creation Time)                   | ✅    | ✅       |
 | nat-gateway                      | NatGateway                    | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | network-acl                      | NetworkACL                    | ✅ (ACL Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | network-interface                | NetworkInterface              | ✅ (Interface Name Tag)                | ✅ (Creation Time)                   | ✅    | ✅       |

@@ -1,7 +1,12 @@
 package aws
 
 import (
+	"context"
 	"fmt"
+
+	awsgoV2 "github.com/aws/aws-sdk-go-v2/aws"
+	awsgoV2cfg "github.com/aws/aws-sdk-go-v2/config"
+	awsgoV2cred "github.com/aws/aws-sdk-go-v2/credentials"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -145,4 +150,26 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 		return nil, fmt.Errorf("Cannot exclude all regions: %s", excludedRegions)
 	}
 	return targetRegions, nil
+}
+
+func Session2cfg(ctx context.Context, session *session.Session) (awsgoV2.Config, error) {
+	cfgV1 := session.Config
+	cred, err := cfgV1.Credentials.Get()
+	if err != nil {
+		return awsgoV2.Config{}, errors.WithStackTrace(err)
+	}
+
+	cfgV2, err := awsgoV2cfg.LoadDefaultConfig(ctx,
+		awsgoV2cfg.WithRegion(*cfgV1.Region),
+		awsgoV2cfg.WithCredentialsProvider(awsgoV2cred.NewStaticCredentialsProvider(
+			cred.AccessKeyID,
+			cred.SecretAccessKey,
+			cred.SessionToken,
+		)),
+	)
+	if err != nil {
+		return awsgoV2.Config{}, errors.WithStackTrace(err)
+	}
+
+	return cfgV2, nil
 }
