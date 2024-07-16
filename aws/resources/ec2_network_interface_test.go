@@ -72,7 +72,6 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 				NetworkInterfaces: []*ec2.NetworkInterface{
 					{
 						NetworkInterfaceId: awsgo.String(testId1),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
 						TagSet: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),
@@ -86,7 +85,6 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 					},
 					{
 						NetworkInterfaceId: awsgo.String(testId2),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
 						TagSet: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),
@@ -182,7 +180,6 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 				NetworkInterfaces: []*ec2.NetworkInterface{
 					{
 						NetworkInterfaceId: awsgo.String(testId1),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
 						TagSet: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),
@@ -196,7 +193,6 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 					},
 					{
 						NetworkInterfaceId: awsgo.String(testId2),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
 						TagSet: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),

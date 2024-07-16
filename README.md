@@ -341,11 +341,6 @@ cloud-nuke aws --resource-type s3 --timeout 10m
 ```
 This will attempt to nuke the specified resources within a 10-minute timeframe.
 
-
-### Protect Resources with `cloud-nuke-after` Tag
-By tagging resources with `cloud-nuke-after` and specifying a future date in ISO 8601 format (e.g., 2024-07-09T00:00:00Z), you can ensure that these resources are protected from accidental or premature deletion until the specified date. This method helps to keep important resources intact until their designated expiration date.
-
-
 ### Using cloud-nuke as a library
 
 You can import cloud-nuke into other projects and use it as a library for programmatically inspecting and counting

@@ -19,8 +19,6 @@ type mockedSnapshot struct {
 	ec2iface.EC2API
 	DeleteSnapshotOutput    ec2.DeleteSnapshotOutput
 	DescribeSnapshotsOutput ec2.DescribeSnapshotsOutput
-	DescribeImagesOutput    ec2.DescribeImagesOutput
-	DeregisterImageOutput   ec2.DeregisterImageOutput
 }
 
 func (m mockedSnapshot) DeleteSnapshotWithContext(_ awsgo.Context, _ *ec2.DeleteSnapshotInput, _ ...request.Option) (*ec2.DeleteSnapshotOutput, error) {
@@ -29,12 +27,6 @@ func (m mockedSnapshot) DeleteSnapshotWithContext(_ awsgo.Context, _ *ec2.Delete
 
 func (m mockedSnapshot) DescribeSnapshotsWithContext(_ awsgo.Context, _ *ec2.DescribeSnapshotsInput, _ ...request.Option) (*ec2.DescribeSnapshotsOutput, error) {
 	return &m.DescribeSnapshotsOutput, nil
-}
-func (m mockedSnapshot) DescribeImagesWithContext(awsgo.Context, *ec2.DescribeImagesInput, ...request.Option) (*ec2.DescribeImagesOutput, error) {
-	return &m.DescribeImagesOutput, nil
-}
-func (m mockedSnapshot) DeregisterImageWithContext(awsgo.Context, *ec2.DeregisterImageInput, ...request.Option) (*ec2.DeregisterImageOutput, error) {
-	return &m.DeregisterImageOutput, nil
 }
 
 func TestSnapshot_GetAll(t *testing.T) {

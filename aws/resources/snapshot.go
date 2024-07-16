@@ -69,60 +69,6 @@ func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
 	return false
 }
 
-func (s *Snapshots) nuke(id *string) error {
-
-	if err := s.nukeAMI(id); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	if err := s.nukeSnapshot(id); err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-func (s *Snapshots) nukeSnapshot(snapshotID *string) error {
-	_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
-		SnapshotId: snapshotID,
-	})
-	return err
-}
-
-// nuke AMI which created from the snapshot
-func (s *Snapshots) nukeAMI(snapshotID *string) error {
-	logging.Debugf("De-registering images for snapshot: %s", awsgo.StringValue(snapshotID))
-
-	output, err := s.Client.DescribeImagesWithContext(s.Context, &ec2.DescribeImagesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   awsgo.String("block-device-mapping.snapshot-id"),
-				Values: []*string{snapshotID},
-			},
-		},
-	})
-
-	if err != nil {
-		logging.Debugf("[Describe Images] Failed to describe images for snapshot: %s", awsgo.StringValue(snapshotID))
-		return err
-	}
-
-	for _, image := range output.Images {
-		_, err := s.Client.DeregisterImageWithContext(s.Context, &ec2.DeregisterImageInput{
-			ImageId: image.ImageId,
-		})
-
-		if err != nil {
-			logging.Debugf("[Failed] de-registering image %v for snapshot: %s", awsgo.StringValue(image.ImageId), awsgo.StringValue(snapshotID))
-			return err
-		}
-	}
-
-	logging.Debugf("[Ok] De-registered all the images for snapshot: %s", awsgo.StringValue(snapshotID))
-
-	return nil
-}
-
 // Deletes all Snapshots
 func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 
@@ -141,7 +87,9 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 			continue
 		}
 
-		err := s.nuke(snapshotID)
+		_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
+			SnapshotId: snapshotID,
+		})
 
 		// Record status of this resource
 		e := report.Entry{

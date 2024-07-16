@@ -16,7 +16,6 @@ type Query struct {
 	Timeout              *time.Duration
 	ExcludeFirstSeen     bool
 	DefaultOnly          bool
-	ProtectUntilExpire   bool
 }
 
 // NewQuery configures and returns a Query struct that can be passed into the InspectResources method
@@ -36,7 +35,6 @@ func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []str
 		Timeout:              timeout,
 		DefaultOnly:          defaultOnly,
 		ExcludeFirstSeen:     excludeFirstSeen,
-		ProtectUntilExpire:   false,
 	}
 
 	validationErr := q.Validate()
