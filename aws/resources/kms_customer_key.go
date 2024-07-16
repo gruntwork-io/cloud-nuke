@@ -61,6 +61,11 @@ func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) (
 	for _, keyId := range keys {
 		resultsChan[id] = make(chan *KmsCheckIncludeResult, 1)
 
+		if err != nil {
+			logging.Debugf("Can't read KMS key %s", err.Error())
+			continue
+		}
+
 		// If the keyId isn't found in the map, this returns an empty array
 		aliasesForKey := keyAliases[keyId]
 

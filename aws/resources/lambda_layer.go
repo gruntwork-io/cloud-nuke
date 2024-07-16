@@ -119,6 +119,10 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 
 		_, err := ll.Client.DeleteLayerVersionWithContext(ll.Context, params)
 
+		if err != nil {
+			return err
+		}
+
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(params.LayerName),
