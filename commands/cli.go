@@ -99,6 +99,10 @@ func CreateCli(version string) *cli.App {
 					Name:  "timeout",
 					Usage: "Resource execution timeout.",
 				},
+				&cli.BoolFlag{
+					Name:  "exclude-first-seen",
+					Usage: "Set a flag for excluding first-seen-tag",
+				},
 			},
 		}, {
 			Name:   "defaults-aws",
