@@ -11,7 +11,7 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// TransitGateways - represents all transit gateways
+// TransitGatewayPeeringAttachment - represents all transit gateways peering attachment
 type TransitGatewayPeeringAttachment struct {
 	BaseAwsResource
 	Client ec2iface.EC2API

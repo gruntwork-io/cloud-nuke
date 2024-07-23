@@ -11,9 +11,9 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of TranstGatewayRouteTable IDs
+// Returns a formatted string of TransitGatewayRouteTable IDs
 func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	// Remove defalt route table, that will be deleted along with its TransitGateway
+	// Remove default route table, that will be deleted along with its TransitGateway
 	param := &ec2.DescribeTransitGatewayRouteTablesInput{
 		Filters: []*ec2.Filter{
 			{

@@ -68,7 +68,7 @@ func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
 	if waiterr := waitForTransitGatewayAttachementToBeDeleted(*tgw); waiterr != nil {
 		return errors.WithStackTrace(waiterr)
 	}
-	logging.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), tgw.Region)
+	logging.Debugf("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s", len(deletedIds), tgw.Region)
 	return nil
 }
 
