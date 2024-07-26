@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	goerror "github.com/go-errors/errors"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -120,21 +119,20 @@ func (tgw *TransitGateways) nukeAttachments(id *string) error {
 		switch attachmentType {
 		case TransitGatewayAttachmentTypePeering:
 			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.StringValue(id))
-			_, err = tgw.Client.DeleteTransitGatewayPeeringAttachmentWithContext(context.Background(), &ec2.DeleteTransitGatewayPeeringAttachmentInput{
+			_, err = tgw.Client.DeleteTransitGatewayPeeringAttachmentWithContext(tgw.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
 				TransitGatewayAttachmentId: attachments.TransitGatewayAttachmentId,
 			})
 		default:
-			err = fmt.Errorf("%v typed transit gateway attachment nuking not handled.", attachmentType)
+			err = fmt.Errorf("%v typed transit gateway attachment nuking not handled", attachmentType)
 		}
 		if err != nil {
 			logging.Errorf("[Failed] unable to delete the  transit gateway peernig attachment for %v : %s", awsgo.StringValue(id), err)
 			return err
 		}
 
-		err = tgw.WaitUntilTransitGatewayAttachmentDeleted(id, attachmentType)
-		if err != nil {
+		if err := tgw.WaitUntilTransitGatewayAttachmentDeleted(id, attachmentType); err != nil {
 			logging.Errorf("[Failed] unable to wait until nuking the transit gateway attachment with type %v for %v : %s", attachmentType,awsgo.StringValue(id), err)
-			return err
+			return errors.WithStackTrace(err)
 		}
 
 		logging.Debugf("waited %v to nuke the attachment", time.Since(now))
@@ -175,7 +173,7 @@ func (tgw *TransitGateways) WaitUntilTransitGatewayAttachmentDeleted(id *string,
 			})
 			if err != nil {
 				logging.Debugf("transit gateway attachment(s) as type %v existance checking error : %v", attachmentType,err)
-				return err
+				return errors.WithStackTrace(err)
 			}
 
 			if len(output.TransitGatewayAttachments) == 0 {
@@ -224,187 +222,4 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 
 	logging.Debugf("[OK] %d Transit Gateway(s) deleted in %s", len(deletedIds), tgw.Region)
 	return nil
-}
-
-// Returns a formatted string of TranstGatewayRouteTable IDs
-func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	// Remove defalt route table, that will be deleted along with its TransitGateway
-	param := &ec2.DescribeTransitGatewayRouteTablesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("default-association-route-table"),
-				Values: []*string{
-					aws.String("false"),
-				},
-			},
-		},
-	}
-
-	result, err := tgw.Client.DescribeTransitGatewayRouteTablesWithContext(tgw.Context, param)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	var ids []*string
-	for _, transitGatewayRouteTable := range result.TransitGatewayRouteTables {
-		if configObj.TransitGatewayRouteTable.ShouldInclude(config.ResourceValue{Time: transitGatewayRouteTable.CreationTime}) &&
-			awsgo.StringValue(transitGatewayRouteTable.State) != "deleted" && awsgo.StringValue(transitGatewayRouteTable.State) != "deleting" {
-			ids = append(ids, transitGatewayRouteTable.TransitGatewayRouteTableId)
-		}
-	}
-
-	return ids, nil
-}
-
-// Delete all TransitGatewayRouteTables
-func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No Transit Gateway Route Tables to nuke in region %s", tgw.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Transit Gateway Route Tables in region %s", tgw.Region)
-	var deletedIds []*string
-
-	for _, id := range ids {
-		param := &ec2.DeleteTransitGatewayRouteTableInput{
-			TransitGatewayRouteTableId: id,
-		}
-
-		_, err := tgw.Client.DeleteTransitGatewayRouteTableWithContext(tgw.Context, param)
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Transit Gateway Route Table: %s", *id)
-		}
-	}
-
-	logging.Debugf("[OK] %d Transit Gateway Route Table(s) deleted in %s", len(deletedIds), tgw.Region)
-	return nil
-}
-
-// Returns a formated string of TransitGatewayVpcAttachment IDs
-func (tgw *TransitGatewaysVpcAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := tgw.Client.DescribeTransitGatewayVpcAttachmentsWithContext(tgw.Context, &ec2.DescribeTransitGatewayVpcAttachmentsInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	var ids []*string
-	for _, tgwVpcAttachment := range result.TransitGatewayVpcAttachments {
-		if configObj.TransitGatewaysVpcAttachment.ShouldInclude(config.ResourceValue{Time: tgwVpcAttachment.CreationTime}) &&
-			awsgo.StringValue(tgwVpcAttachment.State) != "deleted" && awsgo.StringValue(tgwVpcAttachment.State) != "deleting" {
-			ids = append(ids, tgwVpcAttachment.TransitGatewayAttachmentId)
-		}
-	}
-
-	return ids, nil
-}
-
-// Delete all TransitGatewayVpcAttachments
-func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No Transit Gateway Vpc Attachments to nuke in region %s", tgw.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Transit Gateway Vpc Attachments in region %s", tgw.Region)
-	var deletedIds []*string
-
-	for _, id := range ids {
-		param := &ec2.DeleteTransitGatewayVpcAttachmentInput{
-			TransitGatewayAttachmentId: id,
-		}
-
-		_, err := tgw.Client.DeleteTransitGatewayVpcAttachmentWithContext(tgw.Context, param)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.StringValue(id),
-			ResourceType: "Transit Gateway",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Transit Gateway Vpc Attachment: %s", *id)
-		}
-	}
-
-	if waiterr := waitForTransitGatewayAttachementToBeDeleted(*tgw); waiterr != nil {
-		return errors.WithStackTrace(waiterr)
-	}
-	logging.Debugf(("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s"), len(deletedIds), tgw.Region)
-	return nil
-}
-
-func (tgpa *TransitGatewayPeeringAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var ids []*string
-	err := tgpa.Client.DescribeTransitGatewayPeeringAttachmentsPagesWithContext(tgpa.Context, &ec2.DescribeTransitGatewayPeeringAttachmentsInput{}, func(result *ec2.DescribeTransitGatewayPeeringAttachmentsOutput, lastPage bool) bool {
-		for _, attachment := range result.TransitGatewayPeeringAttachments {
-			if configObj.TransitGatewayPeeringAttachment.ShouldInclude(config.ResourceValue{
-				Time: attachment.CreationTime,
-			}) {
-				ids = append(ids, attachment.TransitGatewayAttachmentId)
-			}
-		}
-
-		return !lastPage
-	})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	return ids, nil
-}
-
-func (tgpa *TransitGatewayPeeringAttachment) nukeAll(ids []*string) error {
-	for _, id := range ids {
-		_, err := tgpa.Client.DeleteTransitGatewayPeeringAttachmentWithContext(tgpa.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
-			TransitGatewayAttachmentId: id,
-		})
-		// Record status of this resource
-		report.Record(report.Entry{
-			Identifier:   aws.StringValue(id),
-			ResourceType: tgpa.ResourceName(),
-			Error:        err,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-		} else {
-			logging.Debugf("Deleted Transit Gateway Peering Attachment: %s", *id)
-		}
-	}
-
-	return nil
-}
-
-func waitForTransitGatewayAttachementToBeDeleted(tgw TransitGatewaysVpcAttachment) error {
-	for i := 0; i < 30; i++ {
-		gateways, err := tgw.Client.DescribeTransitGatewayVpcAttachments(
-			&ec2.DescribeTransitGatewayVpcAttachmentsInput{
-				TransitGatewayAttachmentIds: aws.StringSlice(tgw.Ids),
-				Filters: []*ec2.Filter{
-					{
-						Name:   awsgo.String("state"),
-						Values: []*string{awsgo.String("deleting")},
-					},
-				},
-			},
-		)
-		if err != nil {
-			return err
-		}
-		if len(gateways.TransitGatewayVpcAttachments) == 0 {
-			return nil
-		}
-		logging.Info("Waiting for transit gateways attachemensts to be deleted...")
-		time.Sleep(10 * time.Second)
-	}
-
-	return goerror.New("timed out waiting for transit gateway attahcments to be successfully deleted")
 }
