@@ -16,8 +16,10 @@ import (
 
 type mockedTransitGateway struct {
 	ec2iface.EC2API
-	DescribeTransitGatewaysOutput ec2.DescribeTransitGatewaysOutput
-	DeleteTransitGatewayOutput    ec2.DeleteTransitGatewayOutput
+	DescribeTransitGatewaysOutput               ec2.DescribeTransitGatewaysOutput
+	DeleteTransitGatewayOutput                  ec2.DeleteTransitGatewayOutput
+	DescribeTransitGatewayAttachmentsOutput     ec2.DescribeTransitGatewayAttachmentsOutput
+	DeleteTransitGatewayPeeringAttachmentOutput ec2.DeleteTransitGatewayPeeringAttachmentOutput
 }
 
 func (m mockedTransitGateway) DescribeTransitGatewaysWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewaysInput, _ ...request.Option) (*ec2.DescribeTransitGatewaysOutput, error) {
@@ -26,6 +28,17 @@ func (m mockedTransitGateway) DescribeTransitGatewaysWithContext(_ awsgo.Context
 
 func (m mockedTransitGateway) DeleteTransitGatewayWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayInput, _ ...request.Option) (*ec2.DeleteTransitGatewayOutput, error) {
 	return &m.DeleteTransitGatewayOutput, nil
+}
+
+func (m mockedTransitGateway) DescribeTransitGatewayAttachmentsWithContext(awsgo.Context, *ec2.DescribeTransitGatewayAttachmentsInput, ...request.Option) (*ec2.DescribeTransitGatewayAttachmentsOutput, error) {
+	return &m.DescribeTransitGatewayAttachmentsOutput, nil
+}
+
+func (m mockedTransitGateway) DeleteTransitGatewayPeeringAttachmentWithContext(aws.Context, *ec2.DeleteTransitGatewayPeeringAttachmentInput, ...request.Option) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
+	return &m.DeleteTransitGatewayPeeringAttachmentOutput, nil
+}
+func (m mockedTransitGateway) WaitUntilTransitGatewayAttachmentDeleted(*string, string) error {
+	return nil
 }
 
 func TestTransitGateways_GetAll(t *testing.T) {
