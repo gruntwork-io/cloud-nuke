@@ -50,7 +50,6 @@ func (ct *CloudtrailTrail) nukeAll(arns []*string) error {
 		}
 
 		_, err := ct.Client.DeleteTrailWithContext(ct.Context, params)
-
 		// Record status of this resource
 		e := report.Entry{
 			Identifier:   aws.StringValue(arn),
