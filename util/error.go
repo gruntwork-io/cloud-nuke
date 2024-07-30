@@ -18,6 +18,7 @@ var ErrDeleteProtectionEnabled = errors.New("error:DeleteProtectionEnabled")
 var ErrResourceNotFoundException = errors.New("error:ErrResourceNotFoundException")
 
 const AWsUnauthorizedError string = "UnauthorizedOperation"
+const AWSAccessDeniedException string = "AccessDeniedException"
 const AwsDryRunSuccess string = "Request would have succeeded, but DryRun flag is set."
 
 // TransformAWSError
@@ -26,7 +27,7 @@ const AwsDryRunSuccess string = "Request would have succeeded, but DryRun flag i
 // providing a more human-readable error message for certain conditions
 // ref : https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
 func TransformAWSError(err error) error {
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == AWsUnauthorizedError {
+	if awsErr, ok := err.(awserr.Error); ok && (awsErr.Code() == AWsUnauthorizedError || awsErr.Code() == AWSAccessDeniedException) {
 		return ErrInSufficientPermission
 	}
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "RequestCanceled" {
