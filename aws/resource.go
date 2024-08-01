@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	awsgoV2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/config"
 )
@@ -11,12 +12,14 @@ import (
 // AwsResource is an interface that represents a single AWS resource
 type AwsResource interface {
 	Init(session *session.Session)
+	InitV2(cfg awsgoV2.Config)
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int
 	Nuke(identifiers []string) error
 	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
 	IsNukable(string) (bool, error)
+	IsUsingV2() bool
 
 	PrepareContext(context.Context, config.ResourceType) error
 	GetAndSetResourceConfig(config.Config) config.ResourceType
