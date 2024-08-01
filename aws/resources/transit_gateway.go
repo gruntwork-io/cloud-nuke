@@ -17,6 +17,8 @@ import (
 
 const (
 	TransitGatewayAttachmentTypePeering = "peering"
+	TransitGatewayAttachmentTypeVPC     = "vpc"
+	TransitGatewayAttachmentTypeConnect = "connect"
 )
 
 // [Note 1] :  NOTE on the Apporach used:-Using the `dry run` approach on verifying the nuking permission in case of a scoped IAM role.
@@ -119,7 +121,20 @@ func (tgw *TransitGateways) nukeAttachments(id *string) error {
 		switch attachmentType {
 		case TransitGatewayAttachmentTypePeering:
 			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.StringValue(id))
+			// Delete the Transit Gateway Peering Attachment
 			_, err = tgw.Client.DeleteTransitGatewayPeeringAttachmentWithContext(tgw.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
+				TransitGatewayAttachmentId: attachments.TransitGatewayAttachmentId,
+			})
+		case TransitGatewayAttachmentTypeVPC:
+			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.StringValue(id))
+			// Delete the Transit Gateway VPC Attachment
+			_, err = tgw.Client.DeleteTransitGatewayVpcAttachmentWithContext(tgw.Context, &ec2.DeleteTransitGatewayVpcAttachmentInput{
+				TransitGatewayAttachmentId: attachments.TransitGatewayAttachmentId,
+			})
+		case TransitGatewayAttachmentTypeConnect:
+			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.StringValue(id))
+			// Delete the Transit Gateway Connect Attachment
+			_, err = tgw.Client.DeleteTransitGatewayConnectWithContext(tgw.Context, &ec2.DeleteTransitGatewayConnectInput{
 				TransitGatewayAttachmentId: attachments.TransitGatewayAttachmentId,
 			})
 		default:
@@ -129,9 +144,8 @@ func (tgw *TransitGateways) nukeAttachments(id *string) error {
 			logging.Errorf("[Failed] unable to delete the  transit gateway peernig attachment for %v : %s", awsgo.StringValue(id), err)
 			return err
 		}
-
 		if err := tgw.WaitUntilTransitGatewayAttachmentDeleted(id, attachmentType); err != nil {
-			logging.Errorf("[Failed] unable to wait until nuking the transit gateway attachment with type %v for %v : %s", attachmentType, awsgo.StringValue(id), err)
+			logging.Errorf("[Failed] unable to wait until nuking the transit gateway attachment with type %v for %v : %s", attachmentType,awsgo.StringValue(id), err)
 			return errors.WithStackTrace(err)
 		}
 
