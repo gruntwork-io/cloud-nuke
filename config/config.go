@@ -56,6 +56,7 @@ type Config struct {
 	EC2IPAMResourceDiscovery        ResourceType               `yaml:"EC2IPAMResourceDiscovery"`
 	EC2IPAMScope                    ResourceType               `yaml:"EC2IPAMScope"`
 	EC2Endpoint                     ResourceType               `yaml:"EC2Endpoint"`
+	EC2PlacementGroups              ResourceType               `yaml:"EC2PlacementGroups"`
 	EC2Subnet                       EC2ResourceType            `yaml:"EC2Subnet"`
 	EgressOnlyInternetGateway       ResourceType               `yaml:"EgressOnlyInternetGateway"`
 	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
