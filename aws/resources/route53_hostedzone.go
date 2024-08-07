@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -19,11 +20,12 @@ func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) (
 		return nil, err
 	}
 
-	for _, r := range result.HostedZones {
+	for _, zone := range result.HostedZones {
 		if configObj.Route53HostedZone.ShouldInclude(config.ResourceValue{
-			Name: r.Name,
+			Name: zone.Name,
 		}) {
-			ids = append(ids, r.Id)
+			ids = append(ids, zone.Id)
+			r.HostedZonesDomains[awsgo.StringValue(zone.Id)] = zone
 		}
 	}
 	return ids, nil
@@ -62,9 +64,14 @@ func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
 		return err
 	}
 
+	// get the domain name
+	var domainName = awsgo.StringValue(r.HostedZonesDomains[awsgo.StringValue(id)].Name)
+
 	var changes []*route53.Change
 	for _, record := range output.ResourceRecordSets {
-		if aws.StringValue(record.Type) == "NS" || aws.StringValue(record.Type) == "SOA" {
+		// Note : We can't delete the SOA record or the NS record named ${domain-name}.
+		// Reference : https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-deleting.html
+		if (aws.StringValue(record.Type) == "NS" || aws.StringValue(record.Type) == "SOA") && awsgo.StringValue(record.Name) == domainName {
 			logging.Infof("[Skipping] resource record set type is : %s", aws.StringValue(record.Type))
 			continue
 		}
