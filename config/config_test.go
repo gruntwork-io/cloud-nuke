@@ -48,6 +48,7 @@ func emptyConfig() *Config {
 		EC2IPAMResourceDiscovery:        ResourceType{FilterRule{}, FilterRule{}, "",false},
 		EC2IPAMScope:                    ResourceType{FilterRule{}, FilterRule{}, "",false},
 		EC2Endpoint:                     ResourceType{FilterRule{}, FilterRule{}, "",false},
+		EC2PlacementGroups:              ResourceType{FilterRule{}, FilterRule{}, "",false},
 		EC2Subnet:                       EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, "",false}},
 		EgressOnlyInternetGateway:       ResourceType{FilterRule{}, FilterRule{}, "",false},
 		ECRRepository:                   ResourceType{FilterRule{}, FilterRule{}, "",false},
