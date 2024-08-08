@@ -56,7 +56,6 @@ type Config struct {
 	EC2IPAMResourceDiscovery        ResourceType               `yaml:"EC2IPAMResourceDiscovery"`
 	EC2IPAMScope                    ResourceType               `yaml:"EC2IPAMScope"`
 	EC2Endpoint                     ResourceType               `yaml:"EC2Endpoint"`
-	EC2PlacementGroups              ResourceType               `yaml:"EC2PlacementGroups"`
 	EC2Subnet                       EC2ResourceType            `yaml:"EC2Subnet"`
 	EgressOnlyInternetGateway       ResourceType               `yaml:"EgressOnlyInternetGateway"`
 	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
@@ -320,11 +319,17 @@ func matches(name string, regexps []Expression) bool {
 }
 
 // ShouldInclude - Checks if a resource's Name should be included according to the inclusion and exclusion rules
-func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression) bool {
+func ShouldInclude(name *string, includeREs []Expression, excludeREs []Expression) bool {
+	var resourceName string
+	if name != nil {
+		resourceName = *name
+	}
+
+
 	if len(includeREs) == 0 && len(excludeREs) == 0 {
 		// If no rules are defined, should always include
 		return true
-	} else if matches(name, excludeREs) {
+	} else if matches(resourceName, excludeREs) {
 		// If a rule that exclude matches, should not include
 		return false
 	} else if len(includeREs) == 0 {
@@ -332,7 +337,7 @@ func ShouldInclude(name string, includeREs []Expression, excludeREs []Expression
 		return true
 	} else {
 		// Given there is a 'include' list, and 'Name' is there, should include
-		return matches(name, includeREs)
+		return matches(resourceName, includeREs)
 	}
 }
 
@@ -403,7 +408,7 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 }
 
 func (r ResourceType) ShouldInclude(value ResourceValue) bool {
-	if value.Name != nil && !ShouldInclude(*value.Name, r.IncludeRule.NamesRegExp, r.ExcludeRule.NamesRegExp) {
+	if !ShouldInclude(value.Name, r.IncludeRule.NamesRegExp, r.ExcludeRule.NamesRegExp) {
 		return false
 	} else if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
 		return false

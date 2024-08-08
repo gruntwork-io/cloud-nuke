@@ -127,7 +127,7 @@ func shouldIncludeSNS(topicArn string, excludeAfter, firstSeenTime time.Time, co
 		return false
 	}
 
-	return config.ShouldInclude(topicName, configObj.SNS.IncludeRule.NamesRegExp, configObj.SNS.ExcludeRule.NamesRegExp)
+	return config.ShouldInclude(&topicName, configObj.SNS.IncludeRule.NamesRegExp, configObj.SNS.ExcludeRule.NamesRegExp)
 }
 
 func (s *SNSTopic) nukeAll(identifiers []*string) error {
