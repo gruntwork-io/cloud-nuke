@@ -48,7 +48,6 @@ func emptyConfig() *Config {
 		EC2IPAMResourceDiscovery:        ResourceType{FilterRule{}, FilterRule{}, "",false},
 		EC2IPAMScope:                    ResourceType{FilterRule{}, FilterRule{}, "",false},
 		EC2Endpoint:                     ResourceType{FilterRule{}, FilterRule{}, "",false},
-		EC2PlacementGroups:              ResourceType{FilterRule{}, FilterRule{}, "",false},
 		EC2Subnet:                       EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, "",false}},
 		EgressOnlyInternetGateway:       ResourceType{FilterRule{}, FilterRule{}, "",false},
 		ECRRepository:                   ResourceType{FilterRule{}, FilterRule{}, "",false},
@@ -161,7 +160,7 @@ func TestShouldInclude_AllowWhenEmpty(t *testing.T) {
 	var includeREs []Expression
 	var excludeREs []Expression
 
-	assert.True(t, ShouldInclude("test-open-vpn", includeREs, excludeREs),
+	assert.True(t, ShouldInclude(aws.String("test-open-vpn"), includeREs, excludeREs),
 		"Should include when both lists are empty")
 }
 
@@ -172,9 +171,9 @@ func TestShouldInclude_ExcludeWhenMatches(t *testing.T) {
 	require.NoError(t, err)
 	excludeREs := []Expression{{RE: *exclude}}
 
-	assert.False(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
+	assert.False(t, ShouldInclude(aws.String("test-openvpn-123"), includeREs, excludeREs),
 		"Should not include when matches from the 'exclude' list")
-	assert.True(t, ShouldInclude("tf-state-bucket", includeREs, excludeREs),
+	assert.True(t, ShouldInclude(aws.String("tf-state-bucket"), includeREs, excludeREs),
 		"Should include when doesn't matches from the 'exclude' list")
 }
 
@@ -185,9 +184,9 @@ func TestShouldInclude_IncludeWhenMatches(t *testing.T) {
 
 	var excludeREs []Expression
 
-	assert.True(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
+	assert.True(t, ShouldInclude(aws.String("test-openvpn-123"), includeREs, excludeREs),
 		"Should include when matches the 'include' list")
-	assert.False(t, ShouldInclude("test-vpc-123", includeREs, excludeREs),
+	assert.False(t, ShouldInclude(aws.String("test-vpc-123"), includeREs, excludeREs),
 		"Should not include when doesn't matches the 'include' list")
 }
 
@@ -200,11 +199,11 @@ func TestShouldInclude_WhenMatchesIncludeAndExclude(t *testing.T) {
 	require.NoError(t, err)
 	excludeREs := []Expression{{RE: *exclude}}
 
-	assert.True(t, ShouldInclude("test-eks-cluster-123", includeREs, excludeREs),
+	assert.True(t, ShouldInclude(aws.String("test-eks-cluster-123"), includeREs, excludeREs),
 		"Should include when matches the 'include' list but not matches the 'exclude' list")
-	assert.False(t, ShouldInclude("test-openvpn-123", includeREs, excludeREs),
+	assert.False(t, ShouldInclude(aws.String("test-openvpn-123"), includeREs, excludeREs),
 		"Should not include when matches 'exclude' list")
-	assert.False(t, ShouldInclude("terraform-tf-state", includeREs, excludeREs),
+	assert.False(t, ShouldInclude(aws.String("terraform-tf-state"), includeREs, excludeREs),
 		"Should not include when doesn't matches 'include' list")
 }
 
