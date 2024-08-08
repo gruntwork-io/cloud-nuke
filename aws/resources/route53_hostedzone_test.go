@@ -52,6 +52,14 @@ func TestR53HostedZone_GetAll(t *testing.T) {
 	testName1 := "Test name 01"
 	testName2 := "Test name 02"
 	rc := Route53HostedZone{
+		HostedZonesDomains : map[string]*route53.HostedZone{
+			testId1 : &route53.HostedZone{
+				Name : awsgo.String(testName1),
+			},
+			testId2 : &route53.HostedZone{
+				Name : awsgo.String(testName2),
+			},
+		},
 		Client: mockedR53HostedZone{
 			ListHostedZonesOutput: route53.ListHostedZonesOutput{
 				HostedZones: []*route53.HostedZone{
@@ -103,6 +111,11 @@ func TestR53HostedZone_Nuke(t *testing.T) {
 	t.Parallel()
 
 	rc := Route53HostedZone{
+		HostedZonesDomains : map[string]*route53.HostedZone{
+			"collection-id-01" : &route53.HostedZone{
+				Name : awsgo.String("domain.com"),
+			},
+		},
 		Client: mockedR53HostedZone{
 			DeleteHostedZoneOutput: route53.DeleteHostedZoneOutput{},
 		},
