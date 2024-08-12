@@ -57,6 +57,7 @@ type Config struct {
 	EC2IPAMScope                    ResourceType               `yaml:"EC2IPAMScope"`
 	EC2Endpoint                     ResourceType               `yaml:"EC2Endpoint"`
 	EC2Subnet                       EC2ResourceType            `yaml:"EC2Subnet"`
+	EC2PlacementGroups              ResourceType               `yaml:"EC2PlacementGroups"`
 	EgressOnlyInternetGateway       ResourceType               `yaml:"EgressOnlyInternetGateway"`
 	ECRRepository                   ResourceType               `yaml:"ECRRepository"`
 	ECSCluster                      ResourceType               `yaml:"ECSCluster"`
@@ -324,7 +325,6 @@ func ShouldInclude(name *string, includeREs []Expression, excludeREs []Expressio
 	if name != nil {
 		resourceName = *name
 	}
-
 
 	if len(includeREs) == 0 && len(excludeREs) == 0 {
 		// If no rules are defined, should always include
