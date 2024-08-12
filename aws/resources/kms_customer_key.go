@@ -106,7 +106,7 @@ func (kck *KmsCustomerKeys) shouldInclude(
 	includedByName := false
 	// verify if key aliases matches configurations
 	for _, alias := range aliases {
-		if config.ShouldInclude(alias, configObj.KMSCustomerKeys.IncludeRule.NamesRegExp,
+		if config.ShouldInclude(&alias, configObj.KMSCustomerKeys.IncludeRule.NamesRegExp,
 			configObj.KMSCustomerKeys.ExcludeRule.NamesRegExp) {
 			includedByName = true
 		}
