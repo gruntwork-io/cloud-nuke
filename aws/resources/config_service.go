@@ -48,18 +48,34 @@ func (csr *ConfigServiceRule) nukeAll(configRuleNames []string) error {
 
 	for _, configRuleName := range configRuleNames {
 		logging.Debug(fmt.Sprintf("Start deleting config service rule: %s", configRuleName))
-		_, err := csr.Client.DeleteRemediationConfigurationWithContext(csr.Context, &configservice.DeleteRemediationConfigurationInput{
-			ConfigRuleName: aws.String(configRuleName),
+
+		res, err := csr.Client.DescribeRemediationConfigurationsWithContext(csr.Context, &configservice.DescribeRemediationConfigurationsInput{
+			ConfigRuleNames: []*string{aws.String(configRuleName)},
 		})
 		if err != nil {
-			pterm.Error.Println(fmt.Sprintf("Failed to delete remediation configuration w/ err %s", err))
+			pterm.Error.Println(fmt.Sprintf("Failed to describe remediation configurations w/ err %s", err))
 			report.Record(report.Entry{
 				Identifier:   configRuleName,
 				ResourceType: "Config service rule",
 				Error:        err,
 			})
-
 			continue
+		}
+
+		if len(res.RemediationConfigurations) > 0 {
+			_, err := csr.Client.DeleteRemediationConfigurationWithContext(csr.Context, &configservice.DeleteRemediationConfigurationInput{
+				ConfigRuleName: aws.String(configRuleName),
+			})
+			if err != nil {
+				pterm.Error.Println(fmt.Sprintf("Failed to delete remediation configuration w/ err %s", err))
+				report.Record(report.Entry{
+					Identifier:   configRuleName,
+					ResourceType: "Config service rule",
+					Error:        err,
+				})
+
+				continue
+			}
 		}
 
 		params := &configservice.DeleteConfigRuleInput{
