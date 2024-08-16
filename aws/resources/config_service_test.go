@@ -16,9 +16,10 @@ import (
 
 type mockedConfigServiceRule struct {
 	configserviceiface.ConfigServiceAPI
-	DescribeConfigRulesOutput            configservice.DescribeConfigRulesOutput
-	DeleteConfigRuleOutput               configservice.DeleteConfigRuleOutput
-	DeleteRemediationConfigurationOutput configservice.DeleteRemediationConfigurationOutput
+	DescribeConfigRulesOutput               configservice.DescribeConfigRulesOutput
+	DeleteConfigRuleOutput                  configservice.DeleteConfigRuleOutput
+	DeleteRemediationConfigurationOutput    configservice.DeleteRemediationConfigurationOutput
+	DescribeRemediationConfigurationsOutput configservice.DescribeRemediationConfigurationsOutput
 }
 
 func (m mockedConfigServiceRule) DescribeConfigRulesPagesWithContext(_ awsgo.Context, _ *configservice.DescribeConfigRulesInput, fn func(*configservice.DescribeConfigRulesOutput, bool) bool, _ ...request.Option) error {
@@ -32,6 +33,10 @@ func (m mockedConfigServiceRule) DeleteConfigRuleWithContext(_ awsgo.Context, _ 
 
 func (m mockedConfigServiceRule) DeleteRemediationConfigurationWithContext(_ awsgo.Context, _ *configservice.DeleteRemediationConfigurationInput, _ ...request.Option) (*configservice.DeleteRemediationConfigurationOutput, error) {
 	return &m.DeleteRemediationConfigurationOutput, nil
+}
+
+func (m mockedConfigServiceRule) DescribeRemediationConfigurationsWithContext(_ awsgo.Context, _ *configservice.DescribeRemediationConfigurationsInput, _ ...request.Option) (*configservice.DescribeRemediationConfigurationsOutput, error) {
+	return &m.DescribeRemediationConfigurationsOutput, nil
 }
 
 func TestConfigServiceRule_GetAll(t *testing.T) {
@@ -87,8 +92,9 @@ func TestConfigServiceRule_NukeAll(t *testing.T) {
 
 	csr := ConfigServiceRule{
 		Client: mockedConfigServiceRule{
-			DeleteConfigRuleOutput:               configservice.DeleteConfigRuleOutput{},
-			DeleteRemediationConfigurationOutput: configservice.DeleteRemediationConfigurationOutput{},
+			DeleteConfigRuleOutput:                  configservice.DeleteConfigRuleOutput{},
+			DeleteRemediationConfigurationOutput:    configservice.DeleteRemediationConfigurationOutput{},
+			DescribeRemediationConfigurationsOutput: configservice.DescribeRemediationConfigurationsOutput{},
 		},
 	}
 
