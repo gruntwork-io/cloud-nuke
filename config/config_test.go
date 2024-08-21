@@ -22,6 +22,7 @@ func emptyConfig() *Config {
 		AutoScalingGroup:                ResourceType{FilterRule{}, FilterRule{}, "", false},
 		AppRunnerService:                ResourceType{FilterRule{}, FilterRule{}, "", false},
 		BackupVault:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
+		ManagedPrometheus:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudWatchAlarm:                 ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudWatchDashboard:             ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudWatchLogGroup:              ResourceType{FilterRule{}, FilterRule{}, "", false},

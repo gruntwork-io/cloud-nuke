@@ -1,10 +1,13 @@
 package aws
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 )
 
 const Global = "global"
@@ -60,6 +63,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.ASGroups{},
 		&resources.AppRunnerService{},
 		&resources.BackupVault{},
+		&resources.ManagedPrometheus{},
 		&resources.CloudtrailTrail{},
 		&resources.CloudWatchAlarms{},
 		&resources.CloudWatchDashboards{},
@@ -164,7 +168,28 @@ func toAwsResourcesPointer(resources []AwsResource) []*AwsResource {
 
 func initRegisteredResources(resources []*AwsResource, session *session.Session, region string) []*AwsResource {
 	for _, resource := range resources {
-		(*resource).Init(session)
+		if (*resource).IsUsingV2() {
+			v2Config, err := Session2cfg(context.Background(), session)
+			if err != nil {
+				logging.Debug(fmt.Sprintf(
+					"[aws sdk cfg] failed to convert v1 session into aws v2 config for resource %s: %v",
+					(*resource).ResourceName(),
+					err,
+				))
+			}
+
+			logging.Debug(fmt.Sprintf(
+				"[aws sdk cfg] using aws sdk v2 for resource %s",
+				(*resource).ResourceName(),
+			))
+			(*resource).InitV2(v2Config)
+		} else {
+			logging.Debug(fmt.Sprintf(
+				"[aws sdk cfg] using deprecated aws sdk v1 for resource %s",
+				(*resource).ResourceName(),
+			))
+			(*resource).Init(session)
+		}
 
 		// Note: only regional resources have the field `Region`, which is used for logging purposes only
 		setRegionForRegionalResource(resource, region)
