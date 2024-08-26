@@ -30,6 +30,7 @@ type Config struct {
 	AutoScalingGroup                ResourceType               `yaml:"AutoScalingGroup"`
 	AppRunnerService                ResourceType               `yaml:"AppRunnerService"`
 	BackupVault                     ResourceType               `yaml:"BackupVault"`
+	ManagedPrometheus               ResourceType               `yaml:"ManagedPrometheus"`
 	CloudWatchAlarm                 ResourceType               `yaml:"CloudWatchAlarm"`
 	CloudWatchDashboard             ResourceType               `yaml:"CloudWatchDashboard"`
 	CloudWatchLogGroup              ResourceType               `yaml:"CloudWatchLogGroup"`
