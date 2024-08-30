@@ -37,6 +37,7 @@ type mockedIAMUsers struct {
 	DeactivateMFADeviceOutput             iam.DeactivateMFADeviceOutput
 	DeleteVirtualMFADeviceOutput          iam.DeleteVirtualMFADeviceOutput
 	DeleteUserOutput                      iam.DeleteUserOutput
+	ListUserTagsOutput                    iam.ListUserTagsOutput
 }
 
 func (m mockedIAMUsers) ListUsersPagesWithContext(_ aws.Context, input *iam.ListUsersInput, callback func(*iam.ListUsersOutput, bool) bool, _ ...request.Option) error {
@@ -118,6 +119,10 @@ func (m mockedIAMUsers) DeleteVirtualMFADeviceWithContext(_ aws.Context, input *
 
 func (m mockedIAMUsers) DeleteUserWithContext(_ aws.Context, input *iam.DeleteUserInput, _ ...request.Option) (*iam.DeleteUserOutput, error) {
 	return &m.DeleteUserOutput, nil
+}
+func (m mockedIAMUsers) ListUserTagsPagesWithContext(_ aws.Context, input *iam.ListUserTagsInput, callback func(*iam.ListUserTagsOutput, bool) bool, _ ...request.Option) error {
+	callback(&m.ListUserTagsOutput, true)
+	return nil
 }
 
 func TestIAMUsers_GetAll(t *testing.T) {

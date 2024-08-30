@@ -25,10 +25,26 @@ func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*strin
 	var userNames []*string
 	err := iu.Client.ListUsersPagesWithContext(iu.Context, input, func(page *iam.ListUsersOutput, lastPage bool) bool {
 		for _, user := range page.Users {
+
+			// Note : 
+			// IAM resource-listing operations return a subset of the available attributes for the resource. 
+			// This operation does not return the following attributes, even though they are an attribute of the returned object:
+			//    PermissionsBoundary
+    		//    Tags
+    		// Referene : https://docs.aws.amazon.com/cli/latest/reference/iam/list-users.html
+ 
+			var tags []*iam.Tag
+			iu.Client.ListUserTagsPagesWithContext(iu.Context,&iam.ListUserTagsInput{
+				UserName: user.UserName,
+			}, func(page *iam.ListUserTagsOutput, lastPage bool) bool {
+				tags = append(tags, page.Tags...)
+				return !lastPage
+			})
+
 			if configObj.IAMUsers.ShouldInclude(config.ResourceValue{
 				Name: user.UserName,
 				Time: user.CreateDate,
-				Tags: util.ConvertIAMTagsToMap(user.Tags),
+				Tags: util.ConvertIAMTagsToMap(tags),
 			}) {
 				userNames = append(userNames, user.UserName)
 			}
