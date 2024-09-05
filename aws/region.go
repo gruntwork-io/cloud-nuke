@@ -36,6 +36,8 @@ var OptInNotRequiredRegions = []string{
 	"us-east-2",
 	"us-west-1",
 	"us-west-2",
+	"cn-north-1",
+	"cn-northwest-1",
 }
 
 // GovCloudRegions contains all of the U.S. GovCloud regions. In accounts with GovCloud enabled, these are the
