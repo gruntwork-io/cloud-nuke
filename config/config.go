@@ -71,6 +71,9 @@ type Config struct {
 	Elasticache                     ResourceType               `yaml:"Elasticache"`
 	ElasticacheParameterGroups      ResourceType               `yaml:"ElasticacheParameterGroups"`
 	ElasticacheSubnetGroups         ResourceType               `yaml:"ElasticacheSubnetGroups"`
+	EventBridge                     ResourceType               `yaml:"EventBridge"`
+	EventBridgeArchive              ResourceType               `yaml:"EventBridgeArchive"`
+	EventBridgeRule                 ResourceType               `yaml:"EventBridgeRule"`
 	GuardDuty                       ResourceType               `yaml:"GuardDuty"`
 	IAMGroups                       ResourceType               `yaml:"IAMGroups"`
 	IAMPolicies                     ResourceType               `yaml:"IAMPolicies"`

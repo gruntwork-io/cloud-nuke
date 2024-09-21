@@ -42,6 +42,9 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | EC2                     | Security Group                                           |
 | EC2                     | Network Interface                                        |
 | EC2                     | Placement Group                                          |
+| Event Bridge            | Event buses                                              |
+| Event Bridge            | Archive                                                  |
+| Event Bridge            | Rule                                                     |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -593,6 +596,9 @@ of the file that are supported are listed here.
 | elasticache                      | Elasticache                   | ✅ (Cluster ID & Replication Group ID) | ✅ (Creation Time)                   | ❌    | ✅       |
 | elasticacheparametergroups       | ElasticacheParameterGroups    | ✅ (Parameter Group Name)              | ❌                                   | ❌    | ✅       |
 | elasticachesubnetgroups          | ElasticacheSubnetGroups       | ✅ (Subnet Group Name)                 | ❌                                   | ❌    | ✅       |
+| event-bridge                     | EventBridge                   | ✅ (Bus  Name)                         | ✅ (Creation Time)                   | ❌    | ✅       |
+| event-bridge-archive             | EventBridgeArchive            | ✅ (Archive Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| event-bridge-rule                | EventBridgeRule               | ✅ (Bus Rule Name)                     | ❌                                   | ❌    | ✅       |
 | guardduty                        | GuardDuty                     | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
 | iam-group                        | IAMGroups                     | ✅ (Group Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam-policy                       | IAMPolicies                   | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ❌    | ✅       |
