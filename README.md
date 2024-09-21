@@ -45,6 +45,8 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Event Bridge            | Event buses                                              |
 | Event Bridge            | Archive                                                  |
 | Event Bridge            | Rule                                                     |
+| Event Bridge            | Schedule                                                 |
+| Event Bridge            | Schedule Group                                           |
 | Certificate Manager     | ACM Private CA                                           |
 | Direct Connect          | Transit Gateways                                         |
 | Elasticache             | Clusters                                                 |
@@ -599,6 +601,8 @@ of the file that are supported are listed here.
 | event-bridge                     | EventBridge                   | ✅ (Bus  Name)                         | ✅ (Creation Time)                   | ❌    | ✅       |
 | event-bridge-archive             | EventBridgeArchive            | ✅ (Archive Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | event-bridge-rule                | EventBridgeRule               | ✅ (Bus Rule Name)                     | ❌                                   | ❌    | ✅       |
+| event-bridge-schedule            | EventBridgeSchedule           | ✅ (Schedule Name)                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| event-bridge-schedule-group      | EventBridgeScheduleGroup      | ✅ (Schedule Group Name)               | ✅ (Creation Time)                   | ❌    | ✅       |
 | guardduty                        | GuardDuty                     | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
 | iam-group                        | IAMGroups                     | ✅ (Group Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam-policy                       | IAMPolicies                   | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ❌    | ✅       |

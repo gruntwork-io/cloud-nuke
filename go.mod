@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.24
 	github.com/aws/aws-sdk-go-v2/service/amp v1.27.1
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.33.7
+	github.com/aws/aws-sdk-go-v2/service/scheduler v1.10.7
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/go-errors/errors v1.4.2
 	github.com/gruntwork-io/go-commons v0.17.0

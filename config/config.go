@@ -74,6 +74,8 @@ type Config struct {
 	EventBridge                     ResourceType               `yaml:"EventBridge"`
 	EventBridgeArchive              ResourceType               `yaml:"EventBridgeArchive"`
 	EventBridgeRule                 ResourceType               `yaml:"EventBridgeRule"`
+	EventBridgeSchedule             ResourceType               `yaml:"EventBridgeSchedule"`
+	EventBridgeScheduleGroup        ResourceType               `yaml:"EventBridgeScheduleGroup"`
 	GuardDuty                       ResourceType               `yaml:"GuardDuty"`
 	IAMGroups                       ResourceType               `yaml:"IAMGroups"`
 	IAMPolicies                     ResourceType               `yaml:"IAMPolicies"`

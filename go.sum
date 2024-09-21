@@ -39,6 +39,8 @@ github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.3 h1:dT3MqvG
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.3/go.mod h1:GlAeCkHwugxdHaueRr4nhPuY+WW+gR8UjlcqzPr1SPI=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.15 h1:I9zMeF107l0rJrpnHpjEiiTSCKYAIw8mALiXcPsGBiA=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.15/go.mod h1:9xWJ3Q/S6Ojusz1UIkfycgD1mGirJfLLKqq3LPT7WN8=
+github.com/aws/aws-sdk-go-v2/service/scheduler v1.10.7 h1:EcPyKUUo3neD2tDFKnq3TR3B9s2uZe9eWgxVQgixdzc=
+github.com/aws/aws-sdk-go-v2/service/scheduler v1.10.7/go.mod h1:MlNx35QVGG8TB2x1kOC0TKd9e93+RmFUE8HzYDLDLso=
 github.com/aws/aws-sdk-go-v2/service/sso v1.22.1 h1:p1GahKIjyMDZtiKoIn0/jAj/TkMzfzndDv5+zi2Mhgc=
 github.com/aws/aws-sdk-go-v2/service/sso v1.22.1/go.mod h1:/vWdhoIoYA5hYoPZ6fm7Sv4d8701PiG5VKe8/pPJL60=
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.26.2 h1:ORnrOK0C4WmYV/uYt3koHEWBLYsRDwk2Np+eEoyV4Z0=

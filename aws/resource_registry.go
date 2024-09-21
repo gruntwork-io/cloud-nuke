@@ -64,6 +64,8 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.AppRunnerService{},
 		&resources.BackupVault{},
 		&resources.ManagedPrometheus{},
+		&resources.EventBridgeSchedule{},
+		&resources.EventBridgeScheduleGroup{},
 		&resources.EventBridgeArchive{},
 		&resources.EventBridgeRule{},
 		&resources.EventBridge{},
