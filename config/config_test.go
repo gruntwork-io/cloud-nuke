@@ -66,6 +66,8 @@ func emptyConfig() *Config {
 		EventBridge:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		EventBridgeArchive:              ResourceType{FilterRule{}, FilterRule{}, "", false},
 		EventBridgeRule:                 ResourceType{FilterRule{}, FilterRule{}, "", false},
+		EventBridgeSchedule:             ResourceType{FilterRule{}, FilterRule{}, "", false},
+		EventBridgeScheduleGroup:        ResourceType{FilterRule{}, FilterRule{}, "", false},
 		GuardDuty:                       ResourceType{FilterRule{}, FilterRule{}, "", false},
 		IAMGroups:                       ResourceType{FilterRule{}, FilterRule{}, "", false},
 		IAMPolicies:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
