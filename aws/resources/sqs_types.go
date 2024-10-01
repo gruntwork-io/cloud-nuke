@@ -3,25 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type SqsQueueAPI interface {
+	DeleteQueue(ctx context.Context, params *sqs.DeleteQueueInput, optFns ...func(*sqs.Options)) (*sqs.DeleteQueueOutput, error)
+	GetQueueAttributes(ctx context.Context, params *sqs.GetQueueAttributesInput, optFns ...func(*sqs.Options)) (*sqs.GetQueueAttributesOutput, error)
+	ListQueues(context.Context, *sqs.ListQueuesInput, ...func(*sqs.Options)) (*sqs.ListQueuesOutput, error)
+}
+
 // SqsQueue - represents all sqs queues
 type SqsQueue struct {
 	BaseAwsResource
-	Client    sqsiface.SQSAPI
+	Client    SqsQueueAPI
 	Region    string
 	QueueUrls []string
 }
 
-func (sq *SqsQueue) Init(session *session.Session) {
-	sq.Client = sqs.New(session)
+func (sq *SqsQueue) InitV2(cfg aws.Config) {
+	sq.Client = sqs.NewFromConfig(cfg)
 }
+
+func (sq *SqsQueue) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (sq *SqsQueue) ResourceName() string {
@@ -33,7 +39,7 @@ func (sq *SqsQueue) MaxBatchSize() int {
 	return 49
 }
 
-// ResourceIdentifiers - The arns of the sqs queues
+// ResourceIdentifiers - The arn's of the sqs queues
 func (sq *SqsQueue) ResourceIdentifiers() []string {
 	return sq.QueueUrls
 }
@@ -48,13 +54,13 @@ func (sq *SqsQueue) GetAndSetIdentifiers(c context.Context, configObj config.Con
 		return nil, err
 	}
 
-	sq.QueueUrls = awsgo.StringValueSlice(identifiers)
+	sq.QueueUrls = aws.ToStringSlice(identifiers)
 	return sq.QueueUrls, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (sq *SqsQueue) Nuke(identifiers []string) error {
-	if err := sq.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := sq.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
