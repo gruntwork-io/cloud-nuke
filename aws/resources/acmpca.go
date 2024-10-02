@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/acmpca"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/acmpca"
+	"github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,34 +16,30 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// GetAll returns a list of all arns of ACMPCA, which can be deleted.
+// GetAll returns a list of all arn's of ACMPCA, which can be deleted.
 func (ap *ACMPCA) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var arns []*string
-	paginationErr := ap.Client.ListCertificateAuthoritiesPagesWithContext(
-		ap.Context,
-		&acmpca.ListCertificateAuthoritiesInput{},
-		func(p *acmpca.ListCertificateAuthoritiesOutput, lastPage bool) bool {
-			for _, ca := range p.CertificateAuthorities {
-				if ap.shouldInclude(ca, configObj) {
-					arns = append(arns, ca.Arn)
-				}
+
+	paginator := acmpca.NewListCertificateAuthoritiesPaginator(ap.Client, &acmpca.ListCertificateAuthoritiesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, ca := range page.CertificateAuthorities {
+			if ap.shouldInclude(ca, configObj) {
+				arns = append(arns, ca.Arn)
 			}
-			return !lastPage
-		})
-	if paginationErr != nil {
-		return nil, errors.WithStackTrace(paginationErr)
+		}
 	}
 
 	return arns, nil
 }
 
-func (ap *ACMPCA) shouldInclude(ca *acmpca.CertificateAuthority, configObj config.Config) bool {
-	if ca == nil {
-		return false
-	}
-
-	statusSafe := aws.StringValue(ca.Status)
-	if statusSafe == acmpca.CertificateAuthorityStatusDeleted {
+func (ap *ACMPCA) shouldInclude(ca types.CertificateAuthority, configObj config.Config) bool {
+	statusSafe := ca.Status
+	if statusSafe == types.CertificateAuthorityStatusDeleted {
 		return false
 	}
 
@@ -50,15 +47,15 @@ func (ap *ACMPCA) shouldInclude(ca *acmpca.CertificateAuthority, configObj confi
 	// unless it was never changed and createAt time is used.
 	var referenceTime time.Time
 	if ca.LastStateChangeAt == nil {
-		referenceTime = aws.TimeValue(ca.CreatedAt)
+		referenceTime = aws.ToTime(ca.CreatedAt)
 	} else {
-		referenceTime = aws.TimeValue(ca.LastStateChangeAt)
+		referenceTime = aws.ToTime(ca.LastStateChangeAt)
 	}
 
 	return configObj.ACMPCA.ShouldInclude(config.ResourceValue{Time: &referenceTime})
 }
 
-// nukeAll will delete all ACMPCA, which are given by a list of arns.
+// nukeAll will delete all ACMPCA, which are given by a list of arn's.
 func (ap *ACMPCA) nukeAll(arns []*string) error {
 	if len(arns) == 0 {
 		logging.Debugf("No ACMPCA to nuke in region %s", ap.Region)
@@ -94,7 +91,7 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 	defer wg.Done()
 
 	logging.Debugf("Fetching details of CA to be deleted for ACMPCA %s in region %s", *arn, ap.Region)
-	details, detailsErr := ap.Client.DescribeCertificateAuthorityWithContext(
+	details, detailsErr := ap.Client.DescribeCertificateAuthority(
 		ap.Context,
 		&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
 	if detailsErr != nil {
@@ -102,26 +99,26 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 		return
 	}
 	if details.CertificateAuthority == nil {
-		errChan <- fmt.Errorf("could not find CA %s", aws.StringValue(arn))
+		errChan <- fmt.Errorf("could not find CA %s", aws.ToString(arn))
 		return
 	}
-	if details.CertificateAuthority.Status == nil {
-		errChan <- fmt.Errorf("could not fetch status for CA %s", aws.StringValue(arn))
+	if details.CertificateAuthority.Status == "" {
+		errChan <- fmt.Errorf("could not fetch status for CA %s", aws.ToString(arn))
 		return
 	}
 
 	// find out, whether we have to disable the CA first, prior to deletion.
-	statusSafe := aws.StringValue(details.CertificateAuthority.Status)
-	shouldUpdateStatus := statusSafe != acmpca.CertificateAuthorityStatusCreating &&
-		statusSafe != acmpca.CertificateAuthorityStatusPendingCertificate &&
-		statusSafe != acmpca.CertificateAuthorityStatusDisabled &&
-		statusSafe != acmpca.CertificateAuthorityStatusDeleted
+	statusSafe := details.CertificateAuthority.Status
+	shouldUpdateStatus := statusSafe != types.CertificateAuthorityStatusCreating &&
+		statusSafe != types.CertificateAuthorityStatusPendingCertificate &&
+		statusSafe != types.CertificateAuthorityStatusDisabled &&
+		statusSafe != types.CertificateAuthorityStatusDeleted
 
 	if shouldUpdateStatus {
 		logging.Debugf("Setting status to 'DISABLED' for ACMPCA %s in region %s", *arn, ap.Region)
-		if _, updateStatusErr := ap.Client.UpdateCertificateAuthorityWithContext(ap.Context, &acmpca.UpdateCertificateAuthorityInput{
+		if _, updateStatusErr := ap.Client.UpdateCertificateAuthority(ap.Context, &acmpca.UpdateCertificateAuthorityInput{
 			CertificateAuthorityArn: arn,
-			Status:                  aws.String(acmpca.CertificateAuthorityStatusDisabled),
+			Status:                  types.CertificateAuthorityStatusDisabled,
 		}); updateStatusErr != nil {
 			errChan <- updateStatusErr
 			return
@@ -130,17 +127,17 @@ func (ap *ACMPCA) deleteAsync(wg *sync.WaitGroup, errChan chan error, arn *strin
 		logging.Debugf("Did set status to 'DISABLED' for ACMPCA: %s in region %s", *arn, ap.Region)
 	}
 
-	_, deleteErr := ap.Client.DeleteCertificateAuthorityWithContext(ap.Context, &acmpca.DeleteCertificateAuthorityInput{
+	_, deleteErr := ap.Client.DeleteCertificateAuthority(ap.Context, &acmpca.DeleteCertificateAuthorityInput{
 		CertificateAuthorityArn: arn,
 		// the range is 7 to 30 days.
 		// since cloud-nuke should not be used in production,
 		// we assume that the minimum (7 days) is fine.
-		PermanentDeletionTimeInDays: aws.Int64(7),
+		PermanentDeletionTimeInDays: aws.Int32(7),
 	})
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(arn),
+		Identifier:   aws.ToString(arn),
 		ResourceType: "ACM Private CA (ACMPCA)",
 		Error:        deleteErr,
 	}

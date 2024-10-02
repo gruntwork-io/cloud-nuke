@@ -7,7 +7,12 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.24
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.24
+	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.34.2
+	github.com/aws/aws-sdk-go-v2/service/acm v1.30.2
+	github.com/aws/aws-sdk-go-v2/service/acmpca v1.37.3
 	github.com/aws/aws-sdk-go-v2/service/amp v1.27.1
+	github.com/aws/aws-sdk-go-v2/service/apigateway v1.27.2
+	github.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.24.2
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.184.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.33.7
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.10.7

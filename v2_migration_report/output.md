@@ -6,12 +6,12 @@ run `go generate ./...` to refresh this report.
 
 | Resource Name                    | Migrated           |
 |----------------------------------|--------------------|
-| accessanalyzer                   |                    |
-| acm                              |                    |
-| acmpca                           |                    |
-| ami                              |                    |
-| apigateway                       |                    |
-| apigatewayv2                     |                    |
+| accessanalyzer                   | :white_check_mark: |
+| acm                              | :white_check_mark: |
+| acmpca                           | :white_check_mark: |
+| ami                              | :white_check_mark: |
+| apigateway                       | :white_check_mark: |
+| apigatewayv2                     | :white_check_mark: |
 | app-runner-service               |                    |
 | asg                              |                    |
 | backup-vault                     |                    |
