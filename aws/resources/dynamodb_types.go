@@ -3,24 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/gruntwork-cli/errors"
 )
 
+type DynamoDBAPI interface {
+	ListTables(ctx context.Context, params *dynamodb.ListTablesInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTablesOutput, error)
+	DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error)
+	DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error)
+}
+
 type DynamoDB struct {
 	BaseAwsResource
-	Client           dynamodbiface.DynamoDBAPI
+	Client           DynamoDBAPI
 	Region           string
 	DynamoTableNames []string
 }
 
-func (ddb *DynamoDB) Init(session *session.Session) {
-	ddb.Client = dynamodb.New(session)
+func (ddb *DynamoDB) InitV2(cfg aws.Config) {
+	ddb.Client = dynamodb.NewFromConfig(cfg)
 }
+
+func (ddb *DynamoDB) IsUsingV2() bool { return true }
 
 func (ddb *DynamoDB) ResourceName() string {
 	return "dynamodb"
@@ -45,13 +51,13 @@ func (ddb *DynamoDB) GetAndSetIdentifiers(c context.Context, configObj config.Co
 		return nil, err
 	}
 
-	ddb.DynamoTableNames = awsgo.StringValueSlice(identifiers)
+	ddb.DynamoTableNames = aws.ToStringSlice(identifiers)
 	return ddb.DynamoTableNames, nil
 }
 
 // Nuke - nuke all Dynamo DB Tables
 func (ddb *DynamoDB) Nuke(identifiers []string) error {
-	if err := ddb.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ddb.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil
