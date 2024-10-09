@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -12,25 +12,26 @@ import (
 )
 
 func (cwdb *CloudWatchDashboards) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allDashboards := []*string{}
-	input := &cloudwatch.ListDashboardsInput{}
-	err := cwdb.Client.ListDashboardsPagesWithContext(
-		cwdb.Context,
-		input,
-		func(page *cloudwatch.ListDashboardsOutput, lastPage bool) bool {
-			for _, dashboard := range page.DashboardEntries {
-				if configObj.CloudWatchDashboard.ShouldInclude(config.ResourceValue{
-					Name: dashboard.DashboardName,
-					Time: dashboard.LastModified,
-				}) {
-					allDashboards = append(allDashboards, dashboard.DashboardName)
-				}
-			}
+	var allDashboards []*string
 
-			return !lastPage
-		},
-	)
-	return allDashboards, errors.WithStackTrace(err)
+	paginator := cloudwatch.NewListDashboardsPaginator(cwdb.Client, &cloudwatch.ListDashboardsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, dashboard := range page.DashboardEntries {
+			if configObj.CloudWatchDashboard.ShouldInclude(config.ResourceValue{
+				Name: dashboard.DashboardName,
+				Time: dashboard.LastModified,
+			}) {
+				allDashboards = append(allDashboards, dashboard.DashboardName)
+			}
+		}
+	}
+
+	return allDashboards, nil
 }
 
 func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
@@ -49,12 +50,12 @@ func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	}
 
 	logging.Debugf("Deleting CloudWatch Dashboards in region %s", cwdb.Region)
-	input := cloudwatch.DeleteDashboardsInput{DashboardNames: identifiers}
-	_, err := cwdb.Client.DeleteDashboardsWithContext(cwdb.Context, &input)
+	input := cloudwatch.DeleteDashboardsInput{DashboardNames: aws.ToStringSlice(identifiers)}
+	_, err := cwdb.Client.DeleteDashboards(cwdb.Context, &input)
 
 	// Record status of this resource
 	e := report.BatchEntry{
-		Identifiers:  aws.StringValueSlice(identifiers),
+		Identifiers:  aws.ToStringSlice(identifiers),
 		ResourceType: "CloudWatch Dashboard",
 		Error:        err,
 	}
@@ -66,7 +67,7 @@ func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
 	}
 
 	for _, dashboardName := range identifiers {
-		logging.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.StringValue(dashboardName), cwdb.Region)
+		logging.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.ToString(dashboardName), cwdb.Region)
 	}
 	return nil
 }

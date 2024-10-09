@@ -14,17 +14,17 @@ run `go generate ./...` to refresh this report.
 | apigatewayv2                     | :white_check_mark: |
 | app-runner-service               |                    |
 | asg                              |                    |
-| backup-vault                     |                    |
-| cloudtrail                       |                    |
-| cloudwatch-alarm                 |                    |
-| cloudwatch-dashboard             |                    |
-| cloudwatch-loggroup              |                    |
-| codedeploy-application           |                    |
+| backup-vault                     | :white_check_mark: |
+| cloudtrail                       | :white_check_mark: |
+| cloudwatch-alarm                 | :white_check_mark: |
+| cloudwatch-dashboard             | :white_check_mark: |
+| cloudwatch-loggroup              | :white_check_mark: |
+| codedeploy-application           | :white_check_mark: |
 | config-recorders                 |                    |
 | config-rules                     |                    |
 | data-sync-location               |                    |
 | data-sync-task                   |                    |
-| dynamodb                         |                    |
+| dynamodb                         | :white_check_mark: |
 | ebs                              |                    |
 | ec2                              |                    |
 | ec2-dedicated-hosts              |                    |

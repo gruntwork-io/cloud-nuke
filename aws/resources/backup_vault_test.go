@@ -6,47 +6,38 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/backup/backupiface"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/backup"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/backup"
+	"github.com/aws/aws-sdk-go-v2/service/backup/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedBackupVault struct {
-	backupiface.BackupAPI
+	BackupVaultAPI
+	DeleteBackupVaultOutput               backup.DeleteBackupVaultOutput
+	DeleteRecoveryPointOutput             backup.DeleteRecoveryPointOutput
 	ListBackupVaultsOutput                backup.ListBackupVaultsOutput
 	ListRecoveryPointsByBackupVaultOutput backup.ListRecoveryPointsByBackupVaultOutput
-	DeleteRecoveryPointOutput             backup.DeleteRecoveryPointOutput
-	DeleteBackupVaultOutput               backup.DeleteBackupVaultOutput
 }
 
-func (m mockedBackupVault) ListBackupVaultsPagesWithContext(_ awsgo.Context, _ *backup.ListBackupVaultsInput, fn func(*backup.ListBackupVaultsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListBackupVaultsOutput, true)
-	return nil
-}
-
-func (m mockedBackupVault) DeleteBackupVaultWithContext(_ awsgo.Context, _ *backup.DeleteBackupVaultInput, _ ...request.Option) (*backup.DeleteBackupVaultOutput, error) {
+func (m mockedBackupVault) DeleteBackupVault(ctx context.Context, params *backup.DeleteBackupVaultInput, optFns ...func(*backup.Options)) (*backup.DeleteBackupVaultOutput, error) {
 	return &m.DeleteBackupVaultOutput, nil
 }
 
-func (m mockedBackupVault) ListRecoveryPointsByBackupVaultWithContext(aws.Context, *backup.ListRecoveryPointsByBackupVaultInput, ...request.Option) (*backup.ListRecoveryPointsByBackupVaultOutput, error) {
-	return &m.ListRecoveryPointsByBackupVaultOutput, nil
-}
-
-func (m mockedBackupVault) WaitUntilRecoveryPointsDeleted(*string) error {
-	return nil
-}
-
-func (m mockedBackupVault) DeleteRecoveryPointWithContext(aws.Context, *backup.DeleteRecoveryPointInput, ...request.Option) (*backup.DeleteRecoveryPointOutput, error) {
+func (m mockedBackupVault) DeleteRecoveryPoint(ctx context.Context, params *backup.DeleteRecoveryPointInput, optFns ...func(*backup.Options)) (*backup.DeleteRecoveryPointOutput, error) {
 	return &m.DeleteRecoveryPointOutput, nil
 }
 
-func TestBackupVaultGetAll(t *testing.T) {
+func (m mockedBackupVault) ListBackupVaults(ctx context.Context, params *backup.ListBackupVaultsInput, optFns ...func(*backup.Options)) (*backup.ListBackupVaultsOutput, error) {
+	return &m.ListBackupVaultsOutput, nil
+}
 
+func (m mockedBackupVault) ListRecoveryPointsByBackupVault(ctx context.Context, params *backup.ListRecoveryPointsByBackupVaultInput, optFns ...func(*backup.Options)) (*backup.ListRecoveryPointsByBackupVaultOutput, error) {
+	return &m.ListRecoveryPointsByBackupVaultOutput, nil
+}
+
+func TestBackupVaultGetAll(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-backup-vault-1"
@@ -56,7 +47,7 @@ func TestBackupVaultGetAll(t *testing.T) {
 
 		Client: mockedBackupVault{
 			ListBackupVaultsOutput: backup.ListBackupVaultsOutput{
-				BackupVaultList: []*backup.VaultListMember{
+				BackupVaultList: []types.BackupVaultListMember{
 					{
 						BackupVaultName: aws.String(testName1),
 						CreationDate:    aws.Time(now),
@@ -102,13 +93,12 @@ func TestBackupVaultGetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, aws.StringValueSlice(names), tc.expected)
+			require.Equal(t, aws.ToStringSlice(names), tc.expected)
 		})
 	}
 }
 
 func TestBackupVaultNuke(t *testing.T) {
-
 	t.Parallel()
 
 	bv := BackupVault{
