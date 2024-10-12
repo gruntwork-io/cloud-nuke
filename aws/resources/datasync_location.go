@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/datasync"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/datasync"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -22,7 +22,7 @@ func (dsl *DataSyncLocation) nukeAll(identifiers []*string) error {
 
 	for _, identifier := range identifiers {
 		logging.Debugf("[Data Sync Location] Deleting Data Sync Location %s in region %s", *identifier, dsl.Region)
-		_, err := dsl.Client.DeleteLocationWithContext(dsl.Context, &datasync.DeleteLocationInput{
+		_, err := dsl.Client.DeleteLocation(dsl.Context, &datasync.DeleteLocationInput{
 			LocationArn: identifier,
 		})
 		if err != nil {
@@ -34,7 +34,7 @@ func (dsl *DataSyncLocation) nukeAll(identifiers []*string) error {
 		}
 
 		e := report.Entry{
-			Identifier:   aws.StringValue(identifier),
+			Identifier:   aws.ToString(identifier),
 			ResourceType: dsl.ResourceName(),
 			Error:        err,
 		}
@@ -47,21 +47,21 @@ func (dsl *DataSyncLocation) nukeAll(identifiers []*string) error {
 
 func (dsl *DataSyncLocation) getAll(c context.Context, _ config.Config) ([]*string, error) {
 	var identifiers []*string
-	paginator := func(output *datasync.ListLocationsOutput, lastPage bool) bool {
+	param := &datasync.ListLocationsInput{
+		MaxResults: aws.Int32(100),
+	}
+
+	locationsPaginator := datasync.NewListLocationsPaginator(dsl.Client, param)
+	for locationsPaginator.HasMorePages() {
+		output, err := locationsPaginator.NextPage(c)
+		if err != nil {
+			logging.Debugf("[Data Sync Location] Failed to list Data Sync Locations: %s", err)
+			return nil, errors.WithStackTrace(err)
+		}
+
 		for _, location := range output.Locations {
 			identifiers = append(identifiers, location.LocationArn)
 		}
-
-		return !lastPage
-	}
-
-	param := &datasync.ListLocationsInput{
-		MaxResults: aws.Int64(100),
-	}
-
-	if err := dsl.Client.ListLocationsPagesWithContext(c, param, paginator); err != nil {
-		logging.Debugf("[Data Sync Location] Failed to list Data Sync Locations: %s", err)
-		return nil, errors.WithStackTrace(err)
 	}
 
 	return identifiers, nil

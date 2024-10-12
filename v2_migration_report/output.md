@@ -12,18 +12,18 @@ run `go generate ./...` to refresh this report.
 | ami                              | :white_check_mark: |
 | apigateway                       | :white_check_mark: |
 | apigatewayv2                     | :white_check_mark: |
-| app-runner-service               |                    |
-| asg                              |                    |
+| app-runner-service               | :white_check_mark: |
+| asg                              | :white_check_mark: |
 | backup-vault                     | :white_check_mark: |
 | cloudtrail                       | :white_check_mark: |
 | cloudwatch-alarm                 | :white_check_mark: |
 | cloudwatch-dashboard             | :white_check_mark: |
 | cloudwatch-loggroup              | :white_check_mark: |
 | codedeploy-application           | :white_check_mark: |
-| config-recorders                 |                    |
-| config-rules                     |                    |
-| data-sync-location               |                    |
-| data-sync-task                   |                    |
+| config-recorders                 | :white_check_mark: |
+| config-rules                     | :white_check_mark: |
+| data-sync-location               | :white_check_mark: |
+| data-sync-task                   | :white_check_mark: |
 | dynamodb                         | :white_check_mark: |
 | ebs                              |                    |
 | ec2                              |                    |

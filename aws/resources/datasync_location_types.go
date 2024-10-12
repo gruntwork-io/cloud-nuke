@@ -3,17 +3,20 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/datasync"
-	"github.com/aws/aws-sdk-go/service/datasync/datasynciface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/datasync"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type DataSyncLocationAPI interface {
+	DeleteLocation(ctx context.Context, params *datasync.DeleteLocationInput, optFns ...func(*datasync.Options)) (*datasync.DeleteLocationOutput, error)
+	ListLocations(ctx context.Context, params *datasync.ListLocationsInput, optFns ...func(*datasync.Options)) (*datasync.ListLocationsOutput, error)
+}
+
 type DataSyncLocation struct {
 	BaseAwsResource
-	Client            datasynciface.DataSyncAPI
+	Client            DataSyncLocationAPI
 	Region            string
 	DataSyncLocations []string
 }
@@ -22,9 +25,11 @@ func (dsl *DataSyncLocation) GetAndSetResourceConfig(configObj config.Config) co
 	return configObj.DataSyncLocation
 }
 
-func (dsl *DataSyncLocation) Init(session *session.Session) {
-	dsl.Client = datasync.New(session)
+func (dsl *DataSyncLocation) InitV2(cfg aws.Config) {
+	dsl.Client = datasync.NewFromConfig(cfg)
 }
+
+func (dsl *DataSyncLocation) IsUsingV2() bool { return true }
 
 func (dsl *DataSyncLocation) ResourceName() string { return "data-sync-location" }
 
@@ -46,6 +51,6 @@ func (dsl *DataSyncLocation) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	dsl.DataSyncLocations = aws.StringValueSlice(identifiers)
+	dsl.DataSyncLocations = aws.ToStringSlice(identifiers)
 	return dsl.DataSyncLocations, nil
 }
