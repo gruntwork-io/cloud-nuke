@@ -13,11 +13,15 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/amp v1.27.1
 	github.com/aws/aws-sdk-go-v2/service/apigateway v1.27.2
 	github.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.24.2
+	github.com/aws/aws-sdk-go-v2/service/apprunner v1.32.2
+	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.23.16
 	github.com/aws/aws-sdk-go-v2/service/backup v1.39.3
 	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.44.2
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.42.2
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.42.0
 	github.com/aws/aws-sdk-go-v2/service/codedeploy v1.29.2
+	github.com/aws/aws-sdk-go-v2/service/configservice v1.50.2
+	github.com/aws/aws-sdk-go-v2/service/datasync v1.42.2
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.36.2
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.184.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.33.7

@@ -2,9 +2,10 @@ package resources
 
 import (
 	"context"
+	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,7 +15,7 @@ import (
 
 // Returns a formatted string of ASG Names
 func (ag *ASGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := ag.Client.DescribeAutoScalingGroupsWithContext(ag.Context, &autoscaling.DescribeAutoScalingGroupsInput{})
+	result, err := ag.Client.DescribeAutoScalingGroups(ag.Context, &autoscaling.DescribeAutoScalingGroupsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -41,15 +42,15 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 	}
 
 	logging.Debugf("Deleting all Auto Scaling Groups in region %s", ag.Region)
-	var deletedGroupNames []*string
+	var deletedGroupNames []string
 
 	for _, groupName := range groupNames {
 		params := &autoscaling.DeleteAutoScalingGroupInput{
 			AutoScalingGroupName: groupName,
-			ForceDelete:          awsgo.Bool(true),
+			ForceDelete:          aws.Bool(true),
 		}
 
-		_, err := ag.Client.DeleteAutoScalingGroupWithContext(ag.Context, params)
+		_, err := ag.Client.DeleteAutoScalingGroup(ag.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -62,15 +63,17 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 		} else {
-			deletedGroupNames = append(deletedGroupNames, groupName)
+			deletedGroupNames = append(deletedGroupNames, *groupName)
 			logging.Debugf("Deleted Auto Scaling Group: %s", *groupName)
 		}
 	}
 
 	if len(deletedGroupNames) > 0 {
-		err := ag.Client.WaitUntilGroupNotExistsWithContext(ag.Context, &autoscaling.DescribeAutoScalingGroupsInput{
+		waiter := autoscaling.NewGroupNotExistsWaiter(ag.Client)
+		err := waiter.Wait(ag.Context, &autoscaling.DescribeAutoScalingGroupsInput{
 			AutoScalingGroupNames: deletedGroupNames,
-		})
+		}, 5*time.Minute)
+
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)

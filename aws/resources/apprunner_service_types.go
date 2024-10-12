@@ -3,17 +3,20 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/apprunner"
-	"github.com/aws/aws-sdk-go/service/apprunner/apprunneriface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/apprunner"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type AppRunnerServiceAPI interface {
+	DeleteService(ctx context.Context, params *apprunner.DeleteServiceInput, optFns ...func(*apprunner.Options)) (*apprunner.DeleteServiceOutput, error)
+	ListServices(ctx context.Context, params *apprunner.ListServicesInput, optFns ...func(*apprunner.Options)) (*apprunner.ListServicesOutput, error)
+}
+
 type AppRunnerService struct {
 	BaseAwsResource
-	Client     apprunneriface.AppRunnerAPI
+	Client     AppRunnerServiceAPI
 	Region     string
 	AppRunners []string
 }
@@ -22,9 +25,11 @@ func (a *AppRunnerService) GetAndSetResourceConfig(configObj config.Config) conf
 	return configObj.AppRunnerService
 }
 
-func (a *AppRunnerService) Init(session *session.Session) {
-	a.Client = apprunner.New(session)
+func (a *AppRunnerService) InitV2(cfg aws.Config) {
+	a.Client = apprunner.NewFromConfig(cfg)
 }
+
+func (a *AppRunnerService) IsUsingV2() bool { return true }
 
 func (a *AppRunnerService) ResourceName() string { return "app-runner-service" }
 
@@ -46,6 +51,6 @@ func (a *AppRunnerService) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	a.AppRunners = aws.StringValueSlice(identifiers)
+	a.AppRunners = aws.ToStringSlice(identifiers)
 	return a.AppRunners, nil
 }

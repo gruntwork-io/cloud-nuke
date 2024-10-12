@@ -3,24 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/configservice"
-	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/configservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type ConfigServiceRuleAPI interface {
+	DescribeConfigRules(ctx context.Context, params *configservice.DescribeConfigRulesInput, optFns ...func(*configservice.Options)) (*configservice.DescribeConfigRulesOutput, error)
+	DescribeRemediationConfigurations(ctx context.Context, params *configservice.DescribeRemediationConfigurationsInput, optFns ...func(*configservice.Options)) (*configservice.DescribeRemediationConfigurationsOutput, error)
+	DeleteRemediationConfiguration(ctx context.Context, params *configservice.DeleteRemediationConfigurationInput, optFns ...func(*configservice.Options)) (*configservice.DeleteRemediationConfigurationOutput, error)
+	DeleteConfigRule(ctx context.Context, params *configservice.DeleteConfigRuleInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigRuleOutput, error)
+}
+
 type ConfigServiceRule struct {
 	BaseAwsResource
-	Client    configserviceiface.ConfigServiceAPI
+	Client    ConfigServiceRuleAPI
 	Region    string
 	RuleNames []string
 }
 
-func (csr *ConfigServiceRule) Init(session *session.Session) {
-	csr.Client = configservice.New(session)
+func (csr *ConfigServiceRule) InitV2(cfg aws.Config) {
+	csr.Client = configservice.NewFromConfig(cfg)
 }
+
+func (csr *ConfigServiceRule) IsUsingV2() bool { return true }
 
 func (csr *ConfigServiceRule) ResourceName() string {
 	return "config-rules"
@@ -44,7 +51,7 @@ func (csr *ConfigServiceRule) GetAndSetIdentifiers(c context.Context, configObj 
 		return nil, err
 	}
 
-	csr.RuleNames = awsgo.StringValueSlice(identifiers)
+	csr.RuleNames = aws.ToStringSlice(identifiers)
 	return csr.RuleNames, nil
 }
 

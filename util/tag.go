@@ -1,8 +1,8 @@
 package util
 
 import (
+	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/networkfirewall"
@@ -37,7 +37,7 @@ func ConvertTypesTagsToMap(tags []types.Tag) map[string]string {
 	return tagMap
 }
 
-func ConvertAutoScalingTagsToMap(tags []*autoscaling.TagDescription) map[string]string {
+func ConvertAutoScalingTagsToMap(tags []autoscaling.TagDescription) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		tagMap[*tag.Key] = *tag.Value
