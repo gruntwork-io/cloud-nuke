@@ -2,12 +2,13 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,19 +16,20 @@ import (
 )
 
 // Returns a formatted string of SQS Queue URLs
-func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result := []*string{}
-	paginator := func(output *sqs.ListQueuesOutput, lastPage bool) bool {
-		result = append(result, output.QueueUrls...)
-		return !lastPage
-	}
+func (sq *SqsQueue) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
+	var result []*string
 
-	param := &sqs.ListQueuesInput{
-		MaxResults: awsgo.Int64(10),
-	}
-	err := sq.Client.ListQueuesPagesWithContext(sq.Context, param, paginator)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	paginator := sqs.NewListQueuesPaginator(sq.Client, &sqs.ListQueuesInput{
+		MaxResults: aws.Int32(10),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		result = append(result, aws.StringSlice(page.QueueUrls)...)
 	}
 
 	var urls []*string
@@ -35,15 +37,18 @@ func (sq *SqsQueue) getAll(c context.Context, configObj config.Config) ([]*strin
 	for _, queue := range result {
 		param := &sqs.GetQueueAttributesInput{
 			QueueUrl:       queue,
-			AttributeNames: awsgo.StringSlice([]string{"CreatedTimestamp"}),
+			AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameCreatedTimestamp},
 		}
-		queueAttributes, err := sq.Client.GetQueueAttributesWithContext(sq.Context, param)
+		queueAttributes, err := sq.Client.GetQueueAttributes(ctx, param)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
 		// Convert string timestamp to int64 and then to time.Time
-		createdAt := *queueAttributes.Attributes["CreatedTimestamp"]
+		createdAt, ok := queueAttributes.Attributes["CreatedTimestamp"]
+		if !ok {
+			return nil, errors.WithStackTrace(fmt.Errorf("expected to find CreatedTimestamp attribute"))
+		}
 		createdAtInt, err := strconv.ParseInt(createdAt, 10, 64)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
@@ -76,11 +81,11 @@ func (sq *SqsQueue) nukeAll(urls []*string) error {
 			QueueUrl: url,
 		}
 
-		_, err := sq.Client.DeleteQueueWithContext(sq.Context, params)
+		_, err := sq.Client.DeleteQueue(sq.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(url),
+			Identifier:   aws.ToString(url),
 			ResourceType: "SQS Queue",
 			Error:        err,
 		}

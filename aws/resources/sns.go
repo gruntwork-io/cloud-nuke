@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/sns"
-	"github.com/gruntwork-io/cloud-nuke/util"
-
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -30,7 +30,14 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
-	err = s.Client.ListTopicsPagesWithContext(s.Context, &sns.ListTopicsInput{}, func(page *sns.ListTopicsOutput, lastPage bool) bool {
+
+	paginator := sns.NewListTopicsPaginator(s.Client, &sns.ListTopicsInput{})
+	for paginator.HasMorePages() {
+		page, errGetPage := paginator.NextPage(c)
+		if errGetPage != nil {
+			return nil, errors.WithStackTrace(errGetPage)
+		}
+
 		for _, topic := range page.Topics {
 			if !excludeFirstSeenTag {
 				firstSeenTime, err = s.getFirstSeenTag(*topic.TopicArn)
@@ -61,9 +68,7 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 				snsTopics = append(snsTopics, topic.TopicArn)
 			}
 		}
-
-		return !lastPage
-	})
+	}
 
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
@@ -72,12 +77,14 @@ func (s *SNSTopic) getAll(c context.Context, configObj config.Config) ([]*string
 	return snsTopics, nil
 }
 
-// getFirstSeenSNSTopicTag will retrive the time that the topic was first seen, otherwise returning nil if the topic has not been
+// getFirstSeenSNSTopicTag will retrieve the time that the topic was first seen, otherwise returning nil if the topic has not been
 // seen before.
 func (s *SNSTopic) getFirstSeenTag(topicArn string) (*time.Time, error) {
-	response, err := s.Client.ListTagsForResource(&sns.ListTagsForResourceInput{
-		ResourceArn: &topicArn,
-	})
+	response, err := s.Client.ListTagsForResource(
+		s.Context,
+		&sns.ListTagsForResourceInput{
+			ResourceArn: &topicArn,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +106,10 @@ func (s *SNSTopic) getFirstSeenTag(topicArn string) (*time.Time, error) {
 // setFirstSeenSNSTopic will append a tag to the SNS Topic that details the first seen time.
 func (s *SNSTopic) setFirstSeenTag(topicArn string, value time.Time) error {
 	_, err := s.Client.TagResource(
+		s.Context,
 		&sns.TagResourceInput{
 			ResourceArn: &topicArn,
-			Tags: []*sns.Tag{
+			Tags: []types.Tag{
 				{
 					Key:   aws.String(util.FirstSeenTagKey),
 					Value: aws.String(util.FormatTimestamp(value)),
@@ -172,9 +180,9 @@ func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn 
 		TopicArn: topicArn,
 	}
 
-	logging.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
+	logging.Debugf("Deleting SNS Topic (arn=%s) in region: %s", aws.ToString(topicArn), s.Region)
 
-	_, err := s.Client.DeleteTopicWithContext(s.Context, deleteParam)
+	_, err := s.Client.DeleteTopic(s.Context, deleteParam)
 
 	errChan <- err
 
@@ -187,8 +195,8 @@ func (s *SNSTopic) deleteAsync(wg *sync.WaitGroup, errChan chan error, topicArn 
 	report.Record(e)
 
 	if err == nil {
-		logging.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.StringValue(topicArn), s.Region)
+		logging.Debugf("[OK] Deleted SNS Topic (arn=%s) in region: %s", aws.ToString(topicArn), s.Region)
 	} else {
-		logging.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.StringValue(topicArn), s.Region)
+		logging.Debugf("[Failed] Error deleting SNS Topic (arn=%s) in %s", aws.ToString(topicArn), s.Region)
 	}
 }

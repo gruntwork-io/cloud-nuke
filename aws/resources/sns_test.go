@@ -6,43 +6,42 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/sns/snsiface"
-
-	"github.com/gruntwork-io/cloud-nuke/util"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedSNSTopic struct {
-	snsiface.SNSAPI
-	ListTopicsOutput             sns.ListTopicsOutput
-	ListTagsForResourceOutputMap map[string]sns.ListTagsForResourceOutput
-	DeleteTopicOutput            sns.DeleteTopicOutput
+type mockedSNSService struct {
+	SNSTopic
+	DeleteTopicOutput         sns.DeleteTopicOutput
+	TagResourceOutput         sns.TagResourceOutput
+	ListTopicsOutput          sns.ListTopicsOutput
+	ListTagsForResourceOutput map[string]sns.ListTagsForResourceOutput
 }
 
-func (m mockedSNSTopic) ListTopicsPagesWithContext(_ awsgo.Context, _ *sns.ListTopicsInput, fn func(*sns.ListTopicsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListTopicsOutput, true)
-	return nil
+func (m mockedSNSService) ListTopics(context.Context, *sns.ListTopicsInput, ...func(*sns.Options)) (*sns.ListTopicsOutput, error) {
+	return &m.ListTopicsOutput, nil
 }
 
-func (m mockedSNSTopic) ListTagsForResource(input *sns.ListTagsForResourceInput) (*sns.ListTagsForResourceOutput, error) {
-	arn := input.ResourceArn
-	resp := m.ListTagsForResourceOutputMap[*arn]
+func (m mockedSNSService) ListTagsForResource(ctx context.Context, params *sns.ListTagsForResourceInput, optFns ...func(*sns.Options)) (*sns.ListTagsForResourceOutput, error) {
+	arn := params.ResourceArn
+	resp := m.ListTagsForResourceOutput[*arn]
 
 	return &resp, nil
 }
 
-func (m mockedSNSTopic) DeleteTopicWithContext(_ awsgo.Context, _ *sns.DeleteTopicInput, _ ...request.Option) (*sns.DeleteTopicOutput, error) {
+func (m mockedSNSService) TagResource(ctx context.Context, params *sns.TagResourceInput, optFns ...func(*sns.Options)) (*sns.TagResourceOutput, error) {
+	return &m.TagResourceOutput, nil
+}
+
+func (m mockedSNSService) DeleteTopic(ctx context.Context, params *sns.DeleteTopicInput, optFns ...func(*sns.Options)) (*sns.DeleteTopicOutput, error) {
 	return &m.DeleteTopicOutput, nil
 }
 
 func TestSNS_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	// Set excludeFirstSeenTag to false for testing
@@ -52,24 +51,24 @@ func TestSNS_GetAll(t *testing.T) {
 	testTopic2 := "arn:aws:sns:us-east-1:123456789012:MyTopic2"
 	now := time.Now()
 	s := SNSTopic{
-		Client: mockedSNSTopic{
+		Client: mockedSNSService{
 			ListTopicsOutput: sns.ListTopicsOutput{
-				Topics: []*sns.Topic{
-					{TopicArn: awsgo.String(testTopic1)},
-					{TopicArn: awsgo.String(testTopic2)},
+				Topics: []types.Topic{
+					{TopicArn: aws.String(testTopic1)},
+					{TopicArn: aws.String(testTopic2)},
 				},
 			},
-			ListTagsForResourceOutputMap: map[string]sns.ListTagsForResourceOutput{
+			ListTagsForResourceOutput: map[string]sns.ListTagsForResourceOutput{
 				testTopic1: {
-					Tags: []*sns.Tag{{
-						Key:   awsgo.String(firstSeenTagKey),
-						Value: awsgo.String(now.Format(firstSeenTimeFormat)),
+					Tags: []types.Tag{{
+						Key:   aws.String(firstSeenTagKey),
+						Value: aws.String(now.Format(firstSeenTimeFormat)),
 					}},
 				},
 				testTopic2: {
-					Tags: []*sns.Tag{{
-						Key:   awsgo.String(firstSeenTagKey),
-						Value: awsgo.String(now.Add(1).Format(firstSeenTimeFormat)),
+					Tags: []types.Tag{{
+						Key:   aws.String(firstSeenTagKey),
+						Value: aws.String(now.Add(1).Format(firstSeenTimeFormat)),
 					}},
 				},
 			},
@@ -111,17 +110,16 @@ func TestSNS_GetAll(t *testing.T) {
 				SNS: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestSNS_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	s := SNSTopic{
-		Client: mockedSNSTopic{
+		Client: mockedSNSService{
 			DeleteTopicOutput: sns.DeleteTopicOutput{},
 		},
 	}
