@@ -3,24 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/vpclattice"
-	"github.com/aws/aws-sdk-go/service/vpclattice/vpclatticeiface"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type VPCLatticeServiceAPI interface {
+	ListServices(ctx context.Context, params *vpclattice.ListServicesInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServicesOutput, error)
+	DeleteService(ctx context.Context, params *vpclattice.DeleteServiceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceOutput, error)
+	ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error)
+	DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error)
+}
+
 type VPCLatticeService struct {
 	BaseAwsResource
-	Client vpclatticeiface.VPCLatticeAPI
+	Client VPCLatticeServiceAPI
 	Region string
 	ARNs   []string
 }
 
-func (n *VPCLatticeService) Init(session *session.Session) {
-	n.Client = vpclattice.New(session)
+func (sch *VPCLatticeService) InitV2(cfg awsgo.Config) {
+	sch.Client = vpclattice.NewFromConfig(cfg)
 }
+
+func (sch *VPCLatticeService) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (n *VPCLatticeService) ResourceName() string {
@@ -50,7 +57,7 @@ func (n *VPCLatticeService) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	n.ARNs = awsgo.StringValueSlice(identifiers)
+	n.ARNs = awsgo.ToStringSlice(identifiers)
 	return n.ARNs, nil
 }
 

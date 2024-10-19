@@ -28,6 +28,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.10.7
 	github.com/aws/aws-sdk-go-v2/service/sns v1.32.3
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.35.3
+	github.com/aws/aws-sdk-go-v2/service/vpclattice v1.12.2
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/go-errors/errors v1.4.2
 	github.com/gruntwork-io/go-commons v0.17.0

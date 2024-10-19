@@ -3,24 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/vpclattice"
-	"github.com/aws/aws-sdk-go/service/vpclattice/vpclatticeiface"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type VPCLatticeServiceNetworkAPI interface{
+	ListServiceNetworks(ctx context.Context, params *vpclattice.ListServiceNetworksInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworksOutput, error)
+	DeleteServiceNetwork(ctx context.Context, params *vpclattice.DeleteServiceNetworkInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkOutput, error) 
+	ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error) 
+	DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error)  
+}
+
 type VPCLatticeServiceNetwork struct {
 	BaseAwsResource
-	Client vpclatticeiface.VPCLatticeAPI
+	Client VPCLatticeServiceNetworkAPI
 	Region string
 	ARNs   []string
 }
 
-func (n *VPCLatticeServiceNetwork) Init(session *session.Session) {
-	n.Client = vpclattice.New(session)
+func (sch *VPCLatticeServiceNetwork) InitV2(cfg awsgo.Config) {
+	sch.Client = vpclattice.NewFromConfig(cfg)
 }
+
+func (sch *VPCLatticeServiceNetwork) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (n *VPCLatticeServiceNetwork) ResourceName() string {
@@ -50,7 +57,7 @@ func (n *VPCLatticeServiceNetwork) GetAndSetIdentifiers(c context.Context, confi
 		return nil, err
 	}
 
-	n.ARNs = awsgo.StringValueSlice(identifiers)
+	n.ARNs = awsgo.ToStringSlice(identifiers)
 	return n.ARNs, nil
 }
 
