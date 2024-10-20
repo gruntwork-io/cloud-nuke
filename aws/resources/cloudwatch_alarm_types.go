@@ -3,25 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type CloudWatchAlarmsAPI interface {
+	DescribeAlarms(ctx context.Context, params *cloudwatch.DescribeAlarmsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DescribeAlarmsOutput, error)
+	DeleteAlarms(ctx context.Context, params *cloudwatch.DeleteAlarmsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DeleteAlarmsOutput, error)
+	PutCompositeAlarm(ctx context.Context, params *cloudwatch.PutCompositeAlarmInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.PutCompositeAlarmOutput, error)
+}
+
 // CloudWatchAlarms - represents all CloudWatchAlarms that should be deleted.
 type CloudWatchAlarms struct {
 	BaseAwsResource
-	Client     cloudwatchiface.CloudWatchAPI
+	Client     CloudWatchAlarmsAPI
 	Region     string
 	AlarmNames []string
 }
 
-func (cw *CloudWatchAlarms) Init(session *session.Session) {
-	cw.Client = cloudwatch.New(session)
+func (cw *CloudWatchAlarms) InitV2(cfg aws.Config) {
+	cw.Client = cloudwatch.NewFromConfig(cfg)
 }
+
+func (cw *CloudWatchAlarms) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (cw *CloudWatchAlarms) ResourceName() string {
@@ -47,13 +53,13 @@ func (cw *CloudWatchAlarms) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	cw.AlarmNames = awsgo.StringValueSlice(identifiers)
+	cw.AlarmNames = aws.ToStringSlice(identifiers)
 	return cw.AlarmNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (cw *CloudWatchAlarms) Nuke(identifiers []string) error {
-	if err := cw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := cw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

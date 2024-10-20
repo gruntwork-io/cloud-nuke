@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/configservice"
-	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/configservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type ConfigServiceRecordersAPI interface {
+	DescribeConfigurationRecorders(ctx context.Context, params *configservice.DescribeConfigurationRecordersInput, optFns ...func(*configservice.Options)) (*configservice.DescribeConfigurationRecordersOutput, error)
+	DeleteConfigurationRecorder(ctx context.Context, params *configservice.DeleteConfigurationRecorderInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigurationRecorderOutput, error)
+}
+
 type ConfigServiceRecorders struct {
 	BaseAwsResource
-	Client        configserviceiface.ConfigServiceAPI
+	Client        ConfigServiceRecordersAPI
 	Region        string
 	RecorderNames []string
 }
 
-func (csr *ConfigServiceRecorders) Init(session *session.Session) {
-	csr.Client = configservice.New(session)
+func (csr *ConfigServiceRecorders) InitV2(cfg aws.Config) {
+	csr.Client = configservice.NewFromConfig(cfg)
 }
+
+func (csr *ConfigServiceRecorders) IsUsingV2() bool { return true }
 
 func (csr *ConfigServiceRecorders) ResourceName() string {
 	return "config-recorders"
@@ -44,7 +49,7 @@ func (csr *ConfigServiceRecorders) GetAndSetIdentifiers(c context.Context, confi
 		return nil, err
 	}
 
-	csr.RecorderNames = awsgo.StringValueSlice(identifiers)
+	csr.RecorderNames = aws.ToStringSlice(identifiers)
 	return csr.RecorderNames, nil
 }
 

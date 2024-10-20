@@ -6,39 +6,34 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedDynamoDB struct {
-	dynamodbiface.DynamoDBAPI
-	DescribeTableOutputMap map[string]dynamodb.DescribeTableOutput
-	ListTablesOutput       dynamodb.ListTablesOutput
-	DeleteTableOutput      dynamodb.DeleteTableOutput
+	DynamoDBAPI
+	ListTablesOutput    dynamodb.ListTablesOutput
+	DescribeTableOutput map[string]dynamodb.DescribeTableOutput
+	DeleteTableOutput   dynamodb.DeleteTableOutput
 }
 
-func (m mockedDynamoDB) ListTablesPagesWithContext(_ awsgo.Context, _ *dynamodb.ListTablesInput, fn func(*dynamodb.ListTablesOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListTablesOutput, true)
-	return nil
+func (m mockedDynamoDB) ListTables(ctx context.Context, params *dynamodb.ListTablesInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTablesOutput, error) {
+	return &m.ListTablesOutput, nil
 }
 
-func (m mockedDynamoDB) DescribeTableWithContext(_ awsgo.Context, input *dynamodb.DescribeTableInput, _ ...request.Option) (*dynamodb.DescribeTableOutput, error) {
-	output := m.DescribeTableOutputMap[*input.TableName]
+func (m mockedDynamoDB) DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error) {
+	output := m.DescribeTableOutput[*params.TableName]
 	return &output, nil
 }
 
-func (m mockedDynamoDB) DeleteTableWithContext(_ awsgo.Context, _ *dynamodb.DeleteTableInput, _ ...request.Option) (*dynamodb.DeleteTableOutput, error) {
+func (m mockedDynamoDB) DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error) {
 	return &m.DeleteTableOutput, nil
 }
 
 func TestDynamoDB_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "table1"
@@ -47,20 +42,20 @@ func TestDynamoDB_GetAll(t *testing.T) {
 	ddb := DynamoDB{
 		Client: mockedDynamoDB{
 			ListTablesOutput: dynamodb.ListTablesOutput{
-				TableNames: []*string{
-					aws.String(testName1),
-					aws.String(testName2),
+				TableNames: []string{
+					testName1,
+					testName2,
 				},
 			},
-			DescribeTableOutputMap: map[string]dynamodb.DescribeTableOutput{
+			DescribeTableOutput: map[string]dynamodb.DescribeTableOutput{
 				testName1: {
-					Table: &dynamodb.TableDescription{
+					Table: &types.TableDescription{
 						TableName:        aws.String(testName1),
 						CreationDateTime: aws.Time(now),
 					},
 				},
 				testName2: {
-					Table: &dynamodb.TableDescription{
+					Table: &types.TableDescription{
 						TableName:        aws.String(testName2),
 						CreationDateTime: aws.Time(now.Add(1)),
 					},
@@ -100,15 +95,13 @@ func TestDynamoDB_GetAll(t *testing.T) {
 				DynamoDB: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestDynamoDb_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	ddb := DynamoDB{
 		Client: mockedDynamoDB{
 			DeleteTableOutput: dynamodb.DeleteTableOutput{},

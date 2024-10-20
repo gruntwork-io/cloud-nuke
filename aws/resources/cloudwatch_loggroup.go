@@ -2,45 +2,46 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	goerr "github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
 func (csr *CloudWatchLogGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allLogGroups := []*string{}
-	err := csr.Client.DescribeLogGroupsPagesWithContext(
-		csr.Context,
-		&cloudwatchlogs.DescribeLogGroupsInput{},
-		func(page *cloudwatchlogs.DescribeLogGroupsOutput, lastPage bool) bool {
-			for _, logGroup := range page.LogGroups {
-				var creationTime *time.Time
-				if logGroup.CreationTime != nil {
-					// Convert milliseconds since epoch to time.Time object
-					creationTime = aws.Time(time.Unix(0, aws.Int64Value(logGroup.CreationTime)*int64(time.Millisecond)))
-				}
+	var allLogGroups []*string
 
-				if configObj.CloudWatchLogGroup.ShouldInclude(config.ResourceValue{
-					Name: logGroup.LogGroupName,
-					Time: creationTime,
-				}) {
-					allLogGroups = append(allLogGroups, logGroup.LogGroupName)
-				}
+	paginator := cloudwatchlogs.NewDescribeLogGroupsPaginator(csr.Client, &cloudwatchlogs.DescribeLogGroupsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, goerr.WithStackTrace(err)
+		}
+
+		for _, logGroup := range page.LogGroups {
+			var creationTime *time.Time
+			if logGroup.CreationTime != nil {
+				// Convert milliseconds since epoch to time.Time object
+				creationTime = aws.Time(time.Unix(0, aws.ToInt64(logGroup.CreationTime)*int64(time.Millisecond)))
 			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+
+			if configObj.CloudWatchLogGroup.ShouldInclude(config.ResourceValue{
+				Name: logGroup.LogGroupName,
+				Time: creationTime,
+			}) {
+				allLogGroups = append(allLogGroups, logGroup.LogGroupName)
+			}
+		}
 	}
+
 	return allLogGroups, nil
 }
 
@@ -77,14 +78,15 @@ func (csr *CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 	var allErrs *multierror.Error
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
-			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() != "OperationAbortedException" {
+			var awsErr *types.OperationAbortedException
+			if !errors.As(err, &awsErr) {
 				allErrs = multierror.Append(allErrs, err)
 			}
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
 	if finalErr != nil {
-		return errors.WithStackTrace(finalErr)
+		return goerr.WithStackTrace(finalErr)
 	}
 	return nil
 }
@@ -94,11 +96,11 @@ func (csr *CloudWatchLogGroups) nukeAll(identifiers []*string) error {
 func (csr *CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, logGroupName *string) {
 	defer wg.Done()
 	input := &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: logGroupName}
-	_, err := csr.Client.DeleteLogGroupWithContext(csr.Context, input)
+	_, err := csr.Client.DeleteLogGroup(csr.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(logGroupName),
+		Identifier:   aws.ToString(logGroupName),
 		ResourceType: "CloudWatch Log Group",
 		Error:        err,
 	}
@@ -106,7 +108,7 @@ func (csr *CloudWatchLogGroups) deleteAsync(wg *sync.WaitGroup, errChan chan err
 
 	errChan <- err
 
-	logGroupNameStr := aws.StringValue(logGroupName)
+	logGroupNameStr := aws.ToString(logGroupName)
 	if err == nil {
 		logging.Debugf("[OK] CloudWatch Log Group %s deleted in %s", logGroupNameStr, csr.Region)
 	} else {

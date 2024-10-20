@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/accessanalyzer"
-	"github.com/aws/aws-sdk-go/service/accessanalyzer/accessanalyzeriface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type AccessAnalyzerAPI interface {
+	DeleteAnalyzer(ctx context.Context, params *accessanalyzer.DeleteAnalyzerInput, optFns ...func(*accessanalyzer.Options)) (*accessanalyzer.DeleteAnalyzerOutput, error)
+	ListAnalyzers(context.Context, *accessanalyzer.ListAnalyzersInput, ...func(*accessanalyzer.Options)) (*accessanalyzer.ListAnalyzersOutput, error)
+}
+
 // AccessAnalyzer - represents all AWS secrets manager secrets that should be deleted.
 type AccessAnalyzer struct {
 	BaseAwsResource
-	Client        accessanalyzeriface.AccessAnalyzerAPI
+	Client        AccessAnalyzerAPI
 	Region        string
 	AnalyzerNames []string
 }
 
-func (analyzer *AccessAnalyzer) Init(session *session.Session) {
-	analyzer.Client = accessanalyzer.New(session)
+func (analyzer *AccessAnalyzer) InitV2(cfg aws.Config) {
+	analyzer.Client = accessanalyzer.NewFromConfig(cfg)
 }
+
+func (analyzer *AccessAnalyzer) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (analyzer *AccessAnalyzer) ResourceName() string {
@@ -40,7 +45,7 @@ func (analyzer *AccessAnalyzer) MaxBatchSize() int {
 	return 10
 }
 
-// To get the resource configuration
+// GetAndSetResourceConfig To get the resource configuration
 func (analyzer *AccessAnalyzer) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
 	return configObj.AccessAnalyzer
 }
@@ -51,13 +56,13 @@ func (analyzer *AccessAnalyzer) GetAndSetIdentifiers(c context.Context, configOb
 		return nil, err
 	}
 
-	analyzer.AnalyzerNames = awsgo.StringValueSlice(identifiers)
+	analyzer.AnalyzerNames = aws.ToStringSlice(identifiers)
 	return analyzer.AnalyzerNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (analyzer *AccessAnalyzer) Nuke(identifiers []string) error {
-	if err := analyzer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := analyzer.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -3,25 +3,32 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/acmpca"
-	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// ACMPA - represents all ACMPA
+type ACMPCAServiceAPI interface {
+	DeleteCertificateAuthority(ctx context.Context, params *acmpca.DeleteCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DeleteCertificateAuthorityOutput, error)
+	DescribeCertificateAuthority(ctx context.Context, params *acmpca.DescribeCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error)
+	ListCertificateAuthorities(ctx context.Context, params *acmpca.ListCertificateAuthoritiesInput, optFns ...func(*acmpca.Options)) (*acmpca.ListCertificateAuthoritiesOutput, error)
+	UpdateCertificateAuthority(ctx context.Context, params *acmpca.UpdateCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.UpdateCertificateAuthorityOutput, error)
+}
+
+// ACMPCA - represents all ACMPA
 type ACMPCA struct {
 	BaseAwsResource
-	Client acmpcaiface.ACMPCAAPI
+	Client ACMPCAServiceAPI
 	Region string
 	ARNs   []string
 }
 
-func (ap *ACMPCA) Init(session *session.Session) {
-	ap.Client = acmpca.New(session)
+func (ap *ACMPCA) InitV2(cfg aws.Config) {
+	ap.Client = acmpca.NewFromConfig(cfg)
 }
+
+func (ap *ACMPCA) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ap *ACMPCA) ResourceName() string {
@@ -47,13 +54,13 @@ func (ap *ACMPCA) GetAndSetIdentifiers(c context.Context, configObj config.Confi
 		return nil, err
 	}
 
-	ap.ARNs = awsgo.StringValueSlice(identifiers)
+	ap.ARNs = aws.ToStringSlice(identifiers)
 	return ap.ARNs, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ap *ACMPCA) Nuke(arns []string) error {
-	if err := ap.nukeAll(awsgo.StringSlice(arns)); err != nil {
+	if err := ap.nukeAll(aws.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

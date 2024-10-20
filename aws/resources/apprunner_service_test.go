@@ -7,32 +7,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/apprunner"
-	"github.com/aws/aws-sdk-go/service/apprunner/apprunneriface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/apprunner"
+	"github.com/aws/aws-sdk-go-v2/service/apprunner/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedAppRunnerService struct {
-	apprunneriface.AppRunnerAPI
-	ListServicesOutput  apprunner.ListServicesOutput
+	AppRunnerServiceAPI
 	DeleteServiceOutput apprunner.DeleteServiceOutput
+	ListServicesOutput  apprunner.ListServicesOutput
 }
 
-func (m mockedAppRunnerService) ListServicesPagesWithContext(_ aws.Context, _ *apprunner.ListServicesInput, callback func(*apprunner.ListServicesOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.ListServicesOutput, true)
-	return nil
-}
-
-func (m mockedAppRunnerService) DeleteServiceWithContext(aws.Context, *apprunner.DeleteServiceInput, ...request.Option) (*apprunner.DeleteServiceOutput, error) {
+func (m mockedAppRunnerService) DeleteService(ctx context.Context, params *apprunner.DeleteServiceInput, optFns ...func(*apprunner.Options)) (*apprunner.DeleteServiceOutput, error) {
 	return &m.DeleteServiceOutput, nil
 }
 
-func Test_AppRunnerService_GetAll(t *testing.T) {
+func (m mockedAppRunnerService) ListServices(ctx context.Context, params *apprunner.ListServicesInput, optFns ...func(*apprunner.Options)) (*apprunner.ListServicesOutput, error) {
+	return &m.ListServicesOutput, nil
+}
 
+func Test_AppRunnerService_GetAll(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-service-1"
@@ -41,7 +38,7 @@ func Test_AppRunnerService_GetAll(t *testing.T) {
 	service := AppRunnerService{
 		Client: mockedAppRunnerService{
 			ListServicesOutput: apprunner.ListServicesOutput{
-				ServiceSummaryList: []*apprunner.ServiceSummary{
+				ServiceSummaryList: []types.ServiceSummary{
 					{
 						ServiceName: &testName1,
 						ServiceArn:  aws.String(fmt.Sprintf("arn::%s", testName1)),
@@ -88,13 +85,12 @@ func Test_AppRunnerService_GetAll(t *testing.T) {
 				AppRunnerService: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestAppRunnerService_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName := "test-app-runner-service"

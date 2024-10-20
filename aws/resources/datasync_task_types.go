@@ -3,17 +3,20 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/datasync"
-	"github.com/aws/aws-sdk-go/service/datasync/datasynciface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/datasync"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type DataSyncTaskAPI interface {
+	DeleteTask(ctx context.Context, params *datasync.DeleteTaskInput, optFns ...func(*datasync.Options)) (*datasync.DeleteTaskOutput, error)
+	ListTasks(ctx context.Context, params *datasync.ListTasksInput, optFns ...func(*datasync.Options)) (*datasync.ListTasksOutput, error)
+}
+
 type DataSyncTask struct {
 	BaseAwsResource
-	Client        datasynciface.DataSyncAPI
+	Client        DataSyncTaskAPI
 	Region        string
 	DataSyncTasks []string
 }
@@ -22,9 +25,11 @@ func (dst *DataSyncTask) GetAndSetResourceConfig(configObj config.Config) config
 	return configObj.DataSyncTask
 }
 
-func (dst *DataSyncTask) Init(session *session.Session) {
-	dst.Client = datasync.New(session)
+func (dst *DataSyncTask) InitV2(cfg aws.Config) {
+	dst.Client = datasync.NewFromConfig(cfg)
 }
+
+func (dst *DataSyncTask) IsUsingV2() bool { return true }
 
 func (dst *DataSyncTask) ResourceName() string { return "data-sync-task" }
 
@@ -46,6 +51,6 @@ func (dst *DataSyncTask) GetAndSetIdentifiers(c context.Context, configObj confi
 		return nil, err
 	}
 
-	dst.DataSyncTasks = aws.StringValueSlice(identifiers)
+	dst.DataSyncTasks = aws.ToStringSlice(identifiers)
 	return dst.DataSyncTasks, nil
 }

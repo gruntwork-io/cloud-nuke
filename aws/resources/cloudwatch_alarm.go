@@ -3,8 +3,9 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -13,35 +14,38 @@ import (
 )
 
 func (cw *CloudWatchAlarms) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allAlarms := []*string{}
+	var allAlarms []*string
 	input := &cloudwatch.DescribeAlarmsInput{
-		AlarmTypes: aws.StringSlice([]string{cloudwatch.AlarmTypeMetricAlarm, cloudwatch.AlarmTypeCompositeAlarm}),
+		AlarmTypes: []types.AlarmType{types.AlarmTypeMetricAlarm, types.AlarmTypeCompositeAlarm},
 	}
-	err := cw.Client.DescribeAlarmsPagesWithContext(
-		cw.Context,
-		input,
-		func(page *cloudwatch.DescribeAlarmsOutput, lastPage bool) bool {
-			for _, alarm := range page.MetricAlarms {
-				if configObj.CloudWatchAlarm.ShouldInclude(config.ResourceValue{
-					Name: alarm.AlarmName,
-					Time: alarm.AlarmConfigurationUpdatedTimestamp,
-				}) {
-					allAlarms = append(allAlarms, alarm.AlarmName)
-				}
-			}
 
-			for _, alarm := range page.CompositeAlarms {
-				if configObj.CloudWatchAlarm.ShouldInclude(config.ResourceValue{
-					Name: alarm.AlarmName,
-					Time: alarm.AlarmConfigurationUpdatedTimestamp,
-				}) {
-					allAlarms = append(allAlarms, alarm.AlarmName)
-				}
+	paginator := cloudwatch.NewDescribeAlarmsPaginator(cw.Client, input)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, alarm := range page.MetricAlarms {
+			if configObj.CloudWatchAlarm.ShouldInclude(config.ResourceValue{
+				Name: alarm.AlarmName,
+				Time: alarm.AlarmConfigurationUpdatedTimestamp,
+			}) {
+				allAlarms = append(allAlarms, alarm.AlarmName)
 			}
-			return !lastPage
-		},
-	)
-	return allAlarms, errors.WithStackTrace(err)
+		}
+
+		for _, alarm := range page.CompositeAlarms {
+			if configObj.CloudWatchAlarm.ShouldInclude(config.ResourceValue{
+				Name: alarm.AlarmName,
+				Time: alarm.AlarmConfigurationUpdatedTimestamp,
+			}) {
+				allAlarms = append(allAlarms, alarm.AlarmName)
+			}
+		}
+	}
+
+	return allAlarms, nil
 }
 
 func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
@@ -62,9 +66,9 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	logging.Debugf("Deleting CloudWatch Alarms in region %s", cw.Region)
 
 	// If the alarm's type is composite alarm, remove the dependency by removing the rule.
-	alarms, err := cw.Client.DescribeAlarmsWithContext(cw.Context, &cloudwatch.DescribeAlarmsInput{
-		AlarmTypes: aws.StringSlice([]string{cloudwatch.AlarmTypeMetricAlarm, cloudwatch.AlarmTypeCompositeAlarm}),
-		AlarmNames: identifiers,
+	alarms, err := cw.Client.DescribeAlarms(cw.Context, &cloudwatch.DescribeAlarmsInput{
+		AlarmTypes: []types.AlarmType{types.AlarmTypeMetricAlarm, types.AlarmTypeCompositeAlarm},
+		AlarmNames: aws.ToStringSlice(identifiers),
 	})
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
@@ -74,7 +78,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	for _, compositeAlarm := range alarms.CompositeAlarms {
 		compositeAlarmNames = append(compositeAlarmNames, compositeAlarm.AlarmName)
 
-		_, err := cw.Client.PutCompositeAlarmWithContext(cw.Context, &cloudwatch.PutCompositeAlarmInput{
+		_, err := cw.Client.PutCompositeAlarm(cw.Context, &cloudwatch.PutCompositeAlarmInput{
 			AlarmName: compositeAlarm.AlarmName,
 			AlarmRule: aws.String("FALSE"),
 		})
@@ -84,25 +88,25 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 
 		// Note: for composite alarms, we need to delete one by one according to the documentation
 		// - https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DeleteAlarms.html.
-		_, err = cw.Client.DeleteAlarmsWithContext(cw.Context, &cloudwatch.DeleteAlarmsInput{
-			AlarmNames: []*string{compositeAlarm.AlarmName},
+		_, err = cw.Client.DeleteAlarms(cw.Context, &cloudwatch.DeleteAlarmsInput{
+			AlarmNames: []string{*compositeAlarm.AlarmName},
 		})
 
 		// Record status of this resource
 		report.Record(report.Entry{
-			Identifier:   aws.StringValue(compositeAlarm.AlarmName),
+			Identifier:   aws.ToString(compositeAlarm.AlarmName),
 			ResourceType: "CloudWatch Alarm",
 			Error:        err,
 		})
 	}
 
 	nonCompositeAlarms := util.Difference(identifiers, compositeAlarmNames)
-	input := cloudwatch.DeleteAlarmsInput{AlarmNames: nonCompositeAlarms}
-	_, err = cw.Client.DeleteAlarmsWithContext(cw.Context, &input)
+	input := cloudwatch.DeleteAlarmsInput{AlarmNames: aws.ToStringSlice(nonCompositeAlarms)}
+	_, err = cw.Client.DeleteAlarms(cw.Context, &input)
 
 	// Record status of this resource
 	e := report.BatchEntry{
-		Identifiers:  aws.StringValueSlice(nonCompositeAlarms),
+		Identifiers:  aws.ToStringSlice(nonCompositeAlarms),
 		ResourceType: "CloudWatch Alarm",
 		Error:        err,
 	}
@@ -114,7 +118,7 @@ func (cw *CloudWatchAlarms) nukeAll(identifiers []*string) error {
 	}
 
 	for _, alarmName := range identifiers {
-		logging.Debugf("[OK] CloudWatch Alarm %s was deleted in %s", aws.StringValue(alarmName), cw.Region)
+		logging.Debugf("[OK] CloudWatch Alarm %s was deleted in %s", aws.ToString(alarmName), cw.Region)
 	}
 	return nil
 }

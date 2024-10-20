@@ -4,11 +4,10 @@ import (
 	"context"
 	"strings"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/util"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -17,49 +16,53 @@ import (
 
 // Returns a formatted string of AMI Image ids
 func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	params := &ec2.DescribeImagesInput{
-		Owners: []*string{awsgo.String("self")},
-	}
-
-	output, err := ami.Client.DescribeImagesWithContext(ami.Context, params)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
 	var imageIds []*string
-	for _, image := range output.Images {
-		createdTime, err := util.ParseTimestamp(image.CreationDate)
+	paginator := ec2.NewDescribeImagesPaginator(ami.Client, &ec2.DescribeImagesInput{
+		Owners: []string{"self"},
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
-		// Check if the image has a tag that indicates AWS management
-		isAWSManaged := false
-		for _, tag := range image.Tags {
-			if *tag.Key == "aws-managed" && *tag.Value == "true" {
-				isAWSManaged = true
-				break
+		for _, image := range page.Images {
+
+			createdTime, errTimeParse := util.ParseTimestamp(image.CreationDate)
+			if errTimeParse != nil {
+				return nil, errTimeParse
 			}
-		}
 
-		// Skip AWS managed images and images created by AWS Backup
-		if isAWSManaged || strings.HasPrefix(*image.Name, "AwsBackup") {
-			continue
-		}
+			// Check if the image has a tag that indicates AWS management
+			isAWSManaged := false
+			for _, tag := range image.Tags {
+				if *tag.Key == "aws-managed" && *tag.Value == "true" {
+					isAWSManaged = true
+					break
+				}
+			}
 
-		if configObj.AMI.ShouldInclude(config.ResourceValue{
-			Name: image.Name,
-			Time: createdTime,
-		}) {
-			imageIds = append(imageIds, image.ImageId)
+			// Skip AWS managed images and images created by AWS Backup
+			if isAWSManaged || strings.HasPrefix(*image.Name, "AwsBackup") {
+				continue
+			}
+
+			if configObj.AMI.ShouldInclude(config.ResourceValue{
+				Name: image.Name,
+				Time: createdTime,
+			}) {
+				imageIds = append(imageIds, image.ImageId)
+			}
+
 		}
 	}
 
 	// checking the nukable permissions
 	ami.VerifyNukablePermissions(imageIds, func(id *string) error {
-		_, err := ami.Client.DeregisterImageWithContext(ami.Context, &ec2.DeregisterImageInput{
+		_, err := ami.Client.DeregisterImage(ami.Context, &ec2.DeregisterImageInput{
 			ImageId: id,
-			DryRun:  awsgo.Bool(true),
+			DryRun:  aws.Bool(true),
 		})
 		return err
 	})
@@ -79,18 +82,18 @@ func (ami *AMIs) nukeAll(imageIds []*string) error {
 
 	deletedCount := 0
 	for _, imageID := range imageIds {
-		if nukable, reason := ami.IsNukable(awsgo.StringValue(imageID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(imageID), reason)
+		if nukable, reason := ami.IsNukable(aws.ToString(imageID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(imageID), reason)
 			continue
 		}
 
-		_, err := ami.Client.DeregisterImageWithContext(ami.Context, &ec2.DeregisterImageInput{
+		_, err := ami.Client.DeregisterImage(ami.Context, &ec2.DeregisterImageInput{
 			ImageId: imageID,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(imageID),
+			Identifier:   aws.ToString(imageID),
 			ResourceType: "Amazon Machine Image (AMI)",
 			Error:        err,
 		}

@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go-v2/service/acm"
+	"github.com/aws/aws-sdk-go-v2/service/acm/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -13,40 +14,29 @@ import (
 
 // Returns a list of strings of ACM ARNs
 func (a *ACM) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	var acmArns []*string
+	paginator := acm.NewListCertificatesPaginator(a.Client, &acm.ListCertificatesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
 
-	params := &acm.ListCertificatesInput{}
-
-	acmArns := []*string{}
-	err := a.Client.ListCertificatesPagesWithContext(a.Context, params,
-		func(page *acm.ListCertificatesOutput, lastPage bool) bool {
-			for i := range page.CertificateSummaryList {
-				logging.Debug(fmt.Sprintf("Found ACM %s with domain name %s",
-					*page.CertificateSummaryList[i].CertificateArn, *page.CertificateSummaryList[i].DomainName))
-				if a.shouldInclude(page.CertificateSummaryList[i], configObj) {
-					logging.Debug(fmt.Sprintf(
-						"Including ACM %s", *page.CertificateSummaryList[i].CertificateArn))
-					acmArns = append(acmArns, page.CertificateSummaryList[i].CertificateArn)
-				} else {
-					logging.Debug(fmt.Sprintf(
-						"Skipping ACM %s", *page.CertificateSummaryList[i].CertificateArn))
-				}
+		for _, cert := range page.CertificateSummaryList {
+			logging.Debug(fmt.Sprintf("Found ACM %s with domain name %s", *cert.CertificateArn, *cert.DomainName))
+			if a.shouldInclude(cert, configObj) {
+				logging.Debug(fmt.Sprintf("Including ACM %s", *cert.CertificateArn))
+				acmArns = append(acmArns, cert.CertificateArn)
+			} else {
+				logging.Debug(fmt.Sprintf("Skipping ACM %s", *cert.CertificateArn))
 			}
-
-			return !lastPage
-		},
-	)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		}
 	}
 
 	return acmArns, nil
 }
 
-func (a *ACM) shouldInclude(acm *acm.CertificateSummary, configObj config.Config) bool {
-	if acm == nil {
-		return false
-	}
-
+func (a *ACM) shouldInclude(acm types.CertificateSummary, configObj config.Config) bool {
 	if acm.InUse != nil && *acm.InUse {
 		logging.Debug(fmt.Sprintf("ACM %s is in use", *acm.CertificateArn))
 		return false
@@ -69,14 +59,13 @@ func (a *ACM) nukeAll(arns []*string) error {
 	}
 
 	logging.Debugf("Deleting all ACMs in region %s", a.Region)
-
 	deletedCount := 0
 	for _, acmArn := range arns {
 		params := &acm.DeleteCertificateInput{
 			CertificateArn: acmArn,
 		}
 
-		_, err := a.Client.DeleteCertificateWithContext(a.Context, params)
+		_, err := a.Client.DeleteCertificate(a.Context, params)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 		} else {

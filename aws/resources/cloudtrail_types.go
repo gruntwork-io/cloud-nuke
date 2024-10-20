@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudtrail"
-	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// CloudWatchLogGroup - represents all ec2 instances
+type CloudtrailTrailAPI interface {
+	ListTrails(ctx context.Context, params *cloudtrail.ListTrailsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTrailsOutput, error)
+	DeleteTrail(ctx context.Context, params *cloudtrail.DeleteTrailInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.DeleteTrailOutput, error)
+}
+
+// CloudtrailTrail - represents all CloudTrails
 type CloudtrailTrail struct {
 	BaseAwsResource
-	Client cloudtrailiface.CloudTrailAPI
+	Client CloudtrailTrailAPI
 	Region string
 	Arns   []string
 }
 
-func (ct *CloudtrailTrail) Init(session *session.Session) {
-	ct.Client = cloudtrail.New(session)
+func (ct *CloudtrailTrail) InitV2(cfg aws.Config) {
+	ct.Client = cloudtrail.NewFromConfig(cfg)
 }
+
+func (ct *CloudtrailTrail) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ct *CloudtrailTrail) ResourceName() string {
@@ -47,13 +52,13 @@ func (ct *CloudtrailTrail) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	ct.Arns = awsgo.StringValueSlice(identifiers)
+	ct.Arns = aws.ToStringSlice(identifiers)
 	return ct.Arns, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ct *CloudtrailTrail) Nuke(identifiers []string) error {
-	if err := ct.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ct.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

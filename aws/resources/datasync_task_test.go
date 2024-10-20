@@ -6,32 +6,29 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/datasync"
-	"github.com/aws/aws-sdk-go/service/datasync/datasynciface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/datasync"
+	"github.com/aws/aws-sdk-go-v2/service/datasync/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockDataSyncTask struct {
-	datasynciface.DataSyncAPI
-	ListTasksOutput  datasync.ListTasksOutput
+	DataSyncTaskAPI
 	DeleteTaskOutput datasync.DeleteTaskOutput
+	ListTasksOutput  datasync.ListTasksOutput
 }
 
-func (m mockDataSyncTask) ListTasksPagesWithContext(_ aws.Context, _ *datasync.ListTasksInput, callback func(*datasync.ListTasksOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.ListTasksOutput, true)
-	return nil
-}
-
-func (m mockDataSyncTask) DeleteTaskWithContext(aws.Context, *datasync.DeleteTaskInput, ...request.Option) (*datasync.DeleteTaskOutput, error) {
+func (m mockDataSyncTask) DeleteTask(ctx context.Context, params *datasync.DeleteTaskInput, optFns ...func(*datasync.Options)) (*datasync.DeleteTaskOutput, error) {
 	return &m.DeleteTaskOutput, nil
 }
 
-func TestDataSyncTask_NukeAll(t *testing.T) {
+func (m mockDataSyncTask) ListTasks(ctx context.Context, params *datasync.ListTasksInput, optFns ...func(*datasync.Options)) (*datasync.ListTasksOutput, error) {
+	return &m.ListTasksOutput, nil
+}
 
+func TestDataSyncTask_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	testName := "test-datasync-task"
@@ -46,7 +43,6 @@ func TestDataSyncTask_NukeAll(t *testing.T) {
 }
 
 func TestDataSyncTask_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-task-1"
@@ -54,7 +50,7 @@ func TestDataSyncTask_GetAll(t *testing.T) {
 
 	task := DataSyncTask{Client: mockDataSyncTask{
 		ListTasksOutput: datasync.ListTasksOutput{
-			Tasks: []*datasync.TaskListEntry{
+			Tasks: []types.TaskListEntry{
 				{
 					Name:    &testName1,
 					TaskArn: aws.String(fmt.Sprintf("arn::%s", testName1)),
@@ -91,7 +87,7 @@ func TestDataSyncTask_GetAll(t *testing.T) {
 				DataSyncTask: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

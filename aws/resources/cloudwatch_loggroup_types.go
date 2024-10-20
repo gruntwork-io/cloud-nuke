@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// CloudWatchLogGroup - represents all ec2 instances
+type CloudWatchLogGroupsAPI interface {
+	DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
+	DeleteLogGroup(ctx context.Context, params *cloudwatchlogs.DeleteLogGroupInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DeleteLogGroupOutput, error)
+}
+
+// CloudWatchLogGroups - represents all Cloud Watch Log Groups
 type CloudWatchLogGroups struct {
 	BaseAwsResource
-	Client cloudwatchlogsiface.CloudWatchLogsAPI
+	Client CloudWatchLogGroupsAPI
 	Region string
 	Names  []string
 }
 
-func (csr *CloudWatchLogGroups) Init(session *session.Session) {
-	csr.Client = cloudwatchlogs.New(session)
+func (csr *CloudWatchLogGroups) InitV2(cfg aws.Config) {
+	csr.Client = cloudwatchlogs.NewFromConfig(cfg)
 }
+
+func (csr *CloudWatchLogGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (csr *CloudWatchLogGroups) ResourceName() string {
@@ -50,13 +55,13 @@ func (csr *CloudWatchLogGroups) GetAndSetIdentifiers(c context.Context, configOb
 		return nil, err
 	}
 
-	csr.Names = awsgo.StringValueSlice(identifiers)
+	csr.Names = aws.ToStringSlice(identifiers)
 	return csr.Names, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (csr *CloudWatchLogGroups) Nuke(identifiers []string) error {
-	if err := csr.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := csr.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

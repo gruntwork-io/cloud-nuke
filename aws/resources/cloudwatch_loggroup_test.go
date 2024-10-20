@@ -6,32 +6,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs/cloudwatchlogsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedCloudWatchLogGroup struct {
-	cloudwatchlogsiface.CloudWatchLogsAPI
-	DeleteLogGroupOutput    cloudwatchlogs.DeleteLogGroupOutput
+	CloudWatchLogGroupsAPI
 	DescribeLogGroupsOutput cloudwatchlogs.DescribeLogGroupsOutput
+	DeleteLogGroupOutput    cloudwatchlogs.DeleteLogGroupOutput
 }
 
-func (m mockedCloudWatchLogGroup) DescribeLogGroupsPagesWithContext(_ awsgo.Context, _ *cloudwatchlogs.DescribeLogGroupsInput, fn func(*cloudwatchlogs.DescribeLogGroupsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.DescribeLogGroupsOutput, true)
-	return nil
+func (m mockedCloudWatchLogGroup) DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
+	return &m.DescribeLogGroupsOutput, nil
 }
 
-func (m mockedCloudWatchLogGroup) DeleteLogGroupWithContext(_ awsgo.Context, _ *cloudwatchlogs.DeleteLogGroupInput, _ ...request.Option) (*cloudwatchlogs.DeleteLogGroupOutput, error) {
+func (m mockedCloudWatchLogGroup) DeleteLogGroup(ctx context.Context, params *cloudwatchlogs.DeleteLogGroupInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DeleteLogGroupOutput, error) {
 	return &m.DeleteLogGroupOutput, nil
 }
 
 func TestCloudWatchLogGroup_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -40,7 +36,7 @@ func TestCloudWatchLogGroup_GetAll(t *testing.T) {
 	cw := CloudWatchLogGroups{
 		Client: mockedCloudWatchLogGroup{
 			DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
-				LogGroups: []*cloudwatchlogs.LogGroup{
+				LogGroups: []types.LogGroup{
 					{
 						LogGroupName: aws.String(testName1),
 						CreationTime: aws.Int64(now.UnixMilli()),
@@ -86,13 +82,12 @@ func TestCloudWatchLogGroup_GetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestCloudWatchLogGroup_NukeAll(t *testing.T) {
-
 	t.Parallel()
 	cw := CloudWatchLogGroups{
 		Client: mockedCloudWatchLogGroup{

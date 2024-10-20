@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// ASGroups - represents all auto scaling groups
+type ASGroupsAPI interface {
+	DescribeAutoScalingGroups(ctx context.Context, params *autoscaling.DescribeAutoScalingGroupsInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingGroupsOutput, error)
+	DeleteAutoScalingGroup(ctx context.Context, params *autoscaling.DeleteAutoScalingGroupInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DeleteAutoScalingGroupOutput, error)
+}
+
+// ASGroups - represents all auto-scaling groups
 type ASGroups struct {
 	BaseAwsResource
-	Client     autoscalingiface.AutoScalingAPI
+	Client     ASGroupsAPI
 	Region     string
 	GroupNames []string
 }
 
-func (ag *ASGroups) Init(session *session.Session) {
-	ag.Client = autoscaling.New(session)
+func (ag *ASGroups) InitV2(cfg aws.Config) {
+	ag.Client = autoscaling.NewFromConfig(cfg)
 }
+
+func (ag *ASGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ag *ASGroups) ResourceName() string {
@@ -33,7 +38,7 @@ func (ag *ASGroups) MaxBatchSize() int {
 	return 49
 }
 
-// ResourceIdentifiers - The group names of the auto scaling groups
+// ResourceIdentifiers - The group names of the auto-scaling groups
 func (ag *ASGroups) ResourceIdentifiers() []string {
 	return ag.GroupNames
 }
@@ -47,13 +52,13 @@ func (ag *ASGroups) GetAndSetIdentifiers(c context.Context, configObj config.Con
 		return nil, err
 	}
 
-	ag.GroupNames = awsgo.StringValueSlice(identifiers)
+	ag.GroupNames = aws.ToStringSlice(identifiers)
 	return ag.GroupNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ag *ASGroups) Nuke(identifiers []string) error {
-	if err := ag.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ag.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -6,38 +6,30 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedCloudWatchAlarms struct {
-	cloudwatchiface.CloudWatchAPI
+	CloudWatchAlarmsAPI
 	DescribeAlarmsOutput    cloudwatch.DescribeAlarmsOutput
 	DeleteAlarmsOutput      cloudwatch.DeleteAlarmsOutput
 	PutCompositeAlarmOutput cloudwatch.PutCompositeAlarmOutput
 }
 
-func (m mockedCloudWatchAlarms) DescribeAlarmsPagesWithContext(_ awsgo.Context, _ *cloudwatch.DescribeAlarmsInput, fn func(*cloudwatch.DescribeAlarmsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.DescribeAlarmsOutput, true)
-	return nil
-}
-
-func (m mockedCloudWatchAlarms) PutCompositeAlarmWithContext(_ awsgo.Context, _ *cloudwatch.PutCompositeAlarmInput, _ ...request.Option) (*cloudwatch.PutCompositeAlarmOutput, error) {
-	return &m.PutCompositeAlarmOutput, nil
-}
-
-func (m mockedCloudWatchAlarms) DescribeAlarmsWithContext(_ awsgo.Context, _ *cloudwatch.DescribeAlarmsInput, _ ...request.Option) (*cloudwatch.DescribeAlarmsOutput, error) {
+func (m mockedCloudWatchAlarms) DescribeAlarms(ctx context.Context, params *cloudwatch.DescribeAlarmsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DescribeAlarmsOutput, error) {
 	return &m.DescribeAlarmsOutput, nil
 }
 
-func (m mockedCloudWatchAlarms) DeleteAlarmsWithContext(_ awsgo.Context, _ *cloudwatch.DeleteAlarmsInput, _ ...request.Option) (*cloudwatch.DeleteAlarmsOutput, error) {
+func (m mockedCloudWatchAlarms) DeleteAlarms(ctx context.Context, params *cloudwatch.DeleteAlarmsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DeleteAlarmsOutput, error) {
 	return &m.DeleteAlarmsOutput, nil
+}
+
+func (m mockedCloudWatchAlarms) PutCompositeAlarm(ctx context.Context, params *cloudwatch.PutCompositeAlarmInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.PutCompositeAlarmOutput, error) {
+	return &m.PutCompositeAlarmOutput, nil
 }
 
 func TestCloudWatchAlarm_GetAll(t *testing.T) {
@@ -50,7 +42,7 @@ func TestCloudWatchAlarm_GetAll(t *testing.T) {
 	cw := CloudWatchAlarms{
 		Client: mockedCloudWatchAlarms{
 			DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
-				MetricAlarms: []*cloudwatch.MetricAlarm{
+				MetricAlarms: []types.MetricAlarm{
 					{AlarmName: aws.String(testName1), AlarmConfigurationUpdatedTimestamp: &now},
 					{AlarmName: aws.String(testName2), AlarmConfigurationUpdatedTimestamp: aws.Time(now.Add(1))},
 				}},
@@ -89,13 +81,12 @@ func TestCloudWatchAlarm_GetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestCloudWatchAlarms_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -104,7 +95,7 @@ func TestCloudWatchAlarms_NukeAll(t *testing.T) {
 	cw := CloudWatchAlarms{
 		Client: mockedCloudWatchAlarms{
 			DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
-				MetricAlarms: []*cloudwatch.MetricAlarm{
+				MetricAlarms: []types.MetricAlarm{
 					{AlarmName: aws.String(testName1), AlarmConfigurationUpdatedTimestamp: &now},
 					{AlarmName: aws.String(testName2), AlarmConfigurationUpdatedTimestamp: aws.Time(now.Add(1))},
 				}},
@@ -117,7 +108,6 @@ func TestCloudWatchAlarms_NukeAll(t *testing.T) {
 }
 
 func TestCloudWatchCompositeAlarms_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	testCompositeAlaram1 := "test-name1"
@@ -127,7 +117,7 @@ func TestCloudWatchCompositeAlarms_NukeAll(t *testing.T) {
 	cw := CloudWatchAlarms{
 		Client: mockedCloudWatchAlarms{
 			DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
-				MetricAlarms: []*cloudwatch.MetricAlarm{
+				MetricAlarms: []types.MetricAlarm{
 					{AlarmName: aws.String(testCompositeAlaram1), AlarmConfigurationUpdatedTimestamp: &now},
 					{AlarmName: aws.String(testCompositeAlaram2), AlarmConfigurationUpdatedTimestamp: &now},
 				}},

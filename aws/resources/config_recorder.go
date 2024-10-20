@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/configservice"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/configservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -13,10 +13,10 @@ import (
 
 func (csr *ConfigServiceRecorders) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
-	configRecorderNames := []*string{}
+	var configRecorderNames []*string
 
 	param := &configservice.DescribeConfigurationRecordersInput{}
-	output, err := csr.Client.DescribeConfigurationRecordersWithContext(csr.Context, param)
+	output, err := csr.Client.DescribeConfigurationRecorders(csr.Context, param)
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
 	}
@@ -45,7 +45,7 @@ func (csr *ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
 			ConfigurationRecorderName: aws.String(configRecorderName),
 		}
 
-		_, err := csr.Client.DeleteConfigurationRecorderWithContext(csr.Context, params)
+		_, err := csr.Client.DeleteConfigurationRecorder(csr.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

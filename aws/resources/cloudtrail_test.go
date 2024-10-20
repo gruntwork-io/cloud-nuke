@@ -5,32 +5,28 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/cloudtrail"
-	"github.com/aws/aws-sdk-go/service/cloudtrail/cloudtrailiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
+	"github.com/aws/aws-sdk-go-v2/service/cloudtrail/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedCloudTrail struct {
-	cloudtrailiface.CloudTrailAPI
+	CloudtrailTrailAPI
 	ListTrailsOutput  cloudtrail.ListTrailsOutput
 	DeleteTrailOutput cloudtrail.DeleteTrailOutput
 }
 
-func (m mockedCloudTrail) ListTrailsPagesWithContext(_ awsgo.Context, _ *cloudtrail.ListTrailsInput, fn func(*cloudtrail.ListTrailsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListTrailsOutput, true)
-	return nil
+func (m mockedCloudTrail) ListTrails(ctx context.Context, params *cloudtrail.ListTrailsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTrailsOutput, error) {
+	return &m.ListTrailsOutput, nil
 }
 
-func (m mockedCloudTrail) DeleteTrailWithContext(_ aws.Context, _ *cloudtrail.DeleteTrailInput, _ ...request.Option) (*cloudtrail.DeleteTrailOutput, error) {
+func (m mockedCloudTrail) DeleteTrail(ctx context.Context, params *cloudtrail.DeleteTrailInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.DeleteTrailOutput, error) {
 	return &m.DeleteTrailOutput, nil
 }
 
 func TestCloudTrailGetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -40,7 +36,7 @@ func TestCloudTrailGetAll(t *testing.T) {
 	ct := CloudtrailTrail{
 		Client: mockedCloudTrail{
 			ListTrailsOutput: cloudtrail.ListTrailsOutput{
-				Trails: []*cloudtrail.TrailInfo{
+				Trails: []types.TrailInfo{
 					{
 						Name:     aws.String(testName1),
 						TrailARN: aws.String(testArn1),
@@ -77,13 +73,12 @@ func TestCloudTrailGetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestCloudTrailNukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	ct := CloudtrailTrail{

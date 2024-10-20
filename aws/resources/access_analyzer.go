@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/service/accessanalyzer"
+	"github.com/aws/aws-sdk-go-v2/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -12,23 +12,25 @@ import (
 )
 
 func (analyzer *AccessAnalyzer) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allAnalyzers := []*string{}
-	err := analyzer.Client.ListAnalyzersPagesWithContext(
-		analyzer.Context,
-		&accessanalyzer.ListAnalyzersInput{},
-		func(page *accessanalyzer.ListAnalyzersOutput, lastPage bool) bool {
-			for _, analyzer := range page.Analyzers {
-				if configObj.AccessAnalyzer.ShouldInclude(config.ResourceValue{
-					Time: analyzer.CreatedAt,
-					Name: analyzer.Name,
-				}) {
-					allAnalyzers = append(allAnalyzers, analyzer.Name)
-				}
+	var allAnalyzers []*string
+	paginator := accessanalyzer.NewListAnalyzersPaginator(analyzer.Client, &accessanalyzer.ListAnalyzersInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, check := range page.Analyzers {
+			if configObj.AccessAnalyzer.ShouldInclude(config.ResourceValue{
+				Time: check.CreatedAt,
+				Name: check.Name,
+			}) {
+				allAnalyzers = append(allAnalyzers, check.Name)
 			}
-			return !lastPage
-		},
-	)
-	return allAnalyzers, errors.WithStackTrace(err)
+		}
+	}
+
+	return allAnalyzers, nil
 }
 
 func (analyzer *AccessAnalyzer) nukeAll(names []*string) error {
@@ -76,7 +78,7 @@ func (analyzer *AccessAnalyzer) deleteAccessAnalyzerAsync(wg *sync.WaitGroup, er
 	defer wg.Done()
 
 	input := &accessanalyzer.DeleteAnalyzerInput{AnalyzerName: analyzerName}
-	_, err := analyzer.Client.DeleteAnalyzerWithContext(
+	_, err := analyzer.Client.DeleteAnalyzer(
 		analyzer.Context, input,
 	)
 	errChan <- err

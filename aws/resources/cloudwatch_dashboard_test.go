@@ -6,33 +6,28 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedCloudWatchDashboard struct {
-	cloudwatchiface.CloudWatchAPI
+	CloudWatchDashboardsAPI
 	ListDashboardsOutput   cloudwatch.ListDashboardsOutput
 	DeleteDashboardsOutput cloudwatch.DeleteDashboardsOutput
 }
 
-func (m mockedCloudWatchDashboard) ListDashboardsPagesWithContext(_ awsgo.Context, _ *cloudwatch.ListDashboardsInput, fn func(*cloudwatch.ListDashboardsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListDashboardsOutput, true)
-	return nil
+func (m mockedCloudWatchDashboard) ListDashboards(ctx context.Context, params *cloudwatch.ListDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.ListDashboardsOutput, error) {
+	return &m.ListDashboardsOutput, nil
 }
 
-func (m mockedCloudWatchDashboard) DeleteDashboardsWithContext(_ awsgo.Context, _ *cloudwatch.DeleteDashboardsInput, _ ...request.Option) (*cloudwatch.DeleteDashboardsOutput, error) {
+func (m mockedCloudWatchDashboard) DeleteDashboards(ctx context.Context, params *cloudwatch.DeleteDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DeleteDashboardsOutput, error) {
 	return &m.DeleteDashboardsOutput, nil
 }
 
 func TestCloudWatchDashboard_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -41,7 +36,7 @@ func TestCloudWatchDashboard_GetAll(t *testing.T) {
 	cw := CloudWatchDashboards{
 		Client: mockedCloudWatchDashboard{
 			ListDashboardsOutput: cloudwatch.ListDashboardsOutput{
-				DashboardEntries: []*cloudwatch.DashboardEntry{
+				DashboardEntries: []types.DashboardEntry{
 					{
 						DashboardName: aws.String(testName1),
 						LastModified:  &now,
@@ -86,13 +81,12 @@ func TestCloudWatchDashboard_GetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestCloudWatchDashboard_NukeAll(t *testing.T) {
-
 	t.Parallel()
 	cw := CloudWatchDashboards{
 		Client: mockedCloudWatchDashboard{

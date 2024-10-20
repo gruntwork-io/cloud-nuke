@@ -6,36 +6,32 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
-	"github.com/stretchr/testify/require"
-
-	"github.com/aws/aws-sdk-go/service/codedeploy"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
+	"github.com/aws/aws-sdk-go-v2/service/codedeploy/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/stretchr/testify/require"
 )
 
 type mockedCodeDeployApplications struct {
-	codedeployiface.CodeDeployAPI
+	CodeDeployApplicationsAPI
 	ListApplicationsOutput     codedeploy.ListApplicationsOutput
 	BatchGetApplicationsOutput codedeploy.BatchGetApplicationsOutput
 	DeleteApplicationOutput    codedeploy.DeleteApplicationOutput
 }
 
-func (m mockedCodeDeployApplications) ListApplicationsPagesWithContext(_ awsgo.Context, _ *codedeploy.ListApplicationsInput, fn func(*codedeploy.ListApplicationsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListApplicationsOutput, true)
-	return nil
+func (m mockedCodeDeployApplications) ListApplications(ctx context.Context, params *codedeploy.ListApplicationsInput, optFns ...func(*codedeploy.Options)) (*codedeploy.ListApplicationsOutput, error) {
+	return &m.ListApplicationsOutput, nil
 }
 
-func (m mockedCodeDeployApplications) BatchGetApplicationsWithContext(_ awsgo.Context, input *codedeploy.BatchGetApplicationsInput, _ ...request.Option) (*codedeploy.BatchGetApplicationsOutput, error) {
+func (m mockedCodeDeployApplications) BatchGetApplications(ctx context.Context, input *codedeploy.BatchGetApplicationsInput, optFns ...func(*codedeploy.Options)) (*codedeploy.BatchGetApplicationsOutput, error) {
 	// Filter out applications that don't match the input names
 	names := make(map[string]bool)
 	for _, name := range input.ApplicationNames {
-		names[*name] = true
+		names[name] = true
 	}
 
-	var matched []*codedeploy.ApplicationInfo
+	var matched []types.ApplicationInfo
 	for _, info := range m.BatchGetApplicationsOutput.ApplicationsInfo {
 		if names[*info.ApplicationName] {
 			matched = append(matched, info)
@@ -47,12 +43,11 @@ func (m mockedCodeDeployApplications) BatchGetApplicationsWithContext(_ awsgo.Co
 	}, nil
 }
 
-func (m mockedCodeDeployApplications) DeleteApplicationWithContext(_ awsgo.Context, _ *codedeploy.DeleteApplicationInput, _ ...request.Option) (*codedeploy.DeleteApplicationOutput, error) {
+func (m mockedCodeDeployApplications) DeleteApplication(ctx context.Context, params *codedeploy.DeleteApplicationInput, optFns ...func(*codedeploy.Options)) (*codedeploy.DeleteApplicationOutput, error) {
 	return &m.DeleteApplicationOutput, nil
 }
 
 func TestCodeDeployApplication_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "cloud-nuke-test-1"
@@ -61,13 +56,13 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 	c := CodeDeployApplications{
 		Client: mockedCodeDeployApplications{
 			ListApplicationsOutput: codedeploy.ListApplicationsOutput{
-				Applications: []*string{
-					aws.String(testName1),
-					aws.String(testName2),
+				Applications: []string{
+					testName1,
+					testName2,
 				},
 			},
 			BatchGetApplicationsOutput: codedeploy.BatchGetApplicationsOutput{
-				ApplicationsInfo: []*codedeploy.ApplicationInfo{
+				ApplicationsInfo: []types.ApplicationInfo{
 					{
 						ApplicationName: aws.String(testName1),
 						CreateTime:      aws.Time(now),
@@ -113,7 +108,7 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

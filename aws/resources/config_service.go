@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/configservice"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/configservice"
+	"github.com/aws/aws-sdk-go-v2/service/configservice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,26 +15,21 @@ import (
 )
 
 func (csr *ConfigServiceRule) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	configRuleNames := []*string{}
+	var configRuleNames []*string
+	paginator := configservice.NewDescribeConfigRulesPaginator(csr.Client, &configservice.DescribeConfigRulesInput{})
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
 
-	paginator := func(output *configservice.DescribeConfigRulesOutput, lastPage bool) bool {
 		for _, configRule := range output.ConfigRules {
 			if configObj.ConfigServiceRule.ShouldInclude(config.ResourceValue{
 				Name: configRule.ConfigRuleName,
-			}) && *configRule.ConfigRuleState == "ACTIVE" {
+			}) && configRule.ConfigRuleState == types.ConfigRuleStateActive {
 				configRuleNames = append(configRuleNames, configRule.ConfigRuleName)
 			}
 		}
-
-		return !lastPage
-	}
-
-	// Pass an empty config rules input, to signify we want all config rules returned
-	param := &configservice.DescribeConfigRulesInput{}
-
-	err := csr.Client.DescribeConfigRulesPagesWithContext(csr.Context, param, paginator)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	return configRuleNames, nil
@@ -49,8 +45,8 @@ func (csr *ConfigServiceRule) nukeAll(configRuleNames []string) error {
 	for _, configRuleName := range configRuleNames {
 		logging.Debug(fmt.Sprintf("Start deleting config service rule: %s", configRuleName))
 
-		res, err := csr.Client.DescribeRemediationConfigurationsWithContext(csr.Context, &configservice.DescribeRemediationConfigurationsInput{
-			ConfigRuleNames: []*string{aws.String(configRuleName)},
+		res, err := csr.Client.DescribeRemediationConfigurations(csr.Context, &configservice.DescribeRemediationConfigurationsInput{
+			ConfigRuleNames: []string{configRuleName},
 		})
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("Failed to describe remediation configurations w/ err %s", err))
@@ -63,7 +59,7 @@ func (csr *ConfigServiceRule) nukeAll(configRuleNames []string) error {
 		}
 
 		if len(res.RemediationConfigurations) > 0 {
-			_, err := csr.Client.DeleteRemediationConfigurationWithContext(csr.Context, &configservice.DeleteRemediationConfigurationInput{
+			_, err := csr.Client.DeleteRemediationConfiguration(csr.Context, &configservice.DeleteRemediationConfigurationInput{
 				ConfigRuleName: aws.String(configRuleName),
 			})
 			if err != nil {
@@ -81,7 +77,7 @@ func (csr *ConfigServiceRule) nukeAll(configRuleNames []string) error {
 		params := &configservice.DeleteConfigRuleInput{
 			ConfigRuleName: aws.String(configRuleName),
 		}
-		_, err = csr.Client.DeleteConfigRuleWithContext(csr.Context, params)
+		_, err = csr.Client.DeleteConfigRule(csr.Context, params)
 		if err != nil {
 			pterm.Error.Println(fmt.Sprintf("Failed to delete config rule w/ err %s", err))
 			report.Record(report.Entry{

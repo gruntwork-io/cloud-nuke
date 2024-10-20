@@ -5,31 +5,28 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/configservice"
-	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/configservice"
+	"github.com/aws/aws-sdk-go-v2/service/configservice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedConfigServiceRecorders struct {
-	configserviceiface.ConfigServiceAPI
+	ConfigServiceRecordersAPI
 	DescribeConfigurationRecordersOutput configservice.DescribeConfigurationRecordersOutput
 	DeleteConfigurationRecorderOutput    configservice.DeleteConfigurationRecorderOutput
 }
 
-func (m mockedConfigServiceRecorders) DescribeConfigurationRecordersWithContext(_ awsgo.Context, _ *configservice.DescribeConfigurationRecordersInput, _ ...request.Option) (*configservice.DescribeConfigurationRecordersOutput, error) {
+func (m mockedConfigServiceRecorders) DescribeConfigurationRecorders(ctx context.Context, params *configservice.DescribeConfigurationRecordersInput, optFns ...func(*configservice.Options)) (*configservice.DescribeConfigurationRecordersOutput, error) {
 	return &m.DescribeConfigurationRecordersOutput, nil
 }
 
-func (m mockedConfigServiceRecorders) DeleteConfigurationRecorderWithContext(_ awsgo.Context, _ *configservice.DeleteConfigurationRecorderInput, _ ...request.Option) (*configservice.DeleteConfigurationRecorderOutput, error) {
+func (m mockedConfigServiceRecorders) DeleteConfigurationRecorder(ctx context.Context, params *configservice.DeleteConfigurationRecorderInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigurationRecorderOutput, error) {
 	return &m.DeleteConfigurationRecorderOutput, nil
 }
 
 func TestConfigServiceRecorder_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-recorder-1"
@@ -37,7 +34,7 @@ func TestConfigServiceRecorder_GetAll(t *testing.T) {
 	csr := ConfigServiceRecorders{
 		Client: mockedConfigServiceRecorders{
 			DescribeConfigurationRecordersOutput: configservice.DescribeConfigurationRecordersOutput{
-				ConfigurationRecorders: []*configservice.ConfigurationRecorder{
+				ConfigurationRecorders: []types.ConfigurationRecorder{
 					{Name: aws.String(testName1)},
 					{Name: aws.String(testName2)},
 				},
@@ -70,13 +67,12 @@ func TestConfigServiceRecorder_GetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestConfigServiceRecorder_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	csr := ConfigServiceRecorders{

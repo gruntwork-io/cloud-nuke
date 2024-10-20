@@ -3,25 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/codedeploy"
-	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type CodeDeployApplicationsAPI interface {
+	ListApplications(ctx context.Context, params *codedeploy.ListApplicationsInput, optFns ...func(*codedeploy.Options)) (*codedeploy.ListApplicationsOutput, error)
+	BatchGetApplications(ctx context.Context, params *codedeploy.BatchGetApplicationsInput, optFns ...func(*codedeploy.Options)) (*codedeploy.BatchGetApplicationsOutput, error)
+	DeleteApplication(ctx context.Context, params *codedeploy.DeleteApplicationInput, optFns ...func(*codedeploy.Options)) (*codedeploy.DeleteApplicationOutput, error)
+}
+
 // CodeDeployApplications - represents all codedeploy applications
 type CodeDeployApplications struct {
 	BaseAwsResource
-	Client   codedeployiface.CodeDeployAPI
+	Client   CodeDeployApplicationsAPI
 	Region   string
 	AppNames []string
 }
 
-func (cda *CodeDeployApplications) Init(session *session.Session) {
-	cda.Client = codedeploy.New(session)
+func (cda *CodeDeployApplications) InitV2(cfg aws.Config) {
+	cda.Client = codedeploy.NewFromConfig(cfg)
 }
+
+func (cda *CodeDeployApplications) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (cda *CodeDeployApplications) ResourceName() string {
@@ -48,7 +54,7 @@ func (cda *CodeDeployApplications) GetAndSetIdentifiers(c context.Context, confi
 		return nil, err
 	}
 
-	cda.AppNames = awsgo.StringValueSlice(identifiers)
+	cda.AppNames = aws.ToStringSlice(identifiers)
 	return cda.AppNames, nil
 }
 
