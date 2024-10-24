@@ -2,8 +2,8 @@ package resources
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
@@ -35,7 +35,7 @@ func (network *VPCLatticeServiceNetwork) getAll(_ context.Context, configObj con
 
 func (network *VPCLatticeServiceNetwork) nukeServiceAssociations(id *string) error {
 	// list service associations
-	associations, err := network.Client.ListServiceNetworkServiceAssociations(network.Context,&vpclattice.ListServiceNetworkServiceAssociationsInput{
+	associations, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
 		ServiceNetworkIdentifier: id,
 	})
 
@@ -45,17 +45,16 @@ func (network *VPCLatticeServiceNetwork) nukeServiceAssociations(id *string) err
 
 	for _, item := range associations.Items {
 		// list service associations
-	_, err := network.Client.DeleteServiceNetworkServiceAssociation(network.Context,&vpclattice.DeleteServiceNetworkServiceAssociationInput{
-		ServiceNetworkServiceAssociationIdentifier: item.Id,
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
+		_, err := network.Client.DeleteServiceNetworkServiceAssociation(network.Context, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
+			ServiceNetworkServiceAssociationIdentifier: item.Id,
+		})
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
 
 	}
 	return nil
 }
-
 
 func (network *VPCLatticeServiceNetwork) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
@@ -68,7 +67,7 @@ func (network *VPCLatticeServiceNetwork) nukeAll(identifiers []*string) error {
 
 	deletedCount := 0
 	for _, id := range identifiers {
-	
+
 		err := network.nuke(id)
 
 		// Record status of this resource
@@ -91,36 +90,31 @@ func (network *VPCLatticeServiceNetwork) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-
-
-
 func (network *VPCLatticeServiceNetwork) nukeServiceNetwork(id *string) error {
-		_, err := network.Client.DeleteServiceNetwork(network.Context, &vpclattice.DeleteServiceNetworkInput{
-			ServiceNetworkIdentifier: id,
-		})
+	_, err := network.Client.DeleteServiceNetwork(network.Context, &vpclattice.DeleteServiceNetworkInput{
+		ServiceNetworkIdentifier: id,
+	})
 	return err
 }
 
 func (network *VPCLatticeServiceNetwork) nuke(id *string) error {
-	if err := network.nukeServiceAssociations(id); err != nil{
+	if err := network.nukeServiceAssociations(id); err != nil {
 		return err
 	}
-
 
 	if err := network.waitUntilAllServiceAssociationDeleted(id); err != nil {
 		return err
 	}
-	if err := network.nukeServiceNetwork(id); err != nil{
+	if err := network.nukeServiceNetwork(id); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-
 func (network *VPCLatticeServiceNetwork) waitUntilAllServiceAssociationDeleted(id *string) error {
 	for i := 0; i < 10; i++ {
-		output, err := network.Client.ListServiceNetworkServiceAssociations(network.Context,&vpclattice.ListServiceNetworkServiceAssociationsInput{
+		output, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
 			ServiceNetworkIdentifier: id,
 		})
 
