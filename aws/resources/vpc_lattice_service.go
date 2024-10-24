@@ -35,7 +35,7 @@ func (network *VPCLatticeService) getAll(_ context.Context, configObj config.Con
 
 func (network *VPCLatticeService) nukeServiceAssociations(id *string) error {
 	// list service associations
-	associations, err := network.Client.ListServiceNetworkServiceAssociations(network.Context,&vpclattice.ListServiceNetworkServiceAssociationsInput{
+	associations, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
 		ServiceIdentifier: id,
 	})
 
@@ -45,7 +45,7 @@ func (network *VPCLatticeService) nukeServiceAssociations(id *string) error {
 
 	for _, item := range associations.Items {
 		// list service associations
-		_, err := network.Client.DeleteServiceNetworkServiceAssociation(network.Context,&vpclattice.DeleteServiceNetworkServiceAssociationInput{
+		_, err := network.Client.DeleteServiceNetworkServiceAssociation(network.Context, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
 			ServiceNetworkServiceAssociationIdentifier: item.Id,
 		})
 		if err != nil {
@@ -57,21 +57,20 @@ func (network *VPCLatticeService) nukeServiceAssociations(id *string) error {
 
 func (network *VPCLatticeService) nukeService(id *string) error {
 	_, err := network.Client.DeleteService(network.Context, &vpclattice.DeleteServiceInput{
-			ServiceIdentifier: id,
-		})
+		ServiceIdentifier: id,
+	})
 	return err
 }
 
 func (network *VPCLatticeService) nuke(id *string) error {
-	if err := network.nukeServiceAssociations(id); err != nil{
+	if err := network.nukeServiceAssociations(id); err != nil {
 		return err
 	}
-
 
 	if err := network.waitUntilAllServiceAssociationDeleted(id); err != nil {
 		return err
 	}
-	if err := network.nukeService(id); err != nil{
+	if err := network.nukeService(id); err != nil {
 		return err
 	}
 
@@ -79,12 +78,12 @@ func (network *VPCLatticeService) nuke(id *string) error {
 }
 func (network *VPCLatticeService) waitUntilAllServiceAssociationDeleted(id *string) error {
 	for i := 0; i < 10; i++ {
-		output, err := network.Client.ListServiceNetworkServiceAssociations(network.Context,&vpclattice.ListServiceNetworkServiceAssociationsInput{
+		output, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
 			ServiceIdentifier: id,
 		})
 
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		if len(output.Items) == 0 {
 			return nil
