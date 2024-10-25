@@ -1,6 +1,7 @@
 package util
 
 import (
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -19,6 +20,15 @@ func ConvertS3TagsToMap(tags []*s3.Tag) map[string]string {
 }
 
 func ConvertEC2TagsToMap(tags []*ec2.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+
+	return tagMap
+}
+
+func ConvertTypesTagsToMap(tags []types.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		tagMap[*tag.Key] = *tag.Value
@@ -63,8 +73,17 @@ func ConvertRDSTagsToMap(tags []*rds.Tag) map[string]string {
 	return tagMap
 }
 
-func GetEC2ResourceNameTagValue(tags []*ec2.Tag) *string {
-	tagMap := ConvertEC2TagsToMap(tags)
+func GetEC2ResourceNameTagValue[T *ec2.Tag | types.Tag](tags []T) *string {
+	var tagMap map[string]string
+
+	switch t := any(tags).(type) {
+	case []*ec2.Tag:
+		tagMap = ConvertEC2TagsToMap(t)
+	case []types.Tag:
+		tagMap = ConvertTypesTagsToMap(t)
+	default:
+		return nil
+	}
 
 	if name, ok := tagMap["Name"]; ok {
 		return &name
