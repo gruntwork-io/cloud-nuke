@@ -3,29 +3,34 @@ package resources
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type TransitGatewayAPI interface {
+	DescribeTransitGateways(ctx context.Context, params *ec2.DescribeTransitGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewaysOutput, error)
+	DeleteTransitGateway(ctx context.Context, params *ec2.DeleteTransitGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayOutput, error)
+	DescribeTransitGatewayAttachments(ctx context.Context, params *ec2.DescribeTransitGatewayAttachmentsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayAttachmentsOutput, error)
+	DeleteTransitGatewayPeeringAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayPeeringAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error)
+	DeleteTransitGatewayVpcAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayVpcAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error)
+	DeleteTransitGatewayConnect(ctx context.Context, params *ec2.DeleteTransitGatewayConnectInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayConnectOutput, error)
+}
+
 // TransitGateways - represents all transit gateways
 type TransitGateways struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
+	Client TransitGatewayAPI
 	Region string
 	Ids    []string
 }
 
-func (tgw *TransitGateways) Init(session *session.Session) {
-	// to initialize base resource
-	// NOTE : This is madatory to initialize the nukables map
-	tgw.BaseAwsResource.Init(session)
-	tgw.Client = ec2.New(session)
-
+func (tgw *TransitGateways) InitV2(cfg aws.Config) {
+	tgw.Client = ec2.NewFromConfig(cfg)
 }
+func (tgw *TransitGateways) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (tgw *TransitGateways) ResourceName() string {
