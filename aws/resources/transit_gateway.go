@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -30,7 +30,7 @@ const (
 // Returns a formatted string of TransitGateway IDs
 func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 
-	result, err := tgw.Client.DescribeTransitGatewaysWithContext(tgw.Context, &ec2.DescribeTransitGatewaysInput{})
+	result, err := tgw.Client.DescribeTransitGateways(tgw.Context, &ec2.DescribeTransitGatewaysInput{})
 	if err != nil {
 		logging.Debugf("[DescribeTransitGateways Failed] %s", err)
 		return nil, errors.WithStackTrace(err)
@@ -45,11 +45,11 @@ func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) (
 			Time: transitGateway.CreationTime,
 			Name: hostNameTagValue,
 		}) &&
-			awsgo.StringValue(transitGateway.State) != "deleted" && awsgo.StringValue(transitGateway.State) != "deleting" {
+			transitGateway.State != types.TransitGatewayStateDeleted && transitGateway.State != types.TransitGatewayStateDeleting {
 			ids = append(ids, transitGateway.TransitGatewayId)
 		}
 
-		if currentOwner != nil && transitGateway.OwnerId != nil && currentOwner != awsgo.StringValue(transitGateway.OwnerId) {
+		if currentOwner != nil && transitGateway.OwnerId != nil && currentOwner != awsgo.ToString(transitGateway.OwnerId) {
 			tgw.SetNukableStatus(*transitGateway.TransitGatewayId, util.ErrDifferentOwner)
 			continue
 		}
@@ -62,9 +62,9 @@ func (tgw *TransitGateways) getAll(c context.Context, configObj config.Config) (
 	tgw.VerifyNukablePermissions(ids, func(id *string) error {
 		params := &ec2.DeleteTransitGatewayInput{
 			TransitGatewayId: id,
-			DryRun:           aws.Bool(true), // dry run set as true , checks permission without actualy making the request
+			DryRun:           awsgo.Bool(true), // dry run set as true , checks permission without actualy making the request
 		}
-		_, err := tgw.Client.DeleteTransitGatewayWithContext(tgw.Context, params)
+		_, err := tgw.Client.DeleteTransitGateway(tgw.Context, params)
 		return err
 	})
 
@@ -77,7 +77,7 @@ func (tgw *TransitGateways) nuke(id *string) error {
 		return errors.WithStackTrace(err)
 	}
 
-	if _, err := tgw.Client.DeleteTransitGatewayWithContext(tgw.Context, &ec2.DeleteTransitGatewayInput{
+	if _, err := tgw.Client.DeleteTransitGateway(tgw.Context, &ec2.DeleteTransitGatewayInput{
 		TransitGatewayId: id,
 	}); err != nil {
 		return errors.WithStackTrace(err)
@@ -87,76 +87,76 @@ func (tgw *TransitGateways) nuke(id *string) error {
 }
 
 func (tgw *TransitGateways) nukeAttachments(id *string) error {
-	logging.Debugf("nuking transit gateway attachments for %v", awsgo.StringValue(id))
-	output, err := tgw.Client.DescribeTransitGatewayAttachmentsWithContext(tgw.Context, &ec2.DescribeTransitGatewayAttachmentsInput{
-		Filters: []*ec2.Filter{
+	logging.Debugf("nuking transit gateway attachments for %v", awsgo.ToString(id))
+	output, err := tgw.Client.DescribeTransitGatewayAttachments(tgw.Context, &ec2.DescribeTransitGatewayAttachmentsInput{
+		Filters: []types.Filter{
 			{
 				Name: awsgo.String("transit-gateway-id"),
-				Values: []*string{
-					id,
+				Values: []string{
+					awsgo.ToString(id),
 				},
 			},
 			{
 				Name: awsgo.String("state"),
-				Values: []*string{
-					awsgo.String("available"),
+				Values: []string{
+					"available",
 				},
 			},
 		},
 	})
 	if err != nil {
-		logging.Errorf("[Failed] unable to describe the  transit gateway attachments for %v : %s", awsgo.StringValue(id), err)
+		logging.Errorf("[Failed] unable to describe the  transit gateway attachments for %v : %s", awsgo.ToString(id), err)
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("%v attachment(s) found with %v", len(output.TransitGatewayAttachments), awsgo.StringValue(id))
+	logging.Debugf("%v attachment(s) found with %v", len(output.TransitGatewayAttachments), awsgo.ToString(id))
 
 	for _, attachments := range output.TransitGatewayAttachments {
 		var (
 			err            error
-			attachmentType = awsgo.StringValue(attachments.ResourceType)
+			attachmentType = attachments.ResourceType
 			now            = time.Now()
 		)
 
 		switch attachmentType {
 		case TransitGatewayAttachmentTypePeering:
-			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.StringValue(id))
+			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.ToString(id))
 			// Delete the Transit Gateway Peering Attachment
-			_, err = tgw.Client.DeleteTransitGatewayPeeringAttachmentWithContext(tgw.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
+			_, err = tgw.Client.DeleteTransitGatewayPeeringAttachment(tgw.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
 				TransitGatewayAttachmentId: attachments.TransitGatewayAttachmentId,
 			})
 		case TransitGatewayAttachmentTypeVPC:
-			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.StringValue(id))
+			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.ToString(id))
 			// Delete the Transit Gateway VPC Attachment
-			_, err = tgw.Client.DeleteTransitGatewayVpcAttachmentWithContext(tgw.Context, &ec2.DeleteTransitGatewayVpcAttachmentInput{
+			_, err = tgw.Client.DeleteTransitGatewayVpcAttachment(tgw.Context, &ec2.DeleteTransitGatewayVpcAttachmentInput{
 				TransitGatewayAttachmentId: attachments.TransitGatewayAttachmentId,
 			})
 		case TransitGatewayAttachmentTypeConnect:
-			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.StringValue(id))
+			logging.Debugf("[Execution] deleting the attachments of type %v for %v ", attachmentType, awsgo.ToString(id))
 			// Delete the Transit Gateway Connect Attachment
-			_, err = tgw.Client.DeleteTransitGatewayConnectWithContext(tgw.Context, &ec2.DeleteTransitGatewayConnectInput{
+			_, err = tgw.Client.DeleteTransitGatewayConnect(tgw.Context, &ec2.DeleteTransitGatewayConnectInput{
 				TransitGatewayAttachmentId: attachments.TransitGatewayAttachmentId,
 			})
 		default:
 			err = fmt.Errorf("%v typed transit gateway attachment nuking not handled", attachmentType)
 		}
 		if err != nil {
-			logging.Errorf("[Failed] unable to delete the  transit gateway peernig attachment for %v : %s", awsgo.StringValue(id), err)
+			logging.Errorf("[Failed] unable to delete the  transit gateway peernig attachment for %v : %s", awsgo.ToString(id), err)
 			return err
 		}
 		if err := tgw.WaitUntilTransitGatewayAttachmentDeleted(id, attachmentType); err != nil {
-			logging.Errorf("[Failed] unable to wait until nuking the transit gateway attachment with type %v for %v : %s", attachmentType,awsgo.StringValue(id), err)
+			logging.Errorf("[Failed] unable to wait until nuking the transit gateway attachment with type %v for %v : %s", attachmentType, awsgo.ToString(id), err)
 			return errors.WithStackTrace(err)
 		}
 
 		logging.Debugf("waited %v to nuke the attachment", time.Since(now))
 	}
 
-	logging.Debugf("[Ok] successfully nuked all the attachments on %v", awsgo.StringValue(id))
+	logging.Debugf("[Ok] successfully nuked all the attachments on %v", awsgo.ToString(id))
 	return nil
 }
 
-func (tgw *TransitGateways) WaitUntilTransitGatewayAttachmentDeleted(id *string, attachmentType string) error {
+func (tgw *TransitGateways) WaitUntilTransitGatewayAttachmentDeleted(id *string, attachmentType types.TransitGatewayAttachmentResourceType) error {
 	timeoutCtx, cancel := context.WithTimeout(tgw.Context, 5*time.Minute)
 	defer cancel()
 
@@ -168,19 +168,19 @@ func (tgw *TransitGateways) WaitUntilTransitGatewayAttachmentDeleted(id *string,
 		case <-timeoutCtx.Done():
 			return fmt.Errorf("transit gateway attachments deletion check timed out after 5 minute")
 		case <-ticker.C:
-			output, err := tgw.Client.DescribeTransitGatewayAttachmentsWithContext(tgw.Context, &ec2.DescribeTransitGatewayAttachmentsInput{
-				Filters: []*ec2.Filter{
+			output, err := tgw.Client.DescribeTransitGatewayAttachments(tgw.Context, &ec2.DescribeTransitGatewayAttachmentsInput{
+				Filters: []types.Filter{
 					{
 						Name: awsgo.String("transit-gateway-id"),
-						Values: []*string{
-							id,
+						Values: []string{
+							awsgo.ToString(id),
 						},
 					},
 					{
 						Name: awsgo.String("state"),
-						Values: []*string{
-							awsgo.String("available"),
-							awsgo.String("deleting"),
+						Values: []string{
+							"available",
+							"deleting",
 						},
 					},
 				},
@@ -220,7 +220,7 @@ func (tgw *TransitGateways) nukeAll(ids []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   awsgo.ToString(id),
 			ResourceType: "Transit Gateway",
 			Error:        err,
 		}

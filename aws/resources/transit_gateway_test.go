@@ -5,17 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedTransitGateway struct {
-	ec2iface.EC2API
+	TransitGatewayAPI
 	DescribeTransitGatewaysOutput               ec2.DescribeTransitGatewaysOutput
 	DeleteTransitGatewayOutput                  ec2.DeleteTransitGatewayOutput
 	DescribeTransitGatewayAttachmentsOutput     ec2.DescribeTransitGatewayAttachmentsOutput
@@ -23,33 +21,30 @@ type mockedTransitGateway struct {
 	DeleteTransitGatewayVpcAttachmentOutput     ec2.DeleteTransitGatewayVpcAttachmentOutput
 	DeleteVpnConnectionOutput                   ec2.DeleteVpnConnectionOutput
 	DeleteTransitGatewayConnectOutput           ec2.DeleteTransitGatewayConnectOutput
-
 }
 
-func (m mockedTransitGateway) DescribeTransitGatewaysWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewaysInput, _ ...request.Option) (*ec2.DescribeTransitGatewaysOutput, error) {
+func (m mockedTransitGateway) DescribeTransitGateways(ctx context.Context, params *ec2.DescribeTransitGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewaysOutput, error) {
 	return &m.DescribeTransitGatewaysOutput, nil
 }
 
-func (m mockedTransitGateway) DeleteTransitGatewayWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayInput, _ ...request.Option) (*ec2.DeleteTransitGatewayOutput, error) {
+func (m mockedTransitGateway) DeleteTransitGateway(ctx context.Context, params *ec2.DeleteTransitGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayOutput, error) {
 	return &m.DeleteTransitGatewayOutput, nil
 }
 
-func (m mockedTransitGateway) DescribeTransitGatewayAttachmentsWithContext(awsgo.Context, *ec2.DescribeTransitGatewayAttachmentsInput, ...request.Option) (*ec2.DescribeTransitGatewayAttachmentsOutput, error) {
+func (m mockedTransitGateway) DescribeTransitGatewayAttachments(ctx context.Context, params *ec2.DescribeTransitGatewayAttachmentsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayAttachmentsOutput, error) {
 	return &m.DescribeTransitGatewayAttachmentsOutput, nil
 }
 
-func (m mockedTransitGateway) DeleteTransitGatewayPeeringAttachmentWithContext(aws.Context, *ec2.DeleteTransitGatewayPeeringAttachmentInput, ...request.Option) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
+func (m mockedTransitGateway) DeleteTransitGatewayPeeringAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayPeeringAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
 	return &m.DeleteTransitGatewayPeeringAttachmentOutput, nil
 }
-func (m mockedTransitGateway) DeleteTransitGatewayVpcAttachmentWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayVpcAttachmentInput, _ ...request.Option) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error) {
+
+func (m mockedTransitGateway) DeleteTransitGatewayVpcAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayVpcAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error) {
 	return &m.DeleteTransitGatewayVpcAttachmentOutput, nil
 }
 
-func (m mockedTransitGateway) DeleteTransitGatewayConnectWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayConnectInput, _ ...request.Option) (*ec2.DeleteTransitGatewayConnectOutput, error) {
+func (m mockedTransitGateway) DeleteTransitGatewayConnect(ctx context.Context, params *ec2.DeleteTransitGatewayConnectInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayConnectOutput, error) {
 	return &m.DeleteTransitGatewayConnectOutput, nil
-}
-func (m mockedTransitGateway) WaitUntilTransitGatewayAttachmentDeleted(*string, string) error {
-	return nil
 }
 
 func TestTransitGateways_GetAll(t *testing.T) {
@@ -62,16 +57,16 @@ func TestTransitGateways_GetAll(t *testing.T) {
 	tgw := TransitGateways{
 		Client: mockedTransitGateway{
 			DescribeTransitGatewaysOutput: ec2.DescribeTransitGatewaysOutput{
-				TransitGateways: []*ec2.TransitGateway{
+				TransitGateways: []types.TransitGateway{
 					{
 						TransitGatewayId: aws.String(gatewayId1),
 						CreationTime:     aws.Time(now),
-						State:            aws.String("available"),
+						State:            "available",
 					},
 					{
 						TransitGatewayId: aws.String(gatewayId2),
 						CreationTime:     aws.Time(now.Add(1)),
-						State:            aws.String("deleting"),
+						State:            "deleting",
 					},
 				},
 			},
