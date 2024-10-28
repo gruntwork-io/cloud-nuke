@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/apprunner"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/apprunner"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -23,7 +23,7 @@ func (a *AppRunnerService) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
 		logging.Debugf("[App Runner Service] Deleting App Runner Service %s in region %s", *identifier, a.Region)
 
-		_, err := a.Client.DeleteServiceWithContext(a.Context, &apprunner.DeleteServiceInput{
+		_, err := a.Client.DeleteService(a.Context, &apprunner.DeleteServiceInput{
 			ServiceArn: identifier,
 		})
 		if err != nil {
@@ -34,7 +34,7 @@ func (a *AppRunnerService) nukeAll(identifiers []*string) error {
 		}
 
 		e := report.Entry{
-			Identifier:   aws.StringValue(identifier),
+			Identifier:   aws.ToString(identifier),
 			ResourceType: a.ResourceName(),
 			Error:        err,
 		}
@@ -47,7 +47,16 @@ func (a *AppRunnerService) nukeAll(identifiers []*string) error {
 
 func (a *AppRunnerService) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
-	paginator := func(output *apprunner.ListServicesOutput, lastPage bool) bool {
+	paginator := apprunner.NewListServicesPaginator(a.Client, &apprunner.ListServicesInput{
+		MaxResults: aws.Int32(19),
+	})
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(c)
+		if err != nil {
+			logging.Debugf("[App Runner Service] Failed to list app runner services: %s", err)
+			return nil, errors.WithStackTrace(err)
+		}
+
 		for _, service := range output.ServiceSummaryList {
 			if configObj.AppRunnerService.ShouldInclude(config.ResourceValue{
 				Name: service.ServiceName,
@@ -56,16 +65,6 @@ func (a *AppRunnerService) getAll(c context.Context, configObj config.Config) ([
 				identifiers = append(identifiers, service.ServiceArn)
 			}
 		}
-		return !lastPage
-	}
-
-	param := &apprunner.ListServicesInput{
-		MaxResults: aws.Int64(19),
-	}
-
-	if err := a.Client.ListServicesPagesWithContext(c, param, paginator); err != nil {
-		logging.Debugf("[App Runner Service] Failed to list app runner services: %s", err)
-		return nil, errors.WithStackTrace(err)
 	}
 
 	return identifiers, nil

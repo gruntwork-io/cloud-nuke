@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/apigatewayv2"
-	"github.com/aws/aws-sdk-go/service/apigatewayv2/apigatewayv2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/apigatewayv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,13 +14,13 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-func (gw *ApiGatewayV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	output, err := gw.Client.GetApisWithContext(gw.Context, &apigatewayv2.GetApisInput{})
+func (gw *ApiGatewayV2) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
+	output, err := gw.Client.GetApis(gw.Context, &apigatewayv2.GetApisInput{})
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
 	}
 
-	Ids := []*string{}
+	var Ids []*string
 	for _, restapi := range output.Items {
 		if configObj.APIGatewayV2.ShouldInclude(config.ResourceValue{
 			Time: restapi.CreatedDate,
@@ -45,7 +44,7 @@ func (gw *ApiGatewayV2) nukeAll(identifiers []*string) error {
 		return TooManyApiGatewayV2Err{}
 	}
 
-	err := deleteAssociatedApiMappings(gw.Client, identifiers)
+	err := deleteAssociatedApiMappings(gw.Context, gw.Client, identifiers)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -78,7 +77,7 @@ func (gw *ApiGatewayV2) deleteAsync(wg *sync.WaitGroup, errChan chan error, apiI
 	defer wg.Done()
 
 	input := &apigatewayv2.DeleteApiInput{ApiId: apiId}
-	_, err := gw.Client.DeleteApiWithContext(gw.Context, input)
+	_, err := gw.Client.DeleteApi(gw.Context, input)
 	errChan <- err
 
 	// Record status of this resource
@@ -90,21 +89,20 @@ func (gw *ApiGatewayV2) deleteAsync(wg *sync.WaitGroup, errChan chan error, apiI
 	report.Record(e)
 
 	if err == nil {
-		logging.Debug(fmt.Sprintf("Successfully deleted API Gateway (v2) %s in %s", aws.StringValue(apiId), gw.Region))
+		logging.Debug(fmt.Sprintf("Successfully deleted API Gateway (v2) %s in %s", aws.ToString(apiId), gw.Region))
 	} else {
-		logging.Debug(fmt.Sprintf("Failed to delete API Gateway (v2) %s in %s", aws.StringValue(apiId), gw.Region))
+		logging.Debug(fmt.Sprintf("Failed to delete API Gateway (v2) %s in %s", aws.ToString(apiId), gw.Region))
 	}
 }
 
-func deleteAssociatedApiMappings(
-	client apigatewayv2iface.ApiGatewayV2API, identifiers []*string) error {
+func deleteAssociatedApiMappings(ctx context.Context, client ApiGatewayV2API, identifiers []*string) error {
 	// Convert identifiers to map to check if identifier is in list
 	identifierMap := make(map[string]bool)
 	for _, identifier := range identifiers {
 		identifierMap[*identifier] = true
 	}
 
-	domainNames, err := client.GetDomainNames(&apigatewayv2.GetDomainNamesInput{})
+	domainNames, err := client.GetDomainNames(ctx, &apigatewayv2.GetDomainNamesInput{})
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to get domain names: %s", err))
 		return errors.WithStackTrace(err)
@@ -112,7 +110,7 @@ func deleteAssociatedApiMappings(
 
 	logging.Debug(fmt.Sprintf("Found %d domain names", len(domainNames.Items)))
 	for _, domainName := range domainNames.Items {
-		apiMappings, err := client.GetApiMappings(&apigatewayv2.GetApiMappingsInput{
+		apiMappings, err := client.GetApiMappings(ctx, &apigatewayv2.GetApiMappingsInput{
 			DomainName: domainName.DomainName,
 		})
 		if err != nil {
@@ -125,7 +123,7 @@ func deleteAssociatedApiMappings(
 				continue
 			}
 
-			_, err := client.DeleteApiMapping(&apigatewayv2.DeleteApiMappingInput{
+			_, err := client.DeleteApiMapping(ctx, &apigatewayv2.DeleteApiMappingInput{
 				ApiMappingId: apiMapping.ApiMappingId,
 				DomainName:   domainName.DomainName,
 			})

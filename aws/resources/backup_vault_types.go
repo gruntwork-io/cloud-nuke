@@ -3,24 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/backup"
-	"github.com/aws/aws-sdk-go/service/backup/backupiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/backup"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type BackupVaultAPI interface {
+	DeleteBackupVault(ctx context.Context, params *backup.DeleteBackupVaultInput, optFns ...func(*backup.Options)) (*backup.DeleteBackupVaultOutput, error)
+	DeleteRecoveryPoint(ctx context.Context, params *backup.DeleteRecoveryPointInput, optFns ...func(*backup.Options)) (*backup.DeleteRecoveryPointOutput, error)
+	ListBackupVaults(ctx context.Context, params *backup.ListBackupVaultsInput, optFns ...func(*backup.Options)) (*backup.ListBackupVaultsOutput, error)
+	ListRecoveryPointsByBackupVault(ctx context.Context, params *backup.ListRecoveryPointsByBackupVaultInput, optFns ...func(*backup.Options)) (*backup.ListRecoveryPointsByBackupVaultOutput, error)
+}
+
 type BackupVault struct {
 	BaseAwsResource
-	Client backupiface.BackupAPI
+	Client BackupVaultAPI
 	Region string
 	Names  []string
 }
 
-func (bv *BackupVault) Init(session *session.Session) {
-	bv.Client = backup.New(session)
+func (bv *BackupVault) InitV2(cfg aws.Config) {
+	bv.Client = backup.NewFromConfig(cfg)
 }
+
+func (bv *BackupVault) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (bv *BackupVault) ResourceName() string {
@@ -45,13 +52,13 @@ func (bv *BackupVault) GetAndSetIdentifiers(c context.Context, configObj config.
 		return nil, err
 	}
 
-	bv.Names = awsgo.StringValueSlice(identifiers)
+	bv.Names = aws.ToStringSlice(identifiers)
 	return bv.Names, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (bv *BackupVault) Nuke(identifiers []string) error {
-	if err := bv.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := bv.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -3,24 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/apigateway"
-	"github.com/aws/aws-sdk-go/service/apigateway/apigatewayiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/apigateway"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type ApiGatewayServiceAPI interface {
+	GetRestApis(ctx context.Context, params *apigateway.GetRestApisInput, optFns ...func(*apigateway.Options)) (*apigateway.GetRestApisOutput, error)
+	GetStages(ctx context.Context, params *apigateway.GetStagesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetStagesOutput, error)
+	DeleteClientCertificate(ctx context.Context, params *apigateway.DeleteClientCertificateInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteClientCertificateOutput, error)
+	DeleteRestApi(ctx context.Context, params *apigateway.DeleteRestApiInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteRestApiOutput, error)
+}
+
 type ApiGateway struct {
 	BaseAwsResource
-	Client apigatewayiface.APIGatewayAPI
+	Client ApiGatewayServiceAPI
 	Region string
 	Ids    []string
 }
 
-func (gateway *ApiGateway) Init(session *session.Session) {
-	gateway.Client = apigateway.New(session)
+func (gateway *ApiGateway) InitV2(cfg aws.Config) {
+	gateway.Client = apigateway.NewFromConfig(cfg)
 }
+
+func (gateway *ApiGateway) IsUsingV2() bool { return true }
 
 func (gateway *ApiGateway) ResourceName() string {
 	return "apigateway"
@@ -44,12 +51,12 @@ func (gateway *ApiGateway) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	gateway.Ids = awsgo.StringValueSlice(identifiers)
+	gateway.Ids = aws.ToStringSlice(identifiers)
 	return gateway.Ids, nil
 }
 
 func (gateway *ApiGateway) Nuke(identifiers []string) error {
-	if err := gateway.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := gateway.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

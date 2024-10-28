@@ -5,32 +5,29 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/datasync"
-	"github.com/aws/aws-sdk-go/service/datasync/datasynciface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/datasync"
+	"github.com/aws/aws-sdk-go-v2/service/datasync/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockDatasyncLocation struct {
-	datasynciface.DataSyncAPI
-	ListLocationsOutput  datasync.ListLocationsOutput
-	DeleteLocationOutput datasync.DeleteLocationOutput
+	DataSyncLocationAPI
+	datasync.DeleteLocationOutput
+	datasync.ListLocationsOutput
 }
 
-func (m mockDatasyncLocation) ListLocationsPagesWithContext(_ aws.Context, _ *datasync.ListLocationsInput, callback func(*datasync.ListLocationsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.ListLocationsOutput, true)
-	return nil
-}
-
-func (m mockDatasyncLocation) DeleteLocationWithContext(aws.Context, *datasync.DeleteLocationInput, ...request.Option) (*datasync.DeleteLocationOutput, error) {
+func (m mockDatasyncLocation) DeleteLocation(ctx context.Context, params *datasync.DeleteLocationInput, optFns ...func(*datasync.Options)) (*datasync.DeleteLocationOutput, error) {
 	return &m.DeleteLocationOutput, nil
 }
 
-func TestDataSyncLocation_NukeAll(t *testing.T) {
+func (m mockDatasyncLocation) ListLocations(ctx context.Context, params *datasync.ListLocationsInput, optFns ...func(*datasync.Options)) (*datasync.ListLocationsOutput, error) {
+	return &m.ListLocationsOutput, nil
+}
 
+func TestDataSyncLocation_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	testName := "test-datasync-location"
@@ -45,7 +42,6 @@ func TestDataSyncLocation_NukeAll(t *testing.T) {
 }
 
 func TestDataSyncLocation_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-datasync-location-1"
@@ -53,7 +49,7 @@ func TestDataSyncLocation_GetAll(t *testing.T) {
 	location := DataSyncLocation{
 		Client: mockDatasyncLocation{
 			ListLocationsOutput: datasync.ListLocationsOutput{
-				Locations: []*datasync.LocationListEntry{
+				Locations: []types.LocationListEntry{
 					{
 						LocationArn: aws.String(fmt.Sprintf("arn::location/%s", testName1)),
 					},
@@ -80,7 +76,7 @@ func TestDataSyncLocation_GetAll(t *testing.T) {
 				DataSyncLocation: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

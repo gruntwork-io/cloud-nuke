@@ -7,7 +7,22 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.24
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.24
+	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.34.2
+	github.com/aws/aws-sdk-go-v2/service/acm v1.30.2
+	github.com/aws/aws-sdk-go-v2/service/acmpca v1.37.3
 	github.com/aws/aws-sdk-go-v2/service/amp v1.27.1
+	github.com/aws/aws-sdk-go-v2/service/apigateway v1.27.2
+	github.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.24.2
+	github.com/aws/aws-sdk-go-v2/service/apprunner v1.32.2
+	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.23.16
+	github.com/aws/aws-sdk-go-v2/service/backup v1.39.3
+	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.44.2
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.42.2
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.42.0
+	github.com/aws/aws-sdk-go-v2/service/codedeploy v1.29.2
+	github.com/aws/aws-sdk-go-v2/service/configservice v1.50.2
+	github.com/aws/aws-sdk-go-v2/service/datasync v1.42.2
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.36.2
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.184.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.33.7
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.10.7
@@ -28,12 +43,14 @@ require (
 require (
 	atomicgo.dev/cursor v0.1.1 // indirect
 	atomicgo.dev/keyboard v0.2.8 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.6 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.9 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.0 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.17 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.10.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.22.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.26.2 // indirect

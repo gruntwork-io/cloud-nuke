@@ -6,25 +6,25 @@ run `go generate ./...` to refresh this report.
 
 | Resource Name                    | Migrated           |
 |----------------------------------|--------------------|
-| accessanalyzer                   |                    |
-| acm                              |                    |
-| acmpca                           |                    |
-| ami                              |                    |
-| apigateway                       |                    |
-| apigatewayv2                     |                    |
-| app-runner-service               |                    |
-| asg                              |                    |
-| backup-vault                     |                    |
-| cloudtrail                       |                    |
-| cloudwatch-alarm                 |                    |
-| cloudwatch-dashboard             |                    |
-| cloudwatch-loggroup              |                    |
-| codedeploy-application           |                    |
-| config-recorders                 |                    |
-| config-rules                     |                    |
-| data-sync-location               |                    |
-| data-sync-task                   |                    |
-| dynamodb                         |                    |
+| accessanalyzer                   | :white_check_mark: |
+| acm                              | :white_check_mark: |
+| acmpca                           | :white_check_mark: |
+| ami                              | :white_check_mark: |
+| apigateway                       | :white_check_mark: |
+| apigatewayv2                     | :white_check_mark: |
+| app-runner-service               | :white_check_mark: |
+| asg                              | :white_check_mark: |
+| backup-vault                     | :white_check_mark: |
+| cloudtrail                       | :white_check_mark: |
+| cloudwatch-alarm                 | :white_check_mark: |
+| cloudwatch-dashboard             | :white_check_mark: |
+| cloudwatch-loggroup              | :white_check_mark: |
+| codedeploy-application           | :white_check_mark: |
+| config-recorders                 | :white_check_mark: |
+| config-rules                     | :white_check_mark: |
+| data-sync-location               | :white_check_mark: |
+| data-sync-task                   | :white_check_mark: |
+| dynamodb                         | :white_check_mark: |
 | ebs                              |                    |
 | ec2                              |                    |
 | ec2-dedicated-hosts              |                    |

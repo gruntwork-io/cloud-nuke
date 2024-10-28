@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type AMIsAPI interface {
+	DeregisterImage(ctx context.Context, params *ec2.DeregisterImageInput, optFns ...func(*ec2.Options)) (*ec2.DeregisterImageOutput, error)
+	DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)
+}
+
 // AMIs - represents all user owned AMIs
 type AMIs struct {
 	BaseAwsResource
-	Client   ec2iface.EC2API
+	Client   AMIsAPI
 	Region   string
 	ImageIds []string
 }
 
-func (ami *AMIs) Init(session *session.Session) {
-	ami.Client = ec2.New(session)
+func (ami *AMIs) InitV2(cfg aws.Config) {
+	ami.Client = ec2.NewFromConfig(cfg)
 }
+
+func (ami *AMIs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ami *AMIs) ResourceName() string {
@@ -48,13 +53,13 @@ func (ami *AMIs) GetAndSetIdentifiers(c context.Context, configObj config.Config
 		return nil, err
 	}
 
-	ami.ImageIds = awsgo.StringValueSlice(identifiers)
+	ami.ImageIds = aws.ToStringSlice(identifiers)
 	return ami.ImageIds, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ami *AMIs) Nuke(identifiers []string) error {
-	if err := ami.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ami.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -5,42 +5,38 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/configservice"
-	"github.com/aws/aws-sdk-go/service/configservice/configserviceiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/configservice"
+	"github.com/aws/aws-sdk-go-v2/service/configservice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedConfigServiceRule struct {
-	configserviceiface.ConfigServiceAPI
+	ConfigServiceRuleAPI
 	DescribeConfigRulesOutput               configservice.DescribeConfigRulesOutput
-	DeleteConfigRuleOutput                  configservice.DeleteConfigRuleOutput
-	DeleteRemediationConfigurationOutput    configservice.DeleteRemediationConfigurationOutput
 	DescribeRemediationConfigurationsOutput configservice.DescribeRemediationConfigurationsOutput
+	DeleteRemediationConfigurationOutput    configservice.DeleteRemediationConfigurationOutput
+	DeleteConfigRuleOutput                  configservice.DeleteConfigRuleOutput
 }
 
-func (m mockedConfigServiceRule) DescribeConfigRulesPagesWithContext(_ awsgo.Context, _ *configservice.DescribeConfigRulesInput, fn func(*configservice.DescribeConfigRulesOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.DescribeConfigRulesOutput, true)
-	return nil
+func (m mockedConfigServiceRule) DescribeConfigRules(ctx context.Context, params *configservice.DescribeConfigRulesInput, optFns ...func(*configservice.Options)) (*configservice.DescribeConfigRulesOutput, error) {
+	return &m.DescribeConfigRulesOutput, nil
 }
 
-func (m mockedConfigServiceRule) DeleteConfigRuleWithContext(_ awsgo.Context, _ *configservice.DeleteConfigRuleInput, _ ...request.Option) (*configservice.DeleteConfigRuleOutput, error) {
-	return &m.DeleteConfigRuleOutput, nil
-}
-
-func (m mockedConfigServiceRule) DeleteRemediationConfigurationWithContext(_ awsgo.Context, _ *configservice.DeleteRemediationConfigurationInput, _ ...request.Option) (*configservice.DeleteRemediationConfigurationOutput, error) {
-	return &m.DeleteRemediationConfigurationOutput, nil
-}
-
-func (m mockedConfigServiceRule) DescribeRemediationConfigurationsWithContext(_ awsgo.Context, _ *configservice.DescribeRemediationConfigurationsInput, _ ...request.Option) (*configservice.DescribeRemediationConfigurationsOutput, error) {
+func (m mockedConfigServiceRule) DescribeRemediationConfigurations(ctx context.Context, params *configservice.DescribeRemediationConfigurationsInput, optFns ...func(*configservice.Options)) (*configservice.DescribeRemediationConfigurationsOutput, error) {
 	return &m.DescribeRemediationConfigurationsOutput, nil
 }
 
-func TestConfigServiceRule_GetAll(t *testing.T) {
+func (m mockedConfigServiceRule) DeleteRemediationConfiguration(ctx context.Context, params *configservice.DeleteRemediationConfigurationInput, optFns ...func(*configservice.Options)) (*configservice.DeleteRemediationConfigurationOutput, error) {
+	return &m.DeleteRemediationConfigurationOutput, nil
+}
 
+func (m mockedConfigServiceRule) DeleteConfigRule(ctx context.Context, params *configservice.DeleteConfigRuleInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigRuleOutput, error) {
+	return &m.DeleteConfigRuleOutput, nil
+}
+
+func TestConfigServiceRule_GetAll(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-rule-1"
@@ -48,9 +44,9 @@ func TestConfigServiceRule_GetAll(t *testing.T) {
 	csr := ConfigServiceRule{
 		Client: mockedConfigServiceRule{
 			DescribeConfigRulesOutput: configservice.DescribeConfigRulesOutput{
-				ConfigRules: []*configservice.ConfigRule{
-					{ConfigRuleName: aws.String(testName1), ConfigRuleState: aws.String("ACTIVE")},
-					{ConfigRuleName: aws.String(testName2), ConfigRuleState: aws.String("ACTIVE")},
+				ConfigRules: []types.ConfigRule{
+					{ConfigRuleName: aws.String(testName1), ConfigRuleState: types.ConfigRuleStateActive},
+					{ConfigRuleName: aws.String(testName2), ConfigRuleState: types.ConfigRuleStateActive},
 				},
 			},
 		},
@@ -81,13 +77,12 @@ func TestConfigServiceRule_GetAll(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestConfigServiceRule_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	csr := ConfigServiceRule{

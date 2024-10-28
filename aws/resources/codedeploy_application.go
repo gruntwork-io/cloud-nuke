@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/codedeploy"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,24 +14,23 @@ import (
 )
 
 func (cda *CodeDeployApplications) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	codeDeployApplicationsFilteredByName := []string{}
+	var codeDeployApplicationsFilteredByName []string
 
-	err := cda.Client.ListApplicationsPagesWithContext(
-		cda.Context,
-		&codedeploy.ListApplicationsInput{}, func(page *codedeploy.ListApplicationsOutput, lastPage bool) bool {
-			for _, application := range page.Applications {
-				// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
-				// CreationDate is not available in the ListApplications API call, so we can't filter by that here, but we do filter by it later.
-				// By filtering the name here, we can reduce the number of BatchGetApplication API calls we have to make.
-				if configObj.CodeDeployApplications.ShouldInclude(config.ResourceValue{Name: application}) {
-					codeDeployApplicationsFilteredByName = append(codeDeployApplicationsFilteredByName, *application)
-				}
+	paginator := codedeploy.NewListApplicationsPaginator(cda.Client, &codedeploy.ListApplicationsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, application := range page.Applications {
+			// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
+			// CreationDate is not available in the ListApplications API call, so we can't filter by that here, but we do filter by it later.
+			// By filtering the name here, we can reduce the number of BatchGetApplication API calls we have to make.
+			if configObj.CodeDeployApplications.ShouldInclude(config.ResourceValue{Name: aws.String(application)}) {
+				codeDeployApplicationsFilteredByName = append(codeDeployApplicationsFilteredByName, application)
 			}
-
-			return !lastPage
-		})
-	if err != nil {
-		return nil, err
+		}
 	}
 
 	// Check if the CodeDeploy Application should be excluded by CreationDate and return.
@@ -57,9 +56,9 @@ func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, 
 		}
 
 		// get the next batch of identifiers
-		batch := aws.StringSlice(identifiers[:batchSize])
+		batch := identifiers[:batchSize]
 		// then using that batch of identifiers, get the applicationsinfo
-		resp, err := cda.Client.BatchGetApplicationsWithContext(
+		resp, err := cda.Client.BatchGetApplications(
 			cda.Context,
 			&codedeploy.BatchGetApplicationsInput{ApplicationNames: batch},
 		)
@@ -120,7 +119,7 @@ func (cda *CodeDeployApplications) nukeAll(identifiers []string) error {
 func (cda *CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
 	defer wg.Done()
 
-	_, err := cda.Client.DeleteApplicationWithContext(cda.Context, &codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
+	_, err := cda.Client.DeleteApplication(cda.Context, &codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
 	if err != nil {
 		errChan <- err
 	}
