@@ -27,7 +27,7 @@ type VPCLatticeTargetGroup struct {
 
 func (sch *VPCLatticeTargetGroup) InitV2(cfg awsgo.Config) {
 	sch.Client = vpclattice.NewFromConfig(cfg)
-	sch.TargetGroups = make(map[string]*types.TargetGroupSummary,0)
+	sch.TargetGroups = make(map[string]*types.TargetGroupSummary, 0)
 }
 
 func (sch *VPCLatticeTargetGroup) IsUsingV2() bool { return true }
