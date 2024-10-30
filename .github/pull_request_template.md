@@ -25,4 +25,3 @@ Added / Removed / Updated [X].
 ### Migration Guide
 
 <!-- Important: If you made any backward incompatible changes, then you must write a migration guide! -->
-

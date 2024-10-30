@@ -81,7 +81,7 @@ func (v *EC2DhcpOption) disAssociatedAttachedVpcs(identifier *string) error {
 		logging.Debugf("[disAssociatedAttachedVpcs] detaching the dhcp option %s from %v", awsgo.StringValue(identifier), awsgo.StringValue(option.VpcId))
 
 		_, err := v.Client.AssociateDhcpOptionsWithContext(v.Context, &ec2.AssociateDhcpOptionsInput{
-			VpcId: option.VpcId,
+			VpcId:         option.VpcId,
 			DhcpOptionsId: awsgo.String("default"), // The ID of the DHCP options set, or default to associate no DHCP options with the VPC.
 		})
 		if err != nil {

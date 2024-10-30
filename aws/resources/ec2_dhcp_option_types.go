@@ -18,9 +18,9 @@ type DHCPOption struct {
 
 type EC2DhcpOption struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
-	Region string
-	VPCIds []string
+	Client      ec2iface.EC2API
+	Region      string
+	VPCIds      []string
 	DhcpOptions map[string]DHCPOption
 }
 
