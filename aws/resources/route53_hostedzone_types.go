@@ -14,15 +14,15 @@ import (
 // Route53HostedZone - represents all Route53HostedZone
 type Route53HostedZone struct {
 	BaseAwsResource
-	Client route53iface.Route53API
-	Region string
-	Ids    []string
+	Client             route53iface.Route53API
+	Region             string
+	Ids                []string
 	HostedZonesDomains map[string]*route53.HostedZone
 }
 
 func (r *Route53HostedZone) Init(session *session.Session) {
 	r.Client = route53.New(session)
-	r.HostedZonesDomains = make(map[string]*route53.HostedZone,0)
+	r.HostedZonesDomains = make(map[string]*route53.HostedZone, 0)
 }
 
 // ResourceName - the simple name of the aws resource

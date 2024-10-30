@@ -280,7 +280,7 @@ MSKCluster:
       - "^msk-cluster-[a-zA-Z0-9]{6}$"
       - "^msk-cluster-[a-zA-Z0-9]{6}-.*"
       - "^msk-tiered-storage-test.*"
-  
+
 InternetGateway:
   exclude:
     names_regex:

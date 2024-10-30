@@ -16,7 +16,7 @@ type EventBridgeScheduleAPI interface {
 
 type EventBridgeSchedule struct {
 	BaseAwsResource
-	Client EventBridgeScheduleAPI
+	Client    EventBridgeScheduleAPI
 	Region    string
 	Schedules []string
 }

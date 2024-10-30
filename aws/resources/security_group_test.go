@@ -98,12 +98,12 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:ctx,
+			ctx:       ctx,
 			configObj: config.EC2ResourceType{},
 			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
-			ctx:ctx,
+			ctx: ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -115,7 +115,7 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 			expected: []string{testId2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx:ctx,
+			ctx: ctx,
 			configObj: config.EC2ResourceType{
 				ResourceType: config.ResourceType{
 					ExcludeRule: config.FilterRule{
