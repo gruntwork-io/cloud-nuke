@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/vpclattice"
-	"github.com/aws/aws-sdk-go/service/vpclattice/vpclatticeiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -18,17 +17,27 @@ import (
 )
 
 type mockedVPCLatticeService struct {
-	vpclatticeiface.VPCLatticeAPI
+	resources.VPCLatticeServiceAPI
+
 	ListServicesOutput  vpclattice.ListServicesOutput
 	DeleteServiceOutput vpclattice.DeleteServiceOutput
+
+	ListServiceNetworkServiceAssociationsOutput  vpclattice.ListServiceNetworkServiceAssociationsOutput
+	DeleteServiceNetworkServiceAssociationOutput vpclattice.DeleteServiceNetworkServiceAssociationOutput
 }
 
-func (m mockedVPCLatticeService) ListServicesWithContext(aws.Context, *vpclattice.ListServicesInput, ...request.Option) (*vpclattice.ListServicesOutput, error) {
+func (m mockedVPCLatticeService) ListServices(ctx context.Context, params *vpclattice.ListServicesInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServicesOutput, error) {
 	return &m.ListServicesOutput, nil
 }
 
-func (m mockedVPCLatticeService) DeleteServiceWithContext(aws.Context, *vpclattice.DeleteServiceInput, ...request.Option) (*vpclattice.DeleteServiceOutput, error) {
+func (m mockedVPCLatticeService) DeleteService(ctx context.Context, params *vpclattice.DeleteServiceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceOutput, error) {
 	return &m.DeleteServiceOutput, nil
+}
+func (m mockedVPCLatticeService) ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error) {
+	return &m.ListServiceNetworkServiceAssociationsOutput, nil
+}
+func (m mockedVPCLatticeService) DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error) {
+	return &m.DeleteServiceNetworkServiceAssociationOutput, nil
 }
 
 func TestVPCLatticeService_GetAll(t *testing.T) {
@@ -44,7 +53,7 @@ func TestVPCLatticeService_GetAll(t *testing.T) {
 	obj := resources.VPCLatticeService{
 		Client: mockedVPCLatticeService{
 			ListServicesOutput: vpclattice.ListServicesOutput{
-				Items: []*vpclattice.ServiceSummary{
+				Items: []types.ServiceSummary{
 					{
 						Arn:       awsgo.String(id1),
 						Name:      awsgo.String(id1),

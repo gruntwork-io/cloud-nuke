@@ -3,26 +3,34 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/vpclattice"
-	"github.com/aws/aws-sdk-go/service/vpclattice/vpclatticeiface"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type VPCLatticeTargetGroup struct {
-	BaseAwsResource
-	Client       vpclatticeiface.VPCLatticeAPI
-	Region       string
-	ARNs         []string
-	TargetGroups map[string]*vpclattice.TargetGroupSummary
+type VPCLatticeAPI interface {
+	ListTargetGroups(ctx context.Context, params *vpclattice.ListTargetGroupsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTargetGroupsOutput, error)
+	ListTargets(ctx context.Context, params *vpclattice.ListTargetsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTargetsOutput, error)
+	DeregisterTargets(ctx context.Context, params *vpclattice.DeregisterTargetsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeregisterTargetsOutput, error)
+	DeleteTargetGroup(ctx context.Context, params *vpclattice.DeleteTargetGroupInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteTargetGroupOutput, error)
 }
 
-func (n *VPCLatticeTargetGroup) Init(session *session.Session) {
-	n.Client = vpclattice.New(session)
-	n.TargetGroups = make(map[string]*vpclattice.TargetGroupSummary)
+type VPCLatticeTargetGroup struct {
+	BaseAwsResource
+	Client       VPCLatticeAPI
+	Region       string
+	ARNs         []string
+	TargetGroups map[string]*types.TargetGroupSummary
 }
+
+func (sch *VPCLatticeTargetGroup) InitV2(cfg awsgo.Config) {
+	sch.Client = vpclattice.NewFromConfig(cfg)
+	sch.TargetGroups = make(map[string]*types.TargetGroupSummary, 0)
+}
+
+func (sch *VPCLatticeTargetGroup) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (n *VPCLatticeTargetGroup) ResourceName() string {
@@ -52,7 +60,7 @@ func (n *VPCLatticeTargetGroup) GetAndSetIdentifiers(c context.Context, configOb
 		return nil, err
 	}
 
-	n.ARNs = awsgo.StringValueSlice(identifiers)
+	n.ARNs = awsgo.ToStringSlice(identifiers)
 	return n.ARNs, nil
 }
 

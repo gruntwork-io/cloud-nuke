@@ -3,8 +3,9 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/vpclattice"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -12,7 +13,7 @@ import (
 )
 
 func (network *VPCLatticeTargetGroup) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
-	output, err := network.Client.ListTargetGroupsWithContext(network.Context, nil)
+	output, err := network.Client.ListTargetGroups(network.Context, nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -26,7 +27,7 @@ func (network *VPCLatticeTargetGroup) getAll(_ context.Context, configObj config
 		}) {
 			ids = append(ids, item.Arn)
 			// also keep the complete info about the target groups as the target group assoiation needs to be nuked before removing it
-			network.TargetGroups[aws.StringValue(item.Arn)] = item
+			network.TargetGroups[aws.ToString(item.Arn)] = &item
 		}
 	}
 
@@ -35,7 +36,7 @@ func (network *VPCLatticeTargetGroup) getAll(_ context.Context, configObj config
 
 func (network *VPCLatticeTargetGroup) nukeTargets(identifier *string) error {
 	// list the targets associated on the target group
-	output, err := network.Client.ListTargetsWithContext(network.Context, &vpclattice.ListTargetsInput{
+	output, err := network.Client.ListTargets(network.Context, &vpclattice.ListTargetsInput{
 		TargetGroupIdentifier: identifier,
 	})
 	if err != nil {
@@ -43,16 +44,16 @@ func (network *VPCLatticeTargetGroup) nukeTargets(identifier *string) error {
 		return errors.WithStackTrace(err)
 	}
 
-	var targets []*vpclattice.Target
+	var targets []types.Target
 	for _, target := range output.Items {
-		targets = append(targets, &vpclattice.Target{
+		targets = append(targets, types.Target{
 			Id: target.Id,
 		})
 	}
 
 	if len(targets) > 0 {
 		// before deleting the targets, we need to deregister the targets registered with it
-		_, err = network.Client.DeregisterTargetsWithContext(network.Context, &vpclattice.DeregisterTargetsInput{
+		_, err = network.Client.DeregisterTargets(network.Context, &vpclattice.DeregisterTargetsInput{
 			TargetGroupIdentifier: identifier,
 			Targets:               targets,
 		})
@@ -74,7 +75,7 @@ func (network *VPCLatticeTargetGroup) nuke(identifier *string) error {
 	}
 
 	// delete the target group
-	_, err = network.Client.DeleteTargetGroupWithContext(network.Context, &vpclattice.DeleteTargetGroupInput{
+	_, err = network.Client.DeleteTargetGroup(network.Context, &vpclattice.DeleteTargetGroupInput{
 		TargetGroupIdentifier: identifier,
 	})
 	if err != nil {
@@ -99,7 +100,7 @@ func (network *VPCLatticeTargetGroup) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: network.ResourceServiceName(),
 			Error:        err,
 		}
@@ -109,7 +110,7 @@ func (network *VPCLatticeTargetGroup) nukeAll(identifiers []*string) error {
 			logging.Debugf("[Failed] %s", err)
 		} else {
 			deletedCount++
-			logging.Debugf("Deleted %s: %s", network.ResourceServiceName(), aws.StringValue(id))
+			logging.Debugf("Deleted %s: %s", network.ResourceServiceName(), aws.ToString(id))
 		}
 	}
 

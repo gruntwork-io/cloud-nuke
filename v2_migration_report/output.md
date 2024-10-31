@@ -116,6 +116,6 @@ run `go generate ./...` to refresh this report.
 | transit-gateway-attachment       |                    |
 | transit-gateway-route-table      |                    |
 | vpc                              |                    |
-| vpc-lattice-service              |                    |
-| vpc-lattice-service-network      |                    |
-| vpc-lattice-target-group         |                    |
+| vpc-lattice-service              | :white_check_mark: |
+| vpc-lattice-service-network      | :white_check_mark: |
+| vpc-lattice-target-group         | :white_check_mark: |
