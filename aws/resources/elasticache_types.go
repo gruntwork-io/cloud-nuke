@@ -3,25 +3,32 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/elasticache"
-	"github.com/aws/aws-sdk-go/service/elasticache/elasticacheiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type ElasticachesAPI interface {
+	DescribeReplicationGroups(ctx context.Context, params *elasticache.DescribeReplicationGroupsInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeReplicationGroupsOutput, error)
+	DescribeCacheClusters(ctx context.Context, params *elasticache.DescribeCacheClustersInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeCacheClustersOutput, error)
+	DeleteCacheCluster(ctx context.Context, params *elasticache.DeleteCacheClusterInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteCacheClusterOutput, error)
+	DeleteReplicationGroup(ctx context.Context, params *elasticache.DeleteReplicationGroupInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteReplicationGroupOutput, error)
+}
+
 // Elasticaches - represents all Elasticache clusters
 type Elasticaches struct {
 	BaseAwsResource
-	Client     elasticacheiface.ElastiCacheAPI
+	Client     ElasticachesAPI
 	Region     string
 	ClusterIds []string
 }
 
-func (cache *Elasticaches) Init(session *session.Session) {
-	cache.Client = elasticache.New(session)
+func (cache *Elasticaches) InitV2(cfg aws.Config) {
+	cache.Client = elasticache.NewFromConfig(cfg)
 }
+
+func (cache *Elasticaches) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (cache *Elasticaches) ResourceName() string {
@@ -48,13 +55,13 @@ func (cache *Elasticaches) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	cache.ClusterIds = awsgo.StringValueSlice(identifiers)
+	cache.ClusterIds = aws.ToStringSlice(identifiers)
 	return cache.ClusterIds, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (cache *Elasticaches) Nuke(identifiers []string) error {
-	if err := cache.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := cache.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -64,17 +71,23 @@ func (cache *Elasticaches) Nuke(identifiers []string) error {
 /*
 Elasticache Parameter Groups
 */
+type ElasticacheParameterGroupsAPI interface {
+	DescribeCacheParameterGroups(ctx context.Context, params *elasticache.DescribeCacheParameterGroupsInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeCacheParameterGroupsOutput, error)
+	DeleteCacheParameterGroup(ctx context.Context, params *elasticache.DeleteCacheParameterGroupInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteCacheParameterGroupOutput, error)
+}
 
 type ElasticacheParameterGroups struct {
 	BaseAwsResource
-	Client     elasticacheiface.ElastiCacheAPI
+	Client     ElasticacheParameterGroupsAPI
 	Region     string
 	GroupNames []string
 }
 
-func (pg *ElasticacheParameterGroups) Init(session *session.Session) {
-	pg.Client = elasticache.New(session)
+func (pg *ElasticacheParameterGroups) InitV2(cfg aws.Config) {
+	pg.Client = elasticache.NewFromConfig(cfg)
 }
+
+func (pg *ElasticacheParameterGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (pg *ElasticacheParameterGroups) ResourceName() string {
@@ -97,13 +110,13 @@ func (pg *ElasticacheParameterGroups) GetAndSetIdentifiers(c context.Context, co
 		return nil, err
 	}
 
-	pg.GroupNames = awsgo.StringValueSlice(identifiers)
+	pg.GroupNames = aws.ToStringSlice(identifiers)
 	return pg.GroupNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (pg *ElasticacheParameterGroups) Nuke(identifiers []string) error {
-	if err := pg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := pg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -113,17 +126,23 @@ func (pg *ElasticacheParameterGroups) Nuke(identifiers []string) error {
 /*
 Elasticache Subnet Groups
 */
+type ElasticacheSubnetGroupsAPI interface {
+	DescribeCacheSubnetGroups(ctx context.Context, params *elasticache.DescribeCacheSubnetGroupsInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeCacheSubnetGroupsOutput, error)
+	DeleteCacheSubnetGroup(ctx context.Context, params *elasticache.DeleteCacheSubnetGroupInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteCacheSubnetGroupOutput, error)
+}
 
 type ElasticacheSubnetGroups struct {
 	BaseAwsResource
-	Client     elasticacheiface.ElastiCacheAPI
+	Client     ElasticacheSubnetGroupsAPI
 	Region     string
 	GroupNames []string
 }
 
-func (sg *ElasticacheSubnetGroups) Init(session *session.Session) {
-	sg.Client = elasticache.New(session)
+func (sg *ElasticacheSubnetGroups) InitV2(cfg aws.Config) {
+	sg.Client = elasticache.NewFromConfig(cfg)
 }
+
+func (sg *ElasticacheSubnetGroups) IsUsingV2() bool { return true }
 
 func (sg *ElasticacheSubnetGroups) ResourceName() string {
 	return "elasticacheSubnetGroups"
@@ -145,13 +164,13 @@ func (sg *ElasticacheSubnetGroups) GetAndSetIdentifiers(c context.Context, confi
 		return nil, err
 	}
 
-	sg.GroupNames = awsgo.StringValueSlice(identifiers)
+	sg.GroupNames = aws.ToStringSlice(identifiers)
 	return sg.GroupNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (sg *ElasticacheSubnetGroups) Nuke(identifiers []string) error {
-	if err := sg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := sg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

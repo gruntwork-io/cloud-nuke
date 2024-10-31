@@ -5,86 +5,62 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEKSCluster struct {
-	eksiface.EKSAPI
-
-	ListClustersOutput    eks.ListClustersOutput
-	DescribeClusterOutput eks.DescribeClusterOutput
-	DeleteClusterOutput   eks.DeleteClusterOutput
-
-	ListFargateProfilesOutput  eks.ListFargateProfilesOutput
-	DeleteFargateProfileOutput eks.DeleteFargateProfileOutput
-
-	DescribeNodegroupOutput eks.DescribeNodegroupOutput
-	ListNodegroupsOutput    eks.ListNodegroupsOutput
-	DeleteNodegroupOutput   eks.DeleteNodegroupOutput
+	EKSClustersAPI
+	DeleteClusterOutput          eks.DeleteClusterOutput
+	DeleteFargateProfileOutput   eks.DeleteFargateProfileOutput
+	DeleteNodegroupOutput        eks.DeleteNodegroupOutput
+	DescribeClusterOutput        eks.DescribeClusterOutput
+	DescribeFargateProfileOutput eks.DescribeFargateProfileOutput
+	DescribeNodegroupOutput      eks.DescribeNodegroupOutput
+	ListClustersOutput           eks.ListClustersOutput
+	ListFargateProfilesOutput    eks.ListFargateProfilesOutput
+	ListNodegroupsOutput         eks.ListNodegroupsOutput
 }
 
-func (m mockedEKSCluster) ListClustersWithContext(_ awsgo.Context, _ *eks.ListClustersInput, _ ...request.Option) (*eks.ListClustersOutput, error) {
-	// Only need to return mocked response output
-	return &m.ListClustersOutput, nil
-}
-
-func (m mockedEKSCluster) DescribeClusterWithContext(_ awsgo.Context, _ *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
-	// Only need to return mocked response output
-	return &m.DescribeClusterOutput, nil
-}
-
-func (m mockedEKSCluster) ListNodegroupsPagesWithContext(
-	_ awsgo.Context,
-	input *eks.ListNodegroupsInput, fn func(*eks.ListNodegroupsOutput, bool) bool,
-	_ ...request.Option) error {
-	// Only need to return mocked response output
-	fn(&m.ListNodegroupsOutput, true)
-	return nil
-}
-
-func (m mockedEKSCluster) DeleteNodegroupWithContext(_ awsgo.Context, _ *eks.DeleteNodegroupInput, _ ...request.Option) (*eks.DeleteNodegroupOutput, error) {
-	// Only need to return mocked response output
-	return &m.DeleteNodegroupOutput, nil
-}
-
-func (m mockedEKSCluster) WaitUntilNodegroupDeletedWithContext(_ awsgo.Context, input *eks.DescribeNodegroupInput, _ ...request.WaiterOption) error {
-	return nil
-}
-
-func (m mockedEKSCluster) ListFargateProfilesPagesWithContext(
-	_ awsgo.Context,
-	input *eks.ListFargateProfilesInput, fn func(*eks.ListFargateProfilesOutput, bool) bool,
-	_ ...request.Option) error {
-	// Only need to return mocked response output
-	fn(&m.ListFargateProfilesOutput, true)
-	return nil
-}
-
-func (m mockedEKSCluster) DeleteFargateProfileWithContext(_ awsgo.Context, input *eks.DeleteFargateProfileInput, _ ...request.Option) (*eks.DeleteFargateProfileOutput, error) {
-	// Only need to return mocked response output
-	return &m.DeleteFargateProfileOutput, nil
-}
-
-func (m mockedEKSCluster) WaitUntilFargateProfileDeletedWithContext(_ awsgo.Context, input *eks.DescribeFargateProfileInput, _ ...request.WaiterOption) error {
-	return nil
-}
-
-func (m mockedEKSCluster) WaitUntilClusterDeletedWithContext(_ awsgo.Context, input *eks.DescribeClusterInput, _ ...request.WaiterOption) error {
-	return nil
-}
-
-func (m mockedEKSCluster) DeleteClusterWithContext(_ awsgo.Context, input *eks.DeleteClusterInput, _ ...request.Option) (*eks.DeleteClusterOutput, error) {
+func (m mockedEKSCluster) DeleteCluster(ctx context.Context, params *eks.DeleteClusterInput, optFns ...func(*eks.Options)) (*eks.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
 }
 
-func TestEKSClusterGetAll(t *testing.T) {
+func (m mockedEKSCluster) DeleteFargateProfile(ctx context.Context, params *eks.DeleteFargateProfileInput, optFns ...func(*eks.Options)) (*eks.DeleteFargateProfileOutput, error) {
+	return &m.DeleteFargateProfileOutput, nil
+}
 
+func (m mockedEKSCluster) DeleteNodegroup(ctx context.Context, params *eks.DeleteNodegroupInput, optFns ...func(*eks.Options)) (*eks.DeleteNodegroupOutput, error) {
+	return &m.DeleteNodegroupOutput, nil
+}
+
+func (m mockedEKSCluster) DescribeCluster(ctx context.Context, params *eks.DescribeClusterInput, optFns ...func(*eks.Options)) (*eks.DescribeClusterOutput, error) {
+	return &m.DescribeClusterOutput, nil
+}
+
+func (m mockedEKSCluster) DescribeFargateProfile(ctx context.Context, params *eks.DescribeFargateProfileInput, optFns ...func(*eks.Options)) (*eks.DescribeFargateProfileOutput, error) {
+	return &m.DescribeFargateProfileOutput, nil
+}
+
+func (m mockedEKSCluster) DescribeNodegroup(ctx context.Context, params *eks.DescribeNodegroupInput, optFns ...func(*eks.Options)) (*eks.DescribeNodegroupOutput, error) {
+	return &m.DescribeNodegroupOutput, nil
+}
+
+func (m mockedEKSCluster) ListClusters(ctx context.Context, params *eks.ListClustersInput, optFns ...func(*eks.Options)) (*eks.ListClustersOutput, error) {
+	return &m.ListClustersOutput, nil
+}
+
+func (m mockedEKSCluster) ListFargateProfiles(ctx context.Context, params *eks.ListFargateProfilesInput, optFns ...func(*eks.Options)) (*eks.ListFargateProfilesOutput, error) {
+	return &m.ListFargateProfilesOutput, nil
+}
+
+func (m mockedEKSCluster) ListNodegroups(ctx context.Context, params *eks.ListNodegroupsInput, optFns ...func(*eks.Options)) (*eks.ListNodegroupsOutput, error) {
+	return &m.ListNodegroupsOutput, nil
+}
+func TestEKSClusterGetAll(t *testing.T) {
 	t.Parallel()
 
 	testClusterName := "test_cluster1"
@@ -92,37 +68,34 @@ func TestEKSClusterGetAll(t *testing.T) {
 	eksCluster := EKSClusters{
 		Client: mockedEKSCluster{
 			ListClustersOutput: eks.ListClustersOutput{
-				Clusters: []*string{awsgo.String(testClusterName)},
+				Clusters: []string{testClusterName},
 			},
 			DescribeClusterOutput: eks.DescribeClusterOutput{
-				Cluster: &eks.Cluster{CreatedAt: &now},
+				Cluster: &types.Cluster{CreatedAt: &now},
 			},
 		},
 	}
 
 	clusters, err := eksCluster.getAll(context.Background(), config.Config{})
 	require.NoError(t, err)
-	require.Contains(t, awsgo.StringValueSlice(clusters), testClusterName)
+	require.Contains(t, aws.ToStringSlice(clusters), testClusterName)
 }
 
 func TestEKSClusterNukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	testClusterName := "test_cluster1"
-	testFargateProfileName := "test_fargate_profile1"
-	testNodeGroupName := "test_nodegroup1"
 	eksCluster := EKSClusters{
+		BaseAwsResource: BaseAwsResource{
+			Context: context.Background(),
+		},
 		Client: mockedEKSCluster{
-			ListNodegroupsOutput: eks.ListNodegroupsOutput{
-				Nodegroups: []*string{&testNodeGroupName},
-			},
-			DescribeClusterOutput: eks.DescribeClusterOutput{},
-			ListFargateProfilesOutput: eks.ListFargateProfilesOutput{
-				FargateProfileNames: []*string{&testFargateProfileName},
-			},
-			DeleteFargateProfileOutput: eks.DeleteFargateProfileOutput{},
-			DeleteClusterOutput:        eks.DeleteClusterOutput{},
+			ListNodegroupsOutput:         eks.ListNodegroupsOutput{},
+			DescribeClusterOutput:        eks.DescribeClusterOutput{},
+			ListFargateProfilesOutput:    eks.ListFargateProfilesOutput{},
+			DescribeNodegroupOutput:      eks.DescribeNodegroupOutput{},
+			DeleteFargateProfileOutput:   eks.DeleteFargateProfileOutput{},
+			DeleteClusterOutput:          eks.DeleteClusterOutput{},
+			DescribeFargateProfileOutput: eks.DescribeFargateProfileOutput{},
 		},
 	}
 

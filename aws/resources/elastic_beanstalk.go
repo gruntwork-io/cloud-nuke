@@ -3,15 +3,16 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeEBApplication(app *elasticbeanstalk.ApplicationDescription, configObj config.Config) bool {
+func shouldIncludeEBApplication(app *types.ApplicationDescription, configObj config.Config) bool {
 	return configObj.ElasticBeanstalk.ShouldInclude(config.ResourceValue{
 		Name: app.ApplicationName,
 		Time: app.DateCreated,
@@ -20,13 +21,13 @@ func shouldIncludeEBApplication(app *elasticbeanstalk.ApplicationDescription, co
 
 // Returns a formatted string of EB application ids
 func (eb *EBApplications) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	output, err := eb.Client.DescribeApplicationsWithContext(eb.Context, &elasticbeanstalk.DescribeApplicationsInput{})
+	output, err := eb.Client.DescribeApplications(eb.Context, &elasticbeanstalk.DescribeApplicationsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 	var appIds []*string
 	for _, app := range output.Applications {
-		if shouldIncludeEBApplication(app, configObj) {
+		if shouldIncludeEBApplication(&app, configObj) {
 			appIds = append(appIds, app.ApplicationName)
 		}
 	}
@@ -44,13 +45,13 @@ func (eb *EBApplications) nukeAll(appIds []*string) error {
 	var deletedApps []*string
 
 	for _, id := range appIds {
-		_, err := eb.Client.DeleteApplicationWithContext(eb.Context, &elasticbeanstalk.DeleteApplicationInput{
+		_, err := eb.Client.DeleteApplication(eb.Context, &elasticbeanstalk.DeleteApplicationInput{
 			ApplicationName:     id,
 			TerminateEnvByForce: aws.Bool(true),
 		})
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Elastic Beanstalk Application",
 			Error:        err,
 		}

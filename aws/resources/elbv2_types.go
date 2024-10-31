@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/elbv2"
-	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type LoadBalancersV2API interface {
+	DescribeLoadBalancers(ctx context.Context, params *elasticloadbalancingv2.DescribeLoadBalancersInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeLoadBalancersOutput, error)
+	DeleteLoadBalancer(ctx context.Context, params *elasticloadbalancingv2.DeleteLoadBalancerInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DeleteLoadBalancerOutput, error)
+}
+
 // LoadBalancersV2 - represents all load balancers
 type LoadBalancersV2 struct {
 	BaseAwsResource
-	Client elbv2iface.ELBV2API
+	Client LoadBalancersV2API
 	Region string
 	Arns   []string
 }
 
-func (balancer *LoadBalancersV2) Init(session *session.Session) {
-	balancer.Client = elbv2.New(session)
+func (balancer *LoadBalancersV2) InitV2(cfg aws.Config) {
+	balancer.Client = elasticloadbalancingv2.NewFromConfig(cfg)
 }
+
+func (balancer *LoadBalancersV2) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (balancer *LoadBalancersV2) ResourceName() string {
@@ -48,13 +53,13 @@ func (balancer *LoadBalancersV2) GetAndSetIdentifiers(c context.Context, configO
 		return nil, err
 	}
 
-	balancer.Arns = awsgo.StringValueSlice(identifiers)
+	balancer.Arns = aws.ToStringSlice(identifiers)
 	return balancer.Arns, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (balancer *LoadBalancersV2) Nuke(identifiers []string) error {
-	if err := balancer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := balancer.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

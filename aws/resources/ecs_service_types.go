@@ -3,26 +3,34 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecs"
-	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type ECSServicesAPI interface {
+	ListClusters(ctx context.Context, params *ecs.ListClustersInput, optFns ...func(*ecs.Options)) (*ecs.ListClustersOutput, error)
+	ListServices(ctx context.Context, params *ecs.ListServicesInput, optFns ...func(*ecs.Options)) (*ecs.ListServicesOutput, error)
+	DescribeServices(ctx context.Context, params *ecs.DescribeServicesInput, optFns ...func(*ecs.Options)) (*ecs.DescribeServicesOutput, error)
+	DeleteService(ctx context.Context, params *ecs.DeleteServiceInput, optFns ...func(*ecs.Options)) (*ecs.DeleteServiceOutput, error)
+	UpdateService(ctx context.Context, params *ecs.UpdateServiceInput, optFns ...func(*ecs.Options)) (*ecs.UpdateServiceOutput, error)
+}
+
 // ECSServices - Represents all ECS services found in a region
 type ECSServices struct {
 	BaseAwsResource
-	Client            ecsiface.ECSAPI
+	Client            ECSServicesAPI
 	Region            string
 	Services          []string
 	ServiceClusterMap map[string]string
 }
 
-func (services *ECSServices) Init(session *session.Session) {
-	services.Client = ecs.New(session)
+func (services *ECSServices) InitV2(cfg aws.Config) {
+	services.Client = ecs.NewFromConfig(cfg)
 }
+
+func (services *ECSServices) IsUsingV2() bool { return true }
 
 // ResourceName - The simple name of the aws resource
 func (services *ECSServices) ResourceName() string {
@@ -48,13 +56,13 @@ func (services *ECSServices) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	services.Services = awsgo.StringValueSlice(identifiers)
+	services.Services = aws.ToStringSlice(identifiers)
 	return services.Services, nil
 }
 
 // Nuke - nuke all ECS service resources
 func (services *ECSServices) Nuke(identifiers []string) error {
-	if err := services.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := services.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil

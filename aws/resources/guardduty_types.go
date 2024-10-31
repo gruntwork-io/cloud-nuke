@@ -3,23 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/guardduty"
-	"github.com/aws/aws-sdk-go/service/guardduty/guarddutyiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
+type GuardDutyAPI interface {
+	GetDetector(ctx context.Context, params *guardduty.GetDetectorInput, optFns ...func(*guardduty.Options)) (*guardduty.GetDetectorOutput, error)
+	DeleteDetector(ctx context.Context, params *guardduty.DeleteDetectorInput, optFns ...func(*guardduty.Options)) (*guardduty.DeleteDetectorOutput, error)
+	ListDetectors(ctx context.Context, params *guardduty.ListDetectorsInput, optFns ...func(*guardduty.Options)) (*guardduty.ListDetectorsOutput, error)
+}
+
 type GuardDuty struct {
 	BaseAwsResource
-	Client      guarddutyiface.GuardDutyAPI
+	Client      GuardDutyAPI
 	Region      string
 	detectorIds []string
 }
 
-func (gd *GuardDuty) Init(session *session.Session) {
-	gd.Client = guardduty.New(session)
+func (gd *GuardDuty) InitV2(cfg aws.Config) {
+	gd.Client = guardduty.NewFromConfig(cfg)
 }
+
+func (gd *GuardDuty) IsUsingV2() bool { return true }
 
 func (gd *GuardDuty) ResourceName() string {
 	return "guardduty"
@@ -43,7 +49,7 @@ func (gd *GuardDuty) GetAndSetIdentifiers(c context.Context, configObj config.Co
 		return nil, err
 	}
 
-	gd.detectorIds = awsgo.StringValueSlice(identifiers)
+	gd.detectorIds = aws.ToStringSlice(identifiers)
 	return gd.detectorIds, nil
 }
 

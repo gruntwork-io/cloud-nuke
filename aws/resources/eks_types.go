@@ -3,25 +3,37 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EKSClustersAPI interface {
+	DeleteCluster(ctx context.Context, params *eks.DeleteClusterInput, optFns ...func(*eks.Options)) (*eks.DeleteClusterOutput, error)
+	DeleteFargateProfile(ctx context.Context, params *eks.DeleteFargateProfileInput, optFns ...func(*eks.Options)) (*eks.DeleteFargateProfileOutput, error)
+	DeleteNodegroup(ctx context.Context, params *eks.DeleteNodegroupInput, optFns ...func(*eks.Options)) (*eks.DeleteNodegroupOutput, error)
+	DescribeCluster(ctx context.Context, params *eks.DescribeClusterInput, optFns ...func(*eks.Options)) (*eks.DescribeClusterOutput, error)
+	DescribeFargateProfile(ctx context.Context, params *eks.DescribeFargateProfileInput, optFns ...func(*eks.Options)) (*eks.DescribeFargateProfileOutput, error)
+	DescribeNodegroup(ctx context.Context, params *eks.DescribeNodegroupInput, optFns ...func(*eks.Options)) (*eks.DescribeNodegroupOutput, error)
+	ListClusters(ctx context.Context, params *eks.ListClustersInput, optFns ...func(*eks.Options)) (*eks.ListClustersOutput, error)
+	ListFargateProfiles(ctx context.Context, params *eks.ListFargateProfilesInput, optFns ...func(*eks.Options)) (*eks.ListFargateProfilesOutput, error)
+	ListNodegroups(ctx context.Context, params *eks.ListNodegroupsInput, optFns ...func(*eks.Options)) (*eks.ListNodegroupsOutput, error)
+}
+
 // EKSClusters - Represents all EKS clusters found in a region
 type EKSClusters struct {
 	BaseAwsResource
-	Client   eksiface.EKSAPI
+	Client   EKSClustersAPI
 	Region   string
 	Clusters []string
 }
 
-func (clusters *EKSClusters) Init(session *session.Session) {
-	clusters.Client = eks.New(session)
+func (clusters *EKSClusters) InitV2(cfg aws.Config) {
+	clusters.Client = eks.NewFromConfig(cfg)
 }
+
+func (clusters *EKSClusters) IsUsingV2() bool { return true }
 
 // ResourceName - The simple name of the aws resource
 func (clusters *EKSClusters) ResourceName() string {
@@ -50,13 +62,13 @@ func (clusters *EKSClusters) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	clusters.Clusters = awsgo.StringValueSlice(identifiers)
+	clusters.Clusters = aws.ToStringSlice(identifiers)
 	return clusters.Clusters, nil
 }
 
 // Nuke - nuke all EKS Cluster resources
 func (clusters *EKSClusters) Nuke(identifiers []string) error {
-	if err := clusters.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := clusters.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil

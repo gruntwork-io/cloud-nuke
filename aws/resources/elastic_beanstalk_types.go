@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
-	"github.com/aws/aws-sdk-go/service/elasticbeanstalk/elasticbeanstalkiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EBApplicationsAPI interface {
+	DescribeApplications(ctx context.Context, params *elasticbeanstalk.DescribeApplicationsInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DescribeApplicationsOutput, error)
+	DeleteApplication(ctx context.Context, params *elasticbeanstalk.DeleteApplicationInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DeleteApplicationOutput, error)
+}
+
 // EBApplications - represents all elastic beanstalk applications
 type EBApplications struct {
 	BaseAwsResource
-	Client elasticbeanstalkiface.ElasticBeanstalkAPI
+	Client EBApplicationsAPI
 	Region string
 	appIds []string
 }
 
-func (eb *EBApplications) Init(session *session.Session) {
-	eb.Client = elasticbeanstalk.New(session)
+func (eb *EBApplications) InitV2(cfg aws.Config) {
+	eb.Client = elasticbeanstalk.NewFromConfig(cfg)
 }
+
+func (eb *EBApplications) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (eb *EBApplications) ResourceName() string {
@@ -48,13 +53,13 @@ func (eb *EBApplications) GetAndSetIdentifiers(c context.Context, configObj conf
 		return nil, err
 	}
 
-	eb.appIds = awsgo.StringValueSlice(identifiers)
+	eb.appIds = aws.ToStringSlice(identifiers)
 	return eb.appIds, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (eb *EBApplications) Nuke(identifiers []string) error {
-	if err := eb.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := eb.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

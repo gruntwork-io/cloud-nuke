@@ -6,31 +6,29 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEIPAddresses struct {
-	ec2iface.EC2API
-	DescribeAddressesOutput ec2.DescribeAddressesOutput
+	EIPAddressesAPI
 	ReleaseAddressOutput    ec2.ReleaseAddressOutput
+	DescribeAddressesOutput ec2.DescribeAddressesOutput
 }
 
-func (m mockedEIPAddresses) DescribeAddressesWithContext(_ awsgo.Context, _ *ec2.DescribeAddressesInput, _ ...request.Option) (*ec2.DescribeAddressesOutput, error) {
-	return &m.DescribeAddressesOutput, nil
-}
-
-func (m mockedEIPAddresses) ReleaseAddressWithContext(_ awsgo.Context, _ *ec2.ReleaseAddressInput, _ ...request.Option) (*ec2.ReleaseAddressOutput, error) {
+func (m mockedEIPAddresses) ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error) {
 	return &m.ReleaseAddressOutput, nil
 }
 
-func TestEIPAddress_GetAll(t *testing.T) {
+func (m mockedEIPAddresses) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
+	return &m.DescribeAddressesOutput, nil
+}
 
+func TestEIPAddress_GetAll(t *testing.T) {
 	t.Parallel()
 
 	// Set excludeFirstSeenTag to false for testing
@@ -44,30 +42,30 @@ func TestEIPAddress_GetAll(t *testing.T) {
 	ea := EIPAddresses{
 		Client: &mockedEIPAddresses{
 			DescribeAddressesOutput: ec2.DescribeAddressesOutput{
-				Addresses: []*ec2.Address{
+				Addresses: []types.Address{
 					{
-						AllocationId: awsgo.String(testAllocId1),
-						Tags: []*ec2.Tag{
+						AllocationId: aws.String(testAllocId1),
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
-						AllocationId: awsgo.String(testAllocId2),
-						Tags: []*ec2.Tag{
+						AllocationId: aws.String(testAllocId2),
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now.Add(1))),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now.Add(1))),
 							},
 						},
 					},
@@ -100,7 +98,7 @@ func TestEIPAddress_GetAll(t *testing.T) {
 			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now.Add(-1 * time.Hour)),
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
 				}},
 			expected: []string{},
 		},
@@ -111,22 +109,19 @@ func TestEIPAddress_GetAll(t *testing.T) {
 				ElasticIP: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
 func TestEIPAddress_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	ea := EIPAddresses{
 		Client: &mockedEIPAddresses{
 			ReleaseAddressOutput: ec2.ReleaseAddressOutput{},
 		},
 	}
 
-	err := ea.nukeAll([]*string{awsgo.String("alloc1")})
+	err := ea.nukeAll([]*string{aws.String("alloc1")})
 	require.NoError(t, err)
 }

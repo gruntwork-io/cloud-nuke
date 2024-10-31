@@ -5,47 +5,42 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/guardduty"
-	"github.com/aws/aws-sdk-go/service/guardduty/guarddutyiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedGuardDuty struct {
-	guarddutyiface.GuardDutyAPI
+	GuardDutyAPI
 	ListDetectorsPagesOutput guardduty.ListDetectorsOutput
 	GetDetectorOutput        guardduty.GetDetectorOutput
 	DeleteDetectorOutput     guardduty.DeleteDetectorOutput
 }
 
-func (m mockedGuardDuty) ListDetectorsPagesWithContext(_ aws.Context, input *guardduty.ListDetectorsInput, callback func(*guardduty.ListDetectorsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.ListDetectorsPagesOutput, true)
-	return nil
-}
-
-func (m mockedGuardDuty) GetDetectorWithContext(_ aws.Context, input *guardduty.GetDetectorInput, _ ...request.Option) (*guardduty.GetDetectorOutput, error) {
+func (m mockedGuardDuty) GetDetector(ctx context.Context, params *guardduty.GetDetectorInput, optFns ...func(*guardduty.Options)) (*guardduty.GetDetectorOutput, error) {
 	return &m.GetDetectorOutput, nil
 }
 
-func (m mockedGuardDuty) DeleteDetectorWithContext(_ aws.Context, input *guardduty.DeleteDetectorInput, _ ...request.Option) (*guardduty.DeleteDetectorOutput, error) {
+func (m mockedGuardDuty) DeleteDetector(ctx context.Context, params *guardduty.DeleteDetectorInput, optFns ...func(*guardduty.Options)) (*guardduty.DeleteDetectorOutput, error) {
 	return &m.DeleteDetectorOutput, nil
 }
 
+func (m mockedGuardDuty) ListDetectors(ctx context.Context, params *guardduty.ListDetectorsInput, optFns ...func(*guardduty.Options)) (*guardduty.ListDetectorsOutput, error) {
+	return &m.ListDetectorsPagesOutput, nil
+}
+
 func TestGuardDuty_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	testId1 := "test-detector-id-1"
 	testId2 := "test-detector-id-2"
 	now := time.Now()
 	gd := GuardDuty{
 		Client: mockedGuardDuty{
 			ListDetectorsPagesOutput: guardduty.ListDetectorsOutput{
-				DetectorIds: []*string{
-					aws.String(testId1),
-					aws.String(testId2),
+				DetectorIds: []string{
+					testId1,
+					testId2,
 				},
 			},
 			GetDetectorOutput: guardduty.GetDetectorOutput{
@@ -76,15 +71,13 @@ func TestGuardDuty_GetAll(t *testing.T) {
 				GuardDuty: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestGuardDuty_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	gd := GuardDuty{
 		Client: mockedGuardDuty{
 			DeleteDetectorOutput: guardduty.DeleteDetectorOutput{},
@@ -93,5 +86,4 @@ func TestGuardDuty_NukeAll(t *testing.T) {
 
 	err := gd.nukeAll([]string{"test"})
 	require.NoError(t, err)
-
 }
