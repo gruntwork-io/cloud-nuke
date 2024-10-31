@@ -113,7 +113,7 @@ run `go generate ./...` to refresh this report.
 | snstopic                         | :white_check_mark: |
 | sqs                              | :white_check_mark: |
 | transit-gateway                  |                    |
-| transit-gateway-attachment       |                    |
+| transit-gateway-attachment       | :white_check_mark: |
 | transit-gateway-route-table      |                    |
 | vpc                              |                    |
 | vpc-lattice-service              | :white_check_mark: |

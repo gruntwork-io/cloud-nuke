@@ -5,29 +5,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedTransitGatewayVpcAttachment struct {
-	ec2iface.EC2API
 	DescribeTransitGatewayVpcAttachmentsOutput ec2.DescribeTransitGatewayVpcAttachmentsOutput
 	DeleteTransitGatewayVpcAttachmentOutput    ec2.DeleteTransitGatewayVpcAttachmentOutput
 }
 
-func (m mockedTransitGatewayVpcAttachment) DescribeTransitGatewayVpcAttachmentsWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewayVpcAttachmentsInput, _ ...request.Option) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error) {
-	return &m.DescribeTransitGatewayVpcAttachmentsOutput, nil
-}
-func (m mockedTransitGatewayVpcAttachment) DescribeTransitGatewayVpcAttachments(_ *ec2.DescribeTransitGatewayVpcAttachmentsInput) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error) {
+func (m mockedTransitGatewayVpcAttachment) DescribeTransitGatewayVpcAttachments(ctx context.Context, params *ec2.DescribeTransitGatewayVpcAttachmentsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error) {
 	return &m.DescribeTransitGatewayVpcAttachmentsOutput, nil
 }
 
-func (m mockedTransitGatewayVpcAttachment) DeleteTransitGatewayVpcAttachmentWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayVpcAttachmentInput, _ ...request.Option) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error) {
+func (m mockedTransitGatewayVpcAttachment) DeleteTransitGatewayVpcAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayVpcAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error) {
 	return &m.DeleteTransitGatewayVpcAttachmentOutput, nil
 }
 
@@ -36,21 +30,21 @@ func TestTransitGatewayVpcAttachments_GetAll(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	attachment1 := "attachement1"
-	attachment2 := "attachement2"
+	attachment1 := "attachment1"
+	attachment2 := "attachment2"
 	tgw := TransitGatewaysVpcAttachment{
 		Client: mockedTransitGatewayVpcAttachment{
 			DescribeTransitGatewayVpcAttachmentsOutput: ec2.DescribeTransitGatewayVpcAttachmentsOutput{
-				TransitGatewayVpcAttachments: []*ec2.TransitGatewayVpcAttachment{
+				TransitGatewayVpcAttachments: []types.TransitGatewayVpcAttachment{
 					{
 						TransitGatewayAttachmentId: aws.String(attachment1),
 						CreationTime:               aws.Time(now),
-						State:                      aws.String("available"),
+						State:                      types.TransitGatewayAttachmentStateAvailable,
 					},
 					{
 						TransitGatewayAttachmentId: aws.String(attachment2),
-						CreationTime:               aws.Time(now.Add(1)),
-						State:                      aws.String("deleting"),
+						CreationTime:               aws.Time(now.Add(1 * time.Hour)),
+						State:                      types.TransitGatewayAttachmentStateDeleting,
 					},
 				},
 			},
@@ -78,7 +72,7 @@ func TestTransitGatewayVpcAttachments_GetAll(t *testing.T) {
 				TransitGatewaysVpcAttachment: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

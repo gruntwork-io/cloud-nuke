@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// TransitGatewaysVpcAttachment - represents all transit gateways vpc attachments
+type TGWVpcAPI interface {
+	DeleteTransitGatewayVpcAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayVpcAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error)
+	DescribeTransitGatewayVpcAttachments(ctx context.Context, params *ec2.DescribeTransitGatewayVpcAttachmentsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error)
+}
+
+// TransitGatewaysVpcAttachment represents all transit gateway VPC attachments.
 type TransitGatewaysVpcAttachment struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
+	Client TGWVpcAPI
 	Region string
 	Ids    []string
 }
 
-func (tgw *TransitGatewaysVpcAttachment) Init(session *session.Session) {
-	tgw.Client = ec2.New(session)
+func (tgw *TransitGatewaysVpcAttachment) InitV2(cfg aws.Config) {
+	tgw.Client = ec2.NewFromConfig(cfg)
 }
+
+func (tgw *TransitGatewaysVpcAttachment) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (tgw *TransitGatewaysVpcAttachment) ResourceName() string {
@@ -44,13 +49,13 @@ func (tgw *TransitGatewaysVpcAttachment) GetAndSetIdentifiers(c context.Context,
 		return nil, err
 	}
 
-	tgw.Ids = awsgo.StringValueSlice(identifiers)
+	tgw.Ids = aws.ToStringSlice(identifiers)
 	return tgw.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (tgw *TransitGatewaysVpcAttachment) Nuke(identifiers []string) error {
-	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := tgw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
