@@ -3,26 +3,34 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ses/sesiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type SESEmailReceivingAPI interface {
+	DescribeActiveReceiptRuleSet(ctx context.Context, params *ses.DescribeActiveReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DescribeActiveReceiptRuleSetOutput, error)
+	ListReceiptRuleSets(ctx context.Context, params *ses.ListReceiptRuleSetsInput, optFns ...func(*ses.Options)) (*ses.ListReceiptRuleSetsOutput, error)
+	DeleteReceiptRuleSet(ctx context.Context, params *ses.DeleteReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptRuleSetOutput, error)
+	ListReceiptFilters(ctx context.Context, params *ses.ListReceiptFiltersInput, optFns ...func(*ses.Options)) (*ses.ListReceiptFiltersOutput, error)
+	DeleteReceiptFilter(ctx context.Context, params *ses.DeleteReceiptFilterInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptFilterOutput, error)
+}
+
 type SesReceiptFilter struct {
 	BaseAwsResource
-	Client  sesiface.SESAPI
+	Client  SESEmailReceivingAPI
 	Region  string
 	Ids     []string
 	Nukable map[string]bool
 }
 
-func (sef *SesReceiptFilter) Init(session *session.Session) {
-	sef.Client = ses.New(session)
+func (sef *SesReceiptFilter) InitV2(cfg aws.Config) {
+	sef.Client = ses.NewFromConfig(cfg)
 	sef.Nukable = map[string]bool{}
 }
+
+func (s *SesReceiptFilter) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (sef *SesReceiptFilter) ResourceName() string {
@@ -49,13 +57,13 @@ func (sef *SesReceiptFilter) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	sef.Ids = awsgo.StringValueSlice(identifiers)
+	sef.Ids = aws.ToStringSlice(identifiers)
 	return sef.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (sef *SesReceiptFilter) Nuke(identifiers []string) error {
-	if err := sef.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := sef.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -65,16 +73,18 @@ func (sef *SesReceiptFilter) Nuke(identifiers []string) error {
 // SesReceiptRule - represents all ses receipt rules
 type SesReceiptRule struct {
 	BaseAwsResource
-	Client  sesiface.SESAPI
+	Client  SESEmailReceivingAPI
 	Region  string
 	Ids     []string
 	Nukable map[string]bool
 }
 
-func (ser *SesReceiptRule) Init(session *session.Session) {
-	ser.Client = ses.New(session)
-	ser.Nukable = map[string]bool{}
+func (sef *SesReceiptRule) InitV2(cfg aws.Config) {
+	sef.Client = ses.NewFromConfig(cfg)
+	sef.Nukable = map[string]bool{}
 }
+
+func (s *SesReceiptRule) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ser *SesReceiptRule) ResourceName() string {
@@ -101,13 +111,13 @@ func (ser *SesReceiptRule) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	ser.Ids = awsgo.StringValueSlice(identifiers)
+	ser.Ids = aws.ToStringSlice(identifiers)
 	return ser.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ser *SesReceiptRule) Nuke(identifiers []string) error {
-	if err := ser.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ser.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

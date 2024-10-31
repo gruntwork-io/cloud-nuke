@@ -4,9 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/securityhub"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/securityhub"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -17,7 +16,7 @@ import (
 func (sh *SecurityHub) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var securityHubArns []*string
 
-	output, err := sh.Client.DescribeHubWithContext(sh.Context, &securityhub.DescribeHubInput{})
+	output, err := sh.Client.DescribeHub(sh.Context, &securityhub.DescribeHubInput{})
 
 	if err != nil {
 		// If Security Hub is not enabled when we call DescribeHub, we get back an error
@@ -51,7 +50,7 @@ func (sh *SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
 	var hubMemberAccountIds []*string
 
 	// OnlyAssociated=false input parameter includes "pending" invite members
-	members, err := sh.Client.ListMembersWithContext(sh.Context, &securityhub.ListMembersInput{OnlyAssociated: aws.Bool(false)})
+	members, err := sh.Client.ListMembers(sh.Context, &securityhub.ListMembersInput{OnlyAssociated: aws.Bool(false)})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -59,8 +58,8 @@ func (sh *SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
 		hubMemberAccountIds = append(hubMemberAccountIds, member.AccountId)
 	}
 
-	for awsgo.StringValue(members.NextToken) != "" {
-		members, err = sh.Client.ListMembersWithContext(sh.Context, &securityhub.ListMembersInput{NextToken: members.NextToken})
+	for aws.ToString(members.NextToken) != "" {
+		members, err = sh.Client.ListMembers(sh.Context, &securityhub.ListMembersInput{NextToken: members.NextToken})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -75,14 +74,14 @@ func (sh *SecurityHub) getAllSecurityHubMembers() ([]*string, error) {
 func (sh *SecurityHub) removeMembersFromHub(accountIds []*string) error {
 
 	// Member accounts must first be disassociated
-	_, err := sh.Client.DisassociateMembersWithContext(sh.Context, &securityhub.DisassociateMembersInput{AccountIds: accountIds})
+	_, err := sh.Client.DisassociateMembers(sh.Context, &securityhub.DisassociateMembersInput{AccountIds: aws.ToStringSlice(accountIds)})
 	if err != nil {
 		return err
 	}
 	logging.Debugf("%d member accounts disassociated", len(accountIds))
 
 	// Once disassociated, member accounts can be deleted
-	_, err = sh.Client.DeleteMembersWithContext(sh.Context, &securityhub.DeleteMembersInput{AccountIds: accountIds})
+	_, err = sh.Client.DeleteMembers(sh.Context, &securityhub.DeleteMembersInput{AccountIds: aws.ToStringSlice(accountIds)})
 	if err != nil {
 		return err
 	}
@@ -114,25 +113,25 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 
 	// Check for an administrator account
 	// Security hub cannot be disabled with an active administrator account
-	adminAccount, err := sh.Client.GetAdministratorAccountWithContext(sh.Context, &securityhub.GetAdministratorAccountInput{})
+	adminAccount, err := sh.Client.GetAdministratorAccount(sh.Context, &securityhub.GetAdministratorAccountInput{})
 	if err != nil {
 		logging.Errorf("[Failed] Failed to check for administrator account")
 	}
 
 	// Disassociate administrator account if it exists
 	if adminAccount.Administrator != nil {
-		_, err := sh.Client.DisassociateFromAdministratorAccountWithContext(sh.Context, &securityhub.DisassociateFromAdministratorAccountInput{})
+		_, err := sh.Client.DisassociateFromAdministratorAccount(sh.Context, &securityhub.DisassociateFromAdministratorAccountInput{})
 		if err != nil {
 			logging.Errorf("[Failed] Failed to disassociate from administrator account")
 		}
 	}
 
 	// Disable security hub
-	_, err = sh.Client.DisableSecurityHubWithContext(sh.Context, &securityhub.DisableSecurityHubInput{})
+	_, err = sh.Client.DisableSecurityHub(sh.Context, &securityhub.DisableSecurityHubInput{})
 	if err != nil {
 		logging.Errorf("[Failed] Failed to disable security hub.")
 		e := report.Entry{
-			Identifier:   aws.StringValue(&securityHubArns[0]),
+			Identifier:   aws.ToString(&securityHubArns[0]),
 			ResourceType: "Security Hub",
 			Error:        err,
 		}
@@ -140,7 +139,7 @@ func (sh *SecurityHub) nukeAll(securityHubArns []string) error {
 	} else {
 		logging.Debugf("[OK] Security Hub %s disabled", securityHubArns[0])
 		e := report.Entry{
-			Identifier:   aws.StringValue(&securityHubArns[0]),
+			Identifier:   aws.ToString(&securityHubArns[0]),
 			ResourceType: "Security Hub",
 		}
 		report.Record(e)
