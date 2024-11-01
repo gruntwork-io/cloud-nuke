@@ -52,11 +52,11 @@ run `go generate ./...` to refresh this report.
 | event-bridge-schedule            | :white_check_mark: |
 | event-bridge-schedule-group      | :white_check_mark: |
 | guardduty                        | :white_check_mark: |
-| iam                              |                    |
-| iam-group                        |                    |
-| iam-policy                       |                    |
-| iam-role                         |                    |
-| iam-service-linked-role          |                    |
+| iam                              | :white_check_mark: |
+| iam-group                        | :white_check_mark: |
+| iam-policy                       | :white_check_mark: |
+| iam-role                         | :white_check_mark: |
+| iam-service-linked-role          | :white_check_mark: |
 | internet-gateway                 |                    |
 | ipam                             |                    |
 | ipam-byoasn                      |                    |

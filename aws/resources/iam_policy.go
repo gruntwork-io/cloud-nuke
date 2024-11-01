@@ -4,8 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -16,25 +17,21 @@ import (
 // Returns the ARN of all customer managed policies
 func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var allIamPolicies []*string
+	paginator := iam.NewListPoliciesPaginator(ip.Client, &iam.ListPoliciesInput{Scope: types.PolicyScopeTypeLocal})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
 
-	err := ip.Client.ListPoliciesPagesWithContext(
-		ip.Context,
-		&iam.ListPoliciesInput{Scope: aws.String(iam.PolicyScopeTypeLocal)},
-		func(page *iam.ListPoliciesOutput, lastPage bool) bool {
-			for _, policy := range page.Policies {
-				if configObj.IAMPolicies.ShouldInclude(config.ResourceValue{
-					Name: policy.PolicyName,
-					Time: policy.CreateDate,
-				}) {
-					allIamPolicies = append(allIamPolicies, policy.Arn)
-				}
+		for _, policy := range page.Policies {
+			if configObj.IAMPolicies.ShouldInclude(config.ResourceValue{
+				Name: policy.PolicyName,
+				Time: policy.CreateDate,
+			}) {
+				allIamPolicies = append(allIamPolicies, policy.Arn)
 			}
-
-			return !lastPage
-		},
-	)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		}
 	}
 
 	return allIamPolicies, nil
@@ -46,13 +43,13 @@ func (ip *IAMPolicies) nukeAll(policyArns []*string) error {
 		logging.Debug("No IAM Policies to nuke")
 	}
 
-	//Probably not required since pagination is handled by the caller
+	// Probably not required since pagination is handled by the caller
 	if len(policyArns) > 100 {
 		logging.Errorf("Nuking too many IAM Policies at once (100): Halting to avoid rate limits")
 		return TooManyIamPolicyErr{}
 	}
 
-	//No Bulk Delete exists, do it with goroutines
+	// No Bulk Delete exists, do it with goroutines
 	logging.Debug("Deleting all IAM Policies")
 	wg := new(sync.WaitGroup)
 	wg.Add(len(policyArns))
@@ -63,7 +60,7 @@ func (ip *IAMPolicies) nukeAll(policyArns []*string) error {
 	}
 	wg.Wait()
 
-	//Collapse the errors down to one
+	// Collapse the errors down to one
 	var allErrs *multierror.Error
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
@@ -84,44 +81,46 @@ func (ip *IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan err
 	defer wg.Done()
 	var multierr *multierror.Error
 
-	//Detach any entities the policy is attached to
+	// Detach any entities the policy is attached to
 	err := ip.detachPolicyEntities(policyArn)
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	}
 
-	//Get Old Policy Versions
+	// Get Old Policy Versions
 	var versionsToRemove []*string
-	err = ip.Client.ListPolicyVersionsPagesWithContext(ip.Context, &iam.ListPolicyVersionsInput{PolicyArn: policyArn},
-		func(page *iam.ListPolicyVersionsOutput, lastPage bool) bool {
-			for _, policyVersion := range page.Versions {
-				if !*policyVersion.IsDefaultVersion {
-					versionsToRemove = append(versionsToRemove, policyVersion.VersionId)
-				}
+	paginator := iam.NewListPolicyVersionsPaginator(ip.Client, &iam.ListPolicyVersionsInput{PolicyArn: policyArn})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			multierr = multierror.Append(multierr, err)
+			break
+		}
+
+		for _, policyVersion := range page.Versions {
+			if !policyVersion.IsDefaultVersion {
+				versionsToRemove = append(versionsToRemove, policyVersion.VersionId)
 			}
-			return !lastPage
-		})
-	if err != nil {
-		multierr = multierror.Append(multierr, err)
+		}
 	}
 
-	//Delete old policy versions
+	// Delete old policy versions
 	for _, versionId := range versionsToRemove {
-		_, err = ip.Client.DeletePolicyVersionWithContext(ip.Context, &iam.DeletePolicyVersionInput{VersionId: versionId, PolicyArn: policyArn})
+		_, err = ip.Client.DeletePolicyVersion(ip.Context, &iam.DeletePolicyVersionInput{VersionId: versionId, PolicyArn: policyArn})
 		if err != nil {
 			multierr = multierror.Append(multierr, err)
 		}
 	}
-	//Delete the policy
-	_, err = ip.Client.DeletePolicyWithContext(ip.Context, &iam.DeletePolicyInput{PolicyArn: policyArn})
+	// Delete the policy
+	_, err = ip.Client.DeletePolicy(ip.Context, &iam.DeletePolicyInput{PolicyArn: policyArn})
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	} else {
-		logging.Debugf("[OK] IAM Policy %s was deleted in global", aws.StringValue(policyArn))
+		logging.Debugf("[OK] IAM Policy %s was deleted in global", aws.ToString(policyArn))
 	}
 
 	e := report.Entry{
-		Identifier:   aws.StringValue(policyArn),
+		Identifier:   aws.ToString(policyArn),
 		ResourceType: "IAM Policy",
 		Error:        multierr.ErrorOrNil(),
 	}
@@ -134,57 +133,60 @@ func (ip *IAMPolicies) detachPolicyEntities(policyArn *string) error {
 	var allPolicyGroups []*string
 	var allPolicyRoles []*string
 	var allPolicyUsers []*string
-	err := ip.Client.ListEntitiesForPolicyPagesWithContext(ip.Context, &iam.ListEntitiesForPolicyInput{PolicyArn: policyArn},
-		func(page *iam.ListEntitiesForPolicyOutput, lastPage bool) bool {
-			for _, group := range page.PolicyGroups {
-				allPolicyGroups = append(allPolicyGroups, group.GroupName)
-			}
-			for _, role := range page.PolicyRoles {
-				allPolicyRoles = append(allPolicyRoles, role.RoleName)
-			}
-			for _, user := range page.PolicyUsers {
-				allPolicyUsers = append(allPolicyUsers, user.UserName)
-			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		return err
+
+	paginator := iam.NewListEntitiesForPolicyPaginator(ip.Client, &iam.ListEntitiesForPolicyInput{PolicyArn: policyArn})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ip.Context)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, group := range page.PolicyGroups {
+			allPolicyGroups = append(allPolicyGroups, group.GroupName)
+		}
+		for _, role := range page.PolicyRoles {
+			allPolicyRoles = append(allPolicyRoles, role.RoleName)
+		}
+		for _, user := range page.PolicyUsers {
+			allPolicyUsers = append(allPolicyUsers, user.UserName)
+		}
 	}
-	//Detach policy from any users
+
+	// Detach policy from any users
 	for _, userName := range allPolicyUsers {
 		detachUserInput := &iam.DetachUserPolicyInput{
 			UserName:  userName,
 			PolicyArn: policyArn,
 		}
-		_, err = ip.Client.DetachUserPolicyWithContext(ip.Context, detachUserInput)
+		_, err := ip.Client.DetachUserPolicy(ip.Context, detachUserInput)
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
-	//Detach policy from any groups
+	// Detach policy from any groups
 	for _, groupName := range allPolicyGroups {
 		detachGroupInput := &iam.DetachGroupPolicyInput{
 			GroupName: groupName,
 			PolicyArn: policyArn,
 		}
-		_, err = ip.Client.DetachGroupPolicyWithContext(ip.Context, detachGroupInput)
+		_, err := ip.Client.DetachGroupPolicy(ip.Context, detachGroupInput)
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
-	//Detach policy from any roles
+	// Detach policy from any roles
 	for _, roleName := range allPolicyRoles {
 		detachRoleInput := &iam.DetachRolePolicyInput{
 			RoleName:  roleName,
 			PolicyArn: policyArn,
 		}
-		_, err = ip.Client.DetachRolePolicyWithContext(ip.Context, detachRoleInput)
+		_, err := ip.Client.DetachRolePolicy(ip.Context, detachRoleInput)
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
-	return err
+
+	return nil
 }
 
 // TooManyIamPolicyErr Custom Errors

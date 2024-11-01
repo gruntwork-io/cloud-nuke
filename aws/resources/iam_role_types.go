@@ -3,24 +3,36 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type IAMRolesAPI interface {
+	ListAttachedRolePolicies(ctx context.Context, params *iam.ListAttachedRolePoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedRolePoliciesOutput, error)
+	ListInstanceProfilesForRole(ctx context.Context, params *iam.ListInstanceProfilesForRoleInput, optFns ...func(*iam.Options)) (*iam.ListInstanceProfilesForRoleOutput, error)
+	ListRolePolicies(ctx context.Context, params *iam.ListRolePoliciesInput, optFns ...func(*iam.Options)) (*iam.ListRolePoliciesOutput, error)
+	ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error)
+	DeleteInstanceProfile(ctx context.Context, params *iam.DeleteInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error)
+	DetachRolePolicy(ctx context.Context, params *iam.DetachRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DetachRolePolicyOutput, error)
+	DeleteRolePolicy(ctx context.Context, params *iam.DeleteRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DeleteRolePolicyOutput, error)
+	DeleteRole(ctx context.Context, params *iam.DeleteRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteRoleOutput, error)
+	RemoveRoleFromInstanceProfile(ctx context.Context, params *iam.RemoveRoleFromInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error)
+}
+
 // IAMRoles - represents all IAMRoles on the AWS Account
 type IAMRoles struct {
 	BaseAwsResource
-	Client    iamiface.IAMAPI
+	Client    IAMRolesAPI
 	RoleNames []string
 }
 
-func (ir *IAMRoles) Init(session *session.Session) {
-	ir.Client = iam.New(session)
+func (ir *IAMRoles) InitV2(cfg aws.Config) {
+	ir.Client = iam.NewFromConfig(cfg)
 }
+
+func (ir *IAMRoles) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ir *IAMRoles) ResourceName() string {
@@ -47,13 +59,13 @@ func (ir *IAMRoles) GetAndSetIdentifiers(c context.Context, configObj config.Con
 		return nil, err
 	}
 
-	ir.RoleNames = awsgo.StringValueSlice(identifiers)
+	ir.RoleNames = aws.ToStringSlice(identifiers)
 	return ir.RoleNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ir *IAMRoles) Nuke(identifiers []string) error {
-	if err := ir.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ir.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

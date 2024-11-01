@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -19,31 +20,30 @@ import (
 
 // List all IAM Roles in the AWS account
 func (islr *IAMServiceLinkedRoles) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allIAMServiceLinkedRoles := []*string{}
-	err := islr.Client.ListRolesPagesWithContext(
-		islr.Context,
-		&iam.ListRolesInput{},
-		func(page *iam.ListRolesOutput, lastPage bool) bool {
-			for _, iamServiceLinkedRole := range page.Roles {
-				if islr.shouldInclude(iamServiceLinkedRole, configObj) {
-					allIAMServiceLinkedRoles = append(allIAMServiceLinkedRoles, iamServiceLinkedRole.RoleName)
-				}
+	var allIAMServiceLinkedRoles []*string
+	paginator := iam.NewListRolesPaginator(islr.Client, &iam.ListRolesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, gruntworkerrors.WithStackTrace(err)
+		}
+
+		for _, iamServiceLinkedRole := range page.Roles {
+			if islr.shouldInclude(&iamServiceLinkedRole, configObj) {
+				allIAMServiceLinkedRoles = append(allIAMServiceLinkedRoles, iamServiceLinkedRole.RoleName)
 			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		return nil, gruntworkerrors.WithStackTrace(err)
+		}
 	}
+
 	return allIAMServiceLinkedRoles, nil
 }
 
 func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) error {
 	// Deletion ID looks like this: "
-	//{
+	// {
 	//	DeletionTaskId: "task/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling_2/d3c4c9fc-7fd3-4a36-974a-afb0eb78f102"
-	//}
-	deletionData, err := islr.Client.DeleteServiceLinkedRoleWithContext(islr.Context, &iam.DeleteServiceLinkedRoleInput{
+	// }
+	deletionData, err := islr.Client.DeleteServiceLinkedRole(islr.Context, &iam.DeleteServiceLinkedRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -59,22 +59,22 @@ func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRole(roleName *string) 
 	for !done {
 		done = true
 		// Check if the deletion is complete
-		deletionStatus, err = islr.Client.GetServiceLinkedRoleDeletionStatusWithContext(islr.Context, &iam.GetServiceLinkedRoleDeletionStatusInput{
+		deletionStatus, err = islr.Client.GetServiceLinkedRoleDeletionStatus(islr.Context, &iam.GetServiceLinkedRoleDeletionStatusInput{
 			DeletionTaskId: deletionData.DeletionTaskId,
 		})
 		if err != nil {
 			return gruntworkerrors.WithStackTrace(err)
 		}
-		if aws.StringValue(deletionStatus.Status) == "IN_PROGRESS" {
-			logging.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.StringValue(roleName))
+		if deletionStatus.Status == types.DeletionTaskStatusTypeInProgress {
+			logging.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.ToString(roleName))
 			done = false
 			time.Sleep(3 * time.Second)
 		}
 
 	}
 
-	if aws.StringValue(deletionStatus.Status) != "SUCCEEDED" {
-		err := fmt.Sprintf("Deletion of IAM ServiceLinked Role %s failed with status %s", aws.StringValue(roleName), aws.StringValue(deletionStatus.Status))
+	if deletionStatus.Status != types.DeletionTaskStatusTypeSucceeded {
+		err := fmt.Sprintf("Deletion of IAM ServiceLinked Role %s failed with status %s", aws.ToString(roleName), string(deletionStatus.Status))
 		return gruntworkerrors.WithStackTrace(errors.New(err))
 	}
 
@@ -122,13 +122,13 @@ func (islr *IAMServiceLinkedRoles) nukeAll(roleNames []*string) error {
 	}
 
 	for _, roleName := range roleNames {
-		logging.Debugf("[OK] IAM Service Linked Role %s was deleted.", aws.StringValue(roleName))
+		logging.Debugf("[OK] IAM Service Linked Role %s was deleted.", aws.ToString(roleName))
 	}
 	return nil
 }
 
-func (islr *IAMServiceLinkedRoles) shouldInclude(iamServiceLinkedRole *iam.Role, configObj config.Config) bool {
-	if !strings.Contains(aws.StringValue(iamServiceLinkedRole.Arn), "aws-service-role") {
+func (islr *IAMServiceLinkedRoles) shouldInclude(iamServiceLinkedRole *types.Role, configObj config.Config) bool {
+	if !strings.Contains(aws.ToString(iamServiceLinkedRole.Arn), "aws-service-role") {
 		return false
 	}
 
@@ -159,7 +159,7 @@ func (islr *IAMServiceLinkedRoles) deleteIamServiceLinkedRoleAsync(wg *sync.Wait
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(roleName),
+		Identifier:   aws.ToString(roleName),
 		ResourceType: "IAM Service Linked Role",
 		Error:        result.ErrorOrNil(),
 	}

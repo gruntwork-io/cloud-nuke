@@ -2,30 +2,36 @@ package resources
 
 import (
 	"context"
+	goerr "errors"
 	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/hashicorp/go-multierror"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
-	"github.com/hashicorp/go-multierror"
 )
 
 // List all IAM users in the AWS account and returns a slice of the UserNames
 func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	input := &iam.ListUsersInput{}
-
 	var userNames []*string
-	err := iu.Client.ListUsersPagesWithContext(iu.Context, input, func(page *iam.ListUsersOutput, lastPage bool) bool {
-		for _, user := range page.Users {
 
+	input := &iam.ListUsersInput{}
+	paginator := iam.NewListUsersPaginator(iu.Client, input)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, user := range page.Users {
 			// Note :
 			// IAM resource-listing operations return a subset of the available attributes for the resource.
 			// This operation does not return the following attributes, even though they are an attribute of the returned object:
@@ -33,13 +39,19 @@ func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*strin
 			//    Tags
 			// Referene : https://docs.aws.amazon.com/cli/latest/reference/iam/list-users.html
 
-			var tags []*iam.Tag
-			iu.Client.ListUserTagsPagesWithContext(iu.Context, &iam.ListUserTagsInput{
+			var tags []types.Tag
+
+			tagsPaginator := iam.NewListUserTagsPaginator(iu.Client, &iam.ListUserTagsInput{
 				UserName: user.UserName,
-			}, func(page *iam.ListUserTagsOutput, lastPage bool) bool {
-				tags = append(tags, page.Tags...)
-				return !lastPage
 			})
+			for tagsPaginator.HasMorePages() {
+				tagsPage, errListTags := tagsPaginator.NextPage(c)
+				if errListTags != nil {
+					return nil, errors.WithStackTrace(errListTags)
+				}
+
+				tags = append(tags, tagsPage.Tags...)
+			}
 
 			if configObj.IAMUsers.ShouldInclude(config.ResourceValue{
 				Name: user.UserName,
@@ -49,15 +61,13 @@ func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*strin
 				userNames = append(userNames, user.UserName)
 			}
 		}
+	}
 
-		return !lastPage
-	})
-
-	return userNames, errors.WithStackTrace(err)
+	return userNames, nil
 }
 
 func (iu *IAMUsers) detachUserPolicies(userName *string) error {
-	policiesOutput, err := iu.Client.ListAttachedUserPoliciesWithContext(iu.Context, &iam.ListAttachedUserPoliciesInput{
+	policiesOutput, err := iu.Client.ListAttachedUserPolicies(iu.Context, &iam.ListAttachedUserPoliciesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -66,7 +76,7 @@ func (iu *IAMUsers) detachUserPolicies(userName *string) error {
 
 	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
 		arn := attachedPolicy.PolicyArn
-		_, err = iu.Client.DetachUserPolicyWithContext(iu.Context, &iam.DetachUserPolicyInput{
+		_, err = iu.Client.DetachUserPolicy(iu.Context, &iam.DetachUserPolicyInput{
 			PolicyArn: arn,
 			UserName:  userName,
 		})
@@ -74,14 +84,14 @@ func (iu *IAMUsers) detachUserPolicies(userName *string) error {
 			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Detached Policy %s from User %s", aws.StringValue(arn), aws.StringValue(userName))
+		logging.Debugf("Detached Policy %s from User %s", aws.ToString(arn), aws.ToString(userName))
 	}
 
 	return nil
 }
 
 func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
-	policyOutput, err := iu.Client.ListUserPoliciesWithContext(iu.Context, &iam.ListUserPoliciesInput{
+	policyOutput, err := iu.Client.ListUserPolicies(iu.Context, &iam.ListUserPoliciesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -90,22 +100,22 @@ func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
 	}
 
 	for _, policyName := range policyOutput.PolicyNames {
-		_, err := iu.Client.DeleteUserPolicyWithContext(iu.Context, &iam.DeleteUserPolicyInput{
-			PolicyName: policyName,
+		_, err := iu.Client.DeleteUserPolicy(iu.Context, &iam.DeleteUserPolicyInput{
+			PolicyName: aws.String(policyName),
 			UserName:   userName,
 		})
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Deleted Inline Policy %s from User %s", aws.StringValue(policyName), aws.StringValue(userName))
+		logging.Debugf("Deleted Inline Policy %s from User %s", policyName, aws.ToString(userName))
 	}
 
 	return nil
 }
 
 func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
-	groupsOutput, err := iu.Client.ListGroupsForUserWithContext(iu.Context, &iam.ListGroupsForUserInput{
+	groupsOutput, err := iu.Client.ListGroupsForUser(iu.Context, &iam.ListGroupsForUserInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -113,7 +123,7 @@ func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
 	}
 
 	for _, group := range groupsOutput.Groups {
-		_, err := iu.Client.RemoveUserFromGroupWithContext(iu.Context, &iam.RemoveUserFromGroupInput{
+		_, err := iu.Client.RemoveUserFromGroup(iu.Context, &iam.RemoveUserFromGroupInput{
 			GroupName: group.GroupName,
 			UserName:  userName,
 		})
@@ -121,7 +131,7 @@ func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
 			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Removed user %s from group %s", aws.StringValue(userName), aws.StringValue(group.GroupName))
+		logging.Debugf("Removed user %s from group %s", aws.ToString(userName), aws.ToString(group.GroupName))
 	}
 
 	return nil
@@ -135,34 +145,36 @@ func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 		2*time.Second,
 		func() error {
 			// Delete Login Profile attached to the user
-			_, err := iu.Client.DeleteLoginProfileWithContext(iu.Context, &iam.DeleteLoginProfileInput{
+			_, err := iu.Client.DeleteLoginProfile(iu.Context, &iam.DeleteLoginProfileInput{
 				UserName: userName,
 			})
 			if err != nil {
-				if aerr, ok := err.(awserr.Error); ok {
-					switch aerr.Code() {
-					case iam.ErrCodeNoSuchEntityException:
-						// This is expected if the user doesn't have a Login Profile
-						// (automated users created via API calls withouth further
-						// configuration)
-						return nil
-					case iam.ErrCodeEntityTemporarilyUnmodifiableException:
-						// The request was rejected because it referenced an entity that is
-						// temporarily unmodifiable. We have to try again.
-						return fmt.Errorf("Login Profile for user %s cannot be deleted now", aws.StringValue(userName))
-					default:
-						return retry.FatalError{Underlying: err}
-					}
+				var (
+					errNoSuchEntityException                  *types.NoSuchEntityException
+					errEntityTemporarilyUnmodifiableException *types.EntityTemporarilyUnmodifiableException
+				)
+				switch {
+				case goerr.As(err, &errNoSuchEntityException):
+					// This is expected if the user doesn't have a Login Profile
+					// (automated users created via API calls withouth further
+					// configuration)
+					return nil
+				case goerr.As(err, &errEntityTemporarilyUnmodifiableException):
+					// The request was rejected because it referenced an entity that is
+					// temporarily unmodifiable. We have to try again.
+					return fmt.Errorf("Login Profile for user %s cannot be deleted now", aws.ToString(userName))
+				default:
+					return retry.FatalError{Underlying: err}
 				}
 			}
 
-			logging.Debugf("Deleted Login Profile from user %s", aws.StringValue(userName))
+			logging.Debugf("Deleted Login Profile from user %s", aws.ToString(userName))
 			return nil
 		})
 }
 
 func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
-	output, err := iu.Client.ListAccessKeysWithContext(iu.Context, &iam.ListAccessKeysInput{
+	output, err := iu.Client.ListAccessKeys(iu.Context, &iam.ListAccessKeysInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -172,7 +184,7 @@ func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
 
 	for _, md := range output.AccessKeyMetadata {
 		accessKeyId := md.AccessKeyId
-		_, err := iu.Client.DeleteAccessKeyWithContext(iu.Context, &iam.DeleteAccessKeyInput{
+		_, err := iu.Client.DeleteAccessKey(iu.Context, &iam.DeleteAccessKeyInput{
 			AccessKeyId: accessKeyId,
 			UserName:    userName,
 		})
@@ -181,14 +193,14 @@ func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deleted Access Key %s from user %s", aws.StringValue(accessKeyId), aws.StringValue(userName))
+		logging.Debugf("Deleted Access Key %s from user %s", aws.ToString(accessKeyId), aws.ToString(userName))
 	}
 
 	return nil
 }
 
 func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
-	output, err := iu.Client.ListSigningCertificatesWithContext(iu.Context, &iam.ListSigningCertificatesInput{
+	output, err := iu.Client.ListSigningCertificates(iu.Context, &iam.ListSigningCertificatesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -198,7 +210,7 @@ func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
 
 	for _, cert := range output.Certificates {
 		certificateId := cert.CertificateId
-		_, err := iu.Client.DeleteSigningCertificateWithContext(iu.Context, &iam.DeleteSigningCertificateInput{
+		_, err := iu.Client.DeleteSigningCertificate(iu.Context, &iam.DeleteSigningCertificateInput{
 			CertificateId: certificateId,
 			UserName:      userName,
 		})
@@ -207,14 +219,14 @@ func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deleted Signing Certificate ID %s from user %s", aws.StringValue(certificateId), aws.StringValue(userName))
+		logging.Debugf("Deleted Signing Certificate ID %s from user %s", aws.ToString(certificateId), aws.ToString(userName))
 	}
 
 	return nil
 }
 
 func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
-	output, err := iu.Client.ListSSHPublicKeysWithContext(iu.Context, &iam.ListSSHPublicKeysInput{
+	output, err := iu.Client.ListSSHPublicKeys(iu.Context, &iam.ListSSHPublicKeysInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -224,7 +236,7 @@ func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
 
 	for _, key := range output.SSHPublicKeys {
 		keyId := key.SSHPublicKeyId
-		_, err := iu.Client.DeleteSSHPublicKeyWithContext(iu.Context, &iam.DeleteSSHPublicKeyInput{
+		_, err := iu.Client.DeleteSSHPublicKey(iu.Context, &iam.DeleteSSHPublicKeyInput{
 			SSHPublicKeyId: keyId,
 			UserName:       userName,
 		})
@@ -233,7 +245,7 @@ func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deleted SSH Public Key with ID %s from user %s", aws.StringValue(keyId), aws.StringValue(userName))
+		logging.Debugf("Deleted SSH Public Key with ID %s from user %s", aws.ToString(keyId), aws.ToString(userName))
 	}
 
 	return nil
@@ -245,7 +257,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 		"codecommit.amazonaws.com",
 	}
 	for _, service := range services {
-		output, err := iu.Client.ListServiceSpecificCredentialsWithContext(iu.Context, &iam.ListServiceSpecificCredentialsInput{
+		output, err := iu.Client.ListServiceSpecificCredentials(iu.Context, &iam.ListServiceSpecificCredentialsInput{
 			ServiceName: aws.String(service),
 			UserName:    userName,
 		})
@@ -257,7 +269,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 		for _, metadata := range output.ServiceSpecificCredentials {
 			serviceSpecificCredentialId := metadata.ServiceSpecificCredentialId
 
-			_, err := iu.Client.DeleteServiceSpecificCredentialWithContext(iu.Context, &iam.DeleteServiceSpecificCredentialInput{
+			_, err := iu.Client.DeleteServiceSpecificCredential(iu.Context, &iam.DeleteServiceSpecificCredentialInput{
 				ServiceSpecificCredentialId: serviceSpecificCredentialId,
 				UserName:                    userName,
 			})
@@ -266,7 +278,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 				return errors.WithStackTrace(err)
 			}
 
-			logging.Debugf("Deleted Service Specific Credential with ID %s of service %s from user %s", aws.StringValue(serviceSpecificCredentialId), service, aws.StringValue(userName))
+			logging.Debugf("Deleted Service Specific Credential with ID %s of service %s from user %s", aws.ToString(serviceSpecificCredentialId), service, aws.ToString(userName))
 		}
 	}
 
@@ -274,7 +286,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 }
 
 func (iu *IAMUsers) deleteMFADevices(userName *string) error {
-	output, err := iu.Client.ListMFADevicesWithContext(iu.Context, &iam.ListMFADevicesInput{
+	output, err := iu.Client.ListMFADevices(iu.Context, &iam.ListMFADevicesInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -286,7 +298,7 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 	for _, device := range output.MFADevices {
 		serialNumber := device.SerialNumber
 
-		_, err := iu.Client.DeactivateMFADeviceWithContext(iu.Context, &iam.DeactivateMFADeviceInput{
+		_, err := iu.Client.DeactivateMFADevice(iu.Context, &iam.DeactivateMFADeviceInput{
 			SerialNumber: serialNumber,
 			UserName:     userName,
 		})
@@ -295,14 +307,14 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deactivated Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
+		logging.Debugf("Deactivated Virtual MFA Device with ID %s from user %s", aws.ToString(serialNumber), aws.ToString(userName))
 	}
 
 	// After their deactivation we can delete them
 	for _, device := range output.MFADevices {
 		serialNumber := device.SerialNumber
 
-		_, err := iu.Client.DeleteVirtualMFADeviceWithContext(iu.Context, &iam.DeleteVirtualMFADeviceInput{
+		_, err := iu.Client.DeleteVirtualMFADevice(iu.Context, &iam.DeleteVirtualMFADeviceInput{
 			SerialNumber: serialNumber,
 		})
 		if err != nil {
@@ -310,14 +322,14 @@ func (iu *IAMUsers) deleteMFADevices(userName *string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deleted Virtual MFA Device with ID %s from user %s", aws.StringValue(serialNumber), aws.StringValue(userName))
+		logging.Debugf("Deleted Virtual MFA Device with ID %s from user %s", aws.ToString(serialNumber), aws.ToString(userName))
 	}
 
 	return nil
 }
 
 func (iu *IAMUsers) deleteUser(userName *string) error {
-	_, err := iu.Client.DeleteUserWithContext(iu.Context, &iam.DeleteUserInput{
+	_, err := iu.Client.DeleteUser(iu.Context, &iam.DeleteUserInput{
 		UserName: userName,
 	})
 	if err != nil {
@@ -371,7 +383,7 @@ func (iu *IAMUsers) nukeAll(userNames []*string) error {
 		err := iu.nukeUser(userName)
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(userName),
+			Identifier:   aws.ToString(userName),
 			ResourceType: "IAM User",
 			Error:        err,
 		}

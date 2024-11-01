@@ -3,8 +3,8 @@ package util
 import (
 	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -55,7 +55,7 @@ func ConvertStringPtrTagsToMap(tags map[string]*string) map[string]string {
 	return tagMap
 }
 
-func ConvertIAMTagsToMap(tags []*iam.Tag) map[string]string {
+func ConvertIAMTagsToMap(tags []iam.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		tagMap[*tag.Key] = *tag.Value

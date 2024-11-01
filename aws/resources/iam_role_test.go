@@ -6,75 +6,71 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIAMRoles struct {
-	iamiface.IAMAPI
-	ListRolesPagesOutput                iam.ListRolesOutput
-	ListInstanceProfilesForRoleOutput   iam.ListInstanceProfilesForRoleOutput
-	RemoveRoleFromInstanceProfileOutput iam.RemoveRoleFromInstanceProfileOutput
-	DeleteInstanceProfileOutput         iam.DeleteInstanceProfileOutput
-	ListRolePoliciesOutput              iam.ListRolePoliciesOutput
-	DeleteRolePolicyOutput              iam.DeleteRolePolicyOutput
+	IAMRolesAPI
 	ListAttachedRolePoliciesOutput      iam.ListAttachedRolePoliciesOutput
+	ListInstanceProfilesForRoleOutput   iam.ListInstanceProfilesForRoleOutput
+	ListRolePoliciesOutput              iam.ListRolePoliciesOutput
+	ListRolesOutput                     iam.ListRolesOutput
+	DeleteInstanceProfileOutput         iam.DeleteInstanceProfileOutput
 	DetachRolePolicyOutput              iam.DetachRolePolicyOutput
+	DeleteRolePolicyOutput              iam.DeleteRolePolicyOutput
 	DeleteRoleOutput                    iam.DeleteRoleOutput
+	RemoveRoleFromInstanceProfileOutput iam.RemoveRoleFromInstanceProfileOutput
 }
 
-func (m mockedIAMRoles) ListRolesPagesWithContext(_ aws.Context, input *iam.ListRolesInput, f func(*iam.ListRolesOutput, bool) bool, _ ...request.Option) error {
-	f(&m.ListRolesPagesOutput, true)
-	return nil
-}
-
-func (m mockedIAMRoles) ListInstanceProfilesForRoleWithContext(_ aws.Context, input *iam.ListInstanceProfilesForRoleInput, _ ...request.Option) (*iam.ListInstanceProfilesForRoleOutput, error) {
-	return &m.ListInstanceProfilesForRoleOutput, nil
-}
-
-func (m mockedIAMRoles) RemoveRoleFromInstanceProfileWithContext(_ aws.Context, input *iam.RemoveRoleFromInstanceProfileInput, _ ...request.Option) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
-	return &m.RemoveRoleFromInstanceProfileOutput, nil
-}
-
-func (m mockedIAMRoles) DeleteInstanceProfileWithContext(_ aws.Context, input *iam.DeleteInstanceProfileInput, _ ...request.Option) (*iam.DeleteInstanceProfileOutput, error) {
-	return &m.DeleteInstanceProfileOutput, nil
-}
-
-func (m mockedIAMRoles) ListRolePoliciesWithContext(_ aws.Context, input *iam.ListRolePoliciesInput, _ ...request.Option) (*iam.ListRolePoliciesOutput, error) {
-	return &m.ListRolePoliciesOutput, nil
-}
-
-func (m mockedIAMRoles) DeleteRolePolicyWithContext(_ aws.Context, input *iam.DeleteRolePolicyInput, _ ...request.Option) (*iam.DeleteRolePolicyOutput, error) {
-	return &m.DeleteRolePolicyOutput, nil
-}
-
-func (m mockedIAMRoles) ListAttachedRolePoliciesWithContext(_ aws.Context, input *iam.ListAttachedRolePoliciesInput, _ ...request.Option) (*iam.ListAttachedRolePoliciesOutput, error) {
+func (m mockedIAMRoles) ListAttachedRolePolicies(ctx context.Context, params *iam.ListAttachedRolePoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedRolePoliciesOutput, error) {
 	return &m.ListAttachedRolePoliciesOutput, nil
 }
 
-func (m mockedIAMRoles) DetachRolePolicyWithContext(_ aws.Context, input *iam.DetachRolePolicyInput, _ ...request.Option) (*iam.DetachRolePolicyOutput, error) {
+func (m mockedIAMRoles) ListInstanceProfilesForRole(ctx context.Context, params *iam.ListInstanceProfilesForRoleInput, optFns ...func(*iam.Options)) (*iam.ListInstanceProfilesForRoleOutput, error) {
+	return &m.ListInstanceProfilesForRoleOutput, nil
+}
+
+func (m mockedIAMRoles) ListRolePolicies(ctx context.Context, params *iam.ListRolePoliciesInput, optFns ...func(*iam.Options)) (*iam.ListRolePoliciesOutput, error) {
+	return &m.ListRolePoliciesOutput, nil
+}
+
+func (m mockedIAMRoles) ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error) {
+	return &m.ListRolesOutput, nil
+}
+
+func (m mockedIAMRoles) DeleteInstanceProfile(ctx context.Context, params *iam.DeleteInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error) {
+	return &m.DeleteInstanceProfileOutput, nil
+}
+
+func (m mockedIAMRoles) DetachRolePolicy(ctx context.Context, params *iam.DetachRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DetachRolePolicyOutput, error) {
 	return &m.DetachRolePolicyOutput, nil
 }
 
-func (m mockedIAMRoles) DeleteRoleWithContext(_ aws.Context, input *iam.DeleteRoleInput, _ ...request.Option) (*iam.DeleteRoleOutput, error) {
+func (m mockedIAMRoles) DeleteRolePolicy(ctx context.Context, params *iam.DeleteRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DeleteRolePolicyOutput, error) {
+	return &m.DeleteRolePolicyOutput, nil
+}
+
+func (m mockedIAMRoles) DeleteRole(ctx context.Context, params *iam.DeleteRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteRoleOutput, error) {
 	return &m.DeleteRoleOutput, nil
 }
 
+func (m mockedIAMRoles) RemoveRoleFromInstanceProfile(ctx context.Context, params *iam.RemoveRoleFromInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
+	return &m.RemoveRoleFromInstanceProfileOutput, nil
+}
+
 func TestIAMRoles_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	testName1 := "test-role1"
 	testName2 := "test-role2"
 	now := time.Now()
 	ir := IAMRoles{
 		Client: mockedIAMRoles{
-			ListRolesPagesOutput: iam.ListRolesOutput{
-				Roles: []*iam.Role{
+			ListRolesOutput: iam.ListRolesOutput{
+				Roles: []types.Role{
 					{
 						RoleName:   aws.String(testName1),
 						CreateDate: aws.Time(now),
@@ -119,20 +115,18 @@ func TestIAMRoles_GetAll(t *testing.T) {
 				IAMRoles: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
 }
 
 func TestIAMRoles_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	ir := IAMRoles{
 		Client: mockedIAMRoles{
 			ListInstanceProfilesForRoleOutput: iam.ListInstanceProfilesForRoleOutput{
-				InstanceProfiles: []*iam.InstanceProfile{
+				InstanceProfiles: []types.InstanceProfile{
 					{
 						InstanceProfileName: aws.String("test-instance-profile"),
 					},
@@ -141,13 +135,13 @@ func TestIAMRoles_NukeAll(t *testing.T) {
 			RemoveRoleFromInstanceProfileOutput: iam.RemoveRoleFromInstanceProfileOutput{},
 			DeleteInstanceProfileOutput:         iam.DeleteInstanceProfileOutput{},
 			ListRolePoliciesOutput: iam.ListRolePoliciesOutput{
-				PolicyNames: []*string{
-					aws.String("test-policy"),
+				PolicyNames: []string{
+					"test-policy",
 				},
 			},
 			DeleteRolePolicyOutput: iam.DeleteRolePolicyOutput{},
 			ListAttachedRolePoliciesOutput: iam.ListAttachedRolePoliciesOutput{
-				AttachedPolicies: []*iam.AttachedPolicy{
+				AttachedPolicies: []types.AttachedPolicy{
 					{
 						PolicyArn: aws.String("test-policy-arn"),
 					},

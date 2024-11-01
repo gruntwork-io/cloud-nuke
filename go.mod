@@ -34,6 +34,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.35.3
 	github.com/aws/aws-sdk-go-v2/service/guardduty v1.50.1
+	github.com/aws/aws-sdk-go-v2/service/iam v1.37.3
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.3
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.3
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.36.3
