@@ -3,24 +3,35 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type IAMGroupsAPI interface {
+	DetachGroupPolicy(ctx context.Context, params *iam.DetachGroupPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachGroupPolicyOutput, error)
+	DeleteGroupPolicy(ctx context.Context, params *iam.DeleteGroupPolicyInput, optFns ...func(*iam.Options)) (*iam.DeleteGroupPolicyOutput, error)
+	DeleteGroup(ctx context.Context, params *iam.DeleteGroupInput, optFns ...func(*iam.Options)) (*iam.DeleteGroupOutput, error)
+	GetGroup(ctx context.Context, params *iam.GetGroupInput, optFns ...func(*iam.Options)) (*iam.GetGroupOutput, error)
+	ListAttachedGroupPolicies(ctx context.Context, params *iam.ListAttachedGroupPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedGroupPoliciesOutput, error)
+	ListGroups(ctx context.Context, params *iam.ListGroupsInput, optFns ...func(*iam.Options)) (*iam.ListGroupsOutput, error)
+	ListGroupPolicies(ctx context.Context, params *iam.ListGroupPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListGroupPoliciesOutput, error)
+	RemoveUserFromGroup(ctx context.Context, params *iam.RemoveUserFromGroupInput, optFns ...func(*iam.Options)) (*iam.RemoveUserFromGroupOutput, error)
+}
+
 // IAMGroups - represents all IAMGroups on the AWS Account
 type IAMGroups struct {
 	BaseAwsResource
-	Client     iamiface.IAMAPI
+	Client     IAMGroupsAPI
 	GroupNames []string
 }
 
-func (ig *IAMGroups) Init(session *session.Session) {
-	ig.Client = iam.New(session)
+func (ig *IAMGroups) InitV2(cfg aws.Config) {
+	ig.Client = iam.NewFromConfig(cfg)
 }
+
+func (ig *IAMGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the AWS resource
 func (ig *IAMGroups) ResourceName() string {
@@ -48,13 +59,13 @@ func (ig *IAMGroups) GetAndSetIdentifiers(c context.Context, configObj config.Co
 		return nil, err
 	}
 
-	ig.GroupNames = awsgo.StringValueSlice(identifiers)
+	ig.GroupNames = aws.ToStringSlice(identifiers)
 	return ig.GroupNames, nil
 }
 
 // Nuke - Destroy every group in this collection
 func (ig *IAMGroups) Nuke(identifiers []string) error {
-	if err := ig.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ig.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

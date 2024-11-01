@@ -3,24 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type IAMServiceLinkedRolesAPI interface {
+	ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error)
+	DeleteServiceLinkedRole(ctx context.Context, params *iam.DeleteServiceLinkedRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteServiceLinkedRoleOutput, error)
+	GetServiceLinkedRoleDeletionStatus(ctx context.Context, params *iam.GetServiceLinkedRoleDeletionStatusInput, optFns ...func(*iam.Options)) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error)
+}
+
 // IAMServiceLinkedRoles - represents all IAMServiceLinkedRoles on the AWS Account
 type IAMServiceLinkedRoles struct {
 	BaseAwsResource
-	Client    iamiface.IAMAPI
+	Client    IAMServiceLinkedRolesAPI
 	RoleNames []string
 }
 
-func (islr *IAMServiceLinkedRoles) Init(session *session.Session) {
-	islr.Client = iam.New(session)
+func (islr *IAMServiceLinkedRoles) InitV2(cfg aws.Config) {
+	islr.Client = iam.NewFromConfig(cfg)
 }
+
+func (islr *IAMServiceLinkedRoles) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (islr *IAMServiceLinkedRoles) ResourceName() string {
@@ -32,7 +38,7 @@ func (islr *IAMServiceLinkedRoles) ResourceIdentifiers() []string {
 	return islr.RoleNames
 }
 
-// Tentative batch size to ensure AWS doesn't throttle
+// MaxBatchSize Tentative batch size to ensure AWS doesn't throttle
 func (islr *IAMServiceLinkedRoles) MaxBatchSize() int {
 	return 49
 }
@@ -47,13 +53,13 @@ func (islr *IAMServiceLinkedRoles) GetAndSetIdentifiers(c context.Context, confi
 		return nil, err
 	}
 
-	islr.RoleNames = awsgo.StringValueSlice(identifiers)
+	islr.RoleNames = aws.ToStringSlice(identifiers)
 	return islr.RoleNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (islr *IAMServiceLinkedRoles) Nuke(identifiers []string) error {
-	if err := islr.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := islr.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

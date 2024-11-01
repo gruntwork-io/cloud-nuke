@@ -6,45 +6,41 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIAMServiceLinkedRoles struct {
-	iamiface.IAMAPI
-	ListRolesPagesOutput                     iam.ListRolesOutput
+	IAMServiceLinkedRolesAPI
+	ListRolesOutput                          iam.ListRolesOutput
 	DeleteServiceLinkedRoleOutput            iam.DeleteServiceLinkedRoleOutput
 	GetServiceLinkedRoleDeletionStatusOutput iam.GetServiceLinkedRoleDeletionStatusOutput
 }
 
-func (m mockedIAMServiceLinkedRoles) ListRolesPagesWithContext(_ aws.Context, input *iam.ListRolesInput, fn func(*iam.ListRolesOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListRolesPagesOutput, true)
-	return nil
+func (m mockedIAMServiceLinkedRoles) ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error) {
+	return &m.ListRolesOutput, nil
 }
 
-func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRoleWithContext(_ aws.Context, input *iam.DeleteServiceLinkedRoleInput, _ ...request.Option) (*iam.DeleteServiceLinkedRoleOutput, error) {
+func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRole(ctx context.Context, params *iam.DeleteServiceLinkedRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteServiceLinkedRoleOutput, error) {
 	return &m.DeleteServiceLinkedRoleOutput, nil
 }
 
-func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatusWithContext(_ aws.Context, input *iam.GetServiceLinkedRoleDeletionStatusInput, _ ...request.Option) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error) {
+func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatus(ctx context.Context, params *iam.GetServiceLinkedRoleDeletionStatusInput, optFns ...func(*iam.Options)) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error) {
 	return &m.GetServiceLinkedRoleDeletionStatusOutput, nil
 }
 
 func TestIAMServiceLinkedRoles_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	now := time.Now()
 	testName1 := "test-role1"
 	testName2 := "test-role2"
 	islr := IAMServiceLinkedRoles{
 		Client: &mockedIAMServiceLinkedRoles{
-			ListRolesPagesOutput: iam.ListRolesOutput{
-				Roles: []*iam.Role{
+			ListRolesOutput: iam.ListRolesOutput{
+				Roles: []types.Role{
 					{
 						RoleName:   aws.String(testName1),
 						CreateDate: aws.Time(now),
@@ -91,22 +87,19 @@ func TestIAMServiceLinkedRoles_GetAll(t *testing.T) {
 				IAMServiceLinkedRoles: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
 }
 
 func TestIAMServiceLinkedRoles_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	islr := IAMServiceLinkedRoles{
-
 		Client: &mockedIAMServiceLinkedRoles{
 			DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{},
 			GetServiceLinkedRoleDeletionStatusOutput: iam.GetServiceLinkedRoleDeletionStatusOutput{
-				Status: aws.String("SUCCEEDED"),
+				Status: types.DeletionTaskStatusTypeSucceeded,
 			},
 		},
 	}

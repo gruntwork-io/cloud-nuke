@@ -5,8 +5,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -16,28 +17,26 @@ import (
 
 // List all IAM Roles in the AWS account
 func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allIAMRoles := []*string{}
-	err := ir.Client.ListRolesPagesWithContext(
-		ir.Context,
-		&iam.ListRolesInput{},
-		func(page *iam.ListRolesOutput, lastPage bool) bool {
-			for _, iamRole := range page.Roles {
-				if ir.shouldInclude(iamRole, configObj) {
-					allIAMRoles = append(allIAMRoles, iamRole.RoleName)
-				}
-			}
+	var allIAMRoles []*string
+	paginator := iam.NewListRolesPaginator(ir.Client, &iam.ListRolesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
 
-			return !lastPage
-		},
-	)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		for _, iamRole := range page.Roles {
+			if ir.shouldInclude(&iamRole, configObj) {
+				allIAMRoles = append(allIAMRoles, iamRole.RoleName)
+			}
+		}
 	}
+
 	return allIAMRoles, nil
 }
 
 func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
-	policiesOutput, err := ir.Client.ListAttachedRolePoliciesWithContext(ir.Context, &iam.ListAttachedRolePoliciesInput{
+	policiesOutput, err := ir.Client.ListAttachedRolePolicies(ir.Context, &iam.ListAttachedRolePoliciesInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -46,7 +45,7 @@ func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
 
 	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
 		arn := attachedPolicy.PolicyArn
-		_, err = ir.Client.DetachRolePolicyWithContext(ir.Context, &iam.DetachRolePolicyInput{
+		_, err = ir.Client.DetachRolePolicy(ir.Context, &iam.DetachRolePolicyInput{
 			PolicyArn: arn,
 			RoleName:  roleName,
 		})
@@ -54,14 +53,14 @@ func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
 			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Detached Policy %s from Role %s", aws.StringValue(arn), aws.StringValue(roleName))
+		logging.Debugf("Detached Policy %s from Role %s", aws.ToString(arn), aws.ToString(roleName))
 	}
 
 	return nil
 }
 
 func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
-	policyOutput, err := ir.Client.ListRolePoliciesWithContext(ir.Context, &iam.ListRolePoliciesInput{
+	policyOutput, err := ir.Client.ListRolePolicies(ir.Context, &iam.ListRolePoliciesInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -70,22 +69,22 @@ func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
 	}
 
 	for _, policyName := range policyOutput.PolicyNames {
-		_, err := ir.Client.DeleteRolePolicyWithContext(ir.Context, &iam.DeleteRolePolicyInput{
-			PolicyName: policyName,
+		_, err := ir.Client.DeleteRolePolicy(ir.Context, &iam.DeleteRolePolicyInput{
+			PolicyName: aws.String(policyName),
 			RoleName:   roleName,
 		})
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Deleted Inline Policy %s from Role %s", aws.StringValue(policyName), aws.StringValue(roleName))
+		logging.Debugf("Deleted Inline Policy %s from Role %s", policyName, aws.ToString(roleName))
 	}
 
 	return nil
 }
 
 func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
-	profilesOutput, err := ir.Client.ListInstanceProfilesForRoleWithContext(ir.Context, &iam.ListInstanceProfilesForRoleInput{
+	profilesOutput, err := ir.Client.ListInstanceProfilesForRole(ir.Context, &iam.ListInstanceProfilesForRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -95,7 +94,7 @@ func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 	for _, profile := range profilesOutput.InstanceProfiles {
 
 		// Role needs to be removed from instance profile before it can be deleted
-		_, err := ir.Client.RemoveRoleFromInstanceProfileWithContext(ir.Context, &iam.RemoveRoleFromInstanceProfileInput{
+		_, err := ir.Client.RemoveRoleFromInstanceProfile(ir.Context, &iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: profile.InstanceProfileName,
 			RoleName:            roleName,
 		})
@@ -103,7 +102,7 @@ func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		} else {
-			_, err := ir.Client.DeleteInstanceProfileWithContext(ir.Context, &iam.DeleteInstanceProfileInput{
+			_, err := ir.Client.DeleteInstanceProfile(ir.Context, &iam.DeleteInstanceProfileInput{
 				InstanceProfileName: profile.InstanceProfileName,
 			})
 			if err != nil {
@@ -111,13 +110,13 @@ func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
 				return errors.WithStackTrace(err)
 			}
 		}
-		logging.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.StringValue(profile.InstanceProfileName), aws.StringValue(roleName))
+		logging.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.ToString(profile.InstanceProfileName), aws.ToString(roleName))
 	}
 	return nil
 }
 
 func (ir *IAMRoles) deleteIamRole(roleName *string) error {
-	_, err := ir.Client.DeleteRoleWithContext(ir.Context, &iam.DeleteRoleInput{
+	_, err := ir.Client.DeleteRole(ir.Context, &iam.DeleteRoleInput{
 		RoleName: roleName,
 	})
 	if err != nil {
@@ -168,12 +167,12 @@ func (ir *IAMRoles) nukeAll(roleNames []*string) error {
 	}
 
 	for _, roleName := range roleNames {
-		logging.Debugf("[OK] IAM Role %s was deleted", aws.StringValue(roleName))
+		logging.Debugf("[OK] IAM Role %s was deleted", aws.ToString(roleName))
 	}
 	return nil
 }
 
-func (ir *IAMRoles) shouldInclude(iamRole *iam.Role, configObj config.Config) bool {
+func (ir *IAMRoles) shouldInclude(iamRole *types.Role, configObj config.Config) bool {
 	if iamRole == nil {
 		return false
 	}
@@ -181,13 +180,13 @@ func (ir *IAMRoles) shouldInclude(iamRole *iam.Role, configObj config.Config) bo
 	// The OrganizationAccountAccessRole is a special role that is created by AWS Organizations, and is used to allow
 	// users to access the AWS account. We should not delete this role, so we can filter it out of the Roles found and
 	// managed by cloud-nuke.
-	if strings.Contains(aws.StringValue(iamRole.RoleName), "OrganizationAccountAccessRole") {
+	if strings.Contains(aws.ToString(iamRole.RoleName), "OrganizationAccountAccessRole") {
 		return false
 	}
 
 	// The ARNs of AWS-reserved IAM roles, which can only be modified or deleted by AWS, contain "aws-reserved", so we can filter them out
 	// of the Roles found and managed by cloud-nuke
-	if strings.Contains(aws.StringValue(iamRole.Arn), "aws-reserved") {
+	if strings.Contains(aws.ToString(iamRole.Arn), "aws-reserved") {
 		return false
 	}
 
@@ -221,7 +220,7 @@ func (ir *IAMRoles) deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, r
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(roleName),
+		Identifier:   aws.ToString(roleName),
 		ResourceType: "IAM Role",
 		Error:        result.ErrorOrNil(),
 	}
