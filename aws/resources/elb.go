@@ -4,25 +4,23 @@ import (
 	"context"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/gruntwork-io/cloud-nuke/config"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (balancer *LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalancersInput) error {
+func (balancer *LoadBalancers) waitUntilElbDeleted(input *elasticloadbalancing.DescribeLoadBalancersInput) error {
 	for i := 0; i < 30; i++ {
-		_, err := balancer.Client.DescribeLoadBalancersWithContext(balancer.Context, input)
+		output, err := balancer.Client.DescribeLoadBalancers(balancer.Context, input)
 		if err != nil {
-			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == "LoadBalancerNotFound" {
-				return nil
-			}
-
 			return err
+		}
+
+		if len(output.LoadBalancerDescriptions) == 0 {
+			return nil
 		}
 
 		time.Sleep(1 * time.Second)
@@ -34,7 +32,7 @@ func (balancer *LoadBalancers) waitUntilElbDeleted(input *elb.DescribeLoadBalanc
 
 // Returns a formatted string of ELB names
 func (balancer *LoadBalancers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := balancer.Client.DescribeLoadBalancersWithContext(balancer.Context, &elb.DescribeLoadBalancersInput{})
+	result, err := balancer.Client.DescribeLoadBalancers(balancer.Context, &elasticloadbalancing.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -63,15 +61,15 @@ func (balancer *LoadBalancers) nukeAll(names []*string) error {
 	var deletedNames []*string
 
 	for _, name := range names {
-		params := &elb.DeleteLoadBalancerInput{
+		params := &elasticloadbalancing.DeleteLoadBalancerInput{
 			LoadBalancerName: name,
 		}
 
-		_, err := balancer.Client.DeleteLoadBalancerWithContext(balancer.Context, params)
+		_, err := balancer.Client.DeleteLoadBalancer(balancer.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(name),
+			Identifier:   aws.ToString(name),
 			ResourceType: "Load Balancer (v1)",
 			Error:        err,
 		}
@@ -86,8 +84,8 @@ func (balancer *LoadBalancers) nukeAll(names []*string) error {
 	}
 
 	if len(deletedNames) > 0 {
-		err := balancer.waitUntilElbDeleted(&elb.DescribeLoadBalancersInput{
-			LoadBalancerNames: deletedNames,
+		err := balancer.waitUntilElbDeleted(&elasticloadbalancing.DescribeLoadBalancersInput{
+			LoadBalancerNames: aws.ToStringSlice(deletedNames),
 		})
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)

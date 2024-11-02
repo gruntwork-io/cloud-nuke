@@ -6,40 +6,36 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedECR struct {
-	ecriface.ECRAPI
-	DescribeRepositoriesPagesOutput ecr.DescribeRepositoriesOutput
-	DeleteRepositoryOutput          ecr.DeleteRepositoryOutput
+	ECRAPI
+	DescribeRepositoriesOutput ecr.DescribeRepositoriesOutput
+	DeleteRepositoryOutput     ecr.DeleteRepositoryOutput
 }
 
-func (m mockedECR) DescribeRepositoriesPagesWithContext(_ aws.Context, input *ecr.DescribeRepositoriesInput, callback func(*ecr.DescribeRepositoriesOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeRepositoriesPagesOutput, true)
-	return nil
+func (m mockedECR) DescribeRepositories(ctx context.Context, params *ecr.DescribeRepositoriesInput, optFns ...func(*ecr.Options)) (*ecr.DescribeRepositoriesOutput, error) {
+	return &m.DescribeRepositoriesOutput, nil
 }
 
-func (m mockedECR) DeleteRepositoryWithContext(_ aws.Context, input *ecr.DeleteRepositoryInput, _ ...request.Option) (*ecr.DeleteRepositoryOutput, error) {
+func (m mockedECR) DeleteRepository(ctx context.Context, params *ecr.DeleteRepositoryInput, optFns ...func(*ecr.Options)) (*ecr.DeleteRepositoryOutput, error) {
 	return &m.DeleteRepositoryOutput, nil
 }
 
 func TestECR_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	testName1 := "test-repo1"
 	testName2 := "test-repo2"
 	now := time.Now()
 	er := ECR{
 		Client: &mockedECR{
-			DescribeRepositoriesPagesOutput: ecr.DescribeRepositoriesOutput{
-				Repositories: []*ecr.Repository{
+			DescribeRepositoriesOutput: ecr.DescribeRepositoriesOutput{
+				Repositories: []types.Repository{
 					{
 						RepositoryName: aws.String(testName1),
 						CreatedAt:      aws.Time(now),
@@ -84,16 +80,13 @@ func TestECR_GetAll(t *testing.T) {
 				ECRRepository: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
 }
-
 func TestECR_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	er := ECR{
 		Client: &mockedECR{
 			DeleteRepositoryOutput: ecr.DeleteRepositoryOutput{},

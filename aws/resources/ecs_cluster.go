@@ -4,14 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/util"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -26,23 +25,23 @@ const describeClustersRequestBatchSize = 100
 // getAllEcsClusters - Returns a string of ECS Cluster ARNs, which uniquely identifies the cluster.
 // We need to get all clusters before we can get all services.
 func (clusters *ECSClusters) getAllEcsClusters() ([]*string, error) {
-	clusterArns := []*string{}
-	result, err := clusters.Client.ListClustersWithContext(clusters.Context, &ecs.ListClustersInput{})
+	var clusterArns []string
+	result, err := clusters.Client.ListClusters(clusters.Context, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 	clusterArns = append(clusterArns, result.ClusterArns...)
 
 	// Handle pagination: continuously pull the next page if nextToken is set
-	for awsgo.StringValue(result.NextToken) != "" {
-		result, err = clusters.Client.ListClustersWithContext(clusters.Context, &ecs.ListClustersInput{NextToken: result.NextToken})
+	for aws.ToString(result.NextToken) != "" {
+		result, err = clusters.Client.ListClusters(clusters.Context, &ecs.ListClustersInput{NextToken: result.NextToken})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 		clusterArns = append(clusterArns, result.ClusterArns...)
 	}
 
-	return clusterArns, nil
+	return aws.StringSlice(clusterArns), nil
 }
 
 // Filter all active ecs clusters
@@ -55,20 +54,20 @@ func (clusters *ECSClusters) getAllActiveEcsClusterArns(configObj config.Config)
 
 	var filteredEcsClusterArns []*string
 
-	batches := util.Split(aws.StringValueSlice(allClusters), describeClustersRequestBatchSize)
+	batches := util.Split(aws.ToStringSlice(allClusters), describeClustersRequestBatchSize)
 	for _, batch := range batches {
 		input := &ecs.DescribeClustersInput{
-			Clusters: awsgo.StringSlice(batch),
+			Clusters: batch,
 		}
 
-		describedClusters, describeErr := clusters.Client.DescribeClustersWithContext(clusters.Context, input)
+		describedClusters, describeErr := clusters.Client.DescribeClusters(clusters.Context, input)
 		if describeErr != nil {
 			logging.Debugf("Error describing ECS clusters from input %s: ", input)
 			return nil, errors.WithStackTrace(describeErr)
 		}
 
 		for _, cluster := range describedClusters.Clusters {
-			if shouldIncludeECSCluster(cluster, configObj) {
+			if shouldIncludeECSCluster(&cluster, configObj) {
 				filteredEcsClusterArns = append(filteredEcsClusterArns, cluster.ClusterArn)
 			}
 		}
@@ -77,16 +76,16 @@ func (clusters *ECSClusters) getAllActiveEcsClusterArns(configObj config.Config)
 	return filteredEcsClusterArns, nil
 }
 
-func shouldIncludeECSCluster(cluster *ecs.Cluster, configObj config.Config) bool {
+func shouldIncludeECSCluster(cluster *types.Cluster, configObj config.Config) bool {
 	if cluster == nil {
 		return false
 	}
 
 	// Filter out invalid state ECS Clusters (will return only `ACTIVE` state clusters)
 	// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
-	// Therefore to tag a cluster, that cluster must be in the `ACTIVE` state.
-	logging.Debugf("Status for ECS Cluster %s is %s", aws.StringValue(cluster.ClusterArn), aws.StringValue(cluster.Status))
-	if aws.StringValue(cluster.Status) != activeEcsClusterStatus {
+	// Therefore, to tag a cluster, that cluster must be in the `ACTIVE` state.
+	logging.Debugf("Status for ECS Cluster %s is %s", aws.ToString(cluster.ClusterArn), aws.ToString(cluster.Status))
+	if aws.ToString(cluster.Status) != activeEcsClusterStatus {
 		return false
 	}
 
@@ -110,14 +109,14 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 		if !excludeFirstSeenTag {
 			firstSeenTime, err := clusters.getFirstSeenTag(clusterArn)
 			if err != nil {
-				logging.Debugf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Debugf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.ToString(clusterArn))
 				return nil, errors.WithStackTrace(err)
 			}
 
 			if firstSeenTime == nil {
 				err := clusters.setFirstSeenTag(clusterArn, time.Now().UTC())
 				if err != nil {
-					logging.Debugf("Error tagging the ECS cluster with ARN %s", aws.StringValue(clusterArn))
+					logging.Debugf("Error tagging the ECS cluster with ARN %s", aws.ToString(clusterArn))
 					return nil, errors.WithStackTrace(err)
 				}
 			} else if configObj.ECSCluster.ShouldInclude(config.ResourceValue{Time: firstSeenTime}) {
@@ -131,9 +130,9 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 func (clusters *ECSClusters) stopClusterRunningTasks(clusterArn *string) error {
 	logging.Debugf("[TASK] stopping tasks running on cluster %v", *clusterArn)
 	// before deleting the cluster, remove the active tasks on that cluster
-	runningTasks, err := clusters.Client.ListTasksWithContext(clusters.Context, &ecs.ListTasksInput{
+	runningTasks, err := clusters.Client.ListTasks(clusters.Context, &ecs.ListTasksInput{
 		Cluster:       clusterArn,
-		DesiredStatus: aws.String("RUNNING"),
+		DesiredStatus: types.DesiredStatusRunning,
 	})
 
 	if err != nil {
@@ -142,16 +141,16 @@ func (clusters *ECSClusters) stopClusterRunningTasks(clusterArn *string) error {
 
 	// stop the listed tasks
 	for _, task := range runningTasks.TaskArns {
-		_, err := clusters.Client.StopTaskWithContext(clusters.Context, &ecs.StopTaskInput{
+		_, err := clusters.Client.StopTask(clusters.Context, &ecs.StopTaskInput{
 			Cluster: clusterArn,
-			Task:    task,
+			Task:    aws.String(task),
 			Reason:  aws.String("Terminating task due to cluster deletion"),
 		})
 		if err != nil {
-			logging.Debugf("[TASK] Unable to stop the task %s on cluster %s. Reason: %v", *task, *clusterArn, err)
+			logging.Debugf("[TASK] Unable to stop the task %s on cluster %s. Reason: %v", task, *clusterArn, err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("[TASK] Success, stopped task %v", *task)
+		logging.Debugf("[TASK] Success, stopped task %v", task)
 	}
 	return nil
 }
@@ -172,29 +171,29 @@ func (clusters *ECSClusters) nukeAll(ecsClusterArns []*string) error {
 		// before nuking the clusters, do check active tasks on the cluster and stop all of them
 		err := clusters.stopClusterRunningTasks(clusterArn)
 		if err != nil {
-			logging.Debugf("Error, unable to stop the running stasks on the cluster %s %s", aws.StringValue(clusterArn), err)
+			logging.Debugf("Error, unable to stop the running stasks on the cluster %s %s", aws.ToString(clusterArn), err)
 			return errors.WithStackTrace(err)
 		}
 
 		params := &ecs.DeleteClusterInput{
 			Cluster: clusterArn,
 		}
-		_, err = clusters.Client.DeleteClusterWithContext(clusters.Context, params)
+		_, err = clusters.Client.DeleteCluster(clusters.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(clusterArn),
+			Identifier:   aws.ToString(clusterArn),
 			ResourceType: "ECS Cluster",
 			Error:        err,
 		}
 		report.Record(e)
 
 		if err != nil {
-			logging.Debugf("Error, failed to delete cluster with ARN %s %s", aws.StringValue(clusterArn), err)
+			logging.Debugf("Error, failed to delete cluster with ARN %s %s", aws.ToString(clusterArn), err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Success, deleted cluster: %s", aws.StringValue(clusterArn))
+		logging.Debugf("Success, deleted cluster: %s", aws.ToString(clusterArn))
 		nukedEcsClusters = append(nukedEcsClusters, clusterArn)
 	}
 
@@ -210,7 +209,7 @@ func (clusters *ECSClusters) setFirstSeenTag(clusterArn *string, timestamp time.
 
 	input := &ecs.TagResourceInput{
 		ResourceArn: clusterArn,
-		Tags: []*ecs.Tag{
+		Tags: []types.Tag{
 			{
 				Key:   aws.String(firstSeenTagKey),
 				Value: aws.String(firstSeenTime),
@@ -218,7 +217,7 @@ func (clusters *ECSClusters) setFirstSeenTag(clusterArn *string, timestamp time.
 		},
 	}
 
-	_, err := clusters.Client.TagResource(input)
+	_, err := clusters.Client.TagResource(clusters.Context, input)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -234,9 +233,9 @@ func (clusters *ECSClusters) getFirstSeenTag(clusterArn *string) (*time.Time, er
 		ResourceArn: clusterArn,
 	}
 
-	clusterTags, err := clusters.Client.ListTagsForResource(input)
+	clusterTags, err := clusters.Client.ListTagsForResource(clusters.Context, input)
 	if err != nil {
-		logging.Debugf("Error getting the tags for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+		logging.Debugf("Error getting the tags for ECS cluster with ARN %s", aws.ToString(clusterArn))
 		return firstSeenTime, errors.WithStackTrace(err)
 	}
 
@@ -245,7 +244,7 @@ func (clusters *ECSClusters) getFirstSeenTag(clusterArn *string) (*time.Time, er
 
 			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
-				logging.Debugf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.StringValue(clusterArn))
+				logging.Debugf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.ToString(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 

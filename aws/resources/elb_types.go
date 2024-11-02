@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/elb"
-	"github.com/aws/aws-sdk-go/service/elb/elbiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type LoadBalancersAPI interface {
+	DescribeLoadBalancers(ctx context.Context, params *elasticloadbalancing.DescribeLoadBalancersInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DescribeLoadBalancersOutput, error)
+	DeleteLoadBalancer(ctx context.Context, params *elasticloadbalancing.DeleteLoadBalancerInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DeleteLoadBalancerOutput, error)
+}
+
 // LoadBalancers - represents all load balancers
 type LoadBalancers struct {
 	BaseAwsResource
-	Client elbiface.ELBAPI
+	Client LoadBalancersAPI
 	Region string
 	Names  []string
 }
 
-func (balancer *LoadBalancers) Init(session *session.Session) {
-	balancer.Client = elb.New(session)
+func (balancer *LoadBalancers) InitV2(cfg aws.Config) {
+	balancer.Client = elasticloadbalancing.NewFromConfig(cfg)
 }
+
+func (balancer *LoadBalancers) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (balancer *LoadBalancers) ResourceName() string {
@@ -48,13 +53,13 @@ func (balancer *LoadBalancers) GetAndSetIdentifiers(c context.Context, configObj
 		return nil, err
 	}
 
-	balancer.Names = awsgo.StringValueSlice(identifiers)
+	balancer.Names = aws.ToStringSlice(identifiers)
 	return balancer.Names, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (balancer *LoadBalancers) Nuke(identifiers []string) error {
-	if err := balancer.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := balancer.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

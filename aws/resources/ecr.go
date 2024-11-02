@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -12,9 +12,15 @@ import (
 )
 
 func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	repositoryNames := []*string{}
+	var repositoryNames []*string
 
-	paginator := func(output *ecr.DescribeRepositoriesOutput, lastPage bool) bool {
+	paginator := ecr.NewDescribeRepositoriesPaginator(registry.Client, &ecr.DescribeRepositoriesInput{})
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
 		for _, repository := range output.Repositories {
 			if configObj.ECRRepository.ShouldInclude(config.ResourceValue{
 				Time: repository.CreatedAt,
@@ -23,13 +29,6 @@ func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*stri
 				repositoryNames = append(repositoryNames, repository.RepositoryName)
 			}
 		}
-		return !lastPage
-	}
-
-	param := &ecr.DescribeRepositoriesInput{}
-	err := registry.Client.DescribeRepositoriesPagesWithContext(registry.Context, param, paginator)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	return repositoryNames, nil
@@ -45,11 +44,11 @@ func (registry *ECR) nukeAll(repositoryNames []string) error {
 
 	for _, repositoryName := range repositoryNames {
 		params := &ecr.DeleteRepositoryInput{
-			Force:          aws.Bool(true),
+			Force:          true,
 			RepositoryName: aws.String(repositoryName),
 		}
 
-		_, err := registry.Client.DeleteRepositoryWithContext(registry.Context, params)
+		_, err := registry.Client.DeleteRepository(registry.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{

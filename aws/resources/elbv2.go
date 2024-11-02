@@ -2,18 +2,19 @@ package resources
 
 import (
 	"context"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of ELBv2 Arns
+// Returns a formatted string of ELBv2 ARNs
 func (balancer *LoadBalancersV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := balancer.Client.DescribeLoadBalancersWithContext(balancer.Context, &elbv2.DescribeLoadBalancersInput{})
+	result, err := balancer.Client.DescribeLoadBalancers(balancer.Context, &elasticloadbalancingv2.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -42,15 +43,15 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 	var deletedArns []*string
 
 	for _, arn := range arns {
-		params := &elbv2.DeleteLoadBalancerInput{
+		params := &elasticloadbalancingv2.DeleteLoadBalancerInput{
 			LoadBalancerArn: arn,
 		}
 
-		_, err := balancer.Client.DeleteLoadBalancerWithContext(balancer.Context, params)
+		_, err := balancer.Client.DeleteLoadBalancer(balancer.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(arn),
+			Identifier:   aws.ToString(arn),
 			ResourceType: "Load Balancer (v2)",
 			Error:        err,
 		}
@@ -65,9 +66,10 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 	}
 
 	if len(deletedArns) > 0 {
-		err := balancer.Client.WaitUntilLoadBalancersDeletedWithContext(balancer.Context, &elbv2.DescribeLoadBalancersInput{
-			LoadBalancerArns: deletedArns,
-		})
+		waiter := elasticloadbalancingv2.NewLoadBalancersDeletedWaiter(balancer.Client)
+		err := waiter.Wait(balancer.Context, &elasticloadbalancingv2.DescribeLoadBalancersInput{
+			LoadBalancerArns: aws.ToStringSlice(deletedArns),
+		}, 15*time.Minute)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)

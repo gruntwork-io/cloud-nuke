@@ -6,57 +6,55 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ecs"
-	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEC2Cluster struct {
-	ecsiface.ECSAPI
-	ListClustersOutput        ecs.ListClustersOutput
+	ECSClustersAPI
 	DescribeClustersOutput    ecs.DescribeClustersOutput
-	TagResourceOutput         ecs.TagResourceOutput
-	ListTagsForResourceOutput ecs.ListTagsForResourceOutput
 	DeleteClusterOutput       ecs.DeleteClusterOutput
+	ListClustersOutput        ecs.ListClustersOutput
+	ListTagsForResourceOutput ecs.ListTagsForResourceOutput
 	ListTasksOutput           ecs.ListTasksOutput
 	StopTaskOutput            ecs.StopTaskOutput
+	TagResourceOutput         ecs.TagResourceOutput
 }
 
-func (m mockedEC2Cluster) ListClustersWithContext(_ aws.Context, _ *ecs.ListClustersInput, _ ...request.Option) (*ecs.ListClustersOutput, error) {
-	return &m.ListClustersOutput, nil
-}
-
-func (m mockedEC2Cluster) DescribeClustersWithContext(_ aws.Context, _ *ecs.DescribeClustersInput, _ ...request.Option) (*ecs.DescribeClustersOutput, error) {
+func (m mockedEC2Cluster) DescribeClusters(ctx context.Context, params *ecs.DescribeClustersInput, optFns ...func(*ecs.Options)) (*ecs.DescribeClustersOutput, error) {
 	return &m.DescribeClustersOutput, nil
 }
 
-func (m mockedEC2Cluster) TagResource(*ecs.TagResourceInput) (*ecs.TagResourceOutput, error) {
-	return &m.TagResourceOutput, nil
-}
-
-func (m mockedEC2Cluster) ListTagsForResource(*ecs.ListTagsForResourceInput) (*ecs.ListTagsForResourceOutput, error) {
-	return &m.ListTagsForResourceOutput, nil
-}
-
-func (m mockedEC2Cluster) DeleteClusterWithContext(_ aws.Context, _ *ecs.DeleteClusterInput, _ ...request.Option) (*ecs.DeleteClusterOutput, error) {
+func (m mockedEC2Cluster) DeleteCluster(ctx context.Context, params *ecs.DeleteClusterInput, optFns ...func(*ecs.Options)) (*ecs.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
 }
 
-func (m mockedEC2Cluster) ListTasksWithContext(_ aws.Context, _ *ecs.ListTasksInput, _ ...request.Option) (*ecs.ListTasksOutput, error) {
+func (m mockedEC2Cluster) ListClusters(ctx context.Context, params *ecs.ListClustersInput, optFns ...func(*ecs.Options)) (*ecs.ListClustersOutput, error) {
+	return &m.ListClustersOutput, nil
+}
+
+func (m mockedEC2Cluster) ListTagsForResource(ctx context.Context, params *ecs.ListTagsForResourceInput, optFns ...func(*ecs.Options)) (*ecs.ListTagsForResourceOutput, error) {
+	return &m.ListTagsForResourceOutput, nil
+}
+
+func (m mockedEC2Cluster) ListTasks(ctx context.Context, params *ecs.ListTasksInput, optFns ...func(*ecs.Options)) (*ecs.ListTasksOutput, error) {
 	return &m.ListTasksOutput, nil
 }
-func (m mockedEC2Cluster) StopTaskWithContext(_ aws.Context, _ *ecs.StopTaskInput, _ ...request.Option) (*ecs.StopTaskOutput, error) {
+
+func (m mockedEC2Cluster) StopTask(ctx context.Context, params *ecs.StopTaskInput, optFns ...func(*ecs.Options)) (*ecs.StopTaskOutput, error) {
 	return &m.StopTaskOutput, nil
 }
 
+func (m mockedEC2Cluster) TagResource(ctx context.Context, params *ecs.TagResourceInput, optFns ...func(*ecs.Options)) (*ecs.TagResourceOutput, error) {
+	return &m.TagResourceOutput, nil
+}
+
 func TestEC2Cluster_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	// Set excludeFirstSeenTag to false for testing
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
@@ -68,14 +66,14 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 	ec := ECSClusters{
 		Client: mockedEC2Cluster{
 			ListClustersOutput: ecs.ListClustersOutput{
-				ClusterArns: []*string{
-					aws.String(testArn1),
-					aws.String(testArn2),
+				ClusterArns: []string{
+					testArn1,
+					testArn2,
 				},
 			},
 
 			DescribeClustersOutput: ecs.DescribeClustersOutput{
-				Clusters: []*ecs.Cluster{
+				Clusters: []types.Cluster{
 					{
 						ClusterArn:  aws.String(testArn1),
 						Status:      aws.String("ACTIVE"),
@@ -90,7 +88,7 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 			},
 
 			ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
-				Tags: []*ecs.Tag{
+				Tags: []types.Tag{
 					{
 						Key:   aws.String(util.FirstSeenTagKey),
 						Value: aws.String(util.FormatTimestamp(now)),
@@ -98,9 +96,9 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 				},
 			},
 			ListTasksOutput: ecs.ListTasksOutput{
-				TaskArns: []*string{
-					aws.String("task-arn-001"),
-					aws.String("task-arn-002"),
+				TaskArns: []string{
+					"task-arn-001",
+					"task-arn-002",
 				},
 			},
 		},
@@ -141,16 +139,13 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 				ECSCluster: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
 func TestEC2Cluster_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	ec := ECSClusters{
 		Client: mockedEC2Cluster{
 			DeleteClusterOutput: ecs.DeleteClusterOutput{},
@@ -162,16 +157,14 @@ func TestEC2Cluster_NukeAll(t *testing.T) {
 }
 
 func TestEC2ClusterWithTasks_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	ec := ECSClusters{
 		Client: mockedEC2Cluster{
 			DeleteClusterOutput: ecs.DeleteClusterOutput{},
 			ListTasksOutput: ecs.ListTasksOutput{
-				TaskArns: []*string{
-					aws.String("task-arn-001"),
-					aws.String("task-arn-002"),
+				TaskArns: []string{
+					"task-arn-001",
+					"task-arn-002",
 				},
 			},
 		},

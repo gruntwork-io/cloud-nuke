@@ -2,38 +2,38 @@ package resources
 
 import (
 	"context"
+	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/util"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // getAllEcsClusters - Returns a string of ECS Cluster ARNs, which uniquely identifies the cluster.
 // We need to get all clusters before we can get all services.
 func (services *ECSServices) getAllEcsClusters() ([]*string, error) {
-	clusterArns := []*string{}
-	result, err := services.Client.ListClustersWithContext(services.Context, &ecs.ListClustersInput{})
+	var clusterArns []string
+	result, err := services.Client.ListClusters(services.Context, &ecs.ListClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 	clusterArns = append(clusterArns, result.ClusterArns...)
 
 	// Handle pagination: continuously pull the next page if nextToken is set
-	for awsgo.StringValue(result.NextToken) != "" {
-		result, err = services.Client.ListClustersWithContext(services.Context, &ecs.ListClustersInput{NextToken: result.NextToken})
+	for aws.ToString(result.NextToken) != "" {
+		result, err = services.Client.ListClusters(services.Context, &ecs.ListClustersInput{NextToken: result.NextToken})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 		clusterArns = append(clusterArns, result.ClusterArns...)
 	}
 
-	return clusterArns, nil
+	return aws.StringSlice(clusterArns), nil
 }
 
 // filterOutRecentServices - Given a list of services and an excludeAfter
@@ -47,9 +47,9 @@ func (services *ECSServices) filterOutRecentServices(clusterArn *string, ecsServ
 	for _, batch := range batches {
 		params := &ecs.DescribeServicesInput{
 			Cluster:  clusterArn,
-			Services: awsgo.StringSlice(batch),
+			Services: batch,
 		}
-		describeResult, err := services.Client.DescribeServicesWithContext(services.Context, params)
+		describeResult, err := services.Client.DescribeServices(services.Context, params)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -82,11 +82,11 @@ func (services *ECSServices) getAll(c context.Context, configObj config.Config) 
 	// ones.
 	var ecsServiceArns []*string
 	for _, clusterArn := range ecsClusterArns {
-		result, err := services.Client.ListServicesWithContext(services.Context, &ecs.ListServicesInput{Cluster: clusterArn})
+		result, err := services.Client.ListServices(services.Context, &ecs.ListServicesInput{Cluster: clusterArn})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
-		filteredServiceArns, err := services.filterOutRecentServices(clusterArn, awsgo.StringValueSlice(result.ServiceArns), configObj)
+		filteredServiceArns, err := services.filterOutRecentServices(clusterArn, result.ServiceArns, configObj)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -109,24 +109,24 @@ func (services *ECSServices) drainEcsServices(ecsServiceArns []*string) []*strin
 	for _, ecsServiceArn := range ecsServiceArns {
 
 		describeParams := &ecs.DescribeServicesInput{
-			Cluster:  awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
-			Services: []*string{ecsServiceArn},
+			Cluster:  aws.String(services.ServiceClusterMap[*ecsServiceArn]),
+			Services: []string{*ecsServiceArn},
 		}
-		describeServicesOutput, err := services.Client.DescribeServicesWithContext(services.Context, describeParams)
+		describeServicesOutput, err := services.Client.DescribeServices(services.Context, describeParams)
 		if err != nil {
 			logging.Errorf("[Failed] Failed to describe service %s: %s", *ecsServiceArn, err)
 		} else {
 
-			schedulingStrategy := *describeServicesOutput.Services[0].SchedulingStrategy
-			if schedulingStrategy == "DAEMON" {
+			schedulingStrategy := describeServicesOutput.Services[0].SchedulingStrategy
+			if schedulingStrategy == types.SchedulingStrategyDaemon {
 				requestedDrains = append(requestedDrains, ecsServiceArn)
 			} else {
 				params := &ecs.UpdateServiceInput{
-					Cluster:      awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
+					Cluster:      aws.String(services.ServiceClusterMap[*ecsServiceArn]),
 					Service:      ecsServiceArn,
-					DesiredCount: awsgo.Int64(0),
+					DesiredCount: aws.Int32(0),
 				}
-				_, err = services.Client.UpdateServiceWithContext(services.Context, params)
+				_, err = services.Client.UpdateService(services.Context, params)
 				if err != nil {
 					logging.Errorf("[Failed] Failed to drain service %s: %s", *ecsServiceArn, err)
 				} else {
@@ -146,10 +146,12 @@ func (services *ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) 
 	var successfullyDrained []*string
 	for _, ecsServiceArn := range ecsServiceArns {
 		params := &ecs.DescribeServicesInput{
-			Cluster:  awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
-			Services: []*string{ecsServiceArn},
+			Cluster:  aws.String(services.ServiceClusterMap[*ecsServiceArn]),
+			Services: []string{*ecsServiceArn},
 		}
-		err := services.Client.WaitUntilServicesStableWithContext(services.Context, params)
+
+		waiter := ecs.NewServicesStableWaiter(services.Client)
+		err := waiter.Wait(services.Context, params, 15*time.Minute)
 		if err != nil {
 			logging.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
 		} else {
@@ -166,10 +168,10 @@ func (services *ECSServices) deleteEcsServices(ecsServiceArns []*string) []*stri
 	var requestedDeletes []*string
 	for _, ecsServiceArn := range ecsServiceArns {
 		params := &ecs.DeleteServiceInput{
-			Cluster: awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
+			Cluster: aws.String(services.ServiceClusterMap[*ecsServiceArn]),
 			Service: ecsServiceArn,
 		}
-		_, err := services.Client.DeleteServiceWithContext(services.Context, params)
+		_, err := services.Client.DeleteService(services.Context, params)
 		if err != nil {
 			logging.Debugf("[Failed] Failed deleting service %s: %s", *ecsServiceArn, err)
 		} else {
@@ -186,14 +188,16 @@ func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) 
 	var successfullyDeleted []*string
 	for _, ecsServiceArn := range ecsServiceArns {
 		params := &ecs.DescribeServicesInput{
-			Cluster:  awsgo.String(services.ServiceClusterMap[*ecsServiceArn]),
-			Services: []*string{ecsServiceArn},
+			Cluster:  aws.String(services.ServiceClusterMap[*ecsServiceArn]),
+			Services: []string{*ecsServiceArn},
 		}
-		err := services.Client.WaitUntilServicesInactiveWithContext(services.Context, params)
+
+		waiter := ecs.NewServicesInactiveWaiter(services.Client)
+		err := waiter.Wait(services.Context, params, 15*time.Minute)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(ecsServiceArn),
+			Identifier:   aws.ToString(ecsServiceArn),
 			ResourceType: "ECS Service",
 			Error:        err,
 		}

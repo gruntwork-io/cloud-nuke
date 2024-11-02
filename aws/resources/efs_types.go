@@ -3,24 +3,33 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/efs"
-	"github.com/aws/aws-sdk-go/service/efs/efsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type ElasticFileSystemAPI interface {
+	DeleteAccessPoint(ctx context.Context, params *efs.DeleteAccessPointInput, optFns ...func(*efs.Options)) (*efs.DeleteAccessPointOutput, error)
+	DeleteFileSystem(ctx context.Context, params *efs.DeleteFileSystemInput, optFns ...func(*efs.Options)) (*efs.DeleteFileSystemOutput, error)
+	DeleteMountTarget(ctx context.Context, params *efs.DeleteMountTargetInput, optFns ...func(*efs.Options)) (*efs.DeleteMountTargetOutput, error)
+	DescribeAccessPoints(ctx context.Context, params *efs.DescribeAccessPointsInput, optFns ...func(*efs.Options)) (*efs.DescribeAccessPointsOutput, error)
+	DescribeMountTargets(ctx context.Context, params *efs.DescribeMountTargetsInput, optFns ...func(*efs.Options)) (*efs.DescribeMountTargetsOutput, error)
+	DescribeFileSystems(ctx context.Context, params *efs.DescribeFileSystemsInput, optFns ...func(*efs.Options)) (*efs.DescribeFileSystemsOutput, error)
+}
+
 type ElasticFileSystem struct {
 	BaseAwsResource
-	Client efsiface.EFSAPI
+	Client ElasticFileSystemAPI
 	Region string
 	Ids    []string
 }
 
-func (ef *ElasticFileSystem) Init(session *session.Session) {
-	ef.Client = efs.New(session)
+func (ef *ElasticFileSystem) InitV2(cfg aws.Config) {
+	ef.Client = efs.NewFromConfig(cfg)
 }
+
+func (ef *ElasticFileSystem) IsUsingV2() bool { return true }
 
 func (ef *ElasticFileSystem) ResourceName() string {
 	return "efs"
@@ -44,12 +53,12 @@ func (ef *ElasticFileSystem) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	ef.Ids = awsgo.StringValueSlice(identifiers)
+	ef.Ids = aws.ToStringSlice(identifiers)
 	return ef.Ids, nil
 }
 
 func (ef *ElasticFileSystem) Nuke(identifiers []string) error {
-	if err := ef.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ef.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

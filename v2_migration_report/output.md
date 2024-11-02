@@ -25,7 +25,7 @@ run `go generate ./...` to refresh this report.
 | data-sync-location               | :white_check_mark: |
 | data-sync-task                   | :white_check_mark: |
 | dynamodb                         | :white_check_mark: |
-| ebs                              |                    |
+| ebs                              | :white_check_mark: |
 | ec2                              |                    |
 | ec2-dedicated-hosts              |                    |
 | ec2-endpoint                     |                    |
@@ -33,25 +33,25 @@ run `go generate ./...` to refresh this report.
 | ec2-placement-groups             |                    |
 | ec2-subnet                       |                    |
 | ec2_dhcp_option                  |                    |
-| ecr                              |                    |
-| ecscluster                       |                    |
-| ecsserv                          |                    |
-| efs                              |                    |
+| ecr                              | :white_check_mark: |
+| ecscluster                       | :white_check_mark: |
+| ecsserv                          | :white_check_mark: |
+| efs                              | :white_check_mark: |
 | egress-only-internet-gateway     |                    |
-| eip                              |                    |
-| ekscluster                       |                    |
-| elastic-beanstalk                |                    |
-| elasticache                      |                    |
-| elasticacheParameterGroups       |                    |
-| elasticacheSubnetGroups          |                    |
-| elb                              |                    |
-| elbv2                            |                    |
+| eip                              | :white_check_mark: |
+| ekscluster                       | :white_check_mark: |
+| elastic-beanstalk                | :white_check_mark: |
+| elasticache                      | :white_check_mark: |
+| elasticacheParameterGroups       | :white_check_mark: |
+| elasticacheSubnetGroups          | :white_check_mark: |
+| elb                              | :white_check_mark: |
+| elbv2                            | :white_check_mark: |
 | event-bridge                     | :white_check_mark: |
 | event-bridge-archive             | :white_check_mark: |
 | event-bridge-rule                | :white_check_mark: |
 | event-bridge-schedule            | :white_check_mark: |
 | event-bridge-schedule-group      | :white_check_mark: |
-| guardduty                        |                    |
+| guardduty                        | :white_check_mark: |
 | iam                              |                    |
 | iam-group                        |                    |
 | iam-policy                       |                    |
@@ -112,7 +112,7 @@ run `go generate ./...` to refresh this report.
 | snap                             |                    |
 | snstopic                         | :white_check_mark: |
 | sqs                              | :white_check_mark: |
-| transit-gateway                  |                    |
+| transit-gateway                  | :white_check_mark: |
 | transit-gateway-attachment       | :white_check_mark: |
 | transit-gateway-route-table      |                    |
 | vpc                              |                    |

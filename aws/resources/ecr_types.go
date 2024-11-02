@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type ECRAPI interface {
+	DescribeRepositories(ctx context.Context, params *ecr.DescribeRepositoriesInput, optFns ...func(*ecr.Options)) (*ecr.DescribeRepositoriesOutput, error)
+	DeleteRepository(ctx context.Context, params *ecr.DeleteRepositoryInput, optFns ...func(*ecr.Options)) (*ecr.DeleteRepositoryOutput, error)
+}
+
 type ECR struct {
 	BaseAwsResource
-	Client          ecriface.ECRAPI
+	Client          ECRAPI
 	Region          string
 	RepositoryNames []string
 }
 
-func (registry *ECR) Init(session *session.Session) {
-	registry.Client = ecr.New(session)
+func (registry *ECR) InitV2(cfg aws.Config) {
+	registry.Client = ecr.NewFromConfig(cfg)
 }
+
+func (registry *ECR) IsUsingV2() bool { return true }
 
 func (registry *ECR) ResourceName() string {
 	return "ecr"
@@ -44,7 +49,7 @@ func (registry *ECR) GetAndSetIdentifiers(c context.Context, configObj config.Co
 		return nil, err
 	}
 
-	registry.RepositoryNames = awsgo.StringValueSlice(identifiers)
+	registry.RepositoryNames = aws.ToStringSlice(identifiers)
 	return registry.RepositoryNames, nil
 }
 

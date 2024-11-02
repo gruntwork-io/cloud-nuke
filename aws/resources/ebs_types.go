@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EBSVolumesAPI interface {
+	DescribeVolumes(ctx context.Context, params *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVolumesOutput, error)
+	DeleteVolume(ctx context.Context, params *ec2.DeleteVolumeInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVolumeOutput, error)
+}
+
 // EBSVolumes - represents all ebs volumes
 type EBSVolumes struct {
 	BaseAwsResource
-	Client    ec2iface.EC2API
+	Client    EBSVolumesAPI
 	Region    string
 	VolumeIds []string
 }
 
-func (ev *EBSVolumes) Init(session *session.Session) {
-	ev.Client = ec2.New(session)
+func (ev *EBSVolumes) InitV2(cfg aws.Config) {
+	ev.Client = ec2.NewFromConfig(cfg)
 }
+
+func (ev *EBSVolumes) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ev *EBSVolumes) ResourceName() string {
@@ -48,13 +53,13 @@ func (ev *EBSVolumes) GetAndSetIdentifiers(c context.Context, configObj config.C
 		return nil, err
 	}
 
-	ev.VolumeIds = awsgo.StringValueSlice(identifiers)
+	ev.VolumeIds = aws.ToStringSlice(identifiers)
 	return ev.VolumeIds, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ev *EBSVolumes) Nuke(identifiers []string) error {
-	if err := ev.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ev.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

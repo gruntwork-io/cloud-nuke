@@ -3,58 +3,63 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// EBSVolumes - represents all ebs volumes
+type EIPAddressesAPI interface {
+	ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error)
+	DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error)
+}
+
+// EIPAddresses - represents all ebs volumes
 type EIPAddresses struct {
 	BaseAwsResource
-	Client        ec2iface.EC2API
+	Client        EIPAddressesAPI
 	Region        string
 	AllocationIds []string
 }
 
-func (address *EIPAddresses) Init(session *session.Session) {
-	address.Client = ec2.New(session)
+func (eip *EIPAddresses) InitV2(cfg aws.Config) {
+	eip.Client = ec2.NewFromConfig(cfg)
 }
 
+func (eip *EIPAddresses) IsUsingV2() bool { return true }
+
 // ResourceName - the simple name of the aws resource
-func (address *EIPAddresses) ResourceName() string {
+func (eip *EIPAddresses) ResourceName() string {
 	return "eip"
 }
 
 // ResourceIdentifiers - The instance ids of the eip addresses
-func (address *EIPAddresses) ResourceIdentifiers() []string {
-	return address.AllocationIds
+func (eip *EIPAddresses) ResourceIdentifiers() []string {
+	return eip.AllocationIds
 }
 
-func (address *EIPAddresses) MaxBatchSize() int {
+func (eip *EIPAddresses) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (address *EIPAddresses) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+func (eip *EIPAddresses) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
 	return configObj.ElasticIP
 }
 
-func (address *EIPAddresses) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
-	identifiers, err := address.getAll(c, configObj)
+func (eip *EIPAddresses) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := eip.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	address.AllocationIds = awsgo.StringValueSlice(identifiers)
-	return address.AllocationIds, nil
+	eip.AllocationIds = aws.ToStringSlice(identifiers)
+	return eip.AllocationIds, nil
 }
 
 // Nuke - nuke 'em all!!!
-func (address *EIPAddresses) Nuke(identifiers []string) error {
-	if err := address.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+func (eip *EIPAddresses) Nuke(identifiers []string) error {
+	if err := eip.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

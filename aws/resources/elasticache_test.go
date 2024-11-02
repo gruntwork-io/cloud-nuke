@@ -6,39 +6,38 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/elasticache"
-	"github.com/aws/aws-sdk-go/service/elasticache/elasticacheiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticache"
+	"github.com/aws/aws-sdk-go-v2/service/elasticache/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedElasticache struct {
-	elasticacheiface.ElastiCacheAPI
+	ElasticachesAPI
 	DescribeReplicationGroupsOutput elasticache.DescribeReplicationGroupsOutput
 	DescribeCacheClustersOutput     elasticache.DescribeCacheClustersOutput
+	DeleteCacheClusterOutput        elasticache.DeleteCacheClusterOutput
 	DeleteReplicationGroupOutput    elasticache.DeleteReplicationGroupOutput
 }
 
-func (m mockedElasticache) DescribeCacheClustersWithContext(_ aws.Context, input *elasticache.DescribeCacheClustersInput, _ ...request.Option) (*elasticache.DescribeCacheClustersOutput, error) {
-	return &m.DescribeCacheClustersOutput, nil
-}
-
-func (m mockedElasticache) DescribeReplicationGroupsWithContext(_ aws.Context, input *elasticache.DescribeReplicationGroupsInput, _ ...request.Option) (*elasticache.DescribeReplicationGroupsOutput, error) {
+func (m mockedElasticache) DescribeReplicationGroups(ctx context.Context, params *elasticache.DescribeReplicationGroupsInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeReplicationGroupsOutput, error) {
 	return &m.DescribeReplicationGroupsOutput, nil
 }
 
-func (m mockedElasticache) DeleteReplicationGroupWithContext(_ aws.Context, input *elasticache.DeleteReplicationGroupInput, _ ...request.Option) (*elasticache.DeleteReplicationGroupOutput, error) {
+func (m mockedElasticache) DescribeCacheClusters(ctx context.Context, params *elasticache.DescribeCacheClustersInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeCacheClustersOutput, error) {
+	return &m.DescribeCacheClustersOutput, nil
+}
+
+func (m mockedElasticache) DeleteCacheCluster(ctx context.Context, params *elasticache.DeleteCacheClusterInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteCacheClusterOutput, error) {
+	return &m.DeleteCacheClusterOutput, nil
+}
+
+func (m mockedElasticache) DeleteReplicationGroup(ctx context.Context, params *elasticache.DeleteReplicationGroupInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteReplicationGroupOutput, error) {
 	return &m.DeleteReplicationGroupOutput, nil
 }
 
-func (m mockedElasticache) WaitUntilReplicationGroupDeletedWithContext(_ aws.Context, input *elasticache.DescribeReplicationGroupsInput, _ ...request.WaiterOption) error {
-	return nil
-}
-
 func TestElasticache_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	now := time.Now()
@@ -47,7 +46,7 @@ func TestElasticache_GetAll(t *testing.T) {
 	ec := Elasticaches{
 		Client: mockedElasticache{
 			DescribeReplicationGroupsOutput: elasticache.DescribeReplicationGroupsOutput{
-				ReplicationGroups: []*elasticache.ReplicationGroup{
+				ReplicationGroups: []types.ReplicationGroup{
 					{
 						ReplicationGroupId:         aws.String(testName1),
 						ReplicationGroupCreateTime: aws.Time(now),
@@ -59,7 +58,7 @@ func TestElasticache_GetAll(t *testing.T) {
 				},
 			},
 			DescribeCacheClustersOutput: elasticache.DescribeCacheClustersOutput{
-				CacheClusters: []*elasticache.CacheCluster{},
+				CacheClusters: []types.CacheCluster{},
 			},
 		},
 	}
@@ -95,23 +94,25 @@ func TestElasticache_GetAll(t *testing.T) {
 				Elasticache: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestElasticache_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
-	now := time.Now()
 	ec := Elasticaches{
+		BaseAwsResource: BaseAwsResource{
+			Context: context.Background(),
+		},
 		Client: mockedElasticache{
 			DescribeReplicationGroupsOutput: elasticache.DescribeReplicationGroupsOutput{
-				ReplicationGroups: []*elasticache.ReplicationGroup{
+				ReplicationGroups: []types.ReplicationGroup{
 					{
 						ReplicationGroupId:         aws.String("test-name-1"),
-						ReplicationGroupCreateTime: aws.Time(now),
+						ReplicationGroupCreateTime: aws.Time(time.Now()),
+						Status:                     aws.String("deleted"),
 					},
 				},
 			},

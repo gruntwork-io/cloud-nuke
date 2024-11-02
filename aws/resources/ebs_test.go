@@ -6,36 +6,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEBS struct {
-	ec2iface.EC2API
-	DeleteVolumeOutput    ec2.DeleteVolumeOutput
+	EBSVolumesAPI
 	DescribeVolumesOutput ec2.DescribeVolumesOutput
+	DeleteVolumeOutput    ec2.DeleteVolumeOutput
 }
 
-func (m mockedEBS) DeleteVolumeWithContext(_ awsgo.Context, input *ec2.DeleteVolumeInput, _ ...request.Option) (*ec2.DeleteVolumeOutput, error) {
-	return &m.DeleteVolumeOutput, nil
-}
-
-func (m mockedEBS) DescribeVolumesWithContext(_ awsgo.Context, input *ec2.DescribeVolumesInput, _ ...request.Option) (*ec2.DescribeVolumesOutput, error) {
+func (m mockedEBS) DescribeVolumes(ctx context.Context, params *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVolumesOutput, error) {
 	return &m.DescribeVolumesOutput, nil
 }
 
-func (m mockedEBS) WaitUntilVolumeDeletedWithContext(_ awsgo.Context, input *ec2.DescribeVolumesInput, _ ...request.WaiterOption) error {
-	return nil
+func (m mockedEBS) DeleteVolume(ctx context.Context, params *ec2.DeleteVolumeInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVolumeOutput, error) {
+	return &m.DeleteVolumeOutput, nil
 }
 
 func TestEBSVolume_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-name1"
@@ -46,21 +38,21 @@ func TestEBSVolume_GetAll(t *testing.T) {
 	ev := EBSVolumes{
 		Client: mockedEBS{
 			DescribeVolumesOutput: ec2.DescribeVolumesOutput{
-				Volumes: []*ec2.Volume{
+				Volumes: []types.Volume{
 					{
-						VolumeId:   awsgo.String(testVolume1),
-						CreateTime: awsgo.Time(now),
-						Tags: []*ec2.Tag{{
-							Key:   awsgo.String("Name"),
-							Value: awsgo.String(testName1),
+						VolumeId:   aws.String(testVolume1),
+						CreateTime: aws.Time(now),
+						Tags: []types.Tag{{
+							Key:   aws.String("Name"),
+							Value: aws.String(testName1),
 						}},
 					},
 					{
-						VolumeId:   awsgo.String(testVolume2),
-						CreateTime: awsgo.Time(now.Add(1)),
-						Tags: []*ec2.Tag{{
-							Key:   awsgo.String("Name"),
-							Value: awsgo.String(testName2),
+						VolumeId:   aws.String(testVolume2),
+						CreateTime: aws.Time(now.Add(1)),
+						Tags: []types.Tag{{
+							Key:   aws.String("Name"),
+							Value: aws.String(testName2),
 						}},
 					},
 				}}}}
@@ -97,13 +89,12 @@ func TestEBSVolume_GetAll(t *testing.T) {
 				EBSVolume: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestEBSVolumne_NukeAll(t *testing.T) {
-
+func TestEBSVolume_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	ev := EBSVolumes{
@@ -114,5 +105,4 @@ func TestEBSVolumne_NukeAll(t *testing.T) {
 
 	err := ev.nukeAll([]*string{aws.String("test-volume")})
 	require.NoError(t, err)
-
 }

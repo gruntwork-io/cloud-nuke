@@ -6,25 +6,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
-	"github.com/aws/aws-sdk-go/service/elasticbeanstalk/elasticbeanstalkiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEBApplication struct {
-	elasticbeanstalkiface.ElasticBeanstalkAPI
+	EBApplicationsAPI
 	DescribeApplicationsOutput elasticbeanstalk.DescribeApplicationsOutput
+	DeleteApplicationOutput    elasticbeanstalk.DeleteApplicationOutput
 }
 
-func (mock *mockedEBApplication) DescribeApplicationsWithContext(_ aws.Context, req *elasticbeanstalk.DescribeApplicationsInput, _ ...request.Option) (*elasticbeanstalk.DescribeApplicationsOutput, error) {
-	return &mock.DescribeApplicationsOutput, nil
+func (m *mockedEBApplication) DescribeApplications(ctx context.Context, params *elasticbeanstalk.DescribeApplicationsInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DescribeApplicationsOutput, error) {
+	return &m.DescribeApplicationsOutput, nil
 }
 
-func (mock *mockedEBApplication) DeleteApplicationWithContext(_ aws.Context, _ *elasticbeanstalk.DeleteApplicationInput, _ ...request.Option) (*elasticbeanstalk.DeleteApplicationOutput, error) {
-	return nil, nil
+func (m *mockedEBApplication) DeleteApplication(ctx context.Context, params *elasticbeanstalk.DeleteApplicationInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DeleteApplicationOutput, error) {
+	return &m.DeleteApplicationOutput, nil
 }
 
 func TestEBApplication_GetAll(t *testing.T) {
@@ -37,7 +37,7 @@ func TestEBApplication_GetAll(t *testing.T) {
 	eb := EBApplications{
 		Client: &mockedEBApplication{
 			DescribeApplicationsOutput: elasticbeanstalk.DescribeApplicationsOutput{
-				Applications: []*elasticbeanstalk.ApplicationDescription{
+				Applications: []types.ApplicationDescription{
 					{
 						ApplicationArn:  aws.String("app-arn-01"),
 						ApplicationName: &app1,
@@ -94,7 +94,7 @@ func TestEBApplication_GetAll(t *testing.T) {
 				ElasticBeanstalk: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

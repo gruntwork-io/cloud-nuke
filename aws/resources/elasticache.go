@@ -2,36 +2,38 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/elasticache"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/elasticache"
+	"github.com/aws/aws-sdk-go-v2/service/elasticache/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	goerrors "github.com/gruntwork-io/go-commons/errors"
 )
 
 // Returns a formatted string of Elasticache cluster Ids
 func (cache *Elasticaches) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// First, get any cache clusters that are replication groups, which will be the case for all multi-node Redis clusters
-	replicationGroupsResult, replicationGroupsErr := cache.Client.DescribeReplicationGroupsWithContext(cache.Context, &elasticache.DescribeReplicationGroupsInput{})
+	replicationGroupsResult, replicationGroupsErr := cache.Client.DescribeReplicationGroups(cache.Context, &elasticache.DescribeReplicationGroupsInput{})
 	if replicationGroupsErr != nil {
-		return nil, errors.WithStackTrace(replicationGroupsErr)
+		return nil, goerrors.WithStackTrace(replicationGroupsErr)
 	}
 
 	// Next, get any cache clusters that are not members of a replication group: meaning:
-	// 1. any cache clusters with a Engine of "memcached"
+	// 1. any cache clusters with an Engine of "memcached"
 	// 2. any single node Redis clusters
-	cacheClustersResult, cacheClustersErr := cache.Client.DescribeCacheClustersWithContext(
+	cacheClustersResult, cacheClustersErr := cache.Client.DescribeCacheClusters(
 		cache.Context,
 		&elasticache.DescribeCacheClustersInput{
 			ShowCacheClustersNotInReplicationGroups: aws.Bool(true),
 		})
 	if cacheClustersErr != nil {
-		return nil, errors.WithStackTrace(cacheClustersErr)
+		return nil, goerrors.WithStackTrace(cacheClustersErr)
 	}
 
 	var clusterIds []*string
@@ -68,14 +70,14 @@ func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string
 		ReplicationGroupId: clusterId,
 	}
 
-	replicationGroupOutput, describeReplicationGroupsErr := cache.Client.DescribeReplicationGroupsWithContext(cache.Context, replicationGroupDescribeParams)
+	replicationGroupOutput, describeReplicationGroupsErr := cache.Client.DescribeReplicationGroups(cache.Context, replicationGroupDescribeParams)
 	if describeReplicationGroupsErr != nil {
-		if awsErr, ok := describeReplicationGroupsErr.(awserr.Error); ok {
-			if awsErr.Code() == elasticache.ErrCodeReplicationGroupNotFoundFault {
-				// It's possible that we're looking at a cache cluster, in which case we can safely ignore this error
-			} else {
-				return nil, Single, describeReplicationGroupsErr
-			}
+		// GlobalReplicationGroupNotFoundFault
+		var eRG404 *types.ReplicationGroupNotFoundFault
+		if errors.As(describeReplicationGroupsErr, &eRG404) {
+			// It's possible that we're looking at a cache cluster, in which case we can safely ignore this error
+		} else {
+			return nil, Single, describeReplicationGroupsErr
 		}
 	}
 
@@ -90,14 +92,13 @@ func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string
 		CacheClusterId: clusterId,
 	}
 
-	cacheClustersOutput, describeErr := cache.Client.DescribeCacheClustersWithContext(cache.Context, describeParams)
+	cacheClustersOutput, describeErr := cache.Client.DescribeCacheClusters(cache.Context, describeParams)
 	if describeErr != nil {
-		if awsErr, ok := describeErr.(awserr.Error); ok {
-			if awsErr.Code() == elasticache.ErrCodeCacheClusterNotFoundFault {
-				// It's possible that we're looking at a replication group, in which case we can safely ignore this error
-			} else {
-				return nil, Single, describeErr
-			}
+		var eC404 *types.CacheClusterNotFoundFault
+		if errors.As(describeErr, &eC404) {
+			// It's possible that we're looking at a replication group, in which case we can safely ignore this error
+		} else {
+			return nil, Single, describeErr
 		}
 	}
 
@@ -109,40 +110,49 @@ func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string
 }
 
 func (cache *Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *string) error {
-	logging.Debugf("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.StringValue(clusterId))
+	logging.Debugf("Deleting Elasticache cluster Id: %s which is not a member of a replication group", aws.ToString(clusterId))
 	params := elasticache.DeleteCacheClusterInput{
 		CacheClusterId: clusterId,
 	}
-	_, err := cache.Client.DeleteCacheClusterWithContext(cache.Context, &params)
+	_, err := cache.Client.DeleteCacheCluster(cache.Context, &params)
 	if err != nil {
 		return err
 	}
 
-	return cache.Client.WaitUntilCacheClusterDeletedWithContext(cache.Context, &elasticache.DescribeCacheClustersInput{
-		CacheClusterId: clusterId,
-	})
+	waiter := elasticache.NewCacheClusterDeletedWaiter(cache.Client)
+
+	return waiter.Wait(
+		cache.Context,
+		&elasticache.DescribeCacheClustersInput{
+			CacheClusterId: clusterId,
+		},
+		15*time.Minute,
+	)
 }
 
 func (cache *Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterId *string) error {
-	logging.Debugf("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.StringValue(clusterId))
+	logging.Debugf("Elasticache cluster Id: %s is a member of a replication group. Therefore, deleting its replication group", aws.ToString(clusterId))
 
 	params := &elasticache.DeleteReplicationGroupInput{
 		ReplicationGroupId: clusterId,
 	}
-	_, err := cache.Client.DeleteReplicationGroupWithContext(cache.Context, params)
+	_, err := cache.Client.DeleteReplicationGroup(cache.Context, params)
 	if err != nil {
 		return err
 	}
 
-	waitErr := cache.Client.WaitUntilReplicationGroupDeletedWithContext(cache.Context, &elasticache.DescribeReplicationGroupsInput{
-		ReplicationGroupId: clusterId,
-	})
+	waiter := elasticache.NewReplicationGroupDeletedWaiter(cache.Client)
+	waitErr := waiter.Wait(
+		cache.Context,
+		&elasticache.DescribeReplicationGroupsInput{ReplicationGroupId: clusterId},
+		15*time.Minute,
+	)
 
 	if waitErr != nil {
 		return waitErr
 	}
 
-	logging.Debugf("Successfully deleted replication group Id: %s", aws.StringValue(clusterId))
+	logging.Debugf("Successfully deleted replication group Id: %s", aws.ToString(clusterId))
 
 	return nil
 }
@@ -175,7 +185,7 @@ func (cache *Elasticaches) nukeAll(clusterIds []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(clusterId),
+			Identifier:   aws.ToString(clusterId),
 			ResourceType: "Elasticache",
 			Error:        err,
 		}
@@ -200,7 +210,7 @@ type CouldNotLookupCacheClusterErr struct {
 }
 
 func (err CouldNotLookupCacheClusterErr) Error() string {
-	return fmt.Sprintf("Failed to lookup clusterId: %s", aws.StringValue(err.ClusterId))
+	return fmt.Sprintf("Failed to lookup clusterId: %s", aws.ToString(err.ClusterId))
 }
 
 /*
@@ -209,27 +219,30 @@ Elasticache Parameter Groups
 
 func (pg *ElasticacheParameterGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var paramGroupNames []*string
-	err := pg.Client.DescribeCacheParameterGroupsPages(
-		&elasticache.DescribeCacheParameterGroupsInput{},
-		func(page *elasticache.DescribeCacheParameterGroupsOutput, lastPage bool) bool {
-			for _, paramGroup := range page.CacheParameterGroups {
-				if pg.shouldInclude(paramGroup, configObj) {
-					paramGroupNames = append(paramGroupNames, paramGroup.CacheParameterGroupName)
-				}
-			}
-			return !lastPage
-		},
-	)
 
-	return paramGroupNames, errors.WithStackTrace(err)
+	paginator := elasticache.NewDescribeCacheParameterGroupsPaginator(pg.Client, &elasticache.DescribeCacheParameterGroupsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, goerrors.WithStackTrace(err)
+		}
+
+		for _, paramGroup := range page.CacheParameterGroups {
+			if pg.shouldInclude(&paramGroup, configObj) {
+				paramGroupNames = append(paramGroupNames, paramGroup.CacheParameterGroupName)
+			}
+		}
+	}
+
+	return paramGroupNames, nil
 }
 
-func (pg *ElasticacheParameterGroups) shouldInclude(paramGroup *elasticache.CacheParameterGroup, configObj config.Config) bool {
+func (pg *ElasticacheParameterGroups) shouldInclude(paramGroup *types.CacheParameterGroup, configObj config.Config) bool {
 	if paramGroup == nil {
 		return false
 	}
-	//Exclude AWS managed resources. user defined resources are unable to begin with "default."
-	if strings.HasPrefix(aws.StringValue(paramGroup.CacheParameterGroupName), "default.") {
+	// Exclude AWS managed resources. user defined resources are unable to begin with "default."
+	if strings.HasPrefix(aws.ToString(paramGroup.CacheParameterGroupName), "default.") {
 		return false
 	}
 
@@ -245,11 +258,11 @@ func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 	}
 	var deletedGroupNames []*string
 	for _, pgName := range paramGroupNames {
-		_, err := pg.Client.DeleteCacheParameterGroup(&elasticache.DeleteCacheParameterGroupInput{CacheParameterGroupName: pgName})
+		_, err := pg.Client.DeleteCacheParameterGroup(pg.Context, &elasticache.DeleteCacheParameterGroupInput{CacheParameterGroupName: pgName})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(pgName),
+			Identifier:   aws.ToString(pgName),
 			ResourceType: "Elasticache Parameter Group",
 			Error:        err,
 		}
@@ -258,7 +271,7 @@ func (pg *ElasticacheParameterGroups) nukeAll(paramGroupNames []*string) error {
 			logging.Debugf("[Failed] %s", err)
 		} else {
 			deletedGroupNames = append(deletedGroupNames, pgName)
-			logging.Debugf("Deleted Elasticache parameter group: %s", aws.StringValue(pgName))
+			logging.Debugf("Deleted Elasticache parameter group: %s", aws.ToString(pgName))
 		}
 	}
 	logging.Debugf("[OK] %d Elasticache parameter groups deleted in %s", len(deletedGroupNames), pg.Region)
@@ -270,23 +283,25 @@ Elasticache Subnet Groups
 */
 func (sg *ElasticacheSubnetGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var subnetGroupNames []*string
-	err := sg.Client.DescribeCacheSubnetGroupsPages(
-		&elasticache.DescribeCacheSubnetGroupsInput{},
-		func(page *elasticache.DescribeCacheSubnetGroupsOutput, lastPage bool) bool {
-			for _, subnetGroup := range page.CacheSubnetGroups {
-				if !strings.Contains(*subnetGroup.CacheSubnetGroupName, "default") &&
-					configObj.ElasticacheSubnetGroups.ShouldInclude(config.ResourceValue{
-						Name: subnetGroup.CacheSubnetGroupName,
-					}) {
-					subnetGroupNames = append(subnetGroupNames, subnetGroup.CacheSubnetGroupName)
-				}
+
+	paginator := elasticache.NewDescribeCacheSubnetGroupsPaginator(sg.Client, &elasticache.DescribeCacheSubnetGroupsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, goerrors.WithStackTrace(err)
+		}
+
+		for _, subnetGroup := range page.CacheSubnetGroups {
+			if !strings.Contains(*subnetGroup.CacheSubnetGroupName, "default") &&
+				configObj.ElasticacheSubnetGroups.ShouldInclude(config.ResourceValue{
+					Name: subnetGroup.CacheSubnetGroupName,
+				}) {
+				subnetGroupNames = append(subnetGroupNames, subnetGroup.CacheSubnetGroupName)
 			}
+		}
+	}
 
-			return !lastPage
-		},
-	)
-
-	return subnetGroupNames, errors.WithStackTrace(err)
+	return subnetGroupNames, nil
 }
 
 func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
@@ -296,11 +311,11 @@ func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
 	}
 	var deletedGroupNames []*string
 	for _, sgName := range subnetGroupNames {
-		_, err := sg.Client.DeleteCacheSubnetGroup(&elasticache.DeleteCacheSubnetGroupInput{CacheSubnetGroupName: sgName})
+		_, err := sg.Client.DeleteCacheSubnetGroup(sg.Context, &elasticache.DeleteCacheSubnetGroupInput{CacheSubnetGroupName: sgName})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(sgName),
+			Identifier:   aws.ToString(sgName),
 			ResourceType: "Elasticache Subnet Group",
 			Error:        err,
 		}
@@ -309,7 +324,7 @@ func (sg *ElasticacheSubnetGroups) nukeAll(subnetGroupNames []*string) error {
 			logging.Debugf("[Failed] %s", err)
 		} else {
 			deletedGroupNames = append(deletedGroupNames, sgName)
-			logging.Debugf("Deleted Elasticache subnet group: %s", aws.StringValue(sgName))
+			logging.Debugf("Deleted Elasticache subnet group: %s", aws.ToString(sgName))
 		}
 	}
 	logging.Debugf("[OK] %d Elasticache subnet groups deleted in %s", len(deletedGroupNames), sg.Region)

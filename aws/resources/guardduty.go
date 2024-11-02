@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/guardduty"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/guardduty"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -19,28 +19,27 @@ type DetectorOutputWithID struct {
 
 func (gd *GuardDuty) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var detectorIdsToInclude []*string
-	var detectorIds []*string
-	err := gd.Client.ListDetectorsPagesWithContext(gd.Context, &guardduty.ListDetectorsInput{}, func(page *guardduty.ListDetectorsOutput, lastPage bool) bool {
-		detectorIds = append(detectorIds, page.DetectorIds...)
-		return !lastPage
-	})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	// Due to the ListDetectors method only returning the Ids of found detectors, we need to further enrich our data about
-	// each detector with a separate call to GetDetector for metadata including when it was created, which we need to make the
-	// determination about whether or not the given detector should be included
-	for _, detectorId := range detectorIds {
-		detector, err := gd.Client.GetDetectorWithContext(gd.Context, &guardduty.GetDetectorInput{
-			DetectorId: detectorId,
-		})
+	paginator := guardduty.NewListDetectorsPaginator(gd.Client, &guardduty.ListDetectorsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		if gd.shouldInclude(detector, detectorId, configObj) {
-			detectorIdsToInclude = append(detectorIdsToInclude, detectorId)
+		// Due to the ListDetectors method only returning the Ids of found detectors, we need to further enrich our data about
+		// each detector with a separate call to GetDetector for metadata including when it was created, which we need to make the
+		// determination about whether or not the given detector should be included
+		for _, detectorId := range page.DetectorIds {
+			detector, err := gd.Client.GetDetector(gd.Context, &guardduty.GetDetectorInput{
+				DetectorId: aws.String(detectorId),
+			})
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if gd.shouldInclude(detector, aws.String(detectorId), configObj) {
+				detectorIdsToInclude = append(detectorIdsToInclude, aws.String(detectorId))
+			}
 		}
 	}
 
@@ -65,14 +64,14 @@ func (gd *GuardDuty) nukeAll(detectorIds []string) error {
 
 	logging.Debugf("Deleting all GuardDuty detectors in region %s", gd.Region)
 
-	deletedIds := []string{}
+	var deletedIds []string
 
 	for _, detectorId := range detectorIds {
 		params := &guardduty.DeleteDetectorInput{
 			DetectorId: aws.String(detectorId),
 		}
 
-		_, err := gd.Client.DeleteDetectorWithContext(gd.Context, params)
+		_, err := gd.Client.DeleteDetector(gd.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
