@@ -7,25 +7,23 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ses/sesiface"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedSesEmailTemplates struct {
-	sesiface.SESAPI
+	SESAPI
 	DeleteTemplateOutput ses.DeleteTemplateOutput
 	ListTemplatesOutput  ses.ListTemplatesOutput
 }
 
-func (m mockedSesEmailTemplates) ListTemplatesWithContext(_ awsgo.Context, _ *ses.ListTemplatesInput, _ ...request.Option) (*ses.ListTemplatesOutput, error) {
+func (m mockedSesEmailTemplates) ListTemplates(ctx context.Context, params *ses.ListTemplatesInput, optFns ...func(*ses.Options)) (*ses.ListTemplatesOutput, error) {
 	return &m.ListTemplatesOutput, nil
 }
 
-func (m mockedSesEmailTemplates) DeleteTemplateWithContext(_ awsgo.Context, _ *ses.DeleteTemplateInput, _ ...request.Option) (*ses.DeleteTemplateOutput, error) {
+func (m mockedSesEmailTemplates) DeleteTemplate(ctx context.Context, params *ses.DeleteTemplateInput, optFns ...func(*ses.Options)) (*ses.DeleteTemplateOutput, error) {
 	return &m.DeleteTemplateOutput, nil
 }
 
@@ -33,11 +31,11 @@ func TestSesEmailTemplates_GetAll(t *testing.T) {
 
 	id1 := "test-id-1"
 	id2 := "test-id-2"
-	templateMetadata1 := ses.TemplateMetadata{
+	templateMetadata1 := types.TemplateMetadata{
 		CreatedTimestamp: aws.Time(time.Now()),
 		Name:             aws.String(id1),
 	}
-	templateMetadata2 := ses.TemplateMetadata{
+	templateMetadata2 := types.TemplateMetadata{
 		CreatedTimestamp: aws.Time(time.Now().AddDate(-1, 0, 0)),
 		Name:             aws.String(id2),
 	}
@@ -46,9 +44,9 @@ func TestSesEmailTemplates_GetAll(t *testing.T) {
 	sesEmailTemp := SesEmailTemplates{
 		Client: mockedSesEmailTemplates{
 			ListTemplatesOutput: ses.ListTemplatesOutput{
-				TemplatesMetadata: []*ses.TemplateMetadata{
-					&templateMetadata1,
-					&templateMetadata2,
+				TemplatesMetadata: []types.TemplateMetadata{
+					templateMetadata1,
+					templateMetadata2,
 				},
 			},
 		},
@@ -85,7 +83,7 @@ func TestSesEmailTemplates_GetAll(t *testing.T) {
 				SESEmailTemplates: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

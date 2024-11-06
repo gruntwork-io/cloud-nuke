@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ses/sesiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type SESAPI interface {
+	ListTemplates(ctx context.Context, params *ses.ListTemplatesInput, optFns ...func(*ses.Options)) (*ses.ListTemplatesOutput, error)
+	DeleteTemplate(ctx context.Context, params *ses.DeleteTemplateInput, optFns ...func(*ses.Options)) (*ses.DeleteTemplateOutput, error)
+}
+
 // SesEmailTemplates - represents all ses email templates
 type SesEmailTemplates struct {
 	BaseAwsResource
-	Client sesiface.SESAPI
+	Client SESAPI
 	Region string
 	Ids    []string
 }
 
-func (set *SesEmailTemplates) Init(session *session.Session) {
-	set.Client = ses.New(session)
+func (s *SesEmailTemplates) InitV2(cfg aws.Config) {
+	s.Client = ses.NewFromConfig(cfg)
 }
+
+func (s *SesEmailTemplates) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (set *SesEmailTemplates) ResourceName() string {
@@ -48,13 +53,13 @@ func (set *SesEmailTemplates) GetAndSetIdentifiers(c context.Context, configObj 
 		return nil, err
 	}
 
-	set.Ids = awsgo.StringValueSlice(identifiers)
+	set.Ids = aws.ToStringSlice(identifiers)
 	return set.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (set *SesEmailTemplates) Nuke(identifiers []string) error {
-	if err := set.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := set.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -6,36 +6,34 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ses/sesiface"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedSesConfigurationSet struct {
-	sesiface.SESAPI
+	SESConfigurationSet
 	DeleteConfigurationSetOutput ses.DeleteConfigurationSetOutput
 	ListConfigurationSetsOutput  ses.ListConfigurationSetsOutput
 }
 
-func (m mockedSesConfigurationSet) ListConfigurationSetsWithContext(_ awsgo.Context, _ *ses.ListConfigurationSetsInput, _ ...request.Option) (*ses.ListConfigurationSetsOutput, error) {
+func (m mockedSesConfigurationSet) ListConfigurationSets(ctx context.Context, params *ses.ListConfigurationSetsInput, optFns ...func(*ses.Options)) (*ses.ListConfigurationSetsOutput, error) {
 	return &m.ListConfigurationSetsOutput, nil
 }
 
-func (m mockedSesConfigurationSet) DeleteConfigurationSetWithContext(_ awsgo.Context, _ *ses.DeleteConfigurationSetInput, _ ...request.Option) (*ses.DeleteConfigurationSetOutput, error) {
+func (m mockedSesConfigurationSet) DeleteConfigurationSet(ctx context.Context, params *ses.DeleteConfigurationSetInput, optFns ...func(*ses.Options)) (*ses.DeleteConfigurationSetOutput, error) {
 	return &m.DeleteConfigurationSetOutput, nil
 }
 
 var (
 	id1                = "test-id-1"
 	id2                = "test-id-2"
-	configurationsSet1 = ses.ConfigurationSet{
-		Name: awsgo.String(id1),
+	configurationsSet1 = types.ConfigurationSet{
+		Name: aws.String(id1),
 	}
-	configurationsSet2 = ses.ConfigurationSet{
-		Name: awsgo.String(id2),
+	configurationsSet2 = types.ConfigurationSet{
+		Name: aws.String(id2),
 	}
 )
 
@@ -45,9 +43,9 @@ func TestSesConfigurationSet_GetAll(t *testing.T) {
 	identity := SesConfigurationSet{
 		Client: mockedSesConfigurationSet{
 			ListConfigurationSetsOutput: ses.ListConfigurationSetsOutput{
-				ConfigurationSets: []*ses.ConfigurationSet{
-					&configurationsSet1,
-					&configurationsSet2,
+				ConfigurationSets: []types.ConfigurationSet{
+					configurationsSet1,
+					configurationsSet2,
 				},
 			},
 		},
@@ -77,7 +75,7 @@ func TestSesConfigurationSet_GetAll(t *testing.T) {
 				SESConfigurationSet: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

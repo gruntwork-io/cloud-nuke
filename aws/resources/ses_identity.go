@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -16,15 +16,15 @@ func (sid *SesIdentities) getAll(c context.Context, configObj config.Config) ([]
 
 	param := &ses.ListIdentitiesInput{}
 
-	result, err := sid.Client.ListIdentitiesWithContext(sid.Context, param)
+	result, err := sid.Client.ListIdentities(sid.Context, param)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	var ids []*string
 	for _, id := range result.Identities {
-		if configObj.SESIdentity.ShouldInclude(config.ResourceValue{Name: id}) {
-			ids = append(ids, id)
+		if configObj.SESIdentity.ShouldInclude(config.ResourceValue{Name: aws.String(id)}) {
+			ids = append(ids, aws.String(id))
 		}
 	}
 
@@ -45,10 +45,10 @@ func (sid *SesIdentities) nukeAll(ids []*string) error {
 		params := &ses.DeleteIdentityInput{
 			Identity: id,
 		}
-		_, err := sid.Client.DeleteIdentityWithContext(sid.Context, params)
+		_, err := sid.Client.DeleteIdentity(sid.Context, params)
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "SES identity",
 			Error:        err,
 		}

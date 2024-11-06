@@ -103,12 +103,12 @@ run `go generate ./...` to refresh this report.
 | sagemaker-notebook-smni          |                    |
 | secretsmanager                   |                    |
 | security-group                   |                    |
-| security-hub                     |                    |
-| ses-configuration-set            |                    |
-| ses-email-template               |                    |
-| ses-identity                     |                    |
-| ses-receipt-filter               |                    |
-| ses-receipt-rule-set             |                    |
+| security-hub                     | :white_check_mark: |
+| ses-configuration-set            | :white_check_mark: |
+| ses-email-template               | :white_check_mark: |
+| ses-identity                     | :white_check_mark: |
+| ses-receipt-filter               | :white_check_mark: |
+| ses-receipt-rule-set             | :white_check_mark: |
 | snap                             |                    |
 | snstopic                         | :white_check_mark: |
 | sqs                              | :white_check_mark: |

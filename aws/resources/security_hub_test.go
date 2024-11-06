@@ -5,18 +5,16 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/securityhub/securityhubiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 
+	"github.com/aws/aws-sdk-go-v2/service/securityhub"
+	"github.com/aws/aws-sdk-go-v2/service/securityhub/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/securityhub"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedSecurityHub struct {
-	securityhubiface.SecurityHubAPI
+	SecurityHubAPI
 	DescribeHubOutput                          securityhub.DescribeHubOutput
 	ListMembersOutput                          securityhub.ListMembersOutput
 	DisassociateMembersOutput                  securityhub.DisassociateMembersOutput
@@ -26,31 +24,31 @@ type mockedSecurityHub struct {
 	DisableSecurityHubOutput                   securityhub.DisableSecurityHubOutput
 }
 
-func (m mockedSecurityHub) DescribeHubWithContext(_ awsgo.Context, _ *securityhub.DescribeHubInput, _ ...request.Option) (*securityhub.DescribeHubOutput, error) {
+func (m mockedSecurityHub) DescribeHub(_ context.Context, _ *securityhub.DescribeHubInput, _ ...func(*securityhub.Options)) (*securityhub.DescribeHubOutput, error) {
 	return &m.DescribeHubOutput, nil
 }
 
-func (m mockedSecurityHub) ListMembersWithContext(_ awsgo.Context, _ *securityhub.ListMembersInput, _ ...request.Option) (*securityhub.ListMembersOutput, error) {
+func (m mockedSecurityHub) ListMembers(_ context.Context, _ *securityhub.ListMembersInput, _ ...func(*securityhub.Options)) (*securityhub.ListMembersOutput, error) {
 	return &m.ListMembersOutput, nil
 }
 
-func (m mockedSecurityHub) DisassociateMembersWithContext(_ awsgo.Context, _ *securityhub.DisassociateMembersInput, _ ...request.Option) (*securityhub.DisassociateMembersOutput, error) {
+func (m mockedSecurityHub) DisassociateMembers(_ context.Context, _ *securityhub.DisassociateMembersInput, _ ...func(*securityhub.Options)) (*securityhub.DisassociateMembersOutput, error) {
 	return &m.DisassociateMembersOutput, nil
 }
 
-func (m mockedSecurityHub) DeleteMembersWithContext(_ awsgo.Context, _ *securityhub.DeleteMembersInput, _ ...request.Option) (*securityhub.DeleteMembersOutput, error) {
+func (m mockedSecurityHub) DeleteMembers(_ context.Context, _ *securityhub.DeleteMembersInput, _ ...func(*securityhub.Options)) (*securityhub.DeleteMembersOutput, error) {
 	return &m.DeleteMembersOutput, nil
 }
 
-func (m mockedSecurityHub) GetAdministratorAccountWithContext(_ awsgo.Context, _ *securityhub.GetAdministratorAccountInput, _ ...request.Option) (*securityhub.GetAdministratorAccountOutput, error) {
+func (m mockedSecurityHub) GetAdministratorAccount(_ context.Context, _ *securityhub.GetAdministratorAccountInput, _ ...func(*securityhub.Options)) (*securityhub.GetAdministratorAccountOutput, error) {
 	return &m.GetAdministratorAccountOutput, nil
 }
 
-func (m mockedSecurityHub) DisassociateFromAdministratorAccountWithContext(_ awsgo.Context, _ *securityhub.DisassociateFromAdministratorAccountInput, _ ...request.Option) (*securityhub.DisassociateFromAdministratorAccountOutput, error) {
+func (m mockedSecurityHub) DisassociateFromAdministratorAccount(_ context.Context, _ *securityhub.DisassociateFromAdministratorAccountInput, _ ...func(*securityhub.Options)) (*securityhub.DisassociateFromAdministratorAccountOutput, error) {
 	return &m.DisassociateFromAdministratorAccountOutput, nil
 }
 
-func (m mockedSecurityHub) DisableSecurityHubWithContext(_ awsgo.Context, _ *securityhub.DisableSecurityHubInput, _ ...request.Option) (*securityhub.DisableSecurityHubOutput, error) {
+func (m mockedSecurityHub) DisableSecurityHub(_ context.Context, _ *securityhub.DisableSecurityHubInput, _ ...func(*securityhub.Options)) (*securityhub.DisableSecurityHubOutput, error) {
 	return &m.DisableSecurityHubOutput, nil
 }
 
@@ -104,14 +102,14 @@ func TestSecurityHub_NukeAll(t *testing.T) {
 	sh := SecurityHub{
 		Client: mockedSecurityHub{
 			ListMembersOutput: securityhub.ListMembersOutput{
-				Members: []*securityhub.Member{{
+				Members: []types.Member{{
 					AccountId: aws.String("123456789012"),
 				}},
 			},
 			DisassociateMembersOutput: securityhub.DisassociateMembersOutput{},
 			DeleteMembersOutput:       securityhub.DeleteMembersOutput{},
 			GetAdministratorAccountOutput: securityhub.GetAdministratorAccountOutput{
-				Administrator: &securityhub.Invitation{
+				Administrator: &types.Invitation{
 					AccountId: aws.String("123456789012"),
 				},
 			},

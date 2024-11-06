@@ -6,25 +6,22 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ses/sesiface"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedSesIdentities struct {
-	sesiface.SESAPI
+	SESIdentityAPI
 	DeleteIdentityOutput ses.DeleteIdentityOutput
 	ListIdentitiesOutput ses.ListIdentitiesOutput
 }
 
-func (m mockedSesIdentities) ListIdentitiesWithContext(_ awsgo.Context, _ *ses.ListIdentitiesInput, _ ...request.Option) (*ses.ListIdentitiesOutput, error) {
+func (m mockedSesIdentities) ListIdentities(_ context.Context, _ *ses.ListIdentitiesInput, _ ...func(*ses.Options)) (*ses.ListIdentitiesOutput, error) {
 	return &m.ListIdentitiesOutput, nil
 }
 
-func (m mockedSesIdentities) DeleteIdentityWithContext(_ awsgo.Context, _ *ses.DeleteIdentityInput, _ ...request.Option) (*ses.DeleteIdentityOutput, error) {
+func (m mockedSesIdentities) DeleteIdentity(_ context.Context, _ *ses.DeleteIdentityInput, _ ...func(*ses.Options)) (*ses.DeleteIdentityOutput, error) {
 	return &m.DeleteIdentityOutput, nil
 }
 
@@ -36,9 +33,9 @@ func TestSesIdentities_GetAll(t *testing.T) {
 	identity := SesIdentities{
 		Client: mockedSesIdentities{
 			ListIdentitiesOutput: ses.ListIdentitiesOutput{
-				Identities: []*string{
-					awsgo.String(id1),
-					awsgo.String(id2),
+				Identities: []string{
+					(id1),
+					(id2),
 				},
 			},
 		},
@@ -68,7 +65,7 @@ func TestSesIdentities_GetAll(t *testing.T) {
 				SESIdentity: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

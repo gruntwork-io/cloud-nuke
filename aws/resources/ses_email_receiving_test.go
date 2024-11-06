@@ -7,30 +7,28 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ses/sesiface"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedSesReceiptRule struct {
-	sesiface.SESAPI
+	SESEmailReceivingAPI
 	DeleteReceiptRuleSetOutput         ses.DeleteReceiptRuleSetOutput
 	ListReceiptRuleSetsOutput          ses.ListReceiptRuleSetsOutput
 	DescribeActiveReceiptRuleSetOutput ses.DescribeActiveReceiptRuleSetOutput
 }
 
-func (m mockedSesReceiptRule) ListReceiptRuleSetsWithContext(_ awsgo.Context, _ *ses.ListReceiptRuleSetsInput, _ ...request.Option) (*ses.ListReceiptRuleSetsOutput, error) {
+func (m mockedSesReceiptRule) ListReceiptRuleSets(ctx context.Context, params *ses.ListReceiptRuleSetsInput, optFns ...func(*ses.Options)) (*ses.ListReceiptRuleSetsOutput, error) {
 	return &m.ListReceiptRuleSetsOutput, nil
 }
 
-func (m mockedSesReceiptRule) DeleteReceiptRuleSetWithContext(_ awsgo.Context, _ *ses.DeleteReceiptRuleSetInput, _ ...request.Option) (*ses.DeleteReceiptRuleSetOutput, error) {
+func (m mockedSesReceiptRule) DeleteReceiptRuleSet(ctx context.Context, params *ses.DeleteReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptRuleSetOutput, error) {
 	return &m.DeleteReceiptRuleSetOutput, nil
 }
 
-func (m mockedSesReceiptRule) DescribeActiveReceiptRuleSetWithContext(_ awsgo.Context, _ *ses.DescribeActiveReceiptRuleSetInput, _ ...request.Option) (*ses.DescribeActiveReceiptRuleSetOutput, error) {
+func (m mockedSesReceiptRule) DescribeActiveReceiptRuleSet(ctx context.Context, params *ses.DescribeActiveReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DescribeActiveReceiptRuleSetOutput, error) {
 	return &m.DescribeActiveReceiptRuleSetOutput, nil
 }
 
@@ -38,11 +36,11 @@ func TestSesReceiptRule_GetAll(t *testing.T) {
 
 	id1 := "test-id-1"
 	id2 := "test-id-2"
-	metadata1 := ses.ReceiptRuleSetMetadata{
+	metadata1 := types.ReceiptRuleSetMetadata{
 		CreatedTimestamp: aws.Time(time.Now()),
 		Name:             aws.String(id1),
 	}
-	metadata2 := ses.ReceiptRuleSetMetadata{
+	metadata2 := types.ReceiptRuleSetMetadata{
 		CreatedTimestamp: aws.Time(time.Now().AddDate(-1, 0, 0)),
 		Name:             aws.String(id2),
 	}
@@ -52,9 +50,9 @@ func TestSesReceiptRule_GetAll(t *testing.T) {
 		Region: "us-east-1",
 		Client: mockedSesReceiptRule{
 			ListReceiptRuleSetsOutput: ses.ListReceiptRuleSetsOutput{
-				RuleSets: []*ses.ReceiptRuleSetMetadata{
-					&metadata1,
-					&metadata2,
+				RuleSets: []types.ReceiptRuleSetMetadata{
+					metadata1,
+					metadata2,
 				},
 			},
 		},
@@ -91,7 +89,7 @@ func TestSesReceiptRule_GetAll(t *testing.T) {
 				SESReceiptRuleSet: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
@@ -110,16 +108,16 @@ func TestSesReceiptRule_NukeAll(t *testing.T) {
 // //////////////receipt Ip filters///////////////////////////
 
 type mockedSesReceiptFilter struct {
-	sesiface.SESAPI
+	SESEmailReceivingAPI
 	DeleteReceiptFilterOutput ses.DeleteReceiptFilterOutput
 	ListReceiptFiltersOutput  ses.ListReceiptFiltersOutput
 }
 
-func (m mockedSesReceiptFilter) ListReceiptFiltersWithContext(_ awsgo.Context, _ *ses.ListReceiptFiltersInput, _ ...request.Option) (*ses.ListReceiptFiltersOutput, error) {
+func (m mockedSesReceiptFilter) ListReceiptFilters(ctx context.Context, params *ses.ListReceiptFiltersInput, optFns ...func(*ses.Options)) (*ses.ListReceiptFiltersOutput, error) {
 	return &m.ListReceiptFiltersOutput, nil
 }
 
-func (m mockedSesReceiptFilter) DeleteReceiptFilterWithContext(_ awsgo.Context, _ *ses.DeleteReceiptFilterInput, _ ...request.Option) (*ses.DeleteReceiptFilterOutput, error) {
+func (m mockedSesReceiptFilter) DeleteReceiptFilter(ctx context.Context, params *ses.DeleteReceiptFilterInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptFilterOutput, error) {
 	return &m.DeleteReceiptFilterOutput, nil
 }
 
@@ -127,10 +125,10 @@ func TestSesReceiptFilter_GetAll(t *testing.T) {
 
 	id1 := "test-id-1"
 	id2 := "test-id-2"
-	metadata1 := ses.ReceiptFilter{
+	metadata1 := types.ReceiptFilter{
 		Name: aws.String(id1),
 	}
-	metadata2 := ses.ReceiptFilter{
+	metadata2 := types.ReceiptFilter{
 		Name: aws.String(id2),
 	}
 	t.Parallel()
@@ -139,8 +137,8 @@ func TestSesReceiptFilter_GetAll(t *testing.T) {
 		Region: "us-east-1",
 		Client: mockedSesReceiptFilter{
 			ListReceiptFiltersOutput: ses.ListReceiptFiltersOutput{
-				Filters: []*ses.ReceiptFilter{
-					&metadata1, &metadata2,
+				Filters: []types.ReceiptFilter{
+					metadata1, metadata2,
 				},
 			},
 		},
@@ -170,7 +168,7 @@ func TestSesReceiptFilter_GetAll(t *testing.T) {
 				SESReceiptFilter: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

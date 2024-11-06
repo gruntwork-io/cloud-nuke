@@ -4,9 +4,8 @@ import (
 	"context"
 	"slices"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -33,12 +32,12 @@ func (s *SesReceiptRule) getAll(c context.Context, configObj config.Config) ([]*
 
 	// https://docs.aws.amazon.com/cli/latest/reference/ses/delete-receipt-rule-set.html
 	// Important : The currently active rule set cannot be deleted.
-	activeRule, err := s.Client.DescribeActiveReceiptRuleSetWithContext(s.Context, &ses.DescribeActiveReceiptRuleSetInput{})
+	activeRule, err := s.Client.DescribeActiveReceiptRuleSet(s.Context, &ses.DescribeActiveReceiptRuleSetInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
-	result, err := s.Client.ListReceiptRuleSetsWithContext(s.Context, &ses.ListReceiptRuleSetsInput{})
+	result, err := s.Client.ListReceiptRuleSets(s.Context, &ses.ListReceiptRuleSetsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -46,8 +45,8 @@ func (s *SesReceiptRule) getAll(c context.Context, configObj config.Config) ([]*
 	var rulesets []*string
 	for _, sets := range result.RuleSets {
 		// checking the rule set is the active one
-		if activeRule != nil && activeRule.Metadata != nil && awsgo.StringValue(activeRule.Metadata.Name) == awsgo.StringValue(sets.Name) {
-			logging.Debugf("The Ruleset %s is active and you wont able to delete it", awsgo.StringValue(sets.Name))
+		if activeRule != nil && activeRule.Metadata != nil && aws.ToString(activeRule.Metadata.Name) == aws.ToString(sets.Name) {
+			logging.Debugf("The Ruleset %s is active and you wont able to delete it", aws.ToString(sets.Name))
 			continue
 		}
 		if configObj.SESReceiptRuleSet.ShouldInclude(config.ResourceValue{
@@ -76,10 +75,10 @@ func (s *SesReceiptRule) nukeAll(sets []*string) error {
 		param := &ses.DeleteReceiptRuleSetInput{
 			RuleSetName: set,
 		}
-		_, err := s.Client.DeleteReceiptRuleSetWithContext(s.Context, param)
+		_, err := s.Client.DeleteReceiptRuleSet(s.Context, param)
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(set),
+			Identifier:   aws.ToString(set),
 			ResourceType: "SES receipt rule set",
 			Error:        err,
 		}
@@ -102,7 +101,7 @@ func (s *SesReceiptRule) nukeAll(sets []*string) error {
 
 // Returns a formatted string of ses-identities IDs
 func (s *SesReceiptFilter) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := s.Client.ListReceiptFiltersWithContext(s.Context, &ses.ListReceiptFiltersInput{})
+	result, err := s.Client.ListReceiptFilters(s.Context, &ses.ListReceiptFiltersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -134,10 +133,10 @@ func (s *SesReceiptFilter) nukeAll(filters []*string) error {
 		param := &ses.DeleteReceiptFilterInput{
 			FilterName: filter,
 		}
-		_, err := s.Client.DeleteReceiptFilterWithContext(s.Context, param)
+		_, err := s.Client.DeleteReceiptFilter(s.Context, param)
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(filter),
+			Identifier:   aws.ToString(filter),
 			ResourceType: "SES receipt filter",
 			Error:        err,
 		}

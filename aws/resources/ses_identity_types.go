@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ses/sesiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type SESIdentityAPI interface {
+	ListIdentities(ctx context.Context, params *ses.ListIdentitiesInput, optFns ...func(*ses.Options)) (*ses.ListIdentitiesOutput, error)
+	DeleteIdentity(ctx context.Context, params *ses.DeleteIdentityInput, optFns ...func(*ses.Options)) (*ses.DeleteIdentityOutput, error)
+}
+
 // SesIdentities - represents all SES identities
 type SesIdentities struct {
 	BaseAwsResource
-	Client sesiface.SESAPI
+	Client SESIdentityAPI
 	Region string
 	Ids    []string
 }
 
-func (Sid *SesIdentities) Init(session *session.Session) {
-	Sid.Client = ses.New(session)
+func (Sid *SesIdentities) InitV2(cfg aws.Config) {
+	Sid.Client = ses.NewFromConfig(cfg)
 }
+
+func (Sid *SesIdentities) IsUsingV2() bool { return true }
 
 func (Sid *SesIdentities) ResourceName() string {
 	return "ses-identity"
@@ -45,12 +50,12 @@ func (Sid *SesIdentities) GetAndSetIdentifiers(c context.Context, configObj conf
 		return nil, err
 	}
 
-	Sid.Ids = awsgo.StringValueSlice(identifiers)
+	Sid.Ids = aws.ToStringSlice(identifiers)
 	return Sid.Ids, nil
 }
 
 func (Sid *SesIdentities) Nuke(identifiers []string) error {
-	if err := Sid.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := Sid.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

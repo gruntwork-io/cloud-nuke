@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,7 +15,7 @@ import (
 func (sem *SesEmailTemplates) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	param := &ses.ListTemplatesInput{}
 
-	result, err := sem.Client.ListTemplatesWithContext(sem.Context, param)
+	result, err := sem.Client.ListTemplates(sem.Context, param)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -49,11 +49,11 @@ func (sem *SesEmailTemplates) nukeAll(templates []*string) error {
 			TemplateName: template,
 		}
 
-		_, err := sem.Client.DeleteTemplateWithContext(sem.Context, params)
+		_, err := sem.Client.DeleteTemplate(sem.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(template),
+			Identifier:   aws.ToString(template),
 			ResourceType: "SES email templates",
 			Error:        err,
 		}
