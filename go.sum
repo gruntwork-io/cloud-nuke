@@ -87,6 +87,8 @@ github.com/aws/aws-sdk-go-v2/service/eventbridge v1.35.3 h1:e/jGXEQi+lyTIhc3s+jb
 github.com/aws/aws-sdk-go-v2/service/eventbridge v1.35.3/go.mod h1:607CryyDS58whuaVno9CCg3L/nnWOqorxiyAS2f9leY=
 github.com/aws/aws-sdk-go-v2/service/guardduty v1.50.1 h1:0A05jzCVA6W/UFqdtpKm8KXE8QhcEn/Fn01Zxsq2Owg=
 github.com/aws/aws-sdk-go-v2/service/guardduty v1.50.1/go.mod h1:tfpIzAIeMtSUucGN87ZUA2u5Lqnc04ManYSk3smJpGc=
+github.com/aws/aws-sdk-go-v2/service/iam v1.37.3 h1:uuoXyOwX2ReYgHJW0W84cKDUrvQNQA2l9KhkXUgT+R4=
+github.com/aws/aws-sdk-go-v2/service/iam v1.37.3/go.mod h1:RCrjvkN/ZpVAzW3ZmIlyflv7MUM45YlWx3v+6MaVX2w=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0 h1:TToQNkvGguu209puTojY/ozlqy2d/SFNcoLIqTFi42g=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0/go.mod h1:0jp+ltwkf+SwG2fm/PKo8t4y8pJSgOCO4D8Lz3k0aHQ=
 github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.10.3 h1:wudRPcZMKytcywXERkR6PLqD8gPx754ZyIOo0iVg488=

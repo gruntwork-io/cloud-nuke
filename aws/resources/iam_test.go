@@ -6,143 +6,138 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIAMUsers struct {
-	iamiface.IAMAPI
-	ListUsersPagesOutput                  iam.ListUsersOutput
+	IAMUsersAPI
+	ListAccessKeysOutput                  iam.ListAccessKeysOutput
+	ListGroupsForUserOutput               iam.ListGroupsForUserOutput
+	ListUserPoliciesOutput                iam.ListUserPoliciesOutput
+	ListUserTagsOutput                    iam.ListUserTagsOutput
+	ListMFADevicesOutput                  iam.ListMFADevicesOutput
+	ListSSHPublicKeysOutput               iam.ListSSHPublicKeysOutput
+	ListServiceSpecificCredentialsOutput  iam.ListServiceSpecificCredentialsOutput
+	ListSigningCertificatesOutput         iam.ListSigningCertificatesOutput
+	ListUsersOutput                       iam.ListUsersOutput
 	ListAttachedUserPoliciesOutput        iam.ListAttachedUserPoliciesOutput
 	DetachUserPolicyOutput                iam.DetachUserPolicyOutput
-	ListUserPoliciesOutput                iam.ListUserPoliciesOutput
-	DeleteUserPolicyOutput                iam.DeleteUserPolicyOutput
-	ListGroupsForUserOutput               iam.ListGroupsForUserOutput
-	RemoveUserFromGroupOutput             iam.RemoveUserFromGroupOutput
 	DeleteLoginProfileOutput              iam.DeleteLoginProfileOutput
-	ListAccessKeysOutput                  iam.ListAccessKeysOutput
+	DeleteUserPolicyOutput                iam.DeleteUserPolicyOutput
 	DeleteAccessKeyOutput                 iam.DeleteAccessKeyOutput
-	ListSigningCertificatesOutput         iam.ListSigningCertificatesOutput
 	DeleteSigningCertificateOutput        iam.DeleteSigningCertificateOutput
-	ListSSHPublicKeysOutput               iam.ListSSHPublicKeysOutput
 	DeleteSSHPublicKeyOutput              iam.DeleteSSHPublicKeyOutput
-	ListServiceSpecificCredentialsOutput  iam.ListServiceSpecificCredentialsOutput
 	DeleteServiceSpecificCredentialOutput iam.DeleteServiceSpecificCredentialOutput
-	ListMFADevicesOutput                  iam.ListMFADevicesOutput
 	DeactivateMFADeviceOutput             iam.DeactivateMFADeviceOutput
 	DeleteVirtualMFADeviceOutput          iam.DeleteVirtualMFADeviceOutput
 	DeleteUserOutput                      iam.DeleteUserOutput
-	ListUserTagsOutput                    iam.ListUserTagsOutput
+	RemoveUserFromGroupOutput             iam.RemoveUserFromGroupOutput
 }
 
-func (m mockedIAMUsers) ListUsersPagesWithContext(_ aws.Context, input *iam.ListUsersInput, callback func(*iam.ListUsersOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.ListUsersPagesOutput, true)
-	return nil
-}
-
-func (m mockedIAMUsers) ListAttachedUserPoliciesWithContext(_ aws.Context, input *iam.ListAttachedUserPoliciesInput, _ ...request.Option) (*iam.ListAttachedUserPoliciesOutput, error) {
-	return &m.ListAttachedUserPoliciesOutput, nil
-}
-
-func (m mockedIAMUsers) DetachUserPolicyWithContext(_ aws.Context, input *iam.DetachUserPolicyInput, _ ...request.Option) (*iam.DetachUserPolicyOutput, error) {
-	return &m.DetachUserPolicyOutput, nil
-}
-
-func (m mockedIAMUsers) ListUserPoliciesWithContext(_ aws.Context, input *iam.ListUserPoliciesInput, _ ...request.Option) (*iam.ListUserPoliciesOutput, error) {
-	return &m.ListUserPoliciesOutput, nil
-}
-
-func (m mockedIAMUsers) DeleteUserPolicyWithContext(_ aws.Context, input *iam.DeleteUserPolicyInput, _ ...request.Option) (*iam.DeleteUserPolicyOutput, error) {
-	return &m.DeleteUserPolicyOutput, nil
-}
-
-func (m mockedIAMUsers) ListGroupsForUserWithContext(_ aws.Context, input *iam.ListGroupsForUserInput, _ ...request.Option) (*iam.ListGroupsForUserOutput, error) {
-	return &m.ListGroupsForUserOutput, nil
-}
-
-func (m mockedIAMUsers) RemoveUserFromGroupWithContext(_ aws.Context, input *iam.RemoveUserFromGroupInput, _ ...request.Option) (*iam.RemoveUserFromGroupOutput, error) {
-	return &m.RemoveUserFromGroupOutput, nil
-}
-
-func (m mockedIAMUsers) DeleteLoginProfileWithContext(_ aws.Context, input *iam.DeleteLoginProfileInput, _ ...request.Option) (*iam.DeleteLoginProfileOutput, error) {
-	return &m.DeleteLoginProfileOutput, nil
-}
-
-func (m mockedIAMUsers) ListAccessKeysWithContext(_ aws.Context, input *iam.ListAccessKeysInput, _ ...request.Option) (*iam.ListAccessKeysOutput, error) {
+func (m mockedIAMUsers) ListAccessKeys(ctx context.Context, params *iam.ListAccessKeysInput, optFns ...func(*iam.Options)) (*iam.ListAccessKeysOutput, error) {
 	return &m.ListAccessKeysOutput, nil
 }
 
-func (m mockedIAMUsers) DeleteAccessKeyWithContext(_ aws.Context, input *iam.DeleteAccessKeyInput, _ ...request.Option) (*iam.DeleteAccessKeyOutput, error) {
-	return &m.DeleteAccessKeyOutput, nil
+func (m mockedIAMUsers) ListGroupsForUser(ctx context.Context, params *iam.ListGroupsForUserInput, optFns ...func(*iam.Options)) (*iam.ListGroupsForUserOutput, error) {
+	return &m.ListGroupsForUserOutput, nil
 }
 
-func (m mockedIAMUsers) ListSigningCertificatesWithContext(_ aws.Context, input *iam.ListSigningCertificatesInput, _ ...request.Option) (*iam.ListSigningCertificatesOutput, error) {
-	return &m.ListSigningCertificatesOutput, nil
+func (m mockedIAMUsers) ListUserPolicies(ctx context.Context, params *iam.ListUserPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListUserPoliciesOutput, error) {
+	return &m.ListUserPoliciesOutput, nil
 }
 
-func (m mockedIAMUsers) DeleteSigningCertificateWithContext(_ aws.Context, input *iam.DeleteSigningCertificateInput, _ ...request.Option) (*iam.DeleteSigningCertificateOutput, error) {
-	return &m.DeleteSigningCertificateOutput, nil
+func (m mockedIAMUsers) ListUserTags(ctx context.Context, params *iam.ListUserTagsInput, optFns ...func(*iam.Options)) (*iam.ListUserTagsOutput, error) {
+	return &m.ListUserTagsOutput, nil
 }
 
-func (m mockedIAMUsers) ListSSHPublicKeysWithContext(_ aws.Context, input *iam.ListSSHPublicKeysInput, _ ...request.Option) (*iam.ListSSHPublicKeysOutput, error) {
-	return &m.ListSSHPublicKeysOutput, nil
-}
-
-func (m mockedIAMUsers) DeleteSSHPublicKeyWithContext(_ aws.Context, input *iam.DeleteSSHPublicKeyInput, _ ...request.Option) (*iam.DeleteSSHPublicKeyOutput, error) {
-	return &m.DeleteSSHPublicKeyOutput, nil
-}
-
-func (m mockedIAMUsers) ListServiceSpecificCredentialsWithContext(_ aws.Context, input *iam.ListServiceSpecificCredentialsInput, _ ...request.Option) (*iam.ListServiceSpecificCredentialsOutput, error) {
-	return &m.ListServiceSpecificCredentialsOutput, nil
-}
-
-func (m mockedIAMUsers) DeleteServiceSpecificCredentialWithContext(_ aws.Context, input *iam.DeleteServiceSpecificCredentialInput, _ ...request.Option) (*iam.DeleteServiceSpecificCredentialOutput, error) {
-	return &m.DeleteServiceSpecificCredentialOutput, nil
-}
-
-func (m mockedIAMUsers) ListMFADevicesWithContext(_ aws.Context, input *iam.ListMFADevicesInput, _ ...request.Option) (*iam.ListMFADevicesOutput, error) {
+func (m mockedIAMUsers) ListMFADevices(ctx context.Context, params *iam.ListMFADevicesInput, optFns ...func(*iam.Options)) (*iam.ListMFADevicesOutput, error) {
 	return &m.ListMFADevicesOutput, nil
 }
 
-func (m mockedIAMUsers) DeactivateMFADeviceWithContext(_ aws.Context, input *iam.DeactivateMFADeviceInput, _ ...request.Option) (*iam.DeactivateMFADeviceOutput, error) {
+func (m mockedIAMUsers) ListSSHPublicKeys(ctx context.Context, params *iam.ListSSHPublicKeysInput, optFns ...func(*iam.Options)) (*iam.ListSSHPublicKeysOutput, error) {
+	return &m.ListSSHPublicKeysOutput, nil
+}
+
+func (m mockedIAMUsers) ListServiceSpecificCredentials(ctx context.Context, params *iam.ListServiceSpecificCredentialsInput, optFns ...func(*iam.Options)) (*iam.ListServiceSpecificCredentialsOutput, error) {
+	return &m.ListServiceSpecificCredentialsOutput, nil
+}
+
+func (m mockedIAMUsers) ListSigningCertificates(ctx context.Context, params *iam.ListSigningCertificatesInput, optFns ...func(*iam.Options)) (*iam.ListSigningCertificatesOutput, error) {
+	return &m.ListSigningCertificatesOutput, nil
+}
+
+func (m mockedIAMUsers) ListUsers(ctx context.Context, params *iam.ListUsersInput, optFns ...func(*iam.Options)) (*iam.ListUsersOutput, error) {
+	return &m.ListUsersOutput, nil
+}
+
+func (m mockedIAMUsers) ListAttachedUserPolicies(ctx context.Context, params *iam.ListAttachedUserPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedUserPoliciesOutput, error) {
+	return &m.ListAttachedUserPoliciesOutput, nil
+}
+
+func (m mockedIAMUsers) DetachUserPolicy(ctx context.Context, params *iam.DetachUserPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachUserPolicyOutput, error) {
+	return &m.DetachUserPolicyOutput, nil
+}
+
+func (m mockedIAMUsers) DeleteLoginProfile(ctx context.Context, params *iam.DeleteLoginProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteLoginProfileOutput, error) {
+	return &m.DeleteLoginProfileOutput, nil
+}
+
+func (m mockedIAMUsers) DeleteUserPolicy(ctx context.Context, params *iam.DeleteUserPolicyInput, optFns ...func(*iam.Options)) (*iam.DeleteUserPolicyOutput, error) {
+	return &m.DeleteUserPolicyOutput, nil
+}
+
+func (m mockedIAMUsers) DeleteAccessKey(ctx context.Context, params *iam.DeleteAccessKeyInput, optFns ...func(*iam.Options)) (*iam.DeleteAccessKeyOutput, error) {
+	return &m.DeleteAccessKeyOutput, nil
+}
+
+func (m mockedIAMUsers) DeleteSigningCertificate(ctx context.Context, params *iam.DeleteSigningCertificateInput, optFns ...func(*iam.Options)) (*iam.DeleteSigningCertificateOutput, error) {
+	return &m.DeleteSigningCertificateOutput, nil
+}
+
+func (m mockedIAMUsers) DeleteSSHPublicKey(ctx context.Context, params *iam.DeleteSSHPublicKeyInput, optFns ...func(*iam.Options)) (*iam.DeleteSSHPublicKeyOutput, error) {
+	return &m.DeleteSSHPublicKeyOutput, nil
+}
+
+func (m mockedIAMUsers) DeleteServiceSpecificCredential(ctx context.Context, params *iam.DeleteServiceSpecificCredentialInput, optFns ...func(*iam.Options)) (*iam.DeleteServiceSpecificCredentialOutput, error) {
+	return &m.DeleteServiceSpecificCredentialOutput, nil
+}
+
+func (m mockedIAMUsers) DeactivateMFADevice(ctx context.Context, params *iam.DeactivateMFADeviceInput, optFns ...func(*iam.Options)) (*iam.DeactivateMFADeviceOutput, error) {
 	return &m.DeactivateMFADeviceOutput, nil
 }
 
-func (m mockedIAMUsers) DeleteVirtualMFADeviceWithContext(_ aws.Context, input *iam.DeleteVirtualMFADeviceInput, _ ...request.Option) (*iam.DeleteVirtualMFADeviceOutput, error) {
+func (m mockedIAMUsers) DeleteVirtualMFADevice(ctx context.Context, params *iam.DeleteVirtualMFADeviceInput, optFns ...func(*iam.Options)) (*iam.DeleteVirtualMFADeviceOutput, error) {
 	return &m.DeleteVirtualMFADeviceOutput, nil
 }
 
-func (m mockedIAMUsers) DeleteUserWithContext(_ aws.Context, input *iam.DeleteUserInput, _ ...request.Option) (*iam.DeleteUserOutput, error) {
+func (m mockedIAMUsers) DeleteUser(ctx context.Context, params *iam.DeleteUserInput, optFns ...func(*iam.Options)) (*iam.DeleteUserOutput, error) {
 	return &m.DeleteUserOutput, nil
 }
-func (m mockedIAMUsers) ListUserTagsPagesWithContext(_ aws.Context, input *iam.ListUserTagsInput, callback func(*iam.ListUserTagsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.ListUserTagsOutput, true)
-	return nil
+
+func (m mockedIAMUsers) RemoveUserFromGroup(ctx context.Context, params *iam.RemoveUserFromGroupInput, optFns ...func(*iam.Options)) (*iam.RemoveUserFromGroupOutput, error) {
+	return &m.RemoveUserFromGroupOutput, nil
 }
 
 func TestIAMUsers_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	now := time.Now()
 	testName1 := "test-user1"
 	testName2 := "test-user2"
 	iu := IAMUsers{
 		Client: mockedIAMUsers{
-			ListUsersPagesOutput: iam.ListUsersOutput{
-				Users: []*iam.User{
+			ListUsersOutput: iam.ListUsersOutput{
+				Users: []types.User{
 					{
-						UserName:   awsgo.String(testName1),
-						CreateDate: awsgo.Time(now),
+						UserName:   aws.String(testName1),
+						CreateDate: aws.Time(now),
 					},
 					{
-						UserName:   awsgo.String(testName2),
-						CreateDate: awsgo.Time(now.Add(1)),
+						UserName:   aws.String(testName2),
+						CreateDate: aws.Time(now.Add(1)),
 					},
 				},
 			},
@@ -180,77 +175,75 @@ func TestIAMUsers_GetAll(t *testing.T) {
 				IAMUsers: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
 }
 
 func TestIAMUsers_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	iu := IAMUsers{
 		Client: mockedIAMUsers{
 			ListAttachedUserPoliciesOutput: iam.ListAttachedUserPoliciesOutput{
-				AttachedPolicies: []*iam.AttachedPolicy{
+				AttachedPolicies: []types.AttachedPolicy{
 					{
-						PolicyName: awsgo.String("test-policy"),
+						PolicyName: aws.String("test-policy"),
 					},
 				},
 			},
 			DetachUserPolicyOutput: iam.DetachUserPolicyOutput{},
 			ListUserPoliciesOutput: iam.ListUserPoliciesOutput{
-				PolicyNames: []*string{
-					awsgo.String("test-policy"),
+				PolicyNames: []string{
+					"test-policy",
 				},
 			},
 			DeleteUserPolicyOutput: iam.DeleteUserPolicyOutput{},
 			ListGroupsForUserOutput: iam.ListGroupsForUserOutput{
-				Groups: []*iam.Group{
+				Groups: []types.Group{
 					{
-						GroupName: awsgo.String("test-group"),
+						GroupName: aws.String("test-group"),
 					},
 				},
 			},
 			RemoveUserFromGroupOutput: iam.RemoveUserFromGroupOutput{},
 			DeleteLoginProfileOutput:  iam.DeleteLoginProfileOutput{},
 			ListAccessKeysOutput: iam.ListAccessKeysOutput{
-				AccessKeyMetadata: []*iam.AccessKeyMetadata{
+				AccessKeyMetadata: []types.AccessKeyMetadata{
 					{
-						AccessKeyId: awsgo.String("test-key"),
+						AccessKeyId: aws.String("test-key"),
 					},
 				},
 			},
 			DeleteAccessKeyOutput: iam.DeleteAccessKeyOutput{},
 			ListSigningCertificatesOutput: iam.ListSigningCertificatesOutput{
-				Certificates: []*iam.SigningCertificate{
+				Certificates: []types.SigningCertificate{
 					{
-						CertificateId: awsgo.String("test-certificate"),
+						CertificateId: aws.String("test-certificate"),
 					},
 				},
 			},
 			DeleteSigningCertificateOutput: iam.DeleteSigningCertificateOutput{},
 			ListSSHPublicKeysOutput: iam.ListSSHPublicKeysOutput{
-				SSHPublicKeys: []*iam.SSHPublicKeyMetadata{
+				SSHPublicKeys: []types.SSHPublicKeyMetadata{
 					{
-						SSHPublicKeyId: awsgo.String("test-ssh-key"),
+						SSHPublicKeyId: aws.String("test-ssh-key"),
 					},
 				},
 			},
 			DeleteSSHPublicKeyOutput: iam.DeleteSSHPublicKeyOutput{},
 			ListServiceSpecificCredentialsOutput: iam.ListServiceSpecificCredentialsOutput{
-				ServiceSpecificCredentials: []*iam.ServiceSpecificCredentialMetadata{
+				ServiceSpecificCredentials: []types.ServiceSpecificCredentialMetadata{
 					{
-						ServiceSpecificCredentialId: awsgo.String("test-service-credential"),
+						ServiceSpecificCredentialId: aws.String("test-service-credential"),
 					},
 				},
 			},
 			DeleteServiceSpecificCredentialOutput: iam.DeleteServiceSpecificCredentialOutput{},
 			ListMFADevicesOutput: iam.ListMFADevicesOutput{
-				MFADevices: []*iam.MFADevice{
+				MFADevices: []types.MFADevice{
 					{
-						SerialNumber: awsgo.String("test-mfa-device"),
+						SerialNumber: aws.String("test-mfa-device"),
 					},
 				},
 			},
@@ -260,6 +253,6 @@ func TestIAMUsers_NukeAll(t *testing.T) {
 		},
 	}
 
-	err := iu.nukeAll([]*string{awsgo.String("test-user")})
+	err := iu.nukeAll([]*string{aws.String("test-user")})
 	require.NoError(t, err)
 }

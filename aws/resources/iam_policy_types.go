@@ -3,24 +3,35 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type IAMPoliciesAPI interface {
+	ListEntitiesForPolicy(ctx context.Context, params *iam.ListEntitiesForPolicyInput, optFns ...func(*iam.Options)) (*iam.ListEntitiesForPolicyOutput, error)
+	ListPolicies(ctx context.Context, params *iam.ListPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListPoliciesOutput, error)
+	ListPolicyVersions(ctx context.Context, params *iam.ListPolicyVersionsInput, optFns ...func(*iam.Options)) (*iam.ListPolicyVersionsOutput, error)
+	DeletePolicy(ctx context.Context, params *iam.DeletePolicyInput, optFns ...func(*iam.Options)) (*iam.DeletePolicyOutput, error)
+	DeletePolicyVersion(ctx context.Context, params *iam.DeletePolicyVersionInput, optFns ...func(*iam.Options)) (*iam.DeletePolicyVersionOutput, error)
+	DetachGroupPolicy(ctx context.Context, params *iam.DetachGroupPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachGroupPolicyOutput, error)
+	DetachUserPolicy(ctx context.Context, params *iam.DetachUserPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachUserPolicyOutput, error)
+	DetachRolePolicy(ctx context.Context, params *iam.DetachRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DetachRolePolicyOutput, error)
+}
+
 // IAMPolicies - represents all IAM Policies on the AWS account
 type IAMPolicies struct {
 	BaseAwsResource
-	Client     iamiface.IAMAPI
+	Client     IAMPoliciesAPI
 	PolicyArns []string
 }
 
-func (ip *IAMPolicies) Init(session *session.Session) {
-	ip.Client = iam.New(session)
+func (ip *IAMPolicies) InitV2(cfg aws.Config) {
+	ip.Client = iam.NewFromConfig(cfg)
 }
+
+func (ip *IAMPolicies) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the AWS resource
 func (ip *IAMPolicies) ResourceName() string {
@@ -47,13 +58,13 @@ func (ip *IAMPolicies) GetAndSetIdentifiers(c context.Context, configObj config.
 		return nil, err
 	}
 
-	ip.PolicyArns = awsgo.StringValueSlice(identifiers)
+	ip.PolicyArns = aws.ToStringSlice(identifiers)
 	return ip.PolicyArns, nil
 }
 
 // Nuke - Destroy every group in this collection
 func (ip *IAMPolicies) Nuke(identifiers []string) error {
-	if err := ip.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ip.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
