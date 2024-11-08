@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3control"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	"github.com/aws/aws-sdk-go-v2/service/s3control/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -34,26 +35,27 @@ func (ap *S3MultiRegionAccessPoint) getAll(c context.Context, configObj config.C
 	ap.AccountID = aws.String(accountID)
 
 	var accessPoints []*string
-	err := ap.Client.ListMultiRegionAccessPointsPagesWithContext(
-		ap.Context,
-		&s3control.ListMultiRegionAccessPointsInput{
-			AccountId: ap.AccountID,
-		}, func(lapo *s3control.ListMultiRegionAccessPointsOutput, lastPage bool) bool {
-			for _, accessPoint := range lapo.AccessPoints {
-				if configObj.S3MultiRegionAccessPoint.ShouldInclude(config.ResourceValue{
-					Name: accessPoint.Name,
-					Time: accessPoint.CreatedAt,
-				}) {
-					accessPoints = append(accessPoints, accessPoint.Name)
-				}
-			}
-			return !lastPage
-		})
+	paginator := s3control.NewListMultiRegionAccessPointsPaginator(ap.Client, &s3control.ListMultiRegionAccessPointsInput{
+		AccountId: ap.AccountID,
+	})
 
-	if err != nil {
-		logging.Errorf("[FAILED] Multi region access point listing - %v", err)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ap.Context)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, accessPoint := range page.AccessPoints {
+			if configObj.S3MultiRegionAccessPoint.ShouldInclude(config.ResourceValue{
+				Name: accessPoint.Name,
+				Time: accessPoint.CreatedAt,
+			}) {
+				accessPoints = append(accessPoints, accessPoint.Name)
+			}
+		}
 	}
-	return accessPoints, errors.WithStackTrace(err)
+
+	return accessPoints, nil
 }
 
 func (ap *S3MultiRegionAccessPoint) nukeAll(identifiers []*string) error {
@@ -67,18 +69,18 @@ func (ap *S3MultiRegionAccessPoint) nukeAll(identifiers []*string) error {
 
 	for _, id := range identifiers {
 
-		_, err := ap.Client.DeleteMultiRegionAccessPointWithContext(
+		_, err := ap.Client.DeleteMultiRegionAccessPoint(
 			ap.Context,
 			&s3control.DeleteMultiRegionAccessPointInput{
 				AccountId: ap.AccountID,
-				Details: &s3control.DeleteMultiRegionAccessPointInput_{
+				Details: &types.DeleteMultiRegionAccessPointInput{
 					Name: id,
 				},
 			})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "S3 Multi Region Access point",
 			Error:        err,
 		}
@@ -88,7 +90,7 @@ func (ap *S3MultiRegionAccessPoint) nukeAll(identifiers []*string) error {
 			logging.Debugf("[Failed] %s", err)
 		} else {
 			deleted = append(deleted, id)
-			logging.Debugf("Deleted S3 Multi region access point: %s", aws.StringValue(id))
+			logging.Debugf("Deleted S3 Multi region access point: %s", aws.ToString(id))
 		}
 	}
 

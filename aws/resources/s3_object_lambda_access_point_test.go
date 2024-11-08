@@ -5,27 +5,24 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3control"
-	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	"github.com/aws/aws-sdk-go-v2/service/s3control/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mocks3ObjectLambdaAccessPoint struct {
-	s3controliface.S3ControlAPI
+	S3ControlAPI
 	ListAccessPointsForObjectLambdaOutput  s3control.ListAccessPointsForObjectLambdaOutput
 	DeleteAccessPointForObjectLambdaOutput s3control.DeleteAccessPointForObjectLambdaOutput
 }
 
-func (m mocks3ObjectLambdaAccessPoint) ListAccessPointsForObjectLambdaPagesWithContext(_ awsgo.Context, _ *s3control.ListAccessPointsForObjectLambdaInput, fn func(*s3control.ListAccessPointsForObjectLambdaOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListAccessPointsForObjectLambdaOutput, true)
-	return nil
+func (m mocks3ObjectLambdaAccessPoint) ListAccessPointsForObjectLambda(context.Context, *s3control.ListAccessPointsForObjectLambdaInput, ...func(*s3control.Options)) (*s3control.ListAccessPointsForObjectLambdaOutput, error) {
+	return &m.ListAccessPointsForObjectLambdaOutput, nil
 }
-func (m mocks3ObjectLambdaAccessPoint) DeleteAccessPointForObjectLambdaWithContext(_ awsgo.Context, _ *s3control.DeleteAccessPointForObjectLambdaInput, _ ...request.Option) (*s3control.DeleteAccessPointForObjectLambdaOutput, error) {
+func (m mocks3ObjectLambdaAccessPoint) DeleteAccessPointForObjectLambda(context.Context, *s3control.DeleteAccessPointForObjectLambdaInput, ...func(*s3control.Options)) (*s3control.DeleteAccessPointForObjectLambdaOutput, error) {
 	return &m.DeleteAccessPointForObjectLambdaOutput, nil
 }
 
@@ -42,7 +39,7 @@ func TestS3ObjectLambdaAccessPoint_GetAll(t *testing.T) {
 	ap := S3ObjectLambdaAccessPoint{
 		Client: mocks3ObjectLambdaAccessPoint{
 			ListAccessPointsForObjectLambdaOutput: s3control.ListAccessPointsForObjectLambdaOutput{
-				ObjectLambdaAccessPointList: []*s3control.ObjectLambdaAccessPoint{
+				ObjectLambdaAccessPointList: []types.ObjectLambdaAccessPoint{
 					{
 						Name: aws.String(testName01),
 					},
@@ -80,7 +77,7 @@ func TestS3ObjectLambdaAccessPoint_GetAll(t *testing.T) {
 				S3ObjectLambdaAccessPoint: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

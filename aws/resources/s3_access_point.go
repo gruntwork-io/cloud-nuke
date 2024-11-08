@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3control"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -24,19 +24,26 @@ func (ap *S3AccessPoint) getAll(c context.Context, configObj config.Config) ([]*
 	ap.AccountID = aws.String(accountID)
 
 	var accessPoints []*string
-	err := ap.Client.ListAccessPointsPagesWithContext(ap.Context, &s3control.ListAccessPointsInput{
+	paginator := s3control.NewListAccessPointsPaginator(ap.Client, &s3control.ListAccessPointsInput{
 		AccountId: ap.AccountID,
-	}, func(lapo *s3control.ListAccessPointsOutput, lastPage bool) bool {
-		for _, accessPoint := range lapo.AccessPointList {
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ap.Context)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, accessPoint := range page.AccessPointList {
 			if configObj.S3AccessPoint.ShouldInclude(config.ResourceValue{
 				Name: accessPoint.Name,
 			}) {
 				accessPoints = append(accessPoints, accessPoint.Name)
 			}
 		}
-		return !lastPage
-	})
-	return accessPoints, errors.WithStackTrace(err)
+	}
+
+	return accessPoints, nil
 }
 
 func (ap *S3AccessPoint) nukeAll(identifiers []*string) error {
@@ -50,14 +57,14 @@ func (ap *S3AccessPoint) nukeAll(identifiers []*string) error {
 
 	for _, id := range identifiers {
 
-		_, err := ap.Client.DeleteAccessPointWithContext(ap.Context, &s3control.DeleteAccessPointInput{
+		_, err := ap.Client.DeleteAccessPoint(ap.Context, &s3control.DeleteAccessPointInput{
 			AccountId: ap.AccountID,
 			Name:      id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "S3 Access point",
 			Error:        err,
 		}
@@ -67,7 +74,7 @@ func (ap *S3AccessPoint) nukeAll(identifiers []*string) error {
 			logging.Debugf("[Failed] %s", err)
 		} else {
 			deleted = append(deleted, id)
-			logging.Debugf("Deleted S3 access point: %s", aws.StringValue(id))
+			logging.Debugf("Deleted S3 access point: %s", aws.ToString(id))
 		}
 	}
 

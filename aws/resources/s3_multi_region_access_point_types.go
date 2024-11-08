@@ -3,25 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3control"
-	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type S3ControlMultiRegionAPI interface {
+	ListMultiRegionAccessPoints(ctx context.Context, params *s3control.ListMultiRegionAccessPointsInput, optFns ...func(*s3control.Options)) (*s3control.ListMultiRegionAccessPointsOutput, error)
+	DeleteMultiRegionAccessPoint(ctx context.Context, params *s3control.DeleteMultiRegionAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.DeleteMultiRegionAccessPointOutput, error)
+}
 type S3MultiRegionAccessPoint struct {
 	BaseAwsResource
-	Client       s3controliface.S3ControlAPI
+	Client       S3ControlMultiRegionAPI
 	Region       string
 	AccessPoints []string
 	AccountID    *string
 }
 
-func (ap *S3MultiRegionAccessPoint) Init(session *session.Session) {
-	ap.Client = s3control.New(session)
+func (ap *S3MultiRegionAccessPoint) InitV2(cfg aws.Config) {
+	ap.Client = s3control.NewFromConfig(cfg)
 }
+
+func (ap *S3MultiRegionAccessPoint) IsUsingV2() bool { return true }
 
 func (ap *S3MultiRegionAccessPoint) ResourceName() string {
 	return "s3-mrap"
@@ -45,12 +49,12 @@ func (ap *S3MultiRegionAccessPoint) GetAndSetIdentifiers(c context.Context, conf
 		return nil, err
 	}
 
-	ap.AccessPoints = awsgo.StringValueSlice(identifiers)
+	ap.AccessPoints = aws.ToStringSlice(identifiers)
 	return ap.AccessPoints, nil
 }
 
 func (ap *S3MultiRegionAccessPoint) Nuke(identifiers []string) error {
-	if err := ap.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ap.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
