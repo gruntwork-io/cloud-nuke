@@ -78,6 +78,24 @@ jobs:
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region ap-northeast-1 \
+              --region ap-northeast-2 \
+              --region ap-northeast-3 \
+              --region ap-south-1 \
+              --region ap-southeast-1 \
+              --region ap-southeast-2 \
+              --region ca-central-1 \
+              --region eu-central-1 \
+              --region eu-north-1 \
+              --region eu-west-1 \
+              --region eu-west-2 \
+              --region eu-west-3 \
+              --region me-central-1 \
+              --region sa-east-1 \
+              --region us-east-1 \
+              --region us-east-2 \
+              --region us-west-1 \
+              --region us-west-2 \
               --exclude-resource-type iam \
               --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type ecr \
@@ -102,6 +120,24 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region ap-northeast-1 \
+              --region ap-northeast-2 \
+              --region ap-northeast-3 \
+              --region ap-south-1 \
+              --region ap-southeast-1 \
+              --region ap-southeast-2 \
+              --region ca-central-1 \
+              --region eu-central-1 \
+              --region eu-north-1 \
+              --region eu-west-1 \
+              --region eu-west-2 \
+              --region eu-west-3 \
+              --region me-central-1 \
+              --region sa-east-1 \
+              --region us-east-1 \
+              --region us-east-2 \
+              --region us-west-1 \
+              --region us-west-2 \
               --exclude-resource-type iam \
               --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type ecr \
