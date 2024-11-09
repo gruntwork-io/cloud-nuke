@@ -4,42 +4,41 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 func (lf *LambdaFunctions) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
 
-	err := lf.Client.ListFunctionsPagesWithContext(
-		lf.Context,
-		&lambda.ListFunctionsInput{}, func(page *lambda.ListFunctionsOutput, lastPage bool) bool {
-			for _, lambda := range page.Functions {
-				if lf.shouldInclude(lambda, configObj) {
-					names = append(names, lambda.FunctionName)
-				}
+	paginator := lambda.NewListFunctionsPaginator(lf.Client, &lambda.ListFunctionsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, name := range page.Functions {
+			if lf.shouldInclude(&name, configObj) {
+				names = append(names, name.FunctionName)
 			}
-
-			return !lastPage
-		})
-
-	if err != nil {
-		return nil, err
+		}
 	}
 
 	return names, nil
 }
 
-func (lf *LambdaFunctions) shouldInclude(lambdaFn *lambda.FunctionConfiguration, configObj config.Config) bool {
+func (lf *LambdaFunctions) shouldInclude(lambdaFn *types.FunctionConfiguration, configObj config.Config) bool {
 	if lambdaFn == nil {
 		return false
 	}
 
-	fnLastModified := aws.StringValue(lambdaFn.LastModified)
+	fnLastModified := aws.ToString(lambdaFn.LastModified)
 	fnName := lambdaFn.FunctionName
 	layout := "2006-01-02T15:04:05.000+0000"
 	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
@@ -61,18 +60,18 @@ func (lf *LambdaFunctions) nukeAll(names []*string) error {
 	}
 
 	logging.Debugf("Deleting all Lambda Functions in region %s", lf.Region)
-	deletedNames := []*string{}
+	var deletedNames []*string
 
 	for _, name := range names {
 		params := &lambda.DeleteFunctionInput{
 			FunctionName: name,
 		}
 
-		_, err := lf.Client.DeleteFunctionWithContext(lf.Context, params)
+		_, err := lf.Client.DeleteFunction(lf.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(name),
+			Identifier:   aws.ToString(name),
 			ResourceType: "Lambda function",
 			Error:        err,
 		}
@@ -82,7 +81,7 @@ func (lf *LambdaFunctions) nukeAll(names []*string) error {
 			logging.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted Lambda Function: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted Lambda Function: %s", aws.ToString(name))
 		}
 	}
 

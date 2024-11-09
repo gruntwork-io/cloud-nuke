@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EC2KeyPairsAPI interface {
+	DeleteKeyPair(ctx context.Context, params *ec2.DeleteKeyPairInput, optFns ...func(*ec2.Options)) (*ec2.DeleteKeyPairOutput, error)
+	DescribeKeyPairs(ctx context.Context, params *ec2.DescribeKeyPairsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeKeyPairsOutput, error)
+}
+
 type EC2KeyPairs struct {
 	BaseAwsResource
-	Client     ec2iface.EC2API
+	Client     EC2KeyPairsAPI
 	Region     string
 	KeyPairIds []string
 }
 
-func (k *EC2KeyPairs) Init(session *session.Session) {
-	k.Client = ec2.New(session)
+func (k *EC2KeyPairs) InitV2(cfg aws.Config) {
+	k.Client = ec2.NewFromConfig(cfg)
 }
+
+func (k *EC2KeyPairs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (k *EC2KeyPairs) ResourceName() string {
@@ -47,12 +52,12 @@ func (k *EC2KeyPairs) GetAndSetIdentifiers(c context.Context, configObj config.C
 		return nil, err
 	}
 
-	k.KeyPairIds = awsgo.StringValueSlice(identifiers)
+	k.KeyPairIds = aws.ToStringSlice(identifiers)
 	return k.KeyPairIds, nil
 }
 
 func (k *EC2KeyPairs) Nuke(identifiers []string) error {
-	if err := k.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := k.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

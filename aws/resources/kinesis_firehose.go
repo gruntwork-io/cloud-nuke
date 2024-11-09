@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -12,19 +12,18 @@ import (
 )
 
 func (kf *KinesisFirehose) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
-	allStreams := []*string{}
-	output, err := kf.Client.ListDeliveryStreamsWithContext(kf.Context, &firehose.ListDeliveryStreamsInput{})
+	var allStreams []*string
+	output, err := kf.Client.ListDeliveryStreams(kf.Context, &firehose.ListDeliveryStreamsInput{})
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
 
 	for _, stream := range output.DeliveryStreamNames {
 		if configObj.KinesisFirehose.ShouldInclude(config.ResourceValue{
-			Name: stream,
+			Name: aws.String(stream),
 		}) {
-			allStreams = append(allStreams, stream)
+			allStreams = append(allStreams, aws.String(stream))
 		}
-	}
-
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	return allStreams, nil
@@ -39,12 +38,12 @@ func (kf *KinesisFirehose) nukeAll(identifiers []*string) error {
 	logging.Debugf("Deleting all Kinesis Firhose in region %s", kf.Region)
 	var deleted []*string
 	for _, id := range identifiers {
-		_, err := kf.Client.DeleteDeliveryStreamWithContext(kf.Context, &firehose.DeleteDeliveryStreamInput{
-			AllowForceDelete:   awsgo.Bool(true),
+		_, err := kf.Client.DeleteDeliveryStream(kf.Context, &firehose.DeleteDeliveryStreamInput{
+			AllowForceDelete:   aws.Bool(true),
 			DeliveryStreamName: id,
 		})
 		e := report.Entry{
-			Identifier:   awsgo.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Kinesis Firehose",
 			Error:        err,
 		}

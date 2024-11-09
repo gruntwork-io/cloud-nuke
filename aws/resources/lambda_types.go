@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type LambdaFunctionsAPI interface {
+	DeleteFunction(ctx context.Context, params *lambda.DeleteFunctionInput, optFns ...func(*lambda.Options)) (*lambda.DeleteFunctionOutput, error)
+	ListFunctions(ctx context.Context, params *lambda.ListFunctionsInput, optFns ...func(*lambda.Options)) (*lambda.ListFunctionsOutput, error)
+}
+
 type LambdaFunctions struct {
 	BaseAwsResource
-	Client              lambdaiface.LambdaAPI
+	Client              LambdaFunctionsAPI
 	Region              string
 	LambdaFunctionNames []string
 }
 
-func (lf *LambdaFunctions) Init(session *session.Session) {
-	lf.Client = lambda.New(session)
+func (lf *LambdaFunctions) InitV2(cfg aws.Config) {
+	lf.Client = lambda.NewFromConfig(cfg)
 }
+
+func (lf *LambdaFunctions) IsUsingV2() bool { return true }
 
 func (lf *LambdaFunctions) ResourceName() string {
 	return "lambda"
@@ -46,13 +51,13 @@ func (lf *LambdaFunctions) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	lf.LambdaFunctionNames = awsgo.StringValueSlice(identifiers)
+	lf.LambdaFunctionNames = aws.ToStringSlice(identifiers)
 	return lf.LambdaFunctionNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (lf *LambdaFunctions) Nuke(identifiers []string) error {
-	if err := lf.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := lf.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

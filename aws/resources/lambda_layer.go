@@ -4,70 +4,68 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 func (ll *LambdaLayers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var layers []*lambda.LayersListItem
+	var layers []types.LayersListItem
 	var names []*string
 
-	err := ll.Client.ListLayersPagesWithContext(
-		ll.Context,
-		&lambda.ListLayersInput{}, func(page *lambda.ListLayersOutput, lastPage bool) bool {
-			for _, layer := range page.Layers {
-				logging.Logger.Debugf("Found layer! %s", layer)
+	paginator := lambda.NewListLayersPaginator(ll.Client, &lambda.ListLayersInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
 
-				if ll.shouldInclude(layer, configObj) {
-					layers = append(layers, layer)
-				}
+		for _, layer := range page.Layers {
+			logging.Logger.Debugf("Found layer! %s", *layer.LayerName)
+
+			if ll.shouldInclude(&layer, configObj) {
+				layers = append(layers, layer)
 			}
-
-			return !lastPage
-		})
-
-	if err != nil {
-		return nil, err
+		}
 	}
 
 	for _, layer := range layers {
-		err := ll.Client.ListLayerVersionsPagesWithContext(
-			ll.Context,
-			&lambda.ListLayerVersionsInput{
-				LayerName: layer.LayerName,
-			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
-				for _, version := range page.LayerVersions {
-					logging.Logger.Debugf("Found layer version! %s", version)
 
-					// Currently the output is just the identifier which is the layer's name.
-					// There could be potentially multiple rows of the same identifier or
-					// layer name since there can be multiple versions of it.
-					names = append(names, layer.LayerName)
-				}
+		versionsPaginator := lambda.NewListLayerVersionsPaginator(ll.Client, &lambda.ListLayerVersionsInput{
+			LayerName: layer.LayerName,
+		})
+		for versionsPaginator.HasMorePages() {
+			page, err := versionsPaginator.NextPage(c)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
 
-				return !lastPage
-			})
+			for _, version := range page.LayerVersions {
+				logging.Logger.Debugf("Found layer version! %d", version.Version)
 
-		if err != nil {
-			return nil, err
+				// Currently the output is just the identifier which is the layer's name.
+				// There could be potentially multiple rows of the same identifier or
+				// layer name since there can be multiple versions of it.
+				names = append(names, layer.LayerName)
+			}
 		}
 	}
 
 	return names, nil
 }
 
-func (ll *LambdaLayers) shouldInclude(lambdaLayer *lambda.LayersListItem, configObj config.Config) bool {
+func (ll *LambdaLayers) shouldInclude(lambdaLayer *types.LayersListItem, configObj config.Config) bool {
 	if lambdaLayer == nil {
 		return false
 	}
 
 	// Lambda layers are immutable, so the created date of the latest version
 	// is on par with last modified
-	fnLastModified := aws.StringValue(lambdaLayer.LatestMatchingVersion.CreatedDate)
+	fnLastModified := aws.ToString(lambdaLayer.LatestMatchingVersion.CreatedDate)
 	fnName := lambdaLayer.LayerName
 	layout := "2006-01-02T15:04:05.000+0000"
 	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
@@ -89,39 +87,37 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 	}
 
 	logging.Logger.Debugf("Deleting all Lambda Layers in region %s", ll.Region)
-	deletedNames := []*string{}
-	deleteLayerVersions := []*lambda.DeleteLayerVersionInput{}
+	var deletedNames []*string
+	var deleteLayerVersions []*lambda.DeleteLayerVersionInput
 
 	for _, name := range names {
-		err := ll.Client.ListLayerVersionsPagesWithContext(
-			ll.Context,
-			&lambda.ListLayerVersionsInput{
-				LayerName: name,
-			}, func(page *lambda.ListLayerVersionsOutput, lastPage bool) bool {
-				for _, version := range page.LayerVersions {
-					logging.Logger.Debugf("Found layer version! %s", version)
-					params := &lambda.DeleteLayerVersionInput{
-						LayerName:     name,
-						VersionNumber: version.Version,
-					}
-					deleteLayerVersions = append(deleteLayerVersions, params)
+		paginator := lambda.NewListLayerVersionsPaginator(ll.Client, &lambda.ListLayerVersionsInput{
+			LayerName: name,
+		})
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ll.Context)
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+
+			for _, version := range page.LayerVersions {
+				logging.Logger.Debugf("Found layer version! %s", *version.LayerVersionArn)
+				params := &lambda.DeleteLayerVersionInput{
+					LayerName:     name,
+					VersionNumber: aws.Int64(version.Version),
 				}
-
-				return !lastPage
-			})
-
-		if err != nil {
-			return err
+				deleteLayerVersions = append(deleteLayerVersions, params)
+			}
 		}
 	}
 
 	for _, params := range deleteLayerVersions {
 
-		_, err := ll.Client.DeleteLayerVersionWithContext(ll.Context, params)
+		_, err := ll.Client.DeleteLayerVersion(ll.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(params.LayerName),
+			Identifier:   aws.ToString(params.LayerName),
 			ResourceType: "Lambda layer",
 			Error:        err,
 		}
@@ -131,7 +127,7 @@ func (ll *LambdaLayers) nukeAll(names []*string) error {
 			logging.Logger.Errorf("[Failed] %s: %s", *params.LayerName, err)
 		} else {
 			deletedNames = append(deletedNames, params.LayerName)
-			logging.Logger.Debugf("Deleted Lambda Layer: %s", awsgo.StringValue(params.LayerName))
+			logging.Logger.Debugf("Deleted Lambda Layer: %s", aws.ToString(params.LayerName))
 		}
 	}
 

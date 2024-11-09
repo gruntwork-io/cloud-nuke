@@ -7,32 +7,28 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEC2KeyPairs struct {
-	ec2iface.EC2API
-	DescribeKeyPairsOutput ec2.DescribeKeyPairsOutput
+	EC2KeyPairsAPI
 	DeleteKeyPairOutput    ec2.DeleteKeyPairOutput
+	DescribeKeyPairsOutput ec2.DescribeKeyPairsOutput
 }
 
-func (m mockedEC2KeyPairs) DescribeKeyPairsWithContext(_ awsgo.Context, _ *ec2.DescribeKeyPairsInput, _ ...request.Option) (*ec2.DescribeKeyPairsOutput, error) {
-	return &m.DescribeKeyPairsOutput, nil
-}
-
-func (m mockedEC2KeyPairs) DeleteKeyPairWithContext(_ awsgo.Context, _ *ec2.DeleteKeyPairInput, _ ...request.Option) (*ec2.DeleteKeyPairOutput, error) {
+func (m mockedEC2KeyPairs) DeleteKeyPair(ctx context.Context, params *ec2.DeleteKeyPairInput, optFns ...func(*ec2.Options)) (*ec2.DeleteKeyPairOutput, error) {
 	return &m.DeleteKeyPairOutput, nil
 }
 
+func (m mockedEC2KeyPairs) DescribeKeyPairs(ctx context.Context, params *ec2.DescribeKeyPairsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeKeyPairsOutput, error) {
+	return &m.DescribeKeyPairsOutput, nil
+}
+
 func TestEC2KeyPairs_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	now := time.Now()
 	testId1 := "test-keypair-id1"
 	testName1 := "test-keypair1"
@@ -41,16 +37,16 @@ func TestEC2KeyPairs_GetAll(t *testing.T) {
 	k := EC2KeyPairs{
 		Client: mockedEC2KeyPairs{
 			DescribeKeyPairsOutput: ec2.DescribeKeyPairsOutput{
-				KeyPairs: []*ec2.KeyPairInfo{
+				KeyPairs: []types.KeyPairInfo{
 					{
-						KeyName:    awsgo.String(testName1),
-						KeyPairId:  awsgo.String(testId1),
-						CreateTime: awsgo.Time(now),
+						KeyName:    aws.String(testName1),
+						KeyPairId:  aws.String(testId1),
+						CreateTime: aws.Time(now),
 					},
 					{
-						KeyName:    awsgo.String(testName2),
-						KeyPairId:  awsgo.String(testId2),
-						CreateTime: awsgo.Time(now.Add(1)),
+						KeyName:    aws.String(testName2),
+						KeyPairId:  aws.String(testId2),
+						CreateTime: aws.Time(now.Add(1)),
 					},
 				},
 			},
@@ -88,21 +84,19 @@ func TestEC2KeyPairs_GetAll(t *testing.T) {
 				EC2KeyPairs: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestEC2KeyPairs_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	h := EC2KeyPairs{
 		Client: mockedEC2KeyPairs{
 			DeleteKeyPairOutput: ec2.DeleteKeyPairOutput{},
 		},
 	}
 
-	err := h.nukeAll([]*string{awsgo.String("test-keypair-id-1"), awsgo.String("test-keypair-id-2")})
+	err := h.nukeAll([]*string{aws.String("test-keypair-id-1"), aws.String("test-keypair-id-2")})
 	require.NoError(t, err)
 }

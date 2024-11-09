@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -14,7 +14,7 @@ import (
 
 // getAllEc2KeyPairs extracts the list of existing ec2 key pairs.
 func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := k.Client.DescribeKeyPairsWithContext(k.Context, &ec2.DescribeKeyPairsInput{})
+	result, err := k.Client.DescribeKeyPairs(k.Context, &ec2.DescribeKeyPairsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -24,7 +24,7 @@ func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*str
 		if configObj.EC2KeyPairs.ShouldInclude(config.ResourceValue{
 			Name: keyPair.KeyName,
 			Time: keyPair.CreateTime,
-			Tags: util.ConvertEC2TagsToMap(keyPair.Tags),
+			Tags: util.ConvertTypesTagsToMap(keyPair.Tags),
 		}) {
 			ids = append(ids, keyPair.KeyPairId)
 		}
@@ -32,9 +32,9 @@ func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*str
 
 	// checking the nukable permissions
 	k.VerifyNukablePermissions(ids, func(id *string) error {
-		_, err := k.Client.DeleteKeyPairWithContext(k.Context, &ec2.DeleteKeyPairInput{
+		_, err := k.Client.DeleteKeyPair(k.Context, &ec2.DeleteKeyPairInput{
 			KeyPairId: id,
-			DryRun:    awsgo.Bool(true),
+			DryRun:    aws.Bool(true),
 		})
 		return err
 	})
@@ -48,7 +48,7 @@ func (k *EC2KeyPairs) deleteKeyPair(keyPairId *string) error {
 		KeyPairId: keyPairId,
 	}
 
-	_, err := k.Client.DeleteKeyPairWithContext(k.Context, params)
+	_, err := k.Client.DeleteKeyPair(k.Context, params)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -68,8 +68,8 @@ func (k *EC2KeyPairs) nukeAll(keypairIds []*string) error {
 	deletedKeyPairs := 0
 	var multiErr *multierror.Error
 	for _, keypair := range keypairIds {
-		if nukable, reason := k.IsNukable(awsgo.StringValue(keypair)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(keypair), reason)
+		if nukable, reason := k.IsNukable(aws.ToString(keypair)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(keypair), reason)
 			continue
 		}
 

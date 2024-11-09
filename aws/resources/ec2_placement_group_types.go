@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EC2PlacementGroupsAPI interface {
+	DescribePlacementGroups(ctx context.Context, params *ec2.DescribePlacementGroupsInput, optFns ...func(*ec2.Options)) (*ec2.DescribePlacementGroupsOutput, error)
+	DeletePlacementGroup(ctx context.Context, params *ec2.DeletePlacementGroupInput, optFns ...func(*ec2.Options)) (*ec2.DeletePlacementGroupOutput, error)
+}
+
 type EC2PlacementGroups struct {
 	BaseAwsResource
-	Client              ec2iface.EC2API
+	Client              EC2PlacementGroupsAPI
 	Region              string
 	PlacementGroupNames []string
 }
 
-func (k *EC2PlacementGroups) Init(session *session.Session) {
-	k.Client = ec2.New(session)
+func (k *EC2PlacementGroups) InitV2(cfg aws.Config) {
+	k.Client = ec2.NewFromConfig(cfg)
 }
+
+func (k *EC2PlacementGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (k *EC2PlacementGroups) ResourceName() string {
@@ -47,12 +52,12 @@ func (k *EC2PlacementGroups) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	k.PlacementGroupNames = awsgo.StringValueSlice(identifiers)
+	k.PlacementGroupNames = aws.ToStringSlice(identifiers)
 	return k.PlacementGroupNames, nil
 }
 
 func (k *EC2PlacementGroups) Nuke(identifiers []string) error {
-	if err := k.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := k.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

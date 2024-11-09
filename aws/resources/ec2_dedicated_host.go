@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -16,41 +16,37 @@ import (
 
 func (h *EC2DedicatedHosts) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var hostIds []*string
-
 	describeHostsInput := &ec2.DescribeHostsInput{
-		Filter: []*ec2.Filter{
+		Filter: []types.Filter{
 			{
-				Name: awsgo.String("state"),
-				Values: []*string{
-					awsgo.String("available"),
-					awsgo.String("under-assessment"),
-					awsgo.String("permanent-failure"),
+				Name: aws.String("state"),
+				Values: []string{
+					"available",
+					"under-assessment",
+					"permanent-failure",
 				},
 			},
 		},
 	}
 
-	err := h.Client.DescribeHostsPagesWithContext(
-		h.Context,
-		describeHostsInput,
-		func(page *ec2.DescribeHostsOutput, lastPage bool) bool {
-			for _, host := range page.Hosts {
-				if shouldIncludeHostId(host, configObj) {
-					hostIds = append(hostIds, host.HostId)
-				}
-			}
-			return !lastPage
-		},
-	)
+	paginator := ec2.NewDescribeHostsPaginator(h.Client, describeHostsInput)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
 
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		for _, host := range page.Hosts {
+			if shouldIncludeHostId(&host, configObj) {
+				hostIds = append(hostIds, host.HostId)
+			}
+		}
 	}
 
 	return hostIds, nil
 }
 
-func shouldIncludeHostId(host *ec2.Host, configObj config.Config) bool {
+func shouldIncludeHostId(host *types.Host, configObj config.Config) bool {
 	if host == nil {
 		return false
 	}
@@ -79,9 +75,9 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 
 	logging.Debugf("Releasing all EC2 dedicated host allocations in region %s", h.Region)
 
-	input := &ec2.ReleaseHostsInput{HostIds: hostIds}
+	input := &ec2.ReleaseHostsInput{HostIds: aws.ToStringSlice(hostIds)}
 
-	releaseResult, err := h.Client.ReleaseHostsWithContext(h.Context, input)
+	releaseResult, err := h.Client.ReleaseHosts(h.Context, input)
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
@@ -90,18 +86,18 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 
 	// Report successes and failures from release host request
 	for _, hostSuccess := range releaseResult.Successful {
-		logging.Debugf("[OK] Dedicated host %s was released in %s", aws.StringValue(hostSuccess), h.Region)
+		logging.Debugf("[OK] Dedicated host %s was released in %s", hostSuccess, h.Region)
 		e := report.Entry{
-			Identifier:   aws.StringValue(hostSuccess),
+			Identifier:   hostSuccess,
 			ResourceType: "EC2 Dedicated Host",
 		}
 		report.Record(e)
 	}
 
 	for _, hostFailed := range releaseResult.Unsuccessful {
-		logging.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.StringValue(hostFailed.ResourceId), h.Region, aws.StringValue(hostFailed.Error.Message))
+		logging.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.ToString(hostFailed.ResourceId), h.Region, aws.ToString(hostFailed.Error.Message))
 		e := report.Entry{
-			Identifier:   aws.StringValue(hostFailed.ResourceId),
+			Identifier:   aws.ToString(hostFailed.ResourceId),
 			ResourceType: "EC2 Dedicated Host",
 			Error:        fmt.Errorf(*hostFailed.Error.Message),
 		}

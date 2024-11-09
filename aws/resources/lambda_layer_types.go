@@ -3,56 +3,62 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type LambdaLayersAPI interface {
+	DeleteLayerVersion(ctx context.Context, params *lambda.DeleteLayerVersionInput, optFns ...func(*lambda.Options)) (*lambda.DeleteLayerVersionOutput, error)
+	ListLayers(ctx context.Context, params *lambda.ListLayersInput, optFns ...func(*lambda.Options)) (*lambda.ListLayersOutput, error)
+	ListLayerVersions(ctx context.Context, params *lambda.ListLayerVersionsInput, optFns ...func(*lambda.Options)) (*lambda.ListLayerVersionsOutput, error)
+}
+
 type LambdaLayers struct {
 	BaseAwsResource
-	Client              lambdaiface.LambdaAPI
+	Client              LambdaLayersAPI
 	Region              string
 	LambdaFunctionNames []string
 }
 
-func (lf *LambdaLayers) Init(session *session.Session) {
-	lf.Client = lambda.New(session)
+func (ll *LambdaLayers) InitV2(cfg aws.Config) {
+	ll.Client = lambda.NewFromConfig(cfg)
 }
 
-func (lf *LambdaLayers) ResourceName() string {
+func (ll *LambdaLayers) IsUsingV2() bool { return true }
+
+func (ll *LambdaLayers) ResourceName() string {
 	return "lambda_layer"
 }
 
 // ResourceIdentifiers - The names of the lambda functions
-func (lf *LambdaLayers) ResourceIdentifiers() []string {
-	return lf.LambdaFunctionNames
+func (ll *LambdaLayers) ResourceIdentifiers() []string {
+	return ll.LambdaFunctionNames
 }
 
-func (lf *LambdaLayers) MaxBatchSize() int {
+func (ll *LambdaLayers) MaxBatchSize() int {
 	// Tentative batch size to ensure AWS doesn't throttle
 	return 49
 }
 
-func (lf *LambdaLayers) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+func (ll *LambdaLayers) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
 	return configObj.LambdaLayer
 }
 
-func (lf *LambdaLayers) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
-	identifiers, err := lf.getAll(c, configObj)
+func (ll *LambdaLayers) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
+	identifiers, err := ll.getAll(c, configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	lf.LambdaFunctionNames = awsgo.StringValueSlice(identifiers)
-	return lf.LambdaFunctionNames, nil
+	ll.LambdaFunctionNames = aws.ToStringSlice(identifiers)
+	return ll.LambdaFunctionNames, nil
 }
 
 // Nuke - nuke 'em all!!!
-func (lf *LambdaLayers) Nuke(identifiers []string) error {
-	if err := lf.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+func (ll *LambdaLayers) Nuke(identifiers []string) error {
+	if err := ll.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -3,9 +3,9 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -13,19 +13,26 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+func (v *EC2DhcpOption) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
 	var dhcpOptionIds []*string
-	err := v.Client.DescribeDhcpOptionsPagesWithContext(v.Context, &ec2.DescribeDhcpOptionsInput{}, func(page *ec2.DescribeDhcpOptionsOutput, lastPage bool) bool {
+
+	paginator := ec2.NewDescribeDhcpOptionsPaginator(v.Client, &ec2.DescribeDhcpOptionsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
 		for _, dhcpOption := range page.DhcpOptions {
 			var isEligibleForNuke = true
 
 			// check the dhcp is attached with any vpc
 			// if the vpc is default one, then omit the dhcp option id from result
-			vpcs, err := v.Client.DescribeVpcsWithContext(v.Context, &ec2.DescribeVpcsInput{
-				Filters: []*ec2.Filter{
+			vpcs, err := v.Client.DescribeVpcs(v.Context, &ec2.DescribeVpcsInput{
+				Filters: []types.Filter{
 					{
-						Name:   awsgo.String("dhcp-options-id"),
-						Values: []*string{dhcpOption.DhcpOptionsId},
+						Name:   aws.String("dhcp-options-id"),
+						Values: []string{aws.ToString(dhcpOption.DhcpOptionsId)},
 					},
 				},
 			})
@@ -36,12 +43,12 @@ func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*s
 
 			for _, vpc := range vpcs.Vpcs {
 				// check the vpc is the default one then set isEligible false as we dont need to remove the dhcp option of default vpc
-				if awsgo.BoolValue(vpc.IsDefault) {
-					logging.Debugf("[Skipping] %s is attached with a default vpc %s", awsgo.StringValue(dhcpOption.DhcpOptionsId), awsgo.StringValue(vpc.VpcId))
+				if aws.ToBool(vpc.IsDefault) {
+					logging.Debugf("[Skipping] %s is attached with a default vpc %s", aws.ToString(dhcpOption.DhcpOptionsId), aws.ToString(vpc.VpcId))
 					isEligibleForNuke = false
 				}
 
-				v.DhcpOptions[awsgo.StringValue(dhcpOption.DhcpOptionsId)] = DHCPOption{
+				v.DhcpOptions[aws.ToString(dhcpOption.DhcpOptionsId)] = DHCPOption{
 					Id:    dhcpOption.DhcpOptionsId,
 					VpcId: vpc.VpcId,
 				}
@@ -53,22 +60,15 @@ func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*s
 				// filtering with name tag in the future. In the initial version, we just getAll
 				// without filtering.
 				dhcpOptionIds = append(dhcpOptionIds, dhcpOption.DhcpOptionsId)
-
 			}
 		}
-
-		return !lastPage
-	})
-
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	// checking the nukable permissions
 	v.VerifyNukablePermissions(dhcpOptionIds, func(id *string) error {
-		_, err := v.Client.DeleteDhcpOptionsWithContext(v.Context, &ec2.DeleteDhcpOptionsInput{
+		_, err := v.Client.DeleteDhcpOptions(v.Context, &ec2.DeleteDhcpOptionsInput{
 			DhcpOptionsId: id,
-			DryRun:        awsgo.Bool(true),
+			DryRun:        aws.Bool(true),
 		})
 		return err
 	})
@@ -77,18 +77,18 @@ func (v *EC2DhcpOption) getAll(_ context.Context, configObj config.Config) ([]*s
 }
 
 func (v *EC2DhcpOption) disAssociatedAttachedVpcs(identifier *string) error {
-	if option, ok := v.DhcpOptions[awsgo.StringValue(identifier)]; ok {
-		logging.Debugf("[disAssociatedAttachedVpcs] detaching the dhcp option %s from %v", awsgo.StringValue(identifier), awsgo.StringValue(option.VpcId))
+	if option, ok := v.DhcpOptions[aws.ToString(identifier)]; ok {
+		logging.Debugf("[disAssociatedAttachedVpcs] detaching the dhcp option %s from %v", aws.ToString(identifier), aws.ToString(option.VpcId))
 
-		_, err := v.Client.AssociateDhcpOptionsWithContext(v.Context, &ec2.AssociateDhcpOptionsInput{
+		_, err := v.Client.AssociateDhcpOptions(v.Context, &ec2.AssociateDhcpOptionsInput{
 			VpcId:         option.VpcId,
-			DhcpOptionsId: awsgo.String("default"), // The ID of the DHCP options set, or default to associate no DHCP options with the VPC.
+			DhcpOptionsId: aws.String("default"), // The ID of the DHCP options set, or default to associate no DHCP options with the VPC.
 		})
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("[disAssociatedAttachedVpcs] Success dhcp option %s detached from %v", awsgo.StringValue(identifier), awsgo.StringValue(option.VpcId))
+		logging.Debugf("[disAssociatedAttachedVpcs] Success dhcp option %s detached from %v", aws.ToString(identifier), aws.ToString(option.VpcId))
 	}
 
 	return nil
@@ -102,7 +102,7 @@ func (v *EC2DhcpOption) nuke(identifier *string) error {
 		return errors.WithStackTrace(err)
 	}
 
-	err = nukeDhcpOption(v.Client, identifier)
+	err = nukeDhcpOption(v.Context, v.Client, identifier)
 	if err != nil {
 		logging.Debugf("[nukeDhcpOption] Failed %s", err)
 		return errors.WithStackTrace(err)
@@ -112,8 +112,8 @@ func (v *EC2DhcpOption) nuke(identifier *string) error {
 
 func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
-		if nukable, reason := v.IsNukable(awsgo.StringValue(identifier)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(identifier), reason)
+		if nukable, reason := v.IsNukable(aws.ToString(identifier)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(identifier), reason)
 			continue
 		}
 
@@ -126,7 +126,7 @@ func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   awsgo.StringValue(identifier),
+			Identifier:   aws.ToString(identifier),
 			ResourceType: v.ResourceName(),
 			Error:        err,
 		}
@@ -136,16 +136,16 @@ func (v *EC2DhcpOption) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func nukeDhcpOption(client ec2iface.EC2API, option *string) error {
-	logging.Debugf("Deleting DHCP Option %s", awsgo.StringValue(option))
+func nukeDhcpOption(ctx context.Context, client EC2DhcpOptionAPI, option *string) error {
+	logging.Debugf("Deleting DHCP Option %s", aws.ToString(option))
 
-	_, err := client.DeleteDhcpOptions(&ec2.DeleteDhcpOptionsInput{
+	_, err := client.DeleteDhcpOptions(ctx, &ec2.DeleteDhcpOptionsInput{
 		DhcpOptionsId: option,
 	})
 	if err != nil {
-		logging.Debugf("[Failed] Error deleting DHCP option %s: %s", awsgo.StringValue(option), err)
+		logging.Debugf("[Failed] Error deleting DHCP option %s: %s", aws.ToString(option), err)
 		return errors.WithStackTrace(err)
 	}
-	logging.Debugf("[Ok] DHCP Option deleted successfully %s", awsgo.StringValue(option))
+	logging.Debugf("[Ok] DHCP Option deleted successfully %s", aws.ToString(option))
 	return nil
 }

@@ -4,9 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,20 +14,22 @@ import (
 )
 
 func (ks *KinesisStreams) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allStreams := []*string{}
-	err := ks.Client.ListStreamsPagesWithContext(ks.Context, &kinesis.ListStreamsInput{}, func(page *kinesis.ListStreamsOutput, lastPage bool) bool {
-		for _, stream := range page.StreamNames {
-			if configObj.KinesisStream.ShouldInclude(config.ResourceValue{
-				Name: stream,
-			}) {
-				allStreams = append(allStreams, stream)
-			}
+	var allStreams []*string
+
+	paginator := kinesis.NewListStreamsPaginator(ks.Client, &kinesis.ListStreamsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
 		}
 
-		return !lastPage
-	})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		for _, stream := range page.StreamNames {
+			if configObj.KinesisStream.ShouldInclude(config.ResourceValue{
+				Name: aws.String(stream),
+			}) {
+				allStreams = append(allStreams, aws.String(stream))
+			}
+		}
 	}
 
 	return allStreams, nil
@@ -66,9 +67,7 @@ func (ks *KinesisStreams) nukeAll(identifiers []*string) error {
 	var allErrs *multierror.Error
 	for _, errChan := range errChans {
 		if err := <-errChan; err != nil {
-			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() != "OperationAbortedException" {
-				allErrs = multierror.Append(allErrs, err)
-			}
+			allErrs = multierror.Append(allErrs, err)
 		}
 	}
 	finalErr := allErrs.ErrorOrNil()
@@ -85,11 +84,11 @@ func (ks *KinesisStreams) deleteAsync(
 ) {
 	defer wg.Done()
 	input := &kinesis.DeleteStreamInput{StreamName: streamName}
-	_, err := ks.Client.DeleteStreamWithContext(ks.Context, input)
+	_, err := ks.Client.DeleteStream(ks.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(streamName),
+		Identifier:   aws.ToString(streamName),
 		ResourceType: "Kinesis Stream",
 		Error:        err,
 	}
@@ -97,7 +96,7 @@ func (ks *KinesisStreams) deleteAsync(
 
 	errChan <- err
 
-	streamNameStr := aws.StringValue(streamName)
+	streamNameStr := aws.ToString(streamName)
 	if err == nil {
 		logging.Debugf("[OK] Kinesis Stream %s delete in %s", streamNameStr, ks.Region)
 	} else {

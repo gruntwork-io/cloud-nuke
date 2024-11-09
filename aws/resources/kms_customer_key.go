@@ -4,12 +4,12 @@ import (
 	"context"
 	"sync"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/report"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -17,20 +17,27 @@ import (
 func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// Collect all keys in the account
 	var keys []string
-	err := kck.Client.ListKeysPagesWithContext(kck.Context, &kms.ListKeysInput{}, func(page *kms.ListKeysOutput, lastPage bool) bool {
+	listKeysPaginator := kms.NewListKeysPaginator(kck.Client, &kms.ListKeysInput{})
+	for listKeysPaginator.HasMorePages() {
+		page, err := listKeysPaginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
 		for _, key := range page.Keys {
 			keys = append(keys, *key.KeyId)
 		}
-
-		return !lastPage
-	})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	// Collect key to alias mapping
 	keyAliases := map[string][]string{}
-	err = kck.Client.ListAliasesPagesWithContext(kck.Context, &kms.ListAliasesInput{}, func(page *kms.ListAliasesOutput, lastPage bool) bool {
+	listAliasesPaginator := kms.NewListAliasesPaginator(kck.Client, &kms.ListAliasesInput{})
+	for listAliasesPaginator.HasMorePages() {
+		page, err := listAliasesPaginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
 		for _, alias := range page.Aliases {
 			key := alias.TargetKeyId
 			if key == nil {
@@ -45,11 +52,6 @@ func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) (
 			list = append(list, *alias.AliasName)
 			keyAliases[*key] = list
 		}
-
-		return !lastPage
-	})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	// checking in parallel if keys can be considered for removal
@@ -118,7 +120,7 @@ func (kck *KmsCustomerKeys) shouldInclude(
 			resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 			return
 		} else {
-			// Set this to true so keys w/o aliases dont bail out
+			// Set this to true so keys w/o aliases don't bail out
 			// On the !includedByName check
 			includedByName = true
 		}
@@ -129,14 +131,14 @@ func (kck *KmsCustomerKeys) shouldInclude(
 		return
 	}
 	// additional request to describe key and get information about creation date, removal status
-	details, err := kck.Client.DescribeKeyWithContext(kck.Context, &kms.DescribeKeyInput{KeyId: &key})
+	details, err := kck.Client.DescribeKey(kck.Context, &kms.DescribeKeyInput{KeyId: &key})
 	if err != nil {
 		resultsChan <- &KmsCheckIncludeResult{Error: err}
 		return
 	}
 	metadata := details.KeyMetadata
 	// evaluate only user keys
-	if *metadata.KeyManager != kms.KeyManagerTypeCustomer {
+	if metadata.KeyManager != types.KeyManagerTypeCustomer {
 		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
@@ -199,7 +201,7 @@ func (kck *KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) 
 
 	for _, aliasName := range aliases {
 		input := &kms.DeleteAliasInput{AliasName: &aliasName}
-		_, err := kck.Client.DeleteAlias(input)
+		_, err := kck.Client.DeleteAlias(kck.Context, input)
 
 		if err != nil {
 			logging.Errorf("[Failed] Failed deleting alias: %s", aliasName)
@@ -211,12 +213,12 @@ func (kck *KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) 
 
 func (kck *KmsCustomerKeys) requestKeyDeletion(wg *sync.WaitGroup, errChan chan error, key *string) {
 	defer wg.Done()
-	input := &kms.ScheduleKeyDeletionInput{KeyId: key, PendingWindowInDays: aws.Int64(int64(kmsRemovalWindow))}
-	_, err := kck.Client.ScheduleKeyDeletionWithContext(kck.Context, input)
+	input := &kms.ScheduleKeyDeletionInput{KeyId: key, PendingWindowInDays: aws.Int32(int32(kmsRemovalWindow))}
+	_, err := kck.Client.ScheduleKeyDeletion(kck.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(key),
+		Identifier:   aws.ToString(key),
 		ResourceType: "Key Management Service (KMS) Key",
 		Error:        err,
 	}

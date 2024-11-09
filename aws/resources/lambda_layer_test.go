@@ -6,33 +6,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedLambdaLayer struct {
-	lambdaiface.LambdaAPI
+	LambdaLayersAPI
+	DeleteLayerVersionOutput lambda.DeleteLayerVersionOutput
 	ListLayersOutput         lambda.ListLayersOutput
 	ListLayerVersionsOutput  lambda.ListLayerVersionsOutput
-	DeleteLayerVersionOutput lambda.DeleteLayerVersionOutput
 }
 
-func (m mockedLambdaLayer) ListLayersPagesWithContext(_ aws.Context, input *lambda.ListLayersInput, fn func(*lambda.ListLayersOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListLayersOutput, true)
-	return nil
+func (m mockedLambdaLayer) DeleteLayerVersion(ctx context.Context, params *lambda.DeleteLayerVersionInput, optFns ...func(*lambda.Options)) (*lambda.DeleteLayerVersionOutput, error) {
+	return &m.DeleteLayerVersionOutput, nil
 }
 
-func (m mockedLambdaLayer) ListLayerVersionsPagesWithContext(_ aws.Context, input *lambda.ListLayerVersionsInput, fn func(*lambda.ListLayerVersionsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListLayerVersionsOutput, true)
-	return nil
+func (m mockedLambdaLayer) ListLayers(ctx context.Context, params *lambda.ListLayersInput, optFns ...func(*lambda.Options)) (*lambda.ListLayersOutput, error) {
+	return &m.ListLayersOutput, nil
+}
+
+func (m mockedLambdaLayer) ListLayerVersions(ctx context.Context, params *lambda.ListLayerVersionsInput, optFns ...func(*lambda.Options)) (*lambda.ListLayerVersionsOutput, error) {
+	return &m.ListLayerVersionsOutput, nil
 }
 
 func TestLambdaLayer_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-lambda-layer1"
@@ -50,25 +50,25 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	ll := LambdaLayers{
 		Client: mockedLambdaLayer{
 			ListLayersOutput: lambda.ListLayersOutput{
-				Layers: []*lambda.LayersListItem{
+				Layers: []types.LayersListItem{
 					{
 						LayerName: aws.String(testName1),
-						LatestMatchingVersion: &lambda.LayerVersionsListItem{
+						LatestMatchingVersion: &types.LayerVersionsListItem{
 							CreatedDate: aws.String(testTimeStr),
 						},
 					},
 					{
 						LayerName: aws.String(testName2),
-						LatestMatchingVersion: &lambda.LayerVersionsListItem{
+						LatestMatchingVersion: &types.LayerVersionsListItem{
 							CreatedDate: aws.String(testTimeStr),
 						},
 					},
 				},
 			},
 			ListLayerVersionsOutput: lambda.ListLayerVersionsOutput{
-				LayerVersions: []*lambda.LayerVersionsListItem{
+				LayerVersions: []types.LayerVersionsListItem{
 					{
-						Version: &testName1Version1,
+						Version: testName1Version1,
 					},
 				},
 			},
@@ -106,13 +106,12 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 				LambdaLayer: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestLambdaLayer_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	ll := LambdaLayers{
