@@ -81,7 +81,7 @@ func (cache *Elasticaches) determineCacheClusterType(clusterId *string) (*string
 		}
 	}
 
-	if len(replicationGroupOutput.ReplicationGroups) > 0 {
+	if replicationGroupOutput != nil && len(replicationGroupOutput.ReplicationGroups) > 0 {
 		return replicationGroupOutput.ReplicationGroups[0].ReplicationGroupId, Replication, nil
 	}
 
