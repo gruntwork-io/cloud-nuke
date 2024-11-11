@@ -70,12 +70,14 @@ type Config struct {
 	ElasticIP                       ResourceType               `yaml:"ElasticIP"`
 	Elasticache                     ResourceType               `yaml:"Elasticache"`
 	ElasticacheParameterGroups      ResourceType               `yaml:"ElasticacheParameterGroups"`
+	ElasticCacheServerless          ResourceType               `yaml:"ElasticCacheServerless"`
 	ElasticacheSubnetGroups         ResourceType               `yaml:"ElasticacheSubnetGroups"`
 	EventBridge                     ResourceType               `yaml:"EventBridge"`
 	EventBridgeArchive              ResourceType               `yaml:"EventBridgeArchive"`
 	EventBridgeRule                 ResourceType               `yaml:"EventBridgeRule"`
 	EventBridgeSchedule             ResourceType               `yaml:"EventBridgeSchedule"`
 	EventBridgeScheduleGroup        ResourceType               `yaml:"EventBridgeScheduleGroup"`
+	Grafana                         ResourceType               `yaml:"Grafana"`
 	GuardDuty                       ResourceType               `yaml:"GuardDuty"`
 	IAMGroups                       ResourceType               `yaml:"IAMGroups"`
 	IAMPolicies                     ResourceType               `yaml:"IAMPolicies"`

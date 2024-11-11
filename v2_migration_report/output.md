@@ -44,6 +44,7 @@ run `go generate ./...` to refresh this report.
 | elasticache                      | :white_check_mark: |
 | elasticacheParameterGroups       | :white_check_mark: |
 | elasticacheSubnetGroups          | :white_check_mark: |
+| elasticcache-serverless          | :white_check_mark: |
 | elb                              | :white_check_mark: |
 | elbv2                            | :white_check_mark: |
 | event-bridge                     | :white_check_mark: |
@@ -51,6 +52,7 @@ run `go generate ./...` to refresh this report.
 | event-bridge-rule                | :white_check_mark: |
 | event-bridge-schedule            | :white_check_mark: |
 | event-bridge-schedule-group      | :white_check_mark: |
+| grafana                          | :white_check_mark: |
 | guardduty                        | :white_check_mark: |
 | iam                              | :white_check_mark: |
 | iam-group                        | :white_check_mark: |

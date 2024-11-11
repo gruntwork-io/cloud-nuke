@@ -34,11 +34,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.35.5
 	github.com/aws/aws-sdk-go-v2/service/firehose v1.35.0
+	github.com/aws/aws-sdk-go-v2/service/grafana v1.26.5
 	github.com/aws/aws-sdk-go-v2/service/guardduty v1.51.1
 	github.com/aws/aws-sdk-go-v2/service/iam v1.37.4
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.32.5
 	github.com/aws/aws-sdk-go-v2/service/kms v1.37.5
-	github.com/aws/aws-sdk-go-v2/service/lambda v1.65.0
+	github.com/aws/aws-sdk-go-v2/service/lambda v1.66.0
 	github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.5
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.5
 	github.com/aws/aws-sdk-go-v2/service/securityhub v1.54.6

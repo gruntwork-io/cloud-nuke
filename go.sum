@@ -87,6 +87,8 @@ github.com/aws/aws-sdk-go-v2/service/eventbridge v1.35.5 h1:O7UMjjX8eAM4eLs303Vr
 github.com/aws/aws-sdk-go-v2/service/eventbridge v1.35.5/go.mod h1:U1Wwh1TVfPHB8sbmBt3yqH2etdYERX1quammRvGWtXs=
 github.com/aws/aws-sdk-go-v2/service/firehose v1.35.0 h1:gMObW4IgUF4z8PxOb8efA/5P/chbjPc4XcTgDwZB/3g=
 github.com/aws/aws-sdk-go-v2/service/firehose v1.35.0/go.mod h1:eC8yjekJg1MXGYwFDX0tYIFnBMMvJVmwuAnrQ6A88IE=
+github.com/aws/aws-sdk-go-v2/service/grafana v1.26.5 h1:xgJiP0R7hXAO03rh9h8iupmMnb96rWM1dXG0ZKP8JCA=
+github.com/aws/aws-sdk-go-v2/service/grafana v1.26.5/go.mod h1:QOCIdJ0zLzzcUDbBNtFT+IrzFFHD0909mxlPdXh53lg=
 github.com/aws/aws-sdk-go-v2/service/guardduty v1.51.1 h1:nAK988z7ZsAYHZtVD8IYV1HVI3ZcE2atQCoBEO5xEQE=
 github.com/aws/aws-sdk-go-v2/service/guardduty v1.51.1/go.mod h1:ISU8hcBgCVmpZTUmD2ONSQO+0dGpIjyCU1r+yIy7ha0=
 github.com/aws/aws-sdk-go-v2/service/iam v1.37.4 h1:MrH2MJRzxPGXtavvL1JtDLFJzXN+4ObO090jzauqcPk=
@@ -101,8 +103,8 @@ github.com/aws/aws-sdk-go-v2/service/kinesis v1.32.5 h1:qlSo29NECbPML9fKL3RZ28XM
 github.com/aws/aws-sdk-go-v2/service/kinesis v1.32.5/go.mod h1:2/lI9/4ZEq+wLGLUpbo2LLGYfFv+HGOex3Iu67k7lvU=
 github.com/aws/aws-sdk-go-v2/service/kms v1.37.5 h1:5dQJ6Q5QrQOqZxXjSbRXukBqU8Pgu6Ro6Qqtyd8yiz4=
 github.com/aws/aws-sdk-go-v2/service/kms v1.37.5/go.mod h1:A9vfQcNHVBCE7ZZN6H+UUJpXtbH26Vv6L7Zhk5nIJAY=
-github.com/aws/aws-sdk-go-v2/service/lambda v1.65.0 h1:c4eYRkhqXsyoIQ4Z8e3E1fBmxOB3XnAfbYw0x+kyHdw=
-github.com/aws/aws-sdk-go-v2/service/lambda v1.65.0/go.mod h1:4L6vIpiChdahncljlDFzKWGiZsLgszGwDoYqMDhb6T4=
+github.com/aws/aws-sdk-go-v2/service/lambda v1.66.0 h1:jMqMB8t/xbJnDdr11kH5rKdAhoW2a3Nq3XxrkTp0gso=
+github.com/aws/aws-sdk-go-v2/service/lambda v1.66.0/go.mod h1:4L6vIpiChdahncljlDFzKWGiZsLgszGwDoYqMDhb6T4=
 github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.5 h1:WJZG9ajCzS93t5qgG3NqVJqJqvpab9frc+2OhEszF/s=
 github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.5/go.mod h1:uAeVP7yiKq1iECAGBsHgMzlUH77OIrmsA1CBmIIeCe4=
 github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.5 h1:iitjgZ+/+ICxhA4EBvT5sqKchDcTiKBSOy+Ow0N8M+U=
