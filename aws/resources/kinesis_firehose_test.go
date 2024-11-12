@@ -5,38 +5,34 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/firehose"
-	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedKinesisFirehose struct {
-	firehoseiface.FirehoseAPI
-	ListDeliveryStreamsOutput  firehose.ListDeliveryStreamsOutput
+	KinesisFirehoseAPI
 	DeleteDeliveryStreamOutput firehose.DeleteDeliveryStreamOutput
+	ListDeliveryStreamsOutput  firehose.ListDeliveryStreamsOutput
 }
 
-func (m mockedKinesisFirehose) ListDeliveryStreamsWithContext(aws.Context, *firehose.ListDeliveryStreamsInput, ...request.Option) (*firehose.ListDeliveryStreamsOutput, error) {
-	return &m.ListDeliveryStreamsOutput, nil
-}
-
-func (m mockedKinesisFirehose) DeleteDeliveryStreamWithContext(aws.Context, *firehose.DeleteDeliveryStreamInput, ...request.Option) (*firehose.DeleteDeliveryStreamOutput, error) {
+func (m mockedKinesisFirehose) DeleteDeliveryStream(ctx context.Context, params *firehose.DeleteDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DeleteDeliveryStreamOutput, error) {
 	return &m.DeleteDeliveryStreamOutput, nil
 }
 
+func (m mockedKinesisFirehose) ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error) {
+	return &m.ListDeliveryStreamsOutput, nil
+}
+
 func TestKinesisFirehoseStreams_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	testName1 := "stream1"
 	testName2 := "stream2"
 	ks := KinesisFirehose{
 		Client: mockedKinesisFirehose{
 			ListDeliveryStreamsOutput: firehose.ListDeliveryStreamsOutput{
-				DeliveryStreamNames: []*string{aws.String(testName1), aws.String(testName2)},
+				DeliveryStreamNames: []string{testName1, testName2},
 			},
 		},
 	}
@@ -65,16 +61,14 @@ func TestKinesisFirehoseStreams_GetAll(t *testing.T) {
 				KinesisFirehose: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
 }
 
 func TestKinesisFirehose_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	ks := KinesisFirehose{
 		Client: mockedKinesisFirehose{
 			DeleteDeliveryStreamOutput: firehose.DeleteDeliveryStreamOutput{},

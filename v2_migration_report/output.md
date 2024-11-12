@@ -27,12 +27,12 @@ run `go generate ./...` to refresh this report.
 | dynamodb                         | :white_check_mark: |
 | ebs                              | :white_check_mark: |
 | ec2                              |                    |
-| ec2-dedicated-hosts              |                    |
-| ec2-endpoint                     |                    |
-| ec2-keypairs                     |                    |
-| ec2-placement-groups             |                    |
+| ec2-dedicated-hosts              | :white_check_mark: |
+| ec2-endpoint                     | :white_check_mark: |
+| ec2-keypairs                     | :white_check_mark: |
+| ec2-placement-groups             | :white_check_mark: |
 | ec2-subnet                       |                    |
-| ec2_dhcp_option                  |                    |
+| ec2_dhcp_option                  | :white_check_mark: |
 | ecr                              | :white_check_mark: |
 | ecscluster                       | :white_check_mark: |
 | ecsserv                          | :white_check_mark: |
@@ -64,14 +64,14 @@ run `go generate ./...` to refresh this report.
 | ipam-pool                        |                    |
 | ipam-resource-discovery          |                    |
 | ipam-scope                       |                    |
-| kinesis-firehose                 |                    |
-| kinesis-stream                   |                    |
-| kmscustomerkeys                  |                    |
-| lambda                           |                    |
-| lambda_layer                     |                    |
+| kinesis-firehose                 | :white_check_mark: |
+| kinesis-stream                   | :white_check_mark: |
+| kmscustomerkeys                  | :white_check_mark: |
+| lambda                           | :white_check_mark: |
+| lambda_layer                     | :white_check_mark: |
 | lc                               |                    |
 | lt                               |                    |
-| macie-member                     |                    |
+| macie-member                     | :white_check_mark: |
 | managed-prometheus               | :white_check_mark: |
 | msk-cluster                      |                    |
 | nat-gateway                      |                    |

@@ -6,37 +6,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEc2VpcEndpoints struct {
-	BaseAwsResource
-	ec2iface.EC2API
-	DeleteVpcEndpointsOutput   ec2.DeleteVpcEndpointsOutput
+	EC2EndpointsAPI
 	DescribeVpcEndpointsOutput ec2.DescribeVpcEndpointsOutput
+	DeleteVpcEndpointsOutput   ec2.DeleteVpcEndpointsOutput
 }
 
-func (m mockedEc2VpcEndpoints) DescribeVpcEndpointsWithContext(_ awsgo.Context, _ *ec2.DescribeVpcEndpointsInput, _ ...request.Option) (*ec2.DescribeVpcEndpointsOutput, error) {
+func (m mockedEc2VpcEndpoints) DescribeVpcEndpoints(ctx context.Context, params *ec2.DescribeVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointsOutput, error) {
 	return &m.DescribeVpcEndpointsOutput, nil
 }
 
-func (m mockedEc2VpcEndpoints) DeleteVpcEndpoints(_ *ec2.DeleteVpcEndpointsInput) (*ec2.DeleteVpcEndpointsOutput, error) {
-	return &m.DeleteVpcEndpointsOutput, nil
-}
-
-func (m mockedEc2VpcEndpoints) DeleteVpcEndpointsWithContext(_ awsgo.Context, _ *ec2.DeleteVpcEndpointsInput, _ ...request.Option) (*ec2.DeleteVpcEndpointsOutput, error) {
+func (m mockedEc2VpcEndpoints) DeleteVpcEndpoints(ctx context.Context, params *ec2.DeleteVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcEndpointsOutput, error) {
 	return &m.DeleteVpcEndpointsOutput, nil
 }
 
 func TestVcpEndpoint_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	// Set excludeFirstSeenTag to false for testing
@@ -53,10 +45,10 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 	vpcEndpoint := EC2Endpoints{
 		Client: mockedEc2VpcEndpoints{
 			DescribeVpcEndpointsOutput: ec2.DescribeVpcEndpointsOutput{
-				VpcEndpoints: []*ec2.VpcEndpoint{
+				VpcEndpoints: []types.VpcEndpoint{
 					{
 						VpcEndpointId: aws.String(endpoint1),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName1),
@@ -68,7 +60,7 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 					},
 					{
 						VpcEndpointId: aws.String(endpoint2),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName2),
@@ -127,16 +119,13 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 				EC2Endpoint: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
 func TestEc2Endpoints_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	var (
 		endpoint1 = "vpce-0b201b2dcd4f77a2f001"
 		endpoint2 = "vpce-0b201b2dcd4f77a2f002"
@@ -151,7 +140,7 @@ func TestEc2Endpoints_NukeAll(t *testing.T) {
 		},
 		Client: mockedEc2VpcEndpoints{
 			DescribeVpcEndpointsOutput: ec2.DescribeVpcEndpointsOutput{
-				VpcEndpoints: []*ec2.VpcEndpoint{
+				VpcEndpoints: []types.VpcEndpoint{
 					{
 						VpcEndpointId: aws.String(endpoint1),
 					},

@@ -3,10 +3,8 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/aws/aws-sdk-go/service/kms/kmsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -15,17 +13,27 @@ import (
 // must be between 7 and 30, inclusive
 const kmsRemovalWindow = 7
 
+type KmsCustomerKeysAPI interface {
+	ListKeys(ctx context.Context, params *kms.ListKeysInput, optFns ...func(*kms.Options)) (*kms.ListKeysOutput, error)
+	ListAliases(ctx context.Context, params *kms.ListAliasesInput, optFns ...func(*kms.Options)) (*kms.ListAliasesOutput, error)
+	DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error)
+	DeleteAlias(ctx context.Context, params *kms.DeleteAliasInput, optFns ...func(*kms.Options)) (*kms.DeleteAliasOutput, error)
+	ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error)
+}
+
 type KmsCustomerKeys struct {
 	BaseAwsResource
-	Client     kmsiface.KMSAPI
+	Client     KmsCustomerKeysAPI
 	Region     string
 	KeyIds     []string
 	KeyAliases map[string][]string
 }
 
-func (kck *KmsCustomerKeys) Init(session *session.Session) {
-	kck.Client = kms.New(session)
+func (kck *KmsCustomerKeys) InitV2(cfg aws.Config) {
+	kck.Client = kms.NewFromConfig(cfg)
 }
+
+func (kck *KmsCustomerKeys) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (kck *KmsCustomerKeys) ResourceName() string {
@@ -48,13 +56,13 @@ func (kck *KmsCustomerKeys) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	kck.KeyIds = awsgo.StringValueSlice(identifiers)
+	kck.KeyIds = aws.ToStringSlice(identifiers)
 	return kck.KeyIds, nil
 }
 
 // Nuke - remove all customer managed keys
 func (kck *KmsCustomerKeys) Nuke(keyIds []string) error {
-	if err := kck.nukeAll(awsgo.StringSlice(keyIds)); err != nil {
+	if err := kck.nukeAll(aws.StringSlice(keyIds)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

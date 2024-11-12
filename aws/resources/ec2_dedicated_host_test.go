@@ -7,33 +7,28 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEC2DedicatedHosts struct {
-	ec2iface.EC2API
-	DescribeHostsPagesOutput ec2.DescribeHostsOutput
-	ReleaseHostsOutput       ec2.ReleaseHostsOutput
+	EC2DedicatedHostsAPI
+	DescribeHostsOutput ec2.DescribeHostsOutput
+	ReleaseHostsOutput  ec2.ReleaseHostsOutput
 }
 
-func (m mockedEC2DedicatedHosts) DescribeHostsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeHostsInput, fn func(*ec2.DescribeHostsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.DescribeHostsPagesOutput, true)
-	return nil
+func (m mockedEC2DedicatedHosts) DescribeHosts(ctx context.Context, params *ec2.DescribeHostsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeHostsOutput, error) {
+	return &m.DescribeHostsOutput, nil
 }
 
-func (m mockedEC2DedicatedHosts) ReleaseHostsWithContext(_ awsgo.Context, _ *ec2.ReleaseHostsInput, _ ...request.Option) (*ec2.ReleaseHostsOutput, error) {
+func (m mockedEC2DedicatedHosts) ReleaseHosts(ctx context.Context, params *ec2.ReleaseHostsInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseHostsOutput, error) {
 	return &m.ReleaseHostsOutput, nil
 }
 
 func TestEC2DedicatedHosts_GetAll(t *testing.T) {
-
 	t.Parallel()
-
 	testId1 := "test-host-id-1"
 	testId2 := "test-host-id-2"
 	testName1 := "test-host-name-1"
@@ -41,27 +36,27 @@ func TestEC2DedicatedHosts_GetAll(t *testing.T) {
 	now := time.Now()
 	h := EC2DedicatedHosts{
 		Client: mockedEC2DedicatedHosts{
-			DescribeHostsPagesOutput: ec2.DescribeHostsOutput{
-				Hosts: []*ec2.Host{
+			DescribeHostsOutput: ec2.DescribeHostsOutput{
+				Hosts: []types.Host{
 					{
-						HostId: awsgo.String(testId1),
-						Tags: []*ec2.Tag{
+						HostId: aws.String(testId1),
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 						},
-						AllocationTime: awsgo.Time(now),
+						AllocationTime: aws.Time(now),
 					},
 					{
-						HostId: awsgo.String(testId2),
-						Tags: []*ec2.Tag{
+						HostId: aws.String(testId2),
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 						},
-						AllocationTime: awsgo.Time(now.Add(1)),
+						AllocationTime: aws.Time(now.Add(1)),
 					},
 				},
 			},
@@ -99,22 +94,20 @@ func TestEC2DedicatedHosts_GetAll(t *testing.T) {
 				EC2DedicatedHosts: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
 }
 
 func TestEC2DedicatedHosts_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	h := EC2DedicatedHosts{
 		Client: mockedEC2DedicatedHosts{
 			ReleaseHostsOutput: ec2.ReleaseHostsOutput{},
 		},
 	}
 
-	err := h.nukeAll([]*string{awsgo.String("test-host-id-1"), awsgo.String("test-host-id-2")})
+	err := h.nukeAll([]*string{aws.String("test-host-id-1"), aws.String("test-host-id-2")})
 	require.NoError(t, err)
 }

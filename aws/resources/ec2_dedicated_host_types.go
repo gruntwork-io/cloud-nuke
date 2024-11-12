@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EC2DedicatedHostsAPI interface {
+	DescribeHosts(ctx context.Context, params *ec2.DescribeHostsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeHostsOutput, error)
+	ReleaseHosts(ctx context.Context, params *ec2.ReleaseHostsInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseHostsOutput, error)
+}
+
 // EC2DedicatedHosts - represents all host allocation IDs
 type EC2DedicatedHosts struct {
 	BaseAwsResource
-	Client  ec2iface.EC2API
+	Client  EC2DedicatedHostsAPI
 	Region  string
 	HostIds []string
 }
 
-func (h *EC2DedicatedHosts) Init(session *session.Session) {
-	h.Client = ec2.New(session)
+func (h *EC2DedicatedHosts) InitV2(cfg aws.Config) {
+	h.Client = ec2.NewFromConfig(cfg)
 }
+
+func (h *EC2DedicatedHosts) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (h *EC2DedicatedHosts) ResourceName() string {
@@ -48,13 +53,13 @@ func (h *EC2DedicatedHosts) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	h.HostIds = awsgo.StringValueSlice(identifiers)
+	h.HostIds = aws.ToStringSlice(identifiers)
 	return h.HostIds, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (h *EC2DedicatedHosts) Nuke(identifiers []string) error {
-	if err := h.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := h.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

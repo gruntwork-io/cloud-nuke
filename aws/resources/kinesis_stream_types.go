@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type KinesisStreamsAPI interface {
+	ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error)
+	DeleteStream(ctx context.Context, params *kinesis.DeleteStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DeleteStreamOutput, error)
+}
+
 // KinesisStreams - represents all Kinesis streams
 type KinesisStreams struct {
 	BaseAwsResource
-	Client kinesisiface.KinesisAPI
+	Client KinesisStreamsAPI
 	Region string
 	Names  []string
 }
 
-func (ks *KinesisStreams) Init(session *session.Session) {
-	ks.Client = kinesis.New(session)
+func (ks *KinesisStreams) InitV2(cfg aws.Config) {
+	ks.Client = kinesis.NewFromConfig(cfg)
 }
+
+func (ks *KinesisStreams) IsUsingV2() bool { return true }
 
 // ResourceName - The simple name of the AWS resource
 func (ks *KinesisStreams) ResourceName() string {
@@ -50,7 +55,7 @@ func (ks *KinesisStreams) GetAndSetIdentifiers(c context.Context, configObj conf
 		return nil, err
 	}
 
-	ks.Names = aws.StringValueSlice(identifiers)
+	ks.Names = aws.ToStringSlice(identifiers)
 	return ks.Names, nil
 }
 

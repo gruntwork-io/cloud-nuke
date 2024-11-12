@@ -945,3 +945,53 @@ func nukeEc2Instances(client ec2iface.EC2API, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Successfully deleted instances for %s", vpcID))
 	return nil
 }
+
+func waitForVPCEndpointToBeDeleted(client ec2iface.EC2API, vpcID string) error {
+	return retry.DoWithRetry(
+		logging.Logger.WithTime(time.Now()),
+		"Waiting for all VPC endpoints to be deleted",
+		10,
+		2*time.Second,
+		func() error {
+			endpoints, err := client.DescribeVpcEndpoints(
+				&ec2.DescribeVpcEndpointsInput{
+					Filters: []*ec2.Filter{
+						{
+							Name:   awsgo.String("vpc-id"),
+							Values: []*string{awsgo.String(vpcID)},
+						},
+						{
+							Name:   awsgo.String("vpc-endpoint-state"),
+							Values: []*string{awsgo.String("deleting")},
+						},
+					},
+				},
+			)
+			if err != nil {
+				return err
+			}
+
+			if len(endpoints.VpcEndpoints) == 0 {
+				return nil
+			}
+			return fmt.Errorf("not all VPC endpoints deleted")
+		},
+	)
+}
+
+func nukeVpcEndpoint(client ec2iface.EC2API, endpointIds []*string) error {
+	logging.Debugf("Deleting VPC endpoints %s", awsgo.StringValueSlice(endpointIds))
+
+	_, err := client.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
+		VpcEndpointIds: endpointIds,
+	})
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Failed to delete VPC endpoints: %s", err.Error()))
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debug(fmt.Sprintf("Successfully deleted VPC endpoints %s",
+		awsgo.StringValueSlice(endpointIds)))
+
+	return nil
+}

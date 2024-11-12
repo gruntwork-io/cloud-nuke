@@ -4,53 +4,47 @@ import (
 	"context"
 	"testing"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEC2DhcpOption struct {
-	ec2iface.EC2API
-	DescribeDhcpOptionsOutput  ec2.DescribeDhcpOptionsOutput
-	DeleteDhcpOptionsOutput    ec2.DeleteDhcpOptionsOutput
-	DescribeVpcsOutput         ec2.DescribeVpcsOutput
+	EC2DhcpOptionAPI
 	AssociateDhcpOptionsOutput ec2.AssociateDhcpOptionsOutput
+	DescribeDhcpOptionsOutput  ec2.DescribeDhcpOptionsOutput
+	DescribeVpcsOutput         ec2.DescribeVpcsOutput
+	DeleteDhcpOptionsOutput    ec2.DeleteDhcpOptionsOutput
 }
 
-func (m mockedEC2DhcpOption) DescribeDhcpOptionsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeDhcpOptionsInput, fn func(*ec2.DescribeDhcpOptionsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.DescribeDhcpOptionsOutput, true)
-	return nil
-}
-
-func (m mockedEC2DhcpOption) DeleteDhcpOptions(_ *ec2.DeleteDhcpOptionsInput) (*ec2.DeleteDhcpOptionsOutput, error) {
-	return &m.DeleteDhcpOptionsOutput, nil
-}
-
-func (m mockedEC2DhcpOption) DeleteDhcpOptionsWithContext(_ awsgo.Context, _ *ec2.DeleteDhcpOptionsInput, _ ...request.Option) (*ec2.DeleteDhcpOptionsOutput, error) {
-	return &m.DeleteDhcpOptionsOutput, nil
-}
-
-func (m mockedEC2DhcpOption) DescribeVpcsWithContext(awsgo.Context, *ec2.DescribeVpcsInput, ...request.Option) (*ec2.DescribeVpcsOutput, error) {
-	return &m.DescribeVpcsOutput, nil
-}
-func (m mockedEC2DhcpOption) AssociateDhcpOptionsWithContext(awsgo.Context, *ec2.AssociateDhcpOptionsInput, ...request.Option) (*ec2.AssociateDhcpOptionsOutput, error) {
+func (m mockedEC2DhcpOption) AssociateDhcpOptions(ctx context.Context, params *ec2.AssociateDhcpOptionsInput, optFns ...func(*ec2.Options)) (*ec2.AssociateDhcpOptionsOutput, error) {
 	return &m.AssociateDhcpOptionsOutput, nil
 }
 
-func TestEC2DhcpOption_GetAll(t *testing.T) {
+func (m mockedEC2DhcpOption) DescribeDhcpOptions(ctx context.Context, params *ec2.DescribeDhcpOptionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeDhcpOptionsOutput, error) {
+	return &m.DescribeDhcpOptionsOutput, nil
+}
 
+func (m mockedEC2DhcpOption) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
+	return &m.DescribeVpcsOutput, nil
+}
+
+func (m mockedEC2DhcpOption) DeleteDhcpOptions(ctx context.Context, params *ec2.DeleteDhcpOptionsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteDhcpOptionsOutput, error) {
+	return &m.DeleteDhcpOptionsOutput, nil
+}
+
+func TestEC2DhcpOption_GetAll(t *testing.T) {
 	t.Parallel()
 
 	testId1 := "test-id-1"
 	h := EC2DhcpOption{
 		Client: mockedEC2DhcpOption{
 			DescribeDhcpOptionsOutput: ec2.DescribeDhcpOptionsOutput{
-				DhcpOptions: []*ec2.DhcpOptions{
+				DhcpOptions: []types.DhcpOptions{
 					{
-						DhcpOptionsId: awsgo.String(testId1),
+						DhcpOptionsId: aws.String(testId1),
 					},
 				},
 			},
@@ -72,22 +66,19 @@ func TestEC2DhcpOption_GetAll(t *testing.T) {
 				EC2DedicatedHosts: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
 func TestEC2DhcpOption_NukeAll(t *testing.T) {
-
 	t.Parallel()
-
 	h := EC2DhcpOption{
 		Client: mockedEC2DhcpOption{
 			DeleteDhcpOptionsOutput: ec2.DeleteDhcpOptionsOutput{},
 		},
 	}
 
-	err := h.nukeAll([]*string{awsgo.String("test-id-1"), awsgo.String("test-id-2")})
+	err := h.nukeAll([]*string{aws.String("test-id-1"), aws.String("test-id-2")})
 	require.NoError(t, err)
 }

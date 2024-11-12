@@ -5,31 +5,27 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedKinesisClient struct {
-	kinesisiface.KinesisAPI
+	KinesisStreamsAPI
 	ListStreamsOutput  kinesis.ListStreamsOutput
 	DeleteStreamOutput kinesis.DeleteStreamOutput
 }
 
-func (m mockedKinesisClient) ListStreamsPagesWithContext(_ aws.Context, input *kinesis.ListStreamsInput, fn func(*kinesis.ListStreamsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListStreamsOutput, true)
-	return nil
+func (m mockedKinesisClient) ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error) {
+	return &m.ListStreamsOutput, nil
 }
 
-func (m mockedKinesisClient) DeleteStreamWithContext(_ aws.Context, input *kinesis.DeleteStreamInput, _ ...request.Option) (*kinesis.DeleteStreamOutput, error) {
+func (m mockedKinesisClient) DeleteStream(ctx context.Context, params *kinesis.DeleteStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DeleteStreamOutput, error) {
 	return &m.DeleteStreamOutput, nil
 }
 
 func TestKinesisStreams_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "stream1"
@@ -37,7 +33,7 @@ func TestKinesisStreams_GetAll(t *testing.T) {
 	ks := KinesisStreams{
 		Client: mockedKinesisClient{
 			ListStreamsOutput: kinesis.ListStreamsOutput{
-				StreamNames: []*string{aws.String(testName1), aws.String(testName2)},
+				StreamNames: []string{testName1, testName2},
 			},
 		},
 	}
@@ -66,14 +62,13 @@ func TestKinesisStreams_GetAll(t *testing.T) {
 				KinesisStream: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
 }
 
 func TestKinesisStreams_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	ks := KinesisStreams{

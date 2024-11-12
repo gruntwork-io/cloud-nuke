@@ -3,26 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Ec2Endpoint - represents all ec2 endpoints
+type EC2EndpointsAPI interface {
+	DescribeVpcEndpoints(ctx context.Context, params *ec2.DescribeVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointsOutput, error)
+	DeleteVpcEndpoints(ctx context.Context, params *ec2.DeleteVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcEndpointsOutput, error)
+}
+
+// EC2Endpoints - represents all ec2 endpoints
 type EC2Endpoints struct {
 	BaseAwsResource
-	Client    ec2iface.EC2API
+	Client    EC2EndpointsAPI
 	Region    string
 	Endpoints []string
 }
 
-func (e *EC2Endpoints) Init(session *session.Session) {
-	e.BaseAwsResource.Init(session)
-	e.Client = ec2.New(session)
+func (e *EC2Endpoints) InitV2(cfg aws.Config) {
+	e.Client = ec2.NewFromConfig(cfg)
 }
+
+func (e *EC2Endpoints) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (e *EC2Endpoints) ResourceName() string {
@@ -34,7 +38,6 @@ func (e *EC2Endpoints) MaxBatchSize() int {
 	return 49
 }
 
-// ResourceIdentifiers
 func (e *EC2Endpoints) ResourceIdentifiers() []string {
 	return e.Endpoints
 }
@@ -49,13 +52,13 @@ func (e *EC2Endpoints) GetAndSetIdentifiers(c context.Context, configObj config.
 		return nil, err
 	}
 
-	e.Endpoints = awsgo.StringValueSlice(identifiers)
+	e.Endpoints = aws.ToStringSlice(identifiers)
 	return e.Endpoints, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (e *EC2Endpoints) Nuke(identifiers []string) error {
-	if err := e.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := e.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

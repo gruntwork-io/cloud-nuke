@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/firehose"
-	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type KinesisFirehoseAPI interface {
+	DeleteDeliveryStream(ctx context.Context, params *firehose.DeleteDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DeleteDeliveryStreamOutput, error)
+	ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error)
+}
+
 type KinesisFirehose struct {
 	BaseAwsResource
-	Client firehoseiface.FirehoseAPI
+	Client KinesisFirehoseAPI
 	Region string
 	Names  []string
 }
 
-func (kf *KinesisFirehose) Init(session *session.Session) {
-	kf.Client = firehose.New(session)
+func (kf *KinesisFirehose) InitV2(cfg aws.Config) {
+	kf.Client = firehose.NewFromConfig(cfg)
 }
+
+func (kf *KinesisFirehose) IsUsingV2() bool { return true }
 
 // ResourceName - The simple name of the AWS resource
 func (kf *KinesisFirehose) ResourceName() string {
@@ -49,7 +54,7 @@ func (kf *KinesisFirehose) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	kf.Names = aws.StringValueSlice(identifiers)
+	kf.Names = aws.ToStringSlice(identifiers)
 	return kf.Names, nil
 }
 

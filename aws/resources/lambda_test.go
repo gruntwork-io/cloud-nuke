@@ -6,31 +6,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedLambda struct {
-	lambdaiface.LambdaAPI
-	ListFunctionsOutput  lambda.ListFunctionsOutput
+	LambdaFunctionsAPI
 	DeleteFunctionOutput lambda.DeleteFunctionOutput
+	ListFunctionsOutput  lambda.ListFunctionsOutput
 }
 
-func (m mockedLambda) ListFunctionsPagesWithContext(_ aws.Context, input *lambda.ListFunctionsInput, fn func(*lambda.ListFunctionsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListFunctionsOutput, true)
-	return nil
-}
-
-func (m mockedLambda) DeleteFunctionWithContext(_ aws.Context, input *lambda.DeleteFunctionInput, _ ...request.Option) (*lambda.DeleteFunctionOutput, error) {
+func (m mockedLambda) DeleteFunction(ctx context.Context, params *lambda.DeleteFunctionInput, optFns ...func(*lambda.Options)) (*lambda.DeleteFunctionOutput, error) {
 	return &m.DeleteFunctionOutput, nil
 }
 
-func TestLambdaFunction_GetAll(t *testing.T) {
+func (m mockedLambda) ListFunctions(ctx context.Context, params *lambda.ListFunctionsInput, optFns ...func(*lambda.Options)) (*lambda.ListFunctionsOutput, error) {
+	return &m.ListFunctionsOutput, nil
+}
 
+func TestLambdaFunction_GetAll(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-lambda-function1"
@@ -45,7 +42,7 @@ func TestLambdaFunction_GetAll(t *testing.T) {
 	lf := LambdaFunctions{
 		Client: mockedLambda{
 			ListFunctionsOutput: lambda.ListFunctionsOutput{
-				Functions: []*lambda.FunctionConfiguration{
+				Functions: []types.FunctionConfiguration{
 					{
 						FunctionName: aws.String(testName1),
 						LastModified: aws.String(testTimeStr),
@@ -90,13 +87,12 @@ func TestLambdaFunction_GetAll(t *testing.T) {
 				LambdaFunction: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 func TestLambdaFunction_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	lf := LambdaFunctions{
