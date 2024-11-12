@@ -6,37 +6,34 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
-	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
+// mockedSecretsManager simulates the SecretsManagerSecretsAPI interface for testing purposes.
 type mockedSecretsManager struct {
-	secretsmanageriface.SecretsManagerAPI
 	ListSecretsOutput                  secretsmanager.ListSecretsOutput
 	DescribeSecretOutput               secretsmanager.DescribeSecretOutput
 	DeleteSecretOutput                 secretsmanager.DeleteSecretOutput
 	RemoveRegionsFromReplicationOutput secretsmanager.RemoveRegionsFromReplicationOutput
 }
 
-func (m mockedSecretsManager) ListSecretsPagesWithContext(_ awsgo.Context, _ *secretsmanager.ListSecretsInput, fn func(*secretsmanager.ListSecretsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListSecretsOutput, true)
-	return nil
+func (m mockedSecretsManager) ListSecrets(ctx context.Context, params *secretsmanager.ListSecretsInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error) {
+	return &m.ListSecretsOutput, nil
 }
 
-func (m mockedSecretsManager) DescribeSecretWithContext(_ awsgo.Context, _ *secretsmanager.DescribeSecretInput, _ ...request.Option) (*secretsmanager.DescribeSecretOutput, error) {
+func (m mockedSecretsManager) DescribeSecret(ctx context.Context, params *secretsmanager.DescribeSecretInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.DescribeSecretOutput, error) {
 	return &m.DescribeSecretOutput, nil
 }
 
-func (m mockedSecretsManager) DeleteSecretWithContext(_ awsgo.Context, _ *secretsmanager.DeleteSecretInput, _ ...request.Option) (*secretsmanager.DeleteSecretOutput, error) {
+func (m mockedSecretsManager) DeleteSecret(ctx context.Context, params *secretsmanager.DeleteSecretInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.DeleteSecretOutput, error) {
 	return &m.DeleteSecretOutput, nil
 }
 
-func (m mockedSecretsManager) RemoveRegionsFromReplicationWithContext(_ awsgo.Context, _ *secretsmanager.RemoveRegionsFromReplicationInput, _ ...request.Option) (*secretsmanager.RemoveRegionsFromReplicationOutput, error) {
+func (m mockedSecretsManager) RemoveRegionsFromReplication(ctx context.Context, params *secretsmanager.RemoveRegionsFromReplicationInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.RemoveRegionsFromReplicationOutput, error) {
 	return &m.RemoveRegionsFromReplicationOutput, nil
 }
 
@@ -52,7 +49,7 @@ func TestSecretsManagerSecrets_GetAll(t *testing.T) {
 	sms := SecretsManagerSecrets{
 		Client: mockedSecretsManager{
 			ListSecretsOutput: secretsmanager.ListSecretsOutput{
-				SecretList: []*secretsmanager.SecretListEntry{
+				SecretList: []types.SecretListEntry{
 					{
 						Name:        aws.String(testName1),
 						ARN:         aws.String(testArn1),
@@ -93,13 +90,14 @@ func TestSecretsManagerSecrets_GetAll(t *testing.T) {
 			expected: []string{},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			names, err := sms.getAll(context.Background(), config.Config{
 				SecretsManagerSecrets: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
