@@ -52,13 +52,14 @@ func (bucket *S3Buckets) getS3BucketTags(bucketName string) (map[string]string, 
 	// Please note that svc argument should be created from a session object which is
 	// in the same region as the bucket or GetBucketTagging will fail.
 	result, err := bucket.Client.GetBucketTagging(bucket.Context, input)
-
-	var apiErr *smithy.OperationError
-	if goerr.As(err, &apiErr) {
-		if strings.Contains(apiErr.Error(), "NoSuchTagSet: The TagSet does not exist") {
-			return nil, nil
+	if err != nil {
+		var apiErr *smithy.OperationError
+		if goerr.As(err, &apiErr) {
+			if strings.Contains(apiErr.Error(), "NoSuchTagSet: The TagSet does not exist") {
+				return nil, nil
+			}
+			return nil, err
 		}
-		return nil, err
 	}
 
 	return util.ConvertS3TypesTagsToMap(result.TagSet), nil
