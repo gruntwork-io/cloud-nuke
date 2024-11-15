@@ -2,10 +2,10 @@ package resources
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -20,13 +20,13 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 	// Since the output of this function is used to delete the returned snapshots
 	// We only want to list EBS Snapshots with a status of "completed"
 	// Since that is the only status that is eligible for deletion
-	status_filter := ec2.Filter{Name: awsgo.String("status"), Values: aws.StringSlice([]string{"completed", "error"})}
+	statusFilter := types.Filter{Name: aws.String("status"), Values: []string{"completed", "error"}}
 	params := &ec2.DescribeSnapshotsInput{
-		OwnerIds: []*string{awsgo.String("self")},
-		Filters:  []*ec2.Filter{&status_filter},
+		OwnerIds: []string{"self"},
+		Filters:  []types.Filter{statusFilter},
 	}
 
-	output, err := s.Client.DescribeSnapshotsWithContext(s.Context, params)
+	output, err := s.Client.DescribeSnapshots(s.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -35,7 +35,7 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 	for _, snapshot := range output.Snapshots {
 		if configObj.Snapshots.ShouldInclude(config.ResourceValue{
 			Time: snapshot.StartTime,
-			Tags: util.ConvertEC2TagsToMap(snapshot.Tags),
+			Tags: util.ConvertTypesTagsToMap(snapshot.Tags),
 		}) && !SnapshotHasAWSBackupTag(snapshot.Tags) {
 			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
 		}
@@ -43,9 +43,9 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 
 	// checking the nukable permissions
 	s.VerifyNukablePermissions(snapshotIds, func(id *string) error {
-		_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
+		_, err := s.Client.DeleteSnapshot(s.Context, &ec2.DeleteSnapshotInput{
 			SnapshotId: id,
-			DryRun:     awsgo.Bool(true),
+			DryRun:     aws.Bool(true),
 		})
 		return err
 	})
@@ -53,14 +53,14 @@ func (s *Snapshots) getAll(c context.Context, configObj config.Config) ([]*strin
 	return snapshotIds, nil
 }
 
-// Check if the image has an AWS Backup tag
+// SnapshotHasAWSBackupTag Check if the image has an AWS Backup tag
 // Resources created by AWS Backup are listed as owned by self, but are actually
 // AWS managed resources and cannot be deleted here.
-func SnapshotHasAWSBackupTag(tags []*ec2.Tag) bool {
+func SnapshotHasAWSBackupTag(tags []types.Tag) bool {
 	t := make(map[string]string)
 
 	for _, v := range tags {
-		t[awsgo.StringValue(v.Key)] = awsgo.StringValue(v.Value)
+		t[aws.ToString(v.Key)] = aws.ToString(v.Value)
 	}
 
 	if _, ok := t["aws:backup:source-resource"]; ok {
@@ -83,7 +83,7 @@ func (s *Snapshots) nuke(id *string) error {
 }
 
 func (s *Snapshots) nukeSnapshot(snapshotID *string) error {
-	_, err := s.Client.DeleteSnapshotWithContext(s.Context, &ec2.DeleteSnapshotInput{
+	_, err := s.Client.DeleteSnapshot(s.Context, &ec2.DeleteSnapshotInput{
 		SnapshotId: snapshotID,
 	})
 	return err
@@ -91,34 +91,34 @@ func (s *Snapshots) nukeSnapshot(snapshotID *string) error {
 
 // nuke AMI which created from the snapshot
 func (s *Snapshots) nukeAMI(snapshotID *string) error {
-	logging.Debugf("De-registering images for snapshot: %s", awsgo.StringValue(snapshotID))
+	logging.Debugf("De-registering images for snapshot: %s", aws.ToString(snapshotID))
 
-	output, err := s.Client.DescribeImagesWithContext(s.Context, &ec2.DescribeImagesInput{
-		Filters: []*ec2.Filter{
+	output, err := s.Client.DescribeImages(s.Context, &ec2.DescribeImagesInput{
+		Filters: []types.Filter{
 			{
-				Name:   awsgo.String("block-device-mapping.snapshot-id"),
-				Values: []*string{snapshotID},
+				Name:   aws.String("block-device-mapping.snapshot-id"),
+				Values: []string{aws.ToString(snapshotID)},
 			},
 		},
 	})
 
 	if err != nil {
-		logging.Debugf("[Describe Images] Failed to describe images for snapshot: %s", awsgo.StringValue(snapshotID))
+		logging.Debugf("[Describe Images] Failed to describe images for snapshot: %s", aws.ToString(snapshotID))
 		return err
 	}
 
 	for _, image := range output.Images {
-		_, err := s.Client.DeregisterImageWithContext(s.Context, &ec2.DeregisterImageInput{
+		_, err := s.Client.DeregisterImage(s.Context, &ec2.DeregisterImageInput{
 			ImageId: image.ImageId,
 		})
 
 		if err != nil {
-			logging.Debugf("[Failed] de-registering image %v for snapshot: %s", awsgo.StringValue(image.ImageId), awsgo.StringValue(snapshotID))
+			logging.Debugf("[Failed] de-registering image %v for snapshot: %s", aws.ToString(image.ImageId), aws.ToString(snapshotID))
 			return err
 		}
 	}
 
-	logging.Debugf("[Ok] De-registered all the images for snapshot: %s", awsgo.StringValue(snapshotID))
+	logging.Debugf("[Ok] De-registered all the images for snapshot: %s", aws.ToString(snapshotID))
 
 	return nil
 }
@@ -136,8 +136,8 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 
 	for _, snapshotID := range snapshotIds {
 
-		if nukable, reason := s.IsNukable(awsgo.StringValue(snapshotID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(snapshotID), reason)
+		if nukable, reason := s.IsNukable(aws.ToString(snapshotID)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(snapshotID), reason)
 			continue
 		}
 
@@ -145,7 +145,7 @@ func (s *Snapshots) nukeAll(snapshotIds []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(snapshotID),
+			Identifier:   aws.ToString(snapshotID),
 			ResourceType: "EBS Snapshot",
 			Error:        err,
 		}

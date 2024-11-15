@@ -111,7 +111,7 @@ run `go generate ./...` to refresh this report.
 | ses-identity                     | :white_check_mark: |
 | ses-receipt-filter               | :white_check_mark: |
 | ses-receipt-rule-set             | :white_check_mark: |
-| snap                             |                    |
+| snap                             | :white_check_mark: |
 | snstopic                         | :white_check_mark: |
 | sqs                              | :white_check_mark: |
 | transit-gateway                  | :white_check_mark: |

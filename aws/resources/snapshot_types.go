@@ -2,33 +2,40 @@ package resources
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type SnapshotAPI interface {
+	DeleteSnapshot(ctx context.Context, params *ec2.DeleteSnapshotInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSnapshotOutput, error)
+	DeregisterImage(ctx context.Context, params *ec2.DeregisterImageInput, optFns ...func(*ec2.Options)) (*ec2.DeregisterImageOutput, error)
+	DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)
+	DescribeSnapshots(ctx context.Context, params *ec2.DescribeSnapshotsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSnapshotsOutput, error)
+}
+
 // Snapshots - represents all user owned Snapshots
 type Snapshots struct {
 	BaseAwsResource
-	Client      ec2iface.EC2API
+	Client      SnapshotAPI
 	Region      string
 	SnapshotIds []string
 }
 
-func (s *Snapshots) Init(session *session.Session) {
-	s.Client = ec2.New(session)
+func (s *Snapshots) InitV2(cfg aws.Config) {
+	s.Client = ec2.NewFromConfig(cfg)
 }
+
+func (s *Snapshots) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (s *Snapshots) ResourceName() string {
 	return "snap"
 }
 
-// ResourceIdentifiers - The Snapshot snapshot ids
+// ResourceIdentifiers - The Snapshot ids
 func (s *Snapshots) ResourceIdentifiers() []string {
 	return s.SnapshotIds
 }
@@ -48,13 +55,13 @@ func (s *Snapshots) GetAndSetIdentifiers(c context.Context, configObj config.Con
 		return nil, err
 	}
 
-	s.SnapshotIds = awsgo.StringValueSlice(identifiers)
+	s.SnapshotIds = aws.ToStringSlice(identifiers)
 	return s.SnapshotIds, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (s *Snapshots) Nuke(identifiers []string) error {
-	if err := s.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := s.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
