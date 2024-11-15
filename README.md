@@ -444,7 +444,8 @@ func main() {
 
 You can also specify which resources to terminate with more granularity via using config files. The config file is a
 YAML file that specifies which resources to terminate. The top level keys of the config file are the resource types, and
-the values are the rules for which resources to terminate.
+the values are the rules for which resources to terminate. See [examples folder](./config/examples) for more reference.
+
 
 ### Filtering Features
 

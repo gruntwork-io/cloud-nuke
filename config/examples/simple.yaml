@@ -1,0 +1,8 @@
+# exclude s3 object that match `object.1*` but include anything else that match `object.*`
+s3:
+  include:
+    names_regex:
+    - object.*
+  exclude:
+    names_regex:
+    - object.1*
