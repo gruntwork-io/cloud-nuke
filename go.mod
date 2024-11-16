@@ -41,6 +41,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kms v1.37.5
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.66.0
 	github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.5
+	github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.0
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.5
 	github.com/aws/aws-sdk-go-v2/service/securityhub v1.54.6
 	github.com/aws/aws-sdk-go-v2/service/ses v1.28.4

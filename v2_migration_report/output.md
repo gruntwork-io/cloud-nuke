@@ -85,7 +85,7 @@ run `go generate ./...` to refresh this report.
 | network-firewall-tls-config      |                    |
 | network-interface                |                    |
 | oidcprovider                     |                    |
-| opensearchdomain                 |                    |
+| opensearchdomain                 | :white_check_mark: |
 | rds                              |                    |
 | rds-cluster                      |                    |
 | rds-global-cluster               |                    |
