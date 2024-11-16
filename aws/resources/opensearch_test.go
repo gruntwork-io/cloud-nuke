@@ -6,37 +6,36 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/opensearchservice"
-	"github.com/aws/aws-sdk-go/service/opensearchservice/opensearchserviceiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/opensearch"
+	"github.com/aws/aws-sdk-go-v2/service/opensearch/types"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedOpenSearch struct {
-	opensearchserviceiface.OpenSearchServiceAPI
-	ListDomainNamesOutput opensearchservice.ListDomainNamesOutput
-	DescribeDomainsOutput opensearchservice.DescribeDomainsOutput
-	ListTagsOutput        opensearchservice.ListTagsOutput
-	DeleteDomainOutput    opensearchservice.DeleteDomainOutput
+	OpenSearchDomainsAPI
+	ListDomainNamesOutput opensearch.ListDomainNamesOutput
+	DescribeDomainsOutput opensearch.DescribeDomainsOutput
+	ListTagsOutput        opensearch.ListTagsOutput
+	DeleteDomainOutput    opensearch.DeleteDomainOutput
 }
 
-func (m mockedOpenSearch) DeleteDomainWithContext(_ awsgo.Context, _ *opensearchservice.DeleteDomainInput, _ ...request.Option) (*opensearchservice.DeleteDomainOutput, error) {
+func (m mockedOpenSearch) DeleteDomain(ctx context.Context, params *opensearch.DeleteDomainInput, optFns ...func(*opensearch.Options)) (*opensearch.DeleteDomainOutput, error) {
 	return &m.DeleteDomainOutput, nil
 }
 
-func (m mockedOpenSearch) ListDomainNamesWithContext(_ awsgo.Context, _ *opensearchservice.ListDomainNamesInput, _ ...request.Option) (*opensearchservice.ListDomainNamesOutput, error) {
+func (m mockedOpenSearch) ListDomainNames(ctx context.Context, params *opensearch.ListDomainNamesInput, optFns ...func(*opensearch.Options)) (*opensearch.ListDomainNamesOutput, error) {
 	return &m.ListDomainNamesOutput, nil
 }
 
-func (m mockedOpenSearch) DescribeDomainsWithContext(_ awsgo.Context, _ *opensearchservice.DescribeDomainsInput, _ ...request.Option) (*opensearchservice.DescribeDomainsOutput, error) {
+func (m mockedOpenSearch) DescribeDomains(ctx context.Context, params *opensearch.DescribeDomainsInput, optFns ...func(*opensearch.Options)) (*opensearch.DescribeDomainsOutput, error) {
 	return &m.DescribeDomainsOutput, nil
 }
 
-func (m mockedOpenSearch) ListTags(*opensearchservice.ListTagsInput) (*opensearchservice.ListTagsOutput, error) {
+func (m mockedOpenSearch) ListTags(ctx context.Context, params *opensearch.ListTagsInput, optFns ...func(*opensearch.Options)) (*opensearch.ListTagsOutput, error) {
 	return &m.ListTagsOutput, nil
 }
 
@@ -53,15 +52,15 @@ func TestOpenSearch_GetAll(t *testing.T) {
 	now := time.Now()
 	osd := OpenSearchDomains{
 		Client: mockedOpenSearch{
-			ListDomainNamesOutput: opensearchservice.ListDomainNamesOutput{
-				DomainNames: []*opensearchservice.DomainInfo{
+			ListDomainNamesOutput: opensearch.ListDomainNamesOutput{
+				DomainNames: []types.DomainInfo{
 					{DomainName: aws.String(testName1)},
 					{DomainName: aws.String(testName2)},
 				},
 			},
 
-			ListTagsOutput: opensearchservice.ListTagsOutput{
-				TagList: []*opensearchservice.Tag{
+			ListTagsOutput: opensearch.ListTagsOutput{
+				TagList: []types.Tag{
 					{
 						Key:   aws.String(firstSeenTagKey),
 						Value: aws.String(util.FormatTimestamp(now)),
@@ -73,8 +72,8 @@ func TestOpenSearch_GetAll(t *testing.T) {
 				},
 			},
 
-			DescribeDomainsOutput: opensearchservice.DescribeDomainsOutput{
-				DomainStatusList: []*opensearchservice.DomainStatus{
+			DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
+				DomainStatusList: []types.DomainStatus{
 					{
 						DomainName: aws.String(testName1),
 						Created:    aws.Bool(true),
@@ -125,7 +124,7 @@ func TestOpenSearch_GetAll(t *testing.T) {
 				OpenSearchDomain: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
@@ -136,8 +135,8 @@ func TestOpenSearch_NukeAll(t *testing.T) {
 
 	osd := OpenSearchDomains{
 		Client: mockedOpenSearch{
-			DeleteDomainOutput:    opensearchservice.DeleteDomainOutput{},
-			DescribeDomainsOutput: opensearchservice.DescribeDomainsOutput{},
+			DeleteDomainOutput:    opensearch.DeleteDomainOutput{},
+			DescribeDomainsOutput: opensearch.DescribeDomainsOutput{},
 		},
 	}
 
