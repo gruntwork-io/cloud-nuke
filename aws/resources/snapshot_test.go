@@ -6,34 +6,32 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 type mockedSnapshot struct {
-	ec2iface.EC2API
+	SnapshotAPI
 	DeleteSnapshotOutput    ec2.DeleteSnapshotOutput
 	DescribeSnapshotsOutput ec2.DescribeSnapshotsOutput
 	DescribeImagesOutput    ec2.DescribeImagesOutput
 	DeregisterImageOutput   ec2.DeregisterImageOutput
 }
 
-func (m mockedSnapshot) DeleteSnapshotWithContext(_ awsgo.Context, _ *ec2.DeleteSnapshotInput, _ ...request.Option) (*ec2.DeleteSnapshotOutput, error) {
+func (m mockedSnapshot) DeleteSnapshot(ctx context.Context, params *ec2.DeleteSnapshotInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSnapshotOutput, error) {
 	return &m.DeleteSnapshotOutput, nil
 }
 
-func (m mockedSnapshot) DescribeSnapshotsWithContext(_ awsgo.Context, _ *ec2.DescribeSnapshotsInput, _ ...request.Option) (*ec2.DescribeSnapshotsOutput, error) {
+func (m mockedSnapshot) DescribeSnapshots(ctx context.Context, params *ec2.DescribeSnapshotsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSnapshotsOutput, error) {
 	return &m.DescribeSnapshotsOutput, nil
 }
-func (m mockedSnapshot) DescribeImagesWithContext(awsgo.Context, *ec2.DescribeImagesInput, ...request.Option) (*ec2.DescribeImagesOutput, error) {
+func (m mockedSnapshot) DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
 	return &m.DescribeImagesOutput, nil
 }
-func (m mockedSnapshot) DeregisterImageWithContext(awsgo.Context, *ec2.DeregisterImageInput, ...request.Option) (*ec2.DeregisterImageOutput, error) {
+func (m mockedSnapshot) DeregisterImage(ctx context.Context, params *ec2.DeregisterImageInput, optFns ...func(*ec2.Options)) (*ec2.DeregisterImageOutput, error) {
 	return &m.DeregisterImageOutput, nil
 }
 
@@ -47,20 +45,20 @@ func TestSnapshot_GetAll(t *testing.T) {
 	s := Snapshots{
 		Client: mockedSnapshot{
 			DescribeSnapshotsOutput: ec2.DescribeSnapshotsOutput{
-				Snapshots: []*ec2.Snapshot{
+				Snapshots: []types.Snapshot{
 					{
-						SnapshotId: awsgo.String(testSnapshot1),
-						StartTime:  awsgo.Time(now),
-						Tags: []*ec2.Tag{
+						SnapshotId: aws.String(testSnapshot1),
+						StartTime:  aws.Time(now),
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("aws:backup:source-resource"),
-								Value: awsgo.String(""),
+								Key:   aws.String("aws:backup:source-resource"),
+								Value: aws.String(""),
 							},
 						},
 					},
 					{
-						SnapshotId: awsgo.String(testSnapshot2),
-						StartTime:  awsgo.Time(now),
+						SnapshotId: aws.String(testSnapshot2),
+						StartTime:  aws.Time(now),
 					},
 				},
 			},
@@ -90,7 +88,7 @@ func TestSnapshot_GetAll(t *testing.T) {
 				Snapshots: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
@@ -105,6 +103,6 @@ func TestSnapshot_NukeAll(t *testing.T) {
 		},
 	}
 
-	err := s.nukeAll([]*string{awsgo.String("test-snapshot")})
+	err := s.nukeAll([]*string{aws.String("test-snapshot")})
 	require.NoError(t, err)
 }
