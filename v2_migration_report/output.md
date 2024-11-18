@@ -60,12 +60,12 @@ run `go generate ./...` to refresh this report.
 | iam-role                         | :white_check_mark: |
 | iam-service-linked-role          | :white_check_mark: |
 | internet-gateway                 |                    |
-| ipam                             |                    |
-| ipam-byoasn                      |                    |
-| ipam-custom-allocation           |                    |
-| ipam-pool                        |                    |
-| ipam-resource-discovery          |                    |
-| ipam-scope                       |                    |
+| ipam                             | :white_check_mark: |
+| ipam-byoasn                      | :white_check_mark: |
+| ipam-custom-allocation           | :white_check_mark: |
+| ipam-pool                        | :white_check_mark: |
+| ipam-resource-discovery          | :white_check_mark: |
+| ipam-scope                       | :white_check_mark: |
 | kinesis-firehose                 | :white_check_mark: |
 | kinesis-stream                   | :white_check_mark: |
 | kmscustomerkeys                  | :white_check_mark: |

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,10 +14,10 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeIpamPoolID(ipam *ec2.IpamPool, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeIpamPoolID(ipam *types.IpamPool, firstSeenTime *time.Time, configObj config.Config) bool {
 	var ipamPoolName string
 	// get the tags as map
-	tagMap := util.ConvertEC2TagsToMap(ipam.Tags)
+	tagMap := util.ConvertTypesTagsToMap(ipam.Tags)
 	if name, ok := tagMap["Name"]; ok {
 		ipamPoolName = name
 	}
@@ -31,44 +31,44 @@ func shouldIncludeIpamPoolID(ipam *ec2.IpamPool, firstSeenTime *time.Time, confi
 
 // Returns a formatted string of IPAM URLs
 func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result := []*string{}
+	var result []*string
 	var firstSeenTime *time.Time
 	var err error
 
-	paginator := func(output *ec2.DescribeIpamPoolsOutput, lastPage bool) bool {
-		for _, pool := range output.IpamPools {
-			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Pool.Client, pool.IpamPoolId, util.ConvertEC2TagsToMap(pool.Tags))
-			if err != nil {
-				logging.Error("unable to retrieve firstseen tag")
-				continue
-			}
-			if shouldIncludeIpamPoolID(pool, firstSeenTime, configObj) {
-				result = append(result, pool.IpamPoolId)
-			}
-		}
-		return !lastPage
-	}
-
 	params := &ec2.DescribeIpamPoolsInput{
-		MaxResults: awsgo.Int64(10),
-		Filters: []*ec2.Filter{
+		MaxResults: aws.Int32(10),
+		Filters: []types.Filter{
 			{
-				Name:   awsgo.String("state"),
-				Values: awsgo.StringSlice([]string{"create-complete"}),
+				Name:   aws.String("state"),
+				Values: []string{"create-complete"},
 			},
 		},
 	}
 
-	err = ec2Pool.Client.DescribeIpamPoolsPagesWithContext(ec2Pool.Context, params, paginator)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	poolsPaginator := ec2.NewDescribeIpamPoolsPaginator(ec2Pool.Client, params)
+	for poolsPaginator.HasMorePages() {
+		page, errPaginator := poolsPaginator.NextPage(c)
+		if errPaginator != nil {
+			return nil, errors.WithStackTrace(errPaginator)
+		}
+
+		for _, pool := range page.IpamPools {
+			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Pool.Client, pool.IpamPoolId, util.ConvertTypesTagsToMap(pool.Tags))
+			if err != nil {
+				logging.Error("unable to retrieve first seen tag")
+				continue
+			}
+			if shouldIncludeIpamPoolID(&pool, firstSeenTime, configObj) {
+				result = append(result, pool.IpamPoolId)
+			}
+		}
 	}
 
 	// checking the nukable permissions
 	ec2Pool.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Pool.Client.DeleteIpamPoolWithContext(ec2Pool.Context, &ec2.DeleteIpamPoolInput{
+		_, err := ec2Pool.Client.DeleteIpamPool(ec2Pool.Context, &ec2.DeleteIpamPoolInput{
 			IpamPoolId: id,
-			DryRun:     awsgo.Bool(true),
+			DryRun:     aws.Bool(true),
 		})
 		return err
 	})
@@ -88,18 +88,18 @@ func (pool *EC2IPAMPool) nukeAll(ids []*string) error {
 
 	for _, id := range ids {
 
-		if nukable, reason := pool.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
+		if nukable, reason := pool.IsNukable(aws.ToString(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
 			continue
 		}
 
-		_, err := pool.Client.DeleteIpamPoolWithContext(pool.Context, &ec2.DeleteIpamPoolInput{
+		_, err := pool.Client.DeleteIpamPool(pool.Context, &ec2.DeleteIpamPoolInput{
 			IpamPoolId: id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "IPAM Pool",
 			Error:        err,
 		}

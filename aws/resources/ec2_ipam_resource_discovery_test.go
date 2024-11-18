@@ -7,26 +7,24 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIPAMResourceDiscovery struct {
-	ec2iface.EC2API
+	EC2IPAMResourceDiscoveryAPI
 	DescribeIpamResourceDiscoveriesOutput ec2.DescribeIpamResourceDiscoveriesOutput
 	DeleteIpamResourceDiscoveryOutput     ec2.DeleteIpamResourceDiscoveryOutput
 }
 
-func (m mockedIPAMResourceDiscovery) DescribeIpamResourceDiscoveriesPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamResourceDiscoveriesInput, callback func(*ec2.DescribeIpamResourceDiscoveriesOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeIpamResourceDiscoveriesOutput, true)
-	return nil
+func (m mockedIPAMResourceDiscovery) DescribeIpamResourceDiscoveries(ctx context.Context, params *ec2.DescribeIpamResourceDiscoveriesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamResourceDiscoveriesOutput, error) {
+	return &m.DescribeIpamResourceDiscoveriesOutput, nil
 }
-func (m mockedIPAMResourceDiscovery) DeleteIpamResourceDiscoveryWithContext(_ awsgo.Context, _ *ec2.DeleteIpamResourceDiscoveryInput, _ ...request.Option) (*ec2.DeleteIpamResourceDiscoveryOutput, error) {
+
+func (m mockedIPAMResourceDiscovery) DeleteIpamResourceDiscovery(ctx context.Context, params *ec2.DeleteIpamResourceDiscoveryInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamResourceDiscoveryOutput, error) {
 	return &m.DeleteIpamResourceDiscoveryOutput, nil
 }
 
@@ -47,30 +45,30 @@ func TestIPAMRDiscovery_GetAll(t *testing.T) {
 	ipam := EC2IPAMResourceDiscovery{
 		Client: mockedIPAMResourceDiscovery{
 			DescribeIpamResourceDiscoveriesOutput: ec2.DescribeIpamResourceDiscoveriesOutput{
-				IpamResourceDiscoveries: []*ec2.IpamResourceDiscovery{
+				IpamResourceDiscoveries: []types.IpamResourceDiscovery{
 					{
 						IpamResourceDiscoveryId: aws.String(testId1),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
 						IpamResourceDiscoveryId: aws.String(testId2),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
@@ -114,7 +112,7 @@ func TestIPAMRDiscovery_GetAll(t *testing.T) {
 				EC2IPAMResourceDiscovery: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(ids))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }

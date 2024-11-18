@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// IPAM - represents all IPAMs
+type EC2IPAMResourceDiscoveryAPI interface {
+	DescribeIpamResourceDiscoveries(ctx context.Context, params *ec2.DescribeIpamResourceDiscoveriesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamResourceDiscoveriesOutput, error)
+	DeleteIpamResourceDiscovery(ctx context.Context, params *ec2.DeleteIpamResourceDiscoveryInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamResourceDiscoveryOutput, error)
+}
+
+// EC2IPAMResourceDiscovery IPAM - represents all IPAMs
 type EC2IPAMResourceDiscovery struct {
 	BaseAwsResource
-	Client       ec2iface.EC2API
+	Client       EC2IPAMResourceDiscoveryAPI
 	Region       string
 	DiscoveryIDs []string
 }
 
-func (ipam *EC2IPAMResourceDiscovery) Init(session *session.Session) {
-	ipam.Client = ec2.New(session)
+func (ipam *EC2IPAMResourceDiscovery) InitV2(cfg aws.Config) {
+	ipam.Client = ec2.NewFromConfig(cfg)
 }
+
+func (ipam *EC2IPAMResourceDiscovery) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ipam *EC2IPAMResourceDiscovery) ResourceName() string {
@@ -48,13 +53,13 @@ func (ipam *EC2IPAMResourceDiscovery) GetAndSetIdentifiers(c context.Context, co
 		return nil, err
 	}
 
-	ipam.DiscoveryIDs = awsgo.StringValueSlice(identifiers)
+	ipam.DiscoveryIDs = aws.ToStringSlice(identifiers)
 	return ipam.DiscoveryIDs, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ipam *EC2IPAMResourceDiscovery) Nuke(identifiers []string) error {
-	if err := ipam.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ipam.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

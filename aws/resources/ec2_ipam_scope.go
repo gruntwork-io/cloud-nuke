@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,10 +14,10 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeIpamScopeID(ipam *ec2.IpamScope, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeIpamScopeID(ipam *types.IpamScope, firstSeenTime *time.Time, configObj config.Config) bool {
 	var ipamScopeName string
 	// get the tags as map
-	tagMap := util.ConvertEC2TagsToMap(ipam.Tags)
+	tagMap := util.ConvertTypesTagsToMap(ipam.Tags)
 	if name, ok := tagMap["Name"]; ok {
 		ipamScopeName = name
 	}
@@ -31,47 +31,46 @@ func shouldIncludeIpamScopeID(ipam *ec2.IpamScope, firstSeenTime *time.Time, con
 
 // Returns a formatted string of IPAM URLs
 func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result := []*string{}
+	var result []*string
 	var firstSeenTime *time.Time
 	var err error
 
-	paginator := func(output *ec2.DescribeIpamScopesOutput, lastPage bool) bool {
-		for _, scope := range output.IpamScopes {
+	params := &ec2.DescribeIpamScopesInput{
+		MaxResults: aws.Int32(10),
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("is-default"),
+				Values: []string{"false"},
+			},
+		},
+	}
 
-			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Scope.Client, scope.IpamScopeId, util.ConvertEC2TagsToMap(scope.Tags))
+	scopesPaginator := ec2.NewDescribeIpamScopesPaginator(ec2Scope.Client, params)
+	for scopesPaginator.HasMorePages() {
+		page, errPaginator := scopesPaginator.NextPage(c)
+		if errPaginator != nil {
+			return nil, errors.WithStackTrace(errPaginator)
+		}
+
+		for _, scope := range page.IpamScopes {
+			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Scope.Client, scope.IpamScopeId, util.ConvertTypesTagsToMap(scope.Tags))
 			if err != nil {
 				logging.Error("unable to retrieve firstseen tag")
 				continue
 			}
 
 			// Check for include this ipam
-			if shouldIncludeIpamScopeID(scope, firstSeenTime, configObj) {
+			if shouldIncludeIpamScopeID(&scope, firstSeenTime, configObj) {
 				result = append(result, scope.IpamScopeId)
 			}
 		}
-		return !lastPage
-	}
-
-	params := &ec2.DescribeIpamScopesInput{
-		MaxResults: awsgo.Int64(10),
-		Filters: []*ec2.Filter{
-			{
-				Name:   awsgo.String("is-default"),
-				Values: awsgo.StringSlice([]string{"false"}),
-			},
-		},
-	}
-
-	err = ec2Scope.Client.DescribeIpamScopesPagesWithContext(ec2Scope.Context, params, paginator)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	// checking the nukable permissions
 	ec2Scope.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Scope.Client.DeleteIpamScopeWithContext(ec2Scope.Context, &ec2.DeleteIpamScopeInput{
+		_, err := ec2Scope.Client.DeleteIpamScope(ec2Scope.Context, &ec2.DeleteIpamScopeInput{
 			IpamScopeId: id,
-			DryRun:      awsgo.Bool(true),
+			DryRun:      aws.Bool(true),
 		})
 		return err
 	})
@@ -90,18 +89,18 @@ func (scope *EC2IpamScopes) nukeAll(ids []*string) error {
 	var deletedList []*string
 
 	for _, id := range ids {
-		if nukable, reason := scope.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
+		if nukable, reason := scope.IsNukable(aws.ToString(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
 			continue
 		}
 
-		_, err := scope.Client.DeleteIpamScopeWithContext(scope.Context, &ec2.DeleteIpamScopeInput{
+		_, err := scope.Client.DeleteIpamScope(scope.Context, &ec2.DeleteIpamScopeInput{
 			IpamScopeId: id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "IPAM Scopes",
 			Error:        err,
 		}

@@ -7,26 +7,24 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIPAMScope struct {
-	ec2iface.EC2API
+	EC2IpamScopesAPI
 	DescribeIpamScopesOutput ec2.DescribeIpamScopesOutput
 	DeleteIpamScopeOutput    ec2.DeleteIpamScopeOutput
 }
 
-func (m mockedIPAMScope) DescribeIpamScopesPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamScopesInput, callback func(*ec2.DescribeIpamScopesOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeIpamScopesOutput, true)
-	return nil
+func (m mockedIPAMScope) DescribeIpamScopes(ctx context.Context, params *ec2.DescribeIpamScopesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamScopesOutput, error) {
+	return &m.DescribeIpamScopesOutput, nil
 }
-func (m mockedIPAMScope) DeleteIpamScopeWithContext(_ awsgo.Context, _ *ec2.DeleteIpamScopeInput, _ ...request.Option) (*ec2.DeleteIpamScopeOutput, error) {
+
+func (m mockedIPAMScope) DeleteIpamScope(ctx context.Context, params *ec2.DeleteIpamScopeInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamScopeOutput, error) {
 	return &m.DeleteIpamScopeOutput, nil
 }
 
@@ -47,30 +45,30 @@ func TestIPAMScope_GetAll(t *testing.T) {
 	ipam := EC2IpamScopes{
 		Client: mockedIPAMScope{
 			DescribeIpamScopesOutput: ec2.DescribeIpamScopesOutput{
-				IpamScopes: []*ec2.IpamScope{
+				IpamScopes: []types.IpamScope{
 					{
 						IpamScopeId: &testId1,
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
 						IpamScopeId: &testId2,
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
@@ -115,7 +113,7 @@ func TestIPAMScope_GetAll(t *testing.T) {
 				EC2IPAMScope: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(ids))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }

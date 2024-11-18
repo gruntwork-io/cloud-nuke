@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// IPAM Pool- represents all IPAMs
+type EC2IPAMPoolAPI interface {
+	DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error)
+	DeleteIpamPool(ctx context.Context, params *ec2.DeleteIpamPoolInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamPoolOutput, error)
+}
+
+// EC2IPAMPool IPAM Pool- represents all IPAMs
 type EC2IPAMPool struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
+	Client EC2IPAMPoolAPI
 	Region string
 	Pools  []string
 }
 
-func (pool *EC2IPAMPool) Init(session *session.Session) {
-	pool.Client = ec2.New(session)
+func (pool *EC2IPAMPool) InitV2(cfg aws.Config) {
+	pool.Client = ec2.NewFromConfig(cfg)
 }
+
+func (pool *EC2IPAMPool) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (pool *EC2IPAMPool) ResourceName() string {
@@ -48,13 +53,13 @@ func (pool *EC2IPAMPool) GetAndSetIdentifiers(c context.Context, configObj confi
 		return nil, err
 	}
 
-	pool.Pools = awsgo.StringValueSlice(identifiers)
+	pool.Pools = aws.ToStringSlice(identifiers)
 	return pool.Pools, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (pool *EC2IPAMPool) Nuke(identifiers []string) error {
-	if err := pool.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := pool.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
