@@ -3,45 +3,49 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kafka"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kafka"
+	"github.com/aws/aws-sdk-go-v2/service/kafka/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 func (m *MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var clusterIDs []*string
 
-	err := m.Client.ListClustersV2PagesWithContext(m.Context, &kafka.ListClustersV2Input{}, func(page *kafka.ListClustersV2Output, lastPage bool) bool {
+	paginator := kafka.NewListClustersV2Paginator(m.Client, &kafka.ListClustersV2Input{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
 		for _, cluster := range page.ClusterInfoList {
 			if m.shouldInclude(cluster, configObj) {
 				clusterIDs = append(clusterIDs, cluster.ClusterArn)
 			}
 		}
-		return !lastPage
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	return clusterIDs, nil
 }
 
-func (m *MSKCluster) shouldInclude(cluster *kafka.Cluster, configObj config.Config) bool {
-	if *cluster.State == kafka.ClusterStateDeleting {
+func (m *MSKCluster) shouldInclude(cluster types.Cluster, configObj config.Config) bool {
+	if cluster.State == types.ClusterStateDeleting {
 		return false
 	}
 
 	// if cluster is still creating, skip it as it will only throw an error when attempting to delete it
 	// BadRequestException: You can't delete cluster in CREATING state.
-	if *cluster.State == kafka.ClusterStateCreating {
+	if cluster.State == types.ClusterStateCreating {
 		return false
 	}
 
 	// if cluster is in maintenance, skip it as it will only throw an error when attempting to delete it
 	// BadRequestException: You can't delete cluster in MAINTENANCE state.
-	if *cluster.State == kafka.ClusterStateMaintenance {
+	if cluster.State == types.ClusterStateMaintenance {
 		return false
 	}
 
@@ -57,7 +61,7 @@ func (m *MSKCluster) nukeAll(identifiers []*string) error {
 	}
 
 	for _, clusterArn := range identifiers {
-		_, err := m.Client.DeleteClusterWithContext(m.Context, &kafka.DeleteClusterInput{
+		_, err := m.Client.DeleteCluster(m.Context, &kafka.DeleteClusterInput{
 			ClusterArn: clusterArn,
 		})
 		if err != nil {
@@ -66,7 +70,7 @@ func (m *MSKCluster) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(clusterArn),
+			Identifier:   aws.ToString(clusterArn),
 			ResourceType: "MSKCluster",
 			Error:        err,
 		}

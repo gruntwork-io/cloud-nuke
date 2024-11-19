@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kafka"
-	"github.com/aws/aws-sdk-go/service/kafka/kafkaiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kafka"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type MSKClusterAPI interface {
+	ListClustersV2(ctx context.Context, params *kafka.ListClustersV2Input, optFns ...func(*kafka.Options)) (*kafka.ListClustersV2Output, error)
+	DeleteCluster(ctx context.Context, params *kafka.DeleteClusterInput, optFns ...func(*kafka.Options)) (*kafka.DeleteClusterOutput, error)
+}
+
 // MSKCluster - represents all AWS Managed Streaming for Kafka clusters that should be deleted.
 type MSKCluster struct {
 	BaseAwsResource
-	Client      kafkaiface.KafkaAPI
+	Client      MSKClusterAPI
 	Region      string
 	ClusterArns []string
 }
 
-func (m *MSKCluster) Init(session *session.Session) {
-	m.Client = kafka.New(session)
+func (m *MSKCluster) InitV2(cfg aws.Config) {
+	m.Client = kafka.NewFromConfig(cfg)
 }
+
+func (m *MSKCluster) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (m *MSKCluster) ResourceName() string {
@@ -40,7 +45,7 @@ func (m *MSKCluster) MaxBatchSize() int {
 	return 10
 }
 
-func (mm *MSKCluster) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+func (m *MSKCluster) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
 	return configObj.MSKCluster
 }
 
@@ -50,13 +55,13 @@ func (m *MSKCluster) GetAndSetIdentifiers(c context.Context, configObj config.Co
 		return nil, err
 	}
 
-	m.ClusterArns = awsgo.StringValueSlice(identifiers)
+	m.ClusterArns = aws.ToStringSlice(identifiers)
 	return m.ClusterArns, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (m *MSKCluster) Nuke(identifiers []string) error {
-	if err := m.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := m.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

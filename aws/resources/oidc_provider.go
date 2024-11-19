@@ -2,12 +2,13 @@ package resources
 
 import (
 	"context"
+	goerr "errors"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -28,12 +29,12 @@ type oidcProvider struct {
 // information to implement the filters, we use goroutines to asynchronously and concurrently fetch the details for all
 // the providers that are found in the account.
 func (oidcprovider *OIDCProviders) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	output, err := oidcprovider.Client.ListOpenIDConnectProvidersWithContext(oidcprovider.Context, &iam.ListOpenIDConnectProvidersInput{})
+	output, err := oidcprovider.Client.ListOpenIDConnectProviders(oidcprovider.Context, &iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
-	providerARNs := []*string{}
+	var providerARNs []*string
 	for _, provider := range output.OpenIDConnectProviderList {
 		providerARNs = append(providerARNs, provider.Arn)
 	}
@@ -42,7 +43,7 @@ func (oidcprovider *OIDCProviders) getAll(c context.Context, configObj config.Co
 		return nil, err
 	}
 
-	providerARNsToDelete := []*string{}
+	var providerARNsToDelete []*string
 	for _, provider := range providers {
 		if configObj.OIDCProvider.ShouldInclude(config.ResourceValue{
 			Name: provider.ProviderURL,
@@ -99,12 +100,12 @@ func (oidcprovider *OIDCProviders) getAllOIDCProviderDetails(providerARNs []*str
 func (oidcprovider *OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup, resultChan chan *oidcProvider, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
-	resp, err := oidcprovider.Client.GetOpenIDConnectProviderWithContext(oidcprovider.Context, &iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
+	resp, err := oidcprovider.Client.GetOpenIDConnectProvider(oidcprovider.Context, &iam.GetOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
 	if err != nil {
 		// If we get a 404, meaning the OIDC Provider was deleted between retrieving it with list and detail fetching,
 		// we ignore the error and return nothing.
-		aerr, ok := err.(awserr.Error)
-		if ok && aerr.Code() == iam.ErrCodeNoSuchEntityException {
+		var awsErr *types.NoSuchEntityException
+		if goerr.As(err, &awsErr) {
 			resultChan <- nil
 			errChan <- nil
 			return
@@ -166,7 +167,7 @@ func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 	}
 
 	for _, providerARN := range identifiers {
-		logging.Debugf("[OK] OIDC Provider %s was deleted", aws.StringValue(providerARN))
+		logging.Debugf("[OK] OIDC Provider %s was deleted", aws.ToString(providerARN))
 	}
 	return nil
 }
@@ -176,12 +177,12 @@ func (oidcprovider *OIDCProviders) nukeAll(identifiers []*string) error {
 func (oidcprovider *OIDCProviders) deleteAsync(wg *sync.WaitGroup, errChan chan error, providerARN *string) {
 	defer wg.Done()
 
-	_, err := oidcprovider.Client.DeleteOpenIDConnectProviderWithContext(
+	_, err := oidcprovider.Client.DeleteOpenIDConnectProvider(
 		oidcprovider.Context,
 		&iam.DeleteOpenIDConnectProviderInput{OpenIDConnectProviderArn: providerARN})
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(providerARN),
+		Identifier:   aws.ToString(providerARN),
 		ResourceType: "OIDC Provider",
 		Error:        err,
 	}

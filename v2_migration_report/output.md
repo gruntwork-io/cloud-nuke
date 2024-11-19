@@ -71,11 +71,11 @@ run `go generate ./...` to refresh this report.
 | kmscustomerkeys                  | :white_check_mark: |
 | lambda                           | :white_check_mark: |
 | lambda_layer                     | :white_check_mark: |
-| lc                               |                    |
-| lt                               |                    |
+| lc                               | :white_check_mark: |
+| lt                               | :white_check_mark: |
 | macie-member                     | :white_check_mark: |
 | managed-prometheus               | :white_check_mark: |
-| msk-cluster                      |                    |
+| msk-cluster                      | :white_check_mark: |
 | nat-gateway                      |                    |
 | network-acl                      |                    |
 | network-firewall                 |                    |
@@ -84,7 +84,7 @@ run `go generate ./...` to refresh this report.
 | network-firewall-rule-group      |                    |
 | network-firewall-tls-config      |                    |
 | network-interface                |                    |
-| oidcprovider                     |                    |
+| oidcprovider                     | :white_check_mark: |
 | opensearchdomain                 | :white_check_mark: |
 | rds                              |                    |
 | rds-cluster                      |                    |

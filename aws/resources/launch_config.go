@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -13,7 +13,7 @@ import (
 
 // Returns a formatted string of Launch config Names
 func (lc *LaunchConfigs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := lc.Client.DescribeLaunchConfigurationsWithContext(lc.Context, &autoscaling.DescribeLaunchConfigurationsInput{})
+	result, err := lc.Client.DescribeLaunchConfigurations(lc.Context, &autoscaling.DescribeLaunchConfigurationsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -47,11 +47,11 @@ func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
 			LaunchConfigurationName: configName,
 		}
 
-		_, err := lc.Client.DeleteLaunchConfigurationWithContext(lc.Context, params)
+		_, err := lc.Client.DeleteLaunchConfiguration(lc.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(configName),
+			Identifier:   aws.ToString(configName),
 			ResourceType: "Launch configuration",
 			Error:        err,
 		}

@@ -6,26 +6,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedLaunchTemplate struct {
-	ec2iface.EC2API
+	LaunchTemplatesAPI
 	DescribeLaunchTemplatesOutput ec2.DescribeLaunchTemplatesOutput
 	DeleteLaunchTemplateOutput    ec2.DeleteLaunchTemplateOutput
 }
 
-func (m mockedLaunchTemplate) DescribeLaunchTemplatesWithContext(_ aws.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
+func (m mockedLaunchTemplate) DescribeLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	return &m.DescribeLaunchTemplatesOutput, nil
 }
 
-func (m mockedLaunchTemplate) DeleteLaunchTemplateWithContext(_ aws.Context, input *ec2.DeleteLaunchTemplateInput, _ ...request.Option) (*ec2.DeleteLaunchTemplateOutput, error) {
+func (m mockedLaunchTemplate) DeleteLaunchTemplate(ctx context.Context, params *ec2.DeleteLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.DeleteLaunchTemplateOutput, error) {
 	return &m.DeleteLaunchTemplateOutput, nil
 }
 
@@ -39,14 +37,14 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 	lt := LaunchTemplates{
 		Client: mockedLaunchTemplate{
 			DescribeLaunchTemplatesOutput: ec2.DescribeLaunchTemplatesOutput{
-				LaunchTemplates: []*ec2.LaunchTemplate{
+				LaunchTemplates: []types.LaunchTemplate{
 					{
-						LaunchTemplateName: awsgo.String(testName1),
-						CreateTime:         awsgo.Time(now),
+						LaunchTemplateName: aws.String(testName1),
+						CreateTime:         aws.Time(now),
 					},
 					{
-						LaunchTemplateName: awsgo.String(testName2),
-						CreateTime:         awsgo.Time(now.Add(1)),
+						LaunchTemplateName: aws.String(testName2),
+						CreateTime:         aws.Time(now.Add(1)),
 					},
 				},
 			},
@@ -73,7 +71,7 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now),
+					TimeAfter: aws.Time(now),
 				}},
 			expected: []string{testName1},
 		},
@@ -84,7 +82,7 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 				LaunchTemplate: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
@@ -99,6 +97,6 @@ func TestLaunchTemplate_NukeAll(t *testing.T) {
 		},
 	}
 
-	err := lt.nukeAll([]*string{awsgo.String("test")})
+	err := lt.nukeAll([]*string{aws.String("test")})
 	require.NoError(t, err)
 }
