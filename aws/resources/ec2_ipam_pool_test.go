@@ -7,26 +7,25 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIPAMPools struct {
-	ec2iface.EC2API
+	EC2IPAMPoolAPI
 	DescribeIpamPoolsOutput ec2.DescribeIpamPoolsOutput
 	DeleteIpamPoolOutput    ec2.DeleteIpamPoolOutput
 }
 
-func (m mockedIPAMPools) DescribeIpamPoolsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamPoolsInput, callback func(*ec2.DescribeIpamPoolsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeIpamPoolsOutput, true)
-	return nil
+func (m mockedIPAMPools) DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error) {
+	return &m.DescribeIpamPoolsOutput, nil
+
 }
-func (m mockedIPAMPools) DeleteIpamPoolWithContext(_ awsgo.Context, _ *ec2.DeleteIpamPoolInput, _ ...request.Option) (*ec2.DeleteIpamPoolOutput, error) {
+
+func (m mockedIPAMPools) DeleteIpamPool(ctx context.Context, params *ec2.DeleteIpamPoolInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamPoolOutput, error) {
 	return &m.DeleteIpamPoolOutput, nil
 }
 
@@ -47,30 +46,30 @@ func TestIPAMPool_GetAll(t *testing.T) {
 	ipam := EC2IPAMPool{
 		Client: mockedIPAMPools{
 			DescribeIpamPoolsOutput: ec2.DescribeIpamPoolsOutput{
-				IpamPools: []*ec2.IpamPool{
+				IpamPools: []types.IpamPool{
 					{
 						IpamPoolId: aws.String(testId1),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
 						IpamPoolId: aws.String(testId2),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
@@ -114,7 +113,7 @@ func TestIPAMPool_GetAll(t *testing.T) {
 				EC2IPAMPool: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(ids))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }

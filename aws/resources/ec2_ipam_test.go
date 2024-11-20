@@ -7,56 +7,60 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIPAM struct {
-	ec2iface.EC2API
-	DescribeIpamsOutput          ec2.DescribeIpamsOutput
-	DeleteIpamOutput             ec2.DeleteIpamOutput
-	DescribeIpamScopesOutput     ec2.DescribeIpamScopesOutput
-	DescribeIpamPoolsOutput      ec2.DescribeIpamPoolsOutput
-	GetIpamPoolCidrsOutput       ec2.GetIpamPoolCidrsOutput
-	DeprovisionIpamPoolCidrOuput ec2.DeprovisionIpamPoolCidrOutput
-	GetIpamPoolAllocationsOutput ec2.GetIpamPoolAllocationsOutput
+	EC2IPAMAPIaa
+	DescribeIpamsOutput             ec2.DescribeIpamsOutput
+	DeleteIpamOutput                ec2.DeleteIpamOutput
+	GetIpamPoolCidrsOutput          ec2.GetIpamPoolCidrsOutput
+	DeprovisionIpamPoolCidrOutput   ec2.DeprovisionIpamPoolCidrOutput
+	GetIpamPoolAllocationsOutput    ec2.GetIpamPoolAllocationsOutput
+	ReleaseIpamPoolAllocationOutput ec2.ReleaseIpamPoolAllocationOutput
+	DescribeIpamScopesOutput        ec2.DescribeIpamScopesOutput
+	DescribeIpamPoolsOutput         ec2.DescribeIpamPoolsOutput
+	DeleteIpamPoolOutput            ec2.DeleteIpamPoolOutput
 }
 
-func (m mockedIPAM) DeleteIpamPoolWithContext(_ awsgo.Context, _ *ec2.DeleteIpamPoolInput, _ ...request.Option) (*ec2.DeleteIpamPoolOutput, error) {
-	return nil, nil
-}
-func (m mockedIPAM) ReleaseIpamPoolAllocationWithContext(_ awsgo.Context, _ *ec2.ReleaseIpamPoolAllocationInput, _ ...request.Option) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
-	return nil, nil
-}
-func (m mockedIPAM) GetIpamPoolAllocationsWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolAllocationsInput, _ ...request.Option) (*ec2.GetIpamPoolAllocationsOutput, error) {
-	return &m.GetIpamPoolAllocationsOutput, nil
-}
-func (m mockedIPAM) DeprovisionIpamPoolCidrWithContext(_ awsgo.Context, _ *ec2.DeprovisionIpamPoolCidrInput, _ ...request.Option) (*ec2.DeprovisionIpamPoolCidrOutput, error) {
-	return &m.DeprovisionIpamPoolCidrOuput, nil
-}
-func (m mockedIPAM) GetIpamPoolCidrsWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolCidrsInput, _ ...request.Option) (*ec2.GetIpamPoolCidrsOutput, error) {
-	return &m.GetIpamPoolCidrsOutput, nil
-}
-func (m mockedIPAM) DescribeIpamScopesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamScopesInput, _ ...request.Option) (*ec2.DescribeIpamScopesOutput, error) {
-	return &m.DescribeIpamScopesOutput, nil
-}
-func (m mockedIPAM) DescribeIpamPoolsWithContext(_ awsgo.Context, _ *ec2.DescribeIpamPoolsInput, _ ...request.Option) (*ec2.DescribeIpamPoolsOutput, error) {
-	return &m.DescribeIpamPoolsOutput, nil
-}
-func (m mockedIPAM) DescribeIpamsWithContext(_ awsgo.Context, _ *ec2.DescribeIpamsInput, _ ...request.Option) (*ec2.DescribeIpamsOutput, error) {
+func (m mockedIPAM) DescribeIpams(ctx context.Context, params *ec2.DescribeIpamsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamsOutput, error) {
 	return &m.DescribeIpamsOutput, nil
 }
-func (m mockedIPAM) DescribeIpamsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamsInput, callback func(*ec2.DescribeIpamsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeIpamsOutput, true)
-	return nil
-}
-func (m mockedIPAM) DeleteIpamWithContext(_ awsgo.Context, _ *ec2.DeleteIpamInput, _ ...request.Option) (*ec2.DeleteIpamOutput, error) {
+
+func (m mockedIPAM) DeleteIpam(ctx context.Context, params *ec2.DeleteIpamInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamOutput, error) {
 	return &m.DeleteIpamOutput, nil
+}
+
+func (m mockedIPAM) GetIpamPoolCidrs(ctx context.Context, params *ec2.GetIpamPoolCidrsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolCidrsOutput, error) {
+	return &m.GetIpamPoolCidrsOutput, nil
+}
+
+func (m mockedIPAM) DeprovisionIpamPoolCidr(ctx context.Context, params *ec2.DeprovisionIpamPoolCidrInput, optFns ...func(*ec2.Options)) (*ec2.DeprovisionIpamPoolCidrOutput, error) {
+	return &m.DeprovisionIpamPoolCidrOutput, nil
+}
+
+func (m mockedIPAM) GetIpamPoolAllocations(ctx context.Context, params *ec2.GetIpamPoolAllocationsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolAllocationsOutput, error) {
+	return &m.GetIpamPoolAllocationsOutput, nil
+}
+
+func (m mockedIPAM) ReleaseIpamPoolAllocation(ctx context.Context, params *ec2.ReleaseIpamPoolAllocationInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
+	return &m.ReleaseIpamPoolAllocationOutput, nil
+}
+
+func (m mockedIPAM) DescribeIpamScopes(ctx context.Context, params *ec2.DescribeIpamScopesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamScopesOutput, error) {
+	return &m.DescribeIpamScopesOutput, nil
+}
+
+func (m mockedIPAM) DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error) {
+	return &m.DescribeIpamPoolsOutput, nil
+}
+
+func (m mockedIPAM) DeleteIpamPool(ctx context.Context, params *ec2.DeleteIpamPoolInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamPoolOutput, error) {
+	return &m.DeleteIpamPoolOutput, nil
 }
 
 func TestIPAM_GetAll(t *testing.T) {
@@ -76,30 +80,30 @@ func TestIPAM_GetAll(t *testing.T) {
 	ipam := EC2IPAMs{
 		Client: mockedIPAM{
 			DescribeIpamsOutput: ec2.DescribeIpamsOutput{
-				Ipams: []*ec2.Ipam{
+				Ipams: []types.Ipam{
 					{
 						IpamId: &testId1,
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
 						IpamId: &testId2,
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
@@ -144,7 +148,7 @@ func TestIPAM_GetAll(t *testing.T) {
 				EC2IPAM: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(ids))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
@@ -169,39 +173,39 @@ func TestIPAM_NukeAll(t *testing.T) {
 		Client: mockedIPAM{
 			DeleteIpamOutput: ec2.DeleteIpamOutput{},
 			DescribeIpamsOutput: ec2.DescribeIpamsOutput{
-				Ipams: []*ec2.Ipam{
+				Ipams: []types.Ipam{
 					{
 						IpamId:               &testId1,
 						PublicDefaultScopeId: &publicScope,
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
 						IpamId:               &testId2,
 						PublicDefaultScopeId: &publicScope,
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 				},
 			},
 			DescribeIpamScopesOutput: ec2.DescribeIpamScopesOutput{
-				IpamScopes: []*ec2.IpamScope{
+				IpamScopes: []types.IpamScope{
 					{
 						IpamScopeId:  aws.String(publicScope),
 						IpamScopeArn: aws.String(publicScopeARN),
@@ -209,23 +213,23 @@ func TestIPAM_NukeAll(t *testing.T) {
 				},
 			},
 			DescribeIpamPoolsOutput: ec2.DescribeIpamPoolsOutput{
-				IpamPools: []*ec2.IpamPool{
+				IpamPools: []types.IpamPool{
 					{
 						IpamPoolId: aws.String(testId1),
 					},
 				},
 			},
 			GetIpamPoolCidrsOutput: ec2.GetIpamPoolCidrsOutput{
-				IpamPoolCidrs: []*ec2.IpamPoolCidr{
+				IpamPoolCidrs: []types.IpamPoolCidr{
 					{
 						Cidr: aws.String("10.0.0.0/24"),
 					},
 				},
 			},
 			GetIpamPoolAllocationsOutput: ec2.GetIpamPoolAllocationsOutput{
-				IpamPoolAllocations: []*ec2.IpamPoolAllocation{
+				IpamPoolAllocations: []types.IpamPoolAllocation{
 					{
-						ResourceType:         aws.String("custom"),
+						ResourceType:         types.IpamPoolAllocationResourceTypeCustom,
 						IpamPoolAllocationId: aws.String("ipam-pool-alloc-001277b300c015f14"),
 					},
 				},

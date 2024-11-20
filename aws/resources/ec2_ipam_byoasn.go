@@ -3,9 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,12 +13,12 @@ import (
 
 // Returns a formatted string of IPAM Byoasns
 func (byoasn *EC2IPAMByoasn) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result := []*string{}
+	var result []*string
 	params := &ec2.DescribeIpamByoasnInput{
 		MaxResults: &MaxResultCount,
 	}
 
-	output, err := byoasn.Client.DescribeIpamByoasnWithContext(byoasn.Context, params)
+	output, err := byoasn.Client.DescribeIpamByoasn(byoasn.Context, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -30,9 +29,9 @@ func (byoasn *EC2IPAMByoasn) getAll(c context.Context, configObj config.Config) 
 
 	// checking the nukable permissions
 	byoasn.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
+		_, err := byoasn.Client.DisassociateIpamByoasn(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
 			Asn:    id,
-			DryRun: awsgo.Bool(true),
+			DryRun: aws.Bool(true),
 		})
 		return err
 	})
@@ -50,18 +49,18 @@ func (byoasn *EC2IPAMByoasn) nukeAll(asns []*string) error {
 	var list []*string
 
 	for _, id := range asns {
-		if nukable, reason := byoasn.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
+		if nukable, reason := byoasn.IsNukable(aws.ToString(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
 			continue
 		}
 
-		_, err := byoasn.Client.DisassociateIpamByoasnWithContext(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
+		_, err := byoasn.Client.DisassociateIpamByoasn(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
 			Asn: id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "IPAM Byoasn",
 			Error:        err,
 		}

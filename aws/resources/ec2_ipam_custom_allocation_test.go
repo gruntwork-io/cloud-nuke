@@ -4,38 +4,29 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedIPAMCustomAllocations struct {
-	ec2iface.EC2API
-	GetIpamPoolAllocationsOutput    ec2.GetIpamPoolAllocationsOutput
-	ReleaseIpamPoolAllocationOutput ec2.ReleaseIpamPoolAllocationOutput
-	DescribeIpamPoolsOutput         ec2.DescribeIpamPoolsOutput
+func (m mockedIPAMCustomAllocations) DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error) {
+	return &m.DescribeIpamPoolsOutput, nil
 }
-
-func (m mockedIPAMCustomAllocations) GetIpamPoolAllocationsPagesWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolAllocationsInput, callback func(*ec2.GetIpamPoolAllocationsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.GetIpamPoolAllocationsOutput, true)
-	return nil
-}
-
-func (m mockedIPAMCustomAllocations) DescribeIpamPoolsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeIpamPoolsInput, callback func(*ec2.DescribeIpamPoolsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeIpamPoolsOutput, true)
-	return nil
-}
-
-func (m mockedIPAMCustomAllocations) GetIpamPoolAllocationsWithContext(_ awsgo.Context, _ *ec2.GetIpamPoolAllocationsInput, _ ...request.Option) (*ec2.GetIpamPoolAllocationsOutput, error) {
+func (m mockedIPAMCustomAllocations) GetIpamPoolAllocations(ctx context.Context, params *ec2.GetIpamPoolAllocationsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolAllocationsOutput, error) {
 	return &m.GetIpamPoolAllocationsOutput, nil
 }
 
-func (m mockedIPAMCustomAllocations) ReleaseIpamPoolAllocationWithContext(_ awsgo.Context, _ *ec2.ReleaseIpamPoolAllocationInput, _ ...request.Option) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
+func (m mockedIPAMCustomAllocations) ReleaseIpamPoolAllocation(ctx context.Context, params *ec2.ReleaseIpamPoolAllocationInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseIpamPoolAllocationOutput, error) {
 	return &m.ReleaseIpamPoolAllocationOutput, nil
+}
+
+type mockedIPAMCustomAllocations struct {
+	EC2IPAMCustomAllocationAPI
+	DescribeIpamPoolsOutput         ec2.DescribeIpamPoolsOutput
+	GetIpamPoolAllocationsOutput    ec2.GetIpamPoolAllocationsOutput
+	ReleaseIpamPoolAllocationOutput ec2.ReleaseIpamPoolAllocationOutput
 }
 
 func TestIPAMCustomAllocation_GetAll(t *testing.T) {
@@ -51,24 +42,24 @@ func TestIPAMCustomAllocation_GetAll(t *testing.T) {
 	ipam := EC2IPAMCustomAllocation{
 		Client: mockedIPAMCustomAllocations{
 			DescribeIpamPoolsOutput: ec2.DescribeIpamPoolsOutput{
-				IpamPools: []*ec2.IpamPool{
+				IpamPools: []types.IpamPool{
 					{
 						IpamPoolId: aws.String(testPool1),
 					},
 				},
 			},
 			GetIpamPoolAllocationsOutput: ec2.GetIpamPoolAllocationsOutput{
-				IpamPoolAllocations: []*ec2.IpamPoolAllocation{
+				IpamPoolAllocations: []types.IpamPoolAllocation{
 					{
 
 						Cidr:                 aws.String("10.0.0.0/24"),
 						IpamPoolAllocationId: aws.String(testId1),
-						ResourceType:         aws.String("custom"),
+						ResourceType:         types.IpamPoolAllocationResourceTypeCustom,
 					},
 					{
 						Cidr:                 aws.String("10.0.0.16/24"),
 						IpamPoolAllocationId: aws.String(testId2),
-						ResourceType:         aws.String("custom"),
+						ResourceType:         types.IpamPoolAllocationResourceTypeCustom,
 					},
 				},
 			},
@@ -91,7 +82,7 @@ func TestIPAMCustomAllocation_GetAll(t *testing.T) {
 				EC2IPAM: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(ids))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
@@ -109,24 +100,24 @@ func TestIPAMCustomAllocation_NukeAll(t *testing.T) {
 	ipam := EC2IPAMCustomAllocation{
 		Client: mockedIPAMCustomAllocations{
 			DescribeIpamPoolsOutput: ec2.DescribeIpamPoolsOutput{
-				IpamPools: []*ec2.IpamPool{
+				IpamPools: []types.IpamPool{
 					{
 						IpamPoolId: aws.String(testPool1),
 					},
 				},
 			},
 			GetIpamPoolAllocationsOutput: ec2.GetIpamPoolAllocationsOutput{
-				IpamPoolAllocations: []*ec2.IpamPoolAllocation{
+				IpamPoolAllocations: []types.IpamPoolAllocation{
 					{
 
 						Cidr:                 aws.String("10.0.0.0/24"),
 						IpamPoolAllocationId: aws.String(testId1),
-						ResourceType:         aws.String("custom"),
+						ResourceType:         types.IpamPoolAllocationResourceTypeCustom,
 					},
 					{
 						Cidr:                 aws.String("10.0.0.16/24"),
 						IpamPoolAllocationId: aws.String(testId2),
-						ResourceType:         aws.String("custom"),
+						ResourceType:         types.IpamPoolAllocationResourceTypeCustom,
 					},
 				},
 			},

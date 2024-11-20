@@ -3,27 +3,32 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// IPAM Byoasn- represents all IPAMs
+type EC2IPAMByoasnAPI interface {
+	DescribeIpamByoasn(ctx context.Context, params *ec2.DescribeIpamByoasnInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamByoasnOutput, error)
+	DisassociateIpamByoasn(ctx context.Context, params *ec2.DisassociateIpamByoasnInput, optFns ...func(*ec2.Options)) (*ec2.DisassociateIpamByoasnOutput, error)
+}
+
+// EC2IPAMByoasn IPAM Byoasn- represents all IPAMs
 type EC2IPAMByoasn struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
+	Client EC2IPAMByoasnAPI
 	Region string
 	Pools  []string
 }
 
-var MaxResultCount = int64(10)
+var MaxResultCount = int32(10)
 
-func (byoasn *EC2IPAMByoasn) Init(session *session.Session) {
-	byoasn.Client = ec2.New(session)
+func (byoasn *EC2IPAMByoasn) InitV2(cfg aws.Config) {
+	byoasn.Client = ec2.NewFromConfig(cfg)
 }
+
+func (byoasn *EC2IPAMByoasn) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (byoasn *EC2IPAMByoasn) ResourceName() string {
@@ -46,13 +51,13 @@ func (byoasn *EC2IPAMByoasn) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	byoasn.Pools = awsgo.StringValueSlice(identifiers)
+	byoasn.Pools = aws.ToStringSlice(identifiers)
 	return byoasn.Pools, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (byoasn *EC2IPAMByoasn) Nuke(identifiers []string) error {
-	if err := byoasn.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := byoasn.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

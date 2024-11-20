@@ -5,25 +5,24 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIPAMByoASN struct {
-	ec2iface.EC2API
+	EC2IPAMByoasnAPI
 	DescribeIpamByoasnOutput     ec2.DescribeIpamByoasnOutput
 	DisassociateIpamByoasnOutput ec2.DisassociateIpamByoasnOutput
 }
 
-func (m mockedIPAMByoASN) DescribeIpamByoasnWithContext(_ awsgo.Context, _ *ec2.DescribeIpamByoasnInput, _ ...request.Option) (*ec2.DescribeIpamByoasnOutput, error) {
-	return &m.DescribeIpamByoasnOutput, nil
-}
-func (m mockedIPAMByoASN) DisassociateIpamByoasnWithContext(_ awsgo.Context, _ *ec2.DisassociateIpamByoasnInput, _ ...request.Option) (*ec2.DisassociateIpamByoasnOutput, error) {
+func (m mockedIPAMByoASN) DisassociateIpamByoasn(ctx context.Context, params *ec2.DisassociateIpamByoasnInput, optFns ...func(*ec2.Options)) (*ec2.DisassociateIpamByoasnOutput, error) {
 	return &m.DisassociateIpamByoasnOutput, nil
+}
+
+func (m mockedIPAMByoASN) DescribeIpamByoasn(ctx context.Context, params *ec2.DescribeIpamByoasnInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamByoasnOutput, error) {
+	return &m.DescribeIpamByoasnOutput, nil
 }
 
 func TestIPAMByoASN_GetAll(t *testing.T) {
@@ -39,7 +38,7 @@ func TestIPAMByoASN_GetAll(t *testing.T) {
 	ipam := EC2IPAMByoasn{
 		Client: mockedIPAMByoASN{
 			DescribeIpamByoasnOutput: ec2.DescribeIpamByoasnOutput{
-				Byoasns: []*ec2.Byoasn{
+				Byoasns: []types.Byoasn{
 					{
 						Asn:    aws.String(testId1),
 						IpamId: aws.String(testName1),
@@ -68,7 +67,7 @@ func TestIPAMByoASN_GetAll(t *testing.T) {
 				EC2IPAM: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(ids))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }

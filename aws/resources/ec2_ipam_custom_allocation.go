@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,21 +15,22 @@ import (
 
 // Get all active pools
 func (cs *EC2IPAMCustomAllocation) getPools() ([]*string, error) {
-	result := []*string{}
-	paginator := func(output *ec2.DescribeIpamPoolsOutput, lastPage bool) bool {
-		for _, p := range output.IpamPools {
-			result = append(result, p.IpamPoolId)
-		}
-		return !lastPage
-	}
+	var result []*string
 
 	params := &ec2.DescribeIpamPoolsInput{
-		MaxResults: awsgo.Int64(10),
+		MaxResults: aws.Int32(10),
 	}
 
-	err := cs.Client.DescribeIpamPoolsPagesWithContext(cs.Context, params, paginator)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	poolsPaginator := ec2.NewDescribeIpamPoolsPaginator(cs.Client, params)
+	for poolsPaginator.HasMorePages() {
+		page, err := poolsPaginator.NextPage(cs.Context)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, p := range page.IpamPools {
+			result = append(result, p.IpamPoolId)
+		}
 	}
 
 	return result, nil
@@ -37,13 +38,13 @@ func (cs *EC2IPAMCustomAllocation) getPools() ([]*string, error) {
 
 // getPoolAllocationCIDR retrieves the CIDR block associated with an IPAM pool allocation in AWS.
 func (cs *EC2IPAMCustomAllocation) getPoolAllocationCIDR(allocationID *string) (*string, error) {
-	// get the pool id curresponding to the allocation id
+	// get the pool id corresponding to the allocation id
 	allocationIPAMPoolID, ok := cs.PoolAndAllocationMap[*allocationID]
 	if !ok {
 		return nil, errors.WithStackTrace(fmt.Errorf("unable to find the pool allocation with %s", *allocationID))
 	}
 
-	output, err := cs.Client.GetIpamPoolAllocationsWithContext(cs.Context, &ec2.GetIpamPoolAllocationsInput{
+	output, err := cs.Client.GetIpamPoolAllocations(cs.Context, &ec2.GetIpamPoolAllocationsInput{
 		IpamPoolId:           &allocationIPAMPoolID,
 		IpamPoolAllocationId: allocationID,
 	})
@@ -67,28 +68,28 @@ func (cs *EC2IPAMCustomAllocation) getAll(c context.Context, configObj config.Co
 	}
 
 	// check though the filters and see the custom allocations
-	result := []*string{}
+	var result []*string
 	for _, pool := range activePools {
-		paginator := func(output *ec2.GetIpamPoolAllocationsOutput, lastPage bool) bool {
-			for _, allocation := range output.IpamPoolAllocations {
-				if *allocation.ResourceType == "custom" {
+		// prepare the params
+		params := &ec2.GetIpamPoolAllocationsInput{
+			MaxResults: aws.Int32(int32(cs.MaxBatchSize())),
+			IpamPoolId: pool,
+		}
+
+		allocationsPaginator := ec2.NewGetIpamPoolAllocationsPaginator(cs.Client, params)
+		for allocationsPaginator.HasMorePages() {
+			page, err := allocationsPaginator.NextPage(cs.Context)
+			if err != nil {
+				logging.Debugf("[Failed] %s", err)
+				continue
+			}
+
+			for _, allocation := range page.IpamPoolAllocations {
+				if allocation.ResourceType == types.IpamPoolAllocationResourceTypeCustom {
 					result = append(result, allocation.IpamPoolAllocationId)
 					cs.PoolAndAllocationMap[*allocation.IpamPoolAllocationId] = *pool
 				}
 			}
-			return !lastPage
-		}
-
-		// prepare the params
-		params := &ec2.GetIpamPoolAllocationsInput{
-			MaxResults: awsgo.Int64(int64(cs.MaxBatchSize())),
-			IpamPoolId: pool,
-		}
-
-		err := cs.Client.GetIpamPoolAllocationsPagesWithContext(cs.Context, params, paginator)
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			continue
 		}
 	}
 
@@ -106,11 +107,11 @@ func (cs *EC2IPAMCustomAllocation) getAll(c context.Context, configObj config.Co
 			return fmt.Errorf("unable to find the pool allocation with %s", *id)
 		}
 
-		_, err = cs.Client.ReleaseIpamPoolAllocationWithContext(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
+		_, err = cs.Client.ReleaseIpamPoolAllocation(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
 			IpamPoolId:           &allocationIPAMPoolID,
 			IpamPoolAllocationId: id,
 			Cidr:                 cidr,
-			DryRun:               awsgo.Bool(true),
+			DryRun:               aws.Bool(true),
 		})
 		return err
 	})
@@ -130,8 +131,8 @@ func (cs *EC2IPAMCustomAllocation) nukeAll(ids []*string) error {
 
 	for _, id := range ids {
 
-		if nukable, reason := cs.IsNukable(awsgo.StringValue(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(id), reason)
+		if nukable, reason := cs.IsNukable(aws.ToString(id)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
 			continue
 		}
 
@@ -148,7 +149,7 @@ func (cs *EC2IPAMCustomAllocation) nukeAll(ids []*string) error {
 		}
 
 		// Release the allocation
-		_, err = cs.Client.ReleaseIpamPoolAllocationWithContext(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
+		_, err = cs.Client.ReleaseIpamPoolAllocation(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
 			IpamPoolId:           &allocationIPAMPoolID,
 			IpamPoolAllocationId: id,
 			Cidr:                 cidr,
@@ -156,7 +157,7 @@ func (cs *EC2IPAMCustomAllocation) nukeAll(ids []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "IPAM",
 			Error:        err,
 		}

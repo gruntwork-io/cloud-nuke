@@ -3,25 +3,37 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EC2IPAMAPIaa interface {
+	DescribeIpams(ctx context.Context, params *ec2.DescribeIpamsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamsOutput, error)
+	DeleteIpam(ctx context.Context, params *ec2.DeleteIpamInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamOutput, error)
+	GetIpamPoolCidrs(ctx context.Context, params *ec2.GetIpamPoolCidrsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolCidrsOutput, error)
+	DeprovisionIpamPoolCidr(ctx context.Context, params *ec2.DeprovisionIpamPoolCidrInput, optFns ...func(*ec2.Options)) (*ec2.DeprovisionIpamPoolCidrOutput, error)
+	GetIpamPoolAllocations(ctx context.Context, params *ec2.GetIpamPoolAllocationsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolAllocationsOutput, error)
+	ReleaseIpamPoolAllocation(ctx context.Context, params *ec2.ReleaseIpamPoolAllocationInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseIpamPoolAllocationOutput, error)
+	DescribeIpamScopes(ctx context.Context, params *ec2.DescribeIpamScopesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamScopesOutput, error)
+	DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error)
+	DeleteIpamPool(ctx context.Context, params *ec2.DeleteIpamPoolInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamPoolOutput, error)
+}
+
 // IPAM - represents all IPAMs
 type EC2IPAMs struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
+	Client EC2IPAMAPIaa
 	Region string
 	IDs    []string
 }
 
-func (ipam *EC2IPAMs) Init(session *session.Session) {
-	ipam.Client = ec2.New(session)
+func (ipam *EC2IPAMs) InitV2(cfg aws.Config) {
+	ipam.Client = ec2.NewFromConfig(cfg)
 }
+
+func (ipam *EC2IPAMs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ipam *EC2IPAMs) ResourceName() string {
@@ -48,13 +60,13 @@ func (ipam *EC2IPAMs) GetAndSetIdentifiers(c context.Context, configObj config.C
 		return nil, err
 	}
 
-	ipam.IDs = awsgo.StringValueSlice(identifiers)
+	ipam.IDs = aws.ToStringSlice(identifiers)
 	return ipam.IDs, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ipam *EC2IPAMs) Nuke(identifiers []string) error {
-	if err := ipam.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ipam.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
