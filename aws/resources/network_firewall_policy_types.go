@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/networkfirewall"
-	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type NetworkFirewallPolicyAPI interface {
+	ListFirewallPolicies(ctx context.Context, params *networkfirewall.ListFirewallPoliciesInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListFirewallPoliciesOutput, error)
+	DescribeFirewallPolicy(ctx context.Context, params *networkfirewall.DescribeFirewallPolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeFirewallPolicyOutput, error)
+	DeleteFirewallPolicy(ctx context.Context, params *networkfirewall.DeleteFirewallPolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteFirewallPolicyOutput, error)
+}
+
 type NetworkFirewallPolicy struct {
 	BaseAwsResource
-	Client      networkfirewalliface.NetworkFirewallAPI
+	Client      NetworkFirewallPolicyAPI
 	Region      string
 	Identifiers []string
 }
 
-func (nfw *NetworkFirewallPolicy) Init(session *session.Session) {
-	nfw.BaseAwsResource.Init(session)
-	nfw.Client = networkfirewall.New(session)
+func (nfw *NetworkFirewallPolicy) InitV2(cfg aws.Config) {
+	nfw.Client = networkfirewall.NewFromConfig(cfg)
 }
+
+func (nfw *NetworkFirewallPolicy) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (nfw *NetworkFirewallPolicy) ResourceName() string {
@@ -49,13 +54,13 @@ func (nfw *NetworkFirewallPolicy) GetAndSetIdentifiers(c context.Context, config
 		return nil, err
 	}
 
-	nfw.Identifiers = awsgo.StringValueSlice(identifiers)
+	nfw.Identifiers = aws.ToStringSlice(identifiers)
 	return nfw.Identifiers, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (nfw *NetworkFirewallPolicy) Nuke(identifiers []string) error {
-	if err := nfw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := nfw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

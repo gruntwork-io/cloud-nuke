@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/networkfirewall"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,17 +15,17 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeNetworkFirewallRuleGroup(group *networkfirewall.RuleGroupResponse, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeNetworkFirewallRuleGroup(group *types.RuleGroupResponse, firstSeenTime *time.Time, configObj config.Config) bool {
 	// if the firewall policy has any attachments, then we can't remove that policy
-	if awsgo.Int64Value(group.NumberOfAssociations) > 0 {
-		logging.Debugf("[Skipping] the rule group %s is still in use", awsgo.StringValue(group.RuleGroupName))
+	if aws.ToInt32(group.NumberOfAssociations) > 0 {
+		logging.Debugf("[Skipping] the rule group %s is still in use", aws.ToString(group.RuleGroupName))
 		return false
 	}
 
 	var identifierName string
 	tags := util.ConvertNetworkFirewallTagsToMap(group.Tags)
 
-	identifierName = awsgo.StringValue(group.RuleGroupName) // set the default
+	identifierName = aws.ToString(group.RuleGroupName) // set the default
 	if v, ok := tags["Name"]; ok {
 		identifierName = v
 	}
@@ -36,33 +37,33 @@ func shouldIncludeNetworkFirewallRuleGroup(group *networkfirewall.RuleGroupRespo
 	})
 }
 
-func (nfw *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (nfrg *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var (
 		identifiers   []*string
 		firstSeenTime *time.Time
 		err           error
 	)
 
-	meta, err := nfw.Client.ListRuleGroupsWithContext(nfw.Context, nil)
+	meta, err := nfrg.Client.ListRuleGroups(nfrg.Context, nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, group := range meta.RuleGroups {
-		output, err := nfw.Client.DescribeRuleGroupWithContext(nfw.Context, &networkfirewall.DescribeRuleGroupInput{
+		output, err := nfrg.Client.DescribeRuleGroup(nfrg.Context, &networkfirewall.DescribeRuleGroupInput{
 			RuleGroupArn: group.Arn,
 		})
 		if err != nil {
-			logging.Errorf("[Failed] to describe the firewall rule group %s", awsgo.StringValue(group.Name))
+			logging.Errorf("[Failed] to describe the firewall rule group %s", aws.ToString(group.Name))
 			return nil, errors.WithStackTrace(err)
 		}
 
 		if output.RuleGroupResponse == nil {
-			logging.Errorf("[Failed] no firewall rule group information found for %s", awsgo.StringValue(group.Name))
+			logging.Errorf("[Failed] no firewall rule group information found for %s", aws.ToString(group.Name))
 			continue
 		}
 
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nfw.Client, group.Arn, util.ConvertNetworkFirewallTagsToMap(output.RuleGroupResponse.Tags))
+		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nfrg.Client, group.Arn, util.ConvertNetworkFirewallTagsToMap(output.RuleGroupResponse.Tags))
 		if err != nil {
 			logging.Error("Unable to retrieve tags")
 			return nil, errors.WithStackTrace(err)
@@ -71,10 +72,10 @@ func (nfw *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.
 		if shouldIncludeNetworkFirewallRuleGroup(output.RuleGroupResponse, firstSeenTime, configObj) {
 			identifiers = append(identifiers, group.Name)
 
-			raw := awsgo.StringValue(group.Name)
-			nfw.RuleGroups[raw] = RuleGroup{
+			raw := aws.ToString(group.Name)
+			nfrg.RuleGroups[raw] = RuleGroup{
 				Name: output.RuleGroupResponse.RuleGroupName,
-				Type: output.RuleGroupResponse.Type,
+				Type: aws.String(string(output.RuleGroupResponse.Type)),
 			}
 		}
 	}
@@ -82,32 +83,32 @@ func (nfw *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.
 	return identifiers, nil
 }
 
-func (nfw *NetworkFirewallRuleGroup) nukeAll(identifiers []*string) error {
+func (nfrg *NetworkFirewallRuleGroup) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Debugf("No Network Firewall rule group to nuke in region %s", nfw.Region)
+		logging.Debugf("No Network Firewall rule group to nuke in region %s", nfrg.Region)
 		return nil
 	}
 
-	logging.Debugf("Deleting Network firewall rule group in region %s", nfw.Region)
+	logging.Debugf("Deleting Network firewall rule group in region %s", nfrg.Region)
 	var deleted []*string
 
 	for _, id := range identifiers {
 		// check and get the type for this identifier
-		group, ok := nfw.RuleGroups[awsgo.StringValue(id)]
+		group, ok := nfrg.RuleGroups[aws.ToString(id)]
 		if !ok {
-			logging.Errorf("couldn't find the rule group type for %s", awsgo.StringValue(id))
-			return fmt.Errorf("couldn't find the rule group type for %s", awsgo.StringValue(id))
+			logging.Errorf("couldn't find the rule group type for %s", aws.ToString(id))
+			return fmt.Errorf("couldn't find the rule group type for %s", aws.ToString(id))
 		}
 
 		// delete the rule group
-		_, err := nfw.Client.DeleteRuleGroupWithContext(nfw.Context, &networkfirewall.DeleteRuleGroupInput{
+		_, err := nfrg.Client.DeleteRuleGroup(nfrg.Context, &networkfirewall.DeleteRuleGroupInput{
 			RuleGroupName: id,
-			Type:          group.Type,
+			Type:          types.RuleGroupType(aws.ToString(group.Type)),
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   awsgo.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Network Firewall Rule group",
 			Error:        err,
 		}
@@ -120,7 +121,7 @@ func (nfw *NetworkFirewallRuleGroup) nukeAll(identifiers []*string) error {
 		}
 	}
 
-	logging.Debugf("[OK] %d Network Firewall Rule group(s) deleted in %s", len(deleted), nfw.Region)
+	logging.Debugf("[OK] %d Network Firewall Rule group(s) deleted in %s", len(deleted), nfrg.Region)
 
 	return nil
 }

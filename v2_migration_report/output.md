@@ -78,11 +78,11 @@ run `go generate ./...` to refresh this report.
 | msk-cluster                      |                    |
 | nat-gateway                      |                    |
 | network-acl                      |                    |
-| network-firewall                 |                    |
-| network-firewall-policy          |                    |
-| network-firewall-resource-policy |                    |
-| network-firewall-rule-group      |                    |
-| network-firewall-tls-config      |                    |
+| network-firewall                 | :white_check_mark: |
+| network-firewall-policy          | :white_check_mark: |
+| network-firewall-resource-policy | :white_check_mark: |
+| network-firewall-rule-group      | :white_check_mark: |
+| network-firewall-tls-config      | :white_check_mark: |
 | network-interface                |                    |
 | oidcprovider                     |                    |
 | opensearchdomain                 | :white_check_mark: |

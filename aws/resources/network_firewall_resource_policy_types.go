@@ -3,24 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/networkfirewall"
-	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type NetworkFirewallResourcePolicyAPI interface {
+	ListFirewallPolicies(ctx context.Context, params *networkfirewall.ListFirewallPoliciesInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListFirewallPoliciesOutput, error)
+	ListRuleGroups(ctx context.Context, params *networkfirewall.ListRuleGroupsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListRuleGroupsOutput, error)
+	DescribeResourcePolicy(ctx context.Context, params *networkfirewall.DescribeResourcePolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeResourcePolicyOutput, error)
+	DeleteResourcePolicy(ctx context.Context, params *networkfirewall.DeleteResourcePolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteResourcePolicyOutput, error)
+}
+
 type NetworkFirewallResourcePolicy struct {
 	BaseAwsResource
-	Client      networkfirewalliface.NetworkFirewallAPI
+	Client      NetworkFirewallResourcePolicyAPI
 	Region      string
 	Identifiers []string
 }
 
-func (nfrp *NetworkFirewallResourcePolicy) Init(session *session.Session) {
-	nfrp.Client = networkfirewall.New(session)
+func (nfrp *NetworkFirewallResourcePolicy) InitV2(cfg aws.Config) {
+	nfrp.Client = networkfirewall.NewFromConfig(cfg)
 }
+
+func (nfrp *NetworkFirewallResourcePolicy) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (nfrp *NetworkFirewallResourcePolicy) ResourceName() string {
@@ -48,13 +55,13 @@ func (nfrp *NetworkFirewallResourcePolicy) GetAndSetIdentifiers(c context.Contex
 		return nil, err
 	}
 
-	nfrp.Identifiers = awsgo.StringValueSlice(identifiers)
+	nfrp.Identifiers = aws.ToStringSlice(identifiers)
 	return nfrp.Identifiers, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (nfrp *NetworkFirewallResourcePolicy) Nuke(identifiers []string) error {
-	if err := nfrp.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := nfrp.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
