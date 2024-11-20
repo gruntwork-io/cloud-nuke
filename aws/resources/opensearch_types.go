@@ -3,25 +3,34 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/opensearchservice"
-	"github.com/aws/aws-sdk-go/service/opensearchservice/opensearchserviceiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/opensearch"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type OpenSearchDomainsAPI interface {
+	AddTags(ctx context.Context, params *opensearch.AddTagsInput, optFns ...func(*opensearch.Options)) (*opensearch.AddTagsOutput, error)
+	DeleteDomain(ctx context.Context, params *opensearch.DeleteDomainInput, optFns ...func(*opensearch.Options)) (*opensearch.DeleteDomainOutput, error)
+	DescribeDomains(ctx context.Context, params *opensearch.DescribeDomainsInput, optFns ...func(*opensearch.Options)) (*opensearch.DescribeDomainsOutput, error)
+	ListDomainNames(ctx context.Context, params *opensearch.ListDomainNamesInput, optFns ...func(*opensearch.Options)) (*opensearch.ListDomainNamesOutput, error)
+	ListTags(ctx context.Context, params *opensearch.ListTagsInput, optFns ...func(*opensearch.Options)) (*opensearch.ListTagsOutput, error)
+}
+
 // OpenSearchDomains represents all OpenSearch domains found in a region
 type OpenSearchDomains struct {
 	BaseAwsResource
-	Client      opensearchserviceiface.OpenSearchServiceAPI
+	Client      OpenSearchDomainsAPI
 	Region      string
 	DomainNames []string
 }
 
-func (osd *OpenSearchDomains) Init(session *session.Session) {
-	osd.Client = opensearchservice.New(session)
+func (osd *OpenSearchDomains) InitV2(cfg aws.Config) {
+	osd.Client = opensearch.NewFromConfig(cfg)
 }
+
+func (osd *OpenSearchDomains) IsUsingV2() bool { return true }
 
 // ResourceName is the simple name of the aws resource
 func (osd *OpenSearchDomains) ResourceName() string {
@@ -51,13 +60,13 @@ func (osd *OpenSearchDomains) GetAndSetIdentifiers(c context.Context, configObj 
 		return nil, err
 	}
 
-	osd.DomainNames = awsgo.StringValueSlice(identifiers)
+	osd.DomainNames = aws.ToStringSlice(identifiers)
 	return osd.DomainNames, nil
 }
 
 // Nuke nukes all OpenSearch domain resources
 func (osd *OpenSearchDomains) Nuke(identifiers []string) error {
-	if err := osd.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := osd.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 	return nil

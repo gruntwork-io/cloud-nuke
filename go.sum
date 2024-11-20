@@ -107,6 +107,8 @@ github.com/aws/aws-sdk-go-v2/service/lambda v1.66.0 h1:jMqMB8t/xbJnDdr11kH5rKdAh
 github.com/aws/aws-sdk-go-v2/service/lambda v1.66.0/go.mod h1:4L6vIpiChdahncljlDFzKWGiZsLgszGwDoYqMDhb6T4=
 github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.5 h1:WJZG9ajCzS93t5qgG3NqVJqJqvpab9frc+2OhEszF/s=
 github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.5/go.mod h1:uAeVP7yiKq1iECAGBsHgMzlUH77OIrmsA1CBmIIeCe4=
+github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.0 h1:5U5Y6tWzqoP2Dr9APxkElg3tdMBsZd6PVWAq6NMYBbs=
+github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.0/go.mod h1:JbyxgIAzR9wXnvVAqITjrpKRCcktIC+UWtPJ2meWZbg=
 github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.5 h1:iitjgZ+/+ICxhA4EBvT5sqKchDcTiKBSOy+Ow0N8M+U=
 github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.5/go.mod h1:xbnM3QuSlc52qQjTdDK3GptxYgDnGaonugLFdv5opq4=
 github.com/aws/aws-sdk-go-v2/service/securityhub v1.54.6 h1:EXJOAcfyr0atxiQdrHTnrVTCwO9udESAcQ96sWiJ8es=

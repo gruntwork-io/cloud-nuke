@@ -6,13 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/opensearch"
+	"github.com/aws/aws-sdk-go-v2/service/opensearch/types"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/opensearchservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/hashicorp/go-multierror"
@@ -46,7 +47,7 @@ func (osd *OpenSearchDomains) getAll(c context.Context, configObj config.Config)
 			if firstSeenTime == nil {
 				err := osd.setFirstSeenTag(domain.ARN, time.Now().UTC())
 				if err != nil {
-					logging.Errorf("Error tagging the OpenSearch Domain with ARN %s with error: %s", aws.StringValue(domain.ARN), err.Error())
+					logging.Errorf("Error tagging the OpenSearch Domain with ARN %s with error: %s", aws.ToString(domain.ARN), err.Error())
 					return nil, errors.WithStackTrace(err)
 				}
 			}
@@ -63,9 +64,9 @@ func (osd *OpenSearchDomains) getAll(c context.Context, configObj config.Config)
 }
 
 // getAllActiveOpenSearchDomains filters all active OpenSearch domains, which are those that have the `Created` flag true and `Deleted` flag false.
-func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchservice.DomainStatus, error) {
+func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]types.DomainStatus, error) {
 	allDomains := []*string{}
-	resp, err := osd.Client.ListDomainNamesWithContext(osd.Context, &opensearchservice.ListDomainNamesInput{})
+	resp, err := osd.Client.ListDomainNames(osd.Context, &opensearch.ListDomainNamesInput{})
 	if err != nil {
 		logging.Errorf("Error getting all OpenSearch domains")
 		return nil, errors.WithStackTrace(err)
@@ -74,16 +75,16 @@ func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchserv
 		allDomains = append(allDomains, domain.DomainName)
 	}
 
-	input := &opensearchservice.DescribeDomainsInput{DomainNames: allDomains}
-	describedDomains, describeErr := osd.Client.DescribeDomainsWithContext(osd.Context, input)
+	input := &opensearch.DescribeDomainsInput{DomainNames: aws.ToStringSlice(allDomains)}
+	describedDomains, describeErr := osd.Client.DescribeDomains(osd.Context, input)
 	if describeErr != nil {
 		logging.Errorf("Error describing Domains from input %s: ", input)
 		return nil, errors.WithStackTrace(describeErr)
 	}
 
-	filteredDomains := []*opensearchservice.DomainStatus{}
+	filteredDomains := []types.DomainStatus{}
 	for _, domain := range describedDomains.DomainStatusList {
-		if aws.BoolValue(domain.Created) && aws.BoolValue(domain.Deleted) == false {
+		if aws.ToBool(domain.Created) && aws.ToBool(domain.Deleted) == false {
 			filteredDomains = append(filteredDomains, domain)
 		}
 	}
@@ -92,12 +93,12 @@ func (osd *OpenSearchDomains) getAllActiveOpenSearchDomains() ([]*opensearchserv
 
 // Tag an OpenSearch Domain identified by the given ARN when it's first seen by cloud-nuke
 func (osd *OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.Time) error {
-	logging.Debugf("Tagging the OpenSearch Domain with ARN %s with first seen timestamp", aws.StringValue(domainARN))
+	logging.Debugf("Tagging the OpenSearch Domain with ARN %s with first seen timestamp", aws.ToString(domainARN))
 	firstSeenTime := util.FormatTimestamp(timestamp)
 
-	input := &opensearchservice.AddTagsInput{
+	input := &opensearch.AddTagsInput{
 		ARN: domainARN,
-		TagList: []*opensearchservice.Tag{
+		TagList: []types.Tag{
 			{
 				Key:   aws.String(firstSeenTagKey),
 				Value: aws.String(firstSeenTime),
@@ -105,7 +106,7 @@ func (osd *OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.
 		},
 	}
 
-	_, err := osd.Client.AddTags(input)
+	_, err := osd.Client.AddTags(osd.Context, input)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -117,10 +118,10 @@ func (osd *OpenSearchDomains) setFirstSeenTag(domainARN *string, timestamp time.
 func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, error) {
 	var firstSeenTime *time.Time
 
-	input := &opensearchservice.ListTagsInput{ARN: domainARN}
-	domainTags, err := osd.Client.ListTags(input)
+	input := &opensearch.ListTagsInput{ARN: domainARN}
+	domainTags, err := osd.Client.ListTags(osd.Context, input)
 	if err != nil {
-		logging.Errorf("Error getting the tags for OpenSearch Domain with ARN %s", aws.StringValue(domainARN))
+		logging.Errorf("Error getting the tags for OpenSearch Domain with ARN %s", aws.ToString(domainARN))
 		return firstSeenTime, errors.WithStackTrace(err)
 	}
 
@@ -128,7 +129,7 @@ func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, er
 		if util.IsFirstSeenTag(tag.Key) {
 			firstSeenTime, err := util.ParseTimestamp(tag.Value)
 			if err != nil {
-				logging.Errorf("Error parsing the `cloud-nuke-first-seen` tag for OpenSearch Domain with ARN %s", aws.StringValue(domainARN))
+				logging.Errorf("Error parsing the `cloud-nuke-first-seen` tag for OpenSearch Domain with ARN %s", aws.ToString(domainARN))
 				return firstSeenTime, errors.WithStackTrace(err)
 			}
 
@@ -139,7 +140,7 @@ func (osd *OpenSearchDomains) getFirstSeenTag(domainARN *string) (*time.Time, er
 	return firstSeenTime, nil
 }
 
-// nukeAll nukes the given list of OpenSearch domains concurrently. Note that the opensearchservice API
+// nukeAll nukes the given list of OpenSearch domains concurrently. Note that the opensearch API
 // does not support bulk delete, so this routine will spawn a goroutine for each domain that needs to be nuked so that
 // they can be issued concurrently.
 func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
@@ -148,8 +149,8 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 		return nil
 	}
 
-	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
-	// based on OpenSearchDomains.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
+	// NOTE: we don't need to do pagination here, because the caller handles the pagination to this function,
+	// based on OpenSearchDomains.MaxBatchSize, however, we add a guard here to warn users when the batching fails and has a
 	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
 	// because many APIs in AWS have a limit of 100 requests per second.
 	if len(identifiers) > 100 {
@@ -187,7 +188,7 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
 		30, 10*time.Second,
 		func() error {
-			resp, err := osd.Client.DescribeDomainsWithContext(osd.Context, &opensearchservice.DescribeDomainsInput{DomainNames: identifiers})
+			resp, err := osd.Client.DescribeDomains(osd.Context, &opensearch.DescribeDomainsInput{DomainNames: aws.ToStringSlice(identifiers)})
 			if err != nil {
 				return errors.WithStackTrace(retry.FatalError{Underlying: err})
 			}
@@ -201,7 +202,7 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 		return errors.WithStackTrace(err)
 	}
 	for _, domainName := range identifiers {
-		logging.Debugf("[OK] OpenSearch Domain %s was deleted in %s", aws.StringValue(domainName), osd.Region)
+		logging.Debugf("[OK] OpenSearch Domain %s was deleted in %s", aws.ToString(domainName), osd.Region)
 	}
 	return nil
 }
@@ -211,12 +212,12 @@ func (osd *OpenSearchDomains) nukeAll(identifiers []*string) error {
 func (osd *OpenSearchDomains) deleteAsync(wg *sync.WaitGroup, errChan chan error, domainName *string) {
 	defer wg.Done()
 
-	input := &opensearchservice.DeleteDomainInput{DomainName: domainName}
-	_, err := osd.Client.DeleteDomainWithContext(osd.Context, input)
+	input := &opensearch.DeleteDomainInput{DomainName: domainName}
+	_, err := osd.Client.DeleteDomain(osd.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.StringValue(domainName),
+		Identifier:   aws.ToString(domainName),
 		ResourceType: "OpenSearch Domain",
 		Error:        err,
 	}
