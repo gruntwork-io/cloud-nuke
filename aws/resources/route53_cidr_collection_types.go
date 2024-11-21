@@ -3,25 +3,32 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/aws/aws-sdk-go/service/route53/route53iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type Route53CidrCollectionAPI interface {
+	ListCidrCollections(ctx context.Context, params *route53.ListCidrCollectionsInput, optFns ...func(*route53.Options)) (*route53.ListCidrCollectionsOutput, error)
+	ListCidrBlocks(ctx context.Context, params *route53.ListCidrBlocksInput, optFns ...func(*route53.Options)) (*route53.ListCidrBlocksOutput, error)
+	ChangeCidrCollection(ctx context.Context, params *route53.ChangeCidrCollectionInput, optFns ...func(*route53.Options)) (*route53.ChangeCidrCollectionOutput, error)
+	DeleteCidrCollection(ctx context.Context, params *route53.DeleteCidrCollectionInput, optFns ...func(*route53.Options)) (*route53.DeleteCidrCollectionOutput, error)
+}
+
 // Route53CidrCollection - represents all Route53CidrCollection
 type Route53CidrCollection struct {
 	BaseAwsResource
-	Client route53iface.Route53API
+	Client Route53CidrCollectionAPI
 	Region string
 	Ids    []string
 }
 
-func (r *Route53CidrCollection) Init(session *session.Session) {
-	r.Client = route53.New(session)
+func (r *Route53CidrCollection) InitV2(cfg aws.Config) {
+	r.Client = route53.NewFromConfig(cfg)
 }
+
+func (r *Route53CidrCollection) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (r *Route53CidrCollection) ResourceName() string {
@@ -38,7 +45,7 @@ func (r *Route53CidrCollection) ResourceIdentifiers() []string {
 	return r.Ids
 }
 
-func (rc *Route53CidrCollection) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+func (r *Route53CidrCollection) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
 	return configObj.Route53CIDRCollection
 }
 
@@ -48,13 +55,13 @@ func (r *Route53CidrCollection) GetAndSetIdentifiers(c context.Context, configOb
 		return nil, err
 	}
 
-	r.Ids = awsgo.StringValueSlice(identifiers)
+	r.Ids = aws.ToStringSlice(identifiers)
 	return r.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (r *Route53CidrCollection) Nuke(identifiers []string) error {
-	if err := r.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := r.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

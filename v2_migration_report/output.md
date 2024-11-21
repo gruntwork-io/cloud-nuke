@@ -95,9 +95,9 @@ run `go generate ./...` to refresh this report.
 | rds-snapshot                     |                    |
 | rds-subnet-group                 |                    |
 | redshift                         |                    |
-| route53-cidr-collection          |                    |
-| route53-hosted-zone              |                    |
-| route53-traffic-policy           |                    |
+| route53-cidr-collection          | :white_check_mark: |
+| route53-hosted-zone              | :white_check_mark: |
+| route53-traffic-policy           | :white_check_mark: |
 | s3                               | :white_check_mark: |
 | s3-ap                            | :white_check_mark: |
 | s3-mrap                          | :white_check_mark: |

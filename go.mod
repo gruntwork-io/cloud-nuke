@@ -14,9 +14,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/apigateway v1.28.0
 	github.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.24.6
 	github.com/aws/aws-sdk-go-v2/service/apprunner v1.32.6
-	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.50.0
+	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.51.0
 	github.com/aws/aws-sdk-go-v2/service/backup v1.39.7
-	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.46.0
+	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.46.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.43.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.44.0
 	github.com/aws/aws-sdk-go-v2/service/codedeploy v1.29.6
@@ -31,7 +31,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/elasticache v1.44.0
 	github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk v1.28.5
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing v1.28.5
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.42.1
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.43.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.35.6
 	github.com/aws/aws-sdk-go-v2/service/firehose v1.35.1
 	github.com/aws/aws-sdk-go-v2/service/grafana v1.26.6
@@ -39,17 +39,18 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.38.1
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.32.6
 	github.com/aws/aws-sdk-go-v2/service/kms v1.37.6
-	github.com/aws/aws-sdk-go-v2/service/lambda v1.68.0
+	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.0
 	github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.6
 	github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.1
+	github.com/aws/aws-sdk-go-v2/service/route53 v1.46.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0
 	github.com/aws/aws-sdk-go-v2/service/s3control v1.50.1
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.6
 	github.com/aws/aws-sdk-go-v2/service/securityhub v1.54.7
-	github.com/aws/aws-sdk-go-v2/service/ses v1.28.5
-	github.com/aws/aws-sdk-go-v2/service/sns v1.33.5
+	github.com/aws/aws-sdk-go-v2/service/ses v1.29.0
+	github.com/aws/aws-sdk-go-v2/service/sns v1.33.6
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.1
-	github.com/aws/aws-sdk-go-v2/service/vpclattice v1.12.8
+	github.com/aws/aws-sdk-go-v2/service/vpclattice v1.12.9
 	github.com/aws/smithy-go v1.22.1
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/go-errors/errors v1.4.2

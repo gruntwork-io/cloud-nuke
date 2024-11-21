@@ -3,9 +3,9 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/route53"
+	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,7 +14,7 @@ import (
 func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
-	result, err := r.Client.ListHostedZonesWithContext(r.Context, &route53.ListHostedZonesInput{})
+	result, err := r.Client.ListHostedZones(r.Context, &route53.ListHostedZonesInput{})
 	if err != nil {
 		logging.Errorf("[Failed] unable to list hosted-zones: %s", err)
 		return nil, err
@@ -25,7 +25,7 @@ func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) (
 			Name: zone.Name,
 		}) {
 			ids = append(ids, zone.Id)
-			r.HostedZonesDomains[awsgo.StringValue(zone.Id)] = zone
+			r.HostedZonesDomains[aws.ToString(zone.Id)] = &zone
 		}
 	}
 	return ids, nil
@@ -38,7 +38,7 @@ func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) (
 func (r *Route53HostedZone) nukeTrafficPolicy(id *string) (err error) {
 	logging.Debugf("[Traffic Policy] nuking the traffic policy attached with the hosted zone")
 
-	_, err = r.Client.DeleteTrafficPolicyInstance(&route53.DeleteTrafficPolicyInstanceInput{
+	_, err = r.Client.DeleteTrafficPolicyInstance(r.Context, &route53.DeleteTrafficPolicyInstanceInput{
 		Id: id,
 	})
 	return err
@@ -46,7 +46,7 @@ func (r *Route53HostedZone) nukeTrafficPolicy(id *string) (err error) {
 
 func (r *Route53HostedZone) nukeHostedZone(id *string) (err error) {
 
-	_, err = r.Client.DeleteHostedZoneWithContext(r.Context, &route53.DeleteHostedZoneInput{
+	_, err = r.Client.DeleteHostedZone(r.Context, &route53.DeleteHostedZoneInput{
 		Id: id,
 	})
 
@@ -56,7 +56,7 @@ func (r *Route53HostedZone) nukeHostedZone(id *string) (err error) {
 func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
 
 	// get the resource records
-	output, err := r.Client.ListResourceRecordSets(&route53.ListResourceRecordSetsInput{
+	output, err := r.Client.ListResourceRecordSets(r.Context, &route53.ListResourceRecordSetsInput{
 		HostedZoneId: id,
 	})
 	if err != nil {
@@ -65,14 +65,14 @@ func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
 	}
 
 	// get the domain name
-	var domainName = awsgo.StringValue(r.HostedZonesDomains[awsgo.StringValue(id)].Name)
+	var domainName = aws.ToString(r.HostedZonesDomains[aws.ToString(id)].Name)
 
-	var changes []*route53.Change
+	var changes []types.Change
 	for _, record := range output.ResourceRecordSets {
 		// Note : We can't delete the SOA record or the NS record named ${domain-name}.
 		// Reference : https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-deleting.html
-		if (aws.StringValue(record.Type) == "NS" || aws.StringValue(record.Type) == "SOA") && awsgo.StringValue(record.Name) == domainName {
-			logging.Infof("[Skipping] resource record set type is : %s", aws.StringValue(record.Type))
+		if (record.Type == types.RRTypeNs || record.Type == types.RRTypeSoa) && aws.ToString(record.Name) == domainName {
+			logging.Infof("[Skipping] resource record set type is : %s", string(record.Type))
 			continue
 		}
 
@@ -89,16 +89,16 @@ func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
 		}
 
 		// set the changes slice
-		changes = append(changes, &route53.Change{
-			Action:            aws.String("DELETE"),
-			ResourceRecordSet: record,
+		changes = append(changes, types.Change{
+			Action:            types.ChangeActionDelete,
+			ResourceRecordSet: &record,
 		})
 	}
 
 	if len(changes) > 0 {
-		_, err = r.Client.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
+		_, err = r.Client.ChangeResourceRecordSets(r.Context, &route53.ChangeResourceRecordSetsInput{
 			HostedZoneId: id,
-			ChangeBatch: &route53.ChangeBatch{
+			ChangeBatch: &types.ChangeBatch{
 				Changes: changes,
 			},
 		})
@@ -142,7 +142,7 @@ func (r *Route53HostedZone) nukeAll(identifiers []*string) (err error) {
 		err = r.nuke(id)
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Route53 hosted zone",
 			Error:        err,
 		}
@@ -152,7 +152,7 @@ func (r *Route53HostedZone) nukeAll(identifiers []*string) (err error) {
 			logging.Errorf("[Failed] %s: %s", *id, err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Route53 Hosted Zone: %s", aws.StringValue(id))
+			logging.Debugf("Deleted Route53 Hosted Zone: %s", aws.ToString(id))
 		}
 	}
 
