@@ -3,9 +3,9 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,7 +14,7 @@ import (
 
 // Returns a formatted string of Launch Template Names
 func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := lt.Client.DescribeLaunchTemplatesWithContext(lt.Context, &ec2.DescribeLaunchTemplatesInput{})
+	result, err := lt.Client.DescribeLaunchTemplates(lt.Context, &ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -31,9 +31,9 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 
 	// checking the nukable permissions
 	lt.VerifyNukablePermissions(templateNames, func(id *string) error {
-		_, err := lt.Client.DeleteLaunchTemplateWithContext(lt.Context, &ec2.DeleteLaunchTemplateInput{
+		_, err := lt.Client.DeleteLaunchTemplate(lt.Context, &ec2.DeleteLaunchTemplateInput{
 			LaunchTemplateName: id,
-			DryRun:             awsgo.Bool(true),
+			DryRun:             aws.Bool(true),
 		})
 		return err
 	})
@@ -53,18 +53,18 @@ func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
 
 	for _, templateName := range templateNames {
 
-		if nukable, reason := lt.IsNukable(awsgo.StringValue(templateName)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", awsgo.StringValue(templateName), reason)
+		if nukable, reason := lt.IsNukable(aws.ToString(templateName)); !nukable {
+			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(templateName), reason)
 			continue
 		}
 
-		_, err := lt.Client.DeleteLaunchTemplateWithContext(lt.Context, &ec2.DeleteLaunchTemplateInput{
+		_, err := lt.Client.DeleteLaunchTemplate(lt.Context, &ec2.DeleteLaunchTemplateInput{
 			LaunchTemplateName: templateName,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(templateName),
+			Identifier:   aws.ToString(templateName),
 			ResourceType: "Launch template",
 			Error:        err,
 		}

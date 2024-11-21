@@ -72,7 +72,7 @@ run `go generate ./...` to refresh this report.
 | lambda                           | :white_check_mark: |
 | lambda_layer                     | :white_check_mark: |
 | lc                               |                    |
-| lt                               |                    |
+| lt                               | :white_check_mark: |
 | macie-member                     | :white_check_mark: |
 | managed-prometheus               | :white_check_mark: |
 | msk-cluster                      |                    |

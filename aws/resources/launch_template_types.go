@@ -2,26 +2,30 @@ package resources
 
 import (
 	"context"
-
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type LaunchTemplatesAPI interface {
+	DeleteLaunchTemplate(ctx context.Context, params *ec2.DeleteLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.DeleteLaunchTemplateOutput, error)
+	DescribeLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error)
+}
+
 // LaunchTemplates - represents all launch templates
 type LaunchTemplates struct {
 	BaseAwsResource
-	Client              ec2iface.EC2API
+	Client              LaunchTemplatesAPI
 	Region              string
 	LaunchTemplateNames []string
 }
 
-func (lt *LaunchTemplates) Init(session *session.Session) {
-	lt.Client = ec2.New(session)
+func (lt *LaunchTemplates) InitV2(cfg aws.Config) {
+	lt.Client = ec2.NewFromConfig(cfg)
 }
+
+func (lt *LaunchTemplates) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (lt *LaunchTemplates) ResourceName() string {
@@ -48,13 +52,13 @@ func (lt *LaunchTemplates) GetAndSetIdentifiers(c context.Context, configObj con
 		return nil, err
 	}
 
-	lt.LaunchTemplateNames = awsgo.StringValueSlice(identifiers)
+	lt.LaunchTemplateNames = aws.ToStringSlice(identifiers)
 	return lt.LaunchTemplateNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (lt *LaunchTemplates) Nuke(identifiers []string) error {
-	if err := lt.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := lt.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
