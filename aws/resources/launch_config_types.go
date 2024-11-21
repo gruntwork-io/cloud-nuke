@@ -3,25 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type LaunchConfigsAPI interface {
+	DeleteLaunchConfiguration(ctx context.Context, params *autoscaling.DeleteLaunchConfigurationInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DeleteLaunchConfigurationOutput, error)
+	DescribeLaunchConfigurations(ctx context.Context, params *autoscaling.DescribeLaunchConfigurationsInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeLaunchConfigurationsOutput, error)
+}
+
 // LaunchConfigs - represents all launch configurations
 type LaunchConfigs struct {
 	BaseAwsResource
-	Client                   autoscalingiface.AutoScalingAPI
+	Client                   LaunchConfigsAPI
 	Region                   string
 	LaunchConfigurationNames []string
 }
 
-func (lc *LaunchConfigs) Init(session *session.Session) {
-	lc.Client = autoscaling.New(session)
+func (lc *LaunchConfigs) InitV2(cfg aws.Config) {
+	lc.Client = autoscaling.NewFromConfig(cfg)
 }
+
+func (lc *LaunchConfigs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (lc *LaunchConfigs) ResourceName() string {
@@ -43,18 +49,18 @@ func (lc *LaunchConfigs) GetAndSetResourceConfig(configObj config.Config) config
 }
 
 func (lc *LaunchConfigs) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
-	identifiers, err := lc.getAll(c, configObj)
+	identifiers, err := lc.getAll(configObj)
 	if err != nil {
 		return nil, err
 	}
 
-	lc.LaunchConfigurationNames = awsgo.StringValueSlice(identifiers)
+	lc.LaunchConfigurationNames = aws.ToStringSlice(identifiers)
 	return lc.LaunchConfigurationNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (lc *LaunchConfigs) Nuke(identifiers []string) error {
-	if err := lc.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := lc.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

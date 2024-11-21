@@ -71,7 +71,7 @@ run `go generate ./...` to refresh this report.
 | kmscustomerkeys                  | :white_check_mark: |
 | lambda                           | :white_check_mark: |
 | lambda_layer                     | :white_check_mark: |
-| lc                               |                    |
+| lc                               | :white_check_mark: |
 | lt                               | :white_check_mark: |
 | macie-member                     | :white_check_mark: |
 | managed-prometheus               | :white_check_mark: |
