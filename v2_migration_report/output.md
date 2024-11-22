@@ -87,13 +87,13 @@ run `go generate ./...` to refresh this report.
 | oidcprovider                     | :white_check_mark: |
 | opensearchdomain                 | :white_check_mark: |
 | rds                              | :white_check_mark: |
-| rds-cluster                      |                    |
-| rds-global-cluster               |                    |
-| rds-global-cluster-membership    |                    |
-| rds-parameter-group              |                    |
-| rds-proxy                        |                    |
-| rds-snapshot                     |                    |
-| rds-subnet-group                 |                    |
+| rds-cluster                      | :white_check_mark: |
+| rds-global-cluster               | :white_check_mark: |
+| rds-global-cluster-membership    | :white_check_mark: |
+| rds-parameter-group              | :white_check_mark: |
+| rds-proxy                        | :white_check_mark: |
+| rds-snapshot                     | :white_check_mark: |
+| rds-subnet-group                 | :white_check_mark: |
 | redshift                         |                    |
 | route53-cidr-collection          | :white_check_mark: |
 | route53-hosted-zone              | :white_check_mark: |

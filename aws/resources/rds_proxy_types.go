@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type RdsProxyAPI interface {
+	DescribeDBProxies(ctx context.Context, params *rds.DescribeDBProxiesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBProxiesOutput, error)
+	DeleteDBProxy(ctx context.Context, params *rds.DeleteDBProxyInput, optFns ...func(*rds.Options)) (*rds.DeleteDBProxyOutput, error)
+}
 type RdsProxy struct {
 	BaseAwsResource
-	Client     rdsiface.RDSAPI
+	Client     RdsProxyAPI
 	Region     string
 	GroupNames []string
 }
 
-func (pg *RdsProxy) Init(session *session.Session) {
-	pg.Client = rds.New(session)
+func (pg *RdsProxy) InitV2(cfg aws.Config) {
+	pg.Client = rds.NewFromConfig(cfg)
 }
+
+func (pg *RdsProxy) IsUsingV2() bool { return true }
 
 func (pg *RdsProxy) ResourceName() string {
 	return "rds-proxy"
@@ -46,7 +51,7 @@ func (pg *RdsProxy) GetAndSetIdentifiers(c context.Context, configObj config.Con
 		return nil, err
 	}
 
-	pg.GroupNames = awsgo.StringValueSlice(identifiers)
+	pg.GroupNames = awsgo.ToStringSlice(identifiers)
 	return pg.GroupNames, nil
 }
 

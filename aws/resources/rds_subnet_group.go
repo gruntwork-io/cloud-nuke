@@ -2,14 +2,14 @@ package resources
 
 import (
 	"context"
+	goerr "errors"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/gruntwork-io/cloud-nuke/config"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -18,13 +18,13 @@ import (
 func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error {
 	// wait up to 15 minutes
 	for i := 0; i < 90; i++ {
-		_, err := dsg.Client.DescribeDBSubnetGroupsWithContext(
+		_, err := dsg.Client.DescribeDBSubnetGroups(
 			dsg.Context, &rds.DescribeDBSubnetGroupsInput{DBSubnetGroupName: name})
 		if err != nil {
-			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBSubnetGroupNotFoundFault {
+			var notFoundErr *types.DBSubnetGroupNotFoundFault
+			if goerr.As(err, &notFoundErr) {
 				return nil
 			}
-
 			return err
 		}
 
@@ -37,22 +37,21 @@ func (dsg *DBSubnetGroups) waitUntilRdsDbSubnetGroupDeleted(name *string) error 
 
 func (dsg *DBSubnetGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
-	err := dsg.Client.DescribeDBSubnetGroupsPagesWithContext(
-		dsg.Context,
-		&rds.DescribeDBSubnetGroupsInput{},
-		func(page *rds.DescribeDBSubnetGroupsOutput, lastPage bool) bool {
-			for _, subnetGroup := range page.DBSubnetGroups {
-				if configObj.DBSubnetGroups.ShouldInclude(config.ResourceValue{
-					Name: subnetGroup.DBSubnetGroupName,
-				}) {
-					names = append(names, subnetGroup.DBSubnetGroupName)
-				}
-			}
+	paginator := rds.NewDescribeDBSubnetGroupsPaginator(dsg.Client, &rds.DescribeDBSubnetGroupsInput{})
 
-			return !lastPage
-		})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, subnetGroup := range page.DBSubnetGroups {
+			if configObj.DBSubnetGroups.ShouldInclude(config.ResourceValue{
+				Name: subnetGroup.DBSubnetGroupName,
+			}) {
+				names = append(names, subnetGroup.DBSubnetGroupName)
+			}
+		}
 	}
 
 	return names, nil
@@ -68,13 +67,13 @@ func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		_, err := dsg.Client.DeleteDBSubnetGroupWithContext(dsg.Context, &rds.DeleteDBSubnetGroupInput{
+		_, err := dsg.Client.DeleteDBSubnetGroup(dsg.Context, &rds.DeleteDBSubnetGroupInput{
 			DBSubnetGroupName: name,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(name),
+			Identifier:   aws.ToString(name),
 			ResourceType: "RDS DB Subnet Group",
 			Error:        err,
 		}
@@ -84,7 +83,7 @@ func (dsg *DBSubnetGroups) nukeAll(names []*string) error {
 			logging.Debugf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB subnet group: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted RDS DB subnet group: %s", aws.ToString(name))
 		}
 	}
 

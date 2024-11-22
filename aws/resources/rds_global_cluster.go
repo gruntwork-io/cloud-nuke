@@ -2,13 +2,12 @@ package resources
 
 import (
 	"context"
+	goerr "errors"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -22,7 +21,7 @@ const (
 )
 
 func (instance *DBGlobalClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{})
+	result, err := instance.Client.DescribeGlobalClusters(instance.Context, &rds.DescribeGlobalClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -51,13 +50,13 @@ func (instance *DBGlobalClusters) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		_, err := instance.Client.DeleteGlobalClusterWithContext(instance.Context, &rds.DeleteGlobalClusterInput{
+		_, err := instance.Client.DeleteGlobalCluster(instance.Context, &rds.DeleteGlobalClusterInput{
 			GlobalClusterIdentifier: name,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(name),
+			Identifier:   aws.ToString(name),
 			ResourceType: "RDS Global Cluster Membership",
 			Error:        err,
 		}
@@ -69,7 +68,7 @@ func (instance *DBGlobalClusters) nukeAll(names []*string) error {
 
 		default:
 			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Global Cluster Membership: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted RDS DB Global Cluster Membership: %s", aws.ToString(name))
 		}
 	}
 
@@ -87,11 +86,12 @@ func (instance *DBGlobalClusters) nukeAll(names []*string) error {
 
 func (instance *DBGlobalClusters) waitUntilRDSGlobalClusterDeleted(name string) error {
 	for i := 0; i < dbGlobalClusterDeletionRetryCount; i++ {
-		_, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{
+		_, err := instance.Client.DescribeGlobalClusters(instance.Context, &rds.DescribeGlobalClustersInput{
 			GlobalClusterIdentifier: &name,
 		})
 		if err != nil {
-			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeGlobalClusterNotFoundFault {
+			var notFoundErr *types.GlobalClusterNotFoundFault
+			if goerr.As(err, &notFoundErr) {
 				return nil
 			}
 

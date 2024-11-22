@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -13,28 +13,26 @@ import (
 
 func (rdp *RdsProxy) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var names []*string
-	err := rdp.Client.DescribeDBProxiesPagesWithContext(
-		rdp.Context,
-		&rds.DescribeDBProxiesInput{},
-		func(page *rds.DescribeDBProxiesOutput, lastPage bool) bool {
-			for _, proxy := range page.DBProxies {
-				if configObj.RdsProxy.ShouldInclude(config.ResourceValue{
-					Name: proxy.DBProxyName,
-					Time: proxy.CreatedDate,
-				}) {
-					names = append(names, proxy.DBProxyName)
-				}
-			}
+	paginator := rds.NewDescribeDBProxiesPaginator(rdp.Client, &rds.DescribeDBProxiesInput{})
 
-			return !lastPage
-		})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(rdp.Context)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, proxy := range page.DBProxies {
+			if configObj.RdsProxy.ShouldInclude(config.ResourceValue{
+				Name: proxy.DBProxyName,
+				Time: proxy.CreatedDate,
+			}) {
+				names = append(names, proxy.DBProxyName)
+			}
+		}
 	}
 
 	return names, nil
 }
-
 func (rdp *RdsProxy) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
 		logging.Debugf("No RDS proxy in region %s", rdp.Region)
@@ -47,7 +45,7 @@ func (rdp *RdsProxy) nukeAll(identifiers []*string) error {
 	for _, identifier := range identifiers {
 		logging.Debugf("[RDS Proxy] Deleting %s in region %s", *identifier, rdp.Region)
 
-		_, err := rdp.Client.DeleteDBProxyWithContext(
+		_, err := rdp.Client.DeleteDBProxy(
 			rdp.Context,
 			&rds.DeleteDBProxyInput{
 				DBProxyName: identifier,
@@ -61,7 +59,7 @@ func (rdp *RdsProxy) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(identifier),
+			Identifier:   aws.ToString(identifier),
 			ResourceType: rdp.ResourceName(),
 			Error:        err,
 		}

@@ -6,28 +6,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedRdsSnapshot struct {
-	rdsiface.RDSAPI
+	RdsSnapshotAPI
 	DescribeDBSnapshotsPagesOutput rds.DescribeDBSnapshotsOutput
 	DeleteDBSnapshotOutput         rds.DeleteDBSnapshotOutput
 }
 
-func (m mockedRdsSnapshot) DescribeDBSnapshotsPagesWithContext(_ awsgo.Context, _ *rds.DescribeDBSnapshotsInput, callback func(*rds.DescribeDBSnapshotsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeDBSnapshotsPagesOutput, true)
-	return nil
+func (m mockedRdsSnapshot) DescribeDBSnapshots(ctx context.Context, params *rds.DescribeDBSnapshotsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBSnapshotsOutput, error) {
+	return &m.DescribeDBSnapshotsPagesOutput, nil
 }
 
-func (m mockedRdsSnapshot) DeleteDBSnapshotWithContext(_ awsgo.Context, _ *rds.DeleteDBSnapshotInput, _ ...request.Option) (*rds.DeleteDBSnapshotOutput, error) {
+func (m mockedRdsSnapshot) DeleteDBSnapshot(ctx context.Context, params *rds.DeleteDBSnapshotInput, optFns ...func(*rds.Options)) (*rds.DeleteDBSnapshotOutput, error) {
 	return &m.DeleteDBSnapshotOutput, nil
 }
 
@@ -41,7 +38,7 @@ func TestRdsSnapshot_GetAll(t *testing.T) {
 	snapshot := RdsSnapshot{
 		Client: mockedRdsSnapshot{
 			DescribeDBSnapshotsPagesOutput: rds.DescribeDBSnapshotsOutput{
-				DBSnapshots: []*rds.DBSnapshot{
+				DBSnapshots: []types.DBSnapshot{
 					{
 						DBSnapshotIdentifier: &testName1,
 						SnapshotCreateTime:   &now,
@@ -86,7 +83,7 @@ func TestRdsSnapshot_GetAll(t *testing.T) {
 				RdsSnapshot: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

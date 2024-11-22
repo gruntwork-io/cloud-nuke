@@ -3,24 +3,28 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type RdsParameterGroupAPI interface {
+	DeleteDBParameterGroup(ctx context.Context, params *rds.DeleteDBParameterGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBParameterGroupOutput, error)
+	DescribeDBParameterGroups(ctx context.Context, params *rds.DescribeDBParameterGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBParameterGroupsOutput, error)
+}
 type RdsParameterGroup struct {
 	BaseAwsResource
-	Client     rdsiface.RDSAPI
+	Client     RdsParameterGroupAPI
 	Region     string
 	GroupNames []string
 }
 
-func (pg *RdsParameterGroup) Init(session *session.Session) {
-	pg.Client = rds.New(session)
+func (pg *RdsParameterGroup) InitV2(cfg aws.Config) {
+	pg.Client = rds.NewFromConfig(cfg)
 }
+
+func (pg *RdsParameterGroup) IsUsingV2() bool { return true }
 
 func (pg *RdsParameterGroup) ResourceName() string {
 	return "rds-parameter-group"
@@ -46,13 +50,13 @@ func (pg *RdsParameterGroup) GetAndSetIdentifiers(c context.Context, configObj c
 		return nil, err
 	}
 
-	pg.GroupNames = awsgo.StringValueSlice(identifiers)
+	pg.GroupNames = aws.ToStringSlice(identifiers)
 	return pg.GroupNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (pg *RdsParameterGroup) Nuke(identifiers []string) error {
-	if err := pg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := pg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

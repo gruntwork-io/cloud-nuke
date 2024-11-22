@@ -5,27 +5,25 @@ import (
 	"regexp"
 	"testing"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedRdsDBParameterGroup struct {
-	rdsiface.RDSAPI
+	RdsParameterGroupAPI
 	DescribeDBParameterGroupsOutput rds.DescribeDBParameterGroupsOutput
 	DeleteDBParameterGroupOutput    rds.DeleteDBParameterGroupOutput
 }
 
-func (m mockedRdsDBParameterGroup) DescribeDBParameterGroupsPagesWithContext(_ awsgo.Context, _ *rds.DescribeDBParameterGroupsInput, callback func(*rds.DescribeDBParameterGroupsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeDBParameterGroupsOutput, true)
-	return nil
+func (m mockedRdsDBParameterGroup) DescribeDBParameterGroups(ctx context.Context, params *rds.DescribeDBParameterGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBParameterGroupsOutput, error) {
+	return &m.DescribeDBParameterGroupsOutput, nil
 }
 
-func (m mockedRdsDBParameterGroup) DeleteDBParameterGroupWithContext(_ awsgo.Context, _ *rds.DeleteDBParameterGroupInput, _ ...request.Option) (*rds.DeleteDBParameterGroupOutput, error) {
+func (m mockedRdsDBParameterGroup) DeleteDBParameterGroup(ctx context.Context, params *rds.DeleteDBParameterGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBParameterGroupOutput, error) {
 	return &m.DeleteDBParameterGroupOutput, nil
 }
 
@@ -38,7 +36,7 @@ func TestRDSparameterGroupGetAll(t *testing.T) {
 	pg := RdsParameterGroup{
 		Client: mockedRdsDBParameterGroup{
 			DescribeDBParameterGroupsOutput: rds.DescribeDBParameterGroupsOutput{
-				DBParameterGroups: []*rds.DBParameterGroup{
+				DBParameterGroups: []types.DBParameterGroup{
 					{
 						DBParameterGroupName: awsgo.String(testName01),
 					},

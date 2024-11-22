@@ -2,14 +2,14 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/util"
+	goerr "errors"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/gruntwork-io/cloud-nuke/util"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -19,9 +19,10 @@ import (
 func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClustersInput) error {
 	// wait up to 15 minutes
 	for i := 0; i < 90; i++ {
-		_, err := instance.Client.DescribeDBClustersWithContext(instance.Context, input)
+		_, err := instance.Client.DescribeDBClusters(instance.Context, input)
 		if err != nil {
-			if awsErr, isAwsErr := err.(awserr.Error); isAwsErr && awsErr.Code() == rds.ErrCodeDBClusterNotFoundFault {
+			var notFoundErr *types.DBClusterNotFoundFault
+			if goerr.As(err, &notFoundErr) {
 				return nil
 			}
 
@@ -36,7 +37,7 @@ func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClus
 }
 
 func (instance *DBClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := instance.Client.DescribeDBClustersWithContext(instance.Context, &rds.DescribeDBClustersInput{})
+	result, err := instance.Client.DescribeDBClusters(c, &rds.DescribeDBClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -46,7 +47,7 @@ func (instance *DBClusters) getAll(c context.Context, configObj config.Config) (
 		if configObj.DBClusters.ShouldInclude(config.ResourceValue{
 			Name: database.DBClusterIdentifier,
 			Time: database.ClusterCreateTime,
-			Tags: util.ConvertRDSTagsToMap(database.TagList),
+			Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
 		}) {
 			names = append(names, database.DBClusterIdentifier)
 		}
@@ -67,14 +68,14 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 	for _, name := range names {
 		params := &rds.DeleteDBClusterInput{
 			DBClusterIdentifier: name,
-			SkipFinalSnapshot:   awsgo.Bool(true),
+			SkipFinalSnapshot:   aws.Bool(true),
 		}
 
-		_, err := instance.Client.DeleteDBClusterWithContext(instance.Context, params)
+		_, err := instance.Client.DeleteDBCluster(instance.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(name),
+			Identifier:   aws.ToString(name),
 			ResourceType: "RDS Cluster",
 			Error:        err,
 		}
@@ -84,7 +85,7 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 			logging.Debugf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Cluster: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted RDS DB Cluster: %s", aws.ToString(name))
 		}
 	}
 

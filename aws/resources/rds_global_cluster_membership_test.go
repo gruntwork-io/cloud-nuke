@@ -6,30 +6,25 @@ import (
 	"strings"
 	"testing"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 )
 
 type mockedDBGlobalClusterMemberships struct {
-	rdsiface.RDSAPI
+	DBGCMembershipsAPI
 	DescribeGlobalClustersOutput  rds.DescribeGlobalClustersOutput
 	DescribeGlobalClustersError   error
 	RemoveFromGlobalClusterOutput rds.RemoveFromGlobalClusterOutput
 }
 
-func (m mockedDBGlobalClusterMemberships) RemoveFromGlobalClusterWithContext(_ awsgo.Context, _ *rds.RemoveFromGlobalClusterInput, _ ...request.Option) (*rds.RemoveFromGlobalClusterOutput, error) {
+func (m mockedDBGlobalClusterMemberships) RemoveFromGlobalCluster(ctx context.Context, params *rds.RemoveFromGlobalClusterInput, optFns ...func(*rds.Options)) (*rds.RemoveFromGlobalClusterOutput, error) {
 	return &m.RemoveFromGlobalClusterOutput, nil
 }
 
-func (m mockedDBGlobalClusterMemberships) DescribeGlobalClusters(input *rds.DescribeGlobalClustersInput) (*rds.DescribeGlobalClustersOutput, error) {
-	return &m.DescribeGlobalClustersOutput, m.DescribeGlobalClustersError
-}
-
-func (m mockedDBGlobalClusterMemberships) DescribeGlobalClustersWithContext(_ awsgo.Context, _ *rds.DescribeGlobalClustersInput, _ ...request.Option) (*rds.DescribeGlobalClustersOutput, error) {
+func (m mockedDBGlobalClusterMemberships) DescribeGlobalClusters(ctx context.Context, params *rds.DescribeGlobalClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeGlobalClustersOutput, error) {
 	return &m.DescribeGlobalClustersOutput, m.DescribeGlobalClustersError
 }
 
@@ -40,7 +35,7 @@ func TestRDSGlobalClusterMembershipGetAll(t *testing.T) {
 	dbCluster := DBGlobalClusterMemberships{
 		Client: mockedDBGlobalClusterMemberships{
 			DescribeGlobalClustersOutput: rds.DescribeGlobalClustersOutput{
-				GlobalClusters: []*rds.GlobalCluster{
+				GlobalClusters: []types.GlobalCluster{
 					{
 						GlobalClusterIdentifier: &testName,
 					},
@@ -52,7 +47,7 @@ func TestRDSGlobalClusterMembershipGetAll(t *testing.T) {
 	// Testing empty config
 	clusters, err := dbCluster.getAll(context.Background(), config.Config{DBGlobalClusterMemberships: config.ResourceType{}})
 	assert.NoError(t, err)
-	assert.Contains(t, awsgo.StringValueSlice(clusters), strings.ToLower(testName))
+	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
 
 	// Testing db cluster exclusion
 	clusters, err = dbCluster.getAll(context.Background(), config.Config{
@@ -65,7 +60,7 @@ func TestRDSGlobalClusterMembershipGetAll(t *testing.T) {
 		},
 	})
 	assert.NoError(t, err)
-	assert.NotContains(t, awsgo.StringValueSlice(clusters), strings.ToLower(testName))
+	assert.NotContains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
 }
 
 func TestRDSGlobalClusterMembershipNukeAll(t *testing.T) {
@@ -76,10 +71,10 @@ func TestRDSGlobalClusterMembershipNukeAll(t *testing.T) {
 	dbCluster := DBGlobalClusterMemberships{
 		Client: mockedDBGlobalClusterMemberships{
 			DescribeGlobalClustersOutput: rds.DescribeGlobalClustersOutput{
-				GlobalClusters: []*rds.GlobalCluster{
+				GlobalClusters: []types.GlobalCluster{
 					{
 						GlobalClusterIdentifier: &testName,
-						GlobalClusterMembers:    []*rds.GlobalClusterMember{},
+						GlobalClusterMembers:    []types.GlobalClusterMember{},
 					},
 				},
 			},

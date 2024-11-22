@@ -3,24 +3,29 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type DBGlobalClustersAPI interface {
+	DescribeGlobalClusters(ctx context.Context, params *rds.DescribeGlobalClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeGlobalClustersOutput, error)
+	DeleteGlobalCluster(ctx context.Context, params *rds.DeleteGlobalClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteGlobalClusterOutput, error)
+}
+
 type DBGlobalClusters struct {
 	BaseAwsResource
-	Client        rdsiface.RDSAPI
+	Client        DBGlobalClustersAPI
 	Region        string
 	InstanceNames []string
 }
 
-func (instance *DBGlobalClusters) Init(session *session.Session) {
-	instance.Client = rds.New(session)
+func (instance *DBGlobalClusters) InitV2(cfg aws.Config) {
+	instance.Client = rds.NewFromConfig(cfg)
 }
+
+func (instance *DBGlobalClusters) IsUsingV2() bool { return true }
 
 func (instance *DBGlobalClusters) ResourceName() string {
 	return "rds-global-cluster"
@@ -46,13 +51,13 @@ func (instance *DBGlobalClusters) GetAndSetIdentifiers(c context.Context, config
 		return nil, err
 	}
 
-	instance.InstanceNames = awsgo.StringValueSlice(identifiers)
+	instance.InstanceNames = aws.ToStringSlice(identifiers)
 	return instance.InstanceNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (instance *DBGlobalClusters) Nuke(identifiers []string) error {
-	if err := instance.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := instance.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
