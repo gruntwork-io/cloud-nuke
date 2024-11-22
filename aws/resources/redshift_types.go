@@ -3,24 +3,28 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/redshift"
-	"github.com/aws/aws-sdk-go/service/redshift/redshiftiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type RedshiftClustersAPI interface {
+	DescribeClusters(ctx context.Context, params *redshift.DescribeClustersInput, optFns ...func(*redshift.Options)) (*redshift.DescribeClustersOutput, error)
+	DeleteCluster(ctx context.Context, params *redshift.DeleteClusterInput, optFns ...func(*redshift.Options)) (*redshift.DeleteClusterOutput, error)
+}
 type RedshiftClusters struct {
 	BaseAwsResource
-	Client             redshiftiface.RedshiftAPI
+	Client             RedshiftClustersAPI
 	Region             string
 	ClusterIdentifiers []string
 }
 
-func (rc *RedshiftClusters) Init(session *session.Session) {
-	rc.Client = redshift.New(session)
+func (rc *RedshiftClusters) InitV2(cfg aws.Config) {
+	rc.Client = redshift.NewFromConfig(cfg)
 }
+
+func (rc *RedshiftClusters) IsUsingV2() bool { return true }
 
 func (rc *RedshiftClusters) ResourceName() string {
 	return "redshift"
@@ -46,13 +50,13 @@ func (rc *RedshiftClusters) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	rc.ClusterIdentifiers = awsgo.StringValueSlice(identifiers)
+	rc.ClusterIdentifiers = aws.ToStringSlice(identifiers)
 	return rc.ClusterIdentifiers, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (rc *RedshiftClusters) Nuke(identifiers []string) error {
-	if err := rc.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := rc.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
