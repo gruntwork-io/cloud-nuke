@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/aws/aws-sdk-go v1.49.13
-	github.com/aws/aws-sdk-go-v2 v1.32.5
+	github.com/aws/aws-sdk-go-v2 v1.32.6
 	github.com/aws/aws-sdk-go-v2/config v1.28.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.46
 	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.36.1
@@ -45,6 +45,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.3
 	github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.1
 	github.com/aws/aws-sdk-go-v2/service/rds v1.91.0
+	github.com/aws/aws-sdk-go-v2/service/redshift v1.53.0
 	github.com/aws/aws-sdk-go-v2/service/route53 v1.46.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0
 	github.com/aws/aws-sdk-go-v2/service/s3control v1.50.1
@@ -74,8 +75,8 @@ require (
 	atomicgo.dev/keyboard v0.2.8 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.7 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.20 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.24 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.24 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.25 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.24 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.1 // indirect
