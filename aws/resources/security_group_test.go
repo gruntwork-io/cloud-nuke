@@ -6,34 +6,65 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedSecurityGroup struct {
-	BaseAwsResource
-	ec2iface.EC2API
-	DescribeSecurityGroupsOutput ec2.DescribeSecurityGroupsOutput
-	DeleteSecurityGroupOutput    ec2.DeleteSecurityGroupOutput
-	DescribeInstancesOutput      ec2.DescribeInstancesOutput
+	DescribeSecurityGroupsOutput        *ec2.DescribeSecurityGroupsOutput
+	DeleteSecurityGroupOutput           *ec2.DeleteSecurityGroupOutput
+	DescribeInstancesOutput             *ec2.DescribeInstancesOutput
+	AuthorizeSecurityGroupEgressOutput  *ec2.AuthorizeSecurityGroupEgressOutput
+	AuthorizeSecurityGroupIngressOutput *ec2.AuthorizeSecurityGroupIngressOutput
+	CreateSecurityGroupOutput           *ec2.CreateSecurityGroupOutput
+	DescribeAddressesOutput             *ec2.DescribeAddressesOutput
+	ReleaseAddressOutput                *ec2.ReleaseAddressOutput
+	RevokeSecurityGroupEgressOutput     *ec2.RevokeSecurityGroupEgressOutput
+	RevokeSecurityGroupIngressOutput    *ec2.RevokeSecurityGroupIngressOutput
+	TerminateInstancesOutput            *ec2.TerminateInstancesOutput
 }
 
-func (m mockedSecurityGroup) DescribeSecurityGroupsWithContext(_ awsgo.Context, _ *ec2.DescribeSecurityGroupsInput, _ ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
-	return &m.DescribeSecurityGroupsOutput, nil
+func (m *mockedSecurityGroup) DescribeSecurityGroups(ctx context.Context, params *ec2.DescribeSecurityGroupsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
+	return m.DescribeSecurityGroupsOutput, nil
 }
 
-func (m mockedSecurityGroup) DescribeInstancesWithContext(_ awsgo.Context, _ *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
-	return &m.DescribeInstancesOutput, nil
+func (m *mockedSecurityGroup) DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
+	return m.DescribeInstancesOutput, nil
 }
 
-func (m mockedSecurityGroup) DeleteSecurityGroupWithContext(_ awsgo.Context, _ *ec2.DeleteSecurityGroupInput, _ ...request.Option) (*ec2.DeleteSecurityGroupOutput, error) {
-	return &m.DeleteSecurityGroupOutput, nil
+func (m *mockedSecurityGroup) DeleteSecurityGroup(ctx context.Context, params *ec2.DeleteSecurityGroupInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSecurityGroupOutput, error) {
+	return m.DeleteSecurityGroupOutput, nil
+}
+
+func (m *mockedSecurityGroup) AuthorizeSecurityGroupEgress(ctx context.Context, params *ec2.AuthorizeSecurityGroupEgressInput, optFns ...func(*ec2.Options)) (*ec2.AuthorizeSecurityGroupEgressOutput, error) {
+	return m.AuthorizeSecurityGroupEgressOutput, nil
+}
+
+func (m *mockedSecurityGroup) AuthorizeSecurityGroupIngress(ctx context.Context, params *ec2.AuthorizeSecurityGroupIngressInput, optFns ...func(*ec2.Options)) (*ec2.AuthorizeSecurityGroupIngressOutput, error) {
+	return m.AuthorizeSecurityGroupIngressOutput, nil
+}
+
+func (m *mockedSecurityGroup) CreateSecurityGroup(ctx context.Context, params *ec2.CreateSecurityGroupInput, optFns ...func(*ec2.Options)) (*ec2.CreateSecurityGroupOutput, error) {
+	return m.CreateSecurityGroupOutput, nil
+}
+func (m *mockedSecurityGroup) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
+	return m.DescribeAddressesOutput, nil
+}
+func (m *mockedSecurityGroup) ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error) {
+	return m.ReleaseAddressOutput, nil
+}
+func (m *mockedSecurityGroup) RevokeSecurityGroupEgress(ctx context.Context, params *ec2.RevokeSecurityGroupEgressInput, optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupEgressOutput, error) {
+	return m.RevokeSecurityGroupEgressOutput, nil
+}
+func (m *mockedSecurityGroup) RevokeSecurityGroupIngress(ctx context.Context, params *ec2.RevokeSecurityGroupIngressInput, optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupIngressOutput, error) {
+	return m.RevokeSecurityGroupIngressOutput, nil
+}
+func (m *mockedSecurityGroup) TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error) {
+	return m.TerminateInstancesOutput, nil
 }
 
 func TestSecurityGroup_GetAll(t *testing.T) {
@@ -57,12 +88,12 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 			},
 		},
 		Client: &mockedSecurityGroup{
-			DescribeSecurityGroupsOutput: ec2.DescribeSecurityGroupsOutput{
-				SecurityGroups: []*ec2.SecurityGroup{
+			DescribeSecurityGroupsOutput: &ec2.DescribeSecurityGroupsOutput{
+				SecurityGroups: []types.SecurityGroup{
 					{
 						GroupId:   aws.String(testId1),
 						GroupName: aws.String(testName1),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName1),
@@ -76,7 +107,7 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 					{
 						GroupId:   aws.String(testId2),
 						GroupName: aws.String(testName2),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName2),
@@ -133,7 +164,7 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 				SecurityGroup: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
@@ -144,7 +175,7 @@ func Test_NukeAll(t *testing.T) {
 
 	er := SecurityGroup{
 		Client: &mockedSecurityGroup{
-			DeleteSecurityGroupOutput: ec2.DeleteSecurityGroupOutput{},
+			DeleteSecurityGroupOutput: &ec2.DeleteSecurityGroupOutput{},
 		},
 	}
 

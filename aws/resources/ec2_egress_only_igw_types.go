@@ -3,26 +3,31 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EgressOnlyIGAPI interface {
+	DescribeEgressOnlyInternetGateways(ctx context.Context, params *ec2.DescribeEgressOnlyInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeEgressOnlyInternetGatewaysOutput, error)
+	DeleteEgressOnlyInternetGateway(ctx context.Context, params *ec2.DeleteEgressOnlyInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteEgressOnlyInternetGatewayOutput, error)
+}
+
 // EgressOnlyInternetGateway represents all Egress only internet gateway
 type EgressOnlyInternetGateway struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
+	Client EgressOnlyIGAPI
 	Region string
 	Pools  []string
 }
 
-func (egigw *EgressOnlyInternetGateway) Init(session *session.Session) {
-	egigw.BaseAwsResource.Init(session)
-	egigw.Client = ec2.New(session)
+func (egigw *EgressOnlyInternetGateway) InitV2(cfg aws.Config) {
+	egigw.Client = ec2.NewFromConfig(cfg)
 }
+
+func (egigw *EgressOnlyInternetGateway) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (egigw *EgressOnlyInternetGateway) ResourceName() string {
@@ -49,7 +54,7 @@ func (egigw *EgressOnlyInternetGateway) GetAndSetIdentifiers(c context.Context, 
 		return nil, err
 	}
 
-	egigw.Pools = awsgo.StringValueSlice(identifiers)
+	egigw.Pools = awsgo.ToStringSlice(identifiers)
 	return egigw.Pools, nil
 }
 

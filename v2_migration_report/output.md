@@ -31,13 +31,13 @@ run `go generate ./...` to refresh this report.
 | ec2-endpoint                     | :white_check_mark: |
 | ec2-keypairs                     | :white_check_mark: |
 | ec2-placement-groups             | :white_check_mark: |
-| ec2-subnet                       |                    |
+| ec2-subnet                       | :white_check_mark: |
 | ec2_dhcp_option                  | :white_check_mark: |
 | ecr                              | :white_check_mark: |
 | ecscluster                       | :white_check_mark: |
 | ecsserv                          | :white_check_mark: |
 | efs                              | :white_check_mark: |
-| egress-only-internet-gateway     |                    |
+| egress-only-internet-gateway     | :white_check_mark: |
 | eip                              | :white_check_mark: |
 | ekscluster                       | :white_check_mark: |
 | elastic-beanstalk                | :white_check_mark: |
@@ -59,7 +59,7 @@ run `go generate ./...` to refresh this report.
 | iam-policy                       | :white_check_mark: |
 | iam-role                         | :white_check_mark: |
 | iam-service-linked-role          | :white_check_mark: |
-| internet-gateway                 |                    |
+| internet-gateway                 | :white_check_mark: |
 | ipam                             | :white_check_mark: |
 | ipam-byoasn                      | :white_check_mark: |
 | ipam-custom-allocation           | :white_check_mark: |
@@ -76,14 +76,14 @@ run `go generate ./...` to refresh this report.
 | macie-member                     | :white_check_mark: |
 | managed-prometheus               | :white_check_mark: |
 | msk-cluster                      | :white_check_mark: |
-| nat-gateway                      |                    |
-| network-acl                      |                    |
+| nat-gateway                      | :white_check_mark: |
+| network-acl                      | :white_check_mark: |
 | network-firewall                 | :white_check_mark: |
 | network-firewall-policy          | :white_check_mark: |
 | network-firewall-resource-policy | :white_check_mark: |
 | network-firewall-rule-group      | :white_check_mark: |
 | network-firewall-tls-config      | :white_check_mark: |
-| network-interface                |                    |
+| network-interface                | :white_check_mark: |
 | oidcprovider                     | :white_check_mark: |
 | opensearchdomain                 | :white_check_mark: |
 | rds                              | :white_check_mark: |
@@ -104,7 +104,7 @@ run `go generate ./...` to refresh this report.
 | s3-olap                          | :white_check_mark: |
 | sagemaker-notebook-smni          | :white_check_mark: |
 | secretsmanager                   | :white_check_mark: |
-| security-group                   |                    |
+| security-group                   | :white_check_mark: |
 | security-hub                     | :white_check_mark: |
 | ses-configuration-set            | :white_check_mark: |
 | ses-email-template               | :white_check_mark: |
@@ -117,7 +117,7 @@ run `go generate ./...` to refresh this report.
 | transit-gateway                  | :white_check_mark: |
 | transit-gateway-attachment       | :white_check_mark: |
 | transit-gateway-route-table      |                    |
-| vpc                              |                    |
+| vpc                              | :white_check_mark: |
 | vpc-lattice-service              | :white_check_mark: |
 | vpc-lattice-service-network      | :white_check_mark: |
 | vpc-lattice-target-group         | :white_check_mark: |

@@ -6,10 +6,9 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
@@ -17,20 +16,16 @@ import (
 
 type mockedEgressOnlyIgw struct {
 	BaseAwsResource
-	ec2iface.EC2API
+	EgressOnlyIGAPI
 	DescribeEgressOnlyInternetGatewaysOutput ec2.DescribeEgressOnlyInternetGatewaysOutput
 	DeleteEgressOnlyInternetGatewayOutput    ec2.DeleteEgressOnlyInternetGatewayOutput
 }
 
-func (m mockedEgressOnlyIgw) DescribeEgressOnlyInternetGatewaysWithContext(_ awsgo.Context, _ *ec2.DescribeEgressOnlyInternetGatewaysInput, _ ...request.Option) (*ec2.DescribeEgressOnlyInternetGatewaysOutput, error) {
+func (m mockedEgressOnlyIgw) DescribeEgressOnlyInternetGateways(ctx context.Context, params *ec2.DescribeEgressOnlyInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeEgressOnlyInternetGatewaysOutput, error) {
 	return &m.DescribeEgressOnlyInternetGatewaysOutput, nil
 }
 
-func (m mockedEgressOnlyIgw) DeleteEgressOnlyInternetGatewayWithContext(_ awsgo.Context, _ *ec2.DeleteEgressOnlyInternetGatewayInput, _ ...request.Option) (*ec2.DeleteEgressOnlyInternetGatewayOutput, error) {
-	return &m.DeleteEgressOnlyInternetGatewayOutput, nil
-}
-
-func (m mockedEgressOnlyIgw) DeleteEgressOnlyInternetGateway(_ *ec2.DeleteEgressOnlyInternetGatewayInput) (*ec2.DeleteEgressOnlyInternetGatewayOutput, error) {
+func (m mockedEgressOnlyIgw) DeleteEgressOnlyInternetGateway(ctx context.Context, params *ec2.DeleteEgressOnlyInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteEgressOnlyInternetGatewayOutput, error) {
 	return &m.DeleteEgressOnlyInternetGatewayOutput, nil
 }
 
@@ -52,10 +47,10 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 	object := EgressOnlyInternetGateway{
 		Client: mockedEgressOnlyIgw{
 			DescribeEgressOnlyInternetGatewaysOutput: ec2.DescribeEgressOnlyInternetGatewaysOutput{
-				EgressOnlyInternetGateways: []*ec2.EgressOnlyInternetGateway{
+				EgressOnlyInternetGateways: []types.EgressOnlyInternetGateway{
 					{
 						EgressOnlyInternetGatewayId: awsgo.String(gateway1),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName1),
@@ -67,7 +62,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 					},
 					{
 						EgressOnlyInternetGatewayId: awsgo.String(gateway2),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName2),
@@ -126,7 +121,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 				EgressOnlyInternetGateway: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
 		})
 	}
 
@@ -149,21 +144,21 @@ func TestEc2EgressOnlyInternetGateway_NukeAll(t *testing.T) {
 		},
 		Client: mockedEgressOnlyIgw{
 			DescribeEgressOnlyInternetGatewaysOutput: ec2.DescribeEgressOnlyInternetGatewaysOutput{
-				EgressOnlyInternetGateways: []*ec2.EgressOnlyInternetGateway{
+				EgressOnlyInternetGateways: []types.EgressOnlyInternetGateway{
 					{
 						EgressOnlyInternetGatewayId: awsgo.String(gateway1),
-						Attachments: []*ec2.InternetGatewayAttachment{
+						Attachments: []types.InternetGatewayAttachment{
 							{
-								State: awsgo.String("testing-state"),
+								State: "testing-state",
 								VpcId: awsgo.String("test-gateway-vpc"),
 							},
 						},
 					},
 					{
 						EgressOnlyInternetGatewayId: awsgo.String(gateway2),
-						Attachments: []*ec2.InternetGatewayAttachment{
+						Attachments: []types.InternetGatewayAttachment{
 							{
-								State: awsgo.String("testing-state"),
+								State: "testing-state",
 								VpcId: awsgo.String("test-gateway-vpc"),
 							},
 						},

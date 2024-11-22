@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	r "github.com/gruntwork-io/cloud-nuke/report" // Alias the package as 'r'
@@ -16,7 +17,7 @@ import (
 )
 
 // shouldIncludeSecurityGroup determines whether a security group should be included for deletion based on the provided configuration.
-func shouldIncludeSecurityGroup(sg *ec2.SecurityGroup, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeSecurityGroup(sg types.SecurityGroup, firstSeenTime *time.Time, configObj config.Config) bool {
 	var groupName = sg.GroupName
 
 	if !configObj.SecurityGroup.DefaultOnly && *groupName == "default" {
@@ -26,7 +27,7 @@ func shouldIncludeSecurityGroup(sg *ec2.SecurityGroup, firstSeenTime *time.Time,
 
 	return configObj.SecurityGroup.ShouldInclude(config.ResourceValue{
 		Name: groupName,
-		Tags: util.ConvertEC2TagsToMap(sg.Tags),
+		Tags: util.ConvertTypesTagsToMap(sg.Tags),
 		Time: firstSeenTime,
 	})
 }
@@ -37,22 +38,22 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 	var firstSeenTime *time.Time
 	var err error
 
-	var filters []*ec2.Filter
+	var filters []types.Filter
 	if configObj.SecurityGroup.DefaultOnly {
 		// Note : we can't simply remove the default security groups. Instead, we're only able to revoke permissions on the security group rules.
 		// Setting a flag that can be accessed within the nuke method to check if the nuking is for default or not.
 		sg.NukeOnlyDefault = configObj.SecurityGroup.DefaultOnly
 
 		logging.Debugf("[default only] Retrieving the default security-groups")
-		filters = []*ec2.Filter{
+		filters = []types.Filter{
 			{
 				Name:   awsgo.String("group-name"),
-				Values: awsgo.StringSlice([]string{"default"}),
+				Values: []string{"default"},
 			},
 		}
 	}
 
-	resp, err := sg.Client.DescribeSecurityGroupsWithContext(sg.Context, &ec2.DescribeSecurityGroupsInput{
+	resp, err := sg.Client.DescribeSecurityGroups(sg.Context, &ec2.DescribeSecurityGroupsInput{
 		Filters: filters,
 	})
 	if err != nil {
@@ -61,7 +62,7 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 	}
 
 	for _, group := range resp.SecurityGroups {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, sg.Client, group.GroupId, util.ConvertEC2TagsToMap(group.Tags))
+		firstSeenTime, err = util.GetOrCreateFirstSeen(c, sg.Client, group.GroupId, util.ConvertTypesTagsToMap(group.Tags))
 		if err != nil {
 			logging.Error("unable to retrieve first seen tag")
 			return nil, errors.WithStackTrace(err)
@@ -74,7 +75,7 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 
 	// Check and verify the list of allowed nuke actions
 	sg.VerifyNukablePermissions(identifiers, func(id *string) error {
-		_, err := sg.Client.DeleteSecurityGroupWithContext(sg.Context, &ec2.DeleteSecurityGroupInput{
+		_, err := sg.Client.DeleteSecurityGroup(sg.Context, &ec2.DeleteSecurityGroupInput{
 			GroupId: id,
 			DryRun:  awsgo.Bool(true),
 		})
@@ -85,9 +86,9 @@ func (sg *SecurityGroup) getAll(c context.Context, configObj config.Config) ([]*
 }
 
 func (sg *SecurityGroup) detachAssociatedSecurityGroups(id *string) error {
-	logging.Debugf("[Security Group detach from dependancy] detaching the security group %s from dependant", awsgo.StringValue(id))
+	logging.Debugf("[Security Group detach from dependancy] detaching the security group %s from dependant", awsgo.ToString(id))
 
-	resp, err := sg.Client.DescribeSecurityGroupsWithContext(sg.Context, &ec2.DescribeSecurityGroupsInput{})
+	resp, err := sg.Client.DescribeSecurityGroups(sg.Context, &ec2.DescribeSecurityGroupsInput{})
 	if err != nil {
 		logging.Debugf("[Security Group] Failed to list security groups: %s", err)
 		return errors.WithStackTrace(err)
@@ -95,17 +96,18 @@ func (sg *SecurityGroup) detachAssociatedSecurityGroups(id *string) error {
 
 	for _, securityGroup := range resp.SecurityGroups {
 		// omit the check for current security group
-		if awsgo.StringValue(id) == awsgo.StringValue(securityGroup.GroupId) {
+		if awsgo.ToString(id) == awsgo.ToString(securityGroup.GroupId) {
 			continue
 		}
 
 		hasMatching, revokeIpPermissions := hasMatchingGroupIdRule(id, securityGroup.IpPermissions)
 		if hasMatching && len(revokeIpPermissions) > 0 {
-			logging.Debugf("[Security Group revoke ingress] revoking the ingress rules of %s", awsgo.StringValue(securityGroup.GroupId))
-			_, err := sg.Client.RevokeSecurityGroupIngress(&ec2.RevokeSecurityGroupIngressInput{
+			logging.Debugf("[Security Group revoke ingress] revoking the ingress rules of %s", awsgo.ToString(securityGroup.GroupId))
+			_, err := sg.Client.RevokeSecurityGroupIngress(sg.Context, &ec2.RevokeSecurityGroupIngressInput{
 				GroupId:       securityGroup.GroupId,
 				IpPermissions: revokeIpPermissions,
 			})
+
 			if err != nil {
 				logging.Debugf("[Security Group] Failed to revoke ingress rules: %s", err)
 				return errors.WithStackTrace(err)
@@ -115,8 +117,8 @@ func (sg *SecurityGroup) detachAssociatedSecurityGroups(id *string) error {
 		// check egress rule
 		hasMatchingEgress, revokeIpPermissions := hasMatchingGroupIdRule(id, securityGroup.IpPermissionsEgress)
 		if hasMatchingEgress && len(revokeIpPermissions) > 0 {
-			logging.Debugf("[Security Group revoke ingress] revoking the egress rules of %s", awsgo.StringValue(securityGroup.GroupId))
-			_, err := sg.Client.RevokeSecurityGroupEgress(&ec2.RevokeSecurityGroupEgressInput{
+			logging.Debugf("[Security Group revoke ingress] revoking the egress rules of %s", awsgo.ToString(securityGroup.GroupId))
+			_, err := sg.Client.RevokeSecurityGroupEgress(sg.Context, &ec2.RevokeSecurityGroupEgressInput{
 				GroupId:       securityGroup.GroupId,
 				IpPermissions: revokeIpPermissions,
 			})
@@ -130,16 +132,16 @@ func (sg *SecurityGroup) detachAssociatedSecurityGroups(id *string) error {
 	return nil
 }
 
-func hasMatchingGroupIdRule(checkingGroup *string, IpPermission []*ec2.IpPermission) (bool, []*ec2.IpPermission) {
+func hasMatchingGroupIdRule(checkingGroup *string, IpPermission []types.IpPermission) (bool, []types.IpPermission) {
 	var hasMatching bool
-	var revokeIpPermissions []*ec2.IpPermission
+	var revokeIpPermissions []types.IpPermission
 
 	for _, ipPermission := range IpPermission {
-		revokeIdGroupPairs := make([]*ec2.UserIdGroupPair, 0) // Create a new slice to store filtered pairs
+		revokeIdGroupPairs := make([]types.UserIdGroupPair, 0) // Create a new slice to store filtered pairs
 
 		for _, pair := range ipPermission.UserIdGroupPairs {
 			// Check if GroupId match the checkingGroup
-			if awsgo.StringValue(pair.GroupId) == awsgo.StringValue(checkingGroup) {
+			if awsgo.ToString(pair.GroupId) == awsgo.ToString(checkingGroup) {
 				revokeIdGroupPairs = append(revokeIdGroupPairs, pair) // Append to the filtered slice
 				hasMatching = true                                    // Set the flag if a match is found
 			}
@@ -191,16 +193,16 @@ func (sg *SecurityGroup) nuke(id *string) error {
 	return nil
 }
 
-func revokeSecurityGroupIngress(client ec2iface.EC2API, id *string) error {
-	logging.Debug(fmt.Sprintf("Start revoking security groups ingress rule : %s", awsgo.StringValue(id)))
-	_, err := client.RevokeSecurityGroupIngress(&ec2.RevokeSecurityGroupIngressInput{
+func revokeSecurityGroupIngress(client SecurityGroupAPI, id *string) error {
+	logging.Debug(fmt.Sprintf("Start revoking security groups ingress rule : %s", awsgo.ToString(id)))
+	_, err := client.RevokeSecurityGroupIngress(context.TODO(), &ec2.RevokeSecurityGroupIngressInput{
 		GroupId: id,
-		IpPermissions: []*ec2.IpPermission{
+		IpPermissions: []types.IpPermission{
 			{
 				IpProtocol:       awsgo.String("-1"),
-				FromPort:         awsgo.Int64(0),
-				ToPort:           awsgo.Int64(0),
-				UserIdGroupPairs: []*ec2.UserIdGroupPair{{GroupId: id}},
+				FromPort:         awsgo.Int32(0),
+				ToPort:           awsgo.Int32(0),
+				UserIdGroupPairs: []types.UserIdGroupPair{{GroupId: id}},
 			},
 		},
 	})
@@ -210,24 +212,24 @@ func revokeSecurityGroupIngress(client ec2iface.EC2API, id *string) error {
 			return nil
 		}
 
-		logging.Debugf("[Security Group] Failed to revoke security group ingress associated with security group %s: %s", awsgo.StringValue(id), err)
+		logging.Debugf("[Security Group] Failed to revoke security group ingress associated with security group %s: %s", awsgo.ToString(id), err)
 		return errors.WithStackTrace(err)
 	}
-	logging.Debugf("Successfully revoked security group ingress rule: %s", awsgo.StringValue(id))
+	logging.Debugf("Successfully revoked security group ingress rule: %s", awsgo.ToString(id))
 	return nil
 }
 
-func revokeSecurityGroupEgress(client ec2iface.EC2API, id *string) error {
-	logging.Debugf("Start revoking security groups ingress rule : %s", awsgo.StringValue(id))
+func revokeSecurityGroupEgress(client SecurityGroupAPI, id *string) error {
+	logging.Debugf("Start revoking security groups ingress rule : %s", awsgo.ToString(id))
 
-	_, err := client.RevokeSecurityGroupEgress(&ec2.RevokeSecurityGroupEgressInput{
+	_, err := client.RevokeSecurityGroupEgress(context.TODO(), &ec2.RevokeSecurityGroupEgressInput{
 		GroupId: (id),
-		IpPermissions: []*ec2.IpPermission{
+		IpPermissions: []types.IpPermission{
 			{
 				IpProtocol: awsgo.String("-1"),
-				FromPort:   awsgo.Int64(0),
-				ToPort:     awsgo.Int64(0),
-				IpRanges:   []*ec2.IpRange{{CidrIp: awsgo.String("0.0.0.0/0")}},
+				FromPort:   awsgo.Int32(0),
+				ToPort:     awsgo.Int32(0),
+				IpRanges:   []types.IpRange{{CidrIp: awsgo.String("0.0.0.0/0")}},
 			},
 		},
 	})
@@ -237,24 +239,24 @@ func revokeSecurityGroupEgress(client ec2iface.EC2API, id *string) error {
 			return nil
 		}
 
-		logging.Debugf("[Security Group] Failed to revoke security group egress associated with security group %s: %s", awsgo.StringValue(id), err)
+		logging.Debugf("[Security Group] Failed to revoke security group egress associated with security group %s: %s", awsgo.ToString(id), err)
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("Successfully revoked security group egress rule: %s", awsgo.StringValue(id))
+	logging.Debugf("Successfully revoked security group egress rule: %s", awsgo.ToString(id))
 
 	return nil
 }
 
 func (sg *SecurityGroup) RevokeIPv6SecurityGroupEgress(id string) error {
-	_, err := sg.Client.RevokeSecurityGroupEgressWithContext(sg.Context, &ec2.RevokeSecurityGroupEgressInput{
+	_, err := sg.Client.RevokeSecurityGroupEgress(sg.Context, &ec2.RevokeSecurityGroupEgressInput{
 		GroupId: awsgo.String(id),
-		IpPermissions: []*ec2.IpPermission{
+		IpPermissions: []types.IpPermission{
 			{
 				IpProtocol: awsgo.String("-1"),
-				FromPort:   awsgo.Int64(0),
-				ToPort:     awsgo.Int64(0),
-				Ipv6Ranges: []*ec2.Ipv6Range{{CidrIpv6: awsgo.String("::/0")}},
+				FromPort:   awsgo.Int32(0),
+				ToPort:     awsgo.Int32(0),
+				Ipv6Ranges: []types.Ipv6Range{{CidrIpv6: awsgo.String("::/0")}},
 			},
 		},
 	})
@@ -273,11 +275,11 @@ func (sg *SecurityGroup) RevokeIPv6SecurityGroupEgress(id string) error {
 
 func (sg *SecurityGroup) terminateInstancesAssociatedWithSecurityGroup(id string) error {
 
-	resp, err := sg.Client.DescribeInstancesWithContext(sg.Context, &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+	resp, err := sg.Client.DescribeInstances(sg.Context, &ec2.DescribeInstancesInput{
+		Filters: []types.Filter{
 			{
 				Name:   awsgo.String("instance.group-id"),
-				Values: []*string{awsgo.String(id)},
+				Values: []string{id},
 			},
 		},
 	})
@@ -288,7 +290,7 @@ func (sg *SecurityGroup) terminateInstancesAssociatedWithSecurityGroup(id string
 
 	for _, reservation := range resp.Reservations {
 		for _, instance := range reservation.Instances {
-			instanceID := awsgo.StringValue(instance.InstanceId)
+			instanceID := awsgo.ToString(instance.InstanceId)
 
 			// Needs to release the elastic ips attached on the instance before nuking
 			if err := sg.releaseEIPs([]*string{instance.InstanceId}); err != nil {
@@ -297,19 +299,21 @@ func (sg *SecurityGroup) terminateInstancesAssociatedWithSecurityGroup(id string
 			}
 
 			// terminating the instances which used this security group
-			if _, err := sg.Client.TerminateInstancesWithContext(sg.Context, &ec2.TerminateInstancesInput{
-				InstanceIds: []*string{awsgo.String(instanceID)},
+			if _, err := sg.Client.TerminateInstances(sg.Context, &ec2.TerminateInstancesInput{
+				InstanceIds: []string{instanceID},
 			}); err != nil {
 				logging.Debugf("[Failed] Ec2 termination %s", err)
 				return errors.WithStackTrace(err)
 			}
 
 			logging.Debugf("[Instance Termination] waiting to terminate instance %s", instanceID)
-
+			ec2Client, ok := sg.Client.(*ec2.Client)
+			if !ok {
+				return errors.WithStackTrace(err)
+			}
 			// wait until the instance terminated.
-			if err := sg.Client.WaitUntilInstanceTerminatedWithContext(sg.Context, &ec2.DescribeInstancesInput{
-				InstanceIds: []*string{awsgo.String(instanceID)},
-			}); err != nil {
+			err = waitUntilInstanceTerminated(ec2Client, sg.Context, instanceID)
+			if err != nil {
 				logging.Debugf("[Security Group] Failed to terminate instance %s associated with security group %s: %s", instanceID, id, err)
 				return errors.WithStackTrace(err)
 			}
@@ -326,12 +330,12 @@ func (sg *SecurityGroup) releaseEIPs(instanceIds []*string) error {
 	for _, instanceID := range instanceIds {
 
 		// get the elastic ip's associated with the EC2's
-		output, err := sg.Client.DescribeAddressesWithContext(sg.Context, &ec2.DescribeAddressesInput{
-			Filters: []*ec2.Filter{
+		output, err := sg.Client.DescribeAddresses(sg.Context, &ec2.DescribeAddressesInput{
+			Filters: []types.Filter{
 				{
 					Name: awsgo.String("instance-id"),
-					Values: []*string{
-						instanceID,
+					Values: []string{
+						*instanceID,
 					},
 				},
 			},
@@ -341,7 +345,7 @@ func (sg *SecurityGroup) releaseEIPs(instanceIds []*string) error {
 		}
 
 		for _, address := range output.Addresses {
-			if _, err := sg.Client.ReleaseAddressWithContext(sg.Context, &ec2.ReleaseAddressInput{
+			if _, err := sg.Client.ReleaseAddress(sg.Context, &ec2.ReleaseAddressInput{
 				AllocationId: address.AllocationId,
 			}); err != nil {
 				logging.Debugf("An error happened while releasing the elastic ip address %s, error %v", *address.AllocationId, err)
@@ -355,16 +359,16 @@ func (sg *SecurityGroup) releaseEIPs(instanceIds []*string) error {
 	return nil
 }
 
-func nukeSecurityGroup(client ec2iface.EC2API, id *string) error {
-	logging.Debugf("Deleting security group %s", awsgo.StringValue(id))
+func nukeSecurityGroup(client SecurityGroupAPI, id *string) error {
+	logging.Debugf("Deleting security group %s", awsgo.ToString(id))
 
-	if _, err := client.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
+	if _, err := client.DeleteSecurityGroup(context.TODO(), &ec2.DeleteSecurityGroupInput{
 		GroupId: id,
 	}); err != nil {
-		logging.Debugf("[Security Group] Failed to delete security group %s: %s", awsgo.StringValue(id), err)
+		logging.Debugf("[Security Group] Failed to delete security group %s: %s", awsgo.ToString(id), err)
 		return errors.WithStackTrace(err)
 	}
-	logging.Debugf("Deleted security group %s", awsgo.StringValue(id))
+	logging.Debugf("Deleted security group %s", awsgo.ToString(id))
 	return nil
 }
 
@@ -387,7 +391,7 @@ func (sg *SecurityGroup) nukeAll(identifiers []*string) error {
 		err := sg.nuke(id)
 		// Record status of this resource
 		e := r.Entry{
-			Identifier:   awsgo.StringValue(id),
+			Identifier:   awsgo.ToString(id),
 			ResourceType: "Security Group",
 			Error:        err,
 		}
@@ -402,6 +406,24 @@ func (sg *SecurityGroup) nukeAll(identifiers []*string) error {
 	}
 
 	logging.Debugf("[OK] %d security group(s) deleted in %s", len(deletedGroups), sg.Region)
+
+	return nil
+}
+
+// waitUntilInstanceTerminated checks the status of the instance until it is terminated.
+func waitUntilInstanceTerminated(client *ec2.Client, ctx context.Context, instanceID string) error {
+	waiter := ec2.NewInstanceTerminatedWaiter(client)
+
+	// Configure the maximum wait time
+	maxWaitTime := 5 * time.Minute
+
+	// Call the waiter
+	err := waiter.Wait(ctx, &ec2.DescribeInstancesInput{
+		InstanceIds: []string{instanceID},
+	}, maxWaitTime)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -6,27 +6,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEC2Subnets struct {
-	ec2iface.EC2API
+	EC2SubnetAPI
 	DescribeSubnetsOutput ec2.DescribeSubnetsOutput
 	DeleteSubnetOutput    ec2.DeleteSubnetOutput
 }
 
-func (m mockedEC2Subnets) DescribeSubnetsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeSubnetsInput, callback func(*ec2.DescribeSubnetsOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeSubnetsOutput, true)
-	return nil
+func (m mockedEC2Subnets) DescribeSubnets(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error) {
+	return &m.DescribeSubnetsOutput, nil
 }
-func (m mockedEC2Subnets) DeleteSubnetWithContext(_ awsgo.Context, _ *ec2.DeleteSubnetInput, _ ...request.Option) (*ec2.DeleteSubnetOutput, error) {
+func (m mockedEC2Subnets) DeleteSubnet(ctx context.Context, params *ec2.DeleteSubnetInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSubnetOutput, error) {
 	return &m.DeleteSubnetOutput, nil
 }
 
@@ -48,10 +45,10 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 	ec2subnet := EC2Subnet{
 		Client: mockedEC2Subnets{
 			DescribeSubnetsOutput: ec2.DescribeSubnetsOutput{
-				Subnets: []*ec2.Subnet{
+				Subnets: []types.Subnet{
 					{
 						SubnetId: aws.String(subnet1),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName1),
@@ -63,7 +60,7 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 					},
 					{
 						SubnetId: aws.String(subnet2),
-						Tags: []*ec2.Tag{
+						Tags: []types.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName2),
@@ -119,7 +116,7 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 				EC2Subnet: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
