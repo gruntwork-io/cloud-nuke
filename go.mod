@@ -37,6 +37,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/grafana v1.26.6
 	github.com/aws/aws-sdk-go-v2/service/guardduty v1.51.2
 	github.com/aws/aws-sdk-go-v2/service/iam v1.38.1
+	github.com/aws/aws-sdk-go-v2/service/kafka v1.38.6
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.32.6
 	github.com/aws/aws-sdk-go-v2/service/kms v1.37.6
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.0

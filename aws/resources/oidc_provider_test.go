@@ -6,32 +6,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedOIDCProvider struct {
-	iamiface.IAMAPI
+	OIDCProvidersAPI
 	ListOpenIDConnectProvidersOutput  iam.ListOpenIDConnectProvidersOutput
 	GetOpenIDConnectProviderOutput    map[string]iam.GetOpenIDConnectProviderOutput
 	DeleteOpenIDConnectProviderOutput iam.DeleteOpenIDConnectProviderOutput
 }
 
-func (m mockedOIDCProvider) DeleteOpenIDConnectProviderWithContext(_ awsgo.Context, _ *iam.DeleteOpenIDConnectProviderInput, _ ...request.Option) (*iam.DeleteOpenIDConnectProviderOutput, error) {
+func (m mockedOIDCProvider) DeleteOpenIDConnectProvider(ctx context.Context, params *iam.DeleteOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.DeleteOpenIDConnectProviderOutput, error) {
 	return &m.DeleteOpenIDConnectProviderOutput, nil
 }
 
-func (m mockedOIDCProvider) ListOpenIDConnectProvidersWithContext(_ awsgo.Context, _ *iam.ListOpenIDConnectProvidersInput, _ ...request.Option) (*iam.ListOpenIDConnectProvidersOutput, error) {
+func (m mockedOIDCProvider) ListOpenIDConnectProviders(ctx context.Context, params *iam.ListOpenIDConnectProvidersInput, optFns ...func(*iam.Options)) (*iam.ListOpenIDConnectProvidersOutput, error) {
 	return &m.ListOpenIDConnectProvidersOutput, nil
 }
 
-func (m mockedOIDCProvider) GetOpenIDConnectProviderWithContext(_ awsgo.Context, input *iam.GetOpenIDConnectProviderInput, _ ...request.Option) (*iam.GetOpenIDConnectProviderOutput, error) {
-	arn := input.OpenIDConnectProviderArn
+func (m mockedOIDCProvider) GetOpenIDConnectProvider(ctx context.Context, params *iam.GetOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.GetOpenIDConnectProviderOutput, error) {
+	arn := params.OpenIDConnectProviderArn
 	resp := m.GetOpenIDConnectProviderOutput[*arn]
 
 	return &resp, nil
@@ -49,7 +47,7 @@ func TestOIDCProvider_GetAll(t *testing.T) {
 	oidcp := OIDCProviders{
 		Client: mockedOIDCProvider{
 			ListOpenIDConnectProvidersOutput: iam.ListOpenIDConnectProvidersOutput{
-				OpenIDConnectProviderList: []*iam.OpenIDConnectProviderListEntry{
+				OpenIDConnectProviderList: []types.OpenIDConnectProviderListEntry{
 					{Arn: aws.String(testArn1)},
 					{Arn: aws.String(testArn2)},
 				},
@@ -98,7 +96,7 @@ func TestOIDCProvider_GetAll(t *testing.T) {
 				OIDCProvider: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 

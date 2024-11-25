@@ -6,27 +6,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
-
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
 )
 
 type mockedLaunchConfiguration struct {
-	autoscalingiface.AutoScalingAPI
+	LaunchConfigsAPI
 	DescribeLaunchConfigurationsOutput autoscaling.DescribeLaunchConfigurationsOutput
 	DeleteLaunchConfigurationOutput    autoscaling.DeleteLaunchConfigurationOutput
 }
 
-func (m mockedLaunchConfiguration) DescribeLaunchConfigurationsWithContext(_ aws.Context, input *autoscaling.DescribeLaunchConfigurationsInput, _ ...request.Option) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
+func (m mockedLaunchConfiguration) DescribeLaunchConfigurations(ctx context.Context, params *autoscaling.DescribeLaunchConfigurationsInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
 	return &m.DescribeLaunchConfigurationsOutput, nil
 }
 
-func (m mockedLaunchConfiguration) DeleteLaunchConfigurationWithContext(_ aws.Context, input *autoscaling.DeleteLaunchConfigurationInput, _ ...request.Option) (*autoscaling.DeleteLaunchConfigurationOutput, error) {
+func (m mockedLaunchConfiguration) DeleteLaunchConfiguration(ctx context.Context, params *autoscaling.DeleteLaunchConfigurationInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DeleteLaunchConfigurationOutput, error) {
 	return &m.DeleteLaunchConfigurationOutput, nil
 }
 
@@ -40,14 +37,14 @@ func TestLaunchConfigurations_GetAll(t *testing.T) {
 	lc := LaunchConfigs{
 		Client: mockedLaunchConfiguration{
 			DescribeLaunchConfigurationsOutput: autoscaling.DescribeLaunchConfigurationsOutput{
-				LaunchConfigurations: []*autoscaling.LaunchConfiguration{
+				LaunchConfigurations: []types.LaunchConfiguration{
 					{
-						LaunchConfigurationName: awsgo.String(testName1),
-						CreatedTime:             awsgo.Time(now),
+						LaunchConfigurationName: aws.String(testName1),
+						CreatedTime:             aws.Time(now),
 					},
 					{
-						LaunchConfigurationName: awsgo.String(testName2),
-						CreatedTime:             awsgo.Time(now.Add(1)),
+						LaunchConfigurationName: aws.String(testName2),
+						CreatedTime:             aws.Time(now.Add(1)),
 					},
 				},
 			},
@@ -74,7 +71,7 @@ func TestLaunchConfigurations_GetAll(t *testing.T) {
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now.Add(-1 * time.Hour)),
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
 				}},
 			expected: []string{},
 		},
@@ -85,7 +82,7 @@ func TestLaunchConfigurations_GetAll(t *testing.T) {
 				LaunchConfiguration: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
@@ -100,6 +97,6 @@ func TestLaunchConfigurations_NukeAll(t *testing.T) {
 		},
 	}
 
-	err := lc.nukeAll([]*string{awsgo.String("test")})
+	err := lc.nukeAll([]*string{aws.String("test")})
 	require.NoError(t, err)
 }
