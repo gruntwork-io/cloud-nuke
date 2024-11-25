@@ -5,36 +5,34 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/networkfirewall"
-	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
-
-	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedNetworkFirewallResourcePolicy struct {
-	networkfirewalliface.NetworkFirewallAPI
+	NetworkFirewallResourcePolicyAPI
 	ListFirewallPoliciesOutput   networkfirewall.ListFirewallPoliciesOutput
 	ListRuleGroupsOutput         networkfirewall.ListRuleGroupsOutput
-	DeleteResourcePolicyOutput   networkfirewall.DeleteResourcePolicyOutput
 	DescribeResourcePolicyOutput networkfirewall.DescribeResourcePolicyOutput
+	DeleteResourcePolicyOutput   networkfirewall.DeleteResourcePolicyOutput
 }
 
-func (m mockedNetworkFirewallResourcePolicy) ListFirewallPoliciesWithContext(_ awsgo.Context, _ *networkfirewall.ListFirewallPoliciesInput, _ ...request.Option) (*networkfirewall.ListFirewallPoliciesOutput, error) {
+func (m mockedNetworkFirewallResourcePolicy) ListFirewallPolicies(ctx context.Context, params *networkfirewall.ListFirewallPoliciesInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListFirewallPoliciesOutput, error) {
 	return &m.ListFirewallPoliciesOutput, nil
 }
 
-func (m mockedNetworkFirewallResourcePolicy) ListRuleGroupsWithContext(awsgo.Context, *networkfirewall.ListRuleGroupsInput, ...request.Option) (*networkfirewall.ListRuleGroupsOutput, error) {
+func (m mockedNetworkFirewallResourcePolicy) ListRuleGroups(ctx context.Context, params *networkfirewall.ListRuleGroupsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListRuleGroupsOutput, error) {
 	return &m.ListRuleGroupsOutput, nil
 }
-func (m mockedNetworkFirewallResourcePolicy) DeleteResourcePolicyWithContext(awsgo.Context, *networkfirewall.DeleteResourcePolicyInput, ...request.Option) (*networkfirewall.DeleteResourcePolicyOutput, error) {
+
+func (m mockedNetworkFirewallResourcePolicy) DeleteResourcePolicy(ctx context.Context, params *networkfirewall.DeleteResourcePolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteResourcePolicyOutput, error) {
 	return &m.DeleteResourcePolicyOutput, nil
 }
 
-func (m mockedNetworkFirewallResourcePolicy) DescribeResourcePolicyWithContext(awsgo.Context, *networkfirewall.DescribeResourcePolicyInput, ...request.Option) (*networkfirewall.DescribeResourcePolicyOutput, error) {
+func (m mockedNetworkFirewallResourcePolicy) DescribeResourcePolicy(ctx context.Context, params *networkfirewall.DescribeResourcePolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeResourcePolicyOutput, error) {
 	return &m.DescribeResourcePolicyOutput, nil
 }
 
@@ -52,22 +50,22 @@ func TestNetworkFirewallResourcePolicy_GetAll(t *testing.T) {
 	nfw := NetworkFirewallResourcePolicy{
 		Client: mockedNetworkFirewallResourcePolicy{
 			ListFirewallPoliciesOutput: networkfirewall.ListFirewallPoliciesOutput{
-				FirewallPolicies: []*networkfirewall.FirewallPolicyMetadata{
+				FirewallPolicies: []types.FirewallPolicyMetadata{
 					{
-						Arn: awsgo.String(policy1),
+						Arn: aws.String(policy1),
 					},
 					{
-						Arn: awsgo.String(policy2),
+						Arn: aws.String(policy2),
 					},
 				},
 			},
 			ListRuleGroupsOutput: networkfirewall.ListRuleGroupsOutput{
-				RuleGroups: []*networkfirewall.RuleGroupMetadata{
+				RuleGroups: []types.RuleGroupMetadata{
 					{
-						Arn: awsgo.String(group1),
+						Arn: aws.String(group1),
 					},
 					{
-						Arn: awsgo.String(group2),
+						Arn: aws.String(group2),
 					},
 				},
 			},
@@ -103,7 +101,7 @@ func TestNetworkFirewallResourcePolicy_GetAll(t *testing.T) {
 				NetworkFirewallResourcePolicy: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

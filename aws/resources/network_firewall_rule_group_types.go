@@ -3,10 +3,8 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/networkfirewall"
-	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -15,9 +13,15 @@ type RuleGroup struct {
 	Name, Type *string
 }
 
+type NetworkFirewallRuleGroupAPI interface {
+	ListRuleGroups(ctx context.Context, params *networkfirewall.ListRuleGroupsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListRuleGroupsOutput, error)
+	DescribeRuleGroup(ctx context.Context, params *networkfirewall.DescribeRuleGroupInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeRuleGroupOutput, error)
+	DeleteRuleGroup(ctx context.Context, params *networkfirewall.DeleteRuleGroupInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteRuleGroupOutput, error)
+}
+
 type NetworkFirewallRuleGroup struct {
 	BaseAwsResource
-	Client      networkfirewalliface.NetworkFirewallAPI
+	Client      NetworkFirewallRuleGroupAPI
 	Region      string
 	Identifiers []string
 	// Note: It is mandatory to pass the rule type while nuking it.
@@ -26,10 +30,12 @@ type NetworkFirewallRuleGroup struct {
 	RuleGroups map[string]RuleGroup
 }
 
-func (nfrg *NetworkFirewallRuleGroup) Init(session *session.Session) {
-	nfrg.Client = networkfirewall.New(session)
-	nfrg.RuleGroups = make(map[string]RuleGroup, 0)
+func (nfrg *NetworkFirewallRuleGroup) InitV2(cfg aws.Config) {
+	nfrg.Client = networkfirewall.NewFromConfig(cfg)
+	nfrg.RuleGroups = make(map[string]RuleGroup)
 }
+
+func (nfrg *NetworkFirewallRuleGroup) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (nfrg *NetworkFirewallRuleGroup) ResourceName() string {
@@ -57,13 +63,13 @@ func (nfrg *NetworkFirewallRuleGroup) GetAndSetIdentifiers(c context.Context, co
 		return nil, err
 	}
 
-	nfrg.Identifiers = awsgo.StringValueSlice(identifiers)
+	nfrg.Identifiers = aws.ToStringSlice(identifiers)
 	return nfrg.Identifiers, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (nfrg *NetworkFirewallRuleGroup) Nuke(identifiers []string) error {
-	if err := nfrg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := nfrg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -5,8 +5,9 @@ import (
 	"slices"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/networkfirewall"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
+	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,11 +15,11 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeNetworkFirewall(firewall *networkfirewall.Firewall, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeNetworkFirewall(firewall *types.Firewall, firstSeenTime *time.Time, configObj config.Config) bool {
 	var identifierName string
 	tags := util.ConvertNetworkFirewallTagsToMap(firewall.Tags)
 
-	identifierName = awsgo.StringValue(firewall.FirewallName) // set the default
+	identifierName = aws.ToString(firewall.FirewallName) // set the default
 	if v, ok := tags["Name"]; ok {
 		identifierName = v
 	}
@@ -35,7 +36,7 @@ func (nfw *NetworkFirewall) getAll(c context.Context, configObj config.Config) (
 	var firstSeenTime *time.Time
 	var err error
 
-	metaOutput, err := nfw.Client.ListFirewalls(nil)
+	metaOutput, err := nfw.Client.ListFirewalls(nfw.Context, &networkfirewall.ListFirewallsInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -43,16 +44,16 @@ func (nfw *NetworkFirewall) getAll(c context.Context, configObj config.Config) (
 	var deleteprotected []string
 	// describe the firewalls to get more info
 	for _, firewall := range metaOutput.Firewalls {
-		output, err := nfw.Client.DescribeFirewallWithContext(nfw.Context, &networkfirewall.DescribeFirewallInput{
+		output, err := nfw.Client.DescribeFirewall(nfw.Context, &networkfirewall.DescribeFirewallInput{
 			FirewallArn: firewall.FirewallArn,
 		})
 		if err != nil {
-			logging.Errorf("[Failed] to describe the firewall %s", awsgo.StringValue(firewall.FirewallArn))
+			logging.Errorf("[Failed] to describe the firewall %s", aws.ToString(firewall.FirewallArn))
 			return nil, errors.WithStackTrace(err)
 		}
 
 		if output.Firewall == nil {
-			logging.Errorf("[Failed] no firewall information found for %s", awsgo.StringValue(firewall.FirewallArn))
+			logging.Errorf("[Failed] no firewall information found for %s", aws.ToString(firewall.FirewallArn))
 			continue
 		}
 
@@ -63,8 +64,8 @@ func (nfw *NetworkFirewall) getAll(c context.Context, configObj config.Config) (
 		}
 
 		// check the resource is delete protected
-		if awsgo.BoolValue(output.Firewall.DeleteProtection) {
-			deleteprotected = append(deleteprotected, awsgo.StringValue(firewall.FirewallName))
+		if output.Firewall.DeleteProtection {
+			deleteprotected = append(deleteprotected, aws.ToString(firewall.FirewallName))
 		}
 
 		if shouldIncludeNetworkFirewall(output.Firewall, firstSeenTime, configObj) {
@@ -74,7 +75,7 @@ func (nfw *NetworkFirewall) getAll(c context.Context, configObj config.Config) (
 
 	nfw.VerifyNukablePermissions(identifiers, func(id *string) error {
 		// check the resource is enabled delete protection
-		if slices.Contains(deleteprotected, awsgo.StringValue(id)) {
+		if slices.Contains(deleteprotected, aws.ToString(id)) {
 			return util.ErrDeleteProtectionEnabled
 		}
 		return nil
@@ -98,13 +99,13 @@ func (nfw *NetworkFirewall) nukeAll(identifiers []*string) error {
 			continue
 		}
 
-		_, err := nfw.Client.DeleteFirewallWithContext(nfw.Context, &networkfirewall.DeleteFirewallInput{
+		_, err := nfw.Client.DeleteFirewall(nfw.Context, &networkfirewall.DeleteFirewallInput{
 			FirewallName: id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   awsgo.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Network Firewall",
 			Error:        err,
 		}
