@@ -111,7 +111,7 @@ func (sms *SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan e
 	}
 
 	input := &secretsmanager.DeleteSecretInput{
-		ForceDeleteWithoutRecovery: aws.Bool(true),
+		ForceDeleteWithoutRecovery: true,
 		SecretId:                   secretID,
 	}
 	_, err = sms.Client.DeleteSecret(sms.Context, input)

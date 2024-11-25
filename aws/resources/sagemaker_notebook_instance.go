@@ -3,8 +3,6 @@ package resources
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -92,9 +90,6 @@ func (smni *SageMakerNotebookInstances) nukeAll(names []*string) error {
 	return nil
 }
 
-const maxStopRetries = 3
-const stopWaitDuration = 5 * time.Second
-
 func WaitUntilNotebookInstanceStopped(ctx context.Context, client SageMakerNotebookInstancesAPI, name *string) error {
 	waiter := sagemaker.NewNotebookInstanceStoppedWaiter(client)
 
@@ -123,9 +118,6 @@ func WaitUntilNotebookInstanceStopped(ctx context.Context, client SageMakerNoteb
 
 	return fmt.Errorf("unexpected error: reached end of retry loop for notebook instance stop (%s)", *name)
 }
-
-const maxRetries = 3
-const waitDuration = 5 * time.Second
 
 func WaitUntilNotebookInstanceDeleted(ctx context.Context, client SageMakerNotebookInstancesAPI, name *string) error {
 	waiter := sagemaker.NewNotebookInstanceDeletedWaiter(client)

@@ -86,7 +86,7 @@ run `go generate ./...` to refresh this report.
 | network-interface                |                    |
 | oidcprovider                     | :white_check_mark: |
 | opensearchdomain                 | :white_check_mark: |
-| rds                              |                    |
+| rds                              | :white_check_mark: |
 | rds-cluster                      |                    |
 | rds-global-cluster               |                    |
 | rds-global-cluster-membership    |                    |
@@ -102,8 +102,8 @@ run `go generate ./...` to refresh this report.
 | s3-ap                            | :white_check_mark: |
 | s3-mrap                          | :white_check_mark: |
 | s3-olap                          | :white_check_mark: |
-| sagemaker-notebook-smni          |                    |
-| secretsmanager                   |                    |
+| sagemaker-notebook-smni          | :white_check_mark: |
+| secretsmanager                   | :white_check_mark: |
 | security-group                   |                    |
 | security-hub                     | :white_check_mark: |
 | ses-configuration-set            | :white_check_mark: |
