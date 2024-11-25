@@ -3,27 +3,32 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/aws/aws-sdk-go/service/route53/route53iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type Route53TrafficPolicyAPI interface {
+	ListTrafficPolicies(ctx context.Context, params *route53.ListTrafficPoliciesInput, optFns ...func(*route53.Options)) (*route53.ListTrafficPoliciesOutput, error)
+	DeleteTrafficPolicy(ctx context.Context, params *route53.DeleteTrafficPolicyInput, optFns ...func(*route53.Options)) (*route53.DeleteTrafficPolicyOutput, error)
+}
+
 // Route53TrafficPolicy - represents all Route53TrafficPolicy
 type Route53TrafficPolicy struct {
 	BaseAwsResource
-	Client     route53iface.Route53API
+	Client     Route53TrafficPolicyAPI
 	Region     string
 	Ids        []string
-	versionMap map[string]*int64
+	versionMap map[string]*int32
 }
 
-func (r *Route53TrafficPolicy) Init(session *session.Session) {
-	r.Client = route53.New(session)
-	r.versionMap = make(map[string]*int64)
+func (r *Route53TrafficPolicy) InitV2(cfg aws.Config) {
+	r.Client = route53.NewFromConfig(cfg)
+	r.versionMap = make(map[string]*int32)
 }
+
+func (r *Route53TrafficPolicy) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (r *Route53TrafficPolicy) ResourceName() string {
@@ -49,13 +54,13 @@ func (r *Route53TrafficPolicy) GetAndSetIdentifiers(c context.Context, configObj
 		return nil, err
 	}
 
-	r.Ids = awsgo.StringValueSlice(identifiers)
+	r.Ids = aws.ToStringSlice(identifiers)
 	return r.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (r *Route53TrafficPolicy) Nuke(identifiers []string) error {
-	if err := r.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := r.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

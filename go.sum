@@ -115,6 +115,8 @@ github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.3 h1:5gs6lyhGYupTMTE+
 github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.3/go.mod h1:RrSc7fUe1EX71WfWClFvg55tAdQJ0UdG1uCOBzAgFFo=
 github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.1 h1:8LrDaf/GI94aAXufGevIiHYd+btpMkWPmpHRKn7gLPs=
 github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.1/go.mod h1:Hda4HPusP9TqF+NEC+aw2296WJ+yJGZR72Ufj1atZ3w=
+github.com/aws/aws-sdk-go-v2/service/route53 v1.46.2 h1:wmt05tPp/CaRZpPV5B4SaJ5TwkHKom07/BzHoLdkY1o=
+github.com/aws/aws-sdk-go-v2/service/route53 v1.46.2/go.mod h1:d+K9HESMpGb1EU9/UmmpInbGIUcAkwmcY6ZO/A3zZsw=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0 h1:bFpcqdwtAEsgpZXvkTxIThFQx/EM0oV6kXmfFIGjxME=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0/go.mod h1:ralv4XawHjEMaHOWnTFushl0WRqim/gQWesAMF6hTow=
 github.com/aws/aws-sdk-go-v2/service/s3control v1.50.1 h1:WjVnnNd++hjjmuODULNfZaW2zEKZVrDGZvdQUK2dF8M=

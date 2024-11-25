@@ -3,17 +3,17 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (r *Route53TrafficPolicy) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (r *Route53TrafficPolicy) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
-	result, err := r.Client.ListTrafficPoliciesWithContext(r.Context, &route53.ListTrafficPoliciesInput{})
+	result, err := r.Client.ListTrafficPolicies(r.Context, &route53.ListTrafficPoliciesInput{})
 	if err != nil {
 		logging.Errorf("[Failed] unable to list traffic policies: %v", err)
 		return nil, err
@@ -28,6 +28,7 @@ func (r *Route53TrafficPolicy) getAll(c context.Context, configObj config.Config
 			r.versionMap[*summary.Id] = summary.LatestVersion
 		}
 	}
+
 	return ids, nil
 }
 
@@ -40,14 +41,14 @@ func (r *Route53TrafficPolicy) nukeAll(identifiers []*string) (err error) {
 
 	var deletedIds []*string
 	for _, id := range identifiers {
-		_, err := r.Client.DeleteTrafficPolicyWithContext(r.Context, &route53.DeleteTrafficPolicyInput{
+		_, err := r.Client.DeleteTrafficPolicy(r.Context, &route53.DeleteTrafficPolicyInput{
 			Id:      id,
 			Version: r.versionMap[*id],
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Route53 Traffic Policy",
 			Error:        err,
 		}
@@ -57,7 +58,7 @@ func (r *Route53TrafficPolicy) nukeAll(identifiers []*string) (err error) {
 			logging.Errorf("[Failed] %s: %s", *id, err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Route53 Traffic Policy: %s", aws.StringValue(id))
+			logging.Debugf("Deleted Route53 Traffic Policy: %s", aws.ToString(id))
 		}
 	}
 

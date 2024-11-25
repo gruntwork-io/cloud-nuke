@@ -3,17 +3,18 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/route53"
+	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (r *Route53CidrCollection) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+func (r *Route53CidrCollection) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 
-	result, err := r.Client.ListCidrCollectionsWithContext(r.Context, &route53.ListCidrCollectionsInput{})
+	result, err := r.Client.ListCidrCollections(r.Context, &route53.ListCidrCollectionsInput{})
 	if err != nil {
 		logging.Errorf("[Failed] unable to list cidr collection: %s", err)
 		return nil, err
@@ -26,12 +27,13 @@ func (r *Route53CidrCollection) getAll(c context.Context, configObj config.Confi
 			ids = append(ids, r.Id)
 		}
 	}
+
 	return ids, nil
 }
 
 func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 	// get attached cidr blocks
-	loc, err := r.Client.ListCidrBlocksWithContext(r.Context, &route53.ListCidrBlocksInput{
+	loc, err := r.Client.ListCidrBlocks(r.Context, &route53.ListCidrBlocksInput{
 		CollectionId: id,
 	})
 	if err != nil {
@@ -39,17 +41,17 @@ func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
 		return err
 	}
 
-	var changes []*route53.CidrCollectionChange
+	var changes []types.CidrCollectionChange
 	for _, block := range loc.CidrBlocks {
-		changes = append(changes, &route53.CidrCollectionChange{
-			CidrList:     []*string{block.CidrBlock},
-			Action:       aws.String("DELETE_IF_EXISTS"),
+		changes = append(changes, types.CidrCollectionChange{
+			CidrList:     []string{aws.ToString(block.CidrBlock)},
+			Action:       types.CidrCollectionChangeActionDeleteIfExists,
 			LocationName: block.LocationName,
 		})
 	}
 
 	if len(changes) > 0 {
-		_, err = r.Client.ChangeCidrCollectionWithContext(r.Context, &route53.ChangeCidrCollectionInput{
+		_, err = r.Client.ChangeCidrCollection(r.Context, &route53.ChangeCidrCollectionInput{
 			Id:      id,
 			Changes: changes,
 		})
@@ -81,7 +83,7 @@ func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 			}
 
 			// delete the cidr collection
-			if _, err = r.Client.DeleteCidrCollectionWithContext(r.Context, &route53.DeleteCidrCollectionInput{
+			if _, err = r.Client.DeleteCidrCollection(r.Context, &route53.DeleteCidrCollectionInput{
 				Id: id,
 			}); err != nil {
 				logging.Errorf("[Failed] unable to nuke the cidr collection: %v ", err)
@@ -93,7 +95,7 @@ func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Route53 cidr collection",
 			Error:        err,
 		}
@@ -103,7 +105,7 @@ func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
 			logging.Errorf("[Failed] %s: %s", *id, err)
 		} else {
 			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Route53 cidr collection: %s", aws.StringValue(id))
+			logging.Debugf("Deleted Route53 cidr collection: %s", aws.ToString(id))
 		}
 	}
 

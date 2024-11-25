@@ -43,6 +43,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.6
 	github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.3
 	github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.1
+	github.com/aws/aws-sdk-go-v2/service/route53 v1.46.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0
 	github.com/aws/aws-sdk-go-v2/service/s3control v1.50.1
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.6
