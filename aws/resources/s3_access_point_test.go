@@ -5,27 +5,24 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3control"
-	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	"github.com/aws/aws-sdk-go-v2/service/s3control/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mocks3AccessPoint struct {
-	s3controliface.S3ControlAPI
+	S3ControlAccessPointAPI
 	ListAccessPointsOutput  s3control.ListAccessPointsOutput
 	DeleteAccessPointOutput s3control.DeleteAccessPointOutput
 }
 
-func (m mocks3AccessPoint) ListAccessPointsPagesWithContext(_ awsgo.Context, _ *s3control.ListAccessPointsInput, fn func(*s3control.ListAccessPointsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListAccessPointsOutput, true)
-	return nil
+func (m mocks3AccessPoint) ListAccessPoints(ctx context.Context, params *s3control.ListAccessPointsInput, optFns ...func(*s3control.Options)) (*s3control.ListAccessPointsOutput, error) {
+	return &m.ListAccessPointsOutput, nil
 }
-func (m mocks3AccessPoint) DeleteAccessPointWithContext(_ awsgo.Context, _ *s3control.DeleteAccessPointInput, _ ...request.Option) (*s3control.DeleteAccessPointOutput, error) {
+func (m mocks3AccessPoint) DeleteAccessPoint(ctx context.Context, params *s3control.DeleteAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.DeleteAccessPointOutput, error) {
 	return &m.DeleteAccessPointOutput, nil
 }
 
@@ -42,7 +39,7 @@ func TestS3AccessPoint_GetAll(t *testing.T) {
 	ap := S3AccessPoint{
 		Client: mocks3AccessPoint{
 			ListAccessPointsOutput: s3control.ListAccessPointsOutput{
-				AccessPointList: []*s3control.AccessPoint{
+				AccessPointList: []types.AccessPoint{
 					{
 						Name: aws.String(testName01),
 					},
@@ -80,7 +77,7 @@ func TestS3AccessPoint_GetAll(t *testing.T) {
 				S3AccessPoint: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

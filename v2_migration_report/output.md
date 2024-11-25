@@ -98,10 +98,10 @@ run `go generate ./...` to refresh this report.
 | route53-cidr-collection          |                    |
 | route53-hosted-zone              |                    |
 | route53-traffic-policy           |                    |
-| s3                               |                    |
-| s3-ap                            |                    |
-| s3-mrap                          |                    |
-| s3-olap                          |                    |
+| s3                               | :white_check_mark: |
+| s3-ap                            | :white_check_mark: |
+| s3-mrap                          | :white_check_mark: |
+| s3-olap                          | :white_check_mark: |
 | sagemaker-notebook-smni          |                    |
 | secretsmanager                   |                    |
 | security-group                   |                    |

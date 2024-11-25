@@ -6,27 +6,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3control"
-	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	"github.com/aws/aws-sdk-go-v2/service/s3control/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockS3MultiRegionAccessPoint struct {
-	s3controliface.S3ControlAPI
+	S3ControlMultiRegionAPI
 	ListMultiRegionAccessPointsOutput  s3control.ListMultiRegionAccessPointsOutput
 	DeleteMultiRegionAccessPointOutput s3control.DeleteMultiRegionAccessPointOutput
 }
 
-func (m mockS3MultiRegionAccessPoint) ListMultiRegionAccessPointsPagesWithContext(_ awsgo.Context, _ *s3control.ListMultiRegionAccessPointsInput, fn func(*s3control.ListMultiRegionAccessPointsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.ListMultiRegionAccessPointsOutput, true)
-	return nil
+func (m mockS3MultiRegionAccessPoint) ListMultiRegionAccessPoints(ctx context.Context, params *s3control.ListMultiRegionAccessPointsInput, optFns ...func(*s3control.Options)) (*s3control.ListMultiRegionAccessPointsOutput, error) {
+	return &m.ListMultiRegionAccessPointsOutput, nil
 }
-func (m mockS3MultiRegionAccessPoint) DeleteMultiRegionAccessPointWithContext(_ awsgo.Context, _ *s3control.DeleteMultiRegionAccessPointInput, _ ...request.Option) (*s3control.DeleteMultiRegionAccessPointOutput, error) {
+func (m mockS3MultiRegionAccessPoint) DeleteMultiRegionAccessPoint(ctx context.Context, params *s3control.DeleteMultiRegionAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.DeleteMultiRegionAccessPointOutput, error) {
 	return &m.DeleteMultiRegionAccessPointOutput, nil
 }
 
@@ -46,7 +43,7 @@ func TestS3MultiRegionAccessPoint_GetAll(t *testing.T) {
 		Region: "us-west-2",
 		Client: mockS3MultiRegionAccessPoint{
 			ListMultiRegionAccessPointsOutput: s3control.ListMultiRegionAccessPointsOutput{
-				AccessPoints: []*s3control.MultiRegionAccessPointReport{
+				AccessPoints: []types.MultiRegionAccessPointReport{
 					{
 						Name:      aws.String(testName01),
 						CreatedAt: aws.Time(now),
@@ -93,7 +90,7 @@ func TestS3MultiRegionAccessPoint_GetAll(t *testing.T) {
 				S3MultiRegionAccessPoint: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
