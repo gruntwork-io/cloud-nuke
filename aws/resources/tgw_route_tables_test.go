@@ -5,26 +5,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedTransitGatewayRouteTable struct {
-	ec2iface.EC2API
+	TransitGatewaysRouteTablesAPI
 	DescribeTransitGatewayRouteTablesOutput ec2.DescribeTransitGatewayRouteTablesOutput
 	DeleteTransitGatewayRouteTableOutput    ec2.DeleteTransitGatewayRouteTableOutput
 }
 
-func (m mockedTransitGatewayRouteTable) DescribeTransitGatewayRouteTablesWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewayRouteTablesInput, _ ...request.Option) (*ec2.DescribeTransitGatewayRouteTablesOutput, error) {
+func (m mockedTransitGatewayRouteTable) DescribeTransitGatewayRouteTables(_ context.Context, _ *ec2.DescribeTransitGatewayRouteTablesInput, _ ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayRouteTablesOutput, error) {
 	return &m.DescribeTransitGatewayRouteTablesOutput, nil
 }
 
-func (m mockedTransitGatewayRouteTable) DeleteTransitGatewayRouteTableWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayRouteTableInput, _ ...request.Option) (*ec2.DeleteTransitGatewayRouteTableOutput, error) {
+func (m mockedTransitGatewayRouteTable) DeleteTransitGatewayRouteTable(_ context.Context, _ *ec2.DeleteTransitGatewayRouteTableInput, _ ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayRouteTableOutput, error) {
 	return &m.DeleteTransitGatewayRouteTableOutput, nil
 }
 func TestTransitGatewayRouteTables_GetAll(t *testing.T) {
@@ -37,16 +36,16 @@ func TestTransitGatewayRouteTables_GetAll(t *testing.T) {
 	tgw := TransitGatewaysRouteTables{
 		Client: mockedTransitGatewayRouteTable{
 			DescribeTransitGatewayRouteTablesOutput: ec2.DescribeTransitGatewayRouteTablesOutput{
-				TransitGatewayRouteTables: []*ec2.TransitGatewayRouteTable{
+				TransitGatewayRouteTables: []types.TransitGatewayRouteTable{
 					{
 						TransitGatewayRouteTableId: aws.String(tableId1),
 						CreationTime:               aws.Time(now),
-						State:                      aws.String("available"),
+						State:                      "available",
 					},
 					{
 						TransitGatewayRouteTableId: aws.String(tableId2),
 						CreationTime:               aws.Time(now.Add(1)),
-						State:                      aws.String("deleting"),
+						State:                      "deleting",
 					},
 				},
 			},
@@ -74,7 +73,7 @@ func TestTransitGatewayRouteTables_GetAll(t *testing.T) {
 				TransitGatewayRouteTable: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
