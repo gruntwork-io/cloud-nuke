@@ -3,9 +3,10 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -15,17 +16,15 @@ import (
 func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	// Remove default route table, that will be deleted along with its TransitGateway
 	param := &ec2.DescribeTransitGatewayRouteTablesInput{
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
-				Name: aws.String("default-association-route-table"),
-				Values: []*string{
-					aws.String("false"),
-				},
+				Name:   aws.String("default-association-route-table"),
+				Values: []string{"false"},
 			},
 		},
 	}
 
-	result, err := tgw.Client.DescribeTransitGatewayRouteTablesWithContext(tgw.Context, param)
+	result, err := tgw.Client.DescribeTransitGatewayRouteTables(tgw.Context, param)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -33,7 +32,8 @@ func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj confi
 	var ids []*string
 	for _, transitGatewayRouteTable := range result.TransitGatewayRouteTables {
 		if configObj.TransitGatewayRouteTable.ShouldInclude(config.ResourceValue{Time: transitGatewayRouteTable.CreationTime}) &&
-			awsgo.StringValue(transitGatewayRouteTable.State) != "deleted" && awsgo.StringValue(transitGatewayRouteTable.State) != "deleting" {
+			transitGatewayRouteTable.State != types.TransitGatewayRouteTableStateDeleted &&
+			transitGatewayRouteTable.State != types.TransitGatewayRouteTableStateDeleting {
 			ids = append(ids, transitGatewayRouteTable.TransitGatewayRouteTableId)
 		}
 	}
@@ -56,7 +56,7 @@ func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
 			TransitGatewayRouteTableId: id,
 		}
 
-		_, err := tgw.Client.DeleteTransitGatewayRouteTableWithContext(tgw.Context, param)
+		_, err := tgw.Client.DeleteTransitGatewayRouteTable(tgw.Context, param)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 		} else {
