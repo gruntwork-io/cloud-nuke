@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/sagemaker"
-	"github.com/aws/aws-sdk-go/service/sagemaker/sagemakeriface"
+	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
+	"github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
+	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
@@ -20,30 +19,33 @@ import (
 // custom one.
 
 type mockedSageMakerNotebookInstance struct {
-	sagemakeriface.SageMakerAPI
-	ListNotebookInstancesOutput  sagemaker.ListNotebookInstancesOutput
-	StopNotebookInstanceOutput   sagemaker.StopNotebookInstanceOutput
-	DeleteNotebookInstanceOutput sagemaker.DeleteNotebookInstanceOutput
+	SageMakerNotebookInstancesAPI
+	ListNotebookInstancesOutput    sagemaker.ListNotebookInstancesOutput
+	StopNotebookInstanceOutput     sagemaker.StopNotebookInstanceOutput
+	DeleteNotebookInstanceOutput   sagemaker.DeleteNotebookInstanceOutput
+	DescribeNotebookInstanceOutput sagemaker.DescribeNotebookInstanceOutput
+	DescribeNotebookInstanceError  error
 }
 
-func (m mockedSageMakerNotebookInstance) ListNotebookInstancesWithContext(_ awsgo.Context, _ *sagemaker.ListNotebookInstancesInput, _ ...request.Option) (*sagemaker.ListNotebookInstancesOutput, error) {
+func (m mockedSageMakerNotebookInstance) ListNotebookInstances(ctx context.Context, params *sagemaker.ListNotebookInstancesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListNotebookInstancesOutput, error) {
 	return &m.ListNotebookInstancesOutput, nil
 }
 
-func (m mockedSageMakerNotebookInstance) StopNotebookInstanceWithContext(_ awsgo.Context, _ *sagemaker.StopNotebookInstanceInput, _ ...request.Option) (*sagemaker.StopNotebookInstanceOutput, error) {
+func (m mockedSageMakerNotebookInstance) StopNotebookInstance(ctx context.Context, params *sagemaker.StopNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.StopNotebookInstanceOutput, error) {
 	return &m.StopNotebookInstanceOutput, nil
 }
 
-func (m mockedSageMakerNotebookInstance) WaitUntilNotebookInstanceStoppedWithContext(_ awsgo.Context, _ *sagemaker.DescribeNotebookInstanceInput, _ ...request.WaiterOption) error {
-	return nil
-}
+func (m mockedSageMakerNotebookInstance) DeleteNotebookInstance(ctx context.Context, params *sagemaker.DeleteNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteNotebookInstanceOutput, error) {
 
-func (m mockedSageMakerNotebookInstance) WaitUntilNotebookInstanceDeletedWithContext(_ awsgo.Context, _ *sagemaker.DescribeNotebookInstanceInput, _ ...request.WaiterOption) error {
-	return nil
-}
-
-func (m mockedSageMakerNotebookInstance) DeleteNotebookInstance(input *sagemaker.DeleteNotebookInstanceInput) (*sagemaker.DeleteNotebookInstanceOutput, error) {
 	return &m.DeleteNotebookInstanceOutput, nil
+}
+func (m mockedSageMakerNotebookInstance) DescribeNotebookInstance(ctx context.Context, params *sagemaker.DescribeNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeNotebookInstanceOutput, error) {
+
+	return &m.DescribeNotebookInstanceOutput, m.DescribeNotebookInstanceError
+}
+
+func (m mockedSageMakerNotebookInstance) WaitForOutput(ctx context.Context, params *sagemaker.DescribeNotebookInstanceInput, maxWaitDur time.Duration, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeNotebookInstanceOutput, error) {
+	return nil, nil
 }
 
 func TestSageMakerNotebookInstances_GetAll(t *testing.T) {
@@ -56,14 +58,14 @@ func TestSageMakerNotebookInstances_GetAll(t *testing.T) {
 	smni := SageMakerNotebookInstances{
 		Client: mockedSageMakerNotebookInstance{
 			ListNotebookInstancesOutput: sagemaker.ListNotebookInstancesOutput{
-				NotebookInstances: []*sagemaker.NotebookInstanceSummary{
+				NotebookInstances: []types.NotebookInstanceSummary{
 					{
-						NotebookInstanceName: awsgo.String(testName1),
-						CreationTime:         awsgo.Time(now),
+						NotebookInstanceName: aws.String(testName1),
+						CreationTime:         aws.Time(now),
 					},
 					{
-						NotebookInstanceName: awsgo.String(testName2),
-						CreationTime:         awsgo.Time(now.Add(1)),
+						NotebookInstanceName: aws.String(testName2),
+						CreationTime:         aws.Time(now.Add(1)),
 					},
 				},
 			},
@@ -101,7 +103,7 @@ func TestSageMakerNotebookInstances_GetAll(t *testing.T) {
 				SageMakerNotebook: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
@@ -111,13 +113,52 @@ func TestSageMakerNotebookInstances_NukeAll(t *testing.T) {
 
 	t.Parallel()
 
+	testName1 := "test1"
+	testName2 := "test2"
+	now := time.Now()
+
 	smni := SageMakerNotebookInstances{
 		Client: mockedSageMakerNotebookInstance{
+			ListNotebookInstancesOutput: sagemaker.ListNotebookInstancesOutput{
+				NotebookInstances: []types.NotebookInstanceSummary{
+					{
+						NotebookInstanceName: aws.String(testName1),
+						CreationTime:         aws.Time(now),
+					},
+					{
+						NotebookInstanceName: aws.String(testName2),
+						CreationTime:         aws.Time(now.Add(1)),
+					},
+				},
+			},
 			StopNotebookInstanceOutput:   sagemaker.StopNotebookInstanceOutput{},
 			DeleteNotebookInstanceOutput: sagemaker.DeleteNotebookInstanceOutput{},
+			DescribeNotebookInstanceOutput: sagemaker.DescribeNotebookInstanceOutput{
+				NotebookInstanceStatus: types.NotebookInstanceStatusStopped,
+				NotebookInstanceName:   aws.String(testName2),
+			},
+			DescribeNotebookInstanceError: &smithy.GenericAPIError{
+				Code: "ValidationException",
+			},
 		},
 	}
 
-	err := smni.nukeAll([]*string{aws.String("test")})
-	require.NoError(t, err)
+	smni.Context = context.Background()
+
+	tests := []struct {
+		name      string
+		instances []*string
+	}{
+		{
+			name:      "Single instance",
+			instances: []*string{aws.String("test1")},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := smni.nukeAll(tt.instances)
+			require.NoError(t, err)
+		})
+	}
 }

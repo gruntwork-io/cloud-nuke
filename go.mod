@@ -44,10 +44,13 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/macie2 v1.43.6
 	github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.3
 	github.com/aws/aws-sdk-go-v2/service/opensearch v1.44.1
+	github.com/aws/aws-sdk-go-v2/service/rds v1.91.0
 	github.com/aws/aws-sdk-go-v2/service/route53 v1.46.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0
 	github.com/aws/aws-sdk-go-v2/service/s3control v1.50.1
+	github.com/aws/aws-sdk-go-v2/service/sagemaker v1.168.0
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.6
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.15.13
 	github.com/aws/aws-sdk-go-v2/service/securityhub v1.54.7
 	github.com/aws/aws-sdk-go-v2/service/ses v1.29.0
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.6

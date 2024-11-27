@@ -7,34 +7,28 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
-
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/rds"
-
 	"github.com/stretchr/testify/require"
 )
 
 type mockedDBInstance struct {
-	rdsiface.RDSAPI
+	RDSAPI
 	DescribeDBInstancesOutput rds.DescribeDBInstancesOutput
 	DeleteDBInstanceOutput    rds.DeleteDBInstanceOutput
 }
 
-func (m mockedDBInstance) DescribeDBInstancesWithContext(_ awsgo.Context, _ *rds.DescribeDBInstancesInput, _ ...request.Option) (*rds.DescribeDBInstancesOutput, error) {
+func (m mockedDBInstance) DescribeDBInstances(ctx context.Context, params *rds.DescribeDBInstancesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBInstancesOutput, error) {
 	return &m.DescribeDBInstancesOutput, nil
 }
 
-func (m mockedDBInstance) DeleteDBInstanceWithContext(_ awsgo.Context, _ *rds.DeleteDBInstanceInput, _ ...request.Option) (*rds.DeleteDBInstanceOutput, error) {
+func (m mockedDBInstance) DeleteDBInstance(ctx context.Context, params *rds.DeleteDBInstanceInput, optFns ...func(*rds.Options)) (*rds.DeleteDBInstanceOutput, error) {
 	return &m.DeleteDBInstanceOutput, nil
 }
-
-func (m mockedDBInstance) WaitUntilDBInstanceDeletedWithContext(_ awsgo.Context, _ *rds.DescribeDBInstancesInput, _ ...request.WaiterOption) error {
-	return nil
+func (m mockedDBInstance) WaitForOutput(ctx context.Context, params *rds.DescribeDBInstancesInput, maxWaitDur time.Duration, optFns ...func(*rds.Options)) (*rds.DescribeDBInstancesOutput, error) {
+	return nil, nil
 }
-
 func TestDBInstances_GetAll(t *testing.T) {
 
 	t.Parallel()
@@ -47,16 +41,16 @@ func TestDBInstances_GetAll(t *testing.T) {
 	di := DBInstances{
 		Client: mockedDBInstance{
 			DescribeDBInstancesOutput: rds.DescribeDBInstancesOutput{
-				DBInstances: []*rds.DBInstance{
+				DBInstances: []types.DBInstance{
 					{
-						DBInstanceIdentifier: awsgo.String(testIdentifier1),
-						DBName:               awsgo.String(testName1),
-						InstanceCreateTime:   awsgo.Time(now),
+						DBInstanceIdentifier: aws.String(testIdentifier1),
+						DBName:               aws.String(testName1),
+						InstanceCreateTime:   aws.Time(now),
 					},
 					{
-						DBInstanceIdentifier: awsgo.String(testIdentifier2),
-						DBName:               awsgo.String(testName2),
-						InstanceCreateTime:   awsgo.Time(now.Add(1)),
+						DBInstanceIdentifier: aws.String(testIdentifier2),
+						DBName:               aws.String(testName2),
+						InstanceCreateTime:   aws.Time(now.Add(1)),
 					},
 				},
 			},
@@ -75,10 +69,11 @@ func TestDBInstances_GetAll(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+						RE: *regexp.MustCompile("^" + testName1 + "$"),
+					}},
+				},
 			},
-			expected: []string{testIdentifier2},
+			expected: []string{testIdentifier1, testIdentifier2},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
@@ -94,10 +89,9 @@ func TestDBInstances_GetAll(t *testing.T) {
 				DBInstances: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
 func TestDBInstances_NukeAll(t *testing.T) {
@@ -109,6 +103,7 @@ func TestDBInstances_NukeAll(t *testing.T) {
 			DeleteDBInstanceOutput: rds.DeleteDBInstanceOutput{},
 		},
 	}
+	di.Context = context.Background()
 
 	err := di.nukeAll([]*string{aws.String("test")})
 	require.NoError(t, err)
