@@ -26,7 +26,7 @@ run `go generate ./...` to refresh this report.
 | data-sync-task                   | :white_check_mark: |
 | dynamodb                         | :white_check_mark: |
 | ebs                              | :white_check_mark: |
-| ec2                              |                    |
+| ec2                              | :white_check_mark: |
 | ec2-dedicated-hosts              | :white_check_mark: |
 | ec2-endpoint                     | :white_check_mark: |
 | ec2-keypairs                     | :white_check_mark: |
