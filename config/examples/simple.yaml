@@ -1,8 +1,8 @@
-# exclude s3 object that match `object.1*` but include anything else that match `object.*`
+# exclude s3 bucket that match `bucket-.*` but include anything else that match `bucket.*`
 s3:
   include:
     names_regex:
-    - object.*
+    - bucket.*
   exclude:
     names_regex:
-    - object.1*
+    - bucket-.*
