@@ -980,14 +980,14 @@ KMSCustomerKeys:
   include_unaliased_keys: true
   include:
     names_regex:
-    - that.*
-    - thats.*
+    - alias/that.*
+    - alias/thats.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tag: test
   exclude:
     names_regex:
-    - this.*
+    - alias/this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tag: test
