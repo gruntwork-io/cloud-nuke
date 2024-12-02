@@ -1,0 +1,1798 @@
+# This is a an example of config file that list all possible entries. Note that `exclude` has a higher precedence than `include`.
+ACM:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ACMPCA:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+AMI:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+APIGateway:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+APIGatewayV2:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+AccessAnalyzer:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+AutoScalingGroup:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+AppRunnerService:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+BackupVault:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ManagedPrometheus:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+CloudWatchAlarm:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+CloudWatchDashboard:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+CloudWatchLogGroup:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+CloudtrailTrail:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+CodeDeployApplications:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ConfigServiceRecorder:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ConfigServiceRule:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DataSyncLocation:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DataSyncTask:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DBGlobalClusters:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DBClusters:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DBInstances:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DBGlobalClusterMemberships:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DBSubnetGroups:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+DynamoDB:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EBSVolume:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ElasticBeanstalk:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2DedicatedHosts:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2DhcpOption:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2KeyPairs:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2IPAM:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2IPAMPool:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2IPAMResourceDiscovery:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2IPAMScope:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2Endpoint:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2Subnet:
+  default_only: true
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EC2PlacementGroups:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EgressOnlyInternetGateway:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ECRRepository:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ECSCluster:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ECSService:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EKSCluster:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ELBv1:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ELBv2:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ElasticFileSystem:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ElasticIP:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+Elasticache:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ElasticacheParameterGroups:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+ElasticacheSubnetGroups:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EventBridge:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EventBridgeArchive:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EventBridgeRule:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EventBridgeSchedule:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+EventBridgeScheduleGroup:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+GuardDuty:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+IAMGroups:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+IAMPolicies:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+IAMRoles:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+IAMServiceLinkedRoles:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+IAMUsers:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+KMSCustomerKeys:
+  include_unaliased_keys: true
+  include:
+    names_regex:
+    - alias/that.*
+    - alias/thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - alias/this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+KinesisStream:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+KinesisFirehose:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+LambdaFunction:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+LambdaLayer:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+LaunchConfiguration:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+LaunchTemplate:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+MacieMember:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+MSKCluster:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NatGateway:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+OIDCProvider:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+OpenSearchDomain:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+Redshift:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+RdsSnapshot:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+RdsParameterGroup:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+RdsProxy:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+s3:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+S3AccessPoint:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+S3ObjectLambdaAccessPoint:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+S3MultiRegionAccessPoint:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SesIdentity:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SesConfigurationset:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SesReceiptRuleSet:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SesReceiptFilter:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SesEmailTemplates:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SNS:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SQS:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SageMakerNotebook:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SecretsManager:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SecurityHub:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+Snapshots:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+TransitGateway:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+TransitGatewayRouteTable:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+TransitGatewaysVpcAttachment:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+TransitGatewayPeeringAttachment:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+VPC:
+  default_only: true
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+Route53HostedZone:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+Route53CIDRCollection:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+Route53TrafficPolicy:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+InternetGateway:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NetworkACL:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NetworkInterface:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+SecurityGroup:
+  default_only: true
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NetworkFirewall:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NetworkFirewallPolicy:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NetworkFirewallRuleGroup:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NetworkFirewallTLSConfig:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+NetworkFirewallResourcePolicy:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+VPCLatticeServiceNetwork:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+VPCLatticeService:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+VPCLatticeTargetGroup:
+  include:
+    names_regex:
+    - that.*
+    - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+    - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
+
