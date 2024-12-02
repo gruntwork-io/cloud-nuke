@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
@@ -17,39 +17,33 @@ import (
 
 type mockedNetworkInterface struct {
 	BaseAwsResource
-	ec2iface.EC2API
+	NetworkInterfaceAPI
 	DescribeNetworkInterfacesOutput ec2.DescribeNetworkInterfacesOutput
 	DeleteNetworkInterfaceOutput    ec2.DeleteNetworkInterfaceOutput
 	DescribeAddressesOutput         ec2.DescribeAddressesOutput
 	TerminateInstancesOutput        ec2.TerminateInstancesOutput
 	ReleaseAddressOutput            ec2.ReleaseAddressOutput
+	DescribeNetworkInterfacesError  error
 }
 
-func (m mockedNetworkInterface) DescribeNetworkInterfacesWithContext(_ awsgo.Context, _ *ec2.DescribeNetworkInterfacesInput, _ ...request.Option) (*ec2.DescribeNetworkInterfacesOutput, error) {
-	return &m.DescribeNetworkInterfacesOutput, nil
+func (m mockedNetworkInterface) DescribeNetworkInterfaces(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
+	return &m.DescribeNetworkInterfacesOutput, m.DescribeNetworkInterfacesError
 }
 
-func (m mockedNetworkInterface) DeleteNetworkInterface(_ *ec2.DeleteNetworkInterfaceInput) (*ec2.DeleteNetworkInterfaceOutput, error) {
+func (m mockedNetworkInterface) DeleteNetworkInterface(ctx context.Context, params *ec2.DeleteNetworkInterfaceInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkInterfaceOutput, error) {
 	return &m.DeleteNetworkInterfaceOutput, nil
 }
-func (m mockedNetworkInterface) DeleteNetworkInterfaceWithContext(_ awsgo.Context, _ *ec2.DeleteNetworkInterfaceInput, _ ...request.Option) (*ec2.DeleteNetworkInterfaceOutput, error) {
-	return &m.DeleteNetworkInterfaceOutput, nil
-}
 
-func (m mockedNetworkInterface) DescribeAddressesWithContext(_ awsgo.Context, _ *ec2.DescribeAddressesInput, _ ...request.Option) (*ec2.DescribeAddressesOutput, error) {
+func (m mockedNetworkInterface) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
 	return &m.DescribeAddressesOutput, nil
 }
 
-func (m mockedNetworkInterface) ReleaseAddressWithContext(_ awsgo.Context, _ *ec2.ReleaseAddressInput, _ ...request.Option) (*ec2.ReleaseAddressOutput, error) {
+func (m mockedNetworkInterface) ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error) {
 	return &m.ReleaseAddressOutput, nil
 }
 
-func (m mockedNetworkInterface) TerminateInstancesWithContext(_ awsgo.Context, _ *ec2.TerminateInstancesInput, _ ...request.Option) (*ec2.TerminateInstancesOutput, error) {
+func (m mockedNetworkInterface) TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error) {
 	return &m.TerminateInstancesOutput, nil
-}
-
-func (m mockedNetworkInterface) WaitUntilInstanceTerminatedWithContext(_ awsgo.Context, _ *ec2.DescribeInstancesInput, _ ...request.WaiterOption) error {
-	return nil
 }
 
 func TestNetworkInterface_GetAll(t *testing.T) {
@@ -69,11 +63,11 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 	resourceObject := NetworkInterface{
 		Client: mockedNetworkInterface{
 			DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
-				NetworkInterfaces: []*ec2.NetworkInterface{
+				NetworkInterfaces: []types.NetworkInterface{
 					{
 						NetworkInterfaceId: awsgo.String(testId1),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
-						TagSet: []*ec2.Tag{
+						InterfaceType:      NetworkInterfaceTypeInterface,
+						TagSet: []types.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName1),
@@ -86,8 +80,8 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 					},
 					{
 						NetworkInterfaceId: awsgo.String(testId2),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
-						TagSet: []*ec2.Tag{
+						InterfaceType:      NetworkInterfaceTypeInterface,
+						TagSet: []types.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName2),
@@ -151,7 +145,7 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 				NetworkInterface: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
 		})
 	}
 
@@ -179,31 +173,31 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 		Client: mockedNetworkInterface{
 			DeleteNetworkInterfaceOutput: ec2.DeleteNetworkInterfaceOutput{},
 			DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
-				NetworkInterfaces: []*ec2.NetworkInterface{
+				NetworkInterfaces: []types.NetworkInterface{
 					{
 						NetworkInterfaceId: awsgo.String(testId1),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
-						TagSet: []*ec2.Tag{
+						InterfaceType:      NetworkInterfaceTypeInterface,
+						TagSet: []types.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName1),
 							},
 						},
-						Attachment: &ec2.NetworkInterfaceAttachment{
+						Attachment: &types.NetworkInterfaceAttachment{
 							AttachmentId: awsgo.String("network-attachment-09e36c45cbdbfb001"),
 							InstanceId:   awsgo.String("ec2-instance-09e36c45cbdbfb001"),
 						},
 					},
 					{
 						NetworkInterfaceId: awsgo.String(testId2),
-						InterfaceType:      awsgo.String(NetworkInterfaceTypeInterface),
-						TagSet: []*ec2.Tag{
+						InterfaceType:      NetworkInterfaceTypeInterface,
+						TagSet: []types.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName2),
 							},
 						},
-						Attachment: &ec2.NetworkInterfaceAttachment{
+						Attachment: &types.NetworkInterfaceAttachment{
 							AttachmentId: awsgo.String("network-attachment-09e36c45cbdbfb002"),
 							InstanceId:   awsgo.String("ec2-instance-09e36c45cbdbfb002"),
 						},
@@ -211,7 +205,7 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 				},
 			},
 			DescribeAddressesOutput: ec2.DescribeAddressesOutput{
-				Addresses: []*ec2.Address{
+				Addresses: []types.Address{
 					{
 						AllocationId: awsgo.String("ec2-addr-alloc-09e36c45cbdbfb001"),
 						InstanceId:   awsgo.String("ec2-instance-09e36c45cbdbfb001"),
@@ -224,8 +218,12 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 			},
 			TerminateInstancesOutput: ec2.TerminateInstancesOutput{},
 			ReleaseAddressOutput:     ec2.ReleaseAddressOutput{},
+			DescribeNetworkInterfacesError: &smithy.GenericAPIError{
+				Code: "terminated",
+			},
 		},
 	}
+	resourceObject.Context = context.Background()
 
 	err := resourceObject.nukeAll([]*string{
 		awsgo.String(testId1),

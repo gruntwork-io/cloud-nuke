@@ -3,10 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -15,17 +13,26 @@ const (
 	NetworkInterfaceTypeInterface = "interface"
 )
 
+type NetworkInterfaceAPI interface {
+	DescribeNetworkInterfaces(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error)
+	DeleteNetworkInterface(ctx context.Context, params *ec2.DeleteNetworkInterfaceInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkInterfaceOutput, error)
+	DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error)
+	ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error)
+	TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error)
+	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+}
 type NetworkInterface struct {
 	BaseAwsResource
-	Client       ec2iface.EC2API
+	Client       NetworkInterfaceAPI
 	Region       string
 	InterfaceIds []string
 }
 
-func (ni *NetworkInterface) Init(session *session.Session) {
-	ni.BaseAwsResource.Init(session)
-	ni.Client = ec2.New(session)
+func (ni *NetworkInterface) InitV2(cfg aws.Config) {
+	ni.Client = ec2.NewFromConfig(cfg)
 }
+
+func (ni *NetworkInterface) IsUsingV2() bool { return true }
 
 func (ni *NetworkInterface) ResourceName() string {
 	return "network-interface"
@@ -49,7 +56,7 @@ func (ni *NetworkInterface) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	ni.InterfaceIds = aws.StringValueSlice(identifiers)
+	ni.InterfaceIds = aws.ToStringSlice(identifiers)
 	return ni.InterfaceIds, nil
 }
 

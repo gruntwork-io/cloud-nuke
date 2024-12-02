@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	ec2v2 "github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	nwfwall "github.com/aws/aws-sdk-go-v2/service/networkfirewall"
+	nwfTypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/aws/aws-sdk-go/aws"
 	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -96,6 +101,26 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 					{
 						Key:   awsgo.String(FirstSeenTagKey),
 						Value: awsgo.String(FormatTimestamp(now)),
+					},
+				},
+			})
+		case *ec2v2.Client:
+			_, err = v.CreateTags(ctx, &ec2v2.CreateTagsInput{
+				Resources: []string{*identifier},
+				Tags: []ec2types.Tag{
+					{
+						Key:   awsv2.String(FirstSeenTagKey),
+						Value: awsv2.String(FormatTimestamp(now)),
+					},
+				},
+			})
+		case *nwfwall.Client:
+			_, err = v.TagResource(ctx, &nwfwall.TagResourceInput{
+				ResourceArn: identifier,
+				Tags: []nwfTypes.Tag{
+					{
+						Key:   awsv2.String(FirstSeenTagKey),
+						Value: awsv2.String(FormatTimestamp(now)),
 					},
 				},
 			})

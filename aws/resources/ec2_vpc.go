@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/elbv2"
-	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/pterm/pterm"
 
 	"github.com/gruntwork-io/go-commons/retry"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -30,13 +30,11 @@ func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string,
 	var firstSeenTime *time.Time
 	var err error
 	// Note: This filter initially handles non-default resources and can be overridden by passing the only-default filter to choose default VPCs.
-	result, err := v.Client.DescribeVpcsWithContext(v.Context, &ec2.DescribeVpcsInput{
-		Filters: []*ec2.Filter{
+	result, err := v.Client.DescribeVpcs(v.Context, &ec2.DescribeVpcsInput{
+		Filters: []types.Filter{
 			{
-				Name: awsgo.String("is-default"),
-				Values: []*string{
-					awsgo.String(strconv.FormatBool(configObj.VPC.DefaultOnly)), // convert the bool status into string
-				},
+				Name:   awsgo.String("is-default"),
+				Values: []string{strconv.FormatBool(configObj.VPC.DefaultOnly)}, // convert the bool status into string
 			},
 		},
 	})
@@ -46,7 +44,7 @@ func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string,
 
 	var ids []*string
 	for _, vpc := range result.Vpcs {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, v.Client, vpc.VpcId, util.ConvertEC2TagsToMap(vpc.Tags))
+		firstSeenTime, err = util.GetOrCreateFirstSeen(c, v.Client, vpc.VpcId, util.ConvertTypesTagsToMap(vpc.Tags))
 		if err != nil {
 			logging.Error("Unable to retrieve tags")
 			return nil, errors.WithStackTrace(err)
@@ -62,7 +60,7 @@ func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string,
 
 	// checking the nukable permissions
 	v.VerifyNukablePermissions(ids, func(id *string) error {
-		_, err := v.Client.DeleteVpc(&ec2.DeleteVpcInput{
+		_, err := v.Client.DeleteVpc(c, &ec2.DeleteVpcInput{
 			VpcId:  id,
 			DryRun: awsgo.Bool(true),
 		})
@@ -113,7 +111,7 @@ func (v *EC2VPCs) nukeAll(vpcIds []string) error {
 	return nil
 }
 
-func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) error {
+func nuke(client EC2VPCAPI, elbClient ELBClientAPI, vpcID string) error {
 	var err error
 	// Note: order is quite important, otherwise you will encounter dependency violation errors.
 
@@ -178,12 +176,12 @@ func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) e
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
 		30, 10*time.Second,
 		func() error {
-			interfaces, err := client.DescribeNetworkInterfaces(
+			interfaces, err := client.DescribeNetworkInterfaces(context.Background(),
 				&ec2.DescribeNetworkInterfacesInput{
-					Filters: []*ec2.Filter{
+					Filters: []types.Filter{
 						{
 							Name:   awsgo.String("vpc-id"),
-							Values: []*string{awsgo.String(vpcID)},
+							Values: []string{vpcID},
 						},
 					},
 				},
@@ -251,68 +249,66 @@ func nuke(client ec2iface.EC2API, elbClient elbv2iface.ELBV2API, vpcID string) e
 	return nil
 }
 
-func nukePeeringConnections(client ec2iface.EC2API, vpcID string) error {
+func nukePeeringConnections(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Finding VPC peering connections to nuke for: %s", vpcID))
 
 	peerConnections := []*string{}
 	vpcIds := []string{vpcID}
-	requesterFilters := []*ec2.Filter{
+	requesterFilters := []types.Filter{
 		{
 			Name:   awsgo.String("requester-vpc-info.vpc-id"),
-			Values: awsgo.StringSlice(vpcIds),
+			Values: vpcIds,
 		}, {
 			Name:   awsgo.String("status-code"),
-			Values: awsgo.StringSlice([]string{"active"}),
+			Values: []string{"active"},
 		},
 	}
-	accepterFilters := []*ec2.Filter{
+	accepterFilters := []types.Filter{
 		{
 			Name:   awsgo.String("accepter-vpc-info.vpc-id"),
-			Values: awsgo.StringSlice(vpcIds),
+			Values: vpcIds,
 		}, {
 			Name:   awsgo.String("status-code"),
-			Values: awsgo.StringSlice([]string{"active"}),
+			Values: []string{"active"},
 		},
 	}
 
 	// check the peering connection as requester
-	err := client.DescribeVpcPeeringConnectionsPages(
-		&ec2.DescribeVpcPeeringConnectionsInput{
-			Filters: requesterFilters,
-		},
-		func(page *ec2.DescribeVpcPeeringConnectionsOutput, lastPage bool) bool {
-			for _, connection := range page.VpcPeeringConnections {
-				peerConnections = append(peerConnections, connection.VpcPeeringConnectionId)
-			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe vpc peering connections for vpc as requester: %s", vpcID))
-		return errors.WithStackTrace(err)
+	paginator := ec2.NewDescribeVpcPeeringConnectionsPaginator(client, &ec2.DescribeVpcPeeringConnectionsInput{
+		Filters: requesterFilters,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to describe VPC peering connections for VPC as requester: %s", vpcID))
+			return errors.WithStackTrace(err)
+		}
+		for _, connection := range page.VpcPeeringConnections {
+			peerConnections = append(peerConnections, connection.VpcPeeringConnectionId)
+		}
 	}
 
 	// check the peering connection as accepter
-	err = client.DescribeVpcPeeringConnectionsPages(
-		&ec2.DescribeVpcPeeringConnectionsInput{
-			Filters: accepterFilters,
-		},
-		func(page *ec2.DescribeVpcPeeringConnectionsOutput, lastPage bool) bool {
-			for _, connection := range page.VpcPeeringConnections {
-				peerConnections = append(peerConnections, connection.VpcPeeringConnectionId)
-			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe vpc peering connections for vpc as accepter: %s", vpcID))
-		return errors.WithStackTrace(err)
+	paginator = ec2.NewDescribeVpcPeeringConnectionsPaginator(client, &ec2.DescribeVpcPeeringConnectionsInput{
+		Filters: accepterFilters,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to describe VPC peering connections for VPC as accepter: %s", vpcID))
+			return errors.WithStackTrace(err)
+		}
+		for _, connection := range page.VpcPeeringConnections {
+			peerConnections = append(peerConnections, connection.VpcPeeringConnectionId)
+		}
 	}
 
 	logging.Debug(fmt.Sprintf("Found %d VPC Peering connections to Nuke.", len(peerConnections)))
 
 	for _, connection := range peerConnections {
-		_, err := client.DeleteVpcPeeringConnection(&ec2.DeleteVpcPeeringConnectionInput{
+		_, err := client.DeleteVpcPeeringConnection(context.Background(), &ec2.DeleteVpcPeeringConnectionInput{
 			VpcPeeringConnectionId: connection,
 		})
 		if err != nil {
@@ -326,17 +322,17 @@ func nukePeeringConnections(client ec2iface.EC2API, vpcID string) error {
 
 // nukeVpcInternetGateways
 // This function is specifically for VPCs. It retrieves all the internet gateways attached to the given VPC ID and nuke them
-func nukeInternetGateways(client ec2iface.EC2API, vpcID string) error {
+func nukeInternetGateways(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking Internet Gateway for vpc: %s", vpcID))
 	input := &ec2.DescribeInternetGatewaysInput{
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
 				Name:   awsgo.String("attachment.vpc-id"),
-				Values: []*string{awsgo.String(vpcID)},
+				Values: []string{vpcID},
 			},
 		},
 	}
-	igw, err := client.DescribeInternetGateways(input)
+	igw, err := client.DescribeInternetGateways(context.Background(), input)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to describe internet gateways for vpc: %s", vpcID))
 		return errors.WithStackTrace(err)
@@ -351,33 +347,32 @@ func nukeInternetGateways(client ec2iface.EC2API, vpcID string) error {
 	err = nukeInternetGateway(client, igw.InternetGateways[0].InternetGatewayId, vpcID)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to delete internet gateway %s",
-			awsgo.StringValue(igw.InternetGateways[0].InternetGatewayId)))
+			awsgo.ToString(igw.InternetGateways[0].InternetGatewayId)))
 		return errors.WithStackTrace(err)
 	}
 
 	return nil
 }
 
-func nukeEgressOnlyGateways(client ec2iface.EC2API, vpcID string) error {
+func nukeEgressOnlyGateways(client EC2VPCAPI, vpcID string) error {
 	var allEgressGateways []*string
 	logging.Debug(fmt.Sprintf("Start nuking Egress Only Internet Gateways for vpc: %s", vpcID))
-	err := client.DescribeEgressOnlyInternetGatewaysPages(
-		&ec2.DescribeEgressOnlyInternetGatewaysInput{},
-		func(page *ec2.DescribeEgressOnlyInternetGatewaysOutput, lastPage bool) bool {
-			for _, gateway := range page.EgressOnlyInternetGateways {
-				for _, attachment := range gateway.Attachments {
-					if *attachment.VpcId == vpcID {
-						allEgressGateways = append(allEgressGateways, gateway.EgressOnlyInternetGatewayId)
-						break
-					}
+	paginator := ec2.NewDescribeEgressOnlyInternetGatewaysPaginator(client, &ec2.DescribeEgressOnlyInternetGatewaysInput{})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to describe Egress Only Internet Gateways for vpc: %s", vpcID))
+			return err
+		}
+		for _, gateway := range page.EgressOnlyInternetGateways {
+			for _, attachment := range gateway.Attachments {
+				if *attachment.VpcId == vpcID {
+					allEgressGateways = append(allEgressGateways, gateway.EgressOnlyInternetGatewayId)
+					break
 				}
 			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe Egress Only Internet Gateways for vpc: %s", vpcID))
-		return err
+		}
 	}
 
 	logging.Debug(fmt.Sprintf("Found %d Egress Only Internet Gateways to nuke.", len(allEgressGateways)))
@@ -395,14 +390,14 @@ func nukeEgressOnlyGateways(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeEndpoints(client ec2iface.EC2API, vpcID string) error {
+func nukeEndpoints(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking VPC endpoints for vpc: %s", vpcID))
-	endpoints, _ := client.DescribeVpcEndpoints(
+	endpoints, _ := client.DescribeVpcEndpoints(context.Background(),
 		&ec2.DescribeVpcEndpointsInput{
-			Filters: []*ec2.Filter{
+			Filters: []types.Filter{
 				{
 					Name:   awsgo.String("vpc-id"),
-					Values: []*string{awsgo.String(vpcID)},
+					Values: []string{vpcID},
 				},
 			},
 		},
@@ -412,9 +407,9 @@ func nukeEndpoints(client ec2iface.EC2API, vpcID string) error {
 	var endpointIds []*string
 	for _, endpoint := range endpoints.VpcEndpoints {
 		// Note: sometime the state is all lower cased, sometime it is not.
-		if strings.ToLower(*endpoint.State) != strings.ToLower(ec2.StateAvailable) {
+		if strings.ToLower(string(endpoint.State)) != strings.ToLower(string(types.StateAvailable)) {
 			logging.Debug(fmt.Sprintf("Skipping VPC endpoint %s as it is not in available state: %s",
-				awsgo.StringValue(endpoint.VpcEndpointId), awsgo.StringValue(endpoint.State)))
+				awsgo.ToString(endpoint.VpcEndpointId), endpoint.State))
 			continue
 		}
 
@@ -425,14 +420,9 @@ func nukeEndpoints(client ec2iface.EC2API, vpcID string) error {
 		logging.Debug(fmt.Sprintf("No VPC endpoint to nuke."))
 		return nil
 	}
-
 	err := nukeVpcEndpoint(client, endpointIds)
 	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to delete VPC endpoints: %s", err.Error()))
-		return errors.WithStackTrace(err)
-	}
-
-	if err := waitForVPCEndpointToBeDeleted(client, vpcID); err != nil {
+		logging.Debug(fmt.Sprintf("Failed to delete VPC endpoints: %v", err))
 		return errors.WithStackTrace(err)
 	}
 
@@ -440,39 +430,38 @@ func nukeEndpoints(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeNetworkInterfaces(client ec2iface.EC2API, vpcID string) error {
+func nukeNetworkInterfaces(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking network interfaces for vpc: %s", vpcID))
 
-	var allNetworkInterfaces []*ec2.NetworkInterface
+	var allNetworkInterfaces []types.NetworkInterface
 	vpcIds := []string{vpcID}
-	filters := []*ec2.Filter{{Name: awsgo.String("vpc-id"), Values: awsgo.StringSlice(vpcIds)}}
-	err := client.DescribeNetworkInterfacesPages(
-		&ec2.DescribeNetworkInterfacesInput{
-			Filters: filters,
-		},
-		func(page *ec2.DescribeNetworkInterfacesOutput, lastPage bool) bool {
-			for _, netInterface := range page.NetworkInterfaces {
-				allNetworkInterfaces = append(allNetworkInterfaces, netInterface)
-			}
-			return !lastPage
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to describe network interfaces for vpc: %s", vpcID))
-		return err
+	filters := []types.Filter{{Name: awsgo.String("vpc-id"), Values: vpcIds}}
+	paginator := ec2.NewDescribeNetworkInterfacesPaginator(client, &ec2.DescribeNetworkInterfacesInput{
+		Filters: filters,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			logging.Debug(fmt.Sprintf("Failed to describe network interfaces for vpc: %s", vpcID))
+			return err
+		}
+		for _, netInterface := range page.NetworkInterfaces {
+			allNetworkInterfaces = append(allNetworkInterfaces, netInterface)
+		}
 	}
 
 	logging.Debug(fmt.Sprintf("Found %d Elastic Network Interfaces to Nuke.", len(allNetworkInterfaces)))
 	for _, netInterface := range allNetworkInterfaces {
-		if strings.ToLower(*netInterface.Status) == strings.ToLower(ec2.NetworkInterfaceStatusInUse) {
+		if strings.ToLower(string(netInterface.Status)) == strings.ToLower(string(types.NetworkInterfaceStatusInUse)) {
 			logging.Debug(fmt.Sprintf("Skipping network interface %s as it is in use",
 				*netInterface.NetworkInterfaceId))
 			continue
 		}
 
-		err = nukeNetworkInterface(client, netInterface.NetworkInterfaceId)
+		err := nukeNetworkInterface(client, netInterface.NetworkInterfaceId)
 		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to delete network interface: %s", *netInterface))
+			logging.Debug(fmt.Sprintf("Failed to delete network interface: %v", netInterface))
 			return errors.WithStackTrace(err)
 		}
 
@@ -482,14 +471,14 @@ func nukeNetworkInterfaces(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeSubnets(client ec2iface.EC2API, vpcID string) error {
+func nukeSubnets(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking subnets for vpc: %s", vpcID))
-	subnets, _ := client.DescribeSubnets(
+	subnets, _ := client.DescribeSubnets(context.Background(),
 		&ec2.DescribeSubnetsInput{
-			Filters: []*ec2.Filter{
+			Filters: []types.Filter{
 				{
 					Name:   awsgo.String("vpc-id"),
-					Values: []*string{awsgo.String(vpcID)},
+					Values: []string{vpcID},
 				},
 			},
 		},
@@ -504,7 +493,7 @@ func nukeSubnets(client ec2iface.EC2API, vpcID string) error {
 	for _, subnet := range subnets.Subnets {
 		err := nukeSubnet(client, subnet.SubnetId)
 		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to delete subnet %s for vpc %s", awsgo.StringValue(subnet.SubnetId), vpcID))
+			logging.Debug(fmt.Sprintf("Failed to delete subnet %s for vpc %s", awsgo.ToString(subnet.SubnetId), vpcID))
 			return errors.WithStackTrace(err)
 		}
 	}
@@ -513,12 +502,12 @@ func nukeSubnets(client ec2iface.EC2API, vpcID string) error {
 
 }
 
-func nukeNatGateways(client ec2iface.EC2API, vpcID string) error {
-	gateways, err := client.DescribeNatGateways(&ec2.DescribeNatGatewaysInput{
-		Filter: []*ec2.Filter{
+func nukeNatGateways(client EC2VPCAPI, vpcID string) error {
+	gateways, err := client.DescribeNatGateways(context.Background(), &ec2.DescribeNatGatewaysInput{
+		Filter: []types.Filter{
 			{
 				Name:   awsgo.String("vpc-id"),
-				Values: []*string{awsgo.String(vpcID)},
+				Values: []string{vpcID},
 			},
 		},
 	})
@@ -529,16 +518,16 @@ func nukeNatGateways(client ec2iface.EC2API, vpcID string) error {
 
 	logging.Debug(fmt.Sprintf("Found %d NAT gateways to delete", len(gateways.NatGateways)))
 	for _, gateway := range gateways.NatGateways {
-		if *gateway.State != ec2.NatGatewayStateAvailable {
+		if gateway.State != types.NatGatewayStateAvailable {
 			logging.Debug(fmt.Sprintf("Skipping NAT gateway %s as it is not in available state: %s",
-				awsgo.StringValue(gateway.NatGatewayId), awsgo.StringValue(gateway.State)))
+				awsgo.ToString(gateway.NatGatewayId), gateway.State))
 			continue
 		}
 
 		err := nukeNATGateway(client, gateway.NatGatewayId)
 		if err != nil {
 			logging.Debug(
-				fmt.Sprintf("Failed to delete NAT gateway %s for vpc %v", awsgo.StringValue(gateway.NatGatewayId), vpcID))
+				fmt.Sprintf("Failed to delete NAT gateway %s for vpc %v", awsgo.ToString(gateway.NatGatewayId), vpcID))
 			return errors.WithStackTrace(err)
 		}
 	}
@@ -547,14 +536,14 @@ func nukeNatGateways(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeRouteTables(client ec2iface.EC2API, vpcID string) error {
+func nukeRouteTables(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking route tables for vpc: %s", vpcID))
-	routeTables, err := client.DescribeRouteTables(
+	routeTables, err := client.DescribeRouteTables(context.Background(),
 		&ec2.DescribeRouteTablesInput{
-			Filters: []*ec2.Filter{
+			Filters: []types.Filter{
 				{
 					Name:   awsgo.String("vpc-id"),
-					Values: []*string{awsgo.String(vpcID)},
+					Values: []string{vpcID},
 				},
 			},
 		},
@@ -569,34 +558,34 @@ func nukeRouteTables(client ec2iface.EC2API, vpcID string) error {
 		// Skip main route table
 		if len(routeTable.Associations) > 0 && *routeTable.Associations[0].Main {
 			logging.Debug(fmt.Sprintf("Skipping main route table: %s",
-				awsgo.StringValue(routeTable.RouteTableId)))
+				awsgo.ToString(routeTable.RouteTableId)))
 			continue
 		}
 
-		logging.Debug(fmt.Sprintf("Start nuking route table: %s", awsgo.StringValue(routeTable.RouteTableId)))
+		logging.Debug(fmt.Sprintf("Start nuking route table: %s", awsgo.ToString(routeTable.RouteTableId)))
 		for _, association := range routeTable.Associations {
-			_, err := client.DisassociateRouteTable(&ec2.DisassociateRouteTableInput{
+			_, err := client.DisassociateRouteTable(context.Background(), &ec2.DisassociateRouteTableInput{
 				AssociationId: association.RouteTableAssociationId,
 			})
 			if err != nil {
 				logging.Debug(fmt.Sprintf("Failed to disassociate route table: %s",
-					awsgo.StringValue(association.RouteTableAssociationId)))
+					awsgo.ToString(association.RouteTableAssociationId)))
 				return errors.WithStackTrace(err)
 			}
 			logging.Debug(fmt.Sprintf("Successfully disassociated route table: %s",
-				awsgo.StringValue(association.RouteTableAssociationId)))
+				awsgo.ToString(association.RouteTableAssociationId)))
 		}
 
-		_, err := client.DeleteRouteTable(
+		_, err := client.DeleteRouteTable(context.Background(),
 			&ec2.DeleteRouteTableInput{
 				RouteTableId: routeTable.RouteTableId,
 			},
 		)
 		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to delete route table: %s", awsgo.StringValue(routeTable.RouteTableId)))
+			logging.Debug(fmt.Sprintf("Failed to delete route table: %s", awsgo.ToString(routeTable.RouteTableId)))
 			return errors.WithStackTrace(err)
 		}
-		logging.Debug(fmt.Sprintf("Successfully deleted route table: %s", awsgo.StringValue(routeTable.RouteTableId)))
+		logging.Debug(fmt.Sprintf("Successfully deleted route table: %s", awsgo.ToString(routeTable.RouteTableId)))
 	}
 
 	return nil
@@ -608,14 +597,14 @@ func nukeRouteTables(client ec2iface.EC2API, vpcID string) error {
 // You can't delete the default network ACL.
 //
 // https://docs.aws.amazon.com/cli/latest/reference/ec2/delete-network-acl.html
-func nukeNacls(client ec2iface.EC2API, vpcID string) error {
+func nukeNacls(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking network ACLs for vpc: %s", vpcID))
-	networkACLs, _ := client.DescribeNetworkAcls(
+	networkACLs, _ := client.DescribeNetworkAcls(context.Background(),
 		&ec2.DescribeNetworkAclsInput{
-			Filters: []*ec2.Filter{
+			Filters: []types.Filter{
 				{
 					Name:   awsgo.String("vpc-id"),
-					Values: []*string{awsgo.String(vpcID)},
+					Values: []string{vpcID},
 				},
 			},
 		},
@@ -642,32 +631,36 @@ func nukeNacls(client ec2iface.EC2API, vpcID string) error {
 			continue
 		}
 
-		logging.Debugf("Start nuking network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId))
-		err := replaceNetworkAclAssociation(client, defaultNetworkAclID, networkACL.Associations)
+		logging.Debugf("Start nuking network ACL: %s", awsgo.ToString(networkACL.NetworkAclId))
+		associations := make([]*types.NetworkAclAssociation, len(networkACL.Associations))
+		for i := range networkACL.Associations {
+			associations[i] = &networkACL.Associations[i]
+		}
+		err := replaceNetworkAclAssociation(client, defaultNetworkAclID, associations)
 		if err != nil {
-			logging.Debugf("Failed to replace network ACL associations: %s", awsgo.StringValue(networkACL.NetworkAclId))
+			logging.Debugf("Failed to replace network ACL associations: %s", awsgo.ToString(networkACL.NetworkAclId))
 			return errors.WithStackTrace(err)
 		}
 
 		err = nukeNetworkAcl(client, networkACL.NetworkAclId)
 		if err != nil {
-			logging.Debugf("Failed to delete network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId))
+			logging.Debugf("Failed to delete network ACL: %s", awsgo.ToString(networkACL.NetworkAclId))
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Successfully deleted network ACL: %s", awsgo.StringValue(networkACL.NetworkAclId))
+		logging.Debugf("Successfully deleted network ACL: %s", awsgo.ToString(networkACL.NetworkAclId))
 	}
 
 	return nil
 }
 
-func nukeSecurityGroups(client ec2iface.EC2API, vpcID string) error {
+func nukeSecurityGroups(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking security groups for vpc: %s", vpcID))
-	securityGroups, _ := client.DescribeSecurityGroups(
+	securityGroups, _ := client.DescribeSecurityGroups(context.Background(),
 		&ec2.DescribeSecurityGroupsInput{
-			Filters: []*ec2.Filter{
+			Filters: []types.Filter{
 				{
 					Name:   awsgo.String("vpc-id"),
-					Values: []*string{awsgo.String(vpcID)},
+					Values: []string{vpcID},
 				},
 			},
 		},
@@ -675,65 +668,65 @@ func nukeSecurityGroups(client ec2iface.EC2API, vpcID string) error {
 
 	logging.Debug(fmt.Sprintf("Found %d security groups to delete", len(securityGroups.SecurityGroups)))
 	for _, securityGroup := range securityGroups.SecurityGroups {
-		securityGroupRules, _ := client.DescribeSecurityGroupRules(
+		securityGroupRules, _ := client.DescribeSecurityGroupRules(context.Background(),
 			&ec2.DescribeSecurityGroupRulesInput{
-				Filters: []*ec2.Filter{
+				Filters: []types.Filter{
 					{
 						Name:   awsgo.String("group-id"),
-						Values: []*string{securityGroup.GroupId},
+						Values: []string{*securityGroup.GroupId},
 					},
 				},
 			},
 		)
 
 		logging.Debug(fmt.Sprintf("Found %d security rules to delete for security group: %s",
-			len(securityGroupRules.SecurityGroupRules), awsgo.StringValue(securityGroup.GroupId)))
+			len(securityGroupRules.SecurityGroupRules), awsgo.ToString(securityGroup.GroupId)))
 		for _, securityGroupRule := range securityGroupRules.SecurityGroupRules {
-			logging.Debug(fmt.Sprintf("Deleting Security Group Rule %s", awsgo.StringValue(securityGroupRule.SecurityGroupRuleId)))
+			logging.Debug(fmt.Sprintf("Deleting Security Group Rule %s", awsgo.ToString(securityGroupRule.SecurityGroupRuleId)))
 			if *securityGroupRule.IsEgress {
-				_, err := client.RevokeSecurityGroupEgress(
+				_, err := client.RevokeSecurityGroupEgress(context.Background(),
 					&ec2.RevokeSecurityGroupEgressInput{
 						GroupId:              securityGroup.GroupId,
-						SecurityGroupRuleIds: []*string{securityGroupRule.SecurityGroupRuleId},
+						SecurityGroupRuleIds: []string{*securityGroupRule.SecurityGroupRuleId},
 					},
 				)
 				if err != nil {
 					logging.Debug(fmt.Sprintf("Failed to revoke security group egress rule: %s",
-						awsgo.StringValue(securityGroupRule.SecurityGroupRuleId)))
+						awsgo.ToString(securityGroupRule.SecurityGroupRuleId)))
 					return errors.WithStackTrace(err)
 				}
 				logging.Debug(fmt.Sprintf("Successfully revoked security group egress rule: %s",
-					awsgo.StringValue(securityGroupRule.SecurityGroupRuleId)))
+					awsgo.ToString(securityGroupRule.SecurityGroupRuleId)))
 			} else {
-				_, err := client.RevokeSecurityGroupIngress(
+				_, err := client.RevokeSecurityGroupIngress(context.Background(),
 					&ec2.RevokeSecurityGroupIngressInput{
 						GroupId:              securityGroup.GroupId,
-						SecurityGroupRuleIds: []*string{securityGroupRule.SecurityGroupRuleId},
+						SecurityGroupRuleIds: []string{*securityGroupRule.SecurityGroupRuleId},
 					},
 				)
 				if err != nil {
 					logging.Debug(fmt.Sprintf("Failed to revoke security group ingress rule: %s",
-						awsgo.StringValue(securityGroupRule.SecurityGroupRuleId)))
+						awsgo.ToString(securityGroupRule.SecurityGroupRuleId)))
 					return errors.WithStackTrace(err)
 				}
 				logging.Debug(fmt.Sprintf("Successfully revoked security group ingress rule: %s",
-					awsgo.StringValue(securityGroupRule.SecurityGroupRuleId)))
+					awsgo.ToString(securityGroupRule.SecurityGroupRuleId)))
 			}
 		}
 	}
 
 	for _, securityGroup := range securityGroups.SecurityGroups {
 		if *securityGroup.GroupName != "default" {
-			logging.Debug(fmt.Sprintf("Deleting Security Group %s for vpc %s", awsgo.StringValue(securityGroup.GroupId), vpcID))
+			logging.Debug(fmt.Sprintf("Deleting Security Group %s for vpc %s", awsgo.ToString(securityGroup.GroupId), vpcID))
 
 			err := nukeSecurityGroup(client, securityGroup.GroupId)
 			if err != nil {
 				logging.Debug(fmt.Sprintf(
-					"Successfully deleted security group %s", awsgo.StringValue(securityGroup.GroupId)))
+					"Successfully deleted security group %s", awsgo.ToString(securityGroup.GroupId)))
 				return errors.WithStackTrace(err)
 			}
 			logging.Debug(fmt.Sprintf(
-				"Successfully deleted security group %s", awsgo.StringValue(securityGroup.GroupId)))
+				"Successfully deleted security group %s", awsgo.ToString(securityGroup.GroupId)))
 		}
 	}
 
@@ -742,14 +735,14 @@ func nukeSecurityGroups(client ec2iface.EC2API, vpcID string) error {
 
 // default option is not available for this, and it only supports deleting non-default resources
 // https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-dhcp-options.html
-func nukeDhcpOptions(client ec2iface.EC2API, vpcID string) error {
+func nukeDhcpOptions(client EC2VPCAPI, vpcID string) error {
 
 	// Deletes the specified set of DHCP options. You must disassociate the set of DHCP options before you can delete it.
 	// You can disassociate the set of DHCP options by associating either a new set of options or the default set of
 	// options with the VPC.
-	vpcs, err := client.DescribeVpcs(
+	vpcs, err := client.DescribeVpcs(context.Background(),
 		&ec2.DescribeVpcsInput{
-			VpcIds: []*string{awsgo.String(vpcID)},
+			VpcIds: []string{vpcID},
 		},
 	)
 	if err != nil {
@@ -766,7 +759,7 @@ func nukeDhcpOptions(client ec2iface.EC2API, vpcID string) error {
 	}
 
 	// Disassociates a set of DHCP options from a VPC by setting the options to default.
-	_, err = client.AssociateDhcpOptions(&ec2.AssociateDhcpOptionsInput{
+	_, err = client.AssociateDhcpOptions(context.Background(), &ec2.AssociateDhcpOptionsInput{
 		DhcpOptionsId: awsgo.String("default"),
 		VpcId:         awsgo.String(vpcID),
 	})
@@ -778,12 +771,12 @@ func nukeDhcpOptions(client ec2iface.EC2API, vpcID string) error {
 	return err
 }
 
-func nukeVpc(client ec2iface.EC2API, vpcID string) error {
+func nukeVpc(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Deleting VPC %s", vpcID))
 	input := &ec2.DeleteVpcInput{
 		VpcId: awsgo.String(vpcID),
 	}
-	_, err := client.DeleteVpc(input)
+	_, err := client.DeleteVpc(context.Background(), input)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to delete VPC %s", vpcID))
 		return errors.WithStackTrace(err)
@@ -793,11 +786,11 @@ func nukeVpc(client ec2iface.EC2API, vpcID string) error {
 	return nil
 }
 
-func nukeAttachedLB(client ec2iface.EC2API, elbclient elbv2iface.ELBV2API, vpcID string) error {
+func nukeAttachedLB(client EC2VPCAPI, elbclient ELBClientAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Describing load balancers for %s", vpcID))
 
 	// get all loadbalancers
-	output, err := elbclient.DescribeLoadBalancers(nil)
+	output, err := elbclient.DescribeLoadBalancers(context.Background(), &elasticloadbalancingv2.DescribeLoadBalancersInput{})
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to describe loadbalancer for %s", vpcID))
 		return errors.WithStackTrace(err)
@@ -806,15 +799,15 @@ func nukeAttachedLB(client ec2iface.EC2API, elbclient elbv2iface.ELBV2API, vpcID
 
 	// get a list of load balancers which was attached on the vpc
 	for _, lb := range output.LoadBalancers {
-		if awsgo.StringValue(lb.VpcId) != vpcID {
+		if awsgo.ToString(lb.VpcId) != vpcID {
 			continue
 		}
 
-		attachedLoadBalancers = append(attachedLoadBalancers, awsgo.StringValue(lb.LoadBalancerArn))
+		attachedLoadBalancers = append(attachedLoadBalancers, awsgo.ToString(lb.LoadBalancerArn))
 	}
 
 	// check the load-balancers are attached with any vpc-endpoint-service, then nuke them first
-	esoutput, err := client.DescribeVpcEndpointServiceConfigurations(nil)
+	esoutput, err := client.DescribeVpcEndpointServiceConfigurations(context.Background(), &ec2.DescribeVpcEndpointServiceConfigurationsInput{})
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to describe vpc endpoint services for %s", vpcID))
 		return errors.WithStackTrace(err)
@@ -825,14 +818,14 @@ func nukeAttachedLB(client ec2iface.EC2API, elbclient elbv2iface.ELBV2API, vpcID
 	for _, config := range esoutput.ServiceConfigurations {
 		// check through gateway load balancer attachments and select the service for nuking
 		for _, gwlb := range config.GatewayLoadBalancerArns {
-			if slices.Contains(attachedLoadBalancers, awsgo.StringValue(gwlb)) {
+			if slices.Contains(attachedLoadBalancers, gwlb) {
 				nukableEndpointServices[config.ServiceId] = struct{}{}
 			}
 		}
 
 		// check through network load balancer attachments and select the service for nuking
 		for _, nwlb := range config.NetworkLoadBalancerArns {
-			if slices.Contains(attachedLoadBalancers, awsgo.StringValue(nwlb)) {
+			if slices.Contains(attachedLoadBalancers, nwlb) {
 				nukableEndpointServices[config.ServiceId] = struct{}{}
 			}
 		}
@@ -842,11 +835,11 @@ func nukeAttachedLB(client ec2iface.EC2API, elbclient elbv2iface.ELBV2API, vpcID
 
 	// nuke the endpoint services
 	for endpointService := range nukableEndpointServices {
-		_, err := client.DeleteVpcEndpointServiceConfigurations(&ec2.DeleteVpcEndpointServiceConfigurationsInput{
-			ServiceIds: []*string{endpointService},
+		_, err := client.DeleteVpcEndpointServiceConfigurations(context.Background(), &ec2.DeleteVpcEndpointServiceConfigurationsInput{
+			ServiceIds: []string{*endpointService},
 		})
 		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to delete endpoint service %v for %s", awsgo.StringValue(endpointService), vpcID))
+			logging.Debug(fmt.Sprintf("Failed to delete endpoint service %v for %s", awsgo.ToString(endpointService), vpcID))
 			return errors.WithStackTrace(err)
 		}
 	}
@@ -854,7 +847,7 @@ func nukeAttachedLB(client ec2iface.EC2API, elbclient elbv2iface.ELBV2API, vpcID
 
 	// nuke the load-balancers
 	for _, lb := range attachedLoadBalancers {
-		_, err := elbclient.DeleteLoadBalancer(&elbv2.DeleteLoadBalancerInput{
+		_, err := elbclient.DeleteLoadBalancer(context.Background(), &elasticloadbalancingv2.DeleteLoadBalancerInput{
 			LoadBalancerArn: awsgo.String(lb),
 		})
 		if err != nil {
@@ -867,10 +860,10 @@ func nukeAttachedLB(client ec2iface.EC2API, elbclient elbv2iface.ELBV2API, vpcID
 	return nil
 }
 
-func nukeTargetGroups(client elbv2iface.ELBV2API, vpcID string) error {
+func nukeTargetGroups(client ELBClientAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Describing target groups for %s", vpcID))
 
-	output, err := client.DescribeTargetGroups(&elbv2.DescribeTargetGroupsInput{})
+	output, err := client.DescribeTargetGroups(context.Background(), &elasticloadbalancingv2.DescribeTargetGroupsInput{})
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to describe target groups for %s", vpcID))
 		return errors.WithStackTrace(err)
@@ -878,8 +871,8 @@ func nukeTargetGroups(client elbv2iface.ELBV2API, vpcID string) error {
 
 	for _, tg := range output.TargetGroups {
 		// if the target group is not for this vpc, then skip
-		if tg.VpcId != nil && awsgo.StringValue(tg.VpcId) == vpcID {
-			_, err := client.DeleteTargetGroup(&elbv2.DeleteTargetGroupInput{
+		if tg.VpcId != nil && awsgo.ToString(tg.VpcId) == vpcID {
+			_, err := client.DeleteTargetGroup(context.Background(), &elasticloadbalancingv2.DeleteTargetGroupInput{
 				TargetGroupArn: tg.TargetGroupArn,
 			})
 			if err != nil {
@@ -895,15 +888,13 @@ func nukeTargetGroups(client elbv2iface.ELBV2API, vpcID string) error {
 	return nil
 }
 
-func nukeEc2Instances(client ec2iface.EC2API, vpcID string) error {
+func nukeEc2Instances(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Describing instances for %s", vpcID))
-	output, err := client.DescribeInstances(&ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+	output, err := client.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{
+		Filters: []types.Filter{
 			{
-				Name: awsgo.String("network-interface.vpc-id"),
-				Values: awsgo.StringSlice([]string{
-					vpcID,
-				}),
+				Name:   awsgo.String("network-interface.vpc-id"),
+				Values: []string{vpcID},
 			},
 		},
 	})
@@ -923,8 +914,13 @@ func nukeEc2Instances(client ec2iface.EC2API, vpcID string) error {
 	if len(terminateInstances) > 0 {
 		logging.Debug(fmt.Sprintf("Found %d VPC attached instances to Nuke.", len(terminateInstances)))
 
-		_, err := client.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: terminateInstances,
+		// Convert []*string to []string
+		terminateInstancesIds := make([]string, len(terminateInstances))
+		for i, id := range terminateInstances {
+			terminateInstancesIds[i] = aws.ToString(id)
+		}
+		_, err := client.TerminateInstances(context.Background(), &ec2.TerminateInstancesInput{
+			InstanceIds: terminateInstancesIds,
 		})
 		if err != nil {
 			logging.Debug(fmt.Sprintf("Failed to terminate instances for %s", vpcID))
@@ -933,9 +929,10 @@ func nukeEc2Instances(client ec2iface.EC2API, vpcID string) error {
 
 		// weight for terminate the instances
 		logging.Debug(fmt.Sprintf("waiting for the instance to be terminated for %s", vpcID))
-		err = client.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
-			InstanceIds: terminateInstances,
-		})
+		waiter := ec2.NewInstanceTerminatedWaiter(client)
+		err = waiter.Wait(context.Background(), &ec2.DescribeInstancesInput{
+			InstanceIds: terminateInstancesIds,
+		}, 5*time.Minute)
 		if err != nil {
 			logging.Debug(fmt.Sprintf("Failed to wait instance termination for %s", vpcID))
 			return errors.WithStackTrace(err)
@@ -943,55 +940,5 @@ func nukeEc2Instances(client ec2iface.EC2API, vpcID string) error {
 	}
 
 	logging.Debug(fmt.Sprintf("Successfully deleted instances for %s", vpcID))
-	return nil
-}
-
-func waitForVPCEndpointToBeDeleted(client ec2iface.EC2API, vpcID string) error {
-	return retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
-		"Waiting for all VPC endpoints to be deleted",
-		10,
-		2*time.Second,
-		func() error {
-			endpoints, err := client.DescribeVpcEndpoints(
-				&ec2.DescribeVpcEndpointsInput{
-					Filters: []*ec2.Filter{
-						{
-							Name:   awsgo.String("vpc-id"),
-							Values: []*string{awsgo.String(vpcID)},
-						},
-						{
-							Name:   awsgo.String("vpc-endpoint-state"),
-							Values: []*string{awsgo.String("deleting")},
-						},
-					},
-				},
-			)
-			if err != nil {
-				return err
-			}
-
-			if len(endpoints.VpcEndpoints) == 0 {
-				return nil
-			}
-			return fmt.Errorf("not all VPC endpoints deleted")
-		},
-	)
-}
-
-func nukeVpcEndpoint(client ec2iface.EC2API, endpointIds []*string) error {
-	logging.Debugf("Deleting VPC endpoints %s", awsgo.StringValueSlice(endpointIds))
-
-	_, err := client.DeleteVpcEndpoints(&ec2.DeleteVpcEndpointsInput{
-		VpcEndpointIds: endpointIds,
-	})
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to delete VPC endpoints: %s", err.Error()))
-		return errors.WithStackTrace(err)
-	}
-
-	logging.Debug(fmt.Sprintf("Successfully deleted VPC endpoints %s",
-		awsgo.StringValueSlice(endpointIds)))
-
 	return nil
 }
