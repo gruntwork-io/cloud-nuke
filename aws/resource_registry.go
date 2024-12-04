@@ -89,6 +89,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.TransitGateways{},
 		&resources.TransitGatewaysRouteTables{},
 		// Note: nuking transitgateway vpc attachement before nuking the vpc since vpc could be associated with it.
+		&resources.TransitGatewayPeeringAttachment{},
 		&resources.TransitGatewaysVpcAttachment{},
 		&resources.EC2Endpoints{},
 		&resources.EC2VPCs{},
