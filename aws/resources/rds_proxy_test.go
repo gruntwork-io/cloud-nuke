@@ -6,27 +6,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedRdsProxy struct {
-	rdsiface.RDSAPI
+	RdsProxyAPI
 	DescribeDBProxiesOutput rds.DescribeDBProxiesOutput
 	DeleteDBProxyOutput     rds.DeleteDBProxyOutput
 }
 
-func (m mockedRdsProxy) DescribeDBProxiesPagesWithContext(_ aws.Context, _ *rds.DescribeDBProxiesInput, callback func(*rds.DescribeDBProxiesOutput, bool) bool, _ ...request.Option) error {
-	callback(&m.DescribeDBProxiesOutput, true)
-	return nil
+func (m mockedRdsProxy) DescribeDBProxies(ctx context.Context, params *rds.DescribeDBProxiesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBProxiesOutput, error) {
+	return &m.DescribeDBProxiesOutput, nil
 }
 
-func (m mockedRdsProxy) DeleteDBProxyWithContext(aws.Context, *rds.DeleteDBProxyInput, ...request.Option) (*rds.DeleteDBProxyOutput, error) {
+func (m mockedRdsProxy) DeleteDBProxy(ctx context.Context, params *rds.DeleteDBProxyInput, optFns ...func(*rds.Options)) (*rds.DeleteDBProxyOutput, error) {
 	return &m.DeleteDBProxyOutput, nil
 }
 
@@ -40,7 +38,7 @@ func TestRdsProxy_GetAll(t *testing.T) {
 	snapshot := RdsProxy{
 		Client: mockedRdsProxy{
 			DescribeDBProxiesOutput: rds.DescribeDBProxiesOutput{
-				DBProxies: []*rds.DBProxy{
+				DBProxies: []types.DBProxy{
 					{
 						DBProxyName: &testName1,
 						CreatedDate: &now,
@@ -85,7 +83,7 @@ func TestRdsProxy_GetAll(t *testing.T) {
 				RdsProxy: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }

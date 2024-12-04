@@ -3,24 +3,28 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type DBClustersAPI interface {
+	DeleteDBCluster(ctx context.Context, params *rds.DeleteDBClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteDBClusterOutput, error)
+	DescribeDBClusters(ctx context.Context, params *rds.DescribeDBClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeDBClustersOutput, error)
+}
 type DBClusters struct {
 	BaseAwsResource
-	Client        rdsiface.RDSAPI
+	Client        DBClustersAPI
 	Region        string
 	InstanceNames []string
 }
 
-func (instance *DBClusters) Init(session *session.Session) {
-	instance.Client = rds.New(session)
+func (instance *DBClusters) InitV2(cfg aws.Config) {
+	instance.Client = rds.NewFromConfig(cfg)
 }
+
+func (instance *DBClusters) IsUsingV2() bool { return true }
 
 func (instance *DBClusters) ResourceName() string {
 	return "rds-cluster"
@@ -46,13 +50,13 @@ func (instance *DBClusters) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	instance.InstanceNames = awsgo.StringValueSlice(identifiers)
+	instance.InstanceNames = aws.ToStringSlice(identifiers)
 	return instance.InstanceNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (instance *DBClusters) Nuke(identifiers []string) error {
-	if err := instance.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := instance.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

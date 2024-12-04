@@ -6,10 +6,8 @@ import (
 	"strings"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -23,7 +21,7 @@ const (
 )
 
 func (instance *DBGlobalClusterMemberships) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{})
+	result, err := instance.Client.DescribeGlobalClusters(instance.Context, &rds.DescribeGlobalClustersInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -56,7 +54,7 @@ func (instance *DBGlobalClusterMemberships) nukeAll(names []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.StringValue(name),
+			Identifier:   aws.ToString(name),
 			ResourceType: "RDS Global Cluster Membership",
 			Error:        err,
 		}
@@ -71,7 +69,7 @@ func (instance *DBGlobalClusterMemberships) nukeAll(names []*string) error {
 
 		default:
 			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Global Cluster Membership: %s", awsgo.StringValue(name))
+			logging.Debugf("Deleted RDS DB Global Cluster Membership: %s", aws.ToString(name))
 		}
 	}
 
@@ -80,7 +78,7 @@ func (instance *DBGlobalClusterMemberships) nukeAll(names []*string) error {
 }
 
 func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name string) (deleted bool, err error) {
-	gdbcs, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{
+	gdbcs, err := instance.Client.DescribeGlobalClusters(instance.Context, &rds.DescribeGlobalClustersInput{
 		GlobalClusterIdentifier: &name,
 	})
 	if err != nil {
@@ -100,13 +98,14 @@ func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name s
 		}
 
 		logging.Debugf("Removing cluster '%s' from global cluster", *member.DBClusterArn)
-		_, err := instance.Client.RemoveFromGlobalClusterWithContext(instance.Context, &rds.RemoveFromGlobalClusterInput{
+		_, err := instance.Client.RemoveFromGlobalCluster(instance.Context, &rds.RemoveFromGlobalClusterInput{
 			GlobalClusterIdentifier: gdbc.GlobalClusterIdentifier,
 			DbClusterIdentifier:     member.DBClusterArn,
 		})
 		if err != nil {
-			return deleted, fmt.Errorf("fail to remove cluster '%s' from global cluster :%w", *member, err)
+			return deleted, fmt.Errorf("fail to remove cluster '%s' from global cluster: %w", *member.DBClusterArn, err)
 		}
+
 		deletedNames = append(deletedNames, *member.DBClusterArn)
 	}
 	for _, name := range deletedNames {
@@ -121,7 +120,7 @@ func (instance *DBGlobalClusterMemberships) removeGlobalClusterMembership(name s
 
 func (instance *DBGlobalClusterMemberships) waitUntilRdsClusterRemovedFromGlobalCluster(arnGlobalCluster string, arnCluster string) error {
 	for i := 0; i < dbGlobalClusterMembershipsRemovalRetryCount; i++ {
-		gcs, err := instance.Client.DescribeGlobalClustersWithContext(instance.Context, &rds.DescribeGlobalClustersInput{
+		gcs, err := instance.Client.DescribeGlobalClusters(instance.Context, &rds.DescribeGlobalClustersInput{
 			GlobalClusterIdentifier: &arnGlobalCluster,
 		})
 		if err != nil {

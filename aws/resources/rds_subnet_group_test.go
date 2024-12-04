@@ -5,34 +5,30 @@ import (
 	"regexp"
 	"testing"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedDBSubnetGroups struct {
-	rdsiface.RDSAPI
+	DBSubnetGroupsAPI
 	DescribeDBSubnetGroupsOutput rds.DescribeDBSubnetGroupsOutput
 	DescribeDBSubnetGroupError   error
 	DeleteDBSubnetGroupOutput    rds.DeleteDBSubnetGroupOutput
 }
 
-func (m mockedDBSubnetGroups) DescribeDBSubnetGroupsPagesWithContext(_ awsgo.Context, _ *rds.DescribeDBSubnetGroupsInput, fn func(*rds.DescribeDBSubnetGroupsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.DescribeDBSubnetGroupsOutput, true)
-	return nil
-}
-
-func (m mockedDBSubnetGroups) DescribeDBSubnetGroupsWithContext(_ awsgo.Context, _ *rds.DescribeDBSubnetGroupsInput, _ ...request.Option) (*rds.DescribeDBSubnetGroupsOutput, error) {
+func (m mockedDBSubnetGroups) DescribeDBSubnetGroups(ctx context.Context, params *rds.DescribeDBSubnetGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBSubnetGroupsOutput, error) {
 	return &m.DescribeDBSubnetGroupsOutput, m.DescribeDBSubnetGroupError
 }
 
-func (m mockedDBSubnetGroups) DeleteDBSubnetGroupWithContext(_ awsgo.Context, _ *rds.DeleteDBSubnetGroupInput, _ ...request.Option) (*rds.DeleteDBSubnetGroupOutput, error) {
+func (m mockedDBSubnetGroups) DeleteDBSubnetGroup(ctx context.Context, params *rds.DeleteDBSubnetGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBSubnetGroupOutput, error) {
 	return &m.DeleteDBSubnetGroupOutput, nil
 }
+
+var dbSubnetGroupNotFoundError = &types.DBSubnetGroupNotFoundFault{}
 
 func TestDBSubnetGroups_GetAll(t *testing.T) {
 
@@ -43,7 +39,7 @@ func TestDBSubnetGroups_GetAll(t *testing.T) {
 	dsg := DBSubnetGroups{
 		Client: mockedDBSubnetGroups{
 			DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
-				DBSubnetGroups: []*rds.DBSubnetGroup{
+				DBSubnetGroups: []types.DBSubnetGroup{
 					{
 						DBSubnetGroupName: awsgo.String(testName1),
 					},
@@ -79,7 +75,7 @@ func TestDBSubnetGroups_GetAll(t *testing.T) {
 				DBSubnetGroups: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
@@ -92,10 +88,10 @@ func TestDBSubnetGroups_NukeAll(t *testing.T) {
 	dsg := DBSubnetGroups{
 		Client: mockedDBSubnetGroups{
 			DeleteDBSubnetGroupOutput:  rds.DeleteDBSubnetGroupOutput{},
-			DescribeDBSubnetGroupError: awserr.New(rds.ErrCodeDBSubnetGroupNotFoundFault, "", nil),
+			DescribeDBSubnetGroupError: dbSubnetGroupNotFoundError,
 		},
 	}
 
-	err := dsg.nukeAll([]*string{awsgo.String("test")})
+	err := dsg.nukeAll([]*string{aws.String("test")})
 	require.NoError(t, err)
 }
