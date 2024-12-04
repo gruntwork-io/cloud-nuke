@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/hashicorp/go-multierror"
@@ -17,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -170,71 +168,10 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 	return nil
 }
 
-func GetEc2ServiceClient(region string) ec2iface.EC2API {
-	return ec2.New(externalcreds.Get(region))
-}
-
 type Vpc struct {
 	Region string
 	VpcId  string
 	svc    ec2iface.EC2API
-}
-
-// NewVpcPerRegion merely assigns a service client and region to a VPC object
-// The CLI calls this, but the tests don't because the tests need to use a
-// mocked service client.
-func NewVpcPerRegion(regions []string) []Vpc {
-	var vpcs []Vpc
-	for _, region := range regions {
-		vpc := Vpc{
-			svc:    GetEc2ServiceClient(region),
-			Region: region,
-		}
-		vpcs = append(vpcs, vpc)
-	}
-	return vpcs
-}
-
-func GetDefaultVpcId(vpc Vpc) (string, error) {
-	input := &ec2.DescribeVpcsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   awsgo.String("isDefault"),
-				Values: []*string{awsgo.String("true")},
-			},
-		},
-	}
-	vpcs, err := vpc.svc.DescribeVpcs(input)
-	if err != nil {
-		logging.Debugf("[Failed] %s", err)
-		return "", errors.WithStackTrace(err)
-	}
-	if len(vpcs.Vpcs) == 1 {
-		return awsgo.StringValue(vpcs.Vpcs[0].VpcId), nil
-	} else if len(vpcs.Vpcs) > 1 {
-		// More than one VPC in a region should never happen
-		err = fmt.Errorf("Impossible - more than one default VPC found in region %s", vpc.Region)
-		return "", errors.WithStackTrace(err)
-	}
-	// No default VPC
-	return "", nil
-}
-
-// GetDefaultVpcs needs a slice of vpcs that already have service clients and regions
-// assigned, either via NewVpcPerRegion() (as in the CLI) or manually (as in the mock tests)
-func GetDefaultVpcs(vpcs []Vpc) ([]Vpc, error) {
-	var outVpcs []Vpc
-	for _, vpc := range vpcs {
-		vpcId, err := GetDefaultVpcId(vpc)
-		if err != nil {
-			return outVpcs, errors.WithStackTrace(err)
-		}
-		if vpcId != "" {
-			vpc.VpcId = vpcId
-			outVpcs = append(outVpcs, vpc)
-		}
-	}
-	return outVpcs, nil
 }
 
 func (v Vpc) nukeInternetGateway(spinner *pterm.SpinnerPrinter) error {
@@ -685,78 +622,11 @@ func (v Vpc) nuke(spinner *pterm.SpinnerPrinter) error {
 	return nil
 }
 
-func NukeVpcs(vpcs []Vpc) error {
-	logging.Debugf("Deleting the following VPCs:%+v\n", vpcs)
-
-	spinnerMsg := fmt.Sprintf("Nuking the following vpcs: %+v\n", vpcs)
-	// Start a simple spinner to track progress reading all relevant AWS resources
-	spinnerSuccess, spinnerErr := pterm.DefaultSpinner.
-		WithRemoveWhenDone(true).
-		Start(spinnerMsg)
-
-	if spinnerErr != nil {
-		return errors.WithStackTrace(spinnerErr)
-	}
-
-	for _, vpc := range vpcs {
-		err := vpc.nuke(spinnerSuccess)
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   vpc.VpcId,
-			ResourceType: "VPC",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("Skipping to the next default VPC")
-			continue
-		}
-	}
-	logging.Debug("Finished nuking default VPCs in all regions")
-	return nil
-}
-
 type DefaultSecurityGroup struct {
 	GroupName string
 	GroupId   string
 	Region    string
 	svc       ec2iface.EC2API
-}
-
-func DescribeDefaultSecurityGroups(svc ec2iface.EC2API) ([]string, error) {
-	var groupIds []string
-	securityGroups, err := svc.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{})
-	if err != nil {
-		return []string{}, errors.WithStackTrace(err)
-	}
-	for _, securityGroup := range securityGroups.SecurityGroups {
-		if *securityGroup.GroupName == "default" {
-			groupIds = append(groupIds, awsgo.StringValue(securityGroup.GroupId))
-		}
-	}
-	return groupIds, nil
-}
-
-func GetDefaultSecurityGroups(regions []string) ([]DefaultSecurityGroup, error) {
-	var sgs []DefaultSecurityGroup
-	for _, region := range regions {
-		svc := GetEc2ServiceClient(region)
-		groupIds, err := DescribeDefaultSecurityGroups(svc)
-		if err != nil {
-			return []DefaultSecurityGroup{}, errors.WithStackTrace(err)
-		}
-		for _, groupId := range groupIds {
-			sg := DefaultSecurityGroup{
-				GroupId:   groupId,
-				Region:    region,
-				GroupName: "default",
-				svc:       svc,
-			}
-			sgs = append(sgs, sg)
-		}
-	}
-	return sgs, nil
 }
 
 func (sg DefaultSecurityGroup) getDefaultSecurityGroupIngressRule() *ec2.RevokeSecurityGroupIngressInput {
@@ -834,28 +704,5 @@ func (sg DefaultSecurityGroup) nuke() error {
 			}
 		}
 	}
-	return nil
-}
-
-func NukeDefaultSecurityGroupRules(sgs []DefaultSecurityGroup) error {
-	for _, sg := range sgs {
-
-		err := sg.nuke()
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   sg.GroupId,
-			ResourceType: "Default Security Group",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("Error: %s", err)
-			logging.Debugf("Skipping to the next default Security Group")
-			continue
-		}
-	}
-	logging.Debug("Finished nuking default Security Groups in all regions")
 	return nil
 }
