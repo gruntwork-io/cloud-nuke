@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,10 +13,10 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeNetworkFirewallPolicy(firewall *types.FirewallPolicyResponse, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeNetworkFirewallPolicy(firewall *networkfirewall.FirewallPolicyResponse, firstSeenTime *time.Time, configObj config.Config) bool {
 	// if the firewall policy has any attachments, then we can't remove that policy
-	if aws.ToInt32(firewall.NumberOfAssociations) > 0 {
-		logging.Debugf("[Skipping] the policy %s is still in use", aws.ToString(firewall.FirewallPolicyName))
+	if awsgo.Int64Value(firewall.NumberOfAssociations) > 0 {
+		logging.Debugf("[Skipping] the policy %s is still in use", awsgo.StringValue(firewall.FirewallPolicyName))
 		return false
 	}
 
@@ -41,23 +40,23 @@ func (nfw *NetworkFirewallPolicy) getAll(c context.Context, configObj config.Con
 		err           error
 	)
 
-	metaOutput, err := nfw.Client.ListFirewallPolicies(nfw.Context, nil)
+	metaOutput, err := nfw.Client.ListFirewallPoliciesWithContext(nfw.Context, nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, policy := range metaOutput.FirewallPolicies {
 
-		output, err := nfw.Client.DescribeFirewallPolicy(nfw.Context, &networkfirewall.DescribeFirewallPolicyInput{
+		output, err := nfw.Client.DescribeFirewallPolicyWithContext(nfw.Context, &networkfirewall.DescribeFirewallPolicyInput{
 			FirewallPolicyArn: policy.Arn,
 		})
 		if err != nil {
-			logging.Errorf("[Failed] to describe the firewall policy %s", aws.ToString(policy.Name))
+			logging.Errorf("[Failed] to describe the firewall policy %s", awsgo.StringValue(policy.Name))
 			return nil, errors.WithStackTrace(err)
 		}
 
 		if output.FirewallPolicyResponse == nil {
-			logging.Errorf("[Failed] no firewall policy information found for %s", aws.ToString(policy.Name))
+			logging.Errorf("[Failed] no firewall policy information found for %s", awsgo.StringValue(policy.Name))
 			continue
 		}
 
@@ -85,13 +84,13 @@ func (nfw *NetworkFirewallPolicy) nukeAll(identifiers []*string) error {
 	var deleted []*string
 
 	for _, id := range identifiers {
-		_, err := nfw.Client.DeleteFirewallPolicy(nfw.Context, &networkfirewall.DeleteFirewallPolicyInput{
+		_, err := nfw.Client.DeleteFirewallPolicyWithContext(nfw.Context, &networkfirewall.DeleteFirewallPolicyInput{
 			FirewallPolicyName: id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.ToString(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Network Firewall policy",
 			Error:        err,
 		}

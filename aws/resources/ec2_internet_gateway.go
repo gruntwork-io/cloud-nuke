@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	r "github.com/gruntwork-io/cloud-nuke/report" // Alias the package as 'r'
@@ -15,10 +15,10 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeGateway(ig types.InternetGateway, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeGateway(ig *ec2.InternetGateway, firstSeenTime *time.Time, configObj config.Config) bool {
 	var internetGateway string
 	// get the tags as map
-	tagMap := util.ConvertTypesTagsToMap(ig.Tags)
+	tagMap := util.ConvertEC2TagsToMap(ig.Tags)
 	if name, ok := tagMap["Name"]; ok {
 		internetGateway = name
 	}
@@ -36,13 +36,13 @@ func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) (
 	var err error
 
 	input := &ec2.DescribeInternetGatewaysInput{}
-	resp, err := igw.Client.DescribeInternetGateways(igw.Context, input)
+	resp, err := igw.Client.DescribeInternetGatewaysWithContext(igw.Context, input)
 	if err != nil {
 		logging.Debugf("[Internet Gateway] Failed to list internet gateways: %s", err)
 		return nil, err
 	}
 	for _, ig := range resp.InternetGateways {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, igw.Client, ig.InternetGatewayId, util.ConvertTypesTagsToMap(ig.Tags))
+		firstSeenTime, err = util.GetOrCreateFirstSeen(c, igw.Client, ig.InternetGatewayId, util.ConvertEC2TagsToMap(ig.Tags))
 		if err != nil {
 			logging.Error("Unable to retrieve tags")
 			return nil, errors.WithStackTrace(err)
@@ -53,7 +53,7 @@ func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) (
 
 			// get vpc id for this igw and update the map
 			if len(ig.Attachments) > 0 {
-				igw.GatewayVPCMap[awsgo.ToString(ig.InternetGatewayId)] = awsgo.ToString(ig.Attachments[0].VpcId)
+				igw.GatewayVPCMap[awsgo.StringValue(ig.InternetGatewayId)] = awsgo.StringValue(ig.Attachments[0].VpcId)
 			}
 		}
 	}
@@ -64,7 +64,7 @@ func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) (
 			InternetGatewayId: id,
 			DryRun:            awsgo.Bool(true),
 		}
-		_, err := igw.Client.DeleteInternetGateway(igw.Context, params)
+		_, err := igw.Client.DeleteInternetGatewayWithContext(igw.Context, params)
 		return err
 	})
 
@@ -89,7 +89,7 @@ func (igw *InternetGateway) nukeAll(identifiers []*string) error {
 		err := igw.nuke(id)
 		// Record status of this resource
 		e := r.Entry{ // Use the 'r' alias to refer to the package
-			Identifier:   awsgo.ToString(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Internet Gateway",
 			Error:        err,
 		}
@@ -107,12 +107,12 @@ func (igw *InternetGateway) nukeAll(identifiers []*string) error {
 
 func (igw *InternetGateway) nuke(id *string) error {
 	// get the vpc id for current igw
-	vpcID, ok := igw.GatewayVPCMap[awsgo.ToString(id)]
+	vpcID, ok := igw.GatewayVPCMap[awsgo.StringValue(id)]
 	if !ok {
 		logging.Debug(fmt.Sprintf("Failed to read the vpc Id for %s",
-			awsgo.ToString(id)))
+			awsgo.StringValue(id)))
 		return fmt.Errorf("Failed to retrieve the VPC ID for %s, which is mandatory for the internet gateway nuke operation.",
-			awsgo.ToString(id))
+			awsgo.StringValue(id))
 	}
 
 	err := nukeInternetGateway(igw.Client, id, vpcID)
@@ -123,11 +123,11 @@ func (igw *InternetGateway) nuke(id *string) error {
 	return nil
 }
 
-func nukeInternetGateway(client InternetGatewayAPI, gatewayId *string, vpcID string) error {
+func nukeInternetGateway(client ec2iface.EC2API, gatewayId *string, vpcID string) error {
 	var err error
 	logging.Debug(fmt.Sprintf("Detaching Internet Gateway %s",
-		awsgo.ToString(gatewayId)))
-	_, err = client.DetachInternetGateway(context.Background(),
+		awsgo.StringValue(gatewayId)))
+	_, err = client.DetachInternetGateway(
 		&ec2.DetachInternetGatewayInput{
 			InternetGatewayId: gatewayId,
 			VpcId:             awsgo.String(vpcID),
@@ -135,27 +135,27 @@ func nukeInternetGateway(client InternetGatewayAPI, gatewayId *string, vpcID str
 	)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to detach internet gateway %s",
-			awsgo.ToString(gatewayId)))
+			awsgo.StringValue(gatewayId)))
 		return errors.WithStackTrace(err)
 	}
 	logging.Debug(fmt.Sprintf("Successfully detached internet gateway %s",
-		awsgo.ToString(gatewayId)))
+		awsgo.StringValue(gatewayId)))
 
 	// nuking the internet gateway
 	logging.Debug(fmt.Sprintf("Deleting internet gateway %s",
-		awsgo.ToString(gatewayId)))
-	_, err = client.DeleteInternetGateway(context.Background(),
+		awsgo.StringValue(gatewayId)))
+	_, err = client.DeleteInternetGateway(
 		&ec2.DeleteInternetGatewayInput{
 			InternetGatewayId: gatewayId,
 		},
 	)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to delete internet gateway %s",
-			awsgo.ToString(gatewayId)))
+			awsgo.StringValue(gatewayId)))
 		return errors.WithStackTrace(err)
 	}
 	logging.Debug(fmt.Sprintf("Successfully deleted internet gateway %s",
-		awsgo.ToString(gatewayId)))
+		awsgo.StringValue(gatewayId)))
 
 	return nil
 

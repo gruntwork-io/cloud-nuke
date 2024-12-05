@@ -7,26 +7,32 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedNatGateway struct {
-	NatGatewaysAPI
+	ec2iface.EC2API
 	DeleteNatGatewayOutput    ec2.DeleteNatGatewayOutput
 	DescribeNatGatewaysOutput ec2.DescribeNatGatewaysOutput
 	DescribeNatGatewaysError  error
 }
 
-func (m mockedNatGateway) DeleteNatGateway(ctx context.Context, params *ec2.DeleteNatGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNatGatewayOutput, error) {
+func (m mockedNatGateway) DeleteNatGateway(input *ec2.DeleteNatGatewayInput) (*ec2.DeleteNatGatewayOutput, error) {
 	return &m.DeleteNatGatewayOutput, nil
 }
 
-func (m mockedNatGateway) DescribeNatGateways(ctx context.Context, params *ec2.DescribeNatGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNatGatewaysOutput, error) {
+func (m mockedNatGateway) DescribeNatGatewaysPagesWithContext(_ aws.Context, input *ec2.DescribeNatGatewaysInput, fn func(*ec2.DescribeNatGatewaysOutput, bool) bool, _ ...request.Option) error {
+	fn(&m.DescribeNatGatewaysOutput, true)
+	return nil
+}
+
+func (m mockedNatGateway) DescribeNatGatewaysWithContext(_ aws.Context, input *ec2.DescribeNatGatewaysInput, _ ...request.Option) (*ec2.DescribeNatGatewaysOutput, error) {
 	return &m.DescribeNatGatewaysOutput, m.DescribeNatGatewaysError
 }
 
@@ -42,10 +48,10 @@ func TestNatGateway_GetAll(t *testing.T) {
 	ng := NatGateways{
 		Client: mockedNatGateway{
 			DescribeNatGatewaysOutput: ec2.DescribeNatGatewaysOutput{
-				NatGateways: []types.NatGateway{
+				NatGateways: []*ec2.NatGateway{
 					{
 						NatGatewayId: aws.String(testId1),
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName1),
@@ -55,7 +61,7 @@ func TestNatGateway_GetAll(t *testing.T) {
 					},
 					{
 						NatGatewayId: aws.String(testId2),
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
 								Key:   aws.String("Name"),
 								Value: aws.String(testName2),
@@ -99,7 +105,7 @@ func TestNatGateway_GetAll(t *testing.T) {
 				NatGateway: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
 }

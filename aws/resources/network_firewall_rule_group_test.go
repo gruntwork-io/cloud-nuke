@@ -7,23 +7,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
+	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedNetworkFirewallRuleGroup struct {
-	NetworkFirewallRuleGroupAPI
-	ListRuleGroupsOutput    networkfirewall.ListRuleGroupsOutput
+	networkfirewalliface.NetworkFirewallAPI
 	DescribeRuleGroupOutput map[string]networkfirewall.DescribeRuleGroupOutput
+	TagResourceOutput       networkfirewall.TagResourceOutput
 	DeleteRuleGroupOutput   networkfirewall.DeleteRuleGroupOutput
+	ListRuleGroupsOutput    networkfirewall.ListRuleGroupsOutput
 }
 
-func (m mockedNetworkFirewallRuleGroup) DescribeRuleGroup(ctx context.Context, params *networkfirewall.DescribeRuleGroupInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeRuleGroupOutput, error) {
-	raw := aws.ToString(params.RuleGroupArn)
+func (m mockedNetworkFirewallRuleGroup) TagResource(*networkfirewall.TagResourceInput) (*networkfirewall.TagResourceOutput, error) {
+	return &m.TagResourceOutput, nil
+}
+
+func (m mockedNetworkFirewallRuleGroup) DescribeRuleGroupWithContext(_ awsgo.Context, req *networkfirewall.DescribeRuleGroupInput, _ ...request.Option) (*networkfirewall.DescribeRuleGroupOutput, error) {
+	raw := awsgo.StringValue(req.RuleGroupArn)
 	v, ok := m.DescribeRuleGroupOutput[raw]
 	if !ok {
 		return nil, fmt.Errorf("unable to describe the %s", raw)
@@ -31,11 +39,11 @@ func (m mockedNetworkFirewallRuleGroup) DescribeRuleGroup(ctx context.Context, p
 	return &v, nil
 }
 
-func (m mockedNetworkFirewallRuleGroup) DeleteRuleGroup(ctx context.Context, params *networkfirewall.DeleteRuleGroupInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteRuleGroupOutput, error) {
+func (m mockedNetworkFirewallRuleGroup) DeleteRuleGroupWithContext(_ awsgo.Context, _ *networkfirewall.DeleteRuleGroupInput, _ ...request.Option) (*networkfirewall.DeleteRuleGroupOutput, error) {
 	return &m.DeleteRuleGroupOutput, nil
 }
 
-func (m mockedNetworkFirewallRuleGroup) ListRuleGroups(ctx context.Context, params *networkfirewall.ListRuleGroupsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListRuleGroupsOutput, error) {
+func (m mockedNetworkFirewallRuleGroup) ListRuleGroupsWithContext(_ awsgo.Context, _ *networkfirewall.ListRuleGroupsInput, _ ...request.Option) (*networkfirewall.ListRuleGroupsOutput, error) {
 	return &m.ListRuleGroupsOutput, nil
 }
 
@@ -56,42 +64,42 @@ func TestNetworkFirewallRuleGroup_GetAll(t *testing.T) {
 		RuleGroups: make(map[string]RuleGroup),
 		Client: mockedNetworkFirewallRuleGroup{
 			ListRuleGroupsOutput: networkfirewall.ListRuleGroupsOutput{
-				RuleGroups: []types.RuleGroupMetadata{
+				RuleGroups: []*networkfirewall.RuleGroupMetadata{
 					{
-						Arn:  aws.String(testId1),
-						Name: aws.String(testName1),
+						Arn:  awsgo.String(testId1),
+						Name: awsgo.String(testName1),
 					},
 					{
-						Arn:  aws.String(testId2),
-						Name: aws.String(testName2),
+						Arn:  awsgo.String(testId2),
+						Name: awsgo.String(testName2),
 					},
 				},
 			},
 			DescribeRuleGroupOutput: map[string]networkfirewall.DescribeRuleGroupOutput{
 				testId1: {
-					RuleGroupResponse: &types.RuleGroupResponse{
-						RuleGroupName: aws.String(testName1),
-						Tags: []types.Tag{
+					RuleGroupResponse: &networkfirewall.RuleGroupResponse{
+						RuleGroupName: awsgo.String(testName1),
+						Tags: []*networkfirewall.Tag{
 							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName1),
 							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now)),
+								Key:   awsgo.String(util.FirstSeenTagKey),
+								Value: awsgo.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 				},
 				testId2: {
-					RuleGroupResponse: &types.RuleGroupResponse{
-						RuleGroupName: aws.String(testName2),
-						Tags: []types.Tag{
+					RuleGroupResponse: &networkfirewall.RuleGroupResponse{
+						RuleGroupName: awsgo.String(testName2),
+						Tags: []*networkfirewall.Tag{
 							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName2),
 							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
+								Key:   awsgo.String(util.FirstSeenTagKey),
+								Value: awsgo.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
 							},
 						},
 					},
@@ -122,7 +130,7 @@ func TestNetworkFirewallRuleGroup_GetAll(t *testing.T) {
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
+					TimeAfter: awsgo.Time(now),
 				}},
 			expected: []string{testName1},
 		},
@@ -133,7 +141,7 @@ func TestNetworkFirewallRuleGroup_GetAll(t *testing.T) {
 				NetworkFirewallRuleGroup: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
 }
@@ -148,12 +156,12 @@ func TestNetworkFirewallRuleGroup_NukeAll(t *testing.T) {
 		},
 		RuleGroups: map[string]RuleGroup{
 			"test-001": {
-				Name: aws.String("test-001"),
-				Type: aws.String("stateless"),
+				Name: awsgo.String("test-001"),
+				Type: awsgo.String("stateless"),
 			},
 			"test-002": {
-				Name: aws.String("test-002"),
-				Type: aws.String("stateless"),
+				Name: awsgo.String("test-002"),
+				Type: awsgo.String("stateless"),
 			},
 		},
 	}

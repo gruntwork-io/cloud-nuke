@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,10 +15,10 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeEgressOnlyInternetGateway(gateway types.EgressOnlyInternetGateway, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeEgressOnlyInternetGateway(gateway *ec2.EgressOnlyInternetGateway, firstSeenTime *time.Time, configObj config.Config) bool {
 	var gatewayName string
 	// get the tags as map
-	tagMap := util.ConvertTypesTagsToMap(gateway.Tags)
+	tagMap := util.ConvertEC2TagsToMap(gateway.Tags)
 	if name, ok := tagMap["Name"]; ok {
 		gatewayName = name
 	}
@@ -34,13 +34,13 @@ func (egigw *EgressOnlyInternetGateway) getAll(c context.Context, configObj conf
 	var firstSeenTime *time.Time
 	var err error
 
-	output, err := egigw.Client.DescribeEgressOnlyInternetGateways(egigw.Context, &ec2.DescribeEgressOnlyInternetGatewaysInput{})
+	output, err := egigw.Client.DescribeEgressOnlyInternetGatewaysWithContext(egigw.Context, &ec2.DescribeEgressOnlyInternetGatewaysInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, igw := range output.EgressOnlyInternetGateways {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, egigw.Client, igw.EgressOnlyInternetGatewayId, util.ConvertTypesTagsToMap(igw.Tags))
+		firstSeenTime, err = util.GetOrCreateFirstSeen(c, egigw.Client, igw.EgressOnlyInternetGatewayId, util.ConvertEC2TagsToMap(igw.Tags))
 		if err != nil {
 			logging.Error("Unable to retrieve tags")
 			return nil, errors.WithStackTrace(err)
@@ -51,7 +51,7 @@ func (egigw *EgressOnlyInternetGateway) getAll(c context.Context, configObj conf
 	}
 	// checking the nukable permissions
 	egigw.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := egigw.Client.DeleteEgressOnlyInternetGateway(egigw.Context, &ec2.DeleteEgressOnlyInternetGatewayInput{
+		_, err := egigw.Client.DeleteEgressOnlyInternetGatewayWithContext(egigw.Context, &ec2.DeleteEgressOnlyInternetGatewayInput{
 			EgressOnlyInternetGatewayId: id,
 			DryRun:                      awsgo.Bool(true),
 		})
@@ -82,7 +82,7 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   awsgo.ToString(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Egress Only Internet Gateway",
 			Error:        err,
 		}
@@ -102,10 +102,10 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 
 }
 
-func nukeEgressOnlyGateway(client EgressOnlyIGAPI, gateway *string) error {
-	logging.Debugf("[Nuke] Egress only gateway %s", awsgo.ToString(gateway))
+func nukeEgressOnlyGateway(client ec2iface.EC2API, gateway *string) error {
+	logging.Debugf("[Nuke] Egress only gateway %s", awsgo.StringValue(gateway))
 
-	_, err := client.DeleteEgressOnlyInternetGateway(context.Background(), &ec2.DeleteEgressOnlyInternetGatewayInput{
+	_, err := client.DeleteEgressOnlyInternetGateway(&ec2.DeleteEgressOnlyInternetGatewayInput{
 		EgressOnlyInternetGatewayId: gateway,
 	})
 	if err != nil {

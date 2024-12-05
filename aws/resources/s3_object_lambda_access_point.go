@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3control"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -24,26 +24,21 @@ func (ap *S3ObjectLambdaAccessPoint) getAll(c context.Context, configObj config.
 	ap.AccountID = aws.String(accountID)
 
 	var accessPoints []*string
-	paginator := s3control.NewListAccessPointsForObjectLambdaPaginator(ap.Client, &s3control.ListAccessPointsForObjectLambdaInput{
-		AccountId: ap.AccountID,
-	})
-
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ap.Context)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		for _, accessPoint := range page.ObjectLambdaAccessPointList {
-			if configObj.S3ObjectLambdaAccessPoint.ShouldInclude(config.ResourceValue{
-				Name: accessPoint.Name,
-			}) {
-				accessPoints = append(accessPoints, accessPoint.Name)
+	err := ap.Client.ListAccessPointsForObjectLambdaPagesWithContext(
+		ap.Context,
+		&s3control.ListAccessPointsForObjectLambdaInput{
+			AccountId: ap.AccountID,
+		}, func(lapo *s3control.ListAccessPointsForObjectLambdaOutput, lastPage bool) bool {
+			for _, accessPoint := range lapo.ObjectLambdaAccessPointList {
+				if configObj.S3ObjectLambdaAccessPoint.ShouldInclude(config.ResourceValue{
+					Name: accessPoint.Name,
+				}) {
+					accessPoints = append(accessPoints, accessPoint.Name)
+				}
 			}
-		}
-	}
-
-	return accessPoints, nil
+			return !lastPage
+		})
+	return accessPoints, errors.WithStackTrace(err)
 }
 
 func (ap *S3ObjectLambdaAccessPoint) nukeAll(identifiers []*string) error {
@@ -57,7 +52,7 @@ func (ap *S3ObjectLambdaAccessPoint) nukeAll(identifiers []*string) error {
 
 	for _, id := range identifiers {
 
-		_, err := ap.Client.DeleteAccessPointForObjectLambda(
+		_, err := ap.Client.DeleteAccessPointForObjectLambdaWithContext(
 			ap.Context,
 			&s3control.DeleteAccessPointForObjectLambdaInput{
 				AccountId: ap.AccountID,
@@ -66,7 +61,7 @@ func (ap *S3ObjectLambdaAccessPoint) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.ToString(id),
+			Identifier:   aws.StringValue(id),
 			ResourceType: "S3 Object Lambda Access point",
 			Error:        err,
 		}
@@ -76,7 +71,7 @@ func (ap *S3ObjectLambdaAccessPoint) nukeAll(identifiers []*string) error {
 			logging.Debugf("[Failed] %s", err)
 		} else {
 			deleted = append(deleted, id)
-			logging.Debugf("Deleted S3 object lambda access point: %s", aws.ToString(id))
+			logging.Debugf("Deleted S3 object lambda access point: %s", aws.StringValue(id))
 		}
 	}
 

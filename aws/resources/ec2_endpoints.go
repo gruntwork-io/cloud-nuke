@@ -80,7 +80,7 @@ func (e *EC2Endpoints) nukeAll(identifiers []*string) error {
 			continue
 		}
 
-		err := nukeVpcEndpoint(e.Client, []*string{id})
+		err := e.nukeVpcEndpoint([]*string{id})
 
 		// Record status of this resource
 		e := report.Entry{
@@ -102,10 +102,10 @@ func (e *EC2Endpoints) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func nukeVpcEndpoint(client EC2EndpointsAPI, endpointIds []*string) error {
+func (e *EC2Endpoints) nukeVpcEndpoint(endpointIds []*string) error {
 	logging.Debugf("Deleting VPC endpoints %s", aws.ToStringSlice(endpointIds))
 
-	_, err := client.DeleteVpcEndpoints(context.Background(), &ec2.DeleteVpcEndpointsInput{
+	_, err := e.Client.DeleteVpcEndpoints(e.Context, &ec2.DeleteVpcEndpointsInput{
 		VpcEndpointIds: aws.ToStringSlice(endpointIds),
 	})
 	if err != nil {

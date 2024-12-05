@@ -6,65 +6,61 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedS3Buckets struct {
-	S3API
-	ListBucketsOutput         s3.ListBucketsOutput
-	GetBucketLocationOutput   s3.GetBucketLocationOutput
-	GetBucketTaggingOutput    s3.GetBucketTaggingOutput
-	GetBucketVersioningOutput s3.GetBucketVersioningOutput
-	ListObjectVersionsOutput  s3.ListObjectVersionsOutput
-	DeleteObjectsOutput       s3.DeleteObjectsOutput
-	DeleteBucketPolicyOutput  s3.DeleteBucketPolicyOutput
-	DeleteBucketOutput        s3.DeleteBucketOutput
-	ListObjectsV2Output       s3.ListObjectsV2Output
-	HeadBucketOutput          s3.HeadBucketOutput
+	s3iface.S3API
+	ListBucketsOutput             s3.ListBucketsOutput
+	GetBucketLocationOutput       s3.GetBucketLocationOutput
+	GetBucketTaggingOutput        s3.GetBucketTaggingOutput
+	GetBucketVersioningOutput     s3.GetBucketVersioningOutput
+	ListObjectVersionsPagesOutput s3.ListObjectVersionsOutput
+	DeleteObjectsOutput           s3.DeleteObjectsOutput
+	DeleteBucketPolicyOutput      s3.DeleteBucketPolicyOutput
+	DeleteBucketOutput            s3.DeleteBucketOutput
 }
 
-func (m mockedS3Buckets) ListBuckets(context.Context, *s3.ListBucketsInput, ...func(*s3.Options)) (*s3.ListBucketsOutput, error) {
+func (m mockedS3Buckets) ListBucketsWithContext(aws.Context, *s3.ListBucketsInput, ...request.Option) (*s3.ListBucketsOutput, error) {
 	return &m.ListBucketsOutput, nil
 }
 
-func (m mockedS3Buckets) GetBucketLocation(context.Context, *s3.GetBucketLocationInput, ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error) {
+func (m mockedS3Buckets) GetBucketLocationWithContext(aws.Context, *s3.GetBucketLocationInput, ...request.Option) (*s3.GetBucketLocationOutput, error) {
 	return &m.GetBucketLocationOutput, nil
 }
 
-func (m mockedS3Buckets) GetBucketTagging(context.Context, *s3.GetBucketTaggingInput, ...func(*s3.Options)) (*s3.GetBucketTaggingOutput, error) {
+func (m mockedS3Buckets) GetBucketTaggingWithContext(aws.Context, *s3.GetBucketTaggingInput, ...request.Option) (*s3.GetBucketTaggingOutput, error) {
 	return &m.GetBucketTaggingOutput, nil
 }
 
-func (m mockedS3Buckets) GetBucketVersioning(context.Context, *s3.GetBucketVersioningInput, ...func(*s3.Options)) (*s3.GetBucketVersioningOutput, error) {
+func (m mockedS3Buckets) WaitUntilBucketNotExistsWithContext(aws.Context, *s3.HeadBucketInput, ...request.WaiterOption) error {
+	return nil
+}
+
+func (m mockedS3Buckets) GetBucketVersioningWithContext(aws.Context, *s3.GetBucketVersioningInput, ...request.Option) (*s3.GetBucketVersioningOutput, error) {
 	return &m.GetBucketVersioningOutput, nil
 }
 
-func (m mockedS3Buckets) DeleteObjects(context.Context, *s3.DeleteObjectsInput, ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error) {
+func (m mockedS3Buckets) ListObjectVersionsPagesWithContext(_ aws.Context, _ *s3.ListObjectVersionsInput, fn func(*s3.ListObjectVersionsOutput, bool) bool, _ ...request.Option) error {
+	fn(&m.ListObjectVersionsPagesOutput, true)
+	return nil
+}
+
+func (m mockedS3Buckets) DeleteObjectsWithContext(aws.Context, *s3.DeleteObjectsInput, ...request.Option) (*s3.DeleteObjectsOutput, error) {
 	return &m.DeleteObjectsOutput, nil
 }
 
-func (m mockedS3Buckets) DeleteBucketPolicy(context.Context, *s3.DeleteBucketPolicyInput, ...func(*s3.Options)) (*s3.DeleteBucketPolicyOutput, error) {
+func (m mockedS3Buckets) DeleteBucketPolicyWithContext(aws.Context, *s3.DeleteBucketPolicyInput, ...request.Option) (*s3.DeleteBucketPolicyOutput, error) {
 	return &m.DeleteBucketPolicyOutput, nil
 }
 
-func (m mockedS3Buckets) DeleteBucket(ctx context.Context, params *s3.DeleteBucketInput, optFns ...func(*s3.Options)) (*s3.DeleteBucketOutput, error) {
+func (m mockedS3Buckets) DeleteBucketWithContext(aws.Context, *s3.DeleteBucketInput, ...request.Option) (*s3.DeleteBucketOutput, error) {
 	return &m.DeleteBucketOutput, nil
-}
-func (m mockedS3Buckets) ListObjectVersions(ctx context.Context, params *s3.ListObjectVersionsInput, optFns ...func(*s3.Options)) (*s3.ListObjectVersionsOutput, error) {
-	return &m.ListObjectVersionsOutput, nil
-}
-func (m mockedS3Buckets) ListObjectsV2(ctx context.Context, params *s3.ListObjectsV2Input, optFns ...func(*s3.Options)) (*s3.ListObjectsV2Output, error) {
-	return &m.ListObjectsV2Output, nil
-}
-func (m mockedS3Buckets) HeadBucket(ctx context.Context, params *s3.HeadBucketInput, optFns ...func(*s3.Options)) (*s3.HeadBucketOutput, error) {
-	return &m.HeadBucketOutput, &types.NotFound{}
-}
-func (m mockedS3Buckets) WaitForOutput(ctx context.Context, params *s3.HeadBucketInput, maxWaitDur time.Duration, optFns ...func(*s3.BucketNotExistsWaiterOptions)) (*s3.HeadBucketOutput, error) {
-	return nil, nil
 }
 
 func TestS3Bucket_GetAll(t *testing.T) {
@@ -77,7 +73,7 @@ func TestS3Bucket_GetAll(t *testing.T) {
 	sb := S3Buckets{
 		Client: mockedS3Buckets{
 			ListBucketsOutput: s3.ListBucketsOutput{
-				Buckets: []types.Bucket{
+				Buckets: []*s3.Bucket{
 					{
 						Name:         aws.String(testName1),
 						CreationDate: aws.Time(now),
@@ -89,10 +85,10 @@ func TestS3Bucket_GetAll(t *testing.T) {
 				},
 			},
 			GetBucketLocationOutput: s3.GetBucketLocationOutput{
-				LocationConstraint: "us-east-1",
+				LocationConstraint: aws.String("us-east-1"),
 			},
 			GetBucketTaggingOutput: s3.GetBucketTaggingOutput{
-				TagSet: []types.Tag{},
+				TagSet: []*s3.Tag{},
 			},
 		},
 		Region: "us-east-1",
@@ -145,16 +141,16 @@ func TestS3Bucket_NukeAll(t *testing.T) {
 	sb := S3Buckets{
 		Client: mockedS3Buckets{
 			GetBucketVersioningOutput: s3.GetBucketVersioningOutput{
-				Status: ("Enabled"),
+				Status: aws.String("Enabled"),
 			},
-			ListObjectVersionsOutput: s3.ListObjectVersionsOutput{
-				Versions: []types.ObjectVersion{
+			ListObjectVersionsPagesOutput: s3.ListObjectVersionsOutput{
+				Versions: []*s3.ObjectVersion{
 					{
 						Key:       aws.String("test-key"),
 						VersionId: aws.String("test-version-id"),
 					},
 				},
-				DeleteMarkers: []types.DeleteMarkerEntry{
+				DeleteMarkers: []*s3.DeleteMarkerEntry{
 					{
 						Key:       aws.String("test-key"),
 						VersionId: aws.String("test-version-id"),
@@ -164,10 +160,8 @@ func TestS3Bucket_NukeAll(t *testing.T) {
 			DeleteObjectsOutput:      s3.DeleteObjectsOutput{},
 			DeleteBucketPolicyOutput: s3.DeleteBucketPolicyOutput{},
 			DeleteBucketOutput:       s3.DeleteBucketOutput{},
-			HeadBucketOutput:         s3.HeadBucketOutput{},
 		},
 	}
-	sb.Context = context.Background()
 
 	count, err := sb.nukeAll([]*string{aws.String("test-bucket")})
 	require.NoError(t, err)

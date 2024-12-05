@@ -6,72 +6,82 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedNetworkACL struct {
+	BaseAwsResource
+	ec2iface.EC2API
+
 	DescribeNetworkAclsOutput          ec2.DescribeNetworkAclsOutput
 	DeleteNetworkAclOutput             ec2.DeleteNetworkAclOutput
 	ReplaceNetworkAclAssociationOutput ec2.ReplaceNetworkAclAssociationOutput
 }
 
-func (m *mockedNetworkACL) DescribeNetworkAcls(ctx context.Context, params *ec2.DescribeNetworkAclsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkAclsOutput, error) {
+func (m mockedNetworkACL) DescribeNetworkAclsWithContext(_ awsgo.Context, _ *ec2.DescribeNetworkAclsInput, _ ...request.Option) (*ec2.DescribeNetworkAclsOutput, error) {
 	return &m.DescribeNetworkAclsOutput, nil
 }
 
-func (m *mockedNetworkACL) DeleteNetworkAcl(ctx context.Context, params *ec2.DeleteNetworkAclInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkAclOutput, error) {
+func (m mockedNetworkACL) DeleteNetworkAcl(_ *ec2.DeleteNetworkAclInput) (*ec2.DeleteNetworkAclOutput, error) {
 	return &m.DeleteNetworkAclOutput, nil
 }
 
-func (m *mockedNetworkACL) ReplaceNetworkAclAssociation(ctx context.Context, params *ec2.ReplaceNetworkAclAssociationInput, optFns ...func(*ec2.Options)) (*ec2.ReplaceNetworkAclAssociationOutput, error) {
+func (m mockedNetworkACL) DeleteNetworkAclWithContext(_ awsgo.Context, _ *ec2.DeleteNetworkAclInput, _ ...request.Option) (*ec2.DeleteNetworkAclOutput, error) {
+	return &m.DeleteNetworkAclOutput, nil
+}
+
+func (m mockedNetworkACL) ReplaceNetworkAclAssociation(_ *ec2.ReplaceNetworkAclAssociationInput) (*ec2.ReplaceNetworkAclAssociationOutput, error) {
 	return &m.ReplaceNetworkAclAssociationOutput, nil
 }
 
 func TestNetworkAcl_GetAll(t *testing.T) {
 
+	// Set excludeFirstSeenTag to false for testing
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
 	var (
 		now     = time.Now()
-		testId1 = awsgo.String("acl-09e36c45cbdbfb001")
-		testId2 = awsgo.String("acl-09e36c45cbdbfb002")
+		testId1 = "acl-09e36c45cbdbfb001"
+		testId2 = "acl-09e36c45cbdbfb002"
 
 		testName1 = "cloud-nuke-acl-001"
 		testName2 = "cloud-nuke-acl-002"
 	)
 
 	resourceObject := NetworkACL{
-		Client: &mockedNetworkACL{
+		Client: mockedNetworkACL{
 			DescribeNetworkAclsOutput: ec2.DescribeNetworkAclsOutput{
-				NetworkAcls: []types.NetworkAcl{
+				NetworkAcls: []*ec2.NetworkAcl{
 					{
-						NetworkAclId: testId1,
-						Tags: []types.Tag{
+						NetworkAclId: aws.String(testId1),
+						Tags: []*ec2.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
-						NetworkAclId: testId2,
-						Tags: []types.Tag{
+						NetworkAclId: aws.String(testId2),
+						Tags: []*ec2.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
 							},
 						},
 					},
@@ -84,12 +94,12 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 	tests := map[string]struct {
 		ctx       context.Context
 		configObj config.ResourceType
-		expected  []*string
+		expected  []string
 	}{
 		"emptyFilter": {
 			ctx:       ctx,
 			configObj: config.ResourceType{},
-			expected:  []*string{testId1, testId2},
+			expected:  []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
 			ctx: ctx,
@@ -99,7 +109,7 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 						RE: *regexp.MustCompile(testName1),
 					}}},
 			},
-			expected: []*string{testId2},
+			expected: []string{testId2},
 		},
 		"nameInclusionFilter": {
 			ctx: ctx,
@@ -109,15 +119,17 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 						RE: *regexp.MustCompile(testName1),
 					}}},
 			},
-			expected: []*string{testId1},
+			expected: []string{testId1},
 		},
 		"timeAfterExclusionFilter": {
 			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now),
+					TimeAfter: aws.Time(now),
 				}},
-			expected: []*string{testId1},
+			expected: []string{
+				testId1,
+			},
 		},
 	}
 	for name, tc := range tests {
@@ -126,12 +138,14 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 				NetworkACL: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, names)
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
+
 }
 
 func TestNetworkAcl_NukeAll(t *testing.T) {
+
 	var (
 		testId1 = "acl-09e36c45cbdbfb001"
 		testId2 = "acl-09e36c45cbdbfb002"
@@ -141,38 +155,42 @@ func TestNetworkAcl_NukeAll(t *testing.T) {
 	)
 
 	resourceObject := NetworkACL{
-		Client: &mockedNetworkACL{
+		BaseAwsResource: BaseAwsResource{
+			Nukables: map[string]error{
+				testId1: nil,
+				testId2: nil,
+			},
+		},
+		Client: mockedNetworkACL{
 			DescribeNetworkAclsOutput: ec2.DescribeNetworkAclsOutput{
-				NetworkAcls: []types.NetworkAcl{
+				NetworkAcls: []*ec2.NetworkAcl{
 					{
-						NetworkAclId: awsgo.String(testId1),
-						Associations: []types.NetworkAclAssociation{
+						NetworkAclId: aws.String(testId1),
+						Associations: []*ec2.NetworkAclAssociation{
 							{
-								NetworkAclAssociationId: awsgo.String("assoc-09e36c45cbdbfb001"),
-								NetworkAclId:            awsgo.String(testId1),
-								SubnetId:                awsgo.String("subnet-1234"),
+								NetworkAclAssociationId: aws.String("assoc-09e36c45cbdbfb001"),
+								NetworkAclId:            aws.String("acl-09e36c45cbdbfb001"),
 							},
 						},
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 						},
 					},
 					{
-						NetworkAclId: awsgo.String(testId2),
-						Associations: []types.NetworkAclAssociation{
+						NetworkAclId: aws.String(testId2),
+						Associations: []*ec2.NetworkAclAssociation{
 							{
-								NetworkAclAssociationId: awsgo.String("assoc-09e36c45cbdbfb002"),
-								NetworkAclId:            awsgo.String(testId2),
-								SubnetId:                awsgo.String("subnet-5678"),
+								NetworkAclAssociationId: aws.String("assoc-09e36c45cbdbfb002"),
+								NetworkAclId:            aws.String("acl-09e36c45cbdbfb002"),
 							},
 						},
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 						},
 					},
@@ -180,9 +198,10 @@ func TestNetworkAcl_NukeAll(t *testing.T) {
 			},
 		},
 	}
+
 	err := resourceObject.nukeAll([]*string{
-		awsgo.String(testId1),
-		awsgo.String(testId2),
+		aws.String(testId1),
+		aws.String(testId2),
 	})
 	require.NoError(t, err)
 }

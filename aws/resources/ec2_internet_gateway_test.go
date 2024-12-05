@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
@@ -16,21 +17,21 @@ import (
 
 type mockedInternetGateway struct {
 	BaseAwsResource
-	InternetGatewayAPI
+	ec2iface.EC2API
 	DescribeInternetGatewaysOutput ec2.DescribeInternetGatewaysOutput
 	DetachInternetGatewayOutput    ec2.DetachInternetGatewayOutput
 	DeleteInternetGatewayOutput    ec2.DeleteInternetGatewayOutput
 }
 
-func (m mockedInternetGateway) DescribeInternetGateways(ctx context.Context, params *ec2.DescribeInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInternetGatewaysOutput, error) {
+func (m mockedInternetGateway) DescribeInternetGatewaysWithContext(_ awsgo.Context, _ *ec2.DescribeInternetGatewaysInput, _ ...request.Option) (*ec2.DescribeInternetGatewaysOutput, error) {
 	return &m.DescribeInternetGatewaysOutput, nil
 }
 
-func (m mockedInternetGateway) DetachInternetGateway(ctx context.Context, params *ec2.DetachInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachInternetGatewayOutput, error) {
+func (m mockedInternetGateway) DetachInternetGatewayWithContext(_ awsgo.Context, _ *ec2.DetachInternetGatewayInput, _ ...request.Option) (*ec2.DetachInternetGatewayOutput, error) {
 	return &m.DetachInternetGatewayOutput, nil
 }
 
-func (m mockedInternetGateway) DeleteInternetGateway(ctx context.Context, params *ec2.DeleteInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteInternetGatewayOutput, error) {
+func (m mockedInternetGateway) DeleteInternetGatewayWithContext(_ awsgo.Context, _ *ec2.DeleteInternetGatewayInput, _ ...request.Option) (*ec2.DeleteInternetGatewayOutput, error) {
 	return &m.DeleteInternetGatewayOutput, nil
 }
 
@@ -53,10 +54,10 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 	igw := InternetGateway{
 		Client: mockedInternetGateway{
 			DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
-				InternetGateways: []types.InternetGateway{
+				InternetGateways: []*ec2.InternetGateway{
 					{
 						InternetGatewayId: awsgo.String(gateway1),
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName1),
@@ -68,7 +69,7 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 					},
 					{
 						InternetGatewayId: awsgo.String(gateway2),
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName2),
@@ -119,7 +120,7 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 				InternetGateway: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
 		})
 	}
 
@@ -142,21 +143,21 @@ func TestEc2InternetGateway_NukeAll(t *testing.T) {
 		},
 		Client: mockedInternetGateway{
 			DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
-				InternetGateways: []types.InternetGateway{
+				InternetGateways: []*ec2.InternetGateway{
 					{
 						InternetGatewayId: awsgo.String(gateway1),
-						Attachments: []types.InternetGatewayAttachment{
+						Attachments: []*ec2.InternetGatewayAttachment{
 							{
-								State: "testing-state",
+								State: awsgo.String("testing-state"),
 								VpcId: awsgo.String("test-gateway-vpc"),
 							},
 						},
 					},
 					{
 						InternetGatewayId: awsgo.String(gateway2),
-						Attachments: []types.InternetGatewayAttachment{
+						Attachments: []*ec2.InternetGatewayAttachment{
 							{
-								State: "testing-state",
+								State: awsgo.String("testing-state"),
 								VpcId: awsgo.String("test-gateway-vpc"),
 							},
 						},

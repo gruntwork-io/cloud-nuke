@@ -3,32 +3,25 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type SecretsManagerSecretsAPI interface {
-	ListSecrets(ctx context.Context, params *secretsmanager.ListSecretsInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error)
-	DescribeSecret(ctx context.Context, params *secretsmanager.DescribeSecretInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.DescribeSecretOutput, error)
-	RemoveRegionsFromReplication(ctx context.Context, params *secretsmanager.RemoveRegionsFromReplicationInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.RemoveRegionsFromReplicationOutput, error)
-	DeleteSecret(ctx context.Context, params *secretsmanager.DeleteSecretInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.DeleteSecretOutput, error)
-}
-
 // SecretsManagerSecrets - represents all AWS secrets manager secrets that should be deleted.
 type SecretsManagerSecrets struct {
 	BaseAwsResource
-	Client    SecretsManagerSecretsAPI
+	Client    secretsmanageriface.SecretsManagerAPI
 	Region    string
 	SecretIDs []string
 }
 
-func (sms *SecretsManagerSecrets) InitV2(cfg aws.Config) {
-	sms.Client = secretsmanager.NewFromConfig(cfg)
+func (sms *SecretsManagerSecrets) Init(session *session.Session) {
+	sms.Client = secretsmanager.New(session)
 }
-
-func (sms *SecretsManagerSecrets) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (sms *SecretsManagerSecrets) ResourceName() string {
@@ -57,13 +50,13 @@ func (sms *SecretsManagerSecrets) GetAndSetIdentifiers(c context.Context, config
 		return nil, err
 	}
 
-	sms.SecretIDs = aws.ToStringSlice(identifiers)
+	sms.SecretIDs = awsgo.StringValueSlice(identifiers)
 	return sms.SecretIDs, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (sms *SecretsManagerSecrets) Nuke(identifiers []string) error {
-	if err := sms.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := sms.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -9,17 +9,19 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 func (m *MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var clusterIDs []*string
 
-	paginator := kafka.NewListClustersV2Paginator(m.Client, &kafka.ListClustersV2Input{})
+	params := &kafka.ListClustersV2Input{}
+	paginator := kafka.NewListClustersV2Paginator(m.Client, params)
+
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(c)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			logging.Debugf("[MSKCluster] Failed to list clusters: %s", err)
+			return nil, err
 		}
 
 		for _, cluster := range page.ClusterInfoList {

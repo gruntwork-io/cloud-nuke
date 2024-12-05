@@ -3,59 +3,28 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type EC2VPCAPI interface {
-	DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error)
-	DeleteVpc(ctx context.Context, params *ec2.DeleteVpcInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcOutput, error)
-	DescribeVpcEndpointServiceConfigurations(ctx context.Context, params *ec2.DescribeVpcEndpointServiceConfigurationsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointServiceConfigurationsOutput, error)
-	DeleteVpcEndpointServiceConfigurations(ctx context.Context, params *ec2.DeleteVpcEndpointServiceConfigurationsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcEndpointServiceConfigurationsOutput, error)
-	DeleteVpcPeeringConnection(ctx context.Context, params *ec2.DeleteVpcPeeringConnectionInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcPeeringConnectionOutput, error)
-	DescribeVpcEndpoints(ctx context.Context, params *ec2.DescribeVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointsOutput, error)
-	DescribeRouteTables(ctx context.Context, params *ec2.DescribeRouteTablesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeRouteTablesOutput, error)
-	DisassociateRouteTable(ctx context.Context, params *ec2.DisassociateRouteTableInput, optFns ...func(*ec2.Options)) (*ec2.DisassociateRouteTableOutput, error)
-	DeleteRouteTable(ctx context.Context, params *ec2.DeleteRouteTableInput, optFns ...func(*ec2.Options)) (*ec2.DeleteRouteTableOutput, error)
-	DescribeSecurityGroupRules(ctx context.Context, params *ec2.DescribeSecurityGroupRulesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupRulesOutput, error)
-	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
-	DescribeVpcPeeringConnections(ctx context.Context, params *ec2.DescribeVpcPeeringConnectionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcPeeringConnectionsOutput, error)
-	AcceptAddressTransfer(ctx context.Context, params *ec2.AcceptAddressTransferInput, optFns ...func(*ec2.Options)) (*ec2.AcceptAddressTransferOutput, error)
-	NetworkInterfaceAPI
-	EC2DhcpOptionAPI
-	NetworkACLAPI
-	EC2EndpointsAPI
-	NetworkACLAPI
-	InternetGatewayAPI
-	EgressOnlyIGAPI
-	EC2SubnetAPI
-	NatGatewaysAPI
-	SecurityGroupAPI
-}
-type ELBClientAPI interface {
-	DescribeLoadBalancers(ctx context.Context, input *elbv2.DescribeLoadBalancersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancersOutput, error)
-	DeleteLoadBalancer(ctx context.Context, input *elbv2.DeleteLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteLoadBalancerOutput, error)
-	DescribeTargetGroups(ctx context.Context, input *elbv2.DescribeTargetGroupsInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupsOutput, error)
-	DeleteTargetGroup(ctx context.Context, input *elbv2.DeleteTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteTargetGroupOutput, error)
-}
 type EC2VPCs struct {
 	BaseAwsResource
-	Client    EC2VPCAPI
-	ELBClient ELBClientAPI
+	Client    ec2iface.EC2API
+	ELBClient elbv2iface.ELBV2API
 	Region    string
 	VPCIds    []string
 }
 
-func (v *EC2VPCs) InitV2(cfg aws.Config) {
-	v.Client = ec2.NewFromConfig(cfg)
-	v.ELBClient = elbv2.NewFromConfig(cfg)
+func (v *EC2VPCs) Init(session *session.Session) {
+	v.Client = ec2.New(session)
+	v.ELBClient = elbv2.New(session)
 }
-
-func (v *EC2VPCs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (v *EC2VPCs) ResourceName() string {
@@ -82,7 +51,7 @@ func (v *EC2VPCs) GetAndSetIdentifiers(c context.Context, configObj config.Confi
 		return nil, err
 	}
 
-	v.VPCIds = awsgo.ToStringSlice(identifiers)
+	v.VPCIds = awsgo.StringValueSlice(identifiers)
 	return v.VPCIds, nil
 }
 

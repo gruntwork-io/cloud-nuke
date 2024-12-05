@@ -3,30 +3,25 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
+	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type NetworkFirewallAPI interface {
-	ListFirewalls(ctx context.Context, params *networkfirewall.ListFirewallsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListFirewallsOutput, error)
-	DescribeFirewall(ctx context.Context, params *networkfirewall.DescribeFirewallInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeFirewallOutput, error)
-	DeleteFirewall(ctx context.Context, params *networkfirewall.DeleteFirewallInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteFirewallOutput, error)
-}
-
 type NetworkFirewall struct {
 	BaseAwsResource
-	Client      NetworkFirewallAPI
+	Client      networkfirewalliface.NetworkFirewallAPI
 	Region      string
 	Identifiers []string
 }
 
-func (nfw *NetworkFirewall) InitV2(cfg aws.Config) {
-	nfw.Client = networkfirewall.NewFromConfig(cfg)
+func (nfw *NetworkFirewall) Init(session *session.Session) {
+	nfw.BaseAwsResource.Init(session)
+	nfw.Client = networkfirewall.New(session)
 }
-
-func (nfw *NetworkFirewall) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (nfw *NetworkFirewall) ResourceName() string {
@@ -54,13 +49,13 @@ func (nfw *NetworkFirewall) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	nfw.Identifiers = aws.ToStringSlice(identifiers)
+	nfw.Identifiers = awsgo.StringValueSlice(identifiers)
 	return nfw.Identifiers, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (nfw *NetworkFirewall) Nuke(identifiers []string) error {
-	if err := nfw.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := nfw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

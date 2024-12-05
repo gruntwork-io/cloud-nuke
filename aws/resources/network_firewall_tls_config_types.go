@@ -3,30 +3,24 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
+	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type NetworkFirewallTLSConfigAPI interface {
-	ListTLSInspectionConfigurations(ctx context.Context, params *networkfirewall.ListTLSInspectionConfigurationsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListTLSInspectionConfigurationsOutput, error)
-	DescribeTLSInspectionConfiguration(ctx context.Context, params *networkfirewall.DescribeTLSInspectionConfigurationInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeTLSInspectionConfigurationOutput, error)
-	DeleteTLSInspectionConfiguration(ctx context.Context, params *networkfirewall.DeleteTLSInspectionConfigurationInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteTLSInspectionConfigurationOutput, error)
-}
-
 type NetworkFirewallTLSConfig struct {
 	BaseAwsResource
-	Client      NetworkFirewallTLSConfigAPI
+	Client      networkfirewalliface.NetworkFirewallAPI
 	Region      string
 	Identifiers []string
 }
 
-func (nftc *NetworkFirewallTLSConfig) InitV2(cfg aws.Config) {
-	nftc.Client = networkfirewall.NewFromConfig(cfg)
+func (nftc *NetworkFirewallTLSConfig) Init(session *session.Session) {
+	nftc.Client = networkfirewall.New(session)
 }
-
-func (nftc *NetworkFirewallTLSConfig) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (nftc *NetworkFirewallTLSConfig) ResourceName() string {
@@ -54,13 +48,13 @@ func (nftc *NetworkFirewallTLSConfig) GetAndSetIdentifiers(c context.Context, co
 		return nil, err
 	}
 
-	nftc.Identifiers = aws.ToStringSlice(identifiers)
+	nftc.Identifiers = awsgo.StringValueSlice(identifiers)
 	return nftc.Identifiers, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (nftc *NetworkFirewallTLSConfig) Nuke(identifiers []string) error {
-	if err := nftc.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := nftc.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

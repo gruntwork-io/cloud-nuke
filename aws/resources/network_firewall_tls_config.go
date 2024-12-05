@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -15,12 +14,12 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeNetworkFirewallTLSConfig(tlsconfig *types.TLSInspectionConfigurationResponse, firstSeenTime *time.Time, configObj config.Config) bool {
+func shouldIncludeNetworkFirewallTLSConfig(tlsconfig *networkfirewall.TLSInspectionConfigurationResponse, firstSeenTime *time.Time, configObj config.Config) bool {
 
 	var identifierName string
 	tags := util.ConvertNetworkFirewallTagsToMap(tlsconfig.Tags)
 
-	identifierName = aws.ToString(tlsconfig.TLSInspectionConfigurationName) // set the default
+	identifierName = awsgo.StringValue(tlsconfig.TLSInspectionConfigurationName) // set the default
 	if v, ok := tags["Name"]; ok {
 		identifierName = v
 	}
@@ -39,22 +38,22 @@ func (nftc *NetworkFirewallTLSConfig) getAll(c context.Context, configObj config
 		err           error
 	)
 
-	meta, err := nftc.Client.ListTLSInspectionConfigurations(nftc.Context, nil)
+	meta, err := nftc.Client.ListTLSInspectionConfigurationsWithContext(nftc.Context, nil)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, tlsconfig := range meta.TLSInspectionConfigurations {
-		output, err := nftc.Client.DescribeTLSInspectionConfiguration(nftc.Context, &networkfirewall.DescribeTLSInspectionConfigurationInput{
+		output, err := nftc.Client.DescribeTLSInspectionConfigurationWithContext(nftc.Context, &networkfirewall.DescribeTLSInspectionConfigurationInput{
 			TLSInspectionConfigurationArn: tlsconfig.Arn,
 		})
 		if err != nil {
-			logging.Errorf("[Failed] to describe the firewall TLS inspection configuation %s", aws.ToString(tlsconfig.Name))
+			logging.Errorf("[Failed] to describe the firewall TLS inspection configuation %s", awsgo.StringValue(tlsconfig.Name))
 			return nil, errors.WithStackTrace(err)
 		}
 
 		if output.TLSInspectionConfigurationResponse == nil {
-			logging.Errorf("[Failed] no firewall TLS inspection configuation information found for %s", aws.ToString(tlsconfig.Name))
+			logging.Errorf("[Failed] no firewall TLS inspection configuation information found for %s", awsgo.StringValue(tlsconfig.Name))
 			continue
 		}
 
@@ -83,13 +82,13 @@ func (nftc *NetworkFirewallTLSConfig) nukeAll(identifiers []*string) error {
 
 	for _, id := range identifiers {
 		fmt.Println(":nftc.Client:::", nftc.Client)
-		_, err := nftc.Client.DeleteTLSInspectionConfiguration(nftc.Context, &networkfirewall.DeleteTLSInspectionConfigurationInput{
+		_, err := nftc.Client.DeleteTLSInspectionConfigurationWithContext(nftc.Context, &networkfirewall.DeleteTLSInspectionConfigurationInput{
 			TLSInspectionConfigurationName: id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.ToString(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Network Firewall TLS inspection configurations",
 			Error:        err,
 		}

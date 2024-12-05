@@ -31,13 +31,13 @@ run `go generate ./...` to refresh this report.
 | ec2-endpoint                     | :white_check_mark: |
 | ec2-keypairs                     | :white_check_mark: |
 | ec2-placement-groups             | :white_check_mark: |
-| ec2-subnet                       | :white_check_mark: |
+| ec2-subnet                       |                    |
 | ec2_dhcp_option                  | :white_check_mark: |
 | ecr                              | :white_check_mark: |
 | ecscluster                       | :white_check_mark: |
 | ecsserv                          | :white_check_mark: |
 | efs                              | :white_check_mark: |
-| egress-only-internet-gateway     | :white_check_mark: |
+| egress-only-internet-gateway     |                    |
 | eip                              | :white_check_mark: |
 | ekscluster                       | :white_check_mark: |
 | elastic-beanstalk                | :white_check_mark: |
@@ -59,7 +59,7 @@ run `go generate ./...` to refresh this report.
 | iam-policy                       | :white_check_mark: |
 | iam-role                         | :white_check_mark: |
 | iam-service-linked-role          | :white_check_mark: |
-| internet-gateway                 | :white_check_mark: |
+| internet-gateway                 |                    |
 | ipam                             | :white_check_mark: |
 | ipam-byoasn                      | :white_check_mark: |
 | ipam-custom-allocation           | :white_check_mark: |
@@ -76,35 +76,35 @@ run `go generate ./...` to refresh this report.
 | macie-member                     | :white_check_mark: |
 | managed-prometheus               | :white_check_mark: |
 | msk-cluster                      | :white_check_mark: |
-| nat-gateway                      | :white_check_mark: |
-| network-acl                      | :white_check_mark: |
-| network-firewall                 | :white_check_mark: |
-| network-firewall-policy          | :white_check_mark: |
-| network-firewall-resource-policy | :white_check_mark: |
-| network-firewall-rule-group      | :white_check_mark: |
-| network-firewall-tls-config      | :white_check_mark: |
-| network-interface                | :white_check_mark: |
+| nat-gateway                      |                    |
+| network-acl                      |                    |
+| network-firewall                 |                    |
+| network-firewall-policy          |                    |
+| network-firewall-resource-policy |                    |
+| network-firewall-rule-group      |                    |
+| network-firewall-tls-config      |                    |
+| network-interface                |                    |
 | oidcprovider                     | :white_check_mark: |
 | opensearchdomain                 | :white_check_mark: |
-| rds                              | :white_check_mark: |
-| rds-cluster                      | :white_check_mark: |
-| rds-global-cluster               | :white_check_mark: |
-| rds-global-cluster-membership    | :white_check_mark: |
-| rds-parameter-group              | :white_check_mark: |
-| rds-proxy                        | :white_check_mark: |
-| rds-snapshot                     | :white_check_mark: |
-| rds-subnet-group                 | :white_check_mark: |
+| rds                              |                    |
+| rds-cluster                      |                    |
+| rds-global-cluster               |                    |
+| rds-global-cluster-membership    |                    |
+| rds-parameter-group              |                    |
+| rds-proxy                        |                    |
+| rds-snapshot                     |                    |
+| rds-subnet-group                 |                    |
 | redshift                         |                    |
-| route53-cidr-collection          | :white_check_mark: |
-| route53-hosted-zone              | :white_check_mark: |
-| route53-traffic-policy           | :white_check_mark: |
-| s3                               | :white_check_mark: |
-| s3-ap                            | :white_check_mark: |
-| s3-mrap                          | :white_check_mark: |
-| s3-olap                          | :white_check_mark: |
-| sagemaker-notebook-smni          | :white_check_mark: |
-| secretsmanager                   | :white_check_mark: |
-| security-group                   | :white_check_mark: |
+| route53-cidr-collection          |                    |
+| route53-hosted-zone              |                    |
+| route53-traffic-policy           |                    |
+| s3                               |                    |
+| s3-ap                            |                    |
+| s3-mrap                          |                    |
+| s3-olap                          |                    |
+| sagemaker-notebook-smni          |                    |
+| secretsmanager                   |                    |
+| security-group                   |                    |
 | security-hub                     | :white_check_mark: |
 | ses-configuration-set            | :white_check_mark: |
 | ses-email-template               | :white_check_mark: |
@@ -116,8 +116,8 @@ run `go generate ./...` to refresh this report.
 | sqs                              | :white_check_mark: |
 | transit-gateway                  | :white_check_mark: |
 | transit-gateway-attachment       | :white_check_mark: |
-| transit-gateway-route-table      | :white_check_mark: |
-| vpc                              | :white_check_mark: |
+| transit-gateway-route-table      |                    |
+| vpc                              |                    |
 | vpc-lattice-service              | :white_check_mark: |
 | vpc-lattice-service-network      | :white_check_mark: |
 | vpc-lattice-target-group         | :white_check_mark: |

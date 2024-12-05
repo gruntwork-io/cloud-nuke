@@ -51,6 +51,7 @@ func TransformAWSError(err error) error {
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "DryRunOperation" && awsErr.Message() == AwsDryRunSuccess {
 		return nil
 	}
+	// AWS SDK V2 uses smithy.APIError for service errors, replacing V1's `awserr.Error`.
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
 		if apiErr.ErrorCode() == "DryRunOperation" && apiErr.ErrorMessage() == AwsDryRunSuccess {

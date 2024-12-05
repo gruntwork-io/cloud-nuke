@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -17,14 +17,14 @@ import (
 // - https://docs.aws.amazon.com/network-firewall/latest/developerguide/security_iam_resource-based-policy-examples.html
 // - https://docs.aws.amazon.com/network-firewall/latest/developerguide/sharing.html
 // - https://docs.aws.amazon.com/ram/latest/userguide/what-is.html
-func (nfrp *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+func (nfw *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
 
 	var resourceArns []*string
 	// list the firewall policies and rule group
 
 	{
-		policyMeta, err := nfrp.Client.ListFirewallPolicies(nfrp.Context, nil)
+		policyMeta, err := nfw.Client.ListFirewallPoliciesWithContext(nfw.Context, nil)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -32,7 +32,7 @@ func (nfrp *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj c
 		for _, policy := range policyMeta.FirewallPolicies {
 			resourceArns = append(resourceArns, policy.Arn)
 		}
-		groupMeta, err := nfrp.Client.ListRuleGroups(nfrp.Context, nil)
+		groupMeta, err := nfw.Client.ListRuleGroupsWithContext(nfw.Context, nil)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -43,7 +43,7 @@ func (nfrp *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj c
 
 	// get the resource policies attached on these arns
 	for _, arn := range resourceArns {
-		output, err := nfrp.Client.DescribeResourcePolicy(nfrp.Context, &networkfirewall.DescribeResourcePolicyInput{
+		output, err := nfw.Client.DescribeResourcePolicyWithContext(nfw.Context, &networkfirewall.DescribeResourcePolicyInput{
 			ResourceArn: arn,
 		})
 		if err != nil && util.TransformAWSError(err) != util.ErrResourceNotFoundException {
@@ -62,23 +62,23 @@ func (nfrp *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj c
 	return identifiers, nil
 }
 
-func (nfrp *NetworkFirewallResourcePolicy) nukeAll(identifiers []*string) error {
+func (nfw *NetworkFirewallResourcePolicy) nukeAll(identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Debugf("No Network Firewall resource policy to nuke in region %s", nfrp.Region)
+		logging.Debugf("No Network Firewall resource policy to nuke in region %s", nfw.Region)
 		return nil
 	}
 
-	logging.Debugf("Deleting Network firewall resource policy in region %s", nfrp.Region)
+	logging.Debugf("Deleting Network firewall resource policy in region %s", nfw.Region)
 	var deleted []*string
 
 	for _, id := range identifiers {
-		_, err := nfrp.Client.DeleteResourcePolicy(nfrp.Context, &networkfirewall.DeleteResourcePolicyInput{
+		_, err := nfw.Client.DeleteResourcePolicyWithContext(nfw.Context, &networkfirewall.DeleteResourcePolicyInput{
 			ResourceArn: id,
 		})
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   aws.ToString(id),
+			Identifier:   awsgo.StringValue(id),
 			ResourceType: "Network Firewall Resource policy",
 			Error:        err,
 		}
@@ -91,7 +91,7 @@ func (nfrp *NetworkFirewallResourcePolicy) nukeAll(identifiers []*string) error 
 		}
 	}
 
-	logging.Debugf("[OK] %d Network Resource Policy(s) deleted in %s", len(deleted), nfrp.Region)
+	logging.Debugf("[OK] %d Network Resource Policy(s) deleted in %s", len(deleted), nfw.Region)
 
 	return nil
 }

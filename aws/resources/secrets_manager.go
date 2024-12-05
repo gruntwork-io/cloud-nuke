@@ -5,9 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,26 +18,22 @@ import (
 func (sms *SecretsManagerSecrets) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allSecrets := []*string{}
 	input := &secretsmanager.ListSecretsInput{}
-
-	paginator := secretsmanager.NewListSecretsPaginator(sms.Client, input)
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(sms.Context)
-		if err != nil {
-			logging.Debugf("[SecretsManager] Failed to list secrets: %s", err)
-			return nil, errors.WithStackTrace(err)
-		}
-
-		for _, secret := range page.SecretList {
-			if shouldIncludeSecret(&secret, configObj) {
-				allSecrets = append(allSecrets, secret.ARN)
+	err := sms.Client.ListSecretsPagesWithContext(
+		sms.Context,
+		input,
+		func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
+			for _, secret := range page.SecretList {
+				if shouldIncludeSecret(secret, configObj) {
+					allSecrets = append(allSecrets, secret.ARN)
+				}
 			}
-		}
-	}
-
-	return allSecrets, nil
+			return !lastPage
+		},
+	)
+	return allSecrets, errors.WithStackTrace(err)
 }
 
-func shouldIncludeSecret(secret *types.SecretListEntry, configObj config.Config) bool {
+func shouldIncludeSecret(secret *secretsmanager.SecretListEntry, configObj config.Config) bool {
 	if secret == nil {
 		return false
 	}
@@ -93,32 +88,34 @@ func (sms *SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan e
 
 	// If this region's secret is primary, and it has replicated secrets, remove replication first.
 	// Get replications
-	secret, err := sms.Client.DescribeSecret(sms.Context, &secretsmanager.DescribeSecretInput{
+	secret, err := sms.Client.DescribeSecretWithContext(sms.Context, &secretsmanager.DescribeSecretInput{
 		SecretId: secretID,
 	})
 
 	// Delete replications
 	if len(secret.ReplicationStatus) > 0 {
-		replicationRegion := make([]string, 0)
+		replicationRegion := make([]*string, 0)
+
+		// Get replicas' region
 		for _, replicationStatus := range secret.ReplicationStatus {
-			replicationRegion = append(replicationRegion, *replicationStatus.Region)
+			replicationRegion = append(replicationRegion, replicationStatus.Region)
 		}
 
-		_, err = sms.Client.RemoveRegionsFromReplication(sms.Context, &secretsmanager.RemoveRegionsFromReplicationInput{
+		_, err = sms.Client.RemoveRegionsFromReplicationWithContext(sms.Context, &secretsmanager.RemoveRegionsFromReplicationInput{
 			SecretId:             secretID,
 			RemoveReplicaRegions: replicationRegion,
 		})
 	}
 
 	input := &secretsmanager.DeleteSecretInput{
-		ForceDeleteWithoutRecovery: true,
+		ForceDeleteWithoutRecovery: aws.Bool(true),
 		SecretId:                   secretID,
 	}
-	_, err = sms.Client.DeleteSecret(sms.Context, input)
+	_, err = sms.Client.DeleteSecretWithContext(sms.Context, input)
 
 	// Record status of this resource
 	e := report.Entry{
-		Identifier:   aws.ToString(secretID),
+		Identifier:   aws.StringValue(secretID),
 		ResourceType: "Secrets Manager Secret",
 		Error:        err,
 	}

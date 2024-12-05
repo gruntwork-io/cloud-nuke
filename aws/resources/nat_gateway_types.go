@@ -3,30 +3,25 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type NatGatewaysAPI interface {
-	DeleteNatGateway(ctx context.Context, params *ec2.DeleteNatGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNatGatewayOutput, error)
-	DescribeNatGateways(ctx context.Context, params *ec2.DescribeNatGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNatGatewaysOutput, error)
-}
-
 // NatGateways - represents all AWS secrets manager secrets that should be deleted.
 type NatGateways struct {
 	BaseAwsResource
-	Client        NatGatewaysAPI
+	Client        ec2iface.EC2API
 	Region        string
 	NatGatewayIDs []string
 }
 
-func (ngw *NatGateways) InitV2(cfg aws.Config) {
-	ngw.Client = ec2.NewFromConfig(cfg)
+func (ngw *NatGateways) Init(session *session.Session) {
+	ngw.Client = ec2.New(session)
 }
-
-func (ngw *NatGateways) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ngw *NatGateways) ResourceName() string {
@@ -55,13 +50,13 @@ func (ngw *NatGateways) GetAndSetIdentifiers(c context.Context, configObj config
 		return nil, err
 	}
 
-	ngw.NatGatewayIDs = aws.ToStringSlice(identifiers)
+	ngw.NatGatewayIDs = awsgo.StringValueSlice(identifiers)
 	return ngw.NatGatewayIDs, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ngw *NatGateways) Nuke(identifiers []string) error {
-	if err := ngw.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := ngw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

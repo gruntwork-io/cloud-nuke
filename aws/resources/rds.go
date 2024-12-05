@@ -2,11 +2,10 @@ package resources
 
 import (
 	"context"
-	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -14,8 +13,8 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (di *DBInstances) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
-	result, err := di.Client.DescribeDBInstances(ctx, &rds.DescribeDBInstancesInput{})
+func (di *DBInstances) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+	result, err := di.Client.DescribeDBInstancesWithContext(di.Context, &rds.DescribeDBInstancesInput{})
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -25,8 +24,8 @@ func (di *DBInstances) getAll(ctx context.Context, configObj config.Config) ([]*
 	for _, database := range result.DBInstances {
 		if configObj.DBInstances.ShouldInclude(config.ResourceValue{
 			Time: database.InstanceCreateTime,
-			Name: database.DBInstanceIdentifier,
-			Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
+			Name: database.DBName,
+			Tags: util.ConvertRDSTagsToMap(database.TagList),
 		}) {
 			names = append(names, database.DBInstanceIdentifier)
 		}
@@ -50,27 +49,26 @@ func (di *DBInstances) nukeAll(names []*string) error {
 			SkipFinalSnapshot:    awsgo.Bool(true),
 		}
 
-		_, err := di.Client.DeleteDBInstance(di.Context, params)
+		_, err := di.Client.DeleteDBInstanceWithContext(di.Context, params)
 
 		if err != nil {
 			logging.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Instance: %s", awsgo.ToString(name))
+			logging.Debugf("Deleted RDS DB Instance: %s", awsgo.StringValue(name))
 		}
 	}
 
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
 
-			waiter := rds.NewDBInstanceDeletedWaiter(di.Client)
-			err := waiter.Wait(di.Context, &rds.DescribeDBInstancesInput{
+			err := di.Client.WaitUntilDBInstanceDeletedWithContext(di.Context, &rds.DescribeDBInstancesInput{
 				DBInstanceIdentifier: name,
-			}, 1*time.Minute)
+			})
 
 			// Record status of this resource
 			e := report.Entry{
-				Identifier:   aws.ToString(name),
+				Identifier:   aws.StringValue(name),
 				ResourceType: "RDS Instance",
 				Error:        err,
 			}

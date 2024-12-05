@@ -2,9 +2,10 @@ package resources
 
 import (
 	"context"
-	goerr "errors"
 	"sync"
 	"time"
+
+	errs "errors"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -34,7 +35,7 @@ func (oidcprovider *OIDCProviders) getAll(c context.Context, configObj config.Co
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var providerARNs []*string
+	providerARNs := []*string{}
 	for _, provider := range output.OpenIDConnectProviderList {
 		providerARNs = append(providerARNs, provider.Arn)
 	}
@@ -43,7 +44,7 @@ func (oidcprovider *OIDCProviders) getAll(c context.Context, configObj config.Co
 		return nil, err
 	}
 
-	var providerARNsToDelete []*string
+	providerARNsToDelete := []*string{}
 	for _, provider := range providers {
 		if configObj.OIDCProvider.ShouldInclude(config.ResourceValue{
 			Name: provider.ProviderURL,
@@ -105,7 +106,7 @@ func (oidcprovider *OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup
 		// If we get a 404, meaning the OIDC Provider was deleted between retrieving it with list and detail fetching,
 		// we ignore the error and return nothing.
 		var awsErr *types.NoSuchEntityException
-		if goerr.As(err, &awsErr) {
+		if errs.As(err, &awsErr) {
 			resultChan <- nil
 			errChan <- nil
 			return

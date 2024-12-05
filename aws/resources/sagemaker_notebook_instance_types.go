@@ -3,33 +3,24 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sagemaker"
+	"github.com/aws/aws-sdk-go/service/sagemaker/sagemakeriface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-//	type SageMakerNotebookInstancesAPI interface {
-//		ListNotebookInstances(ctx context.Context, params *sagemaker.ListNotebookInstancesInput, optFns ...func(*Options)) (*ListNotebookInstancesOutput, error)
-//	}
-type SageMakerNotebookInstancesAPI interface {
-	DescribeNotebookInstance(ctx context.Context, params *sagemaker.DescribeNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeNotebookInstanceOutput, error)
-	ListNotebookInstances(ctx context.Context, params *sagemaker.ListNotebookInstancesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListNotebookInstancesOutput, error)
-	DeleteNotebookInstance(ctx context.Context, params *sagemaker.DeleteNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteNotebookInstanceOutput, error)
-	StopNotebookInstance(ctx context.Context, params *sagemaker.StopNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.StopNotebookInstanceOutput, error)
-}
 type SageMakerNotebookInstances struct {
 	BaseAwsResource
-	Client        SageMakerNotebookInstancesAPI
+	Client        sagemakeriface.SageMakerAPI
 	Region        string
 	InstanceNames []string
 }
 
-func (smni *SageMakerNotebookInstances) InitV2(cfg aws.Config) {
-	smni.Client = sagemaker.NewFromConfig(cfg)
+func (smni *SageMakerNotebookInstances) Init(session *session.Session) {
+	smni.Client = sagemaker.New(session)
 }
-
-func (smni *SageMakerNotebookInstances) IsUsingV2() bool { return true }
 
 func (smni *SageMakerNotebookInstances) ResourceName() string {
 	return "sagemaker-notebook-smni"
@@ -55,13 +46,13 @@ func (smni *SageMakerNotebookInstances) GetAndSetIdentifiers(c context.Context, 
 		return nil, err
 	}
 
-	smni.InstanceNames = aws.ToStringSlice(identifiers)
+	smni.InstanceNames = awsgo.StringValueSlice(identifiers)
 	return smni.InstanceNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (smni *SageMakerNotebookInstances) Nuke(identifiers []string) error {
-	if err := smni.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := smni.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

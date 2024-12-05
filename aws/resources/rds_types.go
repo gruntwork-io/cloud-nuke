@@ -3,28 +3,24 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/rds"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type RDSAPI interface {
-	DeleteDBInstance(ctx context.Context, params *rds.DeleteDBInstanceInput, optFns ...func(*rds.Options)) (*rds.DeleteDBInstanceOutput, error)
-	DescribeDBInstances(ctx context.Context, params *rds.DescribeDBInstancesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBInstancesOutput, error)
-}
 type DBInstances struct {
 	BaseAwsResource
-	Client        RDSAPI
+	Client        rdsiface.RDSAPI
 	Region        string
 	InstanceNames []string
 }
 
-func (di *DBInstances) InitV2(cfg aws.Config) {
-	di.Client = rds.NewFromConfig(cfg)
+func (di *DBInstances) Init(session *session.Session) {
+	di.Client = rds.New(session)
 }
-
-func (di *DBInstances) IsUsingV2() bool { return true }
 
 func (di *DBInstances) ResourceName() string {
 	return "rds"
@@ -50,13 +46,13 @@ func (di *DBInstances) GetAndSetIdentifiers(c context.Context, configObj config.
 		return nil, err
 	}
 
-	di.InstanceNames = aws.ToStringSlice(identifiers)
+	di.InstanceNames = awsgo.StringValueSlice(identifiers)
 	return di.InstanceNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (di *DBInstances) Nuke(identifiers []string) error {
-	if err := di.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := di.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

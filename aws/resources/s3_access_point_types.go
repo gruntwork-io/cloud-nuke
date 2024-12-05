@@ -3,29 +3,25 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3control"
+	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type S3ControlAccessPointAPI interface {
-	ListAccessPoints(ctx context.Context, params *s3control.ListAccessPointsInput, optFns ...func(*s3control.Options)) (*s3control.ListAccessPointsOutput, error)
-	DeleteAccessPoint(ctx context.Context, params *s3control.DeleteAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.DeleteAccessPointOutput, error)
-}
 type S3AccessPoint struct {
 	BaseAwsResource
-	Client       S3ControlAccessPointAPI
+	Client       s3controliface.S3ControlAPI
 	Region       string
 	AccessPoints []string
 	AccountID    *string
 }
 
-func (ap *S3AccessPoint) InitV2(cfg aws.Config) {
-	ap.Client = s3control.NewFromConfig(cfg)
+func (ap *S3AccessPoint) Init(session *session.Session) {
+	ap.Client = s3control.New(session)
 }
-
-func (ap *S3AccessPoint) IsUsingV2() bool { return true }
 
 func (ap *S3AccessPoint) ResourceName() string {
 	return "s3-ap"
@@ -49,12 +45,12 @@ func (ap *S3AccessPoint) GetAndSetIdentifiers(c context.Context, configObj confi
 		return nil, err
 	}
 
-	ap.AccessPoints = aws.ToStringSlice(identifiers)
+	ap.AccessPoints = awsgo.StringValueSlice(identifiers)
 	return ap.AccessPoints, nil
 }
 
 func (ap *S3AccessPoint) Nuke(identifiers []string) error {
-	if err := ap.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := ap.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

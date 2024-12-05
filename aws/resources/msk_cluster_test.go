@@ -16,18 +16,21 @@ import (
 
 type mockMSKClient struct {
 	MSKClusterAPI
-	ListClustersV2Output kafka.ListClustersV2Output
 	DeleteClusterOutput  kafka.DeleteClusterOutput
+	ListClustersV2Output kafka.ListClustersV2Output
+	deleteClusterFn      func(input *kafka.DeleteClusterInput) (*kafka.DeleteClusterOutput, error)
 }
 
-func (m mockMSKClient) ListClustersV2(ctx context.Context, params *kafka.ListClustersV2Input, optFns ...func(*kafka.Options)) (*kafka.ListClustersV2Output, error) {
+func (m *mockMSKClient) ListClustersV2(ctx context.Context, input *kafka.ListClustersV2Input, optFns ...func(*kafka.Options)) (*kafka.ListClustersV2Output, error) {
+	if m.ListClustersV2Output.ClusterInfoList == nil {
+		return nil, fmt.Errorf("Error listing MSK Clusters")
+	}
 	return &m.ListClustersV2Output, nil
 }
 
-func (m mockMSKClient) DeleteCluster(ctx context.Context, params *kafka.DeleteClusterInput, optFns ...func(*kafka.Options)) (*kafka.DeleteClusterOutput, error) {
+func (m *mockMSKClient) DeleteCluster(ctx context.Context, input *kafka.DeleteClusterInput, optFns ...func(*kafka.Options)) (*kafka.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
 }
-
 func TestListMSKClustersSingle(t *testing.T) {
 	mockMskClient := mockMSKClient{
 		ListClustersV2Output: kafka.ListClustersV2Output{
@@ -59,7 +62,6 @@ func TestListMSKClustersSingle(t *testing.T) {
 		t.Fatalf("Unexpected cluster ID: %s", *clusterIDs[0])
 	}
 }
-
 func TestListMSKClustersMultiple(t *testing.T) {
 	mockMskClient := mockMSKClient{
 		ListClustersV2Output: kafka.ListClustersV2Output{
@@ -83,7 +85,6 @@ func TestListMSKClustersMultiple(t *testing.T) {
 			},
 		},
 	}
-
 	msk := MSKCluster{
 		Client: &mockMskClient,
 	}
@@ -105,6 +106,22 @@ func TestListMSKClustersMultiple(t *testing.T) {
 	}
 }
 
+func TestGetAllMSKError(t *testing.T) {
+	mockMskClient := mockMSKClient{}
+
+	msk := MSKCluster{
+		Client: &mockMskClient,
+	}
+
+	_, err := msk.getAll(context.Background(), config.Config{})
+	if err == nil {
+		t.Fatalf("Expected error listing MSK Clusters")
+	}
+	if err.Error() != "Error listing MSK Clusters" {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
 func TestShouldIncludeMSKCluster(t *testing.T) {
 	clusterName := "test-cluster"
 	creationTime := time.Now()
@@ -117,20 +134,20 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 		"cluster is in deleting state": {
 			cluster: types.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateDeleting,
+				State:        types.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
 			configObj: config.Config{},
-			expected:  false,
+			expected:  true,
 		},
 		"cluster is in creating state": {
 			cluster: types.Cluster{
 				ClusterName:  &clusterName,
-				State:        types.ClusterStateCreating,
+				State:        types.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
 			configObj: config.Config{},
-			expected:  false,
+			expected:  true,
 		},
 		"cluster is in active state": {
 			cluster: types.Cluster{
@@ -194,7 +211,9 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 
 func TestNukeMSKCluster(t *testing.T) {
 	mockMskClient := mockMSKClient{
-		DeleteClusterOutput: kafka.DeleteClusterOutput{},
+		deleteClusterFn: func(input *kafka.DeleteClusterInput) (*kafka.DeleteClusterOutput, error) {
+			return nil, nil
+		},
 	}
 
 	msk := MSKCluster{

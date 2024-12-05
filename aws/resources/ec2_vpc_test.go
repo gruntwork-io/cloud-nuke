@@ -6,19 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
-	elbtypes "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
+	"github.com/aws/aws-sdk-go/aws"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/aws/aws-sdk-go/service/elbv2/elbv2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedEC2VPCs struct {
-	EC2VPCAPI
+	ec2iface.EC2API
 	DescribeVpcsOutput                             ec2.DescribeVpcsOutput
 	DeleteVpcOutput                                ec2.DeleteVpcOutput
 	DescribeVpcPeeringConnectionsOutput            ec2.DescribeVpcPeeringConnectionsOutput
@@ -26,34 +27,34 @@ type mockedEC2VPCs struct {
 	TerminateInstancesOutput                       ec2.TerminateInstancesOutput
 	DescribeVpcEndpointServiceConfigurationsOutput ec2.DescribeVpcEndpointServiceConfigurationsOutput
 	DeleteVpcEndpointServiceConfigurationsOutput   ec2.DeleteVpcEndpointServiceConfigurationsOutput
-	DescribeInstancesError                         error
 }
 
-func (m mockedEC2VPCs) DescribeVpcs(ctx context.Context, input *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
+func (m mockedEC2VPCs) DescribeVpcsWithContext(_ awsgo.Context, _ *ec2.DescribeVpcsInput, _ ...request.Option) (*ec2.DescribeVpcsOutput, error) {
 	return &m.DescribeVpcsOutput, nil
 }
 
-func (m mockedEC2VPCs) DeleteVpc(ctx context.Context, input *ec2.DeleteVpcInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcOutput, error) {
+func (m mockedEC2VPCs) DeleteVpc(_ *ec2.DeleteVpcInput) (*ec2.DeleteVpcOutput, error) {
 	return &m.DeleteVpcOutput, nil
 }
-
-func (m mockedEC2VPCs) DescribeVpcPeeringConnections(ctx context.Context, input *ec2.DescribeVpcPeeringConnectionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcPeeringConnectionsOutput, error) {
-	return &m.DescribeVpcPeeringConnectionsOutput, nil
+func (m mockedEC2VPCs) DescribeVpcPeeringConnectionsPages(_ *ec2.DescribeVpcPeeringConnectionsInput, callback func(*ec2.DescribeVpcPeeringConnectionsOutput, bool) bool) error {
+	callback(&m.DescribeVpcPeeringConnectionsOutput, true)
+	return nil
+}
+func (m mockedEC2VPCs) DescribeInstances(_ *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
+	return &m.DescribeInstancesOutput, nil
 }
 
-func (m mockedEC2VPCs) DescribeInstances(ctx context.Context, input *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
-	return &m.DescribeInstancesOutput, m.DescribeInstancesError
-}
-
-func (m mockedEC2VPCs) TerminateInstances(ctx context.Context, input *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error) {
+func (m mockedEC2VPCs) TerminateInstances(_ *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
 	return &m.TerminateInstancesOutput, nil
 }
-
-func (m mockedEC2VPCs) DescribeVpcEndpointServiceConfigurations(ctx context.Context, input *ec2.DescribeVpcEndpointServiceConfigurationsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointServiceConfigurationsOutput, error) {
-	return &m.DescribeVpcEndpointServiceConfigurationsOutput, nil
+func (m mockedEC2VPCs) WaitUntilInstanceTerminated(_ *ec2.DescribeInstancesInput) error {
+	return nil
 }
 
-func (m mockedEC2VPCs) DeleteVpcEndpointServiceConfigurations(ctx context.Context, input *ec2.DeleteVpcEndpointServiceConfigurationsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcEndpointServiceConfigurationsOutput, error) {
+func (m mockedEC2VPCs) DescribeVpcEndpointServiceConfigurations(_ *ec2.DescribeVpcEndpointServiceConfigurationsInput) (*ec2.DescribeVpcEndpointServiceConfigurationsOutput, error) {
+	return &m.DescribeVpcEndpointServiceConfigurationsOutput, nil
+}
+func (m mockedEC2VPCs) DeleteVpcEndpointServiceConfigurations(_ *ec2.DeleteVpcEndpointServiceConfigurationsInput) (*ec2.DeleteVpcEndpointServiceConfigurationsOutput, error) {
 	return &m.DeleteVpcEndpointServiceConfigurationsOutput, nil
 }
 func TestEC2VPC_GetAll(t *testing.T) {
@@ -71,10 +72,10 @@ func TestEC2VPC_GetAll(t *testing.T) {
 	vpc := EC2VPCs{
 		Client: mockedEC2VPCs{
 			DescribeVpcsOutput: ec2.DescribeVpcsOutput{
-				Vpcs: []types.Vpc{
+				Vpcs: []*ec2.Vpc{
 					{
 						VpcId: awsgo.String(testId1),
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName1),
@@ -87,7 +88,7 @@ func TestEC2VPC_GetAll(t *testing.T) {
 					},
 					{
 						VpcId: awsgo.String(testId2),
-						Tags: []types.Tag{
+						Tags: []*ec2.Tag{
 							{
 								Key:   awsgo.String("Name"),
 								Value: awsgo.String(testName2),
@@ -143,7 +144,7 @@ func TestEC2VPC_GetAll(t *testing.T) {
 				VPC: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
+			require.Equal(t, tc.expected, awsgo.StringValueSlice(names))
 		})
 	}
 }
@@ -176,7 +177,7 @@ func TestEC2VPCPeeringConnections_NukeAll(t *testing.T) {
 }
 
 type mockedEC2ELB struct {
-	ELBClientAPI
+	elbv2iface.ELBV2API
 	DescribeLoadBalancersOutput elbv2.DescribeLoadBalancersOutput
 	DeleteLoadBalancerOutput    elbv2.DeleteLoadBalancerOutput
 
@@ -184,19 +185,17 @@ type mockedEC2ELB struct {
 	DeleteTargetGroupOutput    elbv2.DeleteTargetGroupOutput
 }
 
-func (m mockedEC2ELB) DescribeLoadBalancers(ctx context.Context, input *elbv2.DescribeLoadBalancersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancersOutput, error) {
+func (m mockedEC2ELB) DescribeLoadBalancers(*elbv2.DescribeLoadBalancersInput) (*elbv2.DescribeLoadBalancersOutput, error) {
 	return &m.DescribeLoadBalancersOutput, nil
 }
-
-func (m mockedEC2ELB) DescribeTargetGroups(ctx context.Context, input *elbv2.DescribeTargetGroupsInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupsOutput, error) {
+func (m mockedEC2ELB) DescribeTargetGroups(*elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error) {
 	return &m.DescribeTargetGroupsOutput, nil
 }
 
-func (m mockedEC2ELB) DeleteLoadBalancer(ctx context.Context, input *elbv2.DeleteLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteLoadBalancerOutput, error) {
+func (m mockedEC2ELB) DeleteLoadBalancer(*elbv2.DeleteLoadBalancerInput) (*elbv2.DeleteLoadBalancerOutput, error) {
 	return &m.DeleteLoadBalancerOutput, nil
 }
-
-func (m mockedEC2ELB) DeleteTargetGroup(ctx context.Context, input *elbv2.DeleteTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteTargetGroupOutput, error) {
+func (m mockedEC2ELB) DeleteTargetGroup(*elbv2.DeleteTargetGroupInput) (*elbv2.DeleteTargetGroupOutput, error) {
 	return &m.DeleteTargetGroupOutput, nil
 }
 
@@ -207,17 +206,18 @@ func TestAttachedLB_Nuke(t *testing.T) {
 	vpc := EC2VPCs{
 		Client: mockedEC2VPCs{
 			DescribeVpcEndpointServiceConfigurationsOutput: ec2.DescribeVpcEndpointServiceConfigurationsOutput{
-				ServiceConfigurations: []types.ServiceConfiguration{
+				ServiceConfigurations: []*ec2.ServiceConfiguration{
 					{
-						ServiceId:               aws.String("load-balancer-arn-service-id-00012"),
-						GatewayLoadBalancerArns: []string{"load-balancer-arn-00012"},
+						GatewayLoadBalancerArns: awsgo.StringSlice([]string{
+							"load-balancer-arn-00012",
+						}),
 					},
 				},
 			},
 		},
 		ELBClient: mockedEC2ELB{
 			DescribeLoadBalancersOutput: elbv2.DescribeLoadBalancersOutput{
-				LoadBalancers: []elbtypes.LoadBalancer{
+				LoadBalancers: []*elbv2.LoadBalancer{
 					{
 						VpcId:           awsgo.String(vpcID),
 						LoadBalancerArn: awsgo.String("load-balancer-arn-00012"),
@@ -227,7 +227,6 @@ func TestAttachedLB_Nuke(t *testing.T) {
 		},
 	}
 
-	vpc.Context = context.Background()
 	err := nukeAttachedLB(vpc.Client, vpc.ELBClient, vpcID)
 	require.NoError(t, err)
 }
@@ -239,7 +238,7 @@ func TestTargetGroup_Nuke(t *testing.T) {
 	vpc := EC2VPCs{
 		ELBClient: mockedEC2ELB{
 			DescribeTargetGroupsOutput: elbv2.DescribeTargetGroupsOutput{
-				TargetGroups: []elbtypes.TargetGroup{
+				TargetGroups: []*elbv2.TargetGroup{
 					{
 						VpcId:          awsgo.String(vpcID),
 						TargetGroupArn: awsgo.String("arn:aws:elasticloadbalancing:us-east-1:tg-001"),
@@ -250,5 +249,29 @@ func TestTargetGroup_Nuke(t *testing.T) {
 	}
 
 	err := nukeTargetGroups(vpc.ELBClient, vpcID)
+	require.NoError(t, err)
+}
+
+func TestEc2Instance_Nuke(t *testing.T) {
+	t.Parallel()
+	vpcID := "vpc-0e9a3e7c72d9f3a0f"
+
+	vpc := EC2VPCs{
+		Client: mockedEC2VPCs{
+			DescribeInstancesOutput: ec2.DescribeInstancesOutput{
+				Reservations: []*ec2.Reservation{
+					{
+						Instances: []*ec2.Instance{
+							{
+								InstanceId: awsgo.String("instance-001"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := nukeEc2Instances(vpc.Client, vpcID)
 	require.NoError(t, err)
 }

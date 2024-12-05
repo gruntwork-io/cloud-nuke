@@ -3,29 +3,25 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3control"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3control"
+	"github.com/aws/aws-sdk-go/service/s3control/s3controliface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type S3ControlAPI interface {
-	ListAccessPointsForObjectLambda(context.Context, *s3control.ListAccessPointsForObjectLambdaInput, ...func(*s3control.Options)) (*s3control.ListAccessPointsForObjectLambdaOutput, error)
-	DeleteAccessPointForObjectLambda(context.Context, *s3control.DeleteAccessPointForObjectLambdaInput, ...func(*s3control.Options)) (*s3control.DeleteAccessPointForObjectLambdaOutput, error)
-}
 type S3ObjectLambdaAccessPoint struct {
 	BaseAwsResource
-	Client       S3ControlAPI
+	Client       s3controliface.S3ControlAPI
 	Region       string
 	AccessPoints []string
 	AccountID    *string
 }
 
-func (ap *S3ObjectLambdaAccessPoint) InitV2(cfg aws.Config) {
-	ap.Client = s3control.NewFromConfig(cfg)
+func (ap *S3ObjectLambdaAccessPoint) Init(session *session.Session) {
+	ap.Client = s3control.New(session)
 }
-
-func (ap *S3ObjectLambdaAccessPoint) IsUsingV2() bool { return true }
 
 func (ap *S3ObjectLambdaAccessPoint) ResourceName() string {
 	return "s3-olap"
@@ -49,12 +45,12 @@ func (ap *S3ObjectLambdaAccessPoint) GetAndSetIdentifiers(c context.Context, con
 		return nil, err
 	}
 
-	ap.AccessPoints = aws.ToStringSlice(identifiers)
+	ap.AccessPoints = awsgo.StringValueSlice(identifiers)
 	return ap.AccessPoints, nil
 }
 
 func (ap *S3ObjectLambdaAccessPoint) Nuke(identifiers []string) error {
-	if err := ap.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := ap.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

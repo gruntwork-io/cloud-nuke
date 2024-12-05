@@ -7,23 +7,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/networkfirewall"
+	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
+
+	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedNetworkFirewallTLSConfig struct {
-	NetworkFirewallTLSConfigAPI
-	ListTLSInspectionConfigurationsOutput    networkfirewall.ListTLSInspectionConfigurationsOutput
+	networkfirewalliface.NetworkFirewallAPI
 	DescribeTLSInspectionConfigurationOutput map[string]networkfirewall.DescribeTLSInspectionConfigurationOutput
+	TagResourceOutput                        networkfirewall.TagResourceOutput
 	DeleteTLSInspectionConfigurationOutput   networkfirewall.DeleteTLSInspectionConfigurationOutput
+	ListTLSInspectionConfigurationsOutput    networkfirewall.ListTLSInspectionConfigurationsOutput
 }
 
-func (m mockedNetworkFirewallTLSConfig) DescribeTLSInspectionConfiguration(ctx context.Context, params *networkfirewall.DescribeTLSInspectionConfigurationInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeTLSInspectionConfigurationOutput, error) {
-	raw := aws.ToString(params.TLSInspectionConfigurationArn)
+func (m mockedNetworkFirewallTLSConfig) TagResource(*networkfirewall.TagResourceInput) (*networkfirewall.TagResourceOutput, error) {
+	return &m.TagResourceOutput, nil
+}
+
+func (m mockedNetworkFirewallTLSConfig) DescribeTLSInspectionConfigurationWithContext(_ aws.Context, req *networkfirewall.DescribeTLSInspectionConfigurationInput, _ ...request.Option) (*networkfirewall.DescribeTLSInspectionConfigurationOutput, error) {
+	raw := awsgo.StringValue(req.TLSInspectionConfigurationArn)
 	v, ok := m.DescribeTLSInspectionConfigurationOutput[raw]
 	if !ok {
 		return nil, fmt.Errorf("unable to describe the %s", raw)
@@ -31,11 +39,11 @@ func (m mockedNetworkFirewallTLSConfig) DescribeTLSInspectionConfiguration(ctx c
 	return &v, nil
 }
 
-func (m mockedNetworkFirewallTLSConfig) DeleteTLSInspectionConfiguration(ctx context.Context, params *networkfirewall.DeleteTLSInspectionConfigurationInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteTLSInspectionConfigurationOutput, error) {
+func (m mockedNetworkFirewallTLSConfig) DeleteTLSInspectionConfigurationWithContext(aws.Context, *networkfirewall.DeleteTLSInspectionConfigurationInput, ...request.Option) (*networkfirewall.DeleteTLSInspectionConfigurationOutput, error) {
 	return &m.DeleteTLSInspectionConfigurationOutput, nil
 }
 
-func (m mockedNetworkFirewallTLSConfig) ListTLSInspectionConfigurations(ctx context.Context, params *networkfirewall.ListTLSInspectionConfigurationsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListTLSInspectionConfigurationsOutput, error) {
+func (m mockedNetworkFirewallTLSConfig) ListTLSInspectionConfigurationsWithContext(aws.Context, *networkfirewall.ListTLSInspectionConfigurationsInput, ...request.Option) (*networkfirewall.ListTLSInspectionConfigurationsOutput, error) {
 	return &m.ListTLSInspectionConfigurationsOutput, nil
 }
 
@@ -55,42 +63,42 @@ func TestNetworkFirewallTLSConfig_GetAll(t *testing.T) {
 	nfw := NetworkFirewallTLSConfig{
 		Client: mockedNetworkFirewallTLSConfig{
 			ListTLSInspectionConfigurationsOutput: networkfirewall.ListTLSInspectionConfigurationsOutput{
-				TLSInspectionConfigurations: []types.TLSInspectionConfigurationMetadata{
+				TLSInspectionConfigurations: []*networkfirewall.TLSInspectionConfigurationMetadata{
 					{
-						Arn:  aws.String(testId1),
-						Name: aws.String(testName1),
+						Arn:  awsgo.String(testId1),
+						Name: awsgo.String(testName1),
 					},
 					{
-						Arn:  aws.String(testId2),
-						Name: aws.String(testName2),
+						Arn:  awsgo.String(testId2),
+						Name: awsgo.String(testName2),
 					},
 				},
 			},
 			DescribeTLSInspectionConfigurationOutput: map[string]networkfirewall.DescribeTLSInspectionConfigurationOutput{
 				testId1: {
-					TLSInspectionConfigurationResponse: &types.TLSInspectionConfigurationResponse{
-						TLSInspectionConfigurationName: aws.String(testName1),
-						Tags: []types.Tag{
+					TLSInspectionConfigurationResponse: &networkfirewall.TLSInspectionConfigurationResponse{
+						TLSInspectionConfigurationName: awsgo.String(testName1),
+						Tags: []*networkfirewall.Tag{
 							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName1),
 							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now)),
+								Key:   awsgo.String(util.FirstSeenTagKey),
+								Value: awsgo.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 				},
 				testId2: {
-					TLSInspectionConfigurationResponse: &types.TLSInspectionConfigurationResponse{
-						TLSInspectionConfigurationName: aws.String(testName2),
-						Tags: []types.Tag{
+					TLSInspectionConfigurationResponse: &networkfirewall.TLSInspectionConfigurationResponse{
+						TLSInspectionConfigurationName: awsgo.String(testName2),
+						Tags: []*networkfirewall.Tag{
 							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName2),
 							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
+								Key:   awsgo.String(util.FirstSeenTagKey),
+								Value: awsgo.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
 							},
 						},
 					},
@@ -121,7 +129,7 @@ func TestNetworkFirewallTLSConfig_GetAll(t *testing.T) {
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
+					TimeAfter: awsgo.Time(now),
 				}},
 			expected: []string{testName1},
 		},
@@ -132,7 +140,7 @@ func TestNetworkFirewallTLSConfig_GetAll(t *testing.T) {
 				NetworkFirewallTLSConfig: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.StringValueSlice(names))
 		})
 	}
 }

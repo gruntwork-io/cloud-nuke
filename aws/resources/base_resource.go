@@ -12,11 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
-const maxRetries = 3
-const maxStopRetries = 3
-const waitDuration = 5 * time.Second
-const stopWaitDuration = 5 * time.Second
-
 // BaseAwsResource struct and its associated methods to serve as a placeholder or template for a resource that is not
 // yet fully implemented within a system or framework. Its purpose is to provide a skeleton structure that adheres to a
 // specific interface or contract expected by the system without containing the actual implementation details.

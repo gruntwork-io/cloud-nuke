@@ -3,36 +3,27 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/route53"
-	"github.com/aws/aws-sdk-go-v2/service/route53/types"
+	awsgo "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type Route53HostedZoneAPI interface {
-	ListHostedZones(ctx context.Context, params *route53.ListHostedZonesInput, optFns ...func(*route53.Options)) (*route53.ListHostedZonesOutput, error)
-	DeleteTrafficPolicyInstance(ctx context.Context, params *route53.DeleteTrafficPolicyInstanceInput, optFns ...func(*route53.Options)) (*route53.DeleteTrafficPolicyInstanceOutput, error)
-	DeleteHostedZone(ctx context.Context, params *route53.DeleteHostedZoneInput, optFns ...func(*route53.Options)) (*route53.DeleteHostedZoneOutput, error)
-	ListResourceRecordSets(ctx context.Context, params *route53.ListResourceRecordSetsInput, optFns ...func(*route53.Options)) (*route53.ListResourceRecordSetsOutput, error)
-	ChangeResourceRecordSets(ctx context.Context, params *route53.ChangeResourceRecordSetsInput, optFns ...func(*route53.Options)) (*route53.ChangeResourceRecordSetsOutput, error)
-}
-
 // Route53HostedZone - represents all Route53HostedZone
 type Route53HostedZone struct {
 	BaseAwsResource
-	Client             Route53HostedZoneAPI
+	Client             route53iface.Route53API
 	Region             string
 	Ids                []string
-	HostedZonesDomains map[string]*types.HostedZone
+	HostedZonesDomains map[string]*route53.HostedZone
 }
 
-func (r *Route53HostedZone) InitV2(cfg aws.Config) {
-	r.Client = route53.NewFromConfig(cfg)
-	r.HostedZonesDomains = make(map[string]*types.HostedZone)
+func (r *Route53HostedZone) Init(session *session.Session) {
+	r.Client = route53.New(session)
+	r.HostedZonesDomains = make(map[string]*route53.HostedZone, 0)
 }
-
-func (r *Route53HostedZone) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (r *Route53HostedZone) ResourceName() string {
@@ -59,13 +50,13 @@ func (r *Route53HostedZone) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	r.Ids = aws.ToStringSlice(identifiers)
+	r.Ids = awsgo.StringValueSlice(identifiers)
 	return r.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (r *Route53HostedZone) Nuke(identifiers []string) error {
-	if err := r.nukeAll(aws.StringSlice(identifiers)); err != nil {
+	if err := r.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

@@ -45,7 +45,7 @@ func (m *MSKCluster) MaxBatchSize() int {
 	return 10
 }
 
-func (m *MSKCluster) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
+func (mm *MSKCluster) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
 	return configObj.MSKCluster
 }
 

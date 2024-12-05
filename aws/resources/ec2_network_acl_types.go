@@ -3,30 +3,25 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-type NetworkACLAPI interface {
-	DescribeNetworkAcls(ctx context.Context, params *ec2.DescribeNetworkAclsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkAclsOutput, error)
-	DeleteNetworkAcl(ctx context.Context, params *ec2.DeleteNetworkAclInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkAclOutput, error)
-	ReplaceNetworkAclAssociation(ctx context.Context, params *ec2.ReplaceNetworkAclAssociationInput, optFns ...func(*ec2.Options)) (*ec2.ReplaceNetworkAclAssociationOutput, error) // Add this line
-}
-
 type NetworkACL struct {
 	BaseAwsResource
-	Client NetworkACLAPI
+	Client ec2iface.EC2API
 	Region string
 	Ids    []string
 }
 
-func (nacl *NetworkACL) InitV2(cfg aws.Config) {
-	nacl.Client = ec2.NewFromConfig(cfg)
+func (nacl *NetworkACL) Init(session *session.Session) {
+	nacl.BaseAwsResource.Init(session)
+	nacl.Client = ec2.New(session)
 }
-
-func (nacl *NetworkACL) IsUsingV2() bool { return true }
 
 func (nacl *NetworkACL) ResourceName() string {
 	return "network-acl"
@@ -50,7 +45,7 @@ func (nacl *NetworkACL) GetAndSetIdentifiers(c context.Context, configObj config
 		return nil, err
 	}
 
-	nacl.Ids = aws.ToStringSlice(identifiers)
+	nacl.Ids = aws.StringValueSlice(identifiers)
 	return nacl.Ids, nil
 }
 
