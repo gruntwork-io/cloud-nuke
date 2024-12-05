@@ -3,8 +3,8 @@ package resources
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -13,19 +13,20 @@ import (
 
 func (tgpa *TransitGatewayPeeringAttachment) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
-	err := tgpa.Client.DescribeTransitGatewayPeeringAttachmentsPagesWithContext(tgpa.Context, &ec2.DescribeTransitGatewayPeeringAttachmentsInput{}, func(result *ec2.DescribeTransitGatewayPeeringAttachmentsOutput, lastPage bool) bool {
-		for _, attachment := range result.TransitGatewayPeeringAttachments {
+	paginator := ec2.NewDescribeTransitGatewayPeeringAttachmentsPaginator(tgpa.Client, &ec2.DescribeTransitGatewayPeeringAttachmentsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(c)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, attachment := range page.TransitGatewayPeeringAttachments {
 			if configObj.TransitGatewayPeeringAttachment.ShouldInclude(config.ResourceValue{
 				Time: attachment.CreationTime,
 			}) {
 				ids = append(ids, attachment.TransitGatewayAttachmentId)
 			}
 		}
-
-		return !lastPage
-	})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
 	}
 
 	return ids, nil
@@ -33,12 +34,12 @@ func (tgpa *TransitGatewayPeeringAttachment) getAll(c context.Context, configObj
 
 func (tgpa *TransitGatewayPeeringAttachment) nukeAll(ids []*string) error {
 	for _, id := range ids {
-		_, err := tgpa.Client.DeleteTransitGatewayPeeringAttachmentWithContext(tgpa.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
+		_, err := tgpa.Client.DeleteTransitGatewayPeeringAttachment(tgpa.Context, &ec2.DeleteTransitGatewayPeeringAttachmentInput{
 			TransitGatewayAttachmentId: id,
 		})
 		// Record status of this resource
 		report.Record(report.Entry{
-			Identifier:   aws.StringValue(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: tgpa.ResourceName(),
 			Error:        err,
 		})

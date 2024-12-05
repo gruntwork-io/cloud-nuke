@@ -116,7 +116,7 @@ run `go generate ./...` to refresh this report.
 | sqs                                | :white_check_mark: |
 | transit-gateway                    | :white_check_mark: |
 | transit-gateway-attachment         | :white_check_mark: |
-| transit-gateway-peering-attachment |                    |
+| transit-gateway-peering-attachment | :white_check_mark: |
 | transit-gateway-route-table        | :white_check_mark: |
 | vpc                                | :white_check_mark: |
 | vpc-lattice-service                | :white_check_mark: |
