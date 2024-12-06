@@ -3,25 +3,30 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type TransitGatewayPeeringAttachmentAPI interface {
+	DescribeTransitGatewayPeeringAttachments(ctx context.Context, params *ec2.DescribeTransitGatewayPeeringAttachmentsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayPeeringAttachmentsOutput, error)
+	DeleteTransitGatewayPeeringAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayPeeringAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error)
+}
+
 // TransitGatewayPeeringAttachment - represents all transit gateways peering attachment
 type TransitGatewayPeeringAttachment struct {
 	BaseAwsResource
-	Client ec2iface.EC2API
+	Client TransitGatewayPeeringAttachmentAPI
 	Region string
 	Ids    []string
 }
 
-func (tgpa *TransitGatewayPeeringAttachment) Init(session *session.Session) {
-	tgpa.Client = ec2.New(session)
+func (tgpa *TransitGatewayPeeringAttachment) InitV2(cfg aws.Config) {
+	tgpa.Client = ec2.NewFromConfig(cfg)
 }
+
+func (tgpa *TransitGatewayPeeringAttachment) IsUsingV2() bool { return true }
 
 func (tgpa *TransitGatewayPeeringAttachment) ResourceName() string {
 	return "transit-gateway-peering-attachment"
@@ -36,7 +41,7 @@ func (tgpa *TransitGatewayPeeringAttachment) ResourceIdentifiers() []string {
 }
 
 func (tgpa *TransitGatewayPeeringAttachment) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
-	return configObj.TransitGateway
+	return configObj.TransitGatewayPeeringAttachment
 }
 
 func (tgpa *TransitGatewayPeeringAttachment) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {
@@ -45,12 +50,12 @@ func (tgpa *TransitGatewayPeeringAttachment) GetAndSetIdentifiers(c context.Cont
 		return nil, err
 	}
 
-	tgpa.Ids = awsgo.StringValueSlice(identifiers)
+	tgpa.Ids = aws.ToStringSlice(identifiers)
 	return tgpa.Ids, nil
 }
 
 func (tgpa *TransitGatewayPeeringAttachment) Nuke(identifiers []string) error {
-	if err := tgpa.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := tgpa.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

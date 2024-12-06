@@ -5,32 +5,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedTransitGatewayPeeringAttachment struct {
-	ec2iface.EC2API
+	TransitGatewayPeeringAttachmentAPI
 	DescribeTransitGatewayPeeringAttachmentsOutput ec2.DescribeTransitGatewayPeeringAttachmentsOutput
 	DeleteTransitGatewayPeeringAttachmentOutput    ec2.DeleteTransitGatewayPeeringAttachmentOutput
 }
 
-func (m mockedTransitGatewayPeeringAttachment) DescribeTransitGatewayPeeringAttachmentsPagesWithContext(_ awsgo.Context, _ *ec2.DescribeTransitGatewayPeeringAttachmentsInput, fn func(*ec2.DescribeTransitGatewayPeeringAttachmentsOutput, bool) bool, _ ...request.Option) error {
-	fn(&m.DescribeTransitGatewayPeeringAttachmentsOutput, true)
-	return nil
+func (m mockedTransitGatewayPeeringAttachment) DescribeTransitGatewayPeeringAttachments(_ context.Context, _ *ec2.DescribeTransitGatewayPeeringAttachmentsInput, _ ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayPeeringAttachmentsOutput, error) {
+	return &m.DescribeTransitGatewayPeeringAttachmentsOutput, nil
 }
 
-func (m mockedTransitGatewayPeeringAttachment) DeleteTransitGatewayPeeringAttachmentWithContext(_ awsgo.Context, _ *ec2.DeleteTransitGatewayPeeringAttachmentInput, _ ...request.Option) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
+func (m mockedTransitGatewayPeeringAttachment) DeleteTransitGatewayPeeringAttachment(_ context.Context, _ *ec2.DeleteTransitGatewayPeeringAttachmentInput, _ ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayPeeringAttachmentOutput, error) {
 	return &m.DeleteTransitGatewayPeeringAttachmentOutput, nil
 }
 
 func TestTransitGatewayPeeringAttachment_getAll(t *testing.T) {
-
 	t.Parallel()
 
 	now := time.Now()
@@ -39,7 +35,7 @@ func TestTransitGatewayPeeringAttachment_getAll(t *testing.T) {
 	tgpa := TransitGatewayPeeringAttachment{
 		Client: mockedTransitGatewayPeeringAttachment{
 			DescribeTransitGatewayPeeringAttachmentsOutput: ec2.DescribeTransitGatewayPeeringAttachmentsOutput{
-				TransitGatewayPeeringAttachments: []*ec2.TransitGatewayPeeringAttachment{
+				TransitGatewayPeeringAttachments: []types.TransitGatewayPeeringAttachment{
 					{
 						TransitGatewayAttachmentId: aws.String(attachment1),
 						CreationTime:               aws.Time(now),
@@ -75,7 +71,7 @@ func TestTransitGatewayPeeringAttachment_getAll(t *testing.T) {
 				TransitGatewayPeeringAttachment: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
