@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,7 +89,7 @@ func Test_EventBridge_GetAll(t *testing.T) {
 				config.Config{EventBridge: tc.configObj},
 			)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(buses))
+			require.Equal(t, tc.expected, aws.ToStringSlice(buses))
 		})
 	}
 }

@@ -4,12 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	awsgoV2 "github.com/aws/aws-sdk-go-v2/aws"
-	awsgoV2cfg "github.com/aws/aws-sdk-go-v2/config"
-	awsgoV2cred "github.com/aws/aws-sdk-go-v2/credentials"
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/go-commons/collections"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -52,7 +48,7 @@ const (
 	DefaultRegion string = "us-east-1"
 )
 
-func NewSession(region string) *session.Session {
+func NewSession(region string) (aws.Config, error) {
 	// Note: As there is no actual region named `global` we have to pick one valid region and create the session.
 	if region == GlobalRegion {
 		return externalcreds.Get(DefaultRegion)
@@ -65,8 +61,13 @@ func NewSession(region string) *session.Session {
 func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
 	regionsToTry := append(OptInNotRequiredRegions, GovCloudRegions...)
 	for _, region := range regionsToTry {
-		svc := ec2.New(NewSession(region))
-		regions, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
+		sessionCnf, err := NewSession(region)
+		if err != nil {
+			continue
+		}
+
+		svc := ec2.NewFromConfig(sessionCnf)
+		regions, err := svc.DescribeRegions(context.Background(), &ec2.DescribeRegionsInput{})
 		if err != nil {
 			continue
 		}
@@ -91,7 +92,7 @@ func GetEnabledRegions() ([]string, error) {
 	}
 
 	for _, region := range regions.Regions {
-		regionNames = append(regionNames, awsgo.StringValue(region.RegionName))
+		regionNames = append(regionNames, aws.ToString(region.RegionName))
 	}
 
 	return regionNames, nil
@@ -152,26 +153,4 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 		return nil, fmt.Errorf("Cannot exclude all regions: %s", excludedRegions)
 	}
 	return targetRegions, nil
-}
-
-func Session2cfg(ctx context.Context, session *session.Session) (awsgoV2.Config, error) {
-	cfgV1 := session.Config
-	cred, err := cfgV1.Credentials.Get()
-	if err != nil {
-		return awsgoV2.Config{}, errors.WithStackTrace(err)
-	}
-
-	cfgV2, err := awsgoV2cfg.LoadDefaultConfig(ctx,
-		awsgoV2cfg.WithRegion(*cfgV1.Region),
-		awsgoV2cfg.WithCredentialsProvider(awsgoV2cred.NewStaticCredentialsProvider(
-			cred.AccessKeyID,
-			cred.SecretAccessKey,
-			cred.SessionToken,
-		)),
-	)
-	if err != nil {
-		return awsgoV2.Config{}, errors.WithStackTrace(err)
-	}
-
-	return cfgV2, nil
 }

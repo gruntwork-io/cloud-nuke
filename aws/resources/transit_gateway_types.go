@@ -5,7 +5,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -53,13 +52,13 @@ func (tgw *TransitGateways) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	tgw.Ids = awsgo.StringValueSlice(identifiers)
+	tgw.Ids = aws.ToStringSlice(identifiers)
 	return tgw.Ids, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (tgw *TransitGateways) Nuke(identifiers []string) error {
-	if err := tgw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := tgw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
