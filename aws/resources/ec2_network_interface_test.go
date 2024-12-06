@@ -96,7 +96,6 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 			},
 		},
 	}
-	resourceObject.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		ctx       context.Context

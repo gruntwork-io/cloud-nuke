@@ -4,15 +4,13 @@ import (
 	"context"
 	"strings"
 
-	awsgoV2 "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
 // AwsResource is an interface that represents a single AWS resource
 type AwsResource interface {
-	Init(session *session.Session)
-	InitV2(cfg awsgoV2.Config)
+	InitV2(cfg aws.Config)
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
@@ -72,7 +72,6 @@ func TestTransitGateways_GetAll(t *testing.T) {
 			},
 		},
 	}
-	tgw.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -96,7 +95,7 @@ func TestTransitGateways_GetAll(t *testing.T) {
 				TransitGateway: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.StringValueSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
