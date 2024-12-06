@@ -1,11 +1,10 @@
 package aws
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 )
@@ -22,7 +21,7 @@ func GetAllRegisteredResources() []*AwsResource {
 }
 
 // GetAndInitRegisteredResources - returns a list of all registered resources with initialization.
-func GetAndInitRegisteredResources(session *session.Session, region string) []*AwsResource {
+func GetAndInitRegisteredResources(session aws.Config, region string) []*AwsResource {
 	var registeredResources []AwsResource
 	if region == Global {
 		registeredResources = getRegisteredGlobalResources()
@@ -174,30 +173,13 @@ func toAwsResourcesPointer(resources []AwsResource) []*AwsResource {
 	return awsResourcePointers
 }
 
-func initRegisteredResources(resources []*AwsResource, session *session.Session, region string) []*AwsResource {
+func initRegisteredResources(resources []*AwsResource, session aws.Config, region string) []*AwsResource {
 	for _, resource := range resources {
-		if (*resource).IsUsingV2() {
-			v2Config, err := Session2cfg(context.Background(), session)
-			if err != nil {
-				logging.Debug(fmt.Sprintf(
-					"[aws sdk cfg] failed to convert v1 session into aws v2 config for resource %s: %v",
-					(*resource).ResourceName(),
-					err,
-				))
-			}
-
-			logging.Debug(fmt.Sprintf(
-				"[aws sdk cfg] using aws sdk v2 for resource %s",
-				(*resource).ResourceName(),
-			))
-			(*resource).InitV2(v2Config)
-		} else {
-			logging.Debug(fmt.Sprintf(
-				"[aws sdk cfg] using deprecated aws sdk v1 for resource %s",
-				(*resource).ResourceName(),
-			))
-			(*resource).Init(session)
-		}
+		logging.Debug(fmt.Sprintf(
+			"[aws sdk cfg] using aws sdk v2 for resource %s",
+			(*resource).ResourceName(),
+		))
+		(*resource).InitV2(session)
 
 		// Note: only regional resources have the field `Region`, which is used for logging purposes only
 		setRegionForRegionalResource(resource, region)

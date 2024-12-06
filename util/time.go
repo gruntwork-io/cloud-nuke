@@ -5,17 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2v2 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	nwfwall "github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	nwfTypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
-	"github.com/aws/aws-sdk-go/aws"
-	awsgo "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/networkfirewall"
-	"github.com/aws/aws-sdk-go/service/networkfirewall/networkfirewalliface"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -34,14 +30,14 @@ const (
 )
 
 func IsFirstSeenTag(key *string) bool {
-	return aws.StringValue(key) == FirstSeenTagKey
+	return aws.ToString(key) == FirstSeenTagKey
 }
 
 func ParseTimestamp(timestamp *string) (*time.Time, error) {
-	parsed, err := time.Parse(firstSeenTimeFormat, aws.StringValue(timestamp))
+	parsed, err := time.Parse(firstSeenTimeFormat, aws.ToString(timestamp))
 	if err != nil {
 		logging.Debugf("Error parsing the timestamp into a `RFC3339` Time format. Trying parsing the timestamp using the legacy `time.DateTime` format.")
-		parsed, err = time.Parse(firstSeenTimeFormatLegacy, aws.StringValue(timestamp))
+		parsed, err = time.Parse(firstSeenTimeFormatLegacy, aws.ToString(timestamp))
 		if err != nil {
 			logging.Debugf("Error parsing the timestamp into legacy `time.DateTime` Time format")
 			return nil, errors.WithStackTrace(err)
@@ -71,8 +67,8 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 
 	// check the first seen already exists in the given map
 	for key, value := range tags {
-		if IsFirstSeenTag(awsgo.String(key)) {
-			firstSeenTime, err = ParseTimestamp(awsgo.String(value))
+		if IsFirstSeenTag(aws.String(key)) {
+			firstSeenTime, err = ParseTimestamp(aws.String(value))
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
@@ -89,18 +85,8 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 				Resources: []*string{identifier},
 				Tags: []*ec2.Tag{
 					{
-						Key:   awsgo.String(FirstSeenTagKey),
-						Value: awsgo.String(FormatTimestamp(now)),
-					},
-				},
-			})
-		case networkfirewalliface.NetworkFirewallAPI:
-			_, err = v.TagResource(&networkfirewall.TagResourceInput{
-				ResourceArn: identifier,
-				Tags: []*networkfirewall.Tag{
-					{
-						Key:   awsgo.String(FirstSeenTagKey),
-						Value: awsgo.String(FormatTimestamp(now)),
+						Key:   aws.String(FirstSeenTagKey),
+						Value: aws.String(FormatTimestamp(now)),
 					},
 				},
 			})
@@ -109,8 +95,8 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 				Resources: []string{*identifier},
 				Tags: []ec2types.Tag{
 					{
-						Key:   awsv2.String(FirstSeenTagKey),
-						Value: awsv2.String(FormatTimestamp(now)),
+						Key:   aws.String(FirstSeenTagKey),
+						Value: aws.String(FormatTimestamp(now)),
 					},
 				},
 			})
@@ -119,8 +105,8 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 				ResourceArn: identifier,
 				Tags: []nwfTypes.Tag{
 					{
-						Key:   awsv2.String(FirstSeenTagKey),
-						Value: awsv2.String(FormatTimestamp(now)),
+						Key:   aws.String(FirstSeenTagKey),
+						Value: aws.String(FormatTimestamp(now)),
 					},
 				},
 			})

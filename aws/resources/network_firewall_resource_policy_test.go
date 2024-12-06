@@ -75,8 +75,6 @@ func TestNetworkFirewallResourcePolicy_GetAll(t *testing.T) {
 		},
 	}
 
-	nfw.BaseAwsResource.Init(nil)
-
 	tests := map[string]struct {
 		configObj config.ResourceType
 		expected  []string
