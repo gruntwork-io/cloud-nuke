@@ -74,7 +74,6 @@ func TestVcpEndpoint_GetAll(t *testing.T) {
 			},
 		},
 	}
-	vpcEndpoint.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		ctx       context.Context

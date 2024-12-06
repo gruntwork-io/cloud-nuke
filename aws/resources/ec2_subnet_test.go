@@ -74,7 +74,6 @@ func TestEc2Subnets_GetAll(t *testing.T) {
 			},
 		},
 	}
-	ec2subnet.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		ctx       context.Context
