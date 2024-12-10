@@ -94,7 +94,7 @@ run `go generate ./...` to refresh this report.
 | rds-proxy                          | :white_check_mark: |
 | rds-snapshot                       | :white_check_mark: |
 | rds-subnet-group                   | :white_check_mark: |
-| redshift                           |                    |
+| redshift                           | :white_check_mark: |
 | route53-cidr-collection            | :white_check_mark: |
 | route53-hosted-zone                | :white_check_mark: |
 | route53-traffic-policy             | :white_check_mark: |
