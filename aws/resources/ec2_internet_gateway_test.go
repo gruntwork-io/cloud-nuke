@@ -82,7 +82,6 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 			},
 		},
 	}
-	igw.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		ctx       context.Context

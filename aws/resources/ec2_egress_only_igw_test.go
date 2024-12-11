@@ -76,7 +76,6 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 			},
 		},
 	}
-	object.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		ctx       context.Context
