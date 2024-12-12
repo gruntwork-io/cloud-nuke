@@ -78,10 +78,10 @@ func shouldIncludeInstanceId(instance *ec2.Instance, protected bool, configObj c
 }
 
 func (ei *EC2Instances) releaseEIPs(instanceIds []*string) error {
-	logging.Debugf("Releasing Elastic IP address(s) associated on instances")
-	for _, instanceID := range instanceIds {
+	logging.Debugf("Releasing Elastic IP address(s) associated with instances")
 
-		// get the elastic ip's associated with the EC2's
+	for _, instanceID := range instanceIds {
+		// Get the Elastic IPs associated with the EC2 instances
 		output, err := ei.Client.DescribeAddressesWithContext(ei.Context, &ec2.DescribeAddressesInput{
 			Filters: []*ec2.Filter{
 				{
@@ -96,15 +96,27 @@ func (ei *EC2Instances) releaseEIPs(instanceIds []*string) error {
 			return err
 		}
 
+		// Ensure output is not nil before iterating
+		if output == nil || len(output.Addresses) == 0 {
+			logging.Debugf("No Elastic IPs found for instance %s", *instanceID)
+			continue
+		}
+
 		for _, address := range output.Addresses {
+			if address.AllocationId == nil {
+				logging.Debugf("Skipping Elastic IP release: AllocationId is nil for instance %s", *instanceID)
+				continue
+			}
+
 			_, err := ei.Client.ReleaseAddressWithContext(ei.Context, &ec2.ReleaseAddressInput{
 				AllocationId: address.AllocationId,
 			})
 
 			if err != nil {
-				logging.Debugf("An error happened while releasing the elastic ip address %s, error %v", *address.AllocationId, err)
+				logging.Debugf("An error occurred while releasing the Elastic IP address %s, error: %v", *address.AllocationId, err)
 				continue
 			}
+
 			logging.Debugf("Released Elastic IP address %s from instance %s", *address.AllocationId, *instanceID)
 		}
 	}
