@@ -109,5 +109,5 @@ func (br *BaseAwsResource) IsNukable(identifier string) (bool, error) {
 }
 
 func (br *BaseAwsResource) IsUsingV2() bool {
-	return false
+	return true
 }
