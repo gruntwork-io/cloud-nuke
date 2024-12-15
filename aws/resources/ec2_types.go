@@ -3,25 +3,33 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
+type EC2InstancesAPI interface {
+	DescribeInstanceAttribute(ctx context.Context, params *ec2.DescribeInstanceAttributeInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceAttributeOutput, error)
+	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+	DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error)
+	ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error)
+	TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error)
+}
+
 // EC2Instances - represents all ec2 instances
 type EC2Instances struct {
 	BaseAwsResource
-	Client      ec2iface.EC2API
+	Client      EC2InstancesAPI
 	Region      string
 	InstanceIds []string
 }
 
-func (ei *EC2Instances) Init(session *session.Session) {
-	ei.Client = ec2.New(session)
+func (ei *EC2Instances) InitV2(cfg aws.Config) {
+	ei.Client = ec2.NewFromConfig(cfg)
 }
+
+func (ei *EC2Instances) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ei *EC2Instances) ResourceName() string {
@@ -48,13 +56,13 @@ func (ei *EC2Instances) GetAndSetIdentifiers(c context.Context, configObj config
 		return nil, err
 	}
 
-	ei.InstanceIds = awsgo.StringValueSlice(identifiers)
+	ei.InstanceIds = aws.ToStringSlice(identifiers)
 	return ei.InstanceIds, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (ei *EC2Instances) Nuke(identifiers []string) error {
-	if err := ei.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := ei.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
