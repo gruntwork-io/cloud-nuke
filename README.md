@@ -786,9 +786,6 @@ All other resources that get created within VPCs must be cleaned up prior to run
 
 Happy Nuking!!!
 
-## AWS SDKv2 migration
-We are in progress of migrating towards stable AWS SDKv2, progress can be checked here [migration status](./v2_migration_report/output.md).
-
 ## Credentials
 
 ### AWS

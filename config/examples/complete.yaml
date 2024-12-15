@@ -1795,4 +1795,3 @@ VPCLatticeTargetGroup:
     tag: test
   timeout: 1h
   protect_until_expire: true
-
