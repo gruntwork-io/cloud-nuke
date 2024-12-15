@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
@@ -72,24 +71,24 @@ func TestEC2VPC_Exclude_tag(t *testing.T) {
 			DescribeVpcsOutput: ec2.DescribeVpcsOutput{
 				Vpcs: []types.Vpc{
 					{
-						VpcId: awsgo.String(testId1),
+						VpcId: aws.String(testId1),
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String("cloud-nuke-excluded"),
-								Value: awsgo.String("true"),
+								Key:   aws.String("cloud-nuke-excluded"),
+								Value: aws.String("true"),
 							},
 						},
 					},
 					{
-						VpcId: awsgo.String(testId2),
+						VpcId: aws.String(testId2),
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 						},
 					},
@@ -115,7 +114,7 @@ func TestEC2VPC_Exclude_tag(t *testing.T) {
 				VPC: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
@@ -138,28 +137,28 @@ func TestEC2VPC_GetAll(t *testing.T) {
 			DescribeVpcsOutput: ec2.DescribeVpcsOutput{
 				Vpcs: []types.Vpc{
 					{
-						VpcId: awsgo.String(testId1),
+						VpcId: aws.String(testId1),
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
-						VpcId: awsgo.String(testId2),
+						VpcId: aws.String(testId2),
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now.Add(1))),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now.Add(1))),
 							},
 						},
 					},
@@ -208,13 +207,13 @@ func TestEC2VPC_GetAll(t *testing.T) {
 				VPC: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
 // TODO: Fix this test
-//func TestEC2VPC_NukeAll(t *testing.T) {
+// func TestEC2VPC_NukeAll(t *testing.T) {
 //
 //	t.Parallel()
 //
@@ -226,7 +225,7 @@ func TestEC2VPC_GetAll(t *testing.T) {
 //
 //	err := vpc.nukeAll([]string{"test-vpc-id1", "test-vpc-id2"})
 //	require.NoError(t, err)
-//}
+// }
 
 func TestEC2VPCPeeringConnections_NukeAll(t *testing.T) {
 	t.Parallel()
@@ -284,8 +283,8 @@ func TestAttachedLB_Nuke(t *testing.T) {
 			DescribeLoadBalancersOutput: elbv2.DescribeLoadBalancersOutput{
 				LoadBalancers: []elbtypes.LoadBalancer{
 					{
-						VpcId:           awsgo.String(vpcID),
-						LoadBalancerArn: awsgo.String("load-balancer-arn-00012"),
+						VpcId:           aws.String(vpcID),
+						LoadBalancerArn: aws.String("load-balancer-arn-00012"),
 					},
 				},
 			},
@@ -306,8 +305,8 @@ func TestTargetGroup_Nuke(t *testing.T) {
 			DescribeTargetGroupsOutput: elbv2.DescribeTargetGroupsOutput{
 				TargetGroups: []elbtypes.TargetGroup{
 					{
-						VpcId:          awsgo.String(vpcID),
-						TargetGroupArn: awsgo.String("arn:aws:elasticloadbalancing:us-east-1:tg-001"),
+						VpcId:          aws.String(vpcID),
+						TargetGroupArn: aws.String("arn:aws:elasticloadbalancing:us-east-1:tg-001"),
 					},
 				},
 			},

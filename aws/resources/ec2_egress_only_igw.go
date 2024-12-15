@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -53,7 +53,7 @@ func (egigw *EgressOnlyInternetGateway) getAll(c context.Context, configObj conf
 	egigw.VerifyNukablePermissions(result, func(id *string) error {
 		_, err := egigw.Client.DeleteEgressOnlyInternetGateway(egigw.Context, &ec2.DeleteEgressOnlyInternetGatewayInput{
 			EgressOnlyInternetGatewayId: id,
-			DryRun:                      awsgo.Bool(true),
+			DryRun:                      aws.Bool(true),
 		})
 		return errors.WithStackTrace(err)
 	})
@@ -82,7 +82,7 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   awsgo.ToString(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Egress Only Internet Gateway",
 			Error:        err,
 		}
@@ -103,7 +103,7 @@ func (egigw *EgressOnlyInternetGateway) nukeAll(ids []*string) error {
 }
 
 func nukeEgressOnlyGateway(client EgressOnlyIGAPI, gateway *string) error {
-	logging.Debugf("[Nuke] Egress only gateway %s", awsgo.ToString(gateway))
+	logging.Debugf("[Nuke] Egress only gateway %s", aws.ToString(gateway))
 
 	_, err := client.DeleteEgressOnlyInternetGateway(context.Background(), &ec2.DeleteEgressOnlyInternetGatewayInput{
 		EgressOnlyInternetGatewayId: gateway,

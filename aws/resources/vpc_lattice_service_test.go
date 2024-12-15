@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
@@ -55,12 +54,12 @@ func TestVPCLatticeService_GetAll(t *testing.T) {
 			ListServicesOutput: vpclattice.ListServicesOutput{
 				Items: []types.ServiceSummary{
 					{
-						Arn:       awsgo.String(id1),
-						Name:      awsgo.String(id1),
+						Arn:       aws.String(id1),
+						Name:      aws.String(id1),
 						CreatedAt: aws.Time(now),
 					}, {
-						Arn:       awsgo.String(id2),
-						Name:      awsgo.String(id2),
+						Arn:       aws.String(id2),
+						Name:      aws.String(id2),
 						CreatedAt: aws.Time(now.Add(1 * time.Hour)),
 					},
 				},
@@ -88,7 +87,7 @@ func TestVPCLatticeService_GetAll(t *testing.T) {
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now),
+					TimeAfter: aws.Time(now),
 				}},
 			expected: []string{id1},
 		},
