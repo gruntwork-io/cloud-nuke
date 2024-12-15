@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
@@ -65,30 +65,30 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 			DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
 				NetworkInterfaces: []types.NetworkInterface{
 					{
-						NetworkInterfaceId: awsgo.String(testId1),
+						NetworkInterfaceId: aws.String(testId1),
 						InterfaceType:      NetworkInterfaceTypeInterface,
 						TagSet: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
-						NetworkInterfaceId: awsgo.String(testId2),
+						NetworkInterfaceId: aws.String(testId2),
 						InterfaceType:      NetworkInterfaceTypeInterface,
 						TagSet: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
 							},
 						},
 					},
@@ -131,7 +131,7 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now),
+					TimeAfter: aws.Time(now),
 				}},
 			expected: []string{
 				testId1,
@@ -144,7 +144,7 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 				NetworkInterface: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
@@ -174,31 +174,31 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 			DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
 				NetworkInterfaces: []types.NetworkInterface{
 					{
-						NetworkInterfaceId: awsgo.String(testId1),
+						NetworkInterfaceId: aws.String(testId1),
 						InterfaceType:      NetworkInterfaceTypeInterface,
 						TagSet: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 						},
 						Attachment: &types.NetworkInterfaceAttachment{
-							AttachmentId: awsgo.String("network-attachment-09e36c45cbdbfb001"),
-							InstanceId:   awsgo.String("ec2-instance-09e36c45cbdbfb001"),
+							AttachmentId: aws.String("network-attachment-09e36c45cbdbfb001"),
+							InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb001"),
 						},
 					},
 					{
-						NetworkInterfaceId: awsgo.String(testId2),
+						NetworkInterfaceId: aws.String(testId2),
 						InterfaceType:      NetworkInterfaceTypeInterface,
 						TagSet: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 						},
 						Attachment: &types.NetworkInterfaceAttachment{
-							AttachmentId: awsgo.String("network-attachment-09e36c45cbdbfb002"),
-							InstanceId:   awsgo.String("ec2-instance-09e36c45cbdbfb002"),
+							AttachmentId: aws.String("network-attachment-09e36c45cbdbfb002"),
+							InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb002"),
 						},
 					},
 				},
@@ -206,12 +206,12 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 			DescribeAddressesOutput: ec2.DescribeAddressesOutput{
 				Addresses: []types.Address{
 					{
-						AllocationId: awsgo.String("ec2-addr-alloc-09e36c45cbdbfb001"),
-						InstanceId:   awsgo.String("ec2-instance-09e36c45cbdbfb001"),
+						AllocationId: aws.String("ec2-addr-alloc-09e36c45cbdbfb001"),
+						InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb001"),
 					},
 					{
-						AllocationId: awsgo.String("ec2-addr-alloc-09e36c45cbdbfb002"),
-						InstanceId:   awsgo.String("ec2-instance-09e36c45cbdbfb002"),
+						AllocationId: aws.String("ec2-addr-alloc-09e36c45cbdbfb002"),
+						InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb002"),
 					},
 				},
 			},
@@ -225,8 +225,8 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 	resourceObject.Context = context.Background()
 
 	err := resourceObject.nukeAll([]*string{
-		awsgo.String(testId1),
-		awsgo.String(testId2),
+		aws.String(testId1),
+		aws.String(testId2),
 	})
 	require.NoError(t, err)
 }

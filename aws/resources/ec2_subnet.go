@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -38,7 +38,7 @@ func (ec2subnet *EC2Subnet) getAll(c context.Context, configObj config.Config) (
 	if configObj.EC2Subnet.DefaultOnly {
 		logging.Debugf("[default only] Retrieving the default subnets")
 		filters = append(filters, types.Filter{
-			Name:   awsgo.String("default-for-az"),
+			Name:   aws.String("default-for-az"),
 			Values: []string{"true"},
 		})
 	}
@@ -73,7 +73,7 @@ func (ec2subnet *EC2Subnet) getAll(c context.Context, configObj config.Config) (
 	ec2subnet.VerifyNukablePermissions(result, func(id *string) error {
 		params := &ec2.DeleteSubnetInput{
 			SubnetId: id,
-			DryRun:   awsgo.Bool(true), // Check permissions without making the actual request
+			DryRun:   aws.Bool(true), // Check permissions without making the actual request
 		}
 		_, err := ec2subnet.Client.DeleteSubnet(c, params)
 		return err
@@ -106,7 +106,7 @@ func (ec2subnet *EC2Subnet) nukeAll(ids []*string) error {
 		err := nukeSubnet(ec2subnet.Client, id)
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   awsgo.ToString(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Subnet",
 			Error:        err,
 		}
@@ -127,18 +127,18 @@ func (ec2subnet *EC2Subnet) nukeAll(ids []*string) error {
 
 func nukeSubnet(client EC2SubnetAPI, id *string) error {
 	logging.Debug(fmt.Sprintf("Deleting subnet %s",
-		awsgo.ToString(id)))
+		aws.ToString(id)))
 
 	_, err := client.DeleteSubnet(context.Background(), &ec2.DeleteSubnetInput{
 		SubnetId: id,
 	})
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to delete subnet %s",
-			awsgo.ToString(id)))
+			aws.ToString(id)))
 		return errors.WithStackTrace(err)
 	}
 
 	logging.Debug(fmt.Sprintf("Successfully deleted subnet %s",
-		awsgo.ToString(id)))
+		aws.ToString(id)))
 	return nil
 }

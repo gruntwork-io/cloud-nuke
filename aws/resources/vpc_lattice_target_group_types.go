@@ -3,7 +3,7 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -25,7 +25,7 @@ type VPCLatticeTargetGroup struct {
 	TargetGroups map[string]*types.TargetGroupSummary
 }
 
-func (sch *VPCLatticeTargetGroup) InitV2(cfg awsgo.Config) {
+func (sch *VPCLatticeTargetGroup) InitV2(cfg aws.Config) {
 	sch.Client = vpclattice.NewFromConfig(cfg)
 	sch.TargetGroups = make(map[string]*types.TargetGroupSummary, 0)
 }
@@ -60,13 +60,13 @@ func (n *VPCLatticeTargetGroup) GetAndSetIdentifiers(c context.Context, configOb
 		return nil, err
 	}
 
-	n.ARNs = awsgo.ToStringSlice(identifiers)
+	n.ARNs = aws.ToStringSlice(identifiers)
 	return n.ARNs, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (n *VPCLatticeTargetGroup) Nuke(arns []string) error {
-	if err := n.nukeAll(awsgo.StringSlice(arns)); err != nil {
+	if err := n.nukeAll(aws.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

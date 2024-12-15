@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -47,7 +46,7 @@ func (di *DBInstances) nukeAll(names []*string) error {
 	for _, name := range names {
 		params := &rds.DeleteDBInstanceInput{
 			DBInstanceIdentifier: name,
-			SkipFinalSnapshot:    awsgo.Bool(true),
+			SkipFinalSnapshot:    aws.Bool(true),
 		}
 
 		_, err := di.Client.DeleteDBInstance(di.Context, params)
@@ -56,7 +55,7 @@ func (di *DBInstances) nukeAll(names []*string) error {
 			logging.Errorf("[Failed] %s: %s", *name, err)
 		} else {
 			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Instance: %s", awsgo.ToString(name))
+			logging.Debugf("Deleted RDS DB Instance: %s", aws.ToString(name))
 		}
 	}
 

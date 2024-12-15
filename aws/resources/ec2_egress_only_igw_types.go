@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -54,13 +53,13 @@ func (egigw *EgressOnlyInternetGateway) GetAndSetIdentifiers(c context.Context, 
 		return nil, err
 	}
 
-	egigw.Pools = awsgo.ToStringSlice(identifiers)
+	egigw.Pools = aws.ToStringSlice(identifiers)
 	return egigw.Pools, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (egigw *EgressOnlyInternetGateway) Nuke(identifiers []string) error {
-	if err := egigw.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := egigw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

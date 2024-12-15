@@ -2,13 +2,11 @@ package util
 
 import (
 	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	networkfirewalltypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	rdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
@@ -20,16 +18,7 @@ func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
 	return tagMap
 }
 
-func ConvertEC2TagsToMap(tags []*ec2.Tag) map[string]string {
-	tagMap := make(map[string]string)
-	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
-	}
-
-	return tagMap
-}
-
-func ConvertTypesTagsToMap(tags []types.Tag) map[string]string {
+func ConvertTypesTagsToMap(tags []ec2types.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		tagMap[*tag.Key] = *tag.Value
@@ -73,21 +62,13 @@ func ConvertRDSTypeTagsToMap(tags []rdstypes.Tag) map[string]string {
 
 	return tagMap
 }
-func GetEC2ResourceNameTagValue[T *ec2.Tag | types.Tag](tags []T) *string {
-	var tagMap map[string]string
 
-	switch t := any(tags).(type) {
-	case []*ec2.Tag:
-		tagMap = ConvertEC2TagsToMap(t)
-	case []types.Tag:
-		tagMap = ConvertTypesTagsToMap(t)
-	default:
-		return nil
-	}
-
+func GetEC2ResourceNameTagValue(tags []ec2types.Tag) *string {
+	tagMap := ConvertTypesTagsToMap(tags)
 	if name, ok := tagMap["Name"]; ok {
 		return &name
 	}
+
 	return nil
 }
 

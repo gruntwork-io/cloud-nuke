@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"testing"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -38,10 +38,10 @@ func TestRDSparameterGroupGetAll(t *testing.T) {
 			DescribeDBParameterGroupsOutput: rds.DescribeDBParameterGroupsOutput{
 				DBParameterGroups: []types.DBParameterGroup{
 					{
-						DBParameterGroupName: awsgo.String(testName01),
+						DBParameterGroupName: aws.String(testName01),
 					},
 					{
-						DBParameterGroupName: awsgo.String(testName02),
+						DBParameterGroupName: aws.String(testName02),
 					},
 				},
 			},
