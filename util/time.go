@@ -10,8 +10,6 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	nwfwall "github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	nwfTypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -80,16 +78,6 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 		firstSeenTime = &now
 
 		switch v := client.(type) {
-		case ec2iface.EC2API:
-			_, err = v.CreateTags(&ec2.CreateTagsInput{
-				Resources: []*string{identifier},
-				Tags: []*ec2.Tag{
-					{
-						Key:   aws.String(FirstSeenTagKey),
-						Value: aws.String(FormatTimestamp(now)),
-					},
-				},
-			})
 		case *ec2v2.Client:
 			_, err = v.CreateTags(ctx, &ec2v2.CreateTagsInput{
 				Resources: []string{*identifier},

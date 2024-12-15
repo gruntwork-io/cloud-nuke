@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -34,7 +34,7 @@ func (nacl *NetworkACL) getAll(ctx context.Context, cnfObj config.Config) ([]*st
 	params := &ec2.DescribeNetworkAclsInput{
 		Filters: []types.Filter{
 			{
-				Name:   awsgo.String("default"),
+				Name:   aws.String("default"),
 				Values: []string{"false"},
 			},
 		},
@@ -67,7 +67,7 @@ func (nacl *NetworkACL) getAll(ctx context.Context, cnfObj config.Config) ([]*st
 	nacl.VerifyNukablePermissions(identifiers, func(id *string) error {
 		_, err := nacl.Client.DeleteNetworkAcl(ctx, &ec2.DeleteNetworkAclInput{
 			NetworkAclId: id,
-			DryRun:       awsgo.Bool(true),
+			DryRun:       aws.Bool(true),
 		})
 
 		return err
@@ -124,11 +124,11 @@ func (nacl *NetworkACL) nukeAssociatedSubnets(id string) error {
 		&ec2.DescribeNetworkAclsInput{
 			Filters: []types.Filter{
 				{
-					Name:   awsgo.String("vpc-id"),
+					Name:   aws.String("vpc-id"),
 					Values: []string{*vpcID},
 				},
 				{
-					Name:   awsgo.String("default"),
+					Name:   aws.String("default"),
 					Values: []string{"true"},
 				},
 			},
@@ -183,7 +183,7 @@ func (nacl *NetworkACL) nukeAll(identifiers []*string) error {
 
 		// Record status of this resource
 		e := report.Entry{
-			Identifier:   awsgo.ToString(id),
+			Identifier:   aws.ToString(id),
 			ResourceType: "Network ACL",
 			Error:        err,
 		}
