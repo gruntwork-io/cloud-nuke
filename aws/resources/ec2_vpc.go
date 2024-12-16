@@ -53,6 +53,7 @@ func (v *EC2VPCs) getAll(c context.Context, configObj config.Config) ([]*string,
 		if configObj.VPC.ShouldInclude(config.ResourceValue{
 			Time: firstSeenTime,
 			Name: util.GetEC2ResourceNameTagValue(vpc.Tags),
+			Tags: util.ConvertTypesTagsToMap(vpc.Tags),
 		}) {
 			ids = append(ids, vpc.VpcId)
 		}

@@ -56,6 +56,71 @@ func (m mockedEC2VPCs) DescribeVpcEndpointServiceConfigurations(ctx context.Cont
 func (m mockedEC2VPCs) DeleteVpcEndpointServiceConfigurations(ctx context.Context, input *ec2.DeleteVpcEndpointServiceConfigurationsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcEndpointServiceConfigurationsOutput, error) {
 	return &m.DeleteVpcEndpointServiceConfigurationsOutput, nil
 }
+
+func TestEC2VPC_Exclude_tag(t *testing.T) {
+
+	t.Parallel()
+
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, true)
+
+	testName1 := "test-vpc-name1"
+	testName2 := "test-vpc-name2"
+	testId1 := "test-vpc-id1"
+	testId2 := "test-vpc-id2"
+	vpc := EC2VPCs{
+		Client: mockedEC2VPCs{
+			DescribeVpcsOutput: ec2.DescribeVpcsOutput{
+				Vpcs: []types.Vpc{
+					{
+						VpcId: awsgo.String(testId1),
+						Tags: []types.Tag{
+							{
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName1),
+							},
+							{
+								Key:   awsgo.String("cloud-nuke-excluded"),
+								Value: awsgo.String("true"),
+							},
+						},
+					},
+					{
+						VpcId: awsgo.String(testId2),
+						Tags: []types.Tag{
+							{
+								Key:   awsgo.String("Name"),
+								Value: awsgo.String(testName2),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		ctx       context.Context
+		configObj config.EC2ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			ctx:       ctx,
+			configObj: config.EC2ResourceType{},
+			expected:  []string{testId2},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := vpc.getAll(tc.ctx, config.Config{
+				VPC: tc.configObj,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
+		})
+	}
+
+}
+
 func TestEC2VPC_GetAll(t *testing.T) {
 
 	t.Parallel()

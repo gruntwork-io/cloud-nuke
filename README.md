@@ -655,7 +655,7 @@ of the file that are supported are listed here.
 | transit-gateway                  | TransitGateway                | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | transit-gateway-route-table      | TransitGatewayRouteTable      | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | transit-gateway-attachment       | TransitGatewaysVpcAttachment  | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
-| vpc                              | VPC                           | ✅ (EC2 Name Tag)                      | ✅ (First Seen Tag Time)             | ❌    | ❌       |
+| vpc                              | VPC                           | ✅ (EC2 Name Tag)                      | ✅ (First Seen Tag Time)             | ✅    | ❌       |
 | route53-hosted-zone              | Route53HostedZone             | ✅ (Hosted zone name)                  | ❌                                   | ❌    | ❌       |
 | route53-cidr-collection          | Route53CIDRCollection         | ✅ (Cidr collection name)              | ❌                                   | ❌    | ❌       |
 | route53-traffic-policy           | Route53TrafficPolicy          | ✅ (Traffic policy name)               | ❌                                   | ❌    | ❌       |
