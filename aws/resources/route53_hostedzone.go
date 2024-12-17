@@ -20,7 +20,8 @@ func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) (
 		return nil, err
 	}
 
-	for _, zone := range result.HostedZones {
+	for _, z := range result.HostedZones {
+		zone := z
 		if configObj.Route53HostedZone.ShouldInclude(config.ResourceValue{
 			Name: zone.Name,
 		}) {
@@ -68,7 +69,8 @@ func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
 	var domainName = aws.ToString(r.HostedZonesDomains[aws.ToString(id)].Name)
 
 	var changes []types.Change
-	for _, record := range output.ResourceRecordSets {
+	for _, rec := range output.ResourceRecordSets {
+		record := rec
 		// Note : We can't delete the SOA record or the NS record named ${domain-name}.
 		// Reference : https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-deleting.html
 		if (record.Type == types.RRTypeNs || record.Type == types.RRTypeSoa) && aws.ToString(record.Name) == domainName {
