@@ -89,98 +89,131 @@ func (ni *NetworkInterface) nuke(id *string) error {
 }
 
 func (ni *NetworkInterface) detachNetworkInterface(id *string) error {
-	logging.Debugf("Detaching network interface %s from instances ", awsgo.ToString(id))
+	if id == nil || awsgo.ToString(id) == "" {
+		logging.Debugf("[detachNetworkInterface] Network interface ID is nil or empty, skipping detachment process")
+		return nil
+	}
 
+	logging.Debugf("[detachNetworkInterface] Detaching network interface %s from instances", awsgo.ToString(id))
+
+	// Describe the network interface to get details
 	output, err := ni.Client.DescribeNetworkInterfaces(ni.Context, &ec2.DescribeNetworkInterfacesInput{
-		NetworkInterfaceIds: []string{*id},
+		NetworkInterfaceIds: []string{awsgo.ToString(id)},
 	})
 	if err != nil {
-		logging.Debugf("[Failed] Error describing network interface %s: %s", awsgo.ToString(id), err)
+		logging.Debugf("[detachNetworkInterface] Failed to describe network interface %s: %v", awsgo.ToString(id), err)
 		return errors.WithStackTrace(err)
 	}
 
 	for _, networkInterface := range output.NetworkInterfaces {
-
-		// check there has some attachments
-		if networkInterface.Attachment == nil {
+		// Check if the network interface has an attachment
+		if networkInterface.Attachment == nil || networkInterface.Attachment.InstanceId == nil {
+			logging.Debugf("[detachNetworkInterface] No attachment found for network interface %s, skipping", awsgo.ToString(id))
 			continue
 		}
 
-		// nuking the attached instance
-		// this will also remove the network interface
-		if err := ni.nukeInstance(networkInterface.Attachment.InstanceId); err != nil {
-			logging.Debugf("[Failed] Error nuking the attached instance %s on network interface %s %s", awsgo.ToString(networkInterface.Attachment.InstanceId), awsgo.ToString(id), err)
+		instanceID := awsgo.ToString(networkInterface.Attachment.InstanceId)
+		logging.Debugf("[detachNetworkInterface] Found attached instance %s for network interface %s", instanceID, awsgo.ToString(id))
+
+		// Nuke the attached instance
+		err := ni.nukeInstance(networkInterface.Attachment.InstanceId)
+		if err != nil {
+			logging.Debugf("[detachNetworkInterface] Failed to nuke instance %s attached to network interface %s: %v", instanceID, awsgo.ToString(id), err)
 			return errors.WithStackTrace(err)
 		}
+
+		logging.Debugf("[detachNetworkInterface] Successfully nuked instance %s and detached network interface %s", instanceID, awsgo.ToString(id))
 	}
 
-	logging.Debugf("[OK] successfully detached network interface associated on instances")
-
+	logging.Debugf("[detachNetworkInterface] Successfully detached network interface %s from instances", awsgo.ToString(id))
 	return nil
 }
 
 func (ni *NetworkInterface) releaseEIPs(instance *string) error {
-	logging.Debugf("Releasing Elastic IP address(s) associated on instance %s", awsgo.ToString(instance))
-	// get the elastic ip's associated with the EC2's
+	if instance == nil || awsgo.ToString(instance) == "" {
+		logging.Debugf("[releaseEIPs] Instance ID is nil or empty, skipping Elastic IP release process")
+		return nil
+	}
+
+	logging.Debugf("[releaseEIPs] Releasing Elastic IP address(es) associated with instance %s", awsgo.ToString(instance))
+
+	// Fetch the Elastic IPs associated with the instance
 	output, err := ni.Client.DescribeAddresses(ni.Context, &ec2.DescribeAddressesInput{
 		Filters: []types.Filter{
 			{
 				Name: awsgo.String("instance-id"),
 				Values: []string{
-					*instance,
+					awsgo.ToString(instance),
 				},
 			},
 		},
 	})
 	if err != nil {
+		logging.Debugf("[releaseEIPs] Failed to describe addresses for instance %s: %v", awsgo.ToString(instance), err)
 		return err
 	}
 
+	// Release each Elastic IP
 	for _, address := range output.Addresses {
-		if _, err := ni.Client.ReleaseAddress(ni.Context, &ec2.ReleaseAddressInput{
-			AllocationId: address.AllocationId,
-		}); err != nil {
-			logging.Debugf("An error happened while releasing the elastic ip address %s, error %v", awsgo.ToString(address.AllocationId), err)
+		if address.AllocationId == nil {
+			logging.Debugf("[releaseEIPs] Skipping address with nil Allocation ID for instance %s", awsgo.ToString(instance))
 			continue
 		}
 
-		logging.Debugf("Released Elastic IP address %s from instance %s", awsgo.ToString(address.AllocationId), awsgo.ToString(instance))
+		_, err := ni.Client.ReleaseAddress(ni.Context, &ec2.ReleaseAddressInput{
+			AllocationId: address.AllocationId,
+		})
+		if err != nil {
+			logging.Debugf("[releaseEIPs] Failed to release Elastic IP address %s for instance %s: %v",
+				awsgo.ToString(address.AllocationId), awsgo.ToString(instance), err)
+			continue
+		}
+
+		logging.Debugf("[releaseEIPs] Successfully released Elastic IP address %s from instance %s",
+			awsgo.ToString(address.AllocationId), awsgo.ToString(instance))
 	}
 
-	logging.Debugf("[OK] successfully released Elastic IP address(s) associated on instances")
-
+	logging.Debugf("[releaseEIPs] Successfully completed Elastic IP release process for instance %s", awsgo.ToString(instance))
 	return nil
 }
 
 func (ni *NetworkInterface) nukeInstance(id *string) error {
+	if id == nil || awsgo.ToString(id) == "" {
+		logging.Debugf("[nukeInstance] Instance ID is nil or empty, skipping termination process")
+		return nil
+	}
+
+	instanceID := awsgo.ToString(id)
+	logging.Debugf("[nukeInstance] Starting to nuke instance %s", instanceID)
+
 	// Release the elastic IPs attached to the instance before nuking
 	if err := ni.releaseEIPs(id); err != nil {
-		logging.Debugf("[Failed EIP release] %s", err)
+		logging.Debugf("[nukeInstance] Failed to release Elastic IPs for instance %s: %v", instanceID, err)
 		return errors.WithStackTrace(err)
 	}
 
 	// Terminate the instance
 	_, err := ni.Client.TerminateInstances(ni.Context, &ec2.TerminateInstancesInput{
-		InstanceIds: []string{*id},
+		InstanceIds: []string{instanceID},
 	})
 	if err != nil {
-		logging.Debugf("[Failed] EC2 termination %s", err)
+		logging.Debugf("[nukeInstance] Failed to terminate instance %s: %v", instanceID, err)
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("[Instance Termination] waiting to terminate instance %s", awsgo.ToString(id))
+	logging.Debugf("[nukeInstance] Waiting for instance %s to terminate", instanceID)
 
-	// Use the NewInstanceTerminatedWaiter
+	// Use the NewInstanceTerminatedWaiter to wait until the instance is terminated
 	waiter := ec2.NewInstanceTerminatedWaiter(ni.Client)
 	err = waiter.Wait(ni.Context, &ec2.DescribeInstancesInput{
-		InstanceIds: []string{*id},
+		InstanceIds: []string{instanceID},
 	}, 5*time.Minute)
 	if err != nil {
-		logging.Debugf("[Instance Termination Waiting] Failed to terminate instance %s : %s", *id, err)
+		logging.Debugf("[nukeInstance] Instance termination waiting failed for instance %s: %v", instanceID, err)
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("[OK] successfully nuked instance %v", awsgo.ToString(id))
+	logging.Debugf("[nukeInstance] Successfully nuked instance %s", instanceID)
 	return nil
 }
 
