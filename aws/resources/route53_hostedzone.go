@@ -13,19 +13,22 @@ import (
 
 func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
+	paginator := route53.NewListHostedZonesPaginator(r.Client, &route53.ListHostedZonesInput{})
 
-	result, err := r.Client.ListHostedZones(r.Context, &route53.ListHostedZonesInput{})
-	if err != nil {
-		logging.Errorf("[Failed] unable to list hosted-zones: %s", err)
-		return nil, err
-	}
+	for paginator.HasMorePages() {
+		result, err := paginator.NextPage(r.Context)
+		if err != nil {
+			logging.Errorf("[Failed] unable to list hosted-zones: %s", err)
+			return nil, err
+		}
 
-	for _, zone := range result.HostedZones {
-		if configObj.Route53HostedZone.ShouldInclude(config.ResourceValue{
-			Name: zone.Name,
-		}) {
-			ids = append(ids, zone.Id)
-			r.HostedZonesDomains[aws.ToString(zone.Id)] = &zone
+		for _, zone := range result.HostedZones {
+			if configObj.Route53HostedZone.ShouldInclude(config.ResourceValue{
+				Name: zone.Name,
+			}) {
+				ids = append(ids, zone.Id)
+				r.HostedZonesDomains[aws.ToString(zone.Id)] = &zone
+			}
 		}
 	}
 	return ids, nil
