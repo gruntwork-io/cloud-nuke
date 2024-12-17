@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -38,8 +38,8 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 
 	var (
 		now     = time.Now()
-		testId1 = awsgo.String("acl-09e36c45cbdbfb001")
-		testId2 = awsgo.String("acl-09e36c45cbdbfb002")
+		testId1 = aws.String("acl-09e36c45cbdbfb001")
+		testId2 = aws.String("acl-09e36c45cbdbfb002")
 
 		testName1 = "cloud-nuke-acl-001"
 		testName2 = "cloud-nuke-acl-002"
@@ -53,12 +53,12 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 						NetworkAclId: testId1,
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
@@ -66,12 +66,12 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 						NetworkAclId: testId2,
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 							{
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
 							},
 						},
 					},
@@ -79,7 +79,6 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 			},
 		},
 	}
-	resourceObject.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		ctx       context.Context
@@ -115,7 +114,7 @@ func TestNetworkAcl_GetAll(t *testing.T) {
 			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now),
+					TimeAfter: aws.Time(now),
 				}},
 			expected: []*string{testId1},
 		},
@@ -145,34 +144,34 @@ func TestNetworkAcl_NukeAll(t *testing.T) {
 			DescribeNetworkAclsOutput: ec2.DescribeNetworkAclsOutput{
 				NetworkAcls: []types.NetworkAcl{
 					{
-						NetworkAclId: awsgo.String(testId1),
+						NetworkAclId: aws.String(testId1),
 						Associations: []types.NetworkAclAssociation{
 							{
-								NetworkAclAssociationId: awsgo.String("assoc-09e36c45cbdbfb001"),
-								NetworkAclId:            awsgo.String(testId1),
-								SubnetId:                awsgo.String("subnet-1234"),
+								NetworkAclAssociationId: aws.String("assoc-09e36c45cbdbfb001"),
+								NetworkAclId:            aws.String(testId1),
+								SubnetId:                aws.String("subnet-1234"),
 							},
 						},
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							},
 						},
 					},
 					{
-						NetworkAclId: awsgo.String(testId2),
+						NetworkAclId: aws.String(testId2),
 						Associations: []types.NetworkAclAssociation{
 							{
-								NetworkAclAssociationId: awsgo.String("assoc-09e36c45cbdbfb002"),
-								NetworkAclId:            awsgo.String(testId2),
-								SubnetId:                awsgo.String("subnet-5678"),
+								NetworkAclAssociationId: aws.String("assoc-09e36c45cbdbfb002"),
+								NetworkAclId:            aws.String(testId2),
+								SubnetId:                aws.String("subnet-5678"),
 							},
 						},
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							},
 						},
 					},
@@ -181,8 +180,8 @@ func TestNetworkAcl_NukeAll(t *testing.T) {
 		},
 	}
 	err := resourceObject.nukeAll([]*string{
-		awsgo.String(testId1),
-		awsgo.String(testId2),
+		aws.String(testId1),
+		aws.String(testId2),
 	})
 	require.NoError(t, err)
 }

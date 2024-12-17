@@ -40,7 +40,11 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	c = context.WithValue(c, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
 	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	for _, region := range query.Regions {
-		cloudNukeSession := NewSession(region)
+		cloudNukeSession, errSession := NewSession(region)
+		if errSession != nil {
+			return nil, errSession
+		}
+
 		accountId, err := util.GetCurrentAccountId(cloudNukeSession)
 		if err == nil {
 			telemetry.SetAccountId(accountId)

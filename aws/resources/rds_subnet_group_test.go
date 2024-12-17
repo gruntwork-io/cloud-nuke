@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -41,10 +40,10 @@ func TestDBSubnetGroups_GetAll(t *testing.T) {
 			DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
 				DBSubnetGroups: []types.DBSubnetGroup{
 					{
-						DBSubnetGroupName: awsgo.String(testName1),
+						DBSubnetGroupName: aws.String(testName1),
 					},
 					{
-						DBSubnetGroupName: awsgo.String(testName2),
+						DBSubnetGroupName: aws.String(testName2),
 					},
 				},
 			},

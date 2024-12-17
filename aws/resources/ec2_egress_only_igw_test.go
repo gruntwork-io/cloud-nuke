@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -49,26 +49,26 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 			DescribeEgressOnlyInternetGatewaysOutput: ec2.DescribeEgressOnlyInternetGatewaysOutput{
 				EgressOnlyInternetGateways: []types.EgressOnlyInternetGateway{
 					{
-						EgressOnlyInternetGatewayId: awsgo.String(gateway1),
+						EgressOnlyInternetGatewayId: aws.String(gateway1),
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName1),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName1),
 							}, {
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now)),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now)),
 							},
 						},
 					},
 					{
-						EgressOnlyInternetGatewayId: awsgo.String(gateway2),
+						EgressOnlyInternetGatewayId: aws.String(gateway2),
 						Tags: []types.Tag{
 							{
-								Key:   awsgo.String("Name"),
-								Value: awsgo.String(testName2),
+								Key:   aws.String("Name"),
+								Value: aws.String(testName2),
 							}, {
-								Key:   awsgo.String(util.FirstSeenTagKey),
-								Value: awsgo.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
+								Key:   aws.String(util.FirstSeenTagKey),
+								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
 							},
 						},
 					},
@@ -76,7 +76,6 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 			},
 		},
 	}
-	object.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		ctx       context.Context
@@ -102,7 +101,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: awsgo.Time(now),
+					TimeAfter: aws.Time(now),
 				}},
 			expected: []string{gateway1},
 		},
@@ -110,7 +109,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeBefore: awsgo.Time(now.Add(1)),
+					TimeBefore: aws.Time(now.Add(1)),
 				}},
 			expected: []string{gateway2},
 		},
@@ -121,7 +120,7 @@ func TestEgressOnlyInternetGateway_GetAll(t *testing.T) {
 				EgressOnlyInternetGateway: tc.configObj,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, awsgo.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 
@@ -146,20 +145,20 @@ func TestEc2EgressOnlyInternetGateway_NukeAll(t *testing.T) {
 			DescribeEgressOnlyInternetGatewaysOutput: ec2.DescribeEgressOnlyInternetGatewaysOutput{
 				EgressOnlyInternetGateways: []types.EgressOnlyInternetGateway{
 					{
-						EgressOnlyInternetGatewayId: awsgo.String(gateway1),
+						EgressOnlyInternetGatewayId: aws.String(gateway1),
 						Attachments: []types.InternetGatewayAttachment{
 							{
 								State: "testing-state",
-								VpcId: awsgo.String("test-gateway-vpc"),
+								VpcId: aws.String("test-gateway-vpc"),
 							},
 						},
 					},
 					{
-						EgressOnlyInternetGatewayId: awsgo.String(gateway2),
+						EgressOnlyInternetGatewayId: aws.String(gateway2),
 						Attachments: []types.InternetGatewayAttachment{
 							{
 								State: "testing-state",
-								VpcId: awsgo.String("test-gateway-vpc"),
+								VpcId: aws.String("test-gateway-vpc"),
 							},
 						},
 					},
@@ -170,8 +169,8 @@ func TestEc2EgressOnlyInternetGateway_NukeAll(t *testing.T) {
 	}
 
 	err := igw.nukeAll([]*string{
-		awsgo.String(gateway1),
-		awsgo.String(gateway2),
+		aws.String(gateway1),
+		aws.String(gateway2),
 	})
 	require.NoError(t, err)
 }
