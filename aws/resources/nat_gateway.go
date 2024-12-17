@@ -2,19 +2,19 @@ package resources
 
 import (
 	"context"
+	goerror "errors"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/util"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
 	"github.com/hashicorp/go-multierror"
@@ -151,9 +151,11 @@ func (ngw *NatGateways) areAllNatGatewaysDeleted(identifiers []*string) (bool, e
 	}
 	resp, err := ngw.Client.DescribeNatGateways(ngw.Context, &ec2.DescribeNatGatewaysInput{NatGatewayIds: natGatewayIDs})
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "NatGatewayNotFound" {
+		var apiErr smithy.APIError
+		if ok := goerror.As(err, &apiErr); ok && apiErr.ErrorCode() == "NatGatewayNotFound" {
 			return true, nil
 		}
+
 		return false, err
 	}
 	if len(resp.NatGateways) == 0 {

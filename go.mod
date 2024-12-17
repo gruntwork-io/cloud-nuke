@@ -3,7 +3,6 @@ module github.com/gruntwork-io/cloud-nuke
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.49.13
 	github.com/aws/aws-sdk-go-v2 v1.32.6
 	github.com/aws/aws-sdk-go-v2/config v1.28.6
 	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.36.2

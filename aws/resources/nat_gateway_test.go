@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/require"
 )
@@ -110,8 +109,10 @@ func TestNatGateway_NukeAll(t *testing.T) {
 
 	ngw := NatGateways{
 		Client: mockedNatGateway{
-			DeleteNatGatewayOutput:   ec2.DeleteNatGatewayOutput{},
-			DescribeNatGatewaysError: awserr.New("NatGatewayNotFound", "", nil),
+			DeleteNatGatewayOutput: ec2.DeleteNatGatewayOutput{},
+			DescribeNatGatewaysError: &smithy.GenericAPIError{
+				Code: "NatGatewayNotFound",
+			},
 		},
 	}
 
