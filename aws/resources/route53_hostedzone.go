@@ -57,45 +57,48 @@ func (r *Route53HostedZone) nukeHostedZone(id *string) (err error) {
 }
 
 func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
-
-	// get the resource records
-	output, err := r.Client.ListResourceRecordSets(r.Context, &route53.ListResourceRecordSetsInput{
-		HostedZoneId: id,
-	})
-	if err != nil {
-		logging.Errorf("[Failed] unable to list resource record set: %s", err)
-		return err
-	}
+	var changes []types.Change
 
 	// get the domain name
-	var domainName = aws.ToString(r.HostedZonesDomains[aws.ToString(id)].Name)
+	domainName := aws.ToString(r.HostedZonesDomains[aws.ToString(id)].Name)
 
-	var changes []types.Change
-	for _, record := range output.ResourceRecordSets {
-		// Note : We can't delete the SOA record or the NS record named ${domain-name}.
-		// Reference : https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-deleting.html
-		if (record.Type == types.RRTypeNs || record.Type == types.RRTypeSoa) && aws.ToString(record.Name) == domainName {
-			logging.Infof("[Skipping] resource record set type is : %s", string(record.Type))
-			continue
+	paginator := route53.NewListResourceRecordSetsPaginator(r.Client, &route53.ListResourceRecordSetsInput{
+		HostedZoneId: id,
+	})
+	// get the resource records
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(r.Context)
+		if err != nil {
+			logging.Errorf("[Failed] unable to list resource record set: %s", err)
+			return err
 		}
 
-		// Note : the request shoud contain exactly one of [AliasTarget, all of [TTL, and ResourceRecords], or TrafficPolicyInstanceId]
-		if record.TrafficPolicyInstanceId != nil {
-			// nuke the traffic policy
-			err := r.nukeTrafficPolicy(record.TrafficPolicyInstanceId)
-			if err != nil {
-				logging.Errorf("[Failed] unable to nuke traffic policy: %s", err)
-				return err
+		for _, record := range output.ResourceRecordSets {
+			// Note : We can't delete the SOA record or the NS record named ${domain-name}.
+			// Reference : https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-deleting.html
+			if (record.Type == types.RRTypeNs || record.Type == types.RRTypeSoa) && aws.ToString(record.Name) == domainName {
+				logging.Infof("[Skipping] resource record set type is : %s", string(record.Type))
+				continue
 			}
 
-			record.ResourceRecords = nil
-		}
+			// Note : the request shoud contain exactly one of [AliasTarget, all of [TTL, and ResourceRecords], or TrafficPolicyInstanceId]
+			if record.TrafficPolicyInstanceId != nil {
+				// nuke the traffic policy
+				err := r.nukeTrafficPolicy(record.TrafficPolicyInstanceId)
+				if err != nil {
+					logging.Errorf("[Failed] unable to nuke traffic policy: %s", err)
+					return err
+				}
 
-		// set the changes slice
-		changes = append(changes, types.Change{
-			Action:            types.ChangeActionDelete,
-			ResourceRecordSet: &record,
-		})
+				record.ResourceRecords = nil
+			}
+
+			// set the changes slice
+			changes = append(changes, types.Change{
+				Action:            types.ChangeActionDelete,
+				ResourceRecordSet: &record,
+			})
+		}
 	}
 
 	if len(changes) > 0 {
