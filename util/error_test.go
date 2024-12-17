@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/smithy-go"
 	commonErr "github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/require"
@@ -23,43 +22,67 @@ func TestTransformAWSError(t *testing.T) {
 			wantErr: errUnhandled,
 		},
 		{
-			name:    "insufficient permission",
-			argErr:  awserr.New("UnauthorizedOperation", "UnauthorizedOperation", nil),
+			name: "insufficient permission",
+			argErr: &smithy.GenericAPIError{
+				Code:    "UnauthorizedOperation",
+				Message: "UnauthorizedOperation",
+			},
 			wantErr: ErrInSufficientPermission,
 		},
 		{
-			name:    "AWS access denied exception",
-			argErr:  awserr.New("AccessDeniedException", "AccessDeniedException", nil),
+			name: "AWS access denied exception",
+			argErr: &smithy.GenericAPIError{
+				Code:    "AccessDeniedException",
+				Message: "AccessDeniedException",
+			},
 			wantErr: ErrInSufficientPermission,
 		},
 		{
-			name:    "request canceled",
-			argErr:  awserr.New("RequestCanceled", "RequestCanceled", nil),
+			name: "request canceled",
+			argErr: &smithy.GenericAPIError{
+				Code:    "RequestCanceled",
+				Message: "RequestCanceled",
+			},
 			wantErr: ErrContextExecutionTimeout,
 		},
 		{
-			name:    "wrap request canceled",
-			argErr:  commonErr.WithStackTrace(awserr.New("RequestCanceled", "RequestCanceled", nil)),
+			name: "wrap request canceled",
+			argErr: commonErr.WithStackTrace(&smithy.GenericAPIError{
+				Code:    "RequestCanceled",
+				Message: "RequestCanceled",
+			}),
 			wantErr: ErrContextExecutionTimeout,
 		},
 		{
-			name:    "invalid network interface ID NotFound",
-			argErr:  awserr.New("InvalidNetworkInterfaceID.NotFound", "InvalidNetworkInterfaceID.NotFound", nil),
+			name: "invalid network interface ID NotFound",
+			argErr: &smithy.GenericAPIError{
+				Code:    "InvalidNetworkInterfaceID.NotFound",
+				Message: "InvalidNetworkInterfaceID.NotFound",
+			},
 			wantErr: ErrInterfaceIDNotFound,
 		},
 		{
-			name:    "dry run operation",
-			argErr:  awserr.New("DryRunOperation", "Request would have succeeded, but DryRun flag is set.", nil),
+			name: "dry run operation",
+			argErr: &smithy.GenericAPIError{
+				Code:    "DryRunOperation",
+				Message: "Request would have succeeded, but DryRun flag is set.",
+			},
 			wantErr: nil,
 		},
 		{
-			name:    "invalid permission not found",
-			argErr:  awserr.New("InvalidPermission.NotFound", "InvalidPermission.NotFound", nil),
+			name: "invalid permission not found",
+			argErr: &smithy.GenericAPIError{
+				Code:    "InvalidPermission.NotFound",
+				Message: "InvalidPermission.NotFound",
+			},
 			wantErr: ErrInvalidPermisionNotFound,
 		},
 		{
-			name:    "resource not found exception",
-			argErr:  awserr.New("ResourceNotFoundException", "ResourceNotFoundException", nil),
+			name: "resource not found exception",
+			argErr: &smithy.GenericAPIError{
+				Code:    "ResourceNotFoundException",
+				Message: "ResourceNotFoundException",
+			},
 			wantErr: ErrResourceNotFoundException,
 		},
 		{
