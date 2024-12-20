@@ -174,8 +174,9 @@ func nuke(client EC2VPCAPI, elbClient ELBClientAPI, vpcID string) error {
 	err = retry.DoWithRetry(
 		logging.Logger.WithTime(time.Now()),
 		"Waiting for all Network interfaces to be deleted.",
-		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
-		30, 10*time.Second,
+		// Wait a maximum of 30 seconds: 10 seconds in between, up to 3 times
+		// If 30s is not sufficient, it will get deleted in the subsequent run hopefully.
+		3, 10*time.Second,
 		func() error {
 			interfaces, err := client.DescribeNetworkInterfaces(context.Background(),
 				&ec2.DescribeNetworkInterfacesInput{
