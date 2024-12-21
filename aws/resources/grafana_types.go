@@ -29,8 +29,6 @@ func (g *Grafana) InitV2(cfg aws.Config) {
 	g.Client = grafana.NewFromConfig(cfg)
 }
 
-func (g *Grafana) IsUsingV2() bool { return true }
-
 func (g *Grafana) ResourceName() string { return "grafana" }
 
 func (g *Grafana) ResourceIdentifiers() []string { return g.WorkSpaces }

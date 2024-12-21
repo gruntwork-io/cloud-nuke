@@ -26,8 +26,6 @@ func (es *EC2Subnet) InitV2(cfg aws.Config) {
 	es.Client = ec2.NewFromConfig(cfg)
 }
 
-func (es *EC2Subnet) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (es *EC2Subnet) ResourceName() string {
 	return "ec2-subnet"

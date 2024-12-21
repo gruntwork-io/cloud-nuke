@@ -26,8 +26,6 @@ func (nfw *NetworkFirewallPolicy) InitV2(cfg aws.Config) {
 	nfw.Client = networkfirewall.NewFromConfig(cfg)
 }
 
-func (nfw *NetworkFirewallPolicy) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (nfw *NetworkFirewallPolicy) ResourceName() string {
 	return "network-firewall-policy"

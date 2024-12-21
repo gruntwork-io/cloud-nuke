@@ -29,8 +29,6 @@ func (ei *EC2Instances) InitV2(cfg aws.Config) {
 	ei.Client = ec2.NewFromConfig(cfg)
 }
 
-func (ei *EC2Instances) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (ei *EC2Instances) ResourceName() string {
 	return "ec2"

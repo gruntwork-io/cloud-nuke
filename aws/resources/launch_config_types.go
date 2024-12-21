@@ -26,8 +26,6 @@ func (lc *LaunchConfigs) InitV2(cfg aws.Config) {
 	lc.Client = autoscaling.NewFromConfig(cfg)
 }
 
-func (lc *LaunchConfigs) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (lc *LaunchConfigs) ResourceName() string {
 	return "lc"

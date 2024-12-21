@@ -26,8 +26,6 @@ func (tgpa *TransitGatewayPeeringAttachment) InitV2(cfg aws.Config) {
 	tgpa.Client = ec2.NewFromConfig(cfg)
 }
 
-func (tgpa *TransitGatewayPeeringAttachment) IsUsingV2() bool { return true }
-
 func (tgpa *TransitGatewayPeeringAttachment) ResourceName() string {
 	return "transit-gateway-peering-attachment"
 }

@@ -25,8 +25,6 @@ func (k *EC2KeyPairs) InitV2(cfg aws.Config) {
 	k.Client = ec2.NewFromConfig(cfg)
 }
 
-func (k *EC2KeyPairs) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (k *EC2KeyPairs) ResourceName() string {
 	return "ec2-keypairs"

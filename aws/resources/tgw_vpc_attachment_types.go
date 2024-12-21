@@ -26,8 +26,6 @@ func (tgw *TransitGatewaysVpcAttachment) InitV2(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
 }
 
-func (tgw *TransitGatewaysVpcAttachment) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (tgw *TransitGatewaysVpcAttachment) ResourceName() string {
 	return "transit-gateway-attachment"

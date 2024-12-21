@@ -25,8 +25,6 @@ func (lf *LambdaFunctions) InitV2(cfg aws.Config) {
 	lf.Client = lambda.NewFromConfig(cfg)
 }
 
-func (lf *LambdaFunctions) IsUsingV2() bool { return true }
-
 func (lf *LambdaFunctions) ResourceName() string {
 	return "lambda"
 }

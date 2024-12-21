@@ -28,8 +28,6 @@ func (r *Route53TrafficPolicy) InitV2(cfg aws.Config) {
 	r.versionMap = make(map[string]*int32)
 }
 
-func (r *Route53TrafficPolicy) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (r *Route53TrafficPolicy) ResourceName() string {
 	return "route53-traffic-policy"

@@ -31,8 +31,6 @@ func (ig *IAMGroups) InitV2(cfg aws.Config) {
 	ig.Client = iam.NewFromConfig(cfg)
 }
 
-func (ig *IAMGroups) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the AWS resource
 func (ig *IAMGroups) ResourceName() string {
 	return "iam-group"

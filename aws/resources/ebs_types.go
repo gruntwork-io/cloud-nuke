@@ -26,8 +26,6 @@ func (ev *EBSVolumes) InitV2(cfg aws.Config) {
 	ev.Client = ec2.NewFromConfig(cfg)
 }
 
-func (ev *EBSVolumes) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (ev *EBSVolumes) ResourceName() string {
 	return "ebs"

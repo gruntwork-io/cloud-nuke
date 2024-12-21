@@ -28,8 +28,6 @@ func (gw *ApiGatewayV2) InitV2(cfg aws.Config) {
 	gw.Client = apigatewayv2.NewFromConfig(cfg)
 }
 
-func (gw *ApiGatewayV2) IsUsingV2() bool { return true }
-
 func (gw *ApiGatewayV2) ResourceName() string {
 	return "apigatewayv2"
 }

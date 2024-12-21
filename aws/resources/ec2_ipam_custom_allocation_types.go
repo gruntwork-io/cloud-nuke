@@ -29,8 +29,6 @@ func (cs *EC2IPAMCustomAllocation) InitV2(cfg aws.Config) {
 	cs.PoolAndAllocationMap = make(map[string]string)
 }
 
-func (cs *EC2IPAMCustomAllocation) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (cs *EC2IPAMCustomAllocation) ResourceName() string {
 	return "ipam-custom-allocation"

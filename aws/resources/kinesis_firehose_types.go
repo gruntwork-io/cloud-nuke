@@ -25,8 +25,6 @@ func (kf *KinesisFirehose) InitV2(cfg aws.Config) {
 	kf.Client = firehose.NewFromConfig(cfg)
 }
 
-func (kf *KinesisFirehose) IsUsingV2() bool { return true }
-
 // ResourceName - The simple name of the AWS resource
 func (kf *KinesisFirehose) ResourceName() string {
 	return "kinesis-firehose"

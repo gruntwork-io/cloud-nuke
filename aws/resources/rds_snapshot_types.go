@@ -25,8 +25,6 @@ func (snapshot *RdsSnapshot) InitV2(cfg aws.Config) {
 	snapshot.Client = rds.NewFromConfig(cfg)
 }
 
-func (snapshot *RdsSnapshot) IsUsingV2() bool { return true }
-
 func (snapshot *RdsSnapshot) ResourceName() string {
 	return "rds-snapshot"
 }

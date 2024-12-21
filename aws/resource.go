@@ -17,7 +17,6 @@ type AwsResource interface {
 	Nuke(identifiers []string) error
 	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
 	IsNukable(string) (bool, error)
-	IsUsingV2() bool
 
 	PrepareContext(context.Context, config.ResourceType) error
 	GetAndSetResourceConfig(config.Config) config.ResourceType

@@ -33,8 +33,6 @@ func (kck *KmsCustomerKeys) InitV2(cfg aws.Config) {
 	kck.Client = kms.NewFromConfig(cfg)
 }
 
-func (kck *KmsCustomerKeys) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (kck *KmsCustomerKeys) ResourceName() string {
 	return "kmscustomerkeys"

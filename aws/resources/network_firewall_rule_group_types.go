@@ -35,8 +35,6 @@ func (nfrg *NetworkFirewallRuleGroup) InitV2(cfg aws.Config) {
 	nfrg.RuleGroups = make(map[string]RuleGroup)
 }
 
-func (nfrg *NetworkFirewallRuleGroup) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (nfrg *NetworkFirewallRuleGroup) ResourceName() string {
 	return "network-firewall-rule-group"

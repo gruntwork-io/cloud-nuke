@@ -29,8 +29,6 @@ func (dst *DataSyncTask) InitV2(cfg aws.Config) {
 	dst.Client = datasync.NewFromConfig(cfg)
 }
 
-func (dst *DataSyncTask) IsUsingV2() bool { return true }
-
 func (dst *DataSyncTask) ResourceName() string { return "data-sync-task" }
 
 func (dst *DataSyncTask) ResourceIdentifiers() []string { return dst.DataSyncTasks }

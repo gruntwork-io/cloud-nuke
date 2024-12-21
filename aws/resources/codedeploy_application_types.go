@@ -27,8 +27,6 @@ func (cda *CodeDeployApplications) InitV2(cfg aws.Config) {
 	cda.Client = codedeploy.NewFromConfig(cfg)
 }
 
-func (cda *CodeDeployApplications) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (cda *CodeDeployApplications) ResourceName() string {
 	return "codedeploy-application"

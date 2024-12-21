@@ -27,8 +27,6 @@ func (cw *CloudWatchAlarms) InitV2(cfg aws.Config) {
 	cw.Client = cloudwatch.NewFromConfig(cfg)
 }
 
-func (cw *CloudWatchAlarms) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (cw *CloudWatchAlarms) ResourceName() string {
 	return "cloudwatch-alarm"

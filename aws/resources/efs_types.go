@@ -29,8 +29,6 @@ func (ef *ElasticFileSystem) InitV2(cfg aws.Config) {
 	ef.Client = efs.NewFromConfig(cfg)
 }
 
-func (ef *ElasticFileSystem) IsUsingV2() bool { return true }
-
 func (ef *ElasticFileSystem) ResourceName() string {
 	return "efs"
 }

@@ -26,8 +26,6 @@ func (scope *EC2IpamScopes) InitV2(cfg aws.Config) {
 	scope.Client = ec2.NewFromConfig(cfg)
 }
 
-func (scope *EC2IpamScopes) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (scope *EC2IpamScopes) ResourceName() string {
 	return "ipam-scope"

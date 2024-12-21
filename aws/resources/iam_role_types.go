@@ -32,8 +32,6 @@ func (ir *IAMRoles) InitV2(cfg aws.Config) {
 	ir.Client = iam.NewFromConfig(cfg)
 }
 
-func (ir *IAMRoles) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (ir *IAMRoles) ResourceName() string {
 	return "iam-role"

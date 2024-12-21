@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -33,8 +34,6 @@ type S3Buckets struct {
 func (bucket *S3Buckets) InitV2(cfg aws.Config) {
 	bucket.Client = s3.NewFromConfig(cfg)
 }
-
-func (bucket *S3Buckets) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (bucket *S3Buckets) ResourceName() string {

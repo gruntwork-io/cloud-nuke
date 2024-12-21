@@ -25,8 +25,6 @@ func (registry *ECR) InitV2(cfg aws.Config) {
 	registry.Client = ecr.NewFromConfig(cfg)
 }
 
-func (registry *ECR) IsUsingV2() bool { return true }
-
 func (registry *ECR) ResourceName() string {
 	return "ecr"
 }

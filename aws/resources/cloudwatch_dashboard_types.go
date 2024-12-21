@@ -26,8 +26,6 @@ func (cwdb *CloudWatchDashboards) InitV2(cfg aws.Config) {
 	cwdb.Client = cloudwatch.NewFromConfig(cfg)
 }
 
-func (cwdb *CloudWatchDashboards) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (cwdb *CloudWatchDashboards) ResourceName() string {
 	return "cloudwatch-dashboard"

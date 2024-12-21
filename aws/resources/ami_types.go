@@ -26,8 +26,6 @@ func (ami *AMIs) InitV2(cfg aws.Config) {
 	ami.Client = ec2.NewFromConfig(cfg)
 }
 
-func (ami *AMIs) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (ami *AMIs) ResourceName() string {
 	return "ami"

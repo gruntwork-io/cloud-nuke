@@ -32,8 +32,6 @@ func (r *Route53HostedZone) InitV2(cfg aws.Config) {
 	r.HostedZonesDomains = make(map[string]*types.HostedZone)
 }
 
-func (r *Route53HostedZone) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (r *Route53HostedZone) ResourceName() string {
 	return "route53-hosted-zone"

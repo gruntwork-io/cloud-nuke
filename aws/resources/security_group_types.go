@@ -35,8 +35,6 @@ func (sg *SecurityGroup) InitV2(cfg aws.Config) {
 	sg.Client = ec2.NewFromConfig(cfg)
 }
 
-func (sg *SecurityGroup) IsUsingV2() bool { return true }
-
 func (sg *SecurityGroup) ResourceName() string {
 	return "security-group"
 }

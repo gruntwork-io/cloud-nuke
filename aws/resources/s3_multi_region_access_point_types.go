@@ -25,8 +25,6 @@ func (ap *S3MultiRegionAccessPoint) InitV2(cfg aws.Config) {
 	ap.Client = s3control.NewFromConfig(cfg)
 }
 
-func (ap *S3MultiRegionAccessPoint) IsUsingV2() bool { return true }
-
 func (ap *S3MultiRegionAccessPoint) ResourceName() string {
 	return "s3-mrap"
 }

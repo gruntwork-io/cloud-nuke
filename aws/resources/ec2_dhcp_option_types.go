@@ -34,8 +34,6 @@ func (v *EC2DhcpOption) InitV2(cfg aws.Config) {
 	v.DhcpOptions = make(map[string]DHCPOption)
 }
 
-func (v *EC2DhcpOption) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (v *EC2DhcpOption) ResourceName() string {
 	return "ec2_dhcp_option"

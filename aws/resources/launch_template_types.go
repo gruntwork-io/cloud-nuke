@@ -26,8 +26,6 @@ func (lt *LaunchTemplates) InitV2(cfg aws.Config) {
 	lt.Client = ec2.NewFromConfig(cfg)
 }
 
-func (lt *LaunchTemplates) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (lt *LaunchTemplates) ResourceName() string {
 	return "lt"

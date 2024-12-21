@@ -29,8 +29,6 @@ func (a *AppRunnerService) InitV2(cfg aws.Config) {
 	a.Client = apprunner.NewFromConfig(cfg)
 }
 
-func (a *AppRunnerService) IsUsingV2() bool { return true }
-
 func (a *AppRunnerService) ResourceName() string { return "app-runner-service" }
 
 func (a *AppRunnerService) ResourceIdentifiers() []string { return a.AppRunners }

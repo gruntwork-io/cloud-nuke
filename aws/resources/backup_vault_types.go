@@ -27,8 +27,6 @@ func (bv *BackupVault) InitV2(cfg aws.Config) {
 	bv.Client = backup.NewFromConfig(cfg)
 }
 
-func (bv *BackupVault) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (bv *BackupVault) ResourceName() string {
 	return "backup-vault"

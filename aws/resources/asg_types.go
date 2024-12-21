@@ -26,8 +26,6 @@ func (ag *ASGroups) InitV2(cfg aws.Config) {
 	ag.Client = autoscaling.NewFromConfig(cfg)
 }
 
-func (ag *ASGroups) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (ag *ASGroups) ResourceName() string {
 	return "asg"

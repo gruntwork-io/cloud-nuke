@@ -27,8 +27,6 @@ func (csr *ConfigServiceRule) InitV2(cfg aws.Config) {
 	csr.Client = configservice.NewFromConfig(cfg)
 }
 
-func (csr *ConfigServiceRule) IsUsingV2() bool { return true }
-
 func (csr *ConfigServiceRule) ResourceName() string {
 	return "config-rules"
 }

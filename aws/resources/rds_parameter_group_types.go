@@ -24,8 +24,6 @@ func (pg *RdsParameterGroup) InitV2(cfg aws.Config) {
 	pg.Client = rds.NewFromConfig(cfg)
 }
 
-func (pg *RdsParameterGroup) IsUsingV2() bool { return true }
-
 func (pg *RdsParameterGroup) ResourceName() string {
 	return "rds-parameter-group"
 }

@@ -26,8 +26,6 @@ func (a *ACM) InitV2(cfg aws.Config) {
 	a.Client = acm.NewFromConfig(cfg)
 }
 
-func (a *ACM) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (a *ACM) ResourceName() string {
 	return "acm"

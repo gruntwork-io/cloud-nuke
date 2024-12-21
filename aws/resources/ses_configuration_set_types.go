@@ -26,8 +26,6 @@ func (scs *SesConfigurationSet) InitV2(cfg aws.Config) {
 	scs.Client = ses.NewFromConfig(cfg)
 }
 
-func (scs *SesConfigurationSet) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (scs *SesConfigurationSet) ResourceName() string {
 	return "ses-configuration-set"

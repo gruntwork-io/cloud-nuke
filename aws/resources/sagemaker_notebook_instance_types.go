@@ -29,8 +29,6 @@ func (smni *SageMakerNotebookInstances) InitV2(cfg aws.Config) {
 	smni.Client = sagemaker.NewFromConfig(cfg)
 }
 
-func (smni *SageMakerNotebookInstances) IsUsingV2() bool { return true }
-
 func (smni *SageMakerNotebookInstances) ResourceName() string {
 	return "sagemaker-notebook-smni"
 }

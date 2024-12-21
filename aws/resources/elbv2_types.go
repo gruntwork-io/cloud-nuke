@@ -26,8 +26,6 @@ func (balancer *LoadBalancersV2) InitV2(cfg aws.Config) {
 	balancer.Client = elasticloadbalancingv2.NewFromConfig(cfg)
 }
 
-func (balancer *LoadBalancersV2) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (balancer *LoadBalancersV2) ResourceName() string {
 	return "elbv2"

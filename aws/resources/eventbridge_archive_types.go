@@ -29,8 +29,6 @@ func (eba *EventBridgeArchive) InitV2(cfg aws.Config) {
 	eba.Client = eventbridge.NewFromConfig(cfg)
 }
 
-func (eba *EventBridgeArchive) IsUsingV2() bool { return true }
-
 func (eba *EventBridgeArchive) ResourceName() string { return "event-bridge-archive" }
 
 func (eba *EventBridgeArchive) ResourceIdentifiers() []string { return eba.Rules }

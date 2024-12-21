@@ -26,8 +26,6 @@ func (oidcprovider *OIDCProviders) InitV2(cfg aws.Config) {
 	oidcprovider.Client = iam.NewFromConfig(cfg)
 }
 
-func (oidcprovider *OIDCProviders) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (oidcprovider *OIDCProviders) ResourceName() string {
 	return "oidcprovider"

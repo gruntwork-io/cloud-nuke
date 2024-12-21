@@ -26,8 +26,6 @@ func (nftc *NetworkFirewallTLSConfig) InitV2(cfg aws.Config) {
 	nftc.Client = networkfirewall.NewFromConfig(cfg)
 }
 
-func (nftc *NetworkFirewallTLSConfig) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (nftc *NetworkFirewallTLSConfig) ResourceName() string {
 	return "network-firewall-tls-config"

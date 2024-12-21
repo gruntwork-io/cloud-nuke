@@ -26,8 +26,6 @@ func (ks *KinesisStreams) InitV2(cfg aws.Config) {
 	ks.Client = kinesis.NewFromConfig(cfg)
 }
 
-func (ks *KinesisStreams) IsUsingV2() bool { return true }
-
 // ResourceName - The simple name of the AWS resource
 func (ks *KinesisStreams) ResourceName() string {
 	return "kinesis-stream"

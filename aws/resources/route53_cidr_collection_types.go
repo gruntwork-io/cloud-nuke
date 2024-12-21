@@ -28,8 +28,6 @@ func (r *Route53CidrCollection) InitV2(cfg aws.Config) {
 	r.Client = route53.NewFromConfig(cfg)
 }
 
-func (r *Route53CidrCollection) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (r *Route53CidrCollection) ResourceName() string {
 	return "route53-cidr-collection"

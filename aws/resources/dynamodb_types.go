@@ -26,8 +26,6 @@ func (ddb *DynamoDB) InitV2(cfg aws.Config) {
 	ddb.Client = dynamodb.NewFromConfig(cfg)
 }
 
-func (ddb *DynamoDB) IsUsingV2() bool { return true }
-
 func (ddb *DynamoDB) ResourceName() string {
 	return "dynamodb"
 }

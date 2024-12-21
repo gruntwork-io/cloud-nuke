@@ -30,8 +30,6 @@ func (sef *SesReceiptFilter) InitV2(cfg aws.Config) {
 	sef.Nukable = map[string]bool{}
 }
 
-func (s *SesReceiptFilter) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (sef *SesReceiptFilter) ResourceName() string {
 	return "ses-receipt-filter"
@@ -83,8 +81,6 @@ func (sef *SesReceiptRule) InitV2(cfg aws.Config) {
 	sef.Client = ses.NewFromConfig(cfg)
 	sef.Nukable = map[string]bool{}
 }
-
-func (s *SesReceiptRule) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ser *SesReceiptRule) ResourceName() string {

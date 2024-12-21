@@ -30,8 +30,6 @@ func (osd *OpenSearchDomains) InitV2(cfg aws.Config) {
 	osd.Client = opensearch.NewFromConfig(cfg)
 }
 
-func (osd *OpenSearchDomains) IsUsingV2() bool { return true }
-
 // ResourceName is the simple name of the aws resource
 func (osd *OpenSearchDomains) ResourceName() string {
 	return "opensearchdomain"

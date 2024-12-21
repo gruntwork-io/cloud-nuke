@@ -28,8 +28,6 @@ func (cache *Elasticaches) InitV2(cfg aws.Config) {
 	cache.Client = elasticache.NewFromConfig(cfg)
 }
 
-func (cache *Elasticaches) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (cache *Elasticaches) ResourceName() string {
 	return "elasticache"
@@ -87,8 +85,6 @@ func (pg *ElasticacheParameterGroups) InitV2(cfg aws.Config) {
 	pg.Client = elasticache.NewFromConfig(cfg)
 }
 
-func (pg *ElasticacheParameterGroups) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (pg *ElasticacheParameterGroups) ResourceName() string {
 	return "elasticacheParameterGroups"
@@ -141,8 +137,6 @@ type ElasticacheSubnetGroups struct {
 func (sg *ElasticacheSubnetGroups) InitV2(cfg aws.Config) {
 	sg.Client = elasticache.NewFromConfig(cfg)
 }
-
-func (sg *ElasticacheSubnetGroups) IsUsingV2() bool { return true }
 
 func (sg *ElasticacheSubnetGroups) ResourceName() string {
 	return "elasticacheSubnetGroups"

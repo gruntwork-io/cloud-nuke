@@ -25,8 +25,6 @@ func (instance *DBGlobalClusters) InitV2(cfg aws.Config) {
 	instance.Client = rds.NewFromConfig(cfg)
 }
 
-func (instance *DBGlobalClusters) IsUsingV2() bool { return true }
-
 func (instance *DBGlobalClusters) ResourceName() string {
 	return "rds-global-cluster"
 }

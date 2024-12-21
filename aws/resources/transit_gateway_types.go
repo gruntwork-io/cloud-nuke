@@ -29,7 +29,6 @@ type TransitGateways struct {
 func (tgw *TransitGateways) InitV2(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
 }
-func (tgw *TransitGateways) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (tgw *TransitGateways) ResourceName() string {

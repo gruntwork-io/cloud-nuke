@@ -25,8 +25,6 @@ func (cache *ElasticCacheServerless) InitV2(cfg aws.Config) {
 	cache.Client = elasticache.NewFromConfig(cfg)
 }
 
-func (cache *ElasticCacheServerless) IsUsingV2() bool { return true }
-
 func (cache *ElasticCacheServerless) ResourceName() string {
 	return "elasticcache-serverless"
 }

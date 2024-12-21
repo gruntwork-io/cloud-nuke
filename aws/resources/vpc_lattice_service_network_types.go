@@ -27,8 +27,6 @@ func (sch *VPCLatticeServiceNetwork) InitV2(cfg aws.Config) {
 	sch.Client = vpclattice.NewFromConfig(cfg)
 }
 
-func (sch *VPCLatticeServiceNetwork) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (n *VPCLatticeServiceNetwork) ResourceName() string {
 	return "vpc-lattice-service-network"

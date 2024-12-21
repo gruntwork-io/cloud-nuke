@@ -29,8 +29,6 @@ func (a *ManagedPrometheus) InitV2(cfg aws.Config) {
 	a.Client = amp.NewFromConfig(cfg)
 }
 
-func (a *ManagedPrometheus) IsUsingV2() bool { return true }
-
 func (a *ManagedPrometheus) ResourceName() string { return "managed-prometheus" }
 
 func (a *ManagedPrometheus) ResourceIdentifiers() []string { return a.WorkSpaces }

@@ -29,8 +29,6 @@ func (sch *EventBridgeScheduleGroup) InitV2(cfg aws.Config) {
 	sch.Client = scheduler.NewFromConfig(cfg)
 }
 
-func (sch *EventBridgeScheduleGroup) IsUsingV2() bool { return true }
-
 func (sch *EventBridgeScheduleGroup) ResourceName() string { return "event-bridge-schedule-group" }
 
 func (sch *EventBridgeScheduleGroup) ResourceIdentifiers() []string { return sch.Groups }

@@ -26,8 +26,6 @@ func (egigw *EgressOnlyInternetGateway) InitV2(cfg aws.Config) {
 	egigw.Client = ec2.NewFromConfig(cfg)
 }
 
-func (egigw *EgressOnlyInternetGateway) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (egigw *EgressOnlyInternetGateway) ResourceName() string {
 	return "egress-only-internet-gateway"

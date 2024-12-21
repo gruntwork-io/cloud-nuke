@@ -26,8 +26,6 @@ func (eb *EBApplications) InitV2(cfg aws.Config) {
 	eb.Client = elasticbeanstalk.NewFromConfig(cfg)
 }
 
-func (eb *EBApplications) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (eb *EBApplications) ResourceName() string {
 	return "elastic-beanstalk"

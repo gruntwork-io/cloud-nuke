@@ -24,8 +24,6 @@ func (pg *RdsProxy) InitV2(cfg aws.Config) {
 	pg.Client = rds.NewFromConfig(cfg)
 }
 
-func (pg *RdsProxy) IsUsingV2() bool { return true }
-
 func (pg *RdsProxy) ResourceName() string {
 	return "rds-proxy"
 }

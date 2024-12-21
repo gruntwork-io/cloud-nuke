@@ -1,12 +1,10 @@
 package aws
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 )
 
 const Global = "global"
@@ -175,10 +173,6 @@ func toAwsResourcesPointer(resources []AwsResource) []*AwsResource {
 
 func initRegisteredResources(resources []*AwsResource, session aws.Config, region string) []*AwsResource {
 	for _, resource := range resources {
-		logging.Debug(fmt.Sprintf(
-			"[aws sdk cfg] using aws sdk v2 for resource %s",
-			(*resource).ResourceName(),
-		))
 		(*resource).InitV2(session)
 
 		// Note: only regional resources have the field `Region`, which is used for logging purposes only

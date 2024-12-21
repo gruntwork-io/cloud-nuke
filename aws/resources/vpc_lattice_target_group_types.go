@@ -30,8 +30,6 @@ func (sch *VPCLatticeTargetGroup) InitV2(cfg aws.Config) {
 	sch.TargetGroups = make(map[string]*types.TargetGroupSummary, 0)
 }
 
-func (sch *VPCLatticeTargetGroup) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (n *VPCLatticeTargetGroup) ResourceName() string {
 	return "vpc-lattice-target-group"

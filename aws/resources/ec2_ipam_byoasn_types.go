@@ -28,8 +28,6 @@ func (byoasn *EC2IPAMByoasn) InitV2(cfg aws.Config) {
 	byoasn.Client = ec2.NewFromConfig(cfg)
 }
 
-func (byoasn *EC2IPAMByoasn) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (byoasn *EC2IPAMByoasn) ResourceName() string {
 	return "ipam-byoasn"

@@ -31,8 +31,6 @@ func (igw *InternetGateway) InitV2(cfg aws.Config) {
 	igw.GatewayVPCMap = make(map[string]string)
 }
 
-func (igw *InternetGateway) IsUsingV2() bool { return true }
-
 func (igw *InternetGateway) ResourceName() string {
 	return "internet-gateway"
 }

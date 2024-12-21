@@ -29,8 +29,6 @@ func (dsl *DataSyncLocation) InitV2(cfg aws.Config) {
 	dsl.Client = datasync.NewFromConfig(cfg)
 }
 
-func (dsl *DataSyncLocation) IsUsingV2() bool { return true }
-
 func (dsl *DataSyncLocation) ResourceName() string { return "data-sync-location" }
 
 func (dsl *DataSyncLocation) ResourceIdentifiers() []string { return dsl.DataSyncLocations }

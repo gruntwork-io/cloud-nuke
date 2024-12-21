@@ -54,8 +54,6 @@ func (v *EC2VPCs) InitV2(cfg aws.Config) {
 	v.ELBClient = elbv2.NewFromConfig(cfg)
 }
 
-func (v *EC2VPCs) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (v *EC2VPCs) ResourceName() string {
 	return "vpc"

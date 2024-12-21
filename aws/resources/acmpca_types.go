@@ -28,8 +28,6 @@ func (ap *ACMPCA) InitV2(cfg aws.Config) {
 	ap.Client = acmpca.NewFromConfig(cfg)
 }
 
-func (ap *ACMPCA) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (ap *ACMPCA) ResourceName() string {
 	return "acmpca"

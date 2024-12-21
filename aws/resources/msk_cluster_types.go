@@ -26,8 +26,6 @@ func (m *MSKCluster) InitV2(cfg aws.Config) {
 	m.Client = kafka.NewFromConfig(cfg)
 }
 
-func (m *MSKCluster) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (m *MSKCluster) ResourceName() string {
 	return "msk-cluster"

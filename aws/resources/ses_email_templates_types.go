@@ -26,8 +26,6 @@ func (s *SesEmailTemplates) InitV2(cfg aws.Config) {
 	s.Client = ses.NewFromConfig(cfg)
 }
 
-func (s *SesEmailTemplates) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (set *SesEmailTemplates) ResourceName() string {
 	return "ses-email-template"

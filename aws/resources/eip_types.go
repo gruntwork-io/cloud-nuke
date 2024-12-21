@@ -26,8 +26,6 @@ func (eip *EIPAddresses) InitV2(cfg aws.Config) {
 	eip.Client = ec2.NewFromConfig(cfg)
 }
 
-func (eip *EIPAddresses) IsUsingV2() bool { return true }
-
 // ResourceName - the simple name of the aws resource
 func (eip *EIPAddresses) ResourceName() string {
 	return "eip"
