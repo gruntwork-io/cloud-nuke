@@ -22,7 +22,7 @@ type SesConfigurationSet struct {
 	Ids    []string
 }
 
-func (scs *SesConfigurationSet) InitV2(cfg aws.Config) {
+func (scs *SesConfigurationSet) Init(cfg aws.Config) {
 	scs.Client = ses.NewFromConfig(cfg)
 }
 

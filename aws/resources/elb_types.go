@@ -22,7 +22,7 @@ type LoadBalancers struct {
 	Names  []string
 }
 
-func (balancer *LoadBalancers) InitV2(cfg aws.Config) {
+func (balancer *LoadBalancers) Init(cfg aws.Config) {
 	balancer.Client = elasticloadbalancing.NewFromConfig(cfg)
 }
 

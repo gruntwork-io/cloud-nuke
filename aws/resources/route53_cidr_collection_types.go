@@ -24,7 +24,7 @@ type Route53CidrCollection struct {
 	Ids    []string
 }
 
-func (r *Route53CidrCollection) InitV2(cfg aws.Config) {
+func (r *Route53CidrCollection) Init(cfg aws.Config) {
 	r.Client = route53.NewFromConfig(cfg)
 }
 

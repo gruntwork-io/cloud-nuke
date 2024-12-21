@@ -22,7 +22,7 @@ type OIDCProviders struct {
 	ProviderARNs []string
 }
 
-func (oidcprovider *OIDCProviders) InitV2(cfg aws.Config) {
+func (oidcprovider *OIDCProviders) Init(cfg aws.Config) {
 	oidcprovider.Client = iam.NewFromConfig(cfg)
 }
 

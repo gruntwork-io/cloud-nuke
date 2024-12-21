@@ -22,7 +22,7 @@ type ASGroups struct {
 	GroupNames []string
 }
 
-func (ag *ASGroups) InitV2(cfg aws.Config) {
+func (ag *ASGroups) Init(cfg aws.Config) {
 	ag.Client = autoscaling.NewFromConfig(cfg)
 }
 

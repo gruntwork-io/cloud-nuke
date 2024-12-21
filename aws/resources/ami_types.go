@@ -22,7 +22,7 @@ type AMIs struct {
 	ImageIds []string
 }
 
-func (ami *AMIs) InitV2(cfg aws.Config) {
+func (ami *AMIs) Init(cfg aws.Config) {
 	ami.Client = ec2.NewFromConfig(cfg)
 }
 

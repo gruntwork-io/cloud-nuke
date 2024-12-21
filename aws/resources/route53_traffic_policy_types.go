@@ -23,7 +23,7 @@ type Route53TrafficPolicy struct {
 	versionMap map[string]*int32
 }
 
-func (r *Route53TrafficPolicy) InitV2(cfg aws.Config) {
+func (r *Route53TrafficPolicy) Init(cfg aws.Config) {
 	r.Client = route53.NewFromConfig(cfg)
 	r.versionMap = make(map[string]*int32)
 }

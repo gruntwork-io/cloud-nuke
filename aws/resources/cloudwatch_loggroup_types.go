@@ -22,7 +22,7 @@ type CloudWatchLogGroups struct {
 	Names  []string
 }
 
-func (csr *CloudWatchLogGroups) InitV2(cfg aws.Config) {
+func (csr *CloudWatchLogGroups) Init(cfg aws.Config) {
 	csr.Client = cloudwatchlogs.NewFromConfig(cfg)
 }
 

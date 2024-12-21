@@ -23,7 +23,7 @@ type CloudWatchAlarms struct {
 	AlarmNames []string
 }
 
-func (cw *CloudWatchAlarms) InitV2(cfg aws.Config) {
+func (cw *CloudWatchAlarms) Init(cfg aws.Config) {
 	cw.Client = cloudwatch.NewFromConfig(cfg)
 }
 

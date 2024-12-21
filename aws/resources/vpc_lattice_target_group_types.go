@@ -25,7 +25,7 @@ type VPCLatticeTargetGroup struct {
 	TargetGroups map[string]*types.TargetGroupSummary
 }
 
-func (sch *VPCLatticeTargetGroup) InitV2(cfg aws.Config) {
+func (sch *VPCLatticeTargetGroup) Init(cfg aws.Config) {
 	sch.Client = vpclattice.NewFromConfig(cfg)
 	sch.TargetGroups = make(map[string]*types.TargetGroupSummary, 0)
 }

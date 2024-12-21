@@ -23,7 +23,7 @@ type CodeDeployApplications struct {
 	AppNames []string
 }
 
-func (cda *CodeDeployApplications) InitV2(cfg aws.Config) {
+func (cda *CodeDeployApplications) Init(cfg aws.Config) {
 	cda.Client = codedeploy.NewFromConfig(cfg)
 }
 

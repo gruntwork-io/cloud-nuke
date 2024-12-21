@@ -29,7 +29,7 @@ type KmsCustomerKeys struct {
 	KeyAliases map[string][]string
 }
 
-func (kck *KmsCustomerKeys) InitV2(cfg aws.Config) {
+func (kck *KmsCustomerKeys) Init(cfg aws.Config) {
 	kck.Client = kms.NewFromConfig(cfg)
 }
 

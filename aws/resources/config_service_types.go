@@ -23,7 +23,7 @@ type ConfigServiceRule struct {
 	RuleNames []string
 }
 
-func (csr *ConfigServiceRule) InitV2(cfg aws.Config) {
+func (csr *ConfigServiceRule) Init(cfg aws.Config) {
 	csr.Client = configservice.NewFromConfig(cfg)
 }
 

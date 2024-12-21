@@ -22,7 +22,7 @@ type LaunchConfigs struct {
 	LaunchConfigurationNames []string
 }
 
-func (lc *LaunchConfigs) InitV2(cfg aws.Config) {
+func (lc *LaunchConfigs) Init(cfg aws.Config) {
 	lc.Client = autoscaling.NewFromConfig(cfg)
 }
 

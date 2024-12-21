@@ -22,7 +22,7 @@ type CloudtrailTrail struct {
 	Arns   []string
 }
 
-func (ct *CloudtrailTrail) InitV2(cfg aws.Config) {
+func (ct *CloudtrailTrail) Init(cfg aws.Config) {
 	ct.Client = cloudtrail.NewFromConfig(cfg)
 }
 

@@ -49,7 +49,7 @@ type EC2VPCs struct {
 	VPCIds    []string
 }
 
-func (v *EC2VPCs) InitV2(cfg aws.Config) {
+func (v *EC2VPCs) Init(cfg aws.Config) {
 	v.Client = ec2.NewFromConfig(cfg)
 	v.ELBClient = elbv2.NewFromConfig(cfg)
 }

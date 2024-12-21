@@ -22,7 +22,7 @@ type NetworkACL struct {
 	Ids    []string
 }
 
-func (nacl *NetworkACL) InitV2(cfg aws.Config) {
+func (nacl *NetworkACL) Init(cfg aws.Config) {
 	nacl.Client = ec2.NewFromConfig(cfg)
 }
 

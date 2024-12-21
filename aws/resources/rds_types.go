@@ -20,7 +20,7 @@ type DBInstances struct {
 	InstanceNames []string
 }
 
-func (di *DBInstances) InitV2(cfg aws.Config) {
+func (di *DBInstances) Init(cfg aws.Config) {
 	di.Client = rds.NewFromConfig(cfg)
 }
 

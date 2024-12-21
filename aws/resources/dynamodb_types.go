@@ -22,7 +22,7 @@ type DynamoDB struct {
 	DynamoTableNames []string
 }
 
-func (ddb *DynamoDB) InitV2(cfg aws.Config) {
+func (ddb *DynamoDB) Init(cfg aws.Config) {
 	ddb.Client = dynamodb.NewFromConfig(cfg)
 }
 

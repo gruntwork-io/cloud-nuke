@@ -20,7 +20,7 @@ type RdsProxy struct {
 	GroupNames []string
 }
 
-func (pg *RdsProxy) InitV2(cfg aws.Config) {
+func (pg *RdsProxy) Init(cfg aws.Config) {
 	pg.Client = rds.NewFromConfig(cfg)
 }
 

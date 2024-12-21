@@ -22,7 +22,7 @@ type NetworkFirewallTLSConfig struct {
 	Identifiers []string
 }
 
-func (nftc *NetworkFirewallTLSConfig) InitV2(cfg aws.Config) {
+func (nftc *NetworkFirewallTLSConfig) Init(cfg aws.Config) {
 	nftc.Client = networkfirewall.NewFromConfig(cfg)
 }
 

@@ -21,7 +21,7 @@ type ECR struct {
 	RepositoryNames []string
 }
 
-func (registry *ECR) InitV2(cfg aws.Config) {
+func (registry *ECR) Init(cfg aws.Config) {
 	registry.Client = ecr.NewFromConfig(cfg)
 }
 

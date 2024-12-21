@@ -21,7 +21,7 @@ type RdsSnapshot struct {
 	Identifiers []string
 }
 
-func (snapshot *RdsSnapshot) InitV2(cfg aws.Config) {
+func (snapshot *RdsSnapshot) Init(cfg aws.Config) {
 	snapshot.Client = rds.NewFromConfig(cfg)
 }
 

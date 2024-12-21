@@ -26,7 +26,7 @@ type SecurityHub struct {
 	HubArns []string
 }
 
-func (sh *SecurityHub) InitV2(cfg aws.Config) {
+func (sh *SecurityHub) Init(cfg aws.Config) {
 	sh.Client = securityhub.NewFromConfig(cfg)
 }
 

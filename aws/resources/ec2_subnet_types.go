@@ -22,7 +22,7 @@ type EC2Subnet struct {
 	Subnets []string
 }
 
-func (es *EC2Subnet) InitV2(cfg aws.Config) {
+func (es *EC2Subnet) Init(cfg aws.Config) {
 	es.Client = ec2.NewFromConfig(cfg)
 }
 

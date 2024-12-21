@@ -31,7 +31,7 @@ type S3Buckets struct {
 	Names  []string
 }
 
-func (bucket *S3Buckets) InitV2(cfg aws.Config) {
+func (bucket *S3Buckets) Init(cfg aws.Config) {
 	bucket.Client = s3.NewFromConfig(cfg)
 }
 

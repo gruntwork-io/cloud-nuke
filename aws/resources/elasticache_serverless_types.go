@@ -21,7 +21,7 @@ type ElasticCacheServerless struct {
 	ClusterIds []string
 }
 
-func (cache *ElasticCacheServerless) InitV2(cfg aws.Config) {
+func (cache *ElasticCacheServerless) Init(cfg aws.Config) {
 	cache.Client = elasticache.NewFromConfig(cfg)
 }
 

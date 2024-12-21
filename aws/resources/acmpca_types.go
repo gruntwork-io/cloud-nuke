@@ -24,7 +24,7 @@ type ACMPCA struct {
 	ARNs   []string
 }
 
-func (ap *ACMPCA) InitV2(cfg aws.Config) {
+func (ap *ACMPCA) Init(cfg aws.Config) {
 	ap.Client = acmpca.NewFromConfig(cfg)
 }
 

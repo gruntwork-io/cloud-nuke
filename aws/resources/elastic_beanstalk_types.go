@@ -22,7 +22,7 @@ type EBApplications struct {
 	appIds []string
 }
 
-func (eb *EBApplications) InitV2(cfg aws.Config) {
+func (eb *EBApplications) Init(cfg aws.Config) {
 	eb.Client = elasticbeanstalk.NewFromConfig(cfg)
 }
 

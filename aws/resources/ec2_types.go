@@ -25,7 +25,7 @@ type EC2Instances struct {
 	InstanceIds []string
 }
 
-func (ei *EC2Instances) InitV2(cfg aws.Config) {
+func (ei *EC2Instances) Init(cfg aws.Config) {
 	ei.Client = ec2.NewFromConfig(cfg)
 }
 

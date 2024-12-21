@@ -20,7 +20,7 @@ type RedshiftClusters struct {
 	ClusterIdentifiers []string
 }
 
-func (rc *RedshiftClusters) InitV2(cfg aws.Config) {
+func (rc *RedshiftClusters) Init(cfg aws.Config) {
 	rc.Client = redshift.NewFromConfig(cfg)
 }
 

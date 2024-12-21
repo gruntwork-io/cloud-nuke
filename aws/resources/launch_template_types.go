@@ -22,7 +22,7 @@ type LaunchTemplates struct {
 	LaunchTemplateNames []string
 }
 
-func (lt *LaunchTemplates) InitV2(cfg aws.Config) {
+func (lt *LaunchTemplates) Init(cfg aws.Config) {
 	lt.Client = ec2.NewFromConfig(cfg)
 }
 

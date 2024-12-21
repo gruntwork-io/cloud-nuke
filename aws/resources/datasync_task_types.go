@@ -25,7 +25,7 @@ func (dst *DataSyncTask) GetAndSetResourceConfig(configObj config.Config) config
 	return configObj.DataSyncTask
 }
 
-func (dst *DataSyncTask) InitV2(cfg aws.Config) {
+func (dst *DataSyncTask) Init(cfg aws.Config) {
 	dst.Client = datasync.NewFromConfig(cfg)
 }
 

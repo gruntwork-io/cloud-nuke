@@ -27,7 +27,7 @@ type ECSClusters struct {
 	ClusterArns []string
 }
 
-func (clusters *ECSClusters) InitV2(cfg aws.Config) {
+func (clusters *ECSClusters) Init(cfg aws.Config) {
 	clusters.Client = ecs.NewFromConfig(cfg)
 }
 

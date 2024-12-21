@@ -22,7 +22,7 @@ type TransitGatewayPeeringAttachment struct {
 	Ids    []string
 }
 
-func (tgpa *TransitGatewayPeeringAttachment) InitV2(cfg aws.Config) {
+func (tgpa *TransitGatewayPeeringAttachment) Init(cfg aws.Config) {
 	tgpa.Client = ec2.NewFromConfig(cfg)
 }
 

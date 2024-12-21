@@ -22,7 +22,7 @@ type CloudWatchDashboards struct {
 	DashboardNames []string
 }
 
-func (cwdb *CloudWatchDashboards) InitV2(cfg aws.Config) {
+func (cwdb *CloudWatchDashboards) Init(cfg aws.Config) {
 	cwdb.Client = cloudwatch.NewFromConfig(cfg)
 }
 

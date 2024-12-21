@@ -21,7 +21,7 @@ type S3AccessPoint struct {
 	AccountID    *string
 }
 
-func (ap *S3AccessPoint) InitV2(cfg aws.Config) {
+func (ap *S3AccessPoint) Init(cfg aws.Config) {
 	ap.Client = s3control.NewFromConfig(cfg)
 }
 

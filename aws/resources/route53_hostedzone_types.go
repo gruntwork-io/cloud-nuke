@@ -27,7 +27,7 @@ type Route53HostedZone struct {
 	HostedZonesDomains map[string]*types.HostedZone
 }
 
-func (r *Route53HostedZone) InitV2(cfg aws.Config) {
+func (r *Route53HostedZone) Init(cfg aws.Config) {
 	r.Client = route53.NewFromConfig(cfg)
 	r.HostedZonesDomains = make(map[string]*types.HostedZone)
 }

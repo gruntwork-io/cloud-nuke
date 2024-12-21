@@ -22,7 +22,7 @@ type ACM struct {
 	ARNs   []string
 }
 
-func (a *ACM) InitV2(cfg aws.Config) {
+func (a *ACM) Init(cfg aws.Config) {
 	a.Client = acm.NewFromConfig(cfg)
 }
 

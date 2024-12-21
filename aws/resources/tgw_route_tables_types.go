@@ -23,7 +23,7 @@ type TransitGatewaysRouteTables struct {
 	Ids    []string
 }
 
-func (tgw *TransitGatewaysRouteTables) InitV2(cfg aws.Config) {
+func (tgw *TransitGatewaysRouteTables) Init(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
 }
 

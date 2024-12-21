@@ -22,7 +22,7 @@ type AccessAnalyzer struct {
 	AnalyzerNames []string
 }
 
-func (analyzer *AccessAnalyzer) InitV2(cfg aws.Config) {
+func (analyzer *AccessAnalyzer) Init(cfg aws.Config) {
 	analyzer.Client = accessanalyzer.NewFromConfig(cfg)
 }
 

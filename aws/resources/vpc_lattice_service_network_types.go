@@ -23,7 +23,7 @@ type VPCLatticeServiceNetwork struct {
 	ARNs   []string
 }
 
-func (sch *VPCLatticeServiceNetwork) InitV2(cfg aws.Config) {
+func (sch *VPCLatticeServiceNetwork) Init(cfg aws.Config) {
 	sch.Client = vpclattice.NewFromConfig(cfg)
 }
 

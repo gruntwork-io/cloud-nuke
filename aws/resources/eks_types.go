@@ -29,7 +29,7 @@ type EKSClusters struct {
 	Clusters []string
 }
 
-func (clusters *EKSClusters) InitV2(cfg aws.Config) {
+func (clusters *EKSClusters) Init(cfg aws.Config) {
 	clusters.Client = eks.NewFromConfig(cfg)
 }
 

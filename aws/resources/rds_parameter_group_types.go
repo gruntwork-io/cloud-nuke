@@ -20,7 +20,7 @@ type RdsParameterGroup struct {
 	GroupNames []string
 }
 
-func (pg *RdsParameterGroup) InitV2(cfg aws.Config) {
+func (pg *RdsParameterGroup) Init(cfg aws.Config) {
 	pg.Client = rds.NewFromConfig(cfg)
 }
 

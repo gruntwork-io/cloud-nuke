@@ -28,7 +28,7 @@ type NetworkInterface struct {
 	InterfaceIds []string
 }
 
-func (ni *NetworkInterface) InitV2(cfg aws.Config) {
+func (ni *NetworkInterface) Init(cfg aws.Config) {
 	ni.Client = ec2.NewFromConfig(cfg)
 }
 

@@ -22,7 +22,7 @@ type EC2DedicatedHosts struct {
 	HostIds []string
 }
 
-func (h *EC2DedicatedHosts) InitV2(cfg aws.Config) {
+func (h *EC2DedicatedHosts) Init(cfg aws.Config) {
 	h.Client = ec2.NewFromConfig(cfg)
 }
 

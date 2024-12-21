@@ -27,7 +27,7 @@ type IAMPolicies struct {
 	PolicyArns []string
 }
 
-func (ip *IAMPolicies) InitV2(cfg aws.Config) {
+func (ip *IAMPolicies) Init(cfg aws.Config) {
 	ip.Client = iam.NewFromConfig(cfg)
 }
 

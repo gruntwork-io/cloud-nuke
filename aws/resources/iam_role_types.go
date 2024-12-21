@@ -28,7 +28,7 @@ type IAMRoles struct {
 	RoleNames []string
 }
 
-func (ir *IAMRoles) InitV2(cfg aws.Config) {
+func (ir *IAMRoles) Init(cfg aws.Config) {
 	ir.Client = iam.NewFromConfig(cfg)
 }
 

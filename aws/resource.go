@@ -10,7 +10,7 @@ import (
 
 // AwsResource is an interface that represents a single AWS resource
 type AwsResource interface {
-	InitV2(cfg aws.Config)
+	Init(cfg aws.Config)
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int

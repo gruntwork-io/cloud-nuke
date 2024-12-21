@@ -22,7 +22,7 @@ type EgressOnlyInternetGateway struct {
 	Pools  []string
 }
 
-func (egigw *EgressOnlyInternetGateway) InitV2(cfg aws.Config) {
+func (egigw *EgressOnlyInternetGateway) Init(cfg aws.Config) {
 	egigw.Client = ec2.NewFromConfig(cfg)
 }
 

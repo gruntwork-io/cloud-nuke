@@ -23,7 +23,7 @@ type BackupVault struct {
 	Names  []string
 }
 
-func (bv *BackupVault) InitV2(cfg aws.Config) {
+func (bv *BackupVault) Init(cfg aws.Config) {
 	bv.Client = backup.NewFromConfig(cfg)
 }
 

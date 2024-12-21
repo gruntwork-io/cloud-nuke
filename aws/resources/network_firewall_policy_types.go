@@ -22,7 +22,7 @@ type NetworkFirewallPolicy struct {
 	Identifiers []string
 }
 
-func (nfw *NetworkFirewallPolicy) InitV2(cfg aws.Config) {
+func (nfw *NetworkFirewallPolicy) Init(cfg aws.Config) {
 	nfw.Client = networkfirewall.NewFromConfig(cfg)
 }
 

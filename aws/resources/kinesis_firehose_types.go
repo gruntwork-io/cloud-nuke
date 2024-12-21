@@ -21,7 +21,7 @@ type KinesisFirehose struct {
 	Names  []string
 }
 
-func (kf *KinesisFirehose) InitV2(cfg aws.Config) {
+func (kf *KinesisFirehose) Init(cfg aws.Config) {
 	kf.Client = firehose.NewFromConfig(cfg)
 }
 

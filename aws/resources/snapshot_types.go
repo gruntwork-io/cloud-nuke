@@ -25,7 +25,7 @@ type Snapshots struct {
 	SnapshotIds []string
 }
 
-func (s *Snapshots) InitV2(cfg aws.Config) {
+func (s *Snapshots) Init(cfg aws.Config) {
 	s.Client = ec2.NewFromConfig(cfg)
 }
 

@@ -25,7 +25,7 @@ type SesReceiptFilter struct {
 	Nukable map[string]bool
 }
 
-func (sef *SesReceiptFilter) InitV2(cfg aws.Config) {
+func (sef *SesReceiptFilter) Init(cfg aws.Config) {
 	sef.Client = ses.NewFromConfig(cfg)
 	sef.Nukable = map[string]bool{}
 }
@@ -77,7 +77,7 @@ type SesReceiptRule struct {
 	Nukable map[string]bool
 }
 
-func (sef *SesReceiptRule) InitV2(cfg aws.Config) {
+func (sef *SesReceiptRule) Init(cfg aws.Config) {
 	sef.Client = ses.NewFromConfig(cfg)
 	sef.Nukable = map[string]bool{}
 }

@@ -173,7 +173,7 @@ func toAwsResourcesPointer(resources []AwsResource) []*AwsResource {
 
 func initRegisteredResources(resources []*AwsResource, session aws.Config, region string) []*AwsResource {
 	for _, resource := range resources {
-		(*resource).InitV2(session)
+		(*resource).Init(session)
 
 		// Note: only regional resources have the field `Region`, which is used for logging purposes only
 		setRegionForRegionalResource(resource, region)

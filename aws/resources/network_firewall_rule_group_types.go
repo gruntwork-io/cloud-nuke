@@ -30,7 +30,7 @@ type NetworkFirewallRuleGroup struct {
 	RuleGroups map[string]RuleGroup
 }
 
-func (nfrg *NetworkFirewallRuleGroup) InitV2(cfg aws.Config) {
+func (nfrg *NetworkFirewallRuleGroup) Init(cfg aws.Config) {
 	nfrg.Client = networkfirewall.NewFromConfig(cfg)
 	nfrg.RuleGroups = make(map[string]RuleGroup)
 }

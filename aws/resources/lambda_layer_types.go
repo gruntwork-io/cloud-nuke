@@ -22,7 +22,7 @@ type LambdaLayers struct {
 	LambdaFunctionNames []string
 }
 
-func (ll *LambdaLayers) InitV2(cfg aws.Config) {
+func (ll *LambdaLayers) Init(cfg aws.Config) {
 	ll.Client = lambda.NewFromConfig(cfg)
 }
 

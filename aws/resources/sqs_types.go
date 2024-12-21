@@ -23,7 +23,7 @@ type SqsQueue struct {
 	QueueUrls []string
 }
 
-func (sq *SqsQueue) InitV2(cfg aws.Config) {
+func (sq *SqsQueue) Init(cfg aws.Config) {
 	sq.Client = sqs.NewFromConfig(cfg)
 }
 

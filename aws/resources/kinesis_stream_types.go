@@ -22,7 +22,7 @@ type KinesisStreams struct {
 	Names  []string
 }
 
-func (ks *KinesisStreams) InitV2(cfg aws.Config) {
+func (ks *KinesisStreams) Init(cfg aws.Config) {
 	ks.Client = kinesis.NewFromConfig(cfg)
 }
 

@@ -27,7 +27,7 @@ type IAMGroups struct {
 	GroupNames []string
 }
 
-func (ig *IAMGroups) InitV2(cfg aws.Config) {
+func (ig *IAMGroups) Init(cfg aws.Config) {
 	ig.Client = iam.NewFromConfig(cfg)
 }
 

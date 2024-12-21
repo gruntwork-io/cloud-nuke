@@ -31,7 +31,7 @@ type SecurityGroup struct {
 	NukeOnlyDefault bool
 }
 
-func (sg *SecurityGroup) InitV2(cfg aws.Config) {
+func (sg *SecurityGroup) Init(cfg aws.Config) {
 	sg.Client = ec2.NewFromConfig(cfg)
 }
 

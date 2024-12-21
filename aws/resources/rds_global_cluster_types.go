@@ -21,7 +21,7 @@ type DBGlobalClusters struct {
 	InstanceNames []string
 }
 
-func (instance *DBGlobalClusters) InitV2(cfg aws.Config) {
+func (instance *DBGlobalClusters) Init(cfg aws.Config) {
 	instance.Client = rds.NewFromConfig(cfg)
 }
 

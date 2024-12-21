@@ -21,7 +21,7 @@ type EC2KeyPairs struct {
 	KeyPairIds []string
 }
 
-func (k *EC2KeyPairs) InitV2(cfg aws.Config) {
+func (k *EC2KeyPairs) Init(cfg aws.Config) {
 	k.Client = ec2.NewFromConfig(cfg)
 }
 

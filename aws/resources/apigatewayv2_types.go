@@ -24,7 +24,7 @@ type ApiGatewayV2 struct {
 	Ids    []string
 }
 
-func (gw *ApiGatewayV2) InitV2(cfg aws.Config) {
+func (gw *ApiGatewayV2) Init(cfg aws.Config) {
 	gw.Client = apigatewayv2.NewFromConfig(cfg)
 }
 

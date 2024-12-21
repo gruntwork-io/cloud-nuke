@@ -24,7 +24,7 @@ type EC2IPAMByoasn struct {
 
 var MaxResultCount = int32(10)
 
-func (byoasn *EC2IPAMByoasn) InitV2(cfg aws.Config) {
+func (byoasn *EC2IPAMByoasn) Init(cfg aws.Config) {
 	byoasn.Client = ec2.NewFromConfig(cfg)
 }
 

@@ -26,7 +26,7 @@ type OpenSearchDomains struct {
 	DomainNames []string
 }
 
-func (osd *OpenSearchDomains) InitV2(cfg aws.Config) {
+func (osd *OpenSearchDomains) Init(cfg aws.Config) {
 	osd.Client = opensearch.NewFromConfig(cfg)
 }
 

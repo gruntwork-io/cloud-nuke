@@ -22,7 +22,7 @@ type EIPAddresses struct {
 	AllocationIds []string
 }
 
-func (eip *EIPAddresses) InitV2(cfg aws.Config) {
+func (eip *EIPAddresses) Init(cfg aws.Config) {
 	eip.Client = ec2.NewFromConfig(cfg)
 }
 

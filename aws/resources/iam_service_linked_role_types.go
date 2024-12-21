@@ -22,7 +22,7 @@ type IAMServiceLinkedRoles struct {
 	RoleNames []string
 }
 
-func (islr *IAMServiceLinkedRoles) InitV2(cfg aws.Config) {
+func (islr *IAMServiceLinkedRoles) Init(cfg aws.Config) {
 	islr.Client = iam.NewFromConfig(cfg)
 }
 

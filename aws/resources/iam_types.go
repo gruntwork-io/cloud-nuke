@@ -40,7 +40,7 @@ type IAMUsers struct {
 	UserNames []string
 }
 
-func (iu *IAMUsers) InitV2(cfg aws.Config) {
+func (iu *IAMUsers) Init(cfg aws.Config) {
 	iu.Client = iam.NewFromConfig(cfg)
 }
 

@@ -22,7 +22,7 @@ type MSKCluster struct {
 	ClusterArns []string
 }
 
-func (m *MSKCluster) InitV2(cfg aws.Config) {
+func (m *MSKCluster) Init(cfg aws.Config) {
 	m.Client = kafka.NewFromConfig(cfg)
 }
 

@@ -27,7 +27,7 @@ type BaseAwsResource struct {
 	cancel   context.CancelFunc
 }
 
-func (br *BaseAwsResource) InitV2(cfg aws.Config) {
+func (br *BaseAwsResource) Init(cfg aws.Config) {
 	br.Nukables = make(map[string]error)
 }
 

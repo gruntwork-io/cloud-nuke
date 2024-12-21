@@ -22,7 +22,7 @@ type EBSVolumes struct {
 	VolumeIds []string
 }
 
-func (ev *EBSVolumes) InitV2(cfg aws.Config) {
+func (ev *EBSVolumes) Init(cfg aws.Config) {
 	ev.Client = ec2.NewFromConfig(cfg)
 }
 

@@ -26,7 +26,7 @@ type ECSServices struct {
 	ServiceClusterMap map[string]string
 }
 
-func (services *ECSServices) InitV2(cfg aws.Config) {
+func (services *ECSServices) Init(cfg aws.Config) {
 	services.Client = ecs.NewFromConfig(cfg)
 }
 

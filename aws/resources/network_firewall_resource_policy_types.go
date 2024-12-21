@@ -23,7 +23,7 @@ type NetworkFirewallResourcePolicy struct {
 	Identifiers []string
 }
 
-func (nfrp *NetworkFirewallResourcePolicy) InitV2(cfg aws.Config) {
+func (nfrp *NetworkFirewallResourcePolicy) Init(cfg aws.Config) {
 	nfrp.Client = networkfirewall.NewFromConfig(cfg)
 }
 

@@ -20,7 +20,7 @@ type DBClusters struct {
 	InstanceNames []string
 }
 
-func (instance *DBClusters) InitV2(cfg aws.Config) {
+func (instance *DBClusters) Init(cfg aws.Config) {
 	instance.Client = rds.NewFromConfig(cfg)
 }
 

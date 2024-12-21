@@ -24,7 +24,7 @@ type SecretsManagerSecrets struct {
 	SecretIDs []string
 }
 
-func (sms *SecretsManagerSecrets) InitV2(cfg aws.Config) {
+func (sms *SecretsManagerSecrets) Init(cfg aws.Config) {
 	sms.Client = secretsmanager.NewFromConfig(cfg)
 }
 

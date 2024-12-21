@@ -22,7 +22,7 @@ type EC2Endpoints struct {
 	Endpoints []string
 }
 
-func (e *EC2Endpoints) InitV2(cfg aws.Config) {
+func (e *EC2Endpoints) Init(cfg aws.Config) {
 	e.Client = ec2.NewFromConfig(cfg)
 }
 

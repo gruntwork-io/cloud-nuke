@@ -21,7 +21,7 @@ type S3MultiRegionAccessPoint struct {
 	AccountID    *string
 }
 
-func (ap *S3MultiRegionAccessPoint) InitV2(cfg aws.Config) {
+func (ap *S3MultiRegionAccessPoint) Init(cfg aws.Config) {
 	ap.Client = s3control.NewFromConfig(cfg)
 }
 

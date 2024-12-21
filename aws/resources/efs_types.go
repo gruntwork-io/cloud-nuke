@@ -25,7 +25,7 @@ type ElasticFileSystem struct {
 	Ids    []string
 }
 
-func (ef *ElasticFileSystem) InitV2(cfg aws.Config) {
+func (ef *ElasticFileSystem) Init(cfg aws.Config) {
 	ef.Client = efs.NewFromConfig(cfg)
 }
 

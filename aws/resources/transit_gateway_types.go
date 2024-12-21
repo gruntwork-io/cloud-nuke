@@ -26,7 +26,7 @@ type TransitGateways struct {
 	Ids    []string
 }
 
-func (tgw *TransitGateways) InitV2(cfg aws.Config) {
+func (tgw *TransitGateways) Init(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
 }
 

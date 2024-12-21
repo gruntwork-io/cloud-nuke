@@ -22,7 +22,7 @@ type TransitGatewaysVpcAttachment struct {
 	Ids    []string
 }
 
-func (tgw *TransitGatewaysVpcAttachment) InitV2(cfg aws.Config) {
+func (tgw *TransitGatewaysVpcAttachment) Init(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
 }
 
