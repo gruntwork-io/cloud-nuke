@@ -456,7 +456,105 @@ func TestShouldIncludeWithTags(t *testing.T) {
 				ACM: ResourceType{},
 			}
 
-			assert.Equal(t, tt.want, testConfig.ACM.ShouldInclude(ResourceValue{
+			require.Equal(t, tt.want, testConfig.ACM.ShouldInclude(ResourceValue{
+				Tags: tt.tags,
+			}))
+		})
+	}
+}
+
+func TestShouldIncludeBasedOnTagName(t *testing.T) {
+	timeIn2h := time.Now().Add(2 * time.Hour)
+
+	type arg struct {
+		ExcludeRule        FilterRule
+		ProtectUntilExpire bool
+	}
+	tests := []struct {
+		name     string
+		fields   arg
+		when     map[string]string
+		expected bool
+	}{
+		{
+			name:     "should include if no tag set",
+			fields:   arg{},
+			when:     nil,
+			expected: true,
+		},
+		{
+			name: "should exclude if tag was found",
+			fields: arg{
+				ExcludeRule: FilterRule{
+					TagExist: aws.String("if-this-tag-exist-skip-resource"),
+				},
+			},
+			when:     map[string]string{"if-this-tag-exist-skip-resource": "true"},
+			expected: false,
+		},
+
+		{
+			name: "should skip resource with protect until expire is set",
+			fields: arg{
+				ExcludeRule:        FilterRule{},
+				ProtectUntilExpire: true,
+			},
+			when:     map[string]string{CloudNukeAfterExclusionTagKey: timeIn2h.Format(time.RFC3339)},
+			expected: false,
+		},
+		{
+			name: "should include resource with if protection expire is in the past",
+			fields: arg{
+				ExcludeRule:        FilterRule{},
+				ProtectUntilExpire: true,
+			},
+			when:     map[string]string{CloudNukeAfterExclusionTagKey: time.Now().Format(time.RFC3339)},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := ResourceType{
+				ExcludeRule:        tt.fields.ExcludeRule,
+				ProtectUntilExpire: tt.fields.ProtectUntilExpire,
+			}
+
+			require.Equal(t, tt.expected, r.ShouldIncludeBasedOnTagName(tt.when))
+		})
+	}
+}
+
+func TestResourceType_ShouldInclude(t *testing.T) {
+	tests := []struct {
+		name        string
+		excludeRule FilterRule
+		tags        map[string]string
+		want        bool
+	}{
+		{
+			name: "should include if no config pass",
+			want: true,
+		},
+		{
+			name: "skip if tag with given name was found",
+			excludeRule: FilterRule{
+				TagExist: aws.String("if-this-tag-exist-skip-resource"),
+			},
+			tags: map[string]string{"if-this-tag-exist-skip-resource": "true"},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testConfig := &Config{
+				ACM: ResourceType{
+					ExcludeRule: tt.excludeRule,
+				},
+			}
+
+			require.Equal(t, tt.want, testConfig.ACM.ShouldInclude(ResourceValue{
 				Tags: tt.tags,
 			}))
 		})

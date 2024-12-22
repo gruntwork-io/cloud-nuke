@@ -535,6 +535,14 @@ s3:
   exclude:
     tag: 'foo'
 ```
+
+You can also exclude a resource by specifying only the tag key.
+
+```yaml
+s3:
+  exclude:
+    tag_exist: 'bar'
+```
 #### Timeout
 You have the flexibility to set individual timeout options for specific resources. The execution will pause until the designated timeout is reached for each resource.
 ```yaml
