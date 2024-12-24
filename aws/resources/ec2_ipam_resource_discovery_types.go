@@ -22,11 +22,9 @@ type EC2IPAMResourceDiscovery struct {
 	DiscoveryIDs []string
 }
 
-func (ipam *EC2IPAMResourceDiscovery) InitV2(cfg aws.Config) {
+func (ipam *EC2IPAMResourceDiscovery) Init(cfg aws.Config) {
 	ipam.Client = ec2.NewFromConfig(cfg)
 }
-
-func (ipam *EC2IPAMResourceDiscovery) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ipam *EC2IPAMResourceDiscovery) ResourceName() string {

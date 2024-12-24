@@ -3,7 +3,7 @@ package resources
 import (
 	"context"
 
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -23,11 +23,9 @@ type VPCLatticeService struct {
 	ARNs   []string
 }
 
-func (sch *VPCLatticeService) InitV2(cfg awsgo.Config) {
+func (sch *VPCLatticeService) Init(cfg aws.Config) {
 	sch.Client = vpclattice.NewFromConfig(cfg)
 }
-
-func (sch *VPCLatticeService) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (n *VPCLatticeService) ResourceName() string {
@@ -57,13 +55,13 @@ func (n *VPCLatticeService) GetAndSetIdentifiers(c context.Context, configObj co
 		return nil, err
 	}
 
-	n.ARNs = awsgo.ToStringSlice(identifiers)
+	n.ARNs = aws.ToStringSlice(identifiers)
 	return n.ARNs, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (n *VPCLatticeService) Nuke(arns []string) error {
-	if err := n.nukeAll(awsgo.StringSlice(arns)); err != nil {
+	if err := n.nukeAll(aws.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

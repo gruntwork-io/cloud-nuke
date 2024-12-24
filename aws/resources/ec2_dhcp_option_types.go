@@ -29,12 +29,10 @@ type EC2DhcpOption struct {
 	DhcpOptions map[string]DHCPOption
 }
 
-func (v *EC2DhcpOption) InitV2(cfg aws.Config) {
+func (v *EC2DhcpOption) Init(cfg aws.Config) {
 	v.Client = ec2.NewFromConfig(cfg)
 	v.DhcpOptions = make(map[string]DHCPOption)
 }
-
-func (v *EC2DhcpOption) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (v *EC2DhcpOption) ResourceName() string {

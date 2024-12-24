@@ -22,11 +22,9 @@ type EIPAddresses struct {
 	AllocationIds []string
 }
 
-func (eip *EIPAddresses) InitV2(cfg aws.Config) {
+func (eip *EIPAddresses) Init(cfg aws.Config) {
 	eip.Client = ec2.NewFromConfig(cfg)
 }
-
-func (eip *EIPAddresses) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (eip *EIPAddresses) ResourceName() string {

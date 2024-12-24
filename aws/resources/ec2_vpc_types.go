@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -50,12 +49,10 @@ type EC2VPCs struct {
 	VPCIds    []string
 }
 
-func (v *EC2VPCs) InitV2(cfg aws.Config) {
+func (v *EC2VPCs) Init(cfg aws.Config) {
 	v.Client = ec2.NewFromConfig(cfg)
 	v.ELBClient = elbv2.NewFromConfig(cfg)
 }
-
-func (v *EC2VPCs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (v *EC2VPCs) ResourceName() string {
@@ -82,7 +79,7 @@ func (v *EC2VPCs) GetAndSetIdentifiers(c context.Context, configObj config.Confi
 		return nil, err
 	}
 
-	v.VPCIds = awsgo.ToStringSlice(identifiers)
+	v.VPCIds = aws.ToStringSlice(identifiers)
 	return v.VPCIds, nil
 }
 

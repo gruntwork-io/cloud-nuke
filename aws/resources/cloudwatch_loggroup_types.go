@@ -22,11 +22,9 @@ type CloudWatchLogGroups struct {
 	Names  []string
 }
 
-func (csr *CloudWatchLogGroups) InitV2(cfg aws.Config) {
+func (csr *CloudWatchLogGroups) Init(cfg aws.Config) {
 	csr.Client = cloudwatchlogs.NewFromConfig(cfg)
 }
-
-func (csr *CloudWatchLogGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (csr *CloudWatchLogGroups) ResourceName() string {

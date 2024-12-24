@@ -25,11 +25,9 @@ func (a *ManagedPrometheus) GetAndSetResourceConfig(configObj config.Config) con
 	return configObj.ManagedPrometheus
 }
 
-func (a *ManagedPrometheus) InitV2(cfg aws.Config) {
+func (a *ManagedPrometheus) Init(cfg aws.Config) {
 	a.Client = amp.NewFromConfig(cfg)
 }
-
-func (a *ManagedPrometheus) IsUsingV2() bool { return true }
 
 func (a *ManagedPrometheus) ResourceName() string { return "managed-prometheus" }
 

@@ -40,11 +40,9 @@ type IAMUsers struct {
 	UserNames []string
 }
 
-func (iu *IAMUsers) InitV2(cfg aws.Config) {
+func (iu *IAMUsers) Init(cfg aws.Config) {
 	iu.Client = iam.NewFromConfig(cfg)
 }
-
-func (iu *IAMUsers) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (iu *IAMUsers) ResourceName() string {

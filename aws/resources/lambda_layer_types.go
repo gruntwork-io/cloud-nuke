@@ -22,11 +22,9 @@ type LambdaLayers struct {
 	LambdaFunctionNames []string
 }
 
-func (ll *LambdaLayers) InitV2(cfg aws.Config) {
+func (ll *LambdaLayers) Init(cfg aws.Config) {
 	ll.Client = lambda.NewFromConfig(cfg)
 }
-
-func (ll *LambdaLayers) IsUsingV2() bool { return true }
 
 func (ll *LambdaLayers) ResourceName() string {
 	return "lambda_layer"

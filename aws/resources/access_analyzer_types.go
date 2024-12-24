@@ -22,11 +22,9 @@ type AccessAnalyzer struct {
 	AnalyzerNames []string
 }
 
-func (analyzer *AccessAnalyzer) InitV2(cfg aws.Config) {
+func (analyzer *AccessAnalyzer) Init(cfg aws.Config) {
 	analyzer.Client = accessanalyzer.NewFromConfig(cfg)
 }
-
-func (analyzer *AccessAnalyzer) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (analyzer *AccessAnalyzer) ResourceName() string {

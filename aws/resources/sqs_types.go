@@ -23,11 +23,9 @@ type SqsQueue struct {
 	QueueUrls []string
 }
 
-func (sq *SqsQueue) InitV2(cfg aws.Config) {
+func (sq *SqsQueue) Init(cfg aws.Config) {
 	sq.Client = sqs.NewFromConfig(cfg)
 }
-
-func (sq *SqsQueue) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (sq *SqsQueue) ResourceName() string {

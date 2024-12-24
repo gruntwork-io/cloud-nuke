@@ -23,11 +23,9 @@ type SNSTopic struct {
 	Arns   []string
 }
 
-func (s *SNSTopic) InitV2(cfg aws.Config) {
+func (s *SNSTopic) Init(cfg aws.Config) {
 	s.Client = sns.NewFromConfig(cfg)
 }
-
-func (s *SNSTopic) IsUsingV2() bool { return true }
 
 func (s *SNSTopic) ResourceName() string {
 	return "snstopic"

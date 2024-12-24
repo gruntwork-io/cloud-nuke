@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	awsgoV2 "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
@@ -28,11 +27,7 @@ type BaseAwsResource struct {
 	cancel   context.CancelFunc
 }
 
-func (br *BaseAwsResource) Init(_ *session.Session) {
-	br.Nukables = make(map[string]error)
-}
-
-func (br *BaseAwsResource) InitV2(cfg awsgoV2.Config) {
+func (br *BaseAwsResource) Init(cfg aws.Config) {
 	br.Nukables = make(map[string]error)
 }
 
@@ -111,8 +106,4 @@ func (br *BaseAwsResource) IsNukable(identifier string) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func (br *BaseAwsResource) IsUsingV2() bool {
-	return false
 }

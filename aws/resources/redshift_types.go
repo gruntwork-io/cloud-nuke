@@ -20,11 +20,9 @@ type RedshiftClusters struct {
 	ClusterIdentifiers []string
 }
 
-func (rc *RedshiftClusters) InitV2(cfg aws.Config) {
+func (rc *RedshiftClusters) Init(cfg aws.Config) {
 	rc.Client = redshift.NewFromConfig(cfg)
 }
-
-func (rc *RedshiftClusters) IsUsingV2() bool { return true }
 
 func (rc *RedshiftClusters) ResourceName() string {
 	return "redshift"

@@ -25,11 +25,9 @@ func (g *Grafana) GetAndSetResourceConfig(configObj config.Config) config.Resour
 	return configObj.ManagedPrometheus
 }
 
-func (g *Grafana) InitV2(cfg aws.Config) {
+func (g *Grafana) Init(cfg aws.Config) {
 	g.Client = grafana.NewFromConfig(cfg)
 }
-
-func (g *Grafana) IsUsingV2() bool { return true }
 
 func (g *Grafana) ResourceName() string { return "grafana" }
 

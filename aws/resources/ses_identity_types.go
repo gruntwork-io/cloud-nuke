@@ -22,11 +22,9 @@ type SesIdentities struct {
 	Ids    []string
 }
 
-func (Sid *SesIdentities) InitV2(cfg aws.Config) {
+func (Sid *SesIdentities) Init(cfg aws.Config) {
 	Sid.Client = ses.NewFromConfig(cfg)
 }
-
-func (Sid *SesIdentities) IsUsingV2() bool { return true }
 
 func (Sid *SesIdentities) ResourceName() string {
 	return "ses-identity"

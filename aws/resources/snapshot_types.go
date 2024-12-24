@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 
@@ -24,11 +25,9 @@ type Snapshots struct {
 	SnapshotIds []string
 }
 
-func (s *Snapshots) InitV2(cfg aws.Config) {
+func (s *Snapshots) Init(cfg aws.Config) {
 	s.Client = ec2.NewFromConfig(cfg)
 }
-
-func (s *Snapshots) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (s *Snapshots) ResourceName() string {

@@ -22,11 +22,9 @@ type LoadBalancers struct {
 	Names  []string
 }
 
-func (balancer *LoadBalancers) InitV2(cfg aws.Config) {
+func (balancer *LoadBalancers) Init(cfg aws.Config) {
 	balancer.Client = elasticloadbalancing.NewFromConfig(cfg)
 }
-
-func (balancer *LoadBalancers) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (balancer *LoadBalancers) ResourceName() string {

@@ -21,11 +21,9 @@ type GuardDuty struct {
 	detectorIds []string
 }
 
-func (gd *GuardDuty) InitV2(cfg aws.Config) {
+func (gd *GuardDuty) Init(cfg aws.Config) {
 	gd.Client = guardduty.NewFromConfig(cfg)
 }
-
-func (gd *GuardDuty) IsUsingV2() bool { return true }
 
 func (gd *GuardDuty) ResourceName() string {
 	return "guardduty"

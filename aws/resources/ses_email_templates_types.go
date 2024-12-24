@@ -22,11 +22,9 @@ type SesEmailTemplates struct {
 	Ids    []string
 }
 
-func (s *SesEmailTemplates) InitV2(cfg aws.Config) {
+func (s *SesEmailTemplates) Init(cfg aws.Config) {
 	s.Client = ses.NewFromConfig(cfg)
 }
-
-func (s *SesEmailTemplates) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (set *SesEmailTemplates) ResourceName() string {

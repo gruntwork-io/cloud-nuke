@@ -21,11 +21,9 @@ type ConfigServiceRecorders struct {
 	RecorderNames []string
 }
 
-func (csr *ConfigServiceRecorders) InitV2(cfg aws.Config) {
+func (csr *ConfigServiceRecorders) Init(cfg aws.Config) {
 	csr.Client = configservice.NewFromConfig(cfg)
 }
-
-func (csr *ConfigServiceRecorders) IsUsingV2() bool { return true }
 
 func (csr *ConfigServiceRecorders) ResourceName() string {
 	return "config-recorders"

@@ -24,12 +24,10 @@ type EC2IPAMCustomAllocation struct {
 	PoolAndAllocationMap map[string]string
 }
 
-func (cs *EC2IPAMCustomAllocation) InitV2(cfg aws.Config) {
+func (cs *EC2IPAMCustomAllocation) Init(cfg aws.Config) {
 	cs.Client = ec2.NewFromConfig(cfg)
 	cs.PoolAndAllocationMap = make(map[string]string)
 }
-
-func (cs *EC2IPAMCustomAllocation) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (cs *EC2IPAMCustomAllocation) ResourceName() string {

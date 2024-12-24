@@ -23,11 +23,9 @@ type ApiGateway struct {
 	Ids    []string
 }
 
-func (gateway *ApiGateway) InitV2(cfg aws.Config) {
+func (gateway *ApiGateway) Init(cfg aws.Config) {
 	gateway.Client = apigateway.NewFromConfig(cfg)
 }
-
-func (gateway *ApiGateway) IsUsingV2() bool { return true }
 
 func (gateway *ApiGateway) ResourceName() string {
 	return "apigateway"

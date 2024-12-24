@@ -22,11 +22,9 @@ type EC2Subnet struct {
 	Subnets []string
 }
 
-func (es *EC2Subnet) InitV2(cfg aws.Config) {
+func (es *EC2Subnet) Init(cfg aws.Config) {
 	es.Client = ec2.NewFromConfig(cfg)
 }
-
-func (es *EC2Subnet) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (es *EC2Subnet) ResourceName() string {

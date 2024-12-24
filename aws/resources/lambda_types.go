@@ -21,11 +21,9 @@ type LambdaFunctions struct {
 	LambdaFunctionNames []string
 }
 
-func (lf *LambdaFunctions) InitV2(cfg aws.Config) {
+func (lf *LambdaFunctions) Init(cfg aws.Config) {
 	lf.Client = lambda.NewFromConfig(cfg)
 }
-
-func (lf *LambdaFunctions) IsUsingV2() bool { return true }
 
 func (lf *LambdaFunctions) ResourceName() string {
 	return "lambda"

@@ -24,11 +24,9 @@ type SecretsManagerSecrets struct {
 	SecretIDs []string
 }
 
-func (sms *SecretsManagerSecrets) InitV2(cfg aws.Config) {
+func (sms *SecretsManagerSecrets) Init(cfg aws.Config) {
 	sms.Client = secretsmanager.NewFromConfig(cfg)
 }
-
-func (sms *SecretsManagerSecrets) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (sms *SecretsManagerSecrets) ResourceName() string {

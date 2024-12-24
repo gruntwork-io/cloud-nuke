@@ -27,11 +27,9 @@ type IAMPolicies struct {
 	PolicyArns []string
 }
 
-func (ip *IAMPolicies) InitV2(cfg aws.Config) {
+func (ip *IAMPolicies) Init(cfg aws.Config) {
 	ip.Client = iam.NewFromConfig(cfg)
 }
-
-func (ip *IAMPolicies) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the AWS resource
 func (ip *IAMPolicies) ResourceName() string {

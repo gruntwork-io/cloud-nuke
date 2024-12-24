@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/smithy-go"
-	commonErr "github.com/gruntwork-io/go-commons/errors"
 )
 
 var ErrInSufficientPermission = errors.New("error:INSUFFICIENT_PERMISSION")
@@ -28,44 +26,27 @@ const AwsDryRunSuccess string = "Request would have succeeded, but DryRun flag i
 // providing a more human-readable error message for certain conditions
 // ref : https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html
 func TransformAWSError(err error) error {
-	if awsErr, ok := err.(awserr.Error); ok && (awsErr.Code() == AWsUnauthorizedError || awsErr.Code() == AWSAccessDeniedException) {
-		return ErrInSufficientPermission
-	}
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "RequestCanceled" {
-		return ErrContextExecutionTimeout
-	}
-
-	// check the error is wrapped with errors.WithStackTrace(), then we can't check the actuall error is aws. So handling the situation here
-	// as unwrap the error and check the underhood error type is awserr
-	// NOTE : is this is not checked, then it will not print `error:EXECUTION_TIMEOUT` if the error is wrapped with WithStackTrace
-	if err := commonErr.Unwrap(err); err != nil {
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "RequestCanceled" {
-			return ErrContextExecutionTimeout
-		}
-	}
-
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "InvalidNetworkInterfaceID.NotFound" {
-		return ErrInterfaceIDNotFound
-	}
-
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "DryRunOperation" && awsErr.Message() == AwsDryRunSuccess {
-		return nil
-	}
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case AWsUnauthorizedError, AWSAccessDeniedException:
+			return ErrInSufficientPermission
+		case "RequestCanceled":
+			return ErrContextExecutionTimeout
+		case "InvalidNetworkInterfaceID.NotFound":
+			return ErrInterfaceIDNotFound
+		case "InvalidPermission.NotFound":
+			return ErrInvalidPermisionNotFound
+		case "ResourceNotFoundException":
+			return ErrResourceNotFoundException
+		}
+
 		if apiErr.ErrorCode() == "DryRunOperation" && apiErr.ErrorMessage() == AwsDryRunSuccess {
 			return nil
 		}
 	}
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "InvalidPermission.NotFound" {
-		return ErrInvalidPermisionNotFound
-	}
-	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "ResourceNotFoundException" {
-		return ErrResourceNotFoundException
-	}
 
 	return err
-
 }
 
 type ResourceExecutionTimeout struct {

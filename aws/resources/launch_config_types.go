@@ -22,11 +22,9 @@ type LaunchConfigs struct {
 	LaunchConfigurationNames []string
 }
 
-func (lc *LaunchConfigs) InitV2(cfg aws.Config) {
+func (lc *LaunchConfigs) Init(cfg aws.Config) {
 	lc.Client = autoscaling.NewFromConfig(cfg)
 }
-
-func (lc *LaunchConfigs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (lc *LaunchConfigs) ResourceName() string {

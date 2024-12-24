@@ -27,11 +27,9 @@ type ECSClusters struct {
 	ClusterArns []string
 }
 
-func (clusters *ECSClusters) InitV2(cfg aws.Config) {
+func (clusters *ECSClusters) Init(cfg aws.Config) {
 	clusters.Client = ecs.NewFromConfig(cfg)
 }
-
-func (clusters *ECSClusters) IsUsingV2() bool { return true }
 
 // ResourceName - The simple name of the aws resource
 func (clusters *ECSClusters) ResourceName() string {

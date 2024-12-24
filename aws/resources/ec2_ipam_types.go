@@ -29,11 +29,9 @@ type EC2IPAMs struct {
 	IDs    []string
 }
 
-func (ipam *EC2IPAMs) InitV2(cfg aws.Config) {
+func (ipam *EC2IPAMs) Init(cfg aws.Config) {
 	ipam.Client = ec2.NewFromConfig(cfg)
 }
-
-func (ipam *EC2IPAMs) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ipam *EC2IPAMs) ResourceName() string {

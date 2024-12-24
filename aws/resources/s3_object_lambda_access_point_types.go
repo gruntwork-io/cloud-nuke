@@ -21,11 +21,9 @@ type S3ObjectLambdaAccessPoint struct {
 	AccountID    *string
 }
 
-func (ap *S3ObjectLambdaAccessPoint) InitV2(cfg aws.Config) {
+func (ap *S3ObjectLambdaAccessPoint) Init(cfg aws.Config) {
 	ap.Client = s3control.NewFromConfig(cfg)
 }
-
-func (ap *S3ObjectLambdaAccessPoint) IsUsingV2() bool { return true }
 
 func (ap *S3ObjectLambdaAccessPoint) ResourceName() string {
 	return "s3-olap"

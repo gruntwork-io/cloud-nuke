@@ -21,11 +21,9 @@ type EC2PlacementGroups struct {
 	PlacementGroupNames []string
 }
 
-func (k *EC2PlacementGroups) InitV2(cfg aws.Config) {
+func (k *EC2PlacementGroups) Init(cfg aws.Config) {
 	k.Client = ec2.NewFromConfig(cfg)
 }
-
-func (k *EC2PlacementGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (k *EC2PlacementGroups) ResourceName() string {

@@ -22,11 +22,9 @@ type NetworkFirewallPolicy struct {
 	Identifiers []string
 }
 
-func (nfw *NetworkFirewallPolicy) InitV2(cfg aws.Config) {
+func (nfw *NetworkFirewallPolicy) Init(cfg aws.Config) {
 	nfw.Client = networkfirewall.NewFromConfig(cfg)
 }
-
-func (nfw *NetworkFirewallPolicy) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (nfw *NetworkFirewallPolicy) ResourceName() string {

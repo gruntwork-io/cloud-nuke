@@ -21,11 +21,9 @@ type S3MultiRegionAccessPoint struct {
 	AccountID    *string
 }
 
-func (ap *S3MultiRegionAccessPoint) InitV2(cfg aws.Config) {
+func (ap *S3MultiRegionAccessPoint) Init(cfg aws.Config) {
 	ap.Client = s3control.NewFromConfig(cfg)
 }
-
-func (ap *S3MultiRegionAccessPoint) IsUsingV2() bool { return true }
 
 func (ap *S3MultiRegionAccessPoint) ResourceName() string {
 	return "s3-mrap"

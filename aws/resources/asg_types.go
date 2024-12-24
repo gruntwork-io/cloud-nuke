@@ -22,11 +22,9 @@ type ASGroups struct {
 	GroupNames []string
 }
 
-func (ag *ASGroups) InitV2(cfg aws.Config) {
+func (ag *ASGroups) Init(cfg aws.Config) {
 	ag.Client = autoscaling.NewFromConfig(cfg)
 }
-
-func (ag *ASGroups) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ag *ASGroups) ResourceName() string {

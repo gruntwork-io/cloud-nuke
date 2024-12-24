@@ -21,11 +21,9 @@ type DBGlobalClusterMemberships struct {
 	InstanceNames []string
 }
 
-func (instance *DBGlobalClusterMemberships) InitV2(cfg aws.Config) {
+func (instance *DBGlobalClusterMemberships) Init(cfg aws.Config) {
 	instance.Client = rds.NewFromConfig(cfg)
 }
-
-func (instance *DBGlobalClusterMemberships) IsUsingV2() bool { return true }
 
 func (instance *DBGlobalClusterMemberships) ResourceName() string {
 	return "rds-global-cluster-membership"

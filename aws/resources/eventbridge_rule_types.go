@@ -28,11 +28,9 @@ func (ebr *EventBridgeRule) GetAndSetResourceConfig(configObj config.Config) con
 	return configObj.EventBridgeRule
 }
 
-func (ebr *EventBridgeRule) InitV2(cfg aws.Config) {
+func (ebr *EventBridgeRule) Init(cfg aws.Config) {
 	ebr.Client = eventbridge.NewFromConfig(cfg)
 }
-
-func (ebr *EventBridgeRule) IsUsingV2() bool { return true }
 
 func (ebr *EventBridgeRule) ResourceName() string { return "event-bridge-rule" }
 

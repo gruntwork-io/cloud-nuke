@@ -58,7 +58,6 @@ func TestBackupVaultGetAll(t *testing.T) {
 					},
 				}}},
 	}
-	bv.BaseAwsResource.Init(nil)
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -106,7 +105,6 @@ func TestBackupVaultNuke(t *testing.T) {
 			DeleteBackupVaultOutput: backup.DeleteBackupVaultOutput{},
 		},
 	}
-	bv.BaseAwsResource.Init(nil)
 	bv.Context = context.Background()
 
 	err := bv.nukeAll([]*string{aws.String("test-backup-vault")})

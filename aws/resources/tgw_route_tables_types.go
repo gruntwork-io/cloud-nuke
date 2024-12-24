@@ -23,11 +23,9 @@ type TransitGatewaysRouteTables struct {
 	Ids    []string
 }
 
-func (tgw *TransitGatewaysRouteTables) InitV2(cfg aws.Config) {
+func (tgw *TransitGatewaysRouteTables) Init(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
 }
-
-func (tgw *TransitGatewaysRouteTables) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (tgw *TransitGatewaysRouteTables) ResourceName() string {

@@ -21,11 +21,9 @@ type S3AccessPoint struct {
 	AccountID    *string
 }
 
-func (ap *S3AccessPoint) InitV2(cfg aws.Config) {
+func (ap *S3AccessPoint) Init(cfg aws.Config) {
 	ap.Client = s3control.NewFromConfig(cfg)
 }
-
-func (ap *S3AccessPoint) IsUsingV2() bool { return true }
 
 func (ap *S3AccessPoint) ResourceName() string {
 	return "s3-ap"

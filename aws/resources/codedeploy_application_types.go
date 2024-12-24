@@ -23,11 +23,9 @@ type CodeDeployApplications struct {
 	AppNames []string
 }
 
-func (cda *CodeDeployApplications) InitV2(cfg aws.Config) {
+func (cda *CodeDeployApplications) Init(cfg aws.Config) {
 	cda.Client = codedeploy.NewFromConfig(cfg)
 }
-
-func (cda *CodeDeployApplications) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (cda *CodeDeployApplications) ResourceName() string {

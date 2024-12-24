@@ -25,11 +25,9 @@ func (dsl *DataSyncLocation) GetAndSetResourceConfig(configObj config.Config) co
 	return configObj.DataSyncLocation
 }
 
-func (dsl *DataSyncLocation) InitV2(cfg aws.Config) {
+func (dsl *DataSyncLocation) Init(cfg aws.Config) {
 	dsl.Client = datasync.NewFromConfig(cfg)
 }
-
-func (dsl *DataSyncLocation) IsUsingV2() bool { return true }
 
 func (dsl *DataSyncLocation) ResourceName() string { return "data-sync-location" }
 

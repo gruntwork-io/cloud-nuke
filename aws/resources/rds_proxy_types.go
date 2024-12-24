@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsgo "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -21,11 +20,9 @@ type RdsProxy struct {
 	GroupNames []string
 }
 
-func (pg *RdsProxy) InitV2(cfg aws.Config) {
+func (pg *RdsProxy) Init(cfg aws.Config) {
 	pg.Client = rds.NewFromConfig(cfg)
 }
-
-func (pg *RdsProxy) IsUsingV2() bool { return true }
 
 func (pg *RdsProxy) ResourceName() string {
 	return "rds-proxy"
@@ -51,13 +48,13 @@ func (pg *RdsProxy) GetAndSetIdentifiers(c context.Context, configObj config.Con
 		return nil, err
 	}
 
-	pg.GroupNames = awsgo.ToStringSlice(identifiers)
+	pg.GroupNames = aws.ToStringSlice(identifiers)
 	return pg.GroupNames, nil
 }
 
 // Nuke - nuke 'em all!!!
 func (pg *RdsProxy) Nuke(identifiers []string) error {
-	if err := pg.nukeAll(awsgo.StringSlice(identifiers)); err != nil {
+	if err := pg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
 

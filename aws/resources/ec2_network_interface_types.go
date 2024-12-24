@@ -28,11 +28,9 @@ type NetworkInterface struct {
 	InterfaceIds []string
 }
 
-func (ni *NetworkInterface) InitV2(cfg aws.Config) {
+func (ni *NetworkInterface) Init(cfg aws.Config) {
 	ni.Client = ec2.NewFromConfig(cfg)
 }
-
-func (ni *NetworkInterface) IsUsingV2() bool { return true }
 
 func (ni *NetworkInterface) ResourceName() string {
 	return "network-interface"

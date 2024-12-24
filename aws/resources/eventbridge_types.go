@@ -25,11 +25,9 @@ func (eb *EventBridge) GetAndSetResourceConfig(configObj config.Config) config.R
 	return configObj.EventBridge
 }
 
-func (eb *EventBridge) InitV2(cfg aws.Config) {
+func (eb *EventBridge) Init(cfg aws.Config) {
 	eb.Client = eventbridge.NewFromConfig(cfg)
 }
-
-func (eb *EventBridge) IsUsingV2() bool { return true }
 
 func (eb *EventBridge) ResourceName() string { return "event-bridge" }
 

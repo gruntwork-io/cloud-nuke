@@ -22,11 +22,9 @@ type NatGateways struct {
 	NatGatewayIDs []string
 }
 
-func (ngw *NatGateways) InitV2(cfg aws.Config) {
+func (ngw *NatGateways) Init(cfg aws.Config) {
 	ngw.Client = ec2.NewFromConfig(cfg)
 }
-
-func (ngw *NatGateways) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (ngw *NatGateways) ResourceName() string {

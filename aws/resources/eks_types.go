@@ -29,11 +29,9 @@ type EKSClusters struct {
 	Clusters []string
 }
 
-func (clusters *EKSClusters) InitV2(cfg aws.Config) {
+func (clusters *EKSClusters) Init(cfg aws.Config) {
 	clusters.Client = eks.NewFromConfig(cfg)
 }
-
-func (clusters *EKSClusters) IsUsingV2() bool { return true }
 
 // ResourceName - The simple name of the aws resource
 func (clusters *EKSClusters) ResourceName() string {

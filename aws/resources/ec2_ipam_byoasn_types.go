@@ -24,11 +24,9 @@ type EC2IPAMByoasn struct {
 
 var MaxResultCount = int32(10)
 
-func (byoasn *EC2IPAMByoasn) InitV2(cfg aws.Config) {
+func (byoasn *EC2IPAMByoasn) Init(cfg aws.Config) {
 	byoasn.Client = ec2.NewFromConfig(cfg)
 }
-
-func (byoasn *EC2IPAMByoasn) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (byoasn *EC2IPAMByoasn) ResourceName() string {

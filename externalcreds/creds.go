@@ -1,38 +1,20 @@
 package externalcreds
 
 import (
-	"os"
+	"context"
 
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 )
 
-var externalConfig *aws.Config
-
-func Set(opts *aws.Config) {
-	os.Setenv("DISABLE_TELEMETRY", "true")
-
-	telemetry.InitTelemetry("", "")
-
-	externalConfig = opts
-}
-
-func Get(region string) *session.Session {
-	config := aws.Config{
-		Region: aws.String(region),
-	}
-	// If external config was passed in, use its credentials
-	if externalConfig != nil {
-		config.Credentials = externalConfig.Credentials
-	}
-	return session.Must(
-		session.NewSessionWithOptions(
-			session.Options{
-				SharedConfigState: session.SharedConfigEnable,
-				Config:            config,
-			},
-		),
+func Get(region string) (aws.Config, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(region),
 	)
+
+	if err != nil {
+		return aws.Config{}, err
+	}
+
+	return cfg, nil
 }

@@ -26,11 +26,9 @@ type MacieMember struct {
 	AccountIds []string
 }
 
-func (mm *MacieMember) InitV2(cfg aws.Config) {
+func (mm *MacieMember) Init(cfg aws.Config) {
 	mm.Client = macie2.NewFromConfig(cfg)
 }
-
-func (mm *MacieMember) IsUsingV2() bool { return true }
 
 func (mm *MacieMember) ResourceName() string {
 	return "macie-member"

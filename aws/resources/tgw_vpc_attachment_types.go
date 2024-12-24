@@ -22,11 +22,9 @@ type TransitGatewaysVpcAttachment struct {
 	Ids    []string
 }
 
-func (tgw *TransitGatewaysVpcAttachment) InitV2(cfg aws.Config) {
+func (tgw *TransitGatewaysVpcAttachment) Init(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
 }
-
-func (tgw *TransitGatewaysVpcAttachment) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (tgw *TransitGatewaysVpcAttachment) ResourceName() string {

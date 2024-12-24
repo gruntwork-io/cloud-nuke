@@ -22,11 +22,9 @@ type EC2Endpoints struct {
 	Endpoints []string
 }
 
-func (e *EC2Endpoints) InitV2(cfg aws.Config) {
+func (e *EC2Endpoints) Init(cfg aws.Config) {
 	e.Client = ec2.NewFromConfig(cfg)
 }
-
-func (e *EC2Endpoints) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (e *EC2Endpoints) ResourceName() string {

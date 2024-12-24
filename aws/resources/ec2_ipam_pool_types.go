@@ -22,11 +22,9 @@ type EC2IPAMPool struct {
 	Pools  []string
 }
 
-func (pool *EC2IPAMPool) InitV2(cfg aws.Config) {
+func (pool *EC2IPAMPool) Init(cfg aws.Config) {
 	pool.Client = ec2.NewFromConfig(cfg)
 }
-
-func (pool *EC2IPAMPool) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (pool *EC2IPAMPool) ResourceName() string {

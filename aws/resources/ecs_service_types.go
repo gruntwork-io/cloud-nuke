@@ -26,11 +26,9 @@ type ECSServices struct {
 	ServiceClusterMap map[string]string
 }
 
-func (services *ECSServices) InitV2(cfg aws.Config) {
+func (services *ECSServices) Init(cfg aws.Config) {
 	services.Client = ecs.NewFromConfig(cfg)
 }
-
-func (services *ECSServices) IsUsingV2() bool { return true }
 
 // ResourceName - The simple name of the aws resource
 func (services *ECSServices) ResourceName() string {

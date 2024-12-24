@@ -22,11 +22,9 @@ type CloudWatchDashboards struct {
 	DashboardNames []string
 }
 
-func (cwdb *CloudWatchDashboards) InitV2(cfg aws.Config) {
+func (cwdb *CloudWatchDashboards) Init(cfg aws.Config) {
 	cwdb.Client = cloudwatch.NewFromConfig(cfg)
 }
-
-func (cwdb *CloudWatchDashboards) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (cwdb *CloudWatchDashboards) ResourceName() string {

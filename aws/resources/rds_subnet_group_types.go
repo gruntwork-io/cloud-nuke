@@ -21,11 +21,9 @@ type DBSubnetGroups struct {
 	InstanceNames []string
 }
 
-func (dsg *DBSubnetGroups) InitV2(cfg aws.Config) {
+func (dsg *DBSubnetGroups) Init(cfg aws.Config) {
 	dsg.Client = rds.NewFromConfig(cfg)
 }
-
-func (dsg *DBSubnetGroups) IsUsingV2() bool { return true }
 
 func (dsg *DBSubnetGroups) ResourceName() string {
 	return "rds-subnet-group"

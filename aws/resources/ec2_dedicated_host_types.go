@@ -22,11 +22,9 @@ type EC2DedicatedHosts struct {
 	HostIds []string
 }
 
-func (h *EC2DedicatedHosts) InitV2(cfg aws.Config) {
+func (h *EC2DedicatedHosts) Init(cfg aws.Config) {
 	h.Client = ec2.NewFromConfig(cfg)
 }
-
-func (h *EC2DedicatedHosts) IsUsingV2() bool { return true }
 
 // ResourceName - the simple name of the aws resource
 func (h *EC2DedicatedHosts) ResourceName() string {
