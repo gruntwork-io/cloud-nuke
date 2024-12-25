@@ -319,11 +319,11 @@ func TestGetExclusionTag(t *testing.T) {
 		ExcludeRule FilterRule
 	}{
 		{
-			name: "empty",
+			name: "empty config returns default tag",
 			want: DefaultAwsResourceExclusionTagKey,
 		},
 		{
-			name: "exclude custom tag",
+			name: "custom exclusion tag is returned",
 			ExcludeRule: FilterRule{
 				Tag: aws.String("my-custom-tag"),
 			},
@@ -357,13 +357,13 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 		expect bool
 	}{
 		{
-			name:   "should exclude resource, with default tag",
+			name:   "should include resource with default exclude tag",
 			given:  arg{},
 			when:   map[string]string{DefaultAwsResourceExclusionTagKey: "true"},
 			expect: false,
 		},
 		{
-			name: "should exclude resource, with custom tag",
+			name: "should include resource with custom exclude tag",
 			given: arg{
 				ExcludeRule: FilterRule{
 					Tag: aws.String("my-custom-skip-tag"),
@@ -374,7 +374,24 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 			expect: false,
 		},
 		{
-			name: "should include resource when not explicitly set to true",
+			name: "should include resource with custom exclude tag and empty value",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String("my-custom-skip-tag"),
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": ""},
+			expect: false,
+		},
+		{
+			name:   "should include resource with empty default exclude tag value",
+			given:  arg{},
+			when:   map[string]string{DefaultAwsResourceExclusionTagKey: ""},
+			expect: false,
+		},
+		{
+			name: "should include resource when exclude tag is not set to true",
 			given: arg{
 				ExcludeRule: FilterRule{
 					Tag: aws.String(DefaultAwsResourceExclusionTagKey),
@@ -396,7 +413,7 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 			expect: true,
 		},
 		{
-			name: "should skip resource with protect until expire is set",
+			name: "should include resource when protection expires in the future",
 			given: arg{
 				ExcludeRule:        FilterRule{},
 				ProtectUntilExpire: true,
@@ -405,7 +422,7 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 			expect: false,
 		},
 		{
-			name: "should include resource with if protection expire is in the past",
+			name: "should include resource when protection expired in the past",
 			given: arg{
 				ExcludeRule:        FilterRule{},
 				ProtectUntilExpire: true,
@@ -434,17 +451,17 @@ func TestShouldIncludeWithTags(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "should include when there resource has no tags",
+			name: "should include when resource has no tags",
 			tags: map[string]string{},
 			want: true,
 		},
 		{
-			name: "should include when there resource has tags",
+			name: "should include when resource has tags",
 			tags: map[string]string{"env": "production"},
 			want: true,
 		},
 		{
-			name: "should exclude when there resource has default skip tag",
+			name: "should include when resource has default skip tag set",
 			tags: map[string]string{DefaultAwsResourceExclusionTagKey: "true"},
 			want: false,
 		},

@@ -395,7 +395,7 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 	// Handle exclude rule first
 	exclusionTag := r.getExclusionTag()
 	if value, ok := tags[exclusionTag]; ok {
-		if strings.ToLower(value) == "true" {
+		if strings.ToLower(value) == "true" || value == "" {
 			return false
 		}
 	}
