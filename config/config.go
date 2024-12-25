@@ -272,7 +272,6 @@ type FilterRule struct {
 	TimeAfter   *time.Time   `yaml:"time_after"`
 	TimeBefore  *time.Time   `yaml:"time_before"`
 	Tag         *string      `yaml:"tag"` // A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
-	TagExist    *string      `yaml:"tag_exist"`
 }
 
 type Expression struct {
@@ -402,40 +401,17 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 	}
 
 	if r.ProtectUntilExpire {
-		return nukeAfterTagValue(tags)
-	}
-
-	return true
-}
-
-func nukeAfterTagValue(tags map[string]string) bool {
-	// Check if the tags contain "cloud-nuke-after" and if the date is before today.
-	if value, ok := tags[CloudNukeAfterExclusionTagKey]; ok {
-		nukeDate, err := ParseTimestamp(value)
-		if err == nil {
-			if !nukeDate.Before(time.Now()) {
-				logging.Debugf("[Skip] the resource is protected until %v", nukeDate)
-				return false
+		// Check if the tags contain "cloud-nuke-after" and if the date is before today.
+		if value, ok := tags[CloudNukeAfterExclusionTagKey]; ok {
+			nukeDate, err := ParseTimestamp(value)
+			if err == nil {
+				if !nukeDate.Before(time.Now()) {
+					logging.Debugf("[Skip] the resource is protected until %v", nukeDate)
+					return false
+				}
 			}
 		}
 	}
-
-	return true
-}
-
-func (r ResourceType) ShouldIncludeBasedOnTagName(tags map[string]string) bool {
-	if r.ExcludeRule.TagExist != nil {
-		tagName := *r.ExcludeRule.TagExist
-
-		if _, ok := tags[tagName]; ok {
-			return false
-		}
-	}
-
-	if r.ProtectUntilExpire {
-		return nukeAfterTagValue(tags)
-	}
-
 	return true
 }
 
@@ -445,8 +421,6 @@ func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 	} else if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
 		return false
 	} else if value.Tags != nil && len(value.Tags) != 0 && !r.ShouldIncludeBasedOnTag(value.Tags) {
-		return false
-	} else if value.Tags != nil && len(value.Tags) != 0 && !r.ShouldIncludeBasedOnTagName(value.Tags) {
 		return false
 	}
 
