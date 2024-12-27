@@ -378,6 +378,9 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 			given: arg{
 				ExcludeRule: FilterRule{
 					Tag: aws.String("my-custom-skip-tag"),
+					TagValue: &Expression{
+						RE: *regexp.MustCompile(""),
+					},
 				},
 				ProtectUntilExpire: false,
 			},
@@ -385,9 +388,31 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 			expect: false,
 		},
 		{
-			name:   "should include resource with empty default exclude tag value",
-			given:  arg{},
-			when:   map[string]string{DefaultAwsResourceExclusionTagKey: ""},
+			name: "should include resource with custom exclude tag and empty value (using regular expression)",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String("my-custom-skip-tag"),
+					TagValue: &Expression{
+						RE: *regexp.MustCompile(".*"),
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": ""},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude tag and prefix value (using regular expression)",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String("my-custom-skip-tag"),
+					TagValue: &Expression{
+						RE: *regexp.MustCompile("protected-.*"),
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": "protected-database"},
 			expect: false,
 		},
 		{

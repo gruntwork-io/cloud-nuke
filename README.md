@@ -527,14 +527,21 @@ s3:
 
 #### Tag Filter
 
-You can also exclude resources by tags. The following config will exclude all s3 buckets that have a tag with key `foo`
-if the specified tag has a value, it must be set to `true` (case-insensitive),
-if the tag value is not set, cloud-nuke will only check for the tag name.
+You can also exclude resources by tags. The following configuration will exclude all S3 buckets that have a tag with the key `foo`.
+By default, we will check if the tag's value is set to `true` (case-insensitive).
 
 ```yaml
 s3:
   exclude:
-    tag: 'foo' # exclude if tag foo exists with empty value or 'true'
+    tag: 'foo' # exclude if tag foo exists with value of 'true'
+```
+
+You can also overwrite the expected value by specifying `tag_value` (you can use regular expressions).
+```yaml
+s3:
+  exclude:
+    tag: 'foo'
+    tag_value: 'dev-.*'
 ```
 #### Timeout
 You have the flexibility to set individual timeout options for specific resources. The execution will pause until the designated timeout is reached for each resource.
