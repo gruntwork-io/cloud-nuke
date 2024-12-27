@@ -10,7 +10,7 @@ env: &env
 defaults: &defaults
   resource_class: large
   docker:
-    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.21-tf1.5-tg39.1-pck1.8-ci50.7
+    - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.22.6-tf1.5-tg58.8-pck1.8-ci56.0
 version: 2.1
 jobs:
   test:
@@ -159,7 +159,7 @@ jobs:
       - attach_workspace:
           at: .
       - go/install:
-          version: "1.20.5"
+          version: "1.22.6"
       - run:
           name: Install sign-binary-helpers
           command: |
