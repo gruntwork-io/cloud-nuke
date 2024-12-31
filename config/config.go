@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	DefaultAwsResourceExclusionTagKey = "cloud-nuke-excluded"
-	CloudNukeAfterExclusionTagKey     = "cloud-nuke-after"
-	CloudNukeAfterTimeFormat          = time.RFC3339
-	CloudNukeAfterTimeFormatLegacy    = time.DateTime
+	DefaultAwsResourceExclusionTagKey   = "cloud-nuke-excluded"
+	DefaultAwsResourceExclusionTagValue = "true"
+	CloudNukeAfterExclusionTagKey       = "cloud-nuke-after"
+	CloudNukeAfterTimeFormat            = time.RFC3339
+	CloudNukeAfterTimeFormatLegacy      = time.DateTime
 )
 
 // Config - the config object we pass around
@@ -272,6 +273,7 @@ type FilterRule struct {
 	TimeAfter   *time.Time   `yaml:"time_after"`
 	TimeBefore  *time.Time   `yaml:"time_before"`
 	Tag         *string      `yaml:"tag"` // A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
+	TagValue    *Expression  `yaml:"tag_value"`
 }
 
 type Expression struct {
@@ -377,6 +379,14 @@ func (r ResourceType) getExclusionTag() string {
 	return DefaultAwsResourceExclusionTagKey
 }
 
+func (r ResourceType) getExclusionTagValue() *Expression {
+	if r.ExcludeRule.TagValue != nil {
+		return r.ExcludeRule.TagValue
+	}
+
+	return &Expression{RE: *regexp.MustCompile(DefaultAwsResourceExclusionTagValue)}
+}
+
 func ParseTimestamp(timestamp string) (*time.Time, error) {
 	parsed, err := time.Parse(CloudNukeAfterTimeFormat, timestamp)
 	if err != nil {
@@ -394,8 +404,9 @@ func ParseTimestamp(timestamp string) (*time.Time, error) {
 func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 	// Handle exclude rule first
 	exclusionTag := r.getExclusionTag()
+	exclusionTagValue := r.getExclusionTagValue()
 	if value, ok := tags[exclusionTag]; ok {
-		if strings.ToLower(value) == "true" {
+		if matches(strings.ToLower(value), []Expression{*exclusionTagValue}) {
 			return false
 		}
 	}

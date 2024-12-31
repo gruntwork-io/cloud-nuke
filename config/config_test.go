@@ -311,3 +311,196 @@ func TestAddIncludeAndExcludeAfterTime(t *testing.T) {
 	assert.Equal(t, testConfig.ACM.ExcludeRule.TimeAfter, now)
 	assert.Equal(t, testConfig.ACM.IncludeRule.TimeAfter, now)
 }
+
+func TestGetExclusionTag(t *testing.T) {
+	tests := []struct {
+		name        string
+		want        string
+		ExcludeRule FilterRule
+	}{
+		{
+			name: "empty config returns default tag",
+			want: DefaultAwsResourceExclusionTagKey,
+		},
+		{
+			name: "custom exclusion tag is returned",
+			ExcludeRule: FilterRule{
+				Tag: aws.String("my-custom-tag"),
+			},
+			want: "my-custom-tag",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testConfig := &Config{}
+			testConfig.ACM = ResourceType{
+				ExcludeRule: tt.ExcludeRule,
+			}
+
+			require.Equal(t, tt.want, testConfig.ACM.getExclusionTag())
+		})
+	}
+}
+
+func TestShouldIncludeBasedOnTag(t *testing.T) {
+	timeIn2h := time.Now().Add(2 * time.Hour)
+
+	type arg struct {
+		ExcludeRule        FilterRule
+		ProtectUntilExpire bool
+	}
+	tests := []struct {
+		name   string
+		given  arg
+		when   map[string]string
+		expect bool
+	}{
+		{
+			name:   "should include resource with default exclude tag",
+			given:  arg{},
+			when:   map[string]string{DefaultAwsResourceExclusionTagKey: "true"},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude tag",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String("my-custom-skip-tag"),
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": "true"},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude tag and empty value",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String("my-custom-skip-tag"),
+					TagValue: &Expression{
+						RE: *regexp.MustCompile(""),
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": ""},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude tag and empty value (using regular expression)",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String("my-custom-skip-tag"),
+					TagValue: &Expression{
+						RE: *regexp.MustCompile(".*"),
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": ""},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude tag and prefix value (using regular expression)",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String("my-custom-skip-tag"),
+					TagValue: &Expression{
+						RE: *regexp.MustCompile("protected-.*"),
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": "protected-database"},
+			expect: false,
+		},
+		{
+			name: "should include resource when exclude tag is not set to true",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String(DefaultAwsResourceExclusionTagKey),
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{DefaultAwsResourceExclusionTagKey: "false"},
+			expect: true,
+		},
+		{
+			name: "should include resource when no tags are set",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tag: aws.String(DefaultAwsResourceExclusionTagKey),
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{},
+			expect: true,
+		},
+		{
+			name: "should include resource when protection expires in the future",
+			given: arg{
+				ExcludeRule:        FilterRule{},
+				ProtectUntilExpire: true,
+			},
+			when:   map[string]string{CloudNukeAfterExclusionTagKey: timeIn2h.Format(time.RFC3339)},
+			expect: false,
+		},
+		{
+			name: "should include resource when protection expired in the past",
+			given: arg{
+				ExcludeRule:        FilterRule{},
+				ProtectUntilExpire: true,
+			},
+			when:   map[string]string{CloudNukeAfterExclusionTagKey: time.Now().Format(time.RFC3339)},
+			expect: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := ResourceType{
+				ExcludeRule:        tt.given.ExcludeRule,
+				ProtectUntilExpire: tt.given.ProtectUntilExpire,
+			}
+
+			require.Equal(t, tt.expect, r.ShouldIncludeBasedOnTag(tt.when))
+		})
+	}
+}
+
+func TestShouldIncludeWithTags(t *testing.T) {
+	tests := []struct {
+		name string
+		tags map[string]string
+		want bool
+	}{
+		{
+			name: "should include when resource has no tags",
+			tags: map[string]string{},
+			want: true,
+		},
+		{
+			name: "should include when resource has tags",
+			tags: map[string]string{"env": "production"},
+			want: true,
+		},
+		{
+			name: "should include when resource has default skip tag set",
+			tags: map[string]string{DefaultAwsResourceExclusionTagKey: "true"},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testConfig := &Config{
+				ACM: ResourceType{},
+			}
+
+			assert.Equal(t, tt.want, testConfig.ACM.ShouldInclude(ResourceValue{
+				Tags: tt.tags,
+			}))
+		})
+	}
+}
