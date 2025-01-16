@@ -28,6 +28,7 @@ type TransitGateways struct {
 
 func (tgw *TransitGateways) Init(cfg aws.Config) {
 	tgw.Client = ec2.NewFromConfig(cfg)
+	tgw.Nukables = make(map[string]error)
 }
 
 // ResourceName - the simple name of the aws resource
