@@ -53,15 +53,19 @@ func (mm *MacieMember) getAllMacieMembers() ([]*string, error) {
 		memberAccountIds = append(memberAccountIds, member.AccountId)
 	}
 
-	for aws.ToString(members.NextToken) != "" {
-		members, err = mm.Client.ListMembers(mm.Context, &macie2.ListMembersInput{NextToken: members.NextToken})
+	// Paginate through all members
+	nextToken := members.NextToken
+	for nextToken != nil && aws.ToString(nextToken) != "" {
+		members, err = mm.Client.ListMembers(mm.Context, &macie2.ListMembersInput{NextToken: nextToken})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 		for _, member := range members.Members {
 			memberAccountIds = append(memberAccountIds, member.AccountId)
 		}
+		nextToken = members.NextToken
 	}
+
 	logging.Debugf("Found %d member accounts attached to macie", len(memberAccountIds))
 	return memberAccountIds, nil
 }
@@ -70,6 +74,11 @@ func (mm *MacieMember) removeMacieMembers(memberAccountIds []*string) error {
 
 	// Member accounts must first be disassociated
 	for _, accountId := range memberAccountIds {
+		if accountId == nil {
+			logging.Warnf("Encountered nil accountId in member list, skipping.")
+			continue
+		}
+
 		_, err := mm.Client.DisassociateMember(mm.Context, &macie2.DisassociateMemberInput{Id: accountId})
 		if err != nil {
 			return err
@@ -96,37 +105,40 @@ func (mm *MacieMember) nukeAll(identifier []string) error {
 	// Macie cannot be disabled with active member accounts
 	memberAccountIds, err := mm.getAllMacieMembers()
 	if err != nil {
+		logging.Errorf("[Failed] Failed to get Macie members: %v", err)
 	}
 	if err == nil && len(memberAccountIds) > 0 {
 		err = mm.removeMacieMembers(memberAccountIds)
 		if err != nil {
-			logging.Errorf("[Failed] Failed to remove members from macie")
+			logging.Errorf("[Failed] Failed to remove members from macie: %v", err)
 		}
 	}
 
 	// Check for an administrator account
 	// Macie cannot be disabled with an active administrator account
-	adminAccount, err := mm.Client.GetAdministratorAccount(mm.Context, &macie2.GetAdministratorAccountInput{})
+	adminAccount, err := mm.Client.GetAdministratorAccount(
+		mm.Context, &macie2.GetAdministratorAccountInput{})
 	if err != nil {
 		if strings.Contains(err.Error(), "there isn't a delegated Macie administrator") {
 			logging.Debugf("No delegated Macie administrator found to remove.")
 		} else {
-			logging.Errorf("[Failed] Failed to check for administrator account")
+			logging.Errorf("[Failed] Failed to check for administrator account: %v", err)
 		}
 	}
 
 	// Disassociate administrator account if it exists
-	if adminAccount.Administrator != nil {
-		_, err := mm.Client.DisassociateFromAdministratorAccount(mm.Context, &macie2.DisassociateFromAdministratorAccountInput{})
+	if adminAccount != nil && adminAccount.Administrator != nil {
+		_, err := mm.Client.DisassociateFromAdministratorAccount(
+			mm.Context, &macie2.DisassociateFromAdministratorAccountInput{})
 		if err != nil {
-			logging.Errorf("[Failed] Failed to disassociate from administrator account")
+			logging.Errorf("[Failed] Failed to disassociate from administrator account: %v", err)
 		}
 	}
 
 	// Disable Macie
 	_, err = mm.Client.DisableMacie(mm.Context, &macie2.DisableMacieInput{})
 	if err != nil {
-		logging.Errorf("[Failed] Failed to disable macie.")
+		logging.Errorf("[Failed] Failed to disable macie: %v", err)
 		e := report.Entry{
 			Identifier:   aws.ToString(&identifier[0]),
 			ResourceType: "Macie",
