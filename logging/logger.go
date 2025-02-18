@@ -59,3 +59,11 @@ func Error(msg string) {
 func Errorf(msg string, args ...interface{}) {
 	Error(fmt.Sprintf(msg, args...))
 }
+
+func Warn(msg string) {
+	pterm.Warning.Println(msg)
+}
+
+func Warnf(msg string, args ...interface{}) {
+	Warn(fmt.Sprintf(msg, args...))
+}
