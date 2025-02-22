@@ -99,7 +99,6 @@ jobs:
               --exclude-resource-type iam \
               --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type ecr \
-              --exclude-resource-type config-recorders \
               --exclude-resource-type config-rules \
               --exclude-resource-type nat-gateway \
               --exclude-resource-type ec2-subnet \
@@ -141,7 +140,6 @@ jobs:
               --exclude-resource-type iam \
               --exclude-resource-type iam-service-linked-role \
               --exclude-resource-type ecr \
-              --exclude-resource-type config-recorders \
               --exclude-resource-type config-rules \
               --exclude-resource-type eip \
               --exclude-resource-type nat-gateway \
