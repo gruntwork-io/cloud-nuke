@@ -23,6 +23,7 @@ func (ct *CloudtrailTrail) getAll(c context.Context, configObj config.Config) ([
 		for _, trailInfo := range page.Trails {
 			if configObj.CloudtrailTrail.ShouldInclude(config.ResourceValue{
 				Name: trailInfo.Name,
+				Tags: util.ConvertTypesTagsToMap(trailInfo.Tags),
 			}) {
 				trailIds = append(trailIds, trailInfo.TrailARN)
 			}
