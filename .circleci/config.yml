@@ -147,6 +147,45 @@ jobs:
               --delete-unaliased-kms-keys \
               --log-level debug
           no_output_timeout: 1h
+  nuke_configtests:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          command: |
+            # We explicitly list the resource types we want to nuke, as we are not ready to nuke some resource types in
+            # the AWS account we use at Gruntwork for testing (Phx DevOps) (e.g., S3)
+            go run  -ldflags="-X 'main.VERSION=$CIRCLE_SHA1'" main.go aws \
+              --older-than 2h \
+              --force \
+              --config ./.circleci/nuke_config.yml \
+              --region ap-northeast-1 \
+              --region ap-northeast-2 \
+              --region ap-northeast-3 \
+              --region ap-south-1 \
+              --region ap-southeast-1 \
+              --region ap-southeast-2 \
+              --region ca-central-1 \
+              --region eu-central-1 \
+              --region eu-north-1 \
+              --region eu-west-1 \
+              --region eu-west-2 \
+              --region eu-west-3 \
+              --region me-central-1 \
+              --region sa-east-1 \
+              --region us-east-1 \
+              --region us-east-2 \
+              --region us-west-1 \
+              --region us-west-2 \
+              --exclude-resource-type iam \
+              --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type ecr \
+              --exclude-resource-type config-rules \
+              --exclude-resource-type nat-gateway \
+              --exclude-resource-type ec2-subnet \
+              --delete-unaliased-kms-keys \
+              --log-level debug
+          no_output_timeout: 1h
   deploy:
     <<: *env
     macos:
@@ -233,6 +272,16 @@ workflows:
       - nuke_phx_devops:
           context:
             - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
+  nuke_configtests:
+    when:
+      and:
+        - equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+        - equal: ["every 3 hours", << pipeline.schedule.name >>]
+    jobs:
+      - nuke_configtests:
+          context:
+            - AWS__CONFIGTESTS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
   nuke_sandbox:
     when:
