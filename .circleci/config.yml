@@ -148,7 +148,9 @@ jobs:
               --log-level debug
           no_output_timeout: 1h
   nuke_configtests:
-    <<: *defaults
+    resource_class: large
+    docker:
+      - image: 677276116620.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.22.6-tf1.5-tg58.8-pck1.8-ci56.0
     steps:
       - checkout
       - run:
