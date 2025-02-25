@@ -147,7 +147,7 @@ jobs:
               --delete-unaliased-kms-keys \
               --log-level debug
           no_output_timeout: 1h
-  nuke_configtestss:
+  nuke_configtests:
     <<: *defaults
     steps:
       - checkout
@@ -273,13 +273,13 @@ workflows:
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
-  nuke_configtestss:
+  nuke_configtests:
     when:
       and:
         - equal: [scheduled_pipeline, << pipeline.trigger_source >>]
         - equal: ["every 3 hours", << pipeline.schedule.name >>]
     jobs:
-      - nuke_configtestss:
+      - nuke_configtests:
           context:
             - AWS__CONFIGTESTS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
