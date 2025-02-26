@@ -173,7 +173,6 @@ jobs:
               --region eu-west-1 \
               --region eu-west-2 \
               --region eu-west-3 \
-              --region me-central-1 \
               --region sa-east-1 \
               --region us-east-1 \
               --region us-east-2 \
