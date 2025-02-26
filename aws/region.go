@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -51,7 +52,11 @@ const (
 func NewSession(region string) (aws.Config, error) {
 	// Note: As there is no actual region named `global` we have to pick one valid region and create the session.
 	if region == GlobalRegion {
-		return externalcreds.Get(DefaultRegion)
+		v, ok := os.LookupEnv("CLOUD_NUKE_AWS_GLOBAL_REGION")
+		if !ok {
+			v = DefaultRegion
+		}
+		return externalcreds.Get(v)
 	}
 
 	return externalcreds.Get(region)
