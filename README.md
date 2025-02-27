@@ -578,7 +578,7 @@ of the file that are supported are listed here.
 | cloudwatch-alarm                 | CloudWatchAlarm               | ✅ (Alarm Name)                        | ✅ (AlarmConfigurationUpdated Time)  | ❌    | ✅       |
 | cloudwatch-dashboard             | CloudWatchDashboard           | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    | ✅       |
 | cloudwatch-loggroup              | CloudWatchLogGroup            | ✅ (Log Group Name)                    | ✅ (Creation Time)                   | ❌    | ✅       |
-| cloudtrail                       | CloudtrailTrail               | ✅ (Trail Name)                        | ❌                                   | ❌    | ✅       |
+| cloudtrail                       | CloudtrailTrail               | ✅ (Trail Name)                        | ❌                                   | ✅    | ✅       |
 | codedeploy-application           | CodeDeployApplications        | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
 | config-recorders                 | ConfigServiceRecorder         | ✅ (Recorder Name)                     | ❌                                   | ❌    | ✅       |
 | config-rules                     | ConfigServiceRule             | ✅ (Rule Name)                         | ❌                                   | ❌    | ✅       |
