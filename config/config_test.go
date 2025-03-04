@@ -468,6 +468,90 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 		})
 	}
 }
+func TestShouldIncludeBasedOnAdditionalTag(t *testing.T) {
+
+	type arg struct {
+		ExcludeRule        FilterRule
+		ProtectUntilExpire bool
+	}
+	tests := []struct {
+		name   string
+		given  arg
+		when   map[string]string
+		expect bool
+	}{
+		{
+			name:   "should include resource with default exclude tag",
+			given:  arg{},
+			when:   map[string]string{DefaultAwsResourceExclusionTagKey: "true"},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude additional tag",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"my-custom-skip-tag": {RE: *regexp.MustCompile("")},
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": "true"},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude additional tag and empty value (using regular expression)",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"my-custom-skip-tag": {RE: *regexp.MustCompile(".*")},
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": ""},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom exclude tag and prefix value (using regular expression)",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"my-custom-skip-tag": {RE: *regexp.MustCompile("protected-.*")},
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-custom-skip-tag": "protected-database"},
+			expect: false,
+		},
+		{
+			name: "should include resource with custom multiple additional tag and prefix value (using regular expression)",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"my-first-skip-tag":  {RE: *regexp.MustCompile("protected-.*")},
+						"my-second-skip-tag": {RE: *regexp.MustCompile("protected-.*")},
+					},
+				},
+				ProtectUntilExpire: false,
+			},
+			when:   map[string]string{"my-second-skip-tag": "protected-database"},
+			expect: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := ResourceType{
+				ExcludeRule:        tt.given.ExcludeRule,
+				ProtectUntilExpire: tt.given.ProtectUntilExpire,
+			}
+
+			require.Equal(t, tt.expect, r.ShouldIncludeBasedOnTag(tt.when))
+		})
+	}
+}
 
 func TestShouldIncludeWithTags(t *testing.T) {
 	tests := []struct {
