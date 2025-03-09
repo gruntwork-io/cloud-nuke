@@ -256,9 +256,6 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	// Enable date checking for protecting the resources
-	// Note: This should only be enabled with AWS-Nuke, and it will not be enabled with force.
-	query.ProtectUntilExpire = !c.Bool("force")
 	return awsNukeHelper(c, configObj, query)
 }
 
