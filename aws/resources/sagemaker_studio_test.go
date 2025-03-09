@@ -337,7 +337,7 @@ func TestSageMakerStudio_GetAll(t *testing.T) {
 				},
 			},
 			config: config.Config{
-				SageMakerStudioDomain: config.SageMakerStudioDomainResourceType{},
+				SageMakerStudioDomain: config.ResourceType{},
 			},
 			expectedIds:   []*string{aws.String("domain-1")},
 			expectedError: false,
@@ -350,7 +350,7 @@ func TestSageMakerStudio_GetAll(t *testing.T) {
 				},
 			},
 			config: config.Config{
-				SageMakerStudioDomain: config.SageMakerStudioDomainResourceType{},
+				SageMakerStudioDomain: config.ResourceType{},
 			},
 			expectedIds:   nil,
 			expectedError: false,
@@ -374,7 +374,7 @@ func TestSageMakerStudio_GetAll(t *testing.T) {
 				},
 			},
 			config: config.Config{
-				SageMakerStudioDomain: config.SageMakerStudioDomainResourceType{},
+				SageMakerStudioDomain: config.ResourceType{},
 			},
 			expectedIds:   []*string{aws.String("domain-1"), aws.String("domain-2")},
 			expectedError: false,
@@ -386,7 +386,7 @@ func TestSageMakerStudio_GetAll(t *testing.T) {
 				ListDomainsError:  fmt.Errorf("AWS API error"),
 			},
 			config: config.Config{
-				SageMakerStudioDomain: config.SageMakerStudioDomainResourceType{},
+				SageMakerStudioDomain: config.ResourceType{},
 			},
 			expectedIds:   nil,
 			expectedError: true,
