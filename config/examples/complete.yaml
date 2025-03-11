@@ -1425,6 +1425,9 @@ SageMakerNotebook:
     tag: test
   timeout: 1h
   protect_until_expire: true
+SageMakerStudioDomain:
+  timeout: 1h
+  protect_until_expire: true
 SecretsManager:
   include:
     names_regex:

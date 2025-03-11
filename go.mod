@@ -66,6 +66,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.10.3
+	golang.org/x/sync v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 

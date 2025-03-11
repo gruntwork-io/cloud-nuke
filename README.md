@@ -86,6 +86,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | GuardDuty               | Detectors                                                |
 | Macie                   | Member accounts                                          |
 | SageMaker               | Notebook instances                                       |
+| SageMaker Studio        | Studio domain (and all associated resources)             |
 | Kinesis                 | Streams                                                  |
 | Kinesis                 | Firehose                                                 |
 | API Gateway             | Gateways (v1 and v2)                                     |
