@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	goerr "errors"
+	"fmt"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -46,9 +47,21 @@ func (dsg *DBSubnetGroups) getAll(c context.Context, configObj config.Config) ([
 		}
 
 		for _, subnetGroup := range page.DBSubnetGroups {
-			if configObj.DBSubnetGroups.ShouldInclude(config.ResourceValue{
+			tagsRes, err := dsg.Client.ListTagsForResource(c, &rds.ListTagsForResourceInput{
+				ResourceName: subnetGroup.DBSubnetGroupArn,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("fail to list tags: %w", err)
+			}
+
+			rv := config.ResourceValue{
 				Name: subnetGroup.DBSubnetGroupName,
-			}) {
+				Tags: map[string]string{},
+			}
+			for _, v := range tagsRes.TagList {
+				rv.Tags[*v.Key] = *v.Value
+			}
+			if configObj.DBSubnetGroups.ShouldInclude(rv) {
 				names = append(names, subnetGroup.DBSubnetGroupName)
 			}
 		}

@@ -26,6 +26,16 @@ func (m mockedDBSubnetGroups) DescribeDBSubnetGroups(ctx context.Context, params
 func (m mockedDBSubnetGroups) DeleteDBSubnetGroup(ctx context.Context, params *rds.DeleteDBSubnetGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBSubnetGroupOutput, error) {
 	return &m.DeleteDBSubnetGroupOutput, nil
 }
+func (m mockedDBSubnetGroups) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
+	return &rds.ListTagsForResourceOutput{
+		TagList: []types.Tag{
+			{
+				Key:   aws.String("resource_name"),
+				Value: params.ResourceName,
+			},
+		},
+	}, nil
+}
 
 var dbSubnetGroupNotFoundError = &types.DBSubnetGroupNotFoundFault{}
 
@@ -41,9 +51,11 @@ func TestDBSubnetGroups_GetAll(t *testing.T) {
 				DBSubnetGroups: []types.DBSubnetGroup{
 					{
 						DBSubnetGroupName: aws.String(testName1),
+						DBSubnetGroupArn:  aws.String("arn:" + testName1),
 					},
 					{
 						DBSubnetGroupName: aws.String(testName2),
+						DBSubnetGroupArn:  aws.String("arn:" + testName2),
 					},
 				},
 			},
@@ -64,6 +76,17 @@ func TestDBSubnetGroups_GetAll(t *testing.T) {
 					NamesRegExp: []config.Expression{{
 						RE: *regexp.MustCompile(testName1),
 					}}},
+			},
+			expected: []string{testName2},
+		},
+		"tagsExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tag: aws.String("resource_name"),
+					TagValue: &config.Expression{
+						RE: *regexp.MustCompile("^arn:" + testName1 + "$"),
+					},
+				},
 			},
 			expected: []string{testName2},
 		},
