@@ -36,7 +36,7 @@ func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []str
 		Timeout:              timeout,
 		DefaultOnly:          defaultOnly,
 		ExcludeFirstSeen:     excludeFirstSeen,
-		ProtectUntilExpire:   false,
+		ProtectUntilExpire:   true,
 	}
 
 	validationErr := q.Validate()

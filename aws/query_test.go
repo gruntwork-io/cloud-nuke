@@ -8,6 +8,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +45,7 @@ func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			_, err := NewQuery(
+			q, err := NewQuery(
 				tc.Regions,
 				tc.ExcludeRegions,
 				tc.ResourceTypes,
@@ -57,6 +58,7 @@ func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
 				false,
 			)
 			require.NoError(t, err)
+			assert.True(t, q.ProtectUntilExpire)
 		})
 	}
 }
