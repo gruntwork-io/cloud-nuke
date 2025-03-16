@@ -82,10 +82,10 @@ type Config struct {
 	GuardDuty                       ResourceType               `yaml:"GuardDuty"`
 	IAMGroups                       ResourceType               `yaml:"IAMGroups"`
 	IAMPolicies                     ResourceType               `yaml:"IAMPolicies"`
+	IAMInstanceProfiles             ResourceType               `yaml:"IAMInstanceProfiles"`
 	IAMRoles                        ResourceType               `yaml:"IAMRoles"`
 	IAMServiceLinkedRoles           ResourceType               `yaml:"IAMServiceLinkedRoles"`
 	IAMUsers                        ResourceType               `yaml:"IAMUsers"`
-	IAMInstanceProfiles             ResourceType               `yaml:"IAMInstanceProfiles"`
 	KMSCustomerKeys                 KMSCustomerKeyResourceType `yaml:"KMSCustomerKeys"`
 	KinesisStream                   ResourceType               `yaml:"KinesisStream"`
 	KinesisFirehose                 ResourceType               `yaml:"KinesisFirehose"`
@@ -270,11 +270,12 @@ type ResourceType struct {
 }
 
 type FilterRule struct {
-	NamesRegExp []Expression `yaml:"names_regex"`
-	TimeAfter   *time.Time   `yaml:"time_after"`
-	TimeBefore  *time.Time   `yaml:"time_before"`
-	Tag         *string      `yaml:"tag"` // A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
-	TagValue    *Expression  `yaml:"tag_value"`
+	NamesRegExp []Expression          `yaml:"names_regex"`
+	TimeAfter   *time.Time            `yaml:"time_after"`
+	TimeBefore  *time.Time            `yaml:"time_before"`
+	Tag         *string               `yaml:"tag"`       // Deprecated ~ A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
+	TagValue    *Expression           `yaml:"tag_value"` // Deprecated
+	Tags        map[string]Expression `yaml:"tags"`
 }
 
 type Expression struct {
@@ -409,6 +410,15 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 	if value, ok := tags[exclusionTag]; ok {
 		if matches(strings.ToLower(value), []Expression{*exclusionTagValue}) {
 			return false
+		}
+	}
+
+	// Check if additionalTag is not empty
+	for additionalTag, additionalTagValue := range r.ExcludeRule.Tags {
+		if value, ok := tags[additionalTag]; ok {
+			if matches(strings.ToLower(value), []Expression{additionalTagValue}) {
+				return false
+			}
 		}
 	}
 

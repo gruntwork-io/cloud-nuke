@@ -36,6 +36,7 @@ func getRegisteredGlobalResources() []AwsResource {
 		&resources.DBGlobalClusters{},
 		&resources.IAMUsers{},
 		&resources.IAMGroups{},
+		&resources.IAMPolicies{},
 		&resources.IAMInstanceProfiles{},
 		&resources.IAMRoles{},
 		&resources.IAMServiceLinkedRoles{},
