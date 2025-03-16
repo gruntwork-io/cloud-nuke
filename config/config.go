@@ -113,6 +113,7 @@ type Config struct {
 	SNS                             ResourceType               `yaml:"SNS"`
 	SQS                             ResourceType               `yaml:"SQS"`
 	SageMakerNotebook               ResourceType               `yaml:"SageMakerNotebook"`
+	SageMakerStudioDomain           ResourceType               `yaml:"SageMakerStudioDomain"`
 	SecretsManagerSecrets           ResourceType               `yaml:"SecretsManager"`
 	SecurityHub                     ResourceType               `yaml:"SecurityHub"`
 	Snapshots                       ResourceType               `yaml:"Snapshots"`
@@ -256,6 +257,7 @@ type KMSCustomerKeyResourceType struct {
 	IncludeUnaliasedKeys bool `yaml:"include_unaliased_keys"`
 	ResourceType         `yaml:",inline"`
 }
+
 type EC2ResourceType struct {
 	DefaultOnly  bool `yaml:"default_only"`
 	ResourceType `yaml:",inline"`
