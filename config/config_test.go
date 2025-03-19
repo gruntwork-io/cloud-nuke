@@ -75,6 +75,7 @@ func emptyConfig() *Config {
 		IAMPolicies:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		IAMRoles:                        ResourceType{FilterRule{}, FilterRule{}, "", false},
 		IAMServiceLinkedRoles:           ResourceType{FilterRule{}, FilterRule{}, "", false},
+		IAMInstanceProfiles:             ResourceType{FilterRule{}, FilterRule{}, "", false},
 		IAMUsers:                        ResourceType{FilterRule{}, FilterRule{}, "", false},
 		KMSCustomerKeys:                 KMSCustomerKeyResourceType{false, ResourceType{}},
 		KinesisStream:                   ResourceType{FilterRule{}, FilterRule{}, "", false},

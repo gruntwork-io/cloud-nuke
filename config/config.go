@@ -82,6 +82,7 @@ type Config struct {
 	GuardDuty                       ResourceType               `yaml:"GuardDuty"`
 	IAMGroups                       ResourceType               `yaml:"IAMGroups"`
 	IAMPolicies                     ResourceType               `yaml:"IAMPolicies"`
+	IAMInstanceProfiles             ResourceType               `yaml:"IAMInstanceProfiles"`
 	IAMRoles                        ResourceType               `yaml:"IAMRoles"`
 	IAMServiceLinkedRoles           ResourceType               `yaml:"IAMServiceLinkedRoles"`
 	IAMUsers                        ResourceType               `yaml:"IAMUsers"`
