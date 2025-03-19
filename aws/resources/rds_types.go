@@ -10,6 +10,7 @@ import (
 )
 
 type RDSAPI interface {
+	ModifyDBInstance(ctx context.Context, params *rds.ModifyDBInstanceInput, optFns ...func(*rds.Options)) (*rds.ModifyDBInstanceOutput, error)
 	DeleteDBInstance(ctx context.Context, params *rds.DeleteDBInstanceInput, optFns ...func(*rds.Options)) (*rds.DeleteDBInstanceOutput, error)
 	DescribeDBInstances(ctx context.Context, params *rds.DescribeDBInstancesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBInstancesOutput, error)
 }
@@ -39,7 +40,7 @@ func (di *DBInstances) MaxBatchSize() int {
 }
 
 func (di *DBInstances) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
-	return configObj.DBInstances
+	return configObj.DBInstances.ResourceType
 }
 
 func (di *DBInstances) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {

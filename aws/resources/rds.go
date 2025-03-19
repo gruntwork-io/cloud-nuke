@@ -22,13 +22,20 @@ func (di *DBInstances) getAll(ctx context.Context, configObj config.Config) ([]*
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		if configObj.DBInstances.ShouldInclude(config.ResourceValue{
+		// instance is deletion-protected while config object doesn't include deletion-protected
+		if database.DeletionProtection != nil && *database.DeletionProtection && !configObj.DBInstances.IncludeDeletionProtected {
+			continue
+		}
+
+		if !configObj.DBInstances.ShouldInclude(config.ResourceValue{
 			Time: database.InstanceCreateTime,
 			Name: database.DBInstanceIdentifier,
 			Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
 		}) {
-			names = append(names, database.DBInstanceIdentifier)
+			continue
 		}
+
+		names = append(names, database.DBInstanceIdentifier)
 	}
 
 	return names, nil
@@ -44,12 +51,22 @@ func (di *DBInstances) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
+		// Disable deletion protection
+		_, err := di.Client.ModifyDBInstance(context.TODO(), &rds.ModifyDBInstanceInput{
+			DBInstanceIdentifier: name,
+			DeletionProtection:   aws.Bool(false),
+			ApplyImmediately:     aws.Bool(true),
+		})
+		if err != nil {
+			logging.Warnf("[Failed] to disable deletion protection for %s: %s", *name, err)
+		}
+
 		params := &rds.DeleteDBInstanceInput{
 			DBInstanceIdentifier: name,
 			SkipFinalSnapshot:    aws.Bool(true),
 		}
 
-		_, err := di.Client.DeleteDBInstance(di.Context, params)
+		_, err = di.Client.DeleteDBInstance(di.Context, params)
 
 		if err != nil {
 			logging.Errorf("[Failed] %s: %s", *name, err)
