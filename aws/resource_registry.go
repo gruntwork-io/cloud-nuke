@@ -132,6 +132,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.S3MultiRegionAccessPoint{},
 		&resources.SageMakerNotebookInstances{},
 		&resources.SageMakerStudio{},
+		&resources.SageMakerEndpoint{},
 		&resources.SecretsManagerSecrets{},
 		&resources.SecurityHub{},
 		&resources.SesConfigurationSet{},

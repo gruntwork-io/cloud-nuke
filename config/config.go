@@ -113,6 +113,7 @@ type Config struct {
 	SESEmailTemplates               ResourceType                  `yaml:"SesEmailTemplates"`
 	SNS                             ResourceType                  `yaml:"SNS"`
 	SQS                             ResourceType                  `yaml:"SQS"`
+	SageMakerEndpoint               ResourceType                  `yaml:"SageMakerEndpoint"`
 	SageMakerNotebook               ResourceType                  `yaml:"SageMakerNotebook"`
 	SageMakerStudioDomain           ResourceType                  `yaml:"SageMakerStudioDomain"`
 	SecretsManagerSecrets           ResourceType                  `yaml:"SecretsManager"`
