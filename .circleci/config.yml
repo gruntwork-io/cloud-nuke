@@ -78,6 +78,7 @@ jobs:
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \ 
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -97,7 +98,14 @@ jobs:
               --region us-west-1 \
               --region us-west-2 \
               --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type iam-role \
               --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type oidcprovider \
+              --exclude-resource-type route53-hosted-zone \
+              --exclude-resource-type route53-cidr-collection \
+              --exclude-resource-type route53-traffic-policy \
               --exclude-resource-type ecr \
               --exclude-resource-type config-rules \
               --exclude-resource-type nat-gateway \
@@ -119,6 +127,7 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \ 
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -138,7 +147,14 @@ jobs:
               --region us-west-1 \
               --region us-west-2 \
               --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type iam-role \
               --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type oidcprovider \
+              --exclude-resource-type route53-hosted-zone \
+              --exclude-resource-type route53-cidr-collection \
+              --exclude-resource-type route53-traffic-policy \
               --exclude-resource-type ecr \
               --exclude-resource-type config-rules \
               --exclude-resource-type eip \
@@ -161,6 +177,7 @@ jobs:
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \ 
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -179,7 +196,14 @@ jobs:
               --region us-west-1 \
               --region us-west-2 \
               --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type iam-role \
               --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type oidcprovider \
+              --exclude-resource-type route53-hosted-zone \
+              --exclude-resource-type route53-cidr-collection \
+              --exclude-resource-type route53-traffic-policy \
               --exclude-resource-type ecr \
               --exclude-resource-type config-rules \
               --exclude-resource-type nat-gateway \
