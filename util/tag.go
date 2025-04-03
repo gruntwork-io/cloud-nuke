@@ -7,6 +7,7 @@ import (
 	networkfirewalltypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	rdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	sagemakertypes "github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
 )
 
 func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
@@ -79,4 +80,15 @@ func ConvertNetworkFirewallTagsToMap(tags []networkfirewalltypes.Tag) map[string
 	}
 
 	return tagMap
+}
+
+// ConvertSageMakerTagsToMap converts SageMaker tags to a map[string]string
+func ConvertSageMakerTagsToMap(tags []sagemakertypes.Tag) map[string]string {
+	result := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			result[*tag.Key] = *tag.Value
+		}
+	}
+	return result
 }

@@ -86,6 +86,7 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | GuardDuty               | Detectors                                                |
 | Macie                   | Member accounts                                          |
 | SageMaker               | Notebook instances                                       |
+| SageMaker Endpoint      | Endpoint                                                 |
 | SageMaker Studio        | Studio domain (and all associated resources)             |
 | Kinesis                 | Streams                                                  |
 | Kinesis                 | Firehose                                                 |
@@ -657,7 +658,9 @@ of the file that are supported are listed here.
 | ses-receipt-filter               | SesReceiptFilter              | ✅ (Receipt Filter Name)               | ❌                                   | ❌    | ✅       |
 | snstopic                         | SNS                           | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    | ✅       |
 | sqs                              | SQS                           | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
-| sagemaker-notebook-smni          | SageMakerNotebook             | ✅ (Notebook Instnace Name)            | ✅ (Creation Time)                   | ❌    | ✅       |
+| sagemaker-notebook-smni          | SageMakerNotebook             | ✅ (Notebook Instance Name)            | ✅ (Creation Time)                   | ❌    | ✅       |
+| sagemaker-endpoint               | SageMakerEndpoint             | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
+| sagemaker-studio                 | SageMakerStudioDomain         | ❌                                     | ❌                                   | ❌    | ✅       |
 | secretsmanager                   | SecretsManager                | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    | ✅       |
 | security-hub                     | SecurityHub                   | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
 | snap                             | Snapshots                     | ❌                                     | ✅ (Creation Time)                   | ✅    | ✅       |
