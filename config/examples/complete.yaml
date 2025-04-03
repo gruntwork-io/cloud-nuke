@@ -1425,6 +1425,22 @@ SageMakerEndpoint:
     tag: test
   timeout: 1h
   protect_until_expire: true
+SageMakerEndpointConfig:
+  include:
+    names_regex:
+      - that.*
+      - thats.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  exclude:
+    names_regex:
+      - this.*
+    time_after: 2024-02-02T00:00:00Z
+    time_before: 2024-01-01T00:00:00Z
+    tag: test
+  timeout: 1h
+  protect_until_expire: true
 SageMakerNotebook:
   include:
     names_regex:

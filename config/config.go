@@ -114,6 +114,7 @@ type Config struct {
 	SNS                             ResourceType                  `yaml:"SNS"`
 	SQS                             ResourceType                  `yaml:"SQS"`
 	SageMakerEndpoint               ResourceType                  `yaml:"SageMakerEndpoint"`
+	SageMakerEndpointConfig         ResourceType                  `yaml:"SageMakerEndpointConfig"`
 	SageMakerNotebook               ResourceType                  `yaml:"SageMakerNotebook"`
 	SageMakerStudioDomain           ResourceType                  `yaml:"SageMakerStudioDomain"`
 	SecretsManagerSecrets           ResourceType                  `yaml:"SecretsManager"`
