@@ -85,9 +85,10 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | Managed Prometheus      | Prometheus Workspace                                     |
 | GuardDuty               | Detectors                                                |
 | Macie                   | Member accounts                                          |
-| SageMaker               | Notebook instances                                       |
-| SageMaker Endpoint      | Endpoint                                                 |
-| SageMaker Studio        | Studio domain (and all associated resources)             |
+| SageMaker AI            | Notebook instances                                       |
+| SageMaker AI            | Endpoint                                                 |
+| SageMaker AI            | Endpoint configuration                                   |
+| SageMaker AI            | Studio domain (and all associated resources)             |
 | Kinesis                 | Streams                                                  |
 | Kinesis                 | Firehose                                                 |
 | API Gateway             | Gateways (v1 and v2)                                     |
@@ -660,6 +661,7 @@ of the file that are supported are listed here.
 | sqs                              | SQS                           | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
 | sagemaker-notebook-smni          | SageMakerNotebook             | ✅ (Notebook Instance Name)            | ✅ (Creation Time)                   | ❌    | ✅       |
 | sagemaker-endpoint               | SageMakerEndpoint             | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
+| sagemaker-endpoint-config        | SageMakerEndpointConfig       | ✅ (Endpoint Configuration Name)       | ✅ (Creation Time)                   | ✅    | ✅       |
 | sagemaker-studio                 | SageMakerStudioDomain         | ❌                                     | ❌                                   | ❌    | ✅       |
 | secretsmanager                   | SecretsManager                | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    | ✅       |
 | security-hub                     | SecurityHub                   | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
