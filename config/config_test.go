@@ -105,6 +105,7 @@ func emptyConfig() *Config {
 		SESEmailTemplates:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SNS:                             ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SQS:                             ResourceType{FilterRule{}, FilterRule{}, "", false},
+		SageMakerEndpoint:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SageMakerNotebook:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SageMakerStudioDomain:           ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SecretsManagerSecrets:           ResourceType{FilterRule{}, FilterRule{}, "", false},
