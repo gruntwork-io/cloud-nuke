@@ -36,6 +36,7 @@ type Config struct {
 	CloudWatchDashboard             ResourceType                  `yaml:"CloudWatchDashboard"`
 	CloudWatchLogGroup              ResourceType                  `yaml:"CloudWatchLogGroup"`
 	CloudtrailTrail                 ResourceType                  `yaml:"CloudtrailTrail"`
+	CloudfrontDistribution          ResourceType                  `yaml:"CloudfrontDistribution"`
 	CodeDeployApplications          ResourceType                  `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType                  `yaml:"ConfigServiceRecorder"`
 	ConfigServiceRule               ResourceType                  `yaml:"ConfigServiceRule"`
@@ -113,7 +114,6 @@ type Config struct {
 	SESEmailTemplates               ResourceType                  `yaml:"SesEmailTemplates"`
 	SNS                             ResourceType                  `yaml:"SNS"`
 	SQS                             ResourceType                  `yaml:"SQS"`
-	SageMakerEndpoint               ResourceType                  `yaml:"SageMakerEndpoint"`
 	SageMakerNotebook               ResourceType                  `yaml:"SageMakerNotebook"`
 	SageMakerStudioDomain           ResourceType                  `yaml:"SageMakerStudioDomain"`
 	SecretsManagerSecrets           ResourceType                  `yaml:"SecretsManager"`

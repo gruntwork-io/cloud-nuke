@@ -27,6 +27,7 @@ func emptyConfig() *Config {
 		CloudWatchDashboard:             ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudWatchLogGroup:              ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudtrailTrail:                 ResourceType{FilterRule{}, FilterRule{}, "", false},
+		CloudfrontDistribution:          ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CodeDeployApplications:          ResourceType{FilterRule{}, FilterRule{}, "", false},
 		ConfigServiceRecorder:           ResourceType{FilterRule{}, FilterRule{}, "", false},
 		ConfigServiceRule:               ResourceType{FilterRule{}, FilterRule{}, "", false},
