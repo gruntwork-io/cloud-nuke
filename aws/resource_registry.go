@@ -44,6 +44,7 @@ func getRegisteredGlobalResources() []AwsResource {
 		&resources.Route53HostedZone{},
 		&resources.Route53CidrCollection{},
 		&resources.Route53TrafficPolicy{},
+		&resources.CloudfrontDistribution{},
 	}
 }
 
