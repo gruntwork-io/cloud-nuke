@@ -1,9 +1,12 @@
 module github.com/gruntwork-io/cloud-nuke
 
-go 1.21
+go 1.22
+
+toolchain go1.23.6
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.36.0
+	github.com/aws/aws-sdk-go v1.44.48
+	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.5
 	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.36.12
 	github.com/aws/aws-sdk-go-v2/service/acm v1.30.17
@@ -14,6 +17,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/apprunner v1.32.14
 	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.51.11
 	github.com/aws/aws-sdk-go-v2/service/backup v1.40.9
+	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.45.2
 	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.47.3
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.43.13
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.45.11
@@ -76,8 +80,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.8 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.58 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.27 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.31 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.31 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.31 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.2 // indirect
@@ -93,6 +97,7 @@ require (
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/gookit/color v1.5.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.5 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
