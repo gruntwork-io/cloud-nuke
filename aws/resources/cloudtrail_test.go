@@ -16,6 +16,7 @@ type mockedCloudTrail struct {
 	CloudtrailTrailAPI
 	ListTrailsOutput  cloudtrail.ListTrailsOutput
 	DeleteTrailOutput cloudtrail.DeleteTrailOutput
+	ListTagsOutput    cloudtrail.ListTagsOutput
 }
 
 func (m mockedCloudTrail) ListTrails(ctx context.Context, params *cloudtrail.ListTrailsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTrailsOutput, error) {
@@ -24,6 +25,10 @@ func (m mockedCloudTrail) ListTrails(ctx context.Context, params *cloudtrail.Lis
 
 func (m mockedCloudTrail) DeleteTrail(ctx context.Context, params *cloudtrail.DeleteTrailInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.DeleteTrailOutput, error) {
 	return &m.DeleteTrailOutput, nil
+}
+
+func (m mockedCloudTrail) ListTags(ctx context.Context, params *cloudtrail.ListTagsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTagsOutput, error) {
+	return &m.ListTagsOutput, nil
 }
 
 func TestCloudTrailGetAll(t *testing.T) {
@@ -45,7 +50,27 @@ func TestCloudTrailGetAll(t *testing.T) {
 						Name:     aws.String(testName2),
 						TrailARN: aws.String(testArn2),
 					},
-				}}}}
+				},
+			},
+			ListTagsOutput: cloudtrail.ListTagsOutput{
+				ResourceTagList: []types.ResourceTag{
+					{
+						ResourceId: aws.String(testArn1),
+						TagsList: []types.Tag{
+							{
+								Key:   aws.String("t_name"),
+								Value: &testName1,
+							},
+							{
+								Key:   aws.String("t_arn"),
+								Value: &testArn1,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -61,6 +86,16 @@ func TestCloudTrailGetAll(t *testing.T) {
 					NamesRegExp: []config.Expression{{
 						RE: *regexp.MustCompile(testName1),
 					}}},
+			},
+			expected: []string{testArn2},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"t_arn": {RE: *regexp.MustCompile(testArn1)},
+					},
+				},
 			},
 			expected: []string{testArn2},
 		},
