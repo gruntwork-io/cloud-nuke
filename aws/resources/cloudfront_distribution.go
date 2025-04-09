@@ -77,9 +77,10 @@ func (cd *CloudfrontDistribution) nukeAll(ids []*string) (err error) {
 			}
 
 			logging.Debugf("Waiting for distribution %s to be disabled...\n", *id)
-			sleep := 2
+			sleep := 1
 			for {
-				time.Sleep(2 * time.Second) // Wait before checking again
+				time.Sleep(time.Duration(sleep) * time.Second) // Wait before checking again
+
 				getOutput, err = cd.Client.GetDistributionConfig(ctx, &cloudfront.GetDistributionConfigInput{
 					Id: id,
 				})
@@ -90,8 +91,9 @@ func (cd *CloudfrontDistribution) nukeAll(ids []*string) (err error) {
 				if !*getOutput.DistributionConfig.Enabled {
 					break
 				}
-				if sleep > 32 {
-					sleep = 32
+
+				if sleep < 32 {
+					sleep *= 2
 				}
 			}
 		}
