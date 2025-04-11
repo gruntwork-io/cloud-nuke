@@ -2,9 +2,11 @@ package resources
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
+	"github.com/aws/aws-sdk-go-v2/service/cloudtrail/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -20,10 +22,33 @@ func (ct *CloudtrailTrail) getAll(c context.Context, configObj config.Config) ([
 			return nil, errors.WithStackTrace(err)
 		}
 
+		// get tags
+		trailARNs := []string{}
 		for _, trailInfo := range page.Trails {
-			if configObj.CloudtrailTrail.ShouldInclude(config.ResourceValue{
+			trailARNs = append(trailARNs, *trailInfo.TrailARN)
+		}
+		tagsOutput, err := ct.Client.ListTags(c, &cloudtrail.ListTagsInput{
+			ResourceIdList: trailARNs,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve tags: %w", err)
+		}
+		tagsMap := map[string][]types.Tag{}
+		for _, tag := range tagsOutput.ResourceTagList {
+			tagsMap[*tag.ResourceId] = tag.TagsList
+		}
+
+		for _, trailInfo := range page.Trails {
+			rv := config.ResourceValue{
 				Name: trailInfo.Name,
-			}) {
+				Tags: map[string]string{},
+			}
+			if tags, ok := tagsMap[*trailInfo.TrailARN]; ok {
+				for _, tag := range tags {
+					rv.Tags[*tag.Key] = *tag.Value
+				}
+			}
+			if configObj.CloudtrailTrail.ShouldInclude(rv) {
 				trailIds = append(trailIds, trailInfo.TrailARN)
 			}
 		}
