@@ -36,6 +36,7 @@ type Config struct {
 	CloudWatchDashboard             ResourceType                  `yaml:"CloudWatchDashboard"`
 	CloudWatchLogGroup              ResourceType                  `yaml:"CloudWatchLogGroup"`
 	CloudtrailTrail                 ResourceType                  `yaml:"CloudtrailTrail"`
+	CloudfrontDistribution          ResourceType                  `yaml:"CloudfrontDistribution"`
 	CodeDeployApplications          ResourceType                  `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType                  `yaml:"ConfigServiceRecorder"`
 	ConfigServiceRule               ResourceType                  `yaml:"ConfigServiceRule"`
