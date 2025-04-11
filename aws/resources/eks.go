@@ -48,6 +48,7 @@ func (clusters *EKSClusters) filter(clusterNames []*string, configObj config.Con
 		}
 
 		if !configObj.EKSCluster.ShouldInclude(config.ResourceValue{
+			Name: clusterName,
 			Time: describeResult.Cluster.CreatedAt,
 			Tags: util.ConvertStringPtrTagsToMap(aws.StringMap(describeResult.Cluster.Tags)),
 		}) {

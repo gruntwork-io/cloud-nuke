@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
@@ -63,12 +64,14 @@ func (m mockedEKSCluster) ListNodegroups(ctx context.Context, params *eks.ListNo
 func TestEKSClusterGetAll(t *testing.T) {
 	t.Parallel()
 
-	testClusterName := "test_cluster1"
+	testClusterName1 := "test_cluster1"
+	testClusterName2 := "test_cluster2"
+	testClusterName3 := "test_cluster3"
 	now := time.Now()
 	eksCluster := EKSClusters{
 		Client: mockedEKSCluster{
 			ListClustersOutput: eks.ListClustersOutput{
-				Clusters: []string{testClusterName},
+				Clusters: []string{testClusterName1, testClusterName2, testClusterName3},
 			},
 			DescribeClusterOutput: eks.DescribeClusterOutput{
 				Cluster: &types.Cluster{CreatedAt: &now},
@@ -76,9 +79,35 @@ func TestEKSClusterGetAll(t *testing.T) {
 		},
 	}
 
-	clusters, err := eksCluster.getAll(context.Background(), config.Config{})
-	require.NoError(t, err)
-	require.Contains(t, aws.ToStringSlice(clusters), testClusterName)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testClusterName1, testClusterName2, testClusterName3},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile("test_cluster[12]"),
+					}}},
+			},
+			expected: []string{testClusterName3},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := eksCluster.getAll(context.Background(), config.Config{
+				EKSCluster: tc.configObj,
+			})
+
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
+	}
 }
 
 func TestEKSClusterNukeAll(t *testing.T) {
