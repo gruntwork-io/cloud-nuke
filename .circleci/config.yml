@@ -78,6 +78,7 @@ jobs:
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -119,6 +120,7 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -161,6 +163,7 @@ jobs:
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
