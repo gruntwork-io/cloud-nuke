@@ -78,6 +78,7 @@ jobs:
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -97,7 +98,14 @@ jobs:
               --region us-west-1 \
               --region us-west-2 \
               --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type iam-role \
               --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type oidcprovider \
+              --exclude-resource-type route53-hosted-zone \
+              --exclude-resource-type route53-cidr-collection \
+              --exclude-resource-type route53-traffic-policy \
               --exclude-resource-type ecr \
               --exclude-resource-type config-rules \
               --exclude-resource-type nat-gateway \
@@ -119,6 +127,7 @@ jobs:
               --older-than 24h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -138,12 +147,19 @@ jobs:
               --region us-west-1 \
               --region us-west-2 \
               --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type iam-role \
               --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type oidcprovider \
+              --exclude-resource-type route53-hosted-zone \
+              --exclude-resource-type route53-cidr-collection \
+              --exclude-resource-type route53-traffic-policy \
               --exclude-resource-type ecr \
               --exclude-resource-type config-rules \
-              --exclude-resource-type eip \
               --exclude-resource-type nat-gateway \
               --exclude-resource-type ec2-subnet \
+              --exclude-resource-type eip \
               --delete-unaliased-kms-keys \
               --log-level debug
           no_output_timeout: 1h
@@ -161,6 +177,7 @@ jobs:
               --older-than 2h \
               --force \
               --config ./.circleci/nuke_config.yml \
+              --region global \
               --region ap-northeast-1 \
               --region ap-northeast-2 \
               --region ap-northeast-3 \
@@ -179,7 +196,14 @@ jobs:
               --region us-west-1 \
               --region us-west-2 \
               --exclude-resource-type iam \
+              --exclude-resource-type iam-group \
+              --exclude-resource-type iam-policy \
+              --exclude-resource-type iam-role \
               --exclude-resource-type iam-service-linked-role \
+              --exclude-resource-type oidcprovider \
+              --exclude-resource-type route53-hosted-zone \
+              --exclude-resource-type route53-cidr-collection \
+              --exclude-resource-type route53-traffic-policy \
               --exclude-resource-type ecr \
               --exclude-resource-type config-rules \
               --exclude-resource-type nat-gateway \
@@ -232,7 +256,7 @@ workflows:
     # Make sure this pipeline doesn't run when a schedule is triggered
     when:
       not:
-        equal: [scheduled_pipeline, << pipeline.trigger_source >>]
+        equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
     jobs:
       - test:
           filters:
@@ -267,8 +291,8 @@ workflows:
   nuke_phxdevops:
     when:
       and:
-        - equal: [scheduled_pipeline, << pipeline.trigger_source >>]
-        - equal: ["every 3 hours", << pipeline.schedule.name >>]
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "every 3 hours", << pipeline.schedule.name >> ]
     jobs:
       - nuke_phx_devops:
           context:
@@ -277,8 +301,8 @@ workflows:
   nuke_configtests:
     when:
       and:
-        - equal: [scheduled_pipeline, << pipeline.trigger_source >>]
-        - equal: ["every 3 hours", << pipeline.schedule.name >>]
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "every 3 hours", << pipeline.schedule.name >> ]
     jobs:
       - nuke_configtests:
           context:
@@ -287,8 +311,8 @@ workflows:
   nuke_sandbox:
     when:
       and:
-        - equal: [scheduled_pipeline, << pipeline.trigger_source >>]
-        - equal: ["nightly", << pipeline.schedule.name >>]
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "nightly", << pipeline.schedule.name >> ]
     jobs:
       - nuke_sandbox:
           context:
