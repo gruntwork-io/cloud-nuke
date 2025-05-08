@@ -555,6 +555,18 @@ By default, cloud-nuke will exclude resources tagged with `cloud-nuke-excluded=t
 
 > **Deprecated:** The older single-tag syntax using `tag` and `tag_value` fields is deprecated and will be removed in a future version. Please use the `tags` map syntax shown above instead.
 
+#### Timeout
+
+You have the flexibility to set individual timeout options for specific resources. The execution will pause until the designated timeout is reached for each resource.
+
+```yaml
+s3:
+  timeout: 10m  # Timeout after 10 minutes
+
+s3:
+  timeout: 5s   # Timeout after 5 seconds
+```
+
 ### What's supported?
 
 To find out what we options are supported in the config file today, consult this table. Resource types at the top level
