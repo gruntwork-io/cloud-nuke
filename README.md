@@ -530,37 +530,30 @@ s3:
 
 #### Tag Filter
 
-You can also exclude resources by tags. The following configuration will exclude all S3 buckets that have a tag with the key `foo`.
-By default, we will check if the tag's value is set to `true` (case-insensitive).
+Resources can be excluded based on their tags using the `tags` map in the configuration. The `tags` map supports multiple tags with regular expression values, where resources matching **any** of the specified tag patterns will be excluded (logical OR).
 
 ```yaml
-s3:
+ec2:
   exclude:
-    tag: 'foo' # exclude if tag foo exists with value of 'true'
+    tags:
+      Schedule: "^schedule-.*"    # Excludes resources with Schedule tag matching pattern
+      Environment: "^Prod$"       # Excludes resources with Environment=Prod
 ```
 
-You can also overwrite the expected value by specifying `tag_value` (you can use regular expressions).
+Multiple values for a single tag can be specified using regex alternation:
+
 ```yaml
-s3:
+ec2:
   exclude:
-    tag: 'foo'
-    tag_value: 'dev-.*'
-```
-#### Timeout
-You have the flexibility to set individual timeout options for specific resources. The execution will pause until the designated timeout is reached for each resource.
-```yaml
-s3:
-  timeout: 10m
-
-  ........
-
-s3:
-  timeout: 5s
-
+    tags:
+      Environment: "^(Prod|Dev)$"  # Excludes resources tagged with either Prod or Dev
 ```
 
-By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources.
-_Note: it doesn't support including resources by tags._
+By default, cloud-nuke will exclude resources tagged with `cloud-nuke-excluded=true`. You can also protect resources until a specific date using the `cloud-nuke-after` tag with an ISO 8601 timestamp.
+
+> **Note:** Tag-based filtering only supports excluding resources, not including them.
+
+> **Deprecated:** The older single-tag syntax using `tag` and `tag_value` fields is deprecated and will be removed in a future version. Please use the `tags` map syntax shown above instead.
 
 ### What's supported?
 
@@ -625,6 +618,7 @@ of the file that are supported are listed here.
 | iam-role                         | IAMRoles                      | ✅ (Role Name)                         | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam-service-linked-role          | IAMServiceLinkedRoles         | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam                              | IAMUsers                      | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
+| iam-instance-profile             | IAMInstanceProfiles           | ✅ (Instance Profile Name)             | ✅ (Creation Time)                   | ❌    | ✅       |
 | internet-gateway                 | InternetGateway               | ✅ (Gateway Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | egress-only-internet-gateway     | EgressOnlyInternetGateway     | ✅ (Gateway name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | kmscustomerkeys                  | KMSCustomerKeys               | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    | ❌       |
@@ -805,8 +799,20 @@ Happy Nuking!!!
 ### AWS
 
 In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can use
-one of
-the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+
+#### GovCloud Configuration
+
+When running cloud-nuke against an AWS GovCloud account, you must set the `CLOUD_NUKE_AWS_GLOBAL_REGION` environment variable to specify the global region (e.g., `us-gov-west-1`). This is required for cloud-nuke to properly discover and manage global resources like IAM users in GovCloud environments.
+
+```shell
+export CLOUD_NUKE_AWS_GLOBAL_REGION=us-gov-west-1
+cloud-nuke aws
+```
+
+This environment variable is only required for GovCloud accounts and is not needed for AWS Commercial accounts. If not set when running against a GovCloud account, you may encounter errors like "the security token included in the request is invalid" when attempting to manage global resources.
+
+Note that cloud-nuke does not use the standard `AWS_DEFAULT_REGION` environment variable for this purpose.
 
 ## Running Tests
 
