@@ -15,16 +15,17 @@ import (
 
 type mockedS3Buckets struct {
 	S3API
-	ListBucketsOutput         s3.ListBucketsOutput
-	GetBucketLocationOutput   s3.GetBucketLocationOutput
-	GetBucketTaggingOutput    s3.GetBucketTaggingOutput
-	GetBucketVersioningOutput s3.GetBucketVersioningOutput
-	ListObjectVersionsOutput  s3.ListObjectVersionsOutput
-	DeleteObjectsOutput       s3.DeleteObjectsOutput
-	DeleteBucketPolicyOutput  s3.DeleteBucketPolicyOutput
-	DeleteBucketOutput        s3.DeleteBucketOutput
-	ListObjectsV2Output       s3.ListObjectsV2Output
-	HeadBucketOutput          s3.HeadBucketOutput
+	ListBucketsOutput           s3.ListBucketsOutput
+	GetBucketLocationOutput     s3.GetBucketLocationOutput
+	GetBucketTaggingOutput      s3.GetBucketTaggingOutput
+	GetBucketVersioningOutput   s3.GetBucketVersioningOutput
+	ListObjectVersionsOutput    s3.ListObjectVersionsOutput
+	DeleteObjectsOutput         s3.DeleteObjectsOutput
+	DeleteBucketPolicyOutput    s3.DeleteBucketPolicyOutput
+	DeleteBucketOutput          s3.DeleteBucketOutput
+	DeleteBucketLifecycleOutput s3.DeleteBucketLifecycleOutput
+	ListObjectsV2Output         s3.ListObjectsV2Output
+	HeadBucketOutput            s3.HeadBucketOutput
 }
 
 func (m mockedS3Buckets) ListBuckets(context.Context, *s3.ListBucketsInput, ...func(*s3.Options)) (*s3.ListBucketsOutput, error) {
@@ -49,6 +50,10 @@ func (m mockedS3Buckets) DeleteObjects(context.Context, *s3.DeleteObjectsInput, 
 
 func (m mockedS3Buckets) DeleteBucketPolicy(context.Context, *s3.DeleteBucketPolicyInput, ...func(*s3.Options)) (*s3.DeleteBucketPolicyOutput, error) {
 	return &m.DeleteBucketPolicyOutput, nil
+}
+
+func (m mockedS3Buckets) DeleteBucketLifecycle(ctx context.Context, params *s3.DeleteBucketLifecycleInput, optFns ...func(*s3.Options)) (*s3.DeleteBucketLifecycleOutput, error) {
+	return &m.DeleteBucketLifecycleOutput, nil
 }
 
 func (m mockedS3Buckets) DeleteBucket(ctx context.Context, params *s3.DeleteBucketInput, optFns ...func(*s3.Options)) (*s3.DeleteBucketOutput, error) {

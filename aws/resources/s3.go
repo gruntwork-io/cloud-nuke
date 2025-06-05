@@ -407,6 +407,15 @@ func (sb S3Buckets) nukeS3BucketPolicy(bucketName *string) error {
 	return err
 }
 
+func (sb S3Buckets) nukeS3BucketLifecycle(bucketName *string) error {
+	_, err := sb.Client.DeleteBucketLifecycle(
+		sb.Context,
+		&s3.DeleteBucketLifecycleInput{
+			Bucket: aws.String(*bucketName),
+		})
+	return err
+}
+
 func (sb S3Buckets) nukeBucket(bucketName *string) error {
 	verifyBucketDeletion := true
 
@@ -416,6 +425,11 @@ func (sb S3Buckets) nukeBucket(bucketName *string) error {
 	}
 
 	err = sb.nukeS3BucketPolicy(bucketName)
+	if err != nil {
+		return err
+	}
+
+	err = sb.nukeS3BucketLifecycle(bucketName)
 	if err != nil {
 		return err
 	}
