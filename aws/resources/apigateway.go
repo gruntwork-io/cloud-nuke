@@ -105,38 +105,116 @@ func (gateway *ApiGateway) removeAttachedClientCertificates(clientCerts []*strin
 	}
 	return nil
 }
+
 func (gateway *ApiGateway) nukeAsync(
-	wg *sync.WaitGroup, errChan chan error, apigwID *string) {
+	wg *sync.WaitGroup, errChan chan error, apigwID *string,
+) {
 	defer wg.Done()
 
+	var err error
+
+	// Why defer?
+	// Defer error reporting, channel sending, and logging to ensure they run
+	// after function execution completes, regardless of success or failure.
+	// This ensures consistent reporting, prevents missed logs, and avoids
+	// duplicated code paths for error/success handling.
+	//
+	// See: https://go.dev/ref/spec#Defer_statements
+	defer func() {
+		// send the error data to channel
+		errChan <- err
+
+		// Record status of this resource
+		e := report.Entry{
+			Identifier:   *apigwID,
+			ResourceType: "APIGateway (v1)",
+			Error:        err,
+		}
+		report.Record(e)
+
+		if err == nil {
+			logging.Debugf("[OK] API Gateway (v1) %s deleted in %s", aws.ToString(apigwID), gateway.Region)
+		} else {
+			logging.Debugf("[Failed] Error deleting API Gateway (v1) %s in %s", aws.ToString(apigwID), gateway.Region)
+		}
+	}()
+
 	// get the attached client certificates
-	clientCerts, err := gateway.getAttachedStageClientCerts(apigwID)
-
-	input := &apigateway.DeleteRestApiInput{RestApiId: apigwID}
-	_, err = gateway.Client.DeleteRestApi(gateway.Context, input)
-
-	// When the rest-api endpoint delete successfully, then remove attached client certs
-	if err == nil {
-		err = gateway.removeAttachedClientCertificates(clientCerts)
-	}
-
-	// send the error data to channel
-	errChan <- err
-
-	// Record status of this resource
-	e := report.Entry{
-		Identifier:   *apigwID,
-		ResourceType: "APIGateway (v1)",
-		Error:        err,
-	}
-	report.Record(e)
-
-	if err == nil {
-		logging.Debugf("["+
-			"OK] API Gateway (v1) %s deleted in %s", aws.ToString(apigwID), gateway.Region)
+	var clientCerts []*string
+	clientCerts, err = gateway.getAttachedStageClientCerts(apigwID)
+	if err != nil {
 		return
 	}
 
-	logging.Debugf(
-		"[Failed] Error deleting API Gateway (v1) %s in %s", aws.ToString(apigwID), gateway.Region)
+	// Check if the API Gateway has any associated API mappings.
+	// If so, remove them before deleting the API Gateway.
+	err = gateway.deleteAssociatedApiMappings(context.Background(), []*string{apigwID})
+	if err != nil {
+		return
+	}
+
+	// delete the API Gateway
+	input := &apigateway.DeleteRestApiInput{RestApiId: apigwID}
+	_, err = gateway.Client.DeleteRestApi(gateway.Context, input)
+	if err != nil {
+		return
+	}
+
+	// When the rest-api endpoint delete successfully, then remove attached client certs
+	err = gateway.removeAttachedClientCertificates(clientCerts)
+}
+
+func (gateway *ApiGateway) deleteAssociatedApiMappings(ctx context.Context, identifiers []*string) error {
+	// Convert identifiers to map to check if identifier is in list
+	identifierMap := make(map[string]struct{})
+	for _, identifier := range identifiers {
+		identifierMap[*identifier] = struct{}{}
+	}
+
+	domainNames, err := gateway.Client.GetDomainNames(ctx, &apigateway.GetDomainNamesInput{})
+	if err != nil {
+		logging.Debugf("Failed to get domain names: %s", err)
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debugf("Found %d domain name(s)", len(domainNames.Items))
+	for _, domain := range domainNames.Items {
+
+		apiMappings, err := gateway.Client.GetBasePathMappings(ctx, &apigateway.GetBasePathMappingsInput{
+			DomainName: domain.DomainName,
+		})
+
+		if err != nil {
+			logging.Debugf("Failed to get base path mappings for domain %s: %v", *domain.DomainName, err)
+			return errors.WithStackTrace(err)
+		}
+		logging.Debugf("Found %d base path mappings for domain %s", len(apiMappings.Items), *domain.DomainName)
+
+		for _, mapping := range apiMappings.Items {
+
+			if mapping.RestApiId == nil {
+				continue
+			}
+
+			if _, found := identifierMap[*mapping.RestApiId]; !found {
+				continue
+			}
+
+			logging.Debugf("Deleting base path mapping for API %s on domain %s", *mapping.RestApiId, *domain.DomainName)
+
+			_, err := gateway.Client.DeleteBasePathMapping(ctx, &apigateway.DeleteBasePathMappingInput{
+				DomainName: domain.DomainName,
+				BasePath:   mapping.BasePath,
+			})
+			if err != nil {
+				logging.Debugf("Failed to delete base path mapping for API %s: %v", *mapping.RestApiId, err)
+				return errors.WithStackTrace(err)
+			}
+
+			logging.Debugf("Successfully deleted base path mapping for API %s", *mapping.RestApiId)
+		}
+	}
+
+	logging.Debug("Completed deletion of matching API mappings.")
+	return nil
 }

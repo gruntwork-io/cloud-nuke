@@ -14,214 +14,115 @@ The currently supported functionality includes:
 
 ## AWS
 
-Cloud-nuke supports 🔎 inspecting and 🔥💀 deleting the following AWS resources. Each resource has a name (as identified in AWS), a type (as used in the code), and a config key (as used in YAML configuration):
+Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS resources:
 
-| Resource Name | Resource Type | Config Key | Name Regex | Time Filter | Tags | Timeout |
-|--------------|---------------|------------|------------|-------------|------|---------|
-| access-analyzer | AccessAnalyzer | AccessAnalyzer | ✅ | ✅ | ❌ | ✅ |
-| acmpca | ACMPCA | ACMPCA | ❌ | ✅ | ❌ | ✅ |
-| ami | AMI | AMI | ✅ | ✅ | ❌ | ✅ |
-| apigateway | APIGateway | APIGateway | ✅ | ✅ | ❌ | ✅ |
-| apigatewayv2 | ApiGatewayV2 | APIGatewayV2 | ✅ | ✅ | ❌ | ✅ |
-| app-runner-service | AppRunnerService | AppRunnerService | ✅ | ✅ | ❌ | ✅ |
-| backup-vault | BackupVault | BackupVault | ✅ | ✅ | ❌ | ✅ |
-| cloudwatch-alarm | CloudWatchAlarms | CloudWatchAlarm | ✅ | ✅ | ❌ | ✅ |
-| cloudwatch-dashboard | CloudWatchDashboards | CloudWatchDashboard | ✅ | ✅ | ❌ | ✅ |
-| cloudwatch-log-group | CloudWatchLogGroup | CloudWatchLogGroup | ✅ | ✅ | ❌ | ✅ |
-| cloudtrail-trail | CloudtrailTrail | CloudtrailTrail | ✅ | ❌ | ❌ | ✅ |
-| cloudfront-distribution | CloudfrontDistribution | CloudfrontDistribution | ✅ | ✅ | ❌ | ✅ |
-| codedeploy-application | CodeDeployApplications | CodeDeployApplications | ✅ | ✅ | ❌ | ✅ |
-| config-recorder | ConfigServiceRecorder | ConfigServiceRecorder | ✅ | ❌ | ❌ | ✅ |
-| config-rule | ConfigServiceRule | ConfigServiceRule | ✅ | ❌ | ❌ | ✅ |
-| data-sync-location | DataSyncLocation | DataSyncLocation | ❌ | ❌ | ❌ | ✅ |
-| data-sync-task | DataSyncTask | DataSyncTask | ✅ | ❌ | ❌ | ✅ |
-| dynamodb | DynamoDB | DynamoDB | ✅ | ✅ | ❌ | ✅ |
-| ebs-volume | EBSVolume | EBSVolume | ✅ | ✅ | ✅ | ✅ |
-| elastic-beanstalk | ElasticBeanstalk | ElasticBeanstalk | ✅ | ✅ | ❌ | ✅ |
-| ec2 | EC2 | EC2 | ✅ | ✅ | ✅ | ✅ |
-| ec2-dedicated-host | EC2DedicatedHosts | EC2DedicatedHosts | ✅ | ✅ | ❌ | ✅ |
-| ec2-dhcp-option | EC2DhcpOption | EC2DhcpOption | ❌ | ❌ | ❌ | ✅ |
-| ec2-keypair | EC2KeyPairs | EC2KeyPairs | ✅ | ✅ | ✅ | ✅ |
-| ec2-ipam | EC2IPAM | EC2IPAM | ✅ | ✅ | ✅ | ✅ |
-| ec2-ipam-pool | EC2IPAMPool | EC2IPAMPool | ✅ | ✅ | ✅ | ✅ |
-| ec2-ipam-resource-discovery | EC2IPAMResourceDiscovery | EC2IPAMResourceDiscovery | ✅ | ✅ | ✅ | ✅ |
-| ec2-ipam-scope | EC2IPAMScope | EC2IPAMScope | ✅ | ✅ | ✅ | ✅ |
-| ec2-placement-group | EC2PlacementGroups | EC2PlacementGroups | ✅ | ✅ | ✅ | ✅ |
-| ec2-subnet | EC2Subnet | EC2Subnet | ✅ | ✅ | ✅ | ❌ |
-| ec2-endpoint | EC2Endpoint | EC2Endpoint | ✅ | ✅ | ✅ | ✅ |
-| ecr-repository | ECRRepository | ECRRepository | ✅ | ✅ | ❌ | ✅ |
-| ecs-cluster | ECSCluster | ECSCluster | ✅ | ❌ | ❌ | ✅ |
-| ecs-service | ECSService | ECSService | ✅ | ✅ | ❌ | ✅ |
-| ekscluster | EKSClusters | EKSCluster | ✅ | ✅ | ✅ | ✅ |
-| elastic-beanstalk | ElasticBeanstalk | ElasticBeanstalk | ✅ | ✅ | ❌ | ✅ |
-| efs | ElasticFileSystem | ElasticFileSystem | ✅ | ✅ | ❌ | ✅ |
-| elastic-ip | ElasticIP | ElasticIP | ✅ | ✅ | ✅ | ✅ |
-| elasticache | Elasticaches | Elasticache | ✅ | ✅ | ❌ | ✅ |
-| elasticache-parameter-group | ElasticacheParameterGroups | ElasticacheParameterGroups | ✅ | ❌ | ❌ | ✅ |
-| elasticache-serverless | ElasticCacheServerless | ElasticCacheServerless | ✅ | ✅ | ❌ | ✅ |
-| elasticache-subnet-group | ElasticacheSubnetGroups | ElasticacheSubnetGroups | ✅ | ❌ | ❌ | ✅ |
-| elb-v1 | ELBv1 | ELBv1 | ✅ | ✅ | ❌ | ✅ |
-| elb-v2 | ELBv2 | ELBv2 | ✅ | ✅ | ❌ | ✅ |
-| event-bridge | EventBridge | EventBridge | ✅ | ✅ | ❌ | ✅ |
-| event-bridge-archive | EventBridgeArchive | EventBridgeArchive | ✅ | ✅ | ❌ | ✅ |
-| event-bridge-rule | EventBridgeRule | EventBridgeRule | ✅ | ❌ | ❌ | ✅ |
-| event-bridge-schedule | EventBridgeSchedule | EventBridgeSchedule | ✅ | ✅ | ❌ | ✅ |
-| event-bridge-schedule-group | EventBridgeScheduleGroup | EventBridgeScheduleGroup | ✅ | ✅ | ❌ | ✅ |
-| grafana | Grafana | Grafana | ✅ | ✅ | ✅ | ✅ |
-| guardduty | GuardDuty | GuardDuty | ❌ | ✅ | ❌ | ✅ |
-| iam-group | IAMGroups | IAMGroups | ✅ | ✅ | ❌ | ✅ |
-| iam-policy | IAMPolicies | IAMPolicies | ✅ | ✅ | ❌ | ✅ |
-| iam-role | IAMRoles | IAMRoles | ✅ | ✅ | ❌ | ✅ |
-| iam-service-linked-role | IAMServiceLinkedRoles | IAMServiceLinkedRoles | ✅ | ✅ | ❌ | ✅ |
-| iam-user | IAMUsers | IAMUsers | ✅ | ✅ | ✅ | ✅ |
-| iam-instance-profile | IAMInstanceProfiles | IAMInstanceProfiles | ✅ | ✅ | ❌ | ✅ |
-| internet-gateway | InternetGateway | InternetGateway | ✅ | ✅ | ✅ | ✅ |
-| egress-only-internet-gateway | EgressOnlyInternetGateway | EgressOnlyInternetGateway | ✅ | ✅ | ✅ | ✅ |
-| kms-customer-key | KMSCustomerKeys | KMSCustomerKeys | ✅ | ✅ | ❌ | ❌ |
-| kinesis-stream | KinesisStream | KinesisStream | ✅ | ❌ | ❌ | ✅ |
-| kinesis-firehose | KinesisFirehose | KinesisFirehose | ✅ | ❌ | ❌ | ✅ |
-| lambda | LambdaFunctions | LambdaFunction | ✅ | ✅ | ❌ | ✅ |
-| launch-configuration | LaunchConfiguration | LaunchConfiguration | ✅ | ✅ | ❌ | ✅ |
-| launch-template | LaunchTemplate | LaunchTemplate | ✅ | ✅ | ❌ | ✅ |
-| macie-member | MacieMember | MacieMember | ❌ | ✅ | ❌ | ✅ |
-| msk-cluster | MSKCluster | MSKCluster | ✅ | ✅ | ❌ | ✅ |
-| managed-prometheus | ManagedPrometheus | ManagedPrometheus | ✅ | ✅ | ✅ | ✅ |
-| nat-gateway | NatGateway | NatGateway | ✅ | ✅ | ✅ | ✅ |
-| network-acl | NetworkACL | NetworkACL | ✅ | ✅ | ✅ | ✅ |
-| network-interface | NetworkInterface | NetworkInterface | ✅ | ✅ | ✅ | ✅ |
-| network-firewall | NetworkFirewall | NetworkFirewall | ✅ | ✅ | ✅ | ❌ |
-| network-firewall-policy | NetworkFirewallPolicy | NetworkFirewallPolicy | ✅ | ✅ | ✅ | ❌ |
-| network-firewall-rule-group | NetworkFirewallRuleGroup | NetworkFirewallRuleGroup | ✅ | ✅ | ✅ | ❌ |
-| network-firewall-tls-config | NetworkFirewallTLSConfig | NetworkFirewallTLSConfig | ✅ | ✅ | ✅ | ❌ |
-| network-firewall-resource-policy | NetworkFirewallResourcePolicy | NetworkFirewallResourcePolicy | ✅ | ❌ | ❌ | ❌ |
-| oidc-provider | OIDCProvider | OIDCProvider | ✅ | ✅ | ❌ | ✅ |
-| opensearch-domain | OpenSearchDomain | OpenSearchDomain | ✅ | ✅ | ❌ | ✅ |
-| rds-cluster | DBClusters | DBClusters | ✅ | ✅ | ✅ | ✅ |
-| rds-instance | DBInstances | DBInstances | ✅ | ✅ | ✅ | ✅ |
-| rds-parameter-group | RdsParameterGroup | RdsParameterGroup | ✅ | ❌ | ❌ | ✅ |
-| rds-subnet-group | DBSubnetGroups | DBSubnetGroups | ✅ | ❌ | ❌ | ✅ |
-| rds-proxy | RDSProxy | RDSProxy | ✅ | ✅ | ❌ | ✅ |
-| redshift | RedshiftClusters | Redshift | ✅ | ✅ | ❌ | ✅ |
-| route53-hosted-zone | Route53HostedZone | Route53HostedZone | ✅ | ❌ | ❌ | ❌ |
-| route53-cidr-collection | Route53CidrCollection | Route53CIDRCollection | ✅ | ❌ | ❌ | ❌ |
-| route53-traffic-policy | Route53TrafficPolicy | Route53TrafficPolicy | ✅ | ❌ | ❌ | ❌ |
-| s3 | S3Buckets | s3 | ✅ | ✅ | ✅ | ✅ |
-| s3-access-point | s3AccessPoint | s3AccessPoint | ✅ | ❌ | ❌ | ✅ |
-| s3-object-lambda-access-point | S3ObjectLambdaAccessPoint | S3ObjectLambdaAccessPoint | ✅ | ❌ | ❌ | ✅ |
-| s3-multi-region-access-point | S3MultiRegionAccessPoint | S3MultiRegionAccessPoint | ✅ | ✅ | ❌ | ✅ |
-| sagemaker-notebook-smni | SageMakerNotebookInstances | SageMakerNotebook | ✅ | ✅ | ❌ | ✅ |
-| sagemaker-endpoint | SageMakerEndpoint | SageMakerEndpoint | ✅ | ✅ | ✅ | ✅ |
-| sagemaker-endpoint-config | SageMakerEndpointConfig | SageMakerEndpointConfig | ✅ | ✅ | ✅ | ✅ |
-| sagemaker-studio-domain | SageMakerStudioDomain | SageMakerStudioDomain | ❌ | ❌ | ❌ | ✅ |
-| secretsmanager | SecretsManagerSecrets | SecretsManager | ✅ | ✅ | ❌ | ✅ |
-| security-group | SecurityGroup | SecurityGroup | ✅ | ✅ | ✅ | ❌ |
-| security-hub | SecurityHub | SecurityHub | ❌ | ✅ | ❌ | ✅ |
-| ses-configuration-set | SesConfigurationset | SesConfigurationset | ✅ | ❌ | ❌ | ✅ |
-| ses-email-template | SesEmailTemplates | SesEmailTemplates | ✅ | ✅ | ❌ | ✅ |
-| ses-identity | SesIdentity | SesIdentity | ✅ | ❌ | ❌ | ✅ |
-| ses-receipt-rule-set | SesReceiptRuleSet | SesReceiptRuleSet | ✅ | ❌ | ❌ | ✅ |
-| ses-receipt-filter | SesReceiptFilter | SesReceiptFilter | ✅ | ❌ | ❌ | ✅ |
-| sns-topic | SNS | SNS | ✅ | ✅ | ❌ | ✅ |
-| sqs-queue | SQS | SQS | ✅ | ✅ | ❌ | ✅ |
-| snapshot | Snapshots | Snapshots | ❌ | ✅ | ✅ | ✅ |
-| transit-gateway | TransitGateway | TransitGateway | ❌ | ✅ | ❌ | ✅ |
-| transit-gateway-route-table | TransitGatewayRouteTable | TransitGatewayRouteTable | ❌ | ✅ | ❌ | ✅ |
-| transit-gateway-vpc-attachment | TransitGatewaysVpcAttachment | TransitGatewaysVpcAttachment | ❌ | ✅ | ❌ | ✅ |
-| vpc | VPC | VPC | ✅ | ✅ | ✅ | ❌ |
-| vpc-lattice-service | VPCLatticeService | VPCLatticeService | ✅ | ✅ | ❌ | ✅ |
-| vpc-lattice-service-network | VPCLatticeServiceNetwork | VPCLatticeServiceNetwork | ✅ | ✅ | ❌ | ✅ |
-| vpc-lattice-target-group | VPCLatticeTargetGroup | VPCLatticeTargetGroup | ✅ | ✅ | ❌ | ✅ |
-
-### Resource Filtering Capabilities
-
-cloud-nuke provides several ways to selectively target resources for deletion. Each resource type supports different filtering capabilities that can be configured either through command-line flags or a configuration file.
-
-#### Basic Filtering Methods
-
-1. **Name Regex Filter**
-   - Filter resources by their name using regular expressions
-   - Can be used to include or exclude resources based on name patterns
-   - Example:
-     ```yaml
-     s3:
-       include:
-         names_regex:
-           - ^alb-.*-access-logs$
-           - .*-prod-alb-.*
-       exclude:
-         names_regex:
-           - public
-           - prod
-     ```
-
-2. **Time Filter**
-   - Filter resources based on their creation time
-   - Can specify resources created before or after a specific date
-   - Example:
-     ```yaml
-     s3:
-       include:
-         time_after: '2020-01-01T00:00:00Z'
-         time_before: '2021-01-01T00:00:00Z'
-     ```
-
-3. **Tag Filter**
-   - Filter resources based on their tags using the `tags` map syntax
-   - Supports multiple tags with regular expression values
-   - Resources matching any of the specified tag patterns will be excluded (logical OR)
-   - Example:
-     ```yaml
-     ec2:
-       exclude:
-         tags:
-           Schedule: "^schedule-.*"
-           Environment: "^(Prod|Dev)$"
-     ```
-
-#### Additional Filtering Features
-
-1. **Resource Protection**
-   - Resources can be protected from deletion using:
-     - The `cloud-nuke-excluded=true` tag
-     - The `cloud-nuke-after` tag with an ISO 8601 timestamp
-     - Resource-specific protection mechanisms (e.g., deletion protection for RDS instances)
-
-2. **Timeout Configuration**
-   - Set individual timeout options for specific resources
-   - Example:
-     ```yaml
-     s3:
-       timeout: 10m  # Timeout after 10 minutes
-     ```
-
-3. **Region Filtering**
-   - Filter resources by AWS regions using `--region` or `--exclude-region` flags
-   - Global resources are managed in the global region
-   - For GovCloud accounts, set `CLOUD_NUKE_AWS_GLOBAL_REGION` to manage global resources
-
-#### Filtering Behavior
-
-- Filtering is **commutative**, meaning you get the same result whether you apply include filters before or after exclude filters
-- CLI options override config file options
-- Tag-based filtering only supports excluding resources, not including them
-- The older single-tag syntax using `tag` and `tag_value` fields is deprecated
-
-> **Note:** Some resources may not support all filtering capabilities due to AWS API limitations. The eligibility check for nukability relies on the AWS `DryRun` feature, which is not available for all delete APIs.
-
-### Resource Deletion Order
-
-Resources are deleted in a specific order to handle dependencies correctly. For example:
-- EC2 instances are deleted before VPCs
-- Transit Gateway VPC attachments are deleted before VPCs
-- DHCP options are deleted after VPCs
-
-### Global vs Regional Resources
-
-Some AWS resources are global (not tied to a specific region) while others are regional. When using cloud-nuke:
-- Global resources are managed in the global region
-- Regional resources are managed in each specified region
-- For GovCloud accounts, you must set `CLOUD_NUKE_AWS_GLOBAL_REGION` to manage global resources
-
+| Resource Family         | Resource type                                            |
+|-------------------------|----------------------------------------------------------|
+| App Runner              | Service                                                  |
+| Data Sync               | Location                                                 |
+| Data Sync               | Task                                                     |
+| EC2                     | Auto scaling groups                                      |
+| EC2                     | Elastic Load Balancers (v1 and v2)                       |
+| EC2                     | EBS Volumes                                              |
+| EC2                     | Unprotected EC2 instances                                |
+| EC2                     | AMIS                                                     |
+| EC2                     | Snapshots                                                |
+| EC2                     | Elastic IPs                                              |
+| EC2                     | Launch Configurations                                    |
+| EC2                     | IPAM (Amazon VPC IP Address Manager)                     |
+| EC2                     | IPAM Pool                                                |
+| EC2                     | IPAM Scope                                               |
+| EC2                     | IPAM Custom Allocation                                   |
+| EC2                     | IPAM BYOASN                                              |
+| EC2                     | IPAM Resource Discovery                                  |
+| EC2                     | Internet Gateway                                         |
+| EC2                     | Network ACL                                              |
+| EC2                     | Egress only internet gateway                             |
+| EC2                     | Endpoint                                                 |
+| EC2                     | Security Group                                           |
+| EC2                     | Network Interface                                        |
+| EC2                     | Placement Group                                          |
+| Event Bridge            | Event buses                                              |
+| Event Bridge            | Archive                                                  |
+| Event Bridge            | Rule                                                     |
+| Event Bridge            | Schedule                                                 |
+| Event Bridge            | Schedule Group                                           |
+| Certificate Manager     | ACM Private CA                                           |
+| Direct Connect          | Transit Gateways                                         |
+| Elasticache             | Clusters                                                 |
+| Elasticache             | Parameter Groups                                         |
+| Elasticache             | Subnet Groups                                            |
+| Elasticache Serverless  | Clusters                                                 |
+| Elastic Beanstalk       | Applications                                             |
+| ECS                     | Services                                                 |
+| ECS                     | Clusters                                                 |
+| EKS                     | Clusters                                                 |
+| DynamoDB                | Tables                                                   |
+| Grafana                 | Workspace                                                |
+| Lambda                  | Functions                                                |
+| SQS                     | Queues                                                   |
+| S3                      | Buckets                                                  |
+| S3                      | Access Points                                            |
+| S3                      | Object Lambda Access Points                              |
+| S3                      | Multi Region Access Points                               |
+| VPC                     | Default VPCs                                             |
+| VPC                     | Default rules in the un-deletable default security group |
+| VPC                     | NAT Gateways                                             |
+| IAM                     | Users                                                    |
+| IAM                     | Roles (and any associated EC2 instance profiles)         |
+| IAM                     | Service-linked-roles                                     |
+| IAM                     | Groups                                                   |
+| IAM                     | Policies                                                 |
+| IAM                     | Customer-managed policies                                |
+| IAM                     | Access analyzers                                         |
+| IAM                     | OpenID Connect providers                                 |
+| Secrets Manager         | Secrets                                                  |
+| CloudWatch              | Dashboard                                                |
+| CloudWatch              | Log groups                                               |
+| CloudWatch              | Alarms                                                   |
+| OpenSearch              | Domains                                                  |
+| KMS                     | Custgomer managed keys (and associated key aliases)      |
+| Managed Prometheus      | Prometheus Workspace                                     |
+| GuardDuty               | Detectors                                                |
+| Macie                   | Member accounts                                          |
+| SageMaker               | Notebook instances                                       |
+| SageMaker Endpoint      | Endpoint                                                 |
+| SageMaker Studio        | Studio domain (and all associated resources)             |
+| Kinesis                 | Streams                                                  |
+| Kinesis                 | Firehose                                                 |
+| API Gateway             | Gateways (v1 and v2)                                     |
+| EFS                     | File systems                                             |
+| SNS                     | Topics                                                   |
+| CloudTrail              | Trails                                                   |
+| ECR                     | Repositories                                             |
+| Config                  | Service recorders                                        |
+| Config                  | Service rules                                            |
+| RDS                     | RDS databases                                            |
+| RDS                     | Neptune                                                  |
+| RDS                     | Document DB instances                                    |
+| RDS                     | RDS parameter group                                      |
+| RDS                     | RDS Proxy                                                |
+| Security Hub            | Hubs                                                     |
+| Security Hub            | Members                                                  |
+| Security Hub            | Administrators                                           |
+| SES                     | SES configuration set                                    |
+| SES                     | SES email template                                       |
+| SES                     | SES Identity                                             |
+| SES                     | SES receipt rule set                                     |
+| SES                     | SES receipt filter                                       |
+| AWS Certificate Manager | Certificates                                             |
+| CodeDeploy              | Applications                                             |
+| Route53                 | Hosted Zones                                             |
+| Route53                 | CIDR collections                                         |
+| Route53                 | Traffic Policies                                         |
+| NetworkFirewall         | Network Firewall                                         |
+| NetworkFirewall         | Network Firewall Policy                                  |
+| NetworkFirewall         | Network Firewall Rule Group                              |
+| NetworkFirewall         | Network Firewall TLS inspection configuration            |
+| NetworkFirewall         | Network Firewall Resource Policy                         |
+| VPCLattice              | VPC Lattice Service                                      |
+| VPCLattice              | VPC Lattice Service Network                              |
+| VPCLattice              | VPC Lattice Target Group                                 |
 
 > **WARNING:** The RDS APIs also interact with neptune and document db resources.
 > Running `cloud-nuke aws --resource-type rds` without a config file will remove any neptune and document db resources
@@ -547,6 +448,272 @@ You can also specify which resources to terminate with more granularity via usin
 YAML file that specifies which resources to terminate. The top level keys of the config file are the resource types, and
 the values are the rules for which resources to terminate. See [examples folder](./config/examples) for more reference.
 
+
+### Filtering Features
+
+For each resource type, you can specify either `include` or `exclude` rules. Each rule can be one of the following
+filters mentioned below. Here is an example:
+
+```
+s3:
+  include:
+    ...
+  exclude:
+    ...
+```
+
+#### Names Regex Filter
+
+Now given the following config, the s3 buckets that will be nuked are further filtered to only include ones that match
+any of the provided regular expressions. So a bucket named `alb-app-access-logs` would be deleted, but a bucket
+named `my-s3-bucket` would not.
+
+```yaml
+s3:
+  include:
+    names_regex:
+      - ^alb-.*-access-logs$
+      - .*-prod-alb-.*
+```
+
+Similarly, you can adjust the config to delete only IAM users of a particular name by using the `IAMUsers` key. For
+example, in the following config, only IAM users that have the prefix `my-test-user-` in their username will be deleted.
+
+```yaml
+IAMUsers:
+  include:
+    names_regex:
+      - ^my-test-user-.*
+```
+
+Now consider the following contrived example:
+
+```yaml
+s3:
+  include:
+    names_regex:
+      - ^alb-.*-access-logs$
+      - .*-prod-alb-.*
+  exclude:
+    names_regex:
+      - public
+      - prod
+```
+
+The intention is to delete all the s3 buckets that match the include rules but not the exclude rules. Filtering is
+**commutative**, meaning that you should get the same result whether you apply the include filters before or after the
+exclude filters.
+
+The result of these filters applied in either order will be a set of s3 buckets that match `^alb-.*-access-logs$` as
+long as they do not also contain `public` or `prod`. The rule to include s3 buckets matching `.*-prod-alb-.*` is negated
+by the rule to exclude those matching `prod`.
+
+#### Time Filter
+
+You can also filter resources by time. The following config will delete all s3 buckets that were created after
+`2020-01-01T00:00:00Z`.
+
+```yaml
+s3:
+  include:
+    time_after: '2020-01-01T00:00:00Z'
+```
+
+Similarly, you can delete all s3 buckets that were created before `2020-01-01T00:00:00Z` by using the `time_before`
+
+```yaml
+s3:
+  include:
+    time_before: '2020-01-01T00:00:00Z'
+```
+
+#### Tag Filter
+
+You can also exclude resources by tags. The following configuration will exclude all S3 buckets that have a tag with the key `foo`.
+By default, we will check if the tag's value is set to `true` (case-insensitive).
+
+```yaml
+s3:
+  exclude:
+    tag: 'foo' # exclude if tag foo exists with value of 'true'
+```
+
+You can also overwrite the expected value by specifying `tag_value` (you can use regular expressions).
+```yaml
+s3:
+  exclude:
+    tag: 'foo'
+    tag_value: 'dev-.*'
+```
+#### Timeout
+You have the flexibility to set individual timeout options for specific resources. The execution will pause until the designated timeout is reached for each resource.
+```yaml
+s3:
+  timeout: 10m
+
+  ........
+
+s3:
+  timeout: 5s
+
+```
+
+By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources.
+_Note: it doesn't support including resources by tags._
+
+### What's supported?
+
+To find out what we options are supported in the config file today, consult this table. Resource types at the top level
+of the file that are supported are listed here.
+
+| resource type                    | config key                    | names_regex                           | time                                | tags | timeout |
+|----------------------------------|-------------------------------|---------------------------------------|-------------------------------------|------|---------|
+| acm                              | ACM                           | ✅ (Domain Name)                       | ✅ (Created Time)                    | ❌    | ✅       |
+| acmpca                           | ACMPCA                        | ❌                                     | ✅ (LastStateChange or Created Time) | ❌    | ✅       |
+| ami                              | AMI                           | ✅ (Image Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
+| apigateway                       | APIGateway                    | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    | ✅       |
+| apigatewayv2                     | APIGatewayV2                  | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    | ✅       |
+| accessanalyzer                   | AccessAnalyzer                | ✅ (Analyzer Name)                     | ✅ (Created Time)                    | ❌    | ✅       |
+| asg                              | AutoScalingGroup              | ✅ (ASG Name)                          | ✅ (Created Time)                    | ✅    | ✅       |
+| app-runner-service               | AppRunnerService              | ✅ (App Runner Service Name)           | ✅ (Created Time)                    | ❌    | ✅       |
+| backup-vault                     | BackupVault                   | ✅ (Backup Vault Name)                 | ✅ (Created Time)                    | ❌    | ✅       |
+| cloudwatch-alarm                 | CloudWatchAlarm               | ✅ (Alarm Name)                        | ✅ (AlarmConfigurationUpdated Time)  | ❌    | ✅       |
+| cloudwatch-dashboard             | CloudWatchDashboard           | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    | ✅       |
+| cloudwatch-loggroup              | CloudWatchLogGroup            | ✅ (Log Group Name)                    | ✅ (Creation Time)                   | ❌    | ✅       |
+| cloudtrail                       | CloudtrailTrail               | ✅ (Trail Name)                        | ❌                                   | ❌    | ✅       |
+| codedeploy-application           | CodeDeployApplications        | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
+| config-recorders                 | ConfigServiceRecorder         | ✅ (Recorder Name)                     | ❌                                   | ❌    | ✅       |
+| config-rules                     | ConfigServiceRule             | ✅ (Rule Name)                         | ❌                                   | ❌    | ✅       |
+| data-sync-location               | DataSyncLocation              | ❌                                     | ❌                                   | ❌    | ✅       |
+| data-sync-task                   | DataSyncTask                  | ✅ (Task Name)                         | ❌                                   | ❌    | ✅       |
+| dynamodb                         | DynamoDB                      | ✅ (Table Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
+| ebs                              | EBSVolume                     | ✅ (Volume Name)                       | ✅ (Creation Time)                   | ✅    | ✅       |
+| elastic-beanstalk                | ElasticBeanstalk              | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
+| ec2                              | EC2                           | ✅ (Instance Name)                     | ✅ (Launch Time)                     | ✅    | ✅       |
+| ec2-dedicated-hosts              | EC2DedicatedHosts             | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    | ✅       |
+| ec2-dhcp-option                  | EC2DhcpOption                 | ❌                                     | ❌                                   | ❌    | ✅       |
+| ec2-keypairs                     | EC2KeyPairs                   | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
+| ec2-ipam                         | EC2IPAM                       | ✅ (IPAM name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
+| ec2-ipam-pool                    | EC2IPAMPool                   | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
+| ec2-ipam-resource-discovery      | EC2IPAMResourceDiscovery      | ✅ (IPAM Discovery Name)               | ✅ (Creation Time)                   | ✅    | ✅       |
+| ec2-ipam-scope                   | EC2IPAMScope                  | ✅ (IPAM Scope Name)                   | ✅ (Creation Time)                   | ✅    | ✅       |
+| ec2-placement-groups             | EC2PlacementGroups            | ✅ (Placement Group Name)              | ✅ (First Seen Tag Time)             | ✅    | ✅       |
+| ec2-subnet                       | EC2Subnet                     | ✅ (Subnet Name)                       | ✅ (Creation Time)                   | ✅    | ❌       |
+| ec2-endpoint                     | EC2Endpoint                   | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
+| ecr                              | ECRRepository                 | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    | ✅       |
+| ecscluster                       | ECSCluster                    | ✅ (Cluster Name)                      | ❌                                   | ❌    | ✅       |
+| ecsserv                          | ECSService                    | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| ekscluster                       | EKSCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| elb                              | ELBv1                         | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    | ✅       |
+| elbv2                            | ELBv2                         | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    | ✅       |
+| efs                              | ElasticFileSystem             | ✅ (File System Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
+| eip                              | ElasticIP                     | ✅ (Elastic IP Allocation Name)        | ✅ (First Seen Tag Time)             | ✅    | ✅       |
+| elasticache                      | Elasticache                   | ✅ (Cluster ID & Replication Group ID) | ✅ (Creation Time)                   | ❌    | ✅       |
+| elasticcache-serverless          | ElasticCacheServerless        | ✅ (Cluster Name )                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| elasticacheparametergroups       | ElasticacheParameterGroups    | ✅ (Parameter Group Name)              | ❌                                   | ❌    | ✅       |
+| elasticachesubnetgroups          | ElasticacheSubnetGroups       | ✅ (Subnet Group Name)                 | ❌                                   | ❌    | ✅       |
+| event-bridge                     | EventBridge                   | ✅ (Bus  Name)                         | ✅ (Creation Time)                   | ❌    | ✅       |
+| event-bridge-archive             | EventBridgeArchive            | ✅ (Archive Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| event-bridge-rule                | EventBridgeRule               | ✅ (Bus Rule Name)                     | ❌                                   | ❌    | ✅       |
+| event-bridge-schedule            | EventBridgeSchedule           | ✅ (Schedule Name)                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| event-bridge-schedule-group      | EventBridgeScheduleGroup      | ✅ (Schedule Group Name)               | ✅ (Creation Time)                   | ❌    | ✅       |
+| grafana                          | Grafana                       | ✅ (Workspace Name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
+| guardduty                        | GuardDuty                     | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
+| iam-group                        | IAMGroups                     | ✅ (Group Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
+| iam-policy                       | IAMPolicies                   | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ❌    | ✅       |
+| iam-role                         | IAMRoles                      | ✅ (Role Name)                         | ✅ (Creation Time)                   | ❌    | ✅       |
+| iam-service-linked-role          | IAMServiceLinkedRoles         | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    | ✅       |
+| iam                              | IAMUsers                      | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
+| internet-gateway                 | InternetGateway               | ✅ (Gateway Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| egress-only-internet-gateway     | EgressOnlyInternetGateway     | ✅ (Gateway name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| kmscustomerkeys                  | KMSCustomerKeys               | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    | ❌       |
+| kinesis-stream                   | KinesisStream                 | ✅ (Stream Name)                       | ❌                                   | ❌    | ✅       |
+| kinesis-firehose                 | KinesisFirehose               | ✅ (Delivery Stream Name)              | ❌                                   | ❌    | ✅       |
+| lambda                           | LambdaFunction                | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ❌    | ✅       |
+| lc                               | LaunchConfiguration           | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    | ✅       |
+| lt                               | LaunchTemplate                | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    | ✅       |
+| macie-member                     | MacieMember                   | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| msk-cluster                      | MSKCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| managed-prometheus               | ManagedPrometheus             | ✅ (Workspace Alias)                   | ✅ (Creation Time)                   | ✅    | ✅       |
+| nat-gateway                      | NatGateway                    | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| network-acl                      | NetworkACL                    | ✅ (ACL Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| network-interface                | NetworkInterface              | ✅ (Interface Name Tag)                | ✅ (Creation Time)                   | ✅    | ✅       |
+| oidcprovider                     | OIDCProvider                  | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| opensearchdomain                 | OpenSearchDomain              | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    | ✅       |
+| redshift                         | Redshift                      | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    | ✅       |
+| rds-cluster                      | DBClusters                    | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    | ✅       |
+| rds                              | DBInstances                   | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    | ✅       |
+| rds-parameter-group              | RdsParameterGroup             | ✅ (Group Name)                        | ❌                                   | ❌    | ✅       |
+| rds-subnet-group                 | DBSubnetGroups                | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    | ✅       |
+| rds-proxy                        | RDSProxy                      | ✅ (proxy Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
+| s3                               | s3                            | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    | ✅       |
+| s3-ap                            | s3AccessPoint                 | ✅ (Access point Name)                 | ❌                                   | ❌    | ✅       |
+| s3-olap                          | S3ObjectLambdaAccessPoint     | ✅ (Object Lambda Access point Name)   | ❌                                   | ❌    | ✅       |
+| s3-mrap                          | S3MultiRegionAccessPoint      | ✅ (Multi region Access point Name)    | ✅ (Creation Time)                   | ❌    | ✅       |
+| security-group                   | SecurityGroup                 | ✅ (Security group name)               | ✅ (Creation Time)                   | ✅    | ❌       |
+| ses-configuration-set            | SesConfigurationset           | ✅ (Configuration set name)            | ❌                                   | ❌    | ✅       |
+| ses-email-template               | SesEmailTemplates             | ✅ (Template Name)                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| ses-identity                     | SesIdentity                   | ✅ (Identity -Mail/Domain)             | ❌                                   | ❌    | ✅       |
+| ses-receipt-rule-set             | SesReceiptRuleSet             | ✅ (Receipt Rule Set Name)             | ✅ (Creation Time)                   | ❌    | ✅       |
+| ses-receipt-filter               | SesReceiptFilter              | ✅ (Receipt Filter Name)               | ❌                                   | ❌    | ✅       |
+| snstopic                         | SNS                           | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    | ✅       |
+| sqs                              | SQS                           | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
+| sagemaker-notebook-smni          | SageMakerNotebook             | ✅ (Notebook Instance Name)            | ✅ (Creation Time)                   | ❌    | ✅       |
+| sagemaker-endpoint               | SageMakerEndpoint             | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
+| sagemaker-studio                 | SageMakerStudioDomain         | ❌                                     | ❌                                   | ❌    | ✅       |
+| secretsmanager                   | SecretsManager                | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    | ✅       |
+| security-hub                     | SecurityHub                   | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
+| snap                             | Snapshots                     | ❌                                     | ✅ (Creation Time)                   | ✅    | ✅       |
+| transit-gateway                  | TransitGateway                | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| transit-gateway-route-table      | TransitGatewayRouteTable      | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| transit-gateway-attachment       | TransitGatewaysVpcAttachment  | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| vpc                              | VPC                           | ✅ (EC2 Name Tag)                      | ✅ (First Seen Tag Time)             | ✅    | ❌       |
+| route53-hosted-zone              | Route53HostedZone             | ✅ (Hosted zone name)                  | ❌                                   | ❌    | ❌       |
+| route53-cidr-collection          | Route53CIDRCollection         | ✅ (Cidr collection name)              | ❌                                   | ❌    | ❌       |
+| route53-traffic-policy           | Route53TrafficPolicy          | ✅ (Traffic policy name)               | ❌                                   | ❌    | ❌       |
+| network-firewall                 | NetworkFirewall               | ✅ (Firewall name)                     | ✅ (First Seen Tag Time)             | ✅    | ❌       |
+| network-firewall-policy          | NetworkFirewallPolicy         | ✅ (Firewall Policy name)              | ✅ (First Seen Tag Time)             | ✅    | ❌       |
+| network-firewall-rule-group      | NetworkFirewallRuleGroup      | ✅ (Firewall Rule group name)          | ✅ (First Seen Tag Time)             | ✅    | ❌       |
+| network-firewall-tls-config      | NetworkFirewallTLSConfig      | ✅ (Firewall TLS config name)          | ✅ (First Seen Tag Time)             | ✅    | ❌       |
+| network-firewall-resource-policy | NetworkFirewallResourcePolicy | ✅ (Firewall Resource Policy ARN)      | ❌                                   | ❌    | ❌       |
+| vpc-lattice-service              | VPCLatticeService             | ✅ (VPC Lattice service ARN)           | ✅ (Creation Time)                   | ❌    | ✅       |
+| vpc-lattice-service-network      | VPCLatticeServiceNetwork      | ✅ (VPC Lattice service network ARN)   | ✅ (Creation Time)                   | ❌    | ✅       |
+| vpc-lattice-target-group         | VPCLatticeTargetGroup         | ✅ (VPC Lattice target group ARN)      | ✅ (Creation Time)                   | ❌    | ✅       |
+
+### Resource Deletion and 'IsNukable' Check Option
+#### Supported Resources for 'IsNukable' Check
+For certain resources, such as `AMI`, `EBS`, `DHCP Option`, and others listed below, we support an option to verify whether the user has sufficient permissions to nuke the resources. If not, it will raise `error: INSUFFICIENT_PERMISSION` error.
+
+Supported resources:
+- AMI
+- EBS
+- DHCP Option
+- Egress only Internet Gateway
+- Endpoints
+- Internet Gatway
+- IPAM
+- IPAM BYOASN
+- IPAM Custom Allocation
+- IPAM Pool
+- IPAM Resource Discovery
+- IPAM Scope
+- Key Pair
+- Network ACL
+- Network Interface
+- Subnet
+- VPC
+- Elastic IP
+- Launch Template
+- NAT Gateway
+- Network Firewall
+- Security Group
+- SnapShot
+- Transit Gateway
+
+#### Unsupported Resources
+Please note that the eligibility check for nukability relies on the `DryRun` feature provided by AWS. Regrettably, this feature is not available for all delete APIs of resource types. Hence, the 'eligibility check for nukability' option may not be accessible for all resource types
+
+
 ### How to Use
 
 Once you created your config file, you can run a command like this to nuke resources with your config file:
@@ -636,20 +803,8 @@ Happy Nuking!!!
 ### AWS
 
 In order for the `cloud-nuke` CLI tool to access your AWS, you will need to provide your AWS credentials. You can use
-one of the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
-
-#### GovCloud Configuration
-
-When running cloud-nuke against an AWS GovCloud account, you must set the `CLOUD_NUKE_AWS_GLOBAL_REGION` environment variable to specify the global region (e.g., `us-gov-west-1`). This is required for cloud-nuke to properly discover and manage global resources like IAM users in GovCloud environments.
-
-```shell
-export CLOUD_NUKE_AWS_GLOBAL_REGION=us-gov-west-1
-cloud-nuke aws
-```
-
-This environment variable is only required for GovCloud accounts and is not needed for AWS Commercial accounts. If not set when running against a GovCloud account, you may encounter errors like "the security token included in the request is invalid" when attempting to manage global resources.
-
-Note that cloud-nuke does not use the standard `AWS_DEFAULT_REGION` environment variable for this purpose.
+one of
+the [standard AWS CLI credential mechanisms](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
 
 ## Running Tests
 

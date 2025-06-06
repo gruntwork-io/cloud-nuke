@@ -20,6 +20,10 @@ type mockedApiGateway struct {
 	GetStagesOutput               apigateway.GetStagesOutput
 	DeleteClientCertificateOutput apigateway.DeleteClientCertificateOutput
 	DeleteRestApiOutput           apigateway.DeleteRestApiOutput
+
+	GetDomainNamesOutput        apigateway.GetDomainNamesOutput
+	GetBasePathMappingsOutput   apigateway.GetBasePathMappingsOutput
+	DeleteBasePathMappingOutput apigateway.DeleteBasePathMappingOutput
 }
 
 func (m mockedApiGateway) GetRestApis(ctx context.Context, params *apigateway.GetRestApisInput, optFns ...func(*apigateway.Options)) (*apigateway.GetRestApisOutput, error) {
@@ -37,6 +41,17 @@ func (m mockedApiGateway) DeleteRestApi(ctx context.Context, params *apigateway.
 	return &m.DeleteRestApiOutput, nil
 }
 
+func (m mockedApiGateway) GetDomainNames(ctx context.Context, params *apigateway.GetDomainNamesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetDomainNamesOutput, error) {
+	return &m.GetDomainNamesOutput, nil
+}
+
+func (m mockedApiGateway) GetBasePathMappings(ctx context.Context, params *apigateway.GetBasePathMappingsInput, optFns ...func(*apigateway.Options)) (*apigateway.GetBasePathMappingsOutput, error) {
+	return &m.GetBasePathMappingsOutput, nil
+}
+
+func (m mockedApiGateway) DeleteBasePathMapping(ctx context.Context, params *apigateway.DeleteBasePathMappingInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteBasePathMappingOutput, error) {
+	return &m.DeleteBasePathMappingOutput, nil
+}
 func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
 	t.Parallel()
 
@@ -159,5 +174,41 @@ func TestNukeAPIGatewayWithCertificates(t *testing.T) {
 	require.Contains(t, aws.ToStringSlice(apis), testApiID2)
 
 	err = apiGateway.nukeAll([]*string{aws.String(testApiID1), aws.String(testApiID2)})
+	require.NoError(t, err)
+}
+
+func TestDeleteAssociatedApiMappings(t *testing.T) {
+	t.Parallel()
+
+	apiIDToDelete := "test-api-id"
+	basePath := "test"
+	domainName := "test.example.com"
+
+	mockClient := &mockedApiGateway{
+		GetDomainNamesOutput: apigateway.GetDomainNamesOutput{
+			Items: []types.DomainName{
+				{DomainName: aws.String(domainName)},
+			},
+		},
+		GetBasePathMappingsOutput: apigateway.GetBasePathMappingsOutput{
+			Items: []types.BasePathMapping{
+				{
+					BasePath:  aws.String(basePath),
+					RestApiId: aws.String(apiIDToDelete),
+					Stage:     aws.String("prod"),
+				},
+				{
+					BasePath:  aws.String("unrelated"),
+					RestApiId: aws.String("some-other-api"),
+				},
+			},
+		},
+	}
+
+	apiGateway := ApiGateway{
+		Client: mockClient,
+	}
+
+	err := apiGateway.deleteAssociatedApiMappings(context.Background(), []*string{aws.String(apiIDToDelete)})
 	require.NoError(t, err)
 }
