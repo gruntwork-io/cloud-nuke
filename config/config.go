@@ -280,12 +280,13 @@ type ResourceType struct {
 }
 
 type FilterRule struct {
-	NamesRegExp []Expression          `yaml:"names_regex"`
-	TimeAfter   *time.Time            `yaml:"time_after"`
-	TimeBefore  *time.Time            `yaml:"time_before"`
-	Tag         *string               `yaml:"tag"`       // Deprecated ~ A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
-	TagValue    *Expression           `yaml:"tag_value"` // Deprecated
-	Tags        map[string]Expression `yaml:"tags"`
+	NamesRegExp  []Expression          `yaml:"names_regex"`
+	TimeAfter    *time.Time            `yaml:"time_after"`
+	TimeBefore   *time.Time            `yaml:"time_before"`
+	Tag          *string               `yaml:"tag"`       // Deprecated ~ A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
+	TagValue     *Expression           `yaml:"tag_value"` // Deprecated
+	Tags         map[string]Expression `yaml:"tags"`
+	TagsOperator string                `yaml:"tags_operator"` // "AND" or "OR" - defaults to "OR" for backward compatibility
 }
 
 type Expression struct {
@@ -339,6 +340,43 @@ func matches(name string, regexps []Expression) bool {
 		}
 	}
 	return false
+}
+
+// matchesTags checks if the given tags match the tag expressions according to the specified logic (AND/OR)
+func matchesTags(tags map[string]string, tagExpressions map[string]Expression, logic string) bool {
+	if len(tagExpressions) == 0 {
+		return false
+	}
+
+	// Default to OR logic for backward compatibility
+	useAndLogic := strings.ToUpper(logic) == "AND"
+
+	matchCount := 0
+	for tagKey, tagExpression := range tagExpressions {
+		if value, exists := tags[tagKey]; exists {
+			if tagExpression.RE.MatchString(strings.ToLower(value)) {
+				matchCount++
+				if !useAndLogic {
+					// OR logic: return true on first match
+					return true
+				}
+			} else if useAndLogic {
+				// AND logic: return false on first non-match
+				return false
+			}
+		} else if useAndLogic {
+			// AND logic: return false if required tag doesn't exist
+			return false
+		}
+	}
+
+	if useAndLogic {
+		// AND logic: all expressions must match
+		return matchCount == len(tagExpressions)
+	} else {
+		// OR logic: at least one expression must match
+		return matchCount > 0
+	}
 }
 
 // ShouldInclude - Checks if a resource's Name should be included according to the inclusion and exclusion rules
@@ -423,13 +461,9 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 		}
 	}
 
-	// Check if additionalTag is not empty
-	for additionalTag, additionalTagValue := range r.ExcludeRule.Tags {
-		if value, ok := tags[additionalTag]; ok {
-			if matches(strings.ToLower(value), []Expression{additionalTagValue}) {
-				return false
-			}
-		}
+	// Check additional exclude tags with AND/OR logic
+	if matchesTags(tags, r.ExcludeRule.Tags, r.ExcludeRule.TagsOperator) {
+		return false
 	}
 
 	if r.ProtectUntilExpire {
@@ -444,6 +478,14 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 			}
 		}
 	}
+
+	// Handle include rule with AND/OR logic
+	if len(r.IncludeRule.Tags) > 0 {
+		if !matchesTags(tags, r.IncludeRule.Tags, r.IncludeRule.TagsOperator) {
+			return false
+		}
+	}
+
 	return true
 }
 

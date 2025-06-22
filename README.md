@@ -529,22 +529,54 @@ s3:
 
 #### Tag Filter
 
-You can also exclude resources by tags. The following configuration will exclude all S3 buckets that have a tag with the key `foo`.
-By default, we will check if the tag's value is set to `true` (case-insensitive).
+You can filter resources by tags using both `include` and `exclude` rules.
 
+> **Note:** The single `tag` and `tag_value` fields are deprecated. Use the `tags` field instead as shown in the examples below.
+
+##### Multiple Tag Filters with AND/OR Logic
+
+When you specify multiple tag filters, you can control how they are evaluated using the `tags_operator` field:
+
+- `OR` (default): The resource matches if ANY of the tag conditions are met
+- `AND`: The resource matches only if ALL of the tag conditions are met
+
+**Include Example:**
 ```yaml
-s3:
-  exclude:
-    tag: 'foo' # exclude if tag foo exists with value of 'true'
+EC2:
+  include:
+    tags:
+      Environment: "test"
+      Owner: "dev-team"
+    tags_operator: "OR" # Include resources with EITHER tag
 ```
 
-You can also overwrite the expected value by specifying `tag_value` (you can use regular expressions).
+This will include EC2 instances that have either an `Environment: test` tag OR an `Owner: dev-team` tag (or both).
+
+**Exclude Example:**
 ```yaml
-s3:
+SecurityGroup:
   exclude:
-    tag: 'foo'
-    tag_value: 'dev-.*'
+    tags:
+      Team: ".*"      # Any value for Team tag
+      Service: ".*"   # Any value for Service tag
+    tags_operator: "AND" # Only exclude if BOTH tags are present
 ```
+
+This is particularly useful for tagging enforcement strategies. For example, to nuke resources that are missing required tags:
+
+```yaml
+SecurityGroup:
+  exclude:
+    tags:
+      Team: ".*"      # Exclude resources with Team tag (any value)
+      Service: ".*"   # Exclude resources with Service tag (any value)  
+    tags_operator: "AND" # Only exclude if BOTH tags are present
+```
+
+Resources missing either the `Team` OR `Service` tag will be included for deletion, while resources with both tags will be excluded (kept safe).
+
+The `tags_operator` field supports case-insensitive values: `"AND"`, `"and"`, `"OR"`, `"or"`. If not specified, it defaults to `"OR"` for backward compatibility.
+
 #### Timeout
 You have the flexibility to set individual timeout options for specific resources. The execution will pause until the designated timeout is reached for each resource.
 ```yaml
@@ -559,7 +591,6 @@ s3:
 ```
 
 By default, it will use the exclusion default tag: `cloud-nuke-excluded` to exclude resources.
-_Note: it doesn't support including resources by tags._
 
 ### What's supported?
 
