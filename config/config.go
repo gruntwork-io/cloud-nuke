@@ -141,6 +141,9 @@ type Config struct {
 	VPCLatticeServiceNetwork        ResourceType                  `yaml:"VPCLatticeServiceNetwork"`
 	VPCLatticeService               ResourceType                  `yaml:"VPCLatticeService"`
 	VPCLatticeTargetGroup           ResourceType                  `yaml:"VPCLatticeTargetGroup"`
+
+	// GCP Resources
+	GCSBucket ResourceType `yaml:"GCSBucket"`
 }
 
 func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
