@@ -344,11 +344,12 @@ func matches(name string, regexps []Expression) bool {
 
 // matchesTags checks if the given tags match the tag expressions according to the specified logic (AND/OR)
 func matchesTags(tags map[string]string, tagExpressions map[string]Expression, logic string) bool {
+	// If no tag expressions are provided, no tags can match
 	if len(tagExpressions) == 0 {
 		return false
 	}
 
-	// Default to OR logic for backward compatibility
+	// Determine the logic to use - default to OR for backward compatibility
 	useAndLogic := strings.ToUpper(logic) == "AND"
 	if useAndLogic {
 		return matchesTagsAnd(tags, tagExpressions)
@@ -357,29 +358,41 @@ func matchesTags(tags map[string]string, tagExpressions map[string]Expression, l
 	return matchesTagsOr(tags, tagExpressions)
 }
 
+// matchesTagsAnd implements AND logic - all tag expressions must match for the function to return true
 func matchesTagsAnd(tags map[string]string, tagExpressions map[string]Expression) bool {
 	for tagKey, tagExpression := range tagExpressions {
+		// Check if the tag key exists in the resource tags
 		value, exists := tags[tagKey]
 		if !exists {
+			// If any required tag is missing, AND logic fails
 			return false
 		}
+		// Check if the tag value matches the regex pattern (case-insensitive)
 		if !tagExpression.RE.MatchString(strings.ToLower(value)) {
+			// If any tag value doesn't match, AND logic fails
 			return false
 		}
 	}
+	// All tag expressions matched successfully
 	return true
 }
 
+// matchesTagsOr implements OR logic - at least one tag expression must match for the function to return true
 func matchesTagsOr(tags map[string]string, tagExpressions map[string]Expression) bool {
 	for tagKey, tagExpression := range tagExpressions {
+		// Check if the tag key exists in the resource tags
 		value, exists := tags[tagKey]
 		if !exists {
+			// Skip this tag if it doesn't exist, continue checking others
 			continue
 		}
+		// Check if the tag value matches the regex pattern (case-insensitive)
 		if tagExpression.RE.MatchString(strings.ToLower(value)) {
+			// If any tag matches, OR logic succeeds
 			return true
 		}
 	}
+	// No tag expressions matched
 	return false
 }
 
