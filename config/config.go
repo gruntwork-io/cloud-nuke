@@ -350,33 +350,37 @@ func matchesTags(tags map[string]string, tagExpressions map[string]Expression, l
 
 	// Default to OR logic for backward compatibility
 	useAndLogic := strings.ToUpper(logic) == "AND"
+	if useAndLogic {
+		return matchesTagsAnd(tags, tagExpressions)
+	}
 
-	matchCount := 0
+	return matchesTagsOr(tags, tagExpressions)
+}
+
+func matchesTagsAnd(tags map[string]string, tagExpressions map[string]Expression) bool {
 	for tagKey, tagExpression := range tagExpressions {
-		if value, exists := tags[tagKey]; exists {
-			if tagExpression.RE.MatchString(strings.ToLower(value)) {
-				matchCount++
-				if !useAndLogic {
-					// OR logic: return true on first match
-					return true
-				}
-			} else if useAndLogic {
-				// AND logic: return false on first non-match
-				return false
-			}
-		} else if useAndLogic {
-			// AND logic: return false if required tag doesn't exist
+		value, exists := tags[tagKey]
+		if !exists {
+			return false
+		}
+		if !tagExpression.RE.MatchString(strings.ToLower(value)) {
 			return false
 		}
 	}
+	return true
+}
 
-	if useAndLogic {
-		// AND logic: all expressions must match
-		return matchCount == len(tagExpressions)
-	} else {
-		// OR logic: at least one expression must match
-		return matchCount > 0
+func matchesTagsOr(tags map[string]string, tagExpressions map[string]Expression) bool {
+	for tagKey, tagExpression := range tagExpressions {
+		value, exists := tags[tagKey]
+		if !exists {
+			continue
+		}
+		if tagExpression.RE.MatchString(strings.ToLower(value)) {
+			return true
+		}
 	}
+	return false
 }
 
 // ShouldInclude - Checks if a resource's Name should be included according to the inclusion and exclusion rules
