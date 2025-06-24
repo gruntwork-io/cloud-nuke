@@ -207,6 +207,7 @@ jobs:
               --exclude-resource-type ecr \
               --exclude-resource-type config-rules \
               --exclude-resource-type nat-gateway \
+              --exclude-resource-type internet-gateway \
               --exclude-resource-type ec2-subnet \
               --delete-unaliased-kms-keys \
               --log-level debug
