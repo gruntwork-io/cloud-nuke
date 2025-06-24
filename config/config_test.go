@@ -471,6 +471,7 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 		})
 	}
 }
+
 func TestShouldIncludeBasedOnAdditionalTag(t *testing.T) {
 
 	type arg struct {
@@ -588,6 +589,357 @@ func TestShouldIncludeWithTags(t *testing.T) {
 			assert.Equal(t, tt.want, testConfig.ACM.ShouldInclude(ResourceValue{
 				Tags: tt.tags,
 			}))
+		})
+	}
+}
+
+func TestShouldIncludeBasedOnTagLogic(t *testing.T) {
+	type arg struct {
+		IncludeRule        FilterRule
+		ExcludeRule        FilterRule
+		ProtectUntilExpire bool
+	}
+	tests := []struct {
+		name   string
+		given  arg
+		when   map[string]string
+		expect bool
+	}{
+		{
+			name: "should use OR logic by default for exclude tags",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team":    {RE: *regexp.MustCompile(".*")},
+						"Service": {RE: *regexp.MustCompile(".*")},
+					},
+					// TagsOperator not specified, should default to OR
+				},
+			},
+			when:   map[string]string{"Team": "backend", "env": "production"},
+			expect: false, // Team tag matches, so should exclude (OR logic)
+		},
+		{
+			name: "should use AND logic for exclude tags when specified",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team":    {RE: *regexp.MustCompile(".*")},
+						"Service": {RE: *regexp.MustCompile(".*")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			when:   map[string]string{"Team": "backend", "env": "production"},
+			expect: true, // Only Team tag matches, Service is missing, so should include (AND logic)
+		},
+		{
+			name: "should exclude with AND logic when all tags match",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team":    {RE: *regexp.MustCompile(".*")},
+						"Service": {RE: *regexp.MustCompile(".*")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			when:   map[string]string{"Team": "backend", "Service": "api", "env": "production"},
+			expect: false, // Both Team and Service tags match, so should exclude (AND logic)
+		},
+		{
+			name: "should work with case insensitive AND logic",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team":    {RE: *regexp.MustCompile(".*")},
+						"Service": {RE: *regexp.MustCompile(".*")},
+					},
+					TagsOperator: "and", // lowercase should work
+				},
+			},
+			when:   map[string]string{"Team": "backend", "Service": "api"},
+			expect: false, // Both tags match with case insensitive AND
+		},
+		{
+			name: "should use OR logic by default for include tags",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+					// TagsOperator not specified, should default to OR
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "frontend"},
+			expect: true, // env matches production, so should include (OR logic)
+		},
+		{
+			name: "should use AND logic for include tags when specified",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "frontend"},
+			expect: false, // env matches but Team doesn't, so should exclude (AND logic)
+		},
+		{
+			name: "should include with AND logic when all tags match",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "backend"},
+			expect: true, // Both env and Team match, so should include (AND logic)
+		},
+		{
+			name: "tagging enforcement use case - exclude well-tagged resources",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team":    {RE: *regexp.MustCompile(".*")}, // Any value
+						"Service": {RE: *regexp.MustCompile(".*")}, // Any value
+					},
+					TagsOperator: "AND", // Only exclude if BOTH tags are present
+				},
+			},
+			when:   map[string]string{"Team": "backend", "env": "production"},
+			expect: true, // Service tag missing, so include for destruction
+		},
+		{
+			name: "tagging enforcement use case - keep well-tagged resources",
+			given: arg{
+				ExcludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team":    {RE: *regexp.MustCompile(".*")}, // Any value
+						"Service": {RE: *regexp.MustCompile(".*")}, // Any value
+					},
+					TagsOperator: "AND", // Only exclude if BOTH tags are present
+				},
+			},
+			when:   map[string]string{"Team": "backend", "Service": "api", "env": "production"},
+			expect: false, // Both required tags present, so exclude (keep safe)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := ResourceType{
+				IncludeRule:        tt.given.IncludeRule,
+				ExcludeRule:        tt.given.ExcludeRule,
+				ProtectUntilExpire: tt.given.ProtectUntilExpire,
+			}
+
+			require.Equal(t, tt.expect, r.ShouldIncludeBasedOnTag(tt.when))
+		})
+	}
+}
+
+func TestShouldIncludeBasedOnIncludeRuleTags(t *testing.T) {
+	type arg struct {
+		IncludeRule FilterRule
+	}
+	tests := []struct {
+		name   string
+		given  arg
+		when   map[string]string
+		expect bool
+	}{
+		{
+			name: "should include all resources when no include tags specified",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{},
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "backend"},
+			expect: true,
+		},
+		{
+			name: "should include resource when single include tag matches",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env": {RE: *regexp.MustCompile("production")},
+					},
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "backend"},
+			expect: true,
+		},
+		{
+			name: "should exclude resource when single include tag doesn't match",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env": {RE: *regexp.MustCompile("production")},
+					},
+				},
+			},
+			when:   map[string]string{"env": "staging", "Team": "backend"},
+			expect: false,
+		},
+		{
+			name: "should exclude resource when include tag key doesn't exist",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env": {RE: *regexp.MustCompile("production")},
+					},
+				},
+			},
+			when:   map[string]string{"Team": "backend"},
+			expect: false,
+		},
+		{
+			name: "should include resource with regex pattern matching",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env": {RE: *regexp.MustCompile("prod.*")},
+					},
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "backend"},
+			expect: true,
+		},
+		{
+			name: "should exclude resource when regex pattern doesn't match",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env": {RE: *regexp.MustCompile("prod.*")},
+					},
+				},
+			},
+			when:   map[string]string{"env": "staging", "Team": "backend"},
+			expect: false,
+		},
+		{
+			name: "should include with OR logic when one of multiple tags matches (default)",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+					// TagsOperator defaults to OR
+				},
+			},
+			when:   map[string]string{"env": "staging", "Team": "backend"},
+			expect: true, // Team matches, so include (OR logic)
+		},
+		{
+			name: "should exclude with OR logic when none of multiple tags match",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+				},
+			},
+			when:   map[string]string{"env": "staging", "Team": "frontend"},
+			expect: false, // Neither tag matches, so exclude
+		},
+		{
+			name: "should exclude with AND logic when not all tags match",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "frontend"},
+			expect: false, // env matches but Team doesn't, so exclude (AND logic)
+		},
+		{
+			name: "should include with AND logic when all tags match",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			when:   map[string]string{"env": "production", "Team": "backend"},
+			expect: true, // Both tags match, so include (AND logic)
+		},
+		{
+			name: "should exclude with AND logic when required tag is missing",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env":  {RE: *regexp.MustCompile("production")},
+						"Team": {RE: *regexp.MustCompile("backend")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			when:   map[string]string{"env": "production"},
+			expect: false, // Team tag missing, so exclude (AND logic)
+		},
+		{
+			name: "should work with case insensitive regex matching",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"env": {RE: *regexp.MustCompile("(?i)PRODUCTION")}, // case insensitive
+					},
+				},
+			},
+			when:   map[string]string{"env": "production"},
+			expect: true,
+		},
+		{
+			name: "should work with complex regex patterns",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team": {RE: *regexp.MustCompile("^(backend|frontend|devops)$")},
+					},
+				},
+			},
+			when:   map[string]string{"Team": "backend"},
+			expect: true,
+		},
+		{
+			name: "should exclude with complex regex when pattern doesn't match",
+			given: arg{
+				IncludeRule: FilterRule{
+					Tags: map[string]Expression{
+						"Team": {RE: *regexp.MustCompile("^(backend|frontend|devops)$")},
+					},
+				},
+			},
+			when:   map[string]string{"Team": "qa"},
+			expect: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := ResourceType{
+				IncludeRule: tt.given.IncludeRule,
+			}
+
+			require.Equal(t, tt.expect, r.ShouldIncludeBasedOnTag(tt.when))
 		})
 	}
 }
