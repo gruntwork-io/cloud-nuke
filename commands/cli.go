@@ -719,8 +719,7 @@ func handleGetGcpResources(c *cli.Context, configObj config.Config, projectID st
 	}
 
 	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found GCP Resources")
-	// TODO: Create a GCP-specific resource renderer
-	// err = ui.RenderGcpResourcesAsTable(accountResources)
+	err = ui.RenderGcpResourcesAsTable(accountResources)
 
 	return accountResources, err
 }

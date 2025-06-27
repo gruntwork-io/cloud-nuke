@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/gcp"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 
@@ -132,6 +133,31 @@ func renderTableWithHeader(headers []string, data [][]string, w io.Writer) {
 }
 
 func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
+	var tableData [][]string
+	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier", "Nukable"})
+
+	for region, resourcesInRegion := range account.Resources {
+		for _, foundResources := range resourcesInRegion.Resources {
+			for _, identifier := range (*foundResources).ResourceIdentifiers() {
+				isnukable := SuccessEmoji
+				_, err := (*foundResources).IsNukable(identifier)
+				if err != nil {
+					isnukable = err.Error()
+				}
+
+				tableData = append(tableData, []string{(*foundResources).ResourceName(), region, identifier, isnukable})
+			}
+		}
+	}
+
+	return pterm.DefaultTable.WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		Render()
+}
+
+func RenderGcpResourcesAsTable(account *gcp.GcpProjectResources) error {
 	var tableData [][]string
 	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier", "Nukable"})
 
