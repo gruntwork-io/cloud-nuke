@@ -155,3 +155,129 @@ func TestIAMRoles_NukeAll(t *testing.T) {
 	err := ir.nukeAll([]*string{aws.String("test-role")})
 	require.NoError(t, err)
 }
+
+func TestIAMRoles_ServiceLinkedRoles(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	ir := IAMRoles{}
+	configObj := config.Config{IAMRoles: config.ResourceType{}}
+
+	tests := []struct {
+		name     string
+		role     types.Role
+		expected bool
+	}{
+		{
+			name: "regular role should be included",
+			role: types.Role{
+				RoleName:   aws.String("MyCustomRole"),
+				Arn:        aws.String("arn:aws:iam::123456789012:role/MyCustomRole"),
+				CreateDate: aws.Time(now),
+			},
+			expected: true,
+		},
+		{
+			name: "AWSServiceRoleForTrustedAdvisor should be filtered out",
+			role: types.Role{
+				RoleName:   aws.String("AWSServiceRoleForTrustedAdvisor"),
+				Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/trustedadvisor.amazonaws.com/AWSServiceRoleForTrustedAdvisor"),
+				CreateDate: aws.Time(now),
+			},
+			expected: false,
+		},
+		{
+			name: "AWSServiceRoleForSupport should be filtered out",
+			role: types.Role{
+				RoleName:   aws.String("AWSServiceRoleForSupport"),
+				Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/support.amazonaws.com/AWSServiceRoleForSupport"),
+				CreateDate: aws.Time(now),
+			},
+			expected: false,
+		},
+		{
+			name: "AWSServiceRoleForAmazonCodeGuruReviewer should be filtered out",
+			role: types.Role{
+				RoleName:   aws.String("AWSServiceRoleForAmazonCodeGuruReviewer"),
+				Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/codeguru-reviewer.amazonaws.com/AWSServiceRoleForAmazonCodeGuruReviewer"),
+				CreateDate: aws.Time(now),
+			},
+			expected: false,
+		},
+		{
+			name: "OrganizationAccountAccessRole should be filtered out",
+			role: types.Role{
+				RoleName:   aws.String("OrganizationAccountAccessRole"),
+				Arn:        aws.String("arn:aws:iam::123456789012:role/OrganizationAccountAccessRole"),
+				CreateDate: aws.Time(now),
+			},
+			expected: false,
+		},
+		{
+			name: "aws-reserved role should be filtered out",
+			role: types.Role{
+				RoleName:   aws.String("AWSReservedSSO_TestRole"),
+				Arn:        aws.String("arn:aws:iam::123456789012:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_TestRole"),
+				CreateDate: aws.Time(now),
+			},
+			expected: false,
+		},
+		{
+			name:     "nil role should be filtered out",
+			role:     types.Role{},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var rolePtr *types.Role
+			if tt.role.RoleName != nil || tt.role.Arn != nil {
+				rolePtr = &tt.role
+			}
+			result := ir.shouldInclude(rolePtr, configObj)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIAMRoles_GetAll_ServiceLinkedRolesFiltered(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	ir := IAMRoles{
+		Client: mockedIAMRoles{
+			ListRolesOutput: iam.ListRolesOutput{
+				Roles: []types.Role{
+					{
+						RoleName:   aws.String("MyCustomRole"),
+						Arn:        aws.String("arn:aws:iam::123456789012:role/MyCustomRole"),
+						CreateDate: aws.Time(now),
+					},
+					{
+						RoleName:   aws.String("AWSServiceRoleForTrustedAdvisor"),
+						Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/trustedadvisor.amazonaws.com/AWSServiceRoleForTrustedAdvisor"),
+						CreateDate: aws.Time(now),
+					},
+					{
+						RoleName:   aws.String("AWSServiceRoleForSupport"),
+						Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/support.amazonaws.com/AWSServiceRoleForSupport"),
+						CreateDate: aws.Time(now),
+					},
+					{
+						RoleName:   aws.String("AnotherCustomRole"),
+						Arn:        aws.String("arn:aws:iam::123456789012:role/AnotherCustomRole"),
+						CreateDate: aws.Time(now),
+					},
+				},
+			},
+		},
+	}
+
+	roles, err := ir.getAll(context.Background(), config.Config{
+		IAMRoles: config.ResourceType{},
+	})
+
+	require.NoError(t, err)
+	// Should only return custom roles, not service-linked roles
+	expected := []string{"MyCustomRole", "AnotherCustomRole"}
+	require.Equal(t, expected, aws.ToStringSlice(roles))
+}

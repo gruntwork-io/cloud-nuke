@@ -190,6 +190,14 @@ func (ir *IAMRoles) shouldInclude(iamRole *types.Role, configObj config.Config) 
 		return false
 	}
 
+	// The IAM roles with names starting with "AWSServiceRoleFor" are AWS Service-Linked Roles.
+	// These are automatically created and managed by AWS services and cannot be manually deleted or modified.
+	// Hence, we filter them out from cloud-nuke operations.
+	if strings.HasPrefix(aws.ToString(iamRole.RoleName), "AWSServiceRoleFor") {
+		logging.Debugf("Filtering out service linked role %s", aws.ToString(iamRole.RoleName))
+		return false
+	}
+
 	return configObj.IAMRoles.ShouldInclude(config.ResourceValue{
 		Name: iamRole.RoleName,
 		Time: iamRole.CreateDate,
