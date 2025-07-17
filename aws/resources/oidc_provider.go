@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	goerr "errors"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"sync"
 	"time"
 
@@ -22,6 +23,7 @@ type oidcProvider struct {
 	ARN         *string
 	CreateTime  *time.Time
 	ProviderURL *string
+	Tags        map[string]string
 }
 
 // getAll will list all the OpenID Connect Providers in an account, filtering out those that do not match
@@ -48,6 +50,7 @@ func (oidcprovider *OIDCProviders) getAll(c context.Context, configObj config.Co
 		if configObj.OIDCProvider.ShouldInclude(config.ResourceValue{
 			Name: provider.ProviderURL,
 			Time: provider.CreateTime,
+			Tags: provider.Tags,
 		}) {
 			providerARNsToDelete = append(providerARNsToDelete, provider.ARN)
 		}
@@ -121,6 +124,7 @@ func (oidcprovider *OIDCProviders) getOIDCProviderDetailAsync(wg *sync.WaitGroup
 		ARN:         providerARN,
 		CreateTime:  resp.CreateDate,
 		ProviderURL: resp.Url,
+		Tags:        util.ConvertIAMTagsToMap(resp.Tags),
 	}
 	resultChan <- &provider
 	errChan <- nil
