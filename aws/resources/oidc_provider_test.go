@@ -56,10 +56,12 @@ func TestOIDCProvider_GetAll(t *testing.T) {
 				testArn1: {
 					Url:        aws.String(testUrl1),
 					CreateDate: aws.Time(now),
+					Tags:       []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}},
 				},
 				testArn2: {
 					Url:        aws.String(testUrl2),
 					CreateDate: aws.Time(now.Add(1)),
+					Tags:       []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}},
 				},
 			},
 		},
@@ -86,6 +88,20 @@ func TestOIDCProvider_GetAll(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testArn1},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
+				}},
+			expected: []string{testArn2},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
 				}},
 			expected: []string{testArn1},
 		},
