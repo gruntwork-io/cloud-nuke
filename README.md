@@ -652,7 +652,7 @@ of the file that are supported are listed here.
 | guardduty                        | GuardDuty                     | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
 | iam-group                        | IAMGroups                     | ✅ (Group Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam-policy                       | IAMPolicies                   | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ❌    | ✅       |
-| iam-role                         | IAMRoles                      | ✅ (Role Name)                         | ✅ (Creation Time)                   | ❌    | ✅       |
+| iam-role                         | IAMRoles                      | ✅ (Role Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
 | iam-service-linked-role          | IAMServiceLinkedRoles         | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam                              | IAMUsers                      | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
 | internet-gateway                 | InternetGateway               | ✅ (Gateway Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |

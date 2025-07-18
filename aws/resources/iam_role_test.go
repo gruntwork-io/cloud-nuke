@@ -19,6 +19,7 @@ type mockedIAMRoles struct {
 	ListInstanceProfilesForRoleOutput   iam.ListInstanceProfilesForRoleOutput
 	ListRolePoliciesOutput              iam.ListRolePoliciesOutput
 	ListRolesOutput                     iam.ListRolesOutput
+	ListRoleTagsOutputByName            map[string]*iam.ListRoleTagsOutput
 	DeleteInstanceProfileOutput         iam.DeleteInstanceProfileOutput
 	DetachRolePolicyOutput              iam.DetachRolePolicyOutput
 	DeleteRolePolicyOutput              iam.DeleteRolePolicyOutput
@@ -40,6 +41,10 @@ func (m mockedIAMRoles) ListRolePolicies(ctx context.Context, params *iam.ListRo
 
 func (m mockedIAMRoles) ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error) {
 	return &m.ListRolesOutput, nil
+}
+
+func (m mockedIAMRoles) ListRoleTags(ctx context.Context, params *iam.ListRoleTagsInput, optFns ...func(*iam.Options)) (*iam.ListRoleTagsOutput, error) {
+	return m.ListRoleTagsOutputByName[*params.RoleName], nil
 }
 
 func (m mockedIAMRoles) DeleteInstanceProfile(ctx context.Context, params *iam.DeleteInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error) {
@@ -81,6 +86,10 @@ func TestIAMRoles_GetAll(t *testing.T) {
 					},
 				},
 			},
+			ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
+				testName1: {Tags: []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
+				testName2: {Tags: []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}}},
+			},
 		},
 	}
 
@@ -105,6 +114,20 @@ func TestIAMRoles_GetAll(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now),
+				}},
+			expected: []string{testName1},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
+				}},
+			expected: []string{testName2},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
 				}},
 			expected: []string{testName1},
 		},
@@ -234,7 +257,7 @@ func TestIAMRoles_ServiceLinkedRoles(t *testing.T) {
 			if tt.role.RoleName != nil || tt.role.Arn != nil {
 				rolePtr = &tt.role
 			}
-			result := ir.shouldInclude(rolePtr, configObj)
+			result := ir.shouldInclude(rolePtr, configObj, []types.Tag{})
 			require.Equal(t, tt.expected, result)
 		})
 	}
