@@ -651,7 +651,7 @@ of the file that are supported are listed here.
 | grafana                          | Grafana                       | ✅ (Workspace Name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
 | guardduty                        | GuardDuty                     | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
 | iam-group                        | IAMGroups                     | ✅ (Group Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
-| iam-policy                       | IAMPolicies                   | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ❌    | ✅       |
+| iam-policy                       | IAMPolicies                   | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ✅    | ✅       |
 | iam-role                         | IAMRoles                      | ✅ (Role Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
 | iam-service-linked-role          | IAMServiceLinkedRoles         | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam                              | IAMUsers                      | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
@@ -669,7 +669,7 @@ of the file that are supported are listed here.
 | nat-gateway                      | NatGateway                    | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | network-acl                      | NetworkACL                    | ✅ (ACL Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | network-interface                | NetworkInterface              | ✅ (Interface Name Tag)                | ✅ (Creation Time)                   | ✅    | ✅       |
-| oidcprovider                     | OIDCProvider                  | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| oidcprovider                     | OIDCProvider                  | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | opensearchdomain                 | OpenSearchDomain              | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    | ✅       |
 | redshift                         | Redshift                      | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    | ✅       |
 | rds-cluster                      | DBClusters                    | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    | ✅       |

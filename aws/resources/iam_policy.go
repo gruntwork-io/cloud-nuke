@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -25,9 +26,18 @@ func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*st
 		}
 
 		for _, policy := range page.Policies {
+			var tags []types.Tag
+			if len(configObj.IAMPolicies.IncludeRule.Tags) > 0 || len(configObj.IAMPolicies.ExcludeRule.Tags) > 0 {
+				tagsOut, err := ip.Client.ListPolicyTags(c, &iam.ListPolicyTagsInput{PolicyArn: policy.Arn})
+				if err != nil {
+					return nil, errors.WithStackTrace(err)
+				}
+				tags = tagsOut.Tags
+			}
 			if configObj.IAMPolicies.ShouldInclude(config.ResourceValue{
 				Name: policy.PolicyName,
 				Time: policy.CreateDate,
+				Tags: util.ConvertIAMTagsToMap(tags),
 			}) {
 				allIamPolicies = append(allIamPolicies, policy.Arn)
 			}
