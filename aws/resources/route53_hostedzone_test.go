@@ -19,7 +19,10 @@ type mockedR53HostedZone struct {
 	ListHostedZonesOutput             route53.ListHostedZonesOutput
 	DeleteHostedZoneOutput            route53.DeleteHostedZoneOutput
 	DeleteTrafficPolicyInstanceOutput route53.DeleteTrafficPolicyInstanceOutput
+	TagSetsByZoneId                   map[string]types.ResourceTagSet
 }
+
+var _ Route53HostedZoneAPI = (*mockedR53HostedZone)(nil)
 
 func (mock mockedR53HostedZone) ListHostedZones(_ context.Context, _ *route53.ListHostedZonesInput, _ ...func(*route53.Options)) (*route53.ListHostedZonesOutput, error) {
 	return &mock.ListHostedZonesOutput, nil
@@ -39,6 +42,16 @@ func (mock mockedR53HostedZone) DeleteHostedZone(_ context.Context, _ *route53.D
 
 func (mock mockedR53HostedZone) DeleteTrafficPolicyInstance(_ context.Context, _ *route53.DeleteTrafficPolicyInstanceInput, _ ...func(*route53.Options)) (*route53.DeleteTrafficPolicyInstanceOutput, error) {
 	return &mock.DeleteTrafficPolicyInstanceOutput, nil
+}
+
+func (mock mockedR53HostedZone) ListTagsForResources(_ context.Context, params *route53.ListTagsForResourcesInput, _ ...func(*route53.Options)) (*route53.ListTagsForResourcesOutput, error) {
+	result := &route53.ListTagsForResourcesOutput{}
+	for _, resourceId := range params.ResourceIds {
+		if tagSet, ok := mock.TagSetsByZoneId[resourceId]; ok {
+			result.ResourceTagSets = append(result.ResourceTagSets, tagSet)
+		}
+	}
+	return result, nil
 }
 
 func TestR53HostedZone_GetAll(t *testing.T) {
@@ -72,6 +85,16 @@ func TestR53HostedZone_GetAll(t *testing.T) {
 					},
 				},
 			},
+			TagSetsByZoneId: map[string]types.ResourceTagSet{
+				testId1: {
+					ResourceId: aws.String(testId1),
+					Tags:       []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}},
+				},
+				testId2: {
+					ResourceId: aws.String(testId2),
+					Tags:       []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}},
+				},
+			},
 		},
 	}
 
@@ -91,6 +114,20 @@ func TestR53HostedZone_GetAll(t *testing.T) {
 					}}},
 			},
 			expected: []string{testId2},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}}},
+			},
+			expected: []string{testId2},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"faz": {RE: *regexp.MustCompile("baz")}}},
+			},
+			expected: []string{testId1},
 		},
 	}
 
