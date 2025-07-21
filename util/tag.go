@@ -6,6 +6,7 @@ import (
 	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	networkfirewalltypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	rdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
+	route53types "github.com/aws/aws-sdk-go-v2/service/route53/types"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	sagemakertypes "github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
 )
@@ -91,4 +92,13 @@ func ConvertSageMakerTagsToMap(tags []sagemakertypes.Tag) map[string]string {
 		}
 	}
 	return result
+}
+
+func ConvertRoute53TagsToMap(tags []route53types.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+
+	return tagMap
 }

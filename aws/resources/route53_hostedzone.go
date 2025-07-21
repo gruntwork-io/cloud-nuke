@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"github.com/gruntwork-io/cloud-nuke/util"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/route53"
@@ -11,7 +13,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 )
 
-func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+func (r *Route53HostedZone) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var ids []*string
 	paginator := route53.NewListHostedZonesPaginator(r.Client, &route53.ListHostedZonesInput{})
 
@@ -22,9 +24,28 @@ func (r *Route53HostedZone) getAll(_ context.Context, configObj config.Config) (
 			return nil, err
 		}
 
+		zoneIds := make([]string, 0, len(result.HostedZones))
+		for _, zone := range result.HostedZones {
+			zoneIds = append(zoneIds, strings.TrimPrefix(aws.ToString(zone.Id), "/hostedzone/"))
+		}
+
+		tagsByZoneId := make(map[string][]types.Tag)
+		output, err := r.Client.ListTagsForResources(c, &route53.ListTagsForResourcesInput{
+			ResourceType: types.TagResourceTypeHostedzone,
+			ResourceIds:  zoneIds,
+		})
+		if err != nil {
+			logging.Errorf("[Failed] unable to list tags for hosted zones: %s", err)
+			return nil, err
+		}
+		for _, tagSet := range output.ResourceTagSets {
+			tagsByZoneId[*tagSet.ResourceId] = tagSet.Tags
+		}
+
 		for _, zone := range result.HostedZones {
 			if configObj.Route53HostedZone.ShouldInclude(config.ResourceValue{
 				Name: zone.Name,
+				Tags: util.ConvertRoute53TagsToMap(tagsByZoneId[strings.TrimPrefix(aws.ToString(zone.Id), "/hostedzone/")]),
 			}) {
 				ids = append(ids, zone.Id)
 				r.HostedZonesDomains[aws.ToString(zone.Id)] = &zone
