@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"strings"
 	"sync"
 
@@ -26,7 +27,16 @@ func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*strin
 		}
 
 		for _, iamRole := range page.Roles {
-			if ir.shouldInclude(&iamRole, configObj) {
+			var tags []types.Tag
+			if len(configObj.IAMRoles.IncludeRule.Tags) > 0 || len(configObj.IAMRoles.ExcludeRule.Tags) > 0 {
+				tagsOut, err := ir.Client.ListRoleTags(c, &iam.ListRoleTagsInput{RoleName: iamRole.RoleName})
+				if err != nil {
+					return nil, errors.WithStackTrace(err)
+				}
+				tags = tagsOut.Tags
+			}
+
+			if ir.shouldInclude(&iamRole, configObj, tags) {
 				allIAMRoles = append(allIAMRoles, iamRole.RoleName)
 			}
 		}
@@ -172,7 +182,7 @@ func (ir *IAMRoles) nukeAll(roleNames []*string) error {
 	return nil
 }
 
-func (ir *IAMRoles) shouldInclude(iamRole *types.Role, configObj config.Config) bool {
+func (ir *IAMRoles) shouldInclude(iamRole *types.Role, configObj config.Config, tags []types.Tag) bool {
 	if iamRole == nil {
 		return false
 	}
@@ -201,6 +211,7 @@ func (ir *IAMRoles) shouldInclude(iamRole *types.Role, configObj config.Config) 
 	return configObj.IAMRoles.ShouldInclude(config.ResourceValue{
 		Name: iamRole.RoleName,
 		Time: iamRole.CreateDate,
+		Tags: util.ConvertIAMTagsToMap(tags),
 	})
 }
 
