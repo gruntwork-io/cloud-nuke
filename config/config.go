@@ -514,7 +514,7 @@ func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 		return false
 	} else if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
 		return false
-	} else if value.Tags != nil && len(value.Tags) != 0 && !r.ShouldIncludeBasedOnTag(value.Tags) {
+	} else if !r.ShouldIncludeBasedOnTag(value.Tags) {
 		return false
 	}
 
