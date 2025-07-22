@@ -17,6 +17,7 @@ type mockedIAMPolicies struct {
 	IAMPoliciesAPI
 	ListEntitiesForPolicyOutput iam.ListEntitiesForPolicyOutput
 	ListPoliciesOutput          iam.ListPoliciesOutput
+	ListPolicyTagsOutputByArn   map[string]*iam.ListPolicyTagsOutput
 	ListPolicyVersionsOutput    iam.ListPolicyVersionsOutput
 	DeletePolicyOutput          iam.DeletePolicyOutput
 	DeletePolicyVersionOutput   iam.DeletePolicyVersionOutput
@@ -25,12 +26,18 @@ type mockedIAMPolicies struct {
 	DetachRolePolicyOutput      iam.DetachRolePolicyOutput
 }
 
+var _ IAMPoliciesAPI = (*mockedIAMPolicies)(nil)
+
 func (m mockedIAMPolicies) ListEntitiesForPolicy(ctx context.Context, params *iam.ListEntitiesForPolicyInput, optFns ...func(*iam.Options)) (*iam.ListEntitiesForPolicyOutput, error) {
 	return &m.ListEntitiesForPolicyOutput, nil
 }
 
 func (m mockedIAMPolicies) ListPolicies(ctx context.Context, params *iam.ListPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListPoliciesOutput, error) {
 	return &m.ListPoliciesOutput, nil
+}
+
+func (m mockedIAMPolicies) ListPolicyTags(ctx context.Context, params *iam.ListPolicyTagsInput, optFns ...func(*iam.Options)) (*iam.ListPolicyTagsOutput, error) {
+	return m.ListPolicyTagsOutputByArn[*params.PolicyArn], nil
 }
 
 func (m mockedIAMPolicies) ListPolicyVersions(ctx context.Context, params *iam.ListPolicyVersionsInput, optFns ...func(*iam.Options)) (*iam.ListPolicyVersionsOutput, error) {
@@ -80,6 +87,10 @@ func TestIAMPolicy_GetAll(t *testing.T) {
 					},
 				},
 			},
+			ListPolicyTagsOutputByArn: map[string]*iam.ListPolicyTagsOutput{
+				testArn1: {Tags: []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
+				testArn2: {Tags: []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}}},
+			},
 		},
 	}
 
@@ -105,6 +116,22 @@ func TestIAMPolicy_GetAll(t *testing.T) {
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now),
 				}},
+			expected: []string{testArn1},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
+				},
+			},
+			expected: []string{testArn2},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
+				},
+			},
 			expected: []string{testArn1},
 		},
 	}
