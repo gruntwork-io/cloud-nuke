@@ -472,6 +472,11 @@ func ParseTimestamp(timestamp string) (*time.Time, error) {
 }
 
 func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
+	// If we have inclusion rules for tags but the resource has no tags, exclude it
+	if len(r.IncludeRule.Tags) > 0 && len(tags) == 0 {
+		return false
+	}
+
 	// Handle exclude rule first
 	exclusionTag := r.getExclusionTag()
 	exclusionTagValue := r.getExclusionTagValue()
@@ -514,7 +519,7 @@ func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 		return false
 	} else if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
 		return false
-	} else if value.Tags != nil && len(value.Tags) != 0 && !r.ShouldIncludeBasedOnTag(value.Tags) {
+	} else if !r.ShouldIncludeBasedOnTag(value.Tags) {
 		return false
 	}
 
