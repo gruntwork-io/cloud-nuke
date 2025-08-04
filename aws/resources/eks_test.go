@@ -18,7 +18,7 @@ type mockedEKSCluster struct {
 	DeleteClusterOutput          eks.DeleteClusterOutput
 	DeleteFargateProfileOutput   eks.DeleteFargateProfileOutput
 	DeleteNodegroupOutput        eks.DeleteNodegroupOutput
-	DescribeClusterOutput        eks.DescribeClusterOutput
+	DescribeClusterOutputByName  map[string]*eks.DescribeClusterOutput
 	DescribeFargateProfileOutput eks.DescribeFargateProfileOutput
 	DescribeNodegroupOutput      eks.DescribeNodegroupOutput
 	ListClustersOutput           eks.ListClustersOutput
@@ -39,7 +39,7 @@ func (m mockedEKSCluster) DeleteNodegroup(ctx context.Context, params *eks.Delet
 }
 
 func (m mockedEKSCluster) DescribeCluster(ctx context.Context, params *eks.DescribeClusterInput, optFns ...func(*eks.Options)) (*eks.DescribeClusterOutput, error) {
-	return &m.DescribeClusterOutput, nil
+	return m.DescribeClusterOutputByName[aws.ToString(params.Name)], nil
 }
 
 func (m mockedEKSCluster) DescribeFargateProfile(ctx context.Context, params *eks.DescribeFargateProfileInput, optFns ...func(*eks.Options)) (*eks.DescribeFargateProfileOutput, error) {
@@ -73,8 +73,28 @@ func TestEKSClusterGetAll(t *testing.T) {
 			ListClustersOutput: eks.ListClustersOutput{
 				Clusters: []string{testClusterName1, testClusterName2, testClusterName3},
 			},
-			DescribeClusterOutput: eks.DescribeClusterOutput{
-				Cluster: &types.Cluster{CreatedAt: &now},
+			DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
+				testClusterName1: {
+					Cluster: &types.Cluster{
+						Name:      aws.String(testClusterName1),
+						CreatedAt: &now,
+						Tags:      map[string]string{"foo": "bar"},
+					},
+				},
+				testClusterName2: {
+					Cluster: &types.Cluster{
+						Name:      aws.String(testClusterName1),
+						CreatedAt: &now,
+						Tags:      map[string]string{"foz": "boz"},
+					},
+				},
+				testClusterName3: {
+					Cluster: &types.Cluster{
+						Name:      aws.String(testClusterName3),
+						CreatedAt: &now,
+						Tags:      map[string]string{"faz": "baz"},
+					},
+				},
 			},
 		},
 	}
@@ -95,6 +115,22 @@ func TestEKSClusterGetAll(t *testing.T) {
 					}}},
 			},
 			expected: []string{testClusterName3},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
+				},
+			},
+			expected: []string{testClusterName1},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
+				},
+			},
+			expected: []string{testClusterName2, testClusterName3},
 		},
 	}
 
@@ -118,8 +154,15 @@ func TestEKSClusterNukeAll(t *testing.T) {
 			Context: context.Background(),
 		},
 		Client: mockedEKSCluster{
-			ListNodegroupsOutput:         eks.ListNodegroupsOutput{},
-			DescribeClusterOutput:        eks.DescribeClusterOutput{},
+			ListNodegroupsOutput: eks.ListNodegroupsOutput{},
+			DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
+				testClusterName: {
+					Cluster: &types.Cluster{
+						Name:      aws.String(testClusterName),
+						CreatedAt: aws.Time(time.Now()),
+					},
+				},
+			},
 			ListFargateProfilesOutput:    eks.ListFargateProfilesOutput{},
 			DescribeNodegroupOutput:      eks.DescribeNodegroupOutput{},
 			DeleteFargateProfileOutput:   eks.DeleteFargateProfileOutput{},
