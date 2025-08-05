@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
@@ -34,12 +33,6 @@ func (clusters *EKSClusters) getAll(c context.Context, configObj config.Config) 
 func (clusters *EKSClusters) filter(clusterNames []*string, configObj config.Config) ([]*string, error) {
 	var filteredEksClusterNames []*string
 	for _, clusterName := range clusterNames {
-		// Since we already have the name here, avoid an extra API call by applying
-		// the name based config filter first.
-		if !configObj.EKSCluster.ShouldInclude(config.ResourceValue{Name: clusterName}) {
-			continue
-		}
-
 		describeResult, err := clusters.Client.DescribeCluster(
 			clusters.Context,
 			&eks.DescribeClusterInput{Name: clusterName})
@@ -50,7 +43,7 @@ func (clusters *EKSClusters) filter(clusterNames []*string, configObj config.Con
 		if !configObj.EKSCluster.ShouldInclude(config.ResourceValue{
 			Name: clusterName,
 			Time: describeResult.Cluster.CreatedAt,
-			Tags: util.ConvertStringPtrTagsToMap(aws.StringMap(describeResult.Cluster.Tags)),
+			Tags: describeResult.Cluster.Tags,
 		}) {
 			continue
 		}
