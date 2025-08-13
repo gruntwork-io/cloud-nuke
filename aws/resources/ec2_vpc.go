@@ -393,7 +393,7 @@ func nukeEgressOnlyGateways(client EC2VPCAPI, vpcID string) error {
 
 func nukeEndpoints(client EC2VPCAPI, vpcID string) error {
 	logging.Debug(fmt.Sprintf("Start nuking VPC endpoints for vpc: %s", vpcID))
-	endpoints, _ := client.DescribeVpcEndpoints(context.Background(),
+	endpoints, err := client.DescribeVpcEndpoints(context.Background(),
 		&ec2.DescribeVpcEndpointsInput{
 			Filters: []types.Filter{
 				{
@@ -403,6 +403,11 @@ func nukeEndpoints(client EC2VPCAPI, vpcID string) error {
 			},
 		},
 	)
+
+	if err != nil {
+		logging.Debug(fmt.Sprintf("Failed to describe VPC endpoints for vpc: %s, error: %s", vpcID, err.Error()))
+		return errors.WithStackTrace(err)
+	}
 
 	logging.Debug(fmt.Sprintf("Found %d VPC endpoint.", len(endpoints.VpcEndpoints)))
 	var endpointIds []*string
@@ -421,7 +426,7 @@ func nukeEndpoints(client EC2VPCAPI, vpcID string) error {
 		logging.Debug(fmt.Sprintf("No VPC endpoint to nuke."))
 		return nil
 	}
-	err := nukeVpcEndpoint(client, endpointIds)
+	err = nukeVpcEndpoint(client, endpointIds)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Failed to delete VPC endpoints: %v", err))
 		return errors.WithStackTrace(err)
