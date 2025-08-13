@@ -22,80 +22,33 @@ const activeEcsClusterStatus string = "ACTIVE"
 // For more details on this, please read here: https://docs.aws.amazon.com/cli/latest/reference/ecs/describe-clusters.html#options
 const describeClustersRequestBatchSize = 100
 
-// getAllEcsClusters - Returns a string of ECS Cluster ARNs, which uniquely identifies the cluster.
-// We need to get all clusters before we can get all services.
+// getAllEcsClusters returns all ECS Cluster ARNs.
+// Handles pagination until all pages are retrieved.
 func (clusters *ECSClusters) getAllEcsClusters() ([]*string, error) {
 	var clusterArns []string
-	result, err := clusters.Client.ListClusters(clusters.Context, &ecs.ListClustersInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-	clusterArns = append(clusterArns, result.ClusterArns...)
+	nextToken := (*string)(nil)
 
-	// Handle pagination: continuously pull the next page if nextToken is set
-	for aws.ToString(result.NextToken) != "" {
-		result, err = clusters.Client.ListClusters(clusters.Context, &ecs.ListClustersInput{NextToken: result.NextToken})
+	for {
+		resp, err := clusters.Client.ListClusters(clusters.Context, &ecs.ListClustersInput{
+			NextToken: nextToken,
+		})
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
-		clusterArns = append(clusterArns, result.ClusterArns...)
+
+		clusterArns = append(clusterArns, resp.ClusterArns...)
+		if resp.NextToken == nil || *resp.NextToken == "" {
+			break
+		}
+		nextToken = resp.NextToken
 	}
 
 	return aws.StringSlice(clusterArns), nil
 }
 
-// Filter all active ecs clusters
-func (clusters *ECSClusters) getAllActiveEcsClusterArns(configObj config.Config) ([]*string, error) {
+func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	allClusters, err := clusters.getAllEcsClusters()
 	if err != nil {
-		logging.Debug("Error getting all ECS clusters")
-		return nil, errors.WithStackTrace(err)
-	}
-
-	var filteredEcsClusterArns []*string
-
-	batches := util.Split(aws.ToStringSlice(allClusters), describeClustersRequestBatchSize)
-	for _, batch := range batches {
-		input := &ecs.DescribeClustersInput{
-			Clusters: batch,
-		}
-
-		describedClusters, describeErr := clusters.Client.DescribeClusters(clusters.Context, input)
-		if describeErr != nil {
-			logging.Debugf("Error describing ECS clusters from input %s: ", input)
-			return nil, errors.WithStackTrace(describeErr)
-		}
-
-		for _, cluster := range describedClusters.Clusters {
-			if shouldIncludeECSCluster(&cluster, configObj) {
-				filteredEcsClusterArns = append(filteredEcsClusterArns, cluster.ClusterArn)
-			}
-		}
-	}
-
-	return filteredEcsClusterArns, nil
-}
-
-func shouldIncludeECSCluster(cluster *types.Cluster, configObj config.Config) bool {
-	if cluster == nil {
-		return false
-	}
-
-	// Filter out invalid state ECS Clusters (will return only `ACTIVE` state clusters)
-	// `cloud-nuke` needs to tag ECS Clusters it sees for the first time.
-	// Therefore, to tag a cluster, that cluster must be in the `ACTIVE` state.
-	logging.Debugf("Status for ECS Cluster %s is %s", aws.ToString(cluster.ClusterArn), aws.ToString(cluster.Status))
-	if aws.ToString(cluster.Status) != activeEcsClusterStatus {
-		return false
-	}
-
-	return configObj.ECSCluster.ShouldInclude(config.ResourceValue{Name: cluster.ClusterName})
-}
-
-func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	clusterArns, err := clusters.getAllActiveEcsClusterArns(configObj)
-	if err != nil {
-		logging.Debugf("Error getting all ECS clusters with `ACTIVE` status")
 		return nil, errors.WithStackTrace(err)
 	}
 
@@ -104,27 +57,54 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 		return nil, errors.WithStackTrace(err)
 	}
 
-	var filteredEcsClusters []*string
-	for _, clusterArn := range clusterArns {
-		if !excludeFirstSeenTag {
-			firstSeenTime, err := clusters.getFirstSeenTag(clusterArn)
+	var result []*string
+	clusterList := aws.ToStringSlice(allClusters)
+	batches := util.Split(clusterList, describeClustersRequestBatchSize)
+
+	for _, batch := range batches {
+		resp, err := clusters.Client.DescribeClusters(clusters.Context, &ecs.DescribeClustersInput{
+			Clusters: batch,
+		})
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, cluster := range resp.Clusters {
+			if cluster.Status == nil || aws.ToString(cluster.Status) != activeEcsClusterStatus {
+				continue
+			}
+
+			if !configObj.ECSCluster.ShouldInclude(config.ResourceValue{Name: cluster.ClusterName}) {
+				continue
+			}
+
+			if excludeFirstSeenTag {
+				result = append(result, cluster.ClusterArn)
+				continue
+			}
+
+			firstSeenTime, err := clusters.getFirstSeenTag(cluster.ClusterArn)
 			if err != nil {
-				logging.Debugf("Error getting the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.ToString(clusterArn))
 				return nil, errors.WithStackTrace(err)
 			}
 
 			if firstSeenTime == nil {
-				err := clusters.setFirstSeenTag(clusterArn, time.Now().UTC())
-				if err != nil {
-					logging.Debugf("Error tagging the ECS cluster with ARN %s", aws.ToString(clusterArn))
+				if err := clusters.setFirstSeenTag(cluster.ClusterArn, time.Now().UTC()); err != nil {
 					return nil, errors.WithStackTrace(err)
 				}
-			} else if configObj.ECSCluster.ShouldInclude(config.ResourceValue{Time: firstSeenTime}) {
-				filteredEcsClusters = append(filteredEcsClusters, clusterArn)
+				continue
+			}
+
+			if configObj.ECSCluster.ShouldInclude(config.ResourceValue{
+				Time: firstSeenTime,
+				Name: cluster.ClusterName,
+			}) {
+				result = append(result, cluster.ClusterArn)
 			}
 		}
 	}
-	return filteredEcsClusters, nil
+
+	return result, nil
 }
 
 func (clusters *ECSClusters) stopClusterRunningTasks(clusterArn *string) error {
