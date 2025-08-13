@@ -51,7 +51,7 @@ func (nfrp *NetworkFirewallResourcePolicy) getAll(_ context.Context, configObj c
 		}
 
 		// if the policy exists for a resource
-		if output.Policy != nil {
+		if output != nil && output.Policy != nil {
 			if configObj.NetworkFirewallResourcePolicy.ShouldInclude(config.ResourceValue{
 				Name: arn,
 			}) {
