@@ -13,6 +13,19 @@ defaults: &defaults
     - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.22.6-tf1.5-tg58.8-pck1.8-ci56.0
 version: 2.1
 jobs:
+  lint:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: Install golangci-lint
+          command: |
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
+      - run:
+          name: Run golangci-lint
+          command: |
+            golangci-lint run --new-from-rev=origin/master ./...
+  
   test:
     <<: *defaults
     steps:
@@ -259,7 +272,16 @@ workflows:
       not:
         equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
     jobs:
+      - lint:
+          filters:
+            tags:
+              only: /^v.*/
+          context:
+            - AWS__PHXDEVOPS__circle-ci-test
+            - GITHUB__PAT__gruntwork-ci
       - test:
+          requires:
+            - lint
           filters:
             tags:
               only: /^v.*/
