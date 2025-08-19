@@ -88,6 +88,3 @@ issues:
   
   # Maximum count of issues with the same text
   max-same-issues: 0
-  
-  # Show only new issues for PRs
-  new: false
