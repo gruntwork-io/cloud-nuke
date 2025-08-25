@@ -2,11 +2,9 @@ package resources
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
-	"github.com/aws/aws-sdk-go-v2/service/cloudtrail/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
@@ -22,34 +20,22 @@ func (ct *CloudtrailTrail) getAll(c context.Context, configObj config.Config) ([
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// get tags
-		trailARNs := []string{}
-		for _, trailInfo := range page.Trails {
-			trailARNs = append(trailARNs, *trailInfo.TrailARN)
-		}
-		tagsOutput, err := ct.Client.ListTags(c, &cloudtrail.ListTagsInput{
-			ResourceIdList: trailARNs,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve tags: %w", err)
-		}
-		tagsMap := map[string][]types.Tag{}
-		for _, tag := range tagsOutput.ResourceTagList {
-			tagsMap[*tag.ResourceId] = tag.TagsList
-		}
+		// Process trails individually to avoid CloudTrailARNInvalidException when mixing
+		// organization trails (from AWS Control Tower) with account-level trails.
+		// AWS ListTags API doesn't allow resources from multiple owners in a single call.
+		for _, trail := range page.Trails {
+			rv := config.ResourceValue{Name: trail.Name, Tags: make(map[string]string)}
 
-		for _, trailInfo := range page.Trails {
-			rv := config.ResourceValue{
-				Name: trailInfo.Name,
-				Tags: map[string]string{},
-			}
-			if tags, ok := tagsMap[*trailInfo.TrailARN]; ok {
-				for _, tag := range tags {
+			if tags, err := ct.Client.ListTags(c, &cloudtrail.ListTagsInput{
+				ResourceIdList: []string{*trail.TrailARN},
+			}); err == nil && len(tags.ResourceTagList) > 0 {
+				for _, tag := range tags.ResourceTagList[0].TagsList {
 					rv.Tags[*tag.Key] = *tag.Value
 				}
 			}
+
 			if configObj.CloudtrailTrail.ShouldInclude(rv) {
-				trailIds = append(trailIds, trailInfo.TrailARN)
+				trailIds = append(trailIds, trail.TrailARN)
 			}
 		}
 	}
