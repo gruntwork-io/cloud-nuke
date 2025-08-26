@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 
@@ -17,6 +18,7 @@ type mockedCloudTrail struct {
 	ListTrailsOutput  cloudtrail.ListTrailsOutput
 	DeleteTrailOutput cloudtrail.DeleteTrailOutput
 	ListTagsOutput    cloudtrail.ListTagsOutput
+	ListTagsError     error
 }
 
 func (m mockedCloudTrail) ListTrails(ctx context.Context, params *cloudtrail.ListTrailsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTrailsOutput, error) {
@@ -28,7 +30,18 @@ func (m mockedCloudTrail) DeleteTrail(ctx context.Context, params *cloudtrail.De
 }
 
 func (m mockedCloudTrail) ListTags(ctx context.Context, params *cloudtrail.ListTagsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTagsOutput, error) {
-	return &m.ListTagsOutput, nil
+	if m.ListTagsError != nil {
+		return nil, m.ListTagsError
+	}
+	// Return tags only for the requested trail ARN
+	for _, resourceTag := range m.ListTagsOutput.ResourceTagList {
+		if len(params.ResourceIdList) > 0 && *resourceTag.ResourceId == params.ResourceIdList[0] {
+			return &cloudtrail.ListTagsOutput{
+				ResourceTagList: []types.ResourceTag{resourceTag},
+			}, nil
+		}
+	}
+	return &cloudtrail.ListTagsOutput{}, nil
 }
 
 func TestCloudTrailGetAll(t *testing.T) {
@@ -111,6 +124,31 @@ func TestCloudTrailGetAll(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+func TestCloudTrailGetAllWithTagsError(t *testing.T) {
+	t.Parallel()
+
+	testName := "test-trail"
+	testArn := "test-arn"
+	ct := CloudtrailTrail{
+		Client: mockedCloudTrail{
+			ListTrailsOutput: cloudtrail.ListTrailsOutput{
+				Trails: []types.TrailInfo{{
+					Name:     aws.String(testName),
+					TrailARN: aws.String(testArn),
+				}},
+			},
+			ListTagsError: errors.New("CloudTrailARNInvalidException: You cannot have resources belonging to multiple owners"),
+		},
+	}
+
+	names, err := ct.getAll(context.Background(), config.Config{
+		CloudtrailTrail: config.ResourceType{},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, []string{testArn}, aws.ToStringSlice(names))
 }
 
 func TestCloudTrailNukeAll(t *testing.T) {
