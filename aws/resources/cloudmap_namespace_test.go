@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockedCloudMapNamespacesAPI is a mock implementation of CloudMapNamespacesAPI for testing.
+// It returns predefined responses for API calls, allowing tests to run without AWS credentials.
 type mockedCloudMapNamespacesAPI struct {
 	CloudMapNamespacesAPI
 	ListNamespacesOutput  servicediscovery.ListNamespacesOutput
@@ -37,6 +39,8 @@ func (m mockedCloudMapNamespacesAPI) ListServices(ctx context.Context, params *s
 	return &m.ListServicesOutput, nil
 }
 
+// TestCloudMapNamespaces_GetAll verifies that namespace filtering works correctly.
+// It tests empty filters, name exclusion, and time-based exclusion.
 func TestCloudMapNamespaces_GetAll(t *testing.T) {
 	t.Parallel()
 
@@ -66,17 +70,18 @@ func TestCloudMapNamespaces_GetAll(t *testing.T) {
 	}
 	cns.BaseAwsResource.Init(aws.Config{})
 
+	// Define test cases for different filter scenarios
 	tests := map[string]struct {
 		configObj config.Config
 		expected  []string
 	}{
-		"emptyFilter": {
+		"emptyFilter": { // Should return all namespaces when no filters are applied
 			configObj: config.Config{
 				CloudMapNamespace: config.ResourceType{},
 			},
 			expected: []string{testNamespace1, testNamespace2},
 		},
-		"nameExclusionFilter": {
+		"nameExclusionFilter": { // Should exclude namespaces matching the regex pattern
 			configObj: config.Config{
 				CloudMapNamespace: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -88,7 +93,7 @@ func TestCloudMapNamespaces_GetAll(t *testing.T) {
 			},
 			expected: []string{testNamespace2},
 		},
-		"timeAfterExclusionFilter": {
+		"timeAfterExclusionFilter": { // Should exclude namespaces created after the specified time
 			configObj: config.Config{
 				CloudMapNamespace: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -109,6 +114,8 @@ func TestCloudMapNamespaces_GetAll(t *testing.T) {
 	}
 }
 
+// TestCloudMapNamespaces_NukeAll verifies that the namespace deletion process works correctly.
+// It tests that namespaces can be deleted when they have no services.
 func TestCloudMapNamespaces_NukeAll(t *testing.T) {
 	t.Parallel()
 

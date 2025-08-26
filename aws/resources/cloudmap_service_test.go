@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockedCloudMapServicesAPI is a mock implementation of CloudMapServicesAPI for testing.
+// It returns predefined responses for API calls, allowing tests to run without AWS credentials.
 type mockedCloudMapServicesAPI struct {
 	CloudMapServicesAPI
 	ListServicesOutput        servicediscovery.ListServicesOutput
@@ -37,6 +39,8 @@ func (m mockedCloudMapServicesAPI) DeregisterInstance(ctx context.Context, param
 	return &m.DeregisterInstanceOutput, nil
 }
 
+// TestCloudMapServices_GetAll verifies that service filtering works correctly.
+// It tests empty filters, name exclusion, and time-based exclusion.
 func TestCloudMapServices_GetAll(t *testing.T) {
 	t.Parallel()
 
@@ -66,17 +70,18 @@ func TestCloudMapServices_GetAll(t *testing.T) {
 	}
 	cms.BaseAwsResource.Init(aws.Config{})
 
+	// Define test cases for different filter scenarios
 	tests := map[string]struct {
 		configObj config.Config
 		expected  []string
 	}{
-		"emptyFilter": {
+		"emptyFilter": { // Should return all services when no filters are applied
 			configObj: config.Config{
 				CloudMapService: config.ResourceType{},
 			},
 			expected: []string{testService1, testService2},
 		},
-		"nameExclusionFilter": {
+		"nameExclusionFilter": { // Should exclude services matching the regex pattern
 			configObj: config.Config{
 				CloudMapService: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -88,7 +93,7 @@ func TestCloudMapServices_GetAll(t *testing.T) {
 			},
 			expected: []string{testService2},
 		},
-		"timeAfterExclusionFilter": {
+		"timeAfterExclusionFilter": { // Should exclude services created after the specified time
 			configObj: config.Config{
 				CloudMapService: config.ResourceType{
 					ExcludeRule: config.FilterRule{
@@ -109,6 +114,8 @@ func TestCloudMapServices_GetAll(t *testing.T) {
 	}
 }
 
+// TestCloudMapServices_NukeAll verifies that the service deletion process works correctly.
+// It tests that services can be deleted after their instances are deregistered.
 func TestCloudMapServices_NukeAll(t *testing.T) {
 	t.Parallel()
 
