@@ -17,10 +17,10 @@ import (
 // It returns predefined responses for API calls, allowing tests to run without AWS credentials.
 type mockedCloudMapServicesAPI struct {
 	CloudMapServicesAPI
-	ListServicesOutput        servicediscovery.ListServicesOutput
-	DeleteServiceOutput       servicediscovery.DeleteServiceOutput
-	ListInstancesOutput       servicediscovery.ListInstancesOutput
-	DeregisterInstanceOutput  servicediscovery.DeregisterInstanceOutput
+	ListServicesOutput       servicediscovery.ListServicesOutput
+	DeleteServiceOutput      servicediscovery.DeleteServiceOutput
+	ListInstancesOutput      servicediscovery.ListInstancesOutput
+	DeregisterInstanceOutput servicediscovery.DeregisterInstanceOutput
 }
 
 func (m mockedCloudMapServicesAPI) ListServices(ctx context.Context, params *servicediscovery.ListServicesInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListServicesOutput, error) {

@@ -17,16 +17,16 @@ import (
 // It uses pagination to handle large numbers of services.
 func (cms *CloudMapServices) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var result []*string
-	
+
 	// Create a paginator to iterate through all services
 	paginator := servicediscovery.NewListServicesPaginator(cms.Client, &servicediscovery.ListServicesInput{})
-	
+
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(cms.Context)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
-		
+
 		// Filter services based on configured rules (name patterns, creation time, etc.)
 		for _, service := range page.Services {
 			if configObj.CloudMapService.ShouldInclude(config.ResourceValue{
@@ -37,7 +37,7 @@ func (cms *CloudMapServices) getAll(c context.Context, configObj config.Config) 
 			}
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -48,29 +48,29 @@ func (cms *CloudMapServices) deregisterAllInstances(serviceId *string) error {
 	paginator := servicediscovery.NewListInstancesPaginator(cms.Client, &servicediscovery.ListInstancesInput{
 		ServiceId: serviceId,
 	})
-	
+
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(cms.Context)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
-		
+
 		// Deregister each instance found
 		for _, instance := range page.Instances {
 			logging.Debugf("Deregistering instance %s from service %s", *instance.Id, *serviceId)
-			
+
 			_, err := cms.Client.DeregisterInstance(cms.Context, &servicediscovery.DeregisterInstanceInput{
 				ServiceId:  serviceId,
 				InstanceId: instance.Id,
 			})
-			
+
 			// Log but don't fail on individual instance deregistration errors
 			if err != nil {
 				logging.Debugf("Error deregistering instance %s: %s", *instance.Id, err)
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -80,35 +80,35 @@ func (cms *CloudMapServices) deregisterAllInstances(serviceId *string) error {
 func (cms *CloudMapServices) waitForInstanceDeregistration(serviceId *string) error {
 	maxRetries := 30
 	sleepBetweenRetries := 5 * time.Second
-	
+
 	for i := 0; i < maxRetries; i++ {
 		// Check if any instances still exist for this service
 		paginator := servicediscovery.NewListInstancesPaginator(cms.Client, &servicediscovery.ListInstancesInput{
 			ServiceId: serviceId,
 		})
-		
+
 		hasInstances := false
 		for paginator.HasMorePages() {
 			page, err := paginator.NextPage(cms.Context)
 			if err != nil {
 				return errors.WithStackTrace(err)
 			}
-			
+
 			if len(page.Instances) > 0 {
 				hasInstances = true
 				break
 			}
 		}
-		
+
 		// If no instances remain, service is safe to delete
 		if !hasInstances {
 			return nil
 		}
-		
+
 		logging.Debugf("Waiting for instances in service %s to be deregistered (attempt %d/%d)", *serviceId, i+1, maxRetries)
 		time.Sleep(sleepBetweenRetries)
 	}
-	
+
 	return errors.WithStackTrace(fmt.Errorf("timeout waiting for instances to be deregistered in service %s", *serviceId))
 }
 
@@ -119,9 +119,9 @@ func (cms *CloudMapServices) nukeAll(identifiers []*string) error {
 		logging.Debugf("No Cloud Map services to nuke in region %s", cms.Region)
 		return nil
 	}
-	
+
 	logging.Debugf("Deleting %d Cloud Map services in region %s", len(identifiers), cms.Region)
-	
+
 	var deletedServices []*string
 	for _, id := range identifiers {
 		// First, deregister all instances in the service
@@ -129,20 +129,20 @@ func (cms *CloudMapServices) nukeAll(identifiers []*string) error {
 		if err != nil {
 			logging.Debugf("Error deregistering instances for service %s: %s", *id, err)
 		}
-		
+
 		// Wait for all instances to be fully deregistered
 		err = cms.waitForInstanceDeregistration(id)
 		if err != nil {
 			logging.Debugf("Error waiting for instances to be deregistered in service %s: %s", *id, err)
 		}
-		
+
 		// Attempt to delete the service
 		input := &servicediscovery.DeleteServiceInput{
 			Id: id,
 		}
-		
+
 		_, err = cms.Client.DeleteService(cms.Context, input)
-		
+
 		// Record the deletion attempt for reporting
 		e := report.Entry{
 			Identifier:   aws.ToString(id),
@@ -150,7 +150,7 @@ func (cms *CloudMapServices) nukeAll(identifiers []*string) error {
 			Error:        err,
 		}
 		report.Record(e)
-		
+
 		if err != nil {
 			logging.Debugf("Error deleting Cloud Map service %s: %s", *id, err)
 		} else {
@@ -158,8 +158,8 @@ func (cms *CloudMapServices) nukeAll(identifiers []*string) error {
 			deletedServices = append(deletedServices, id)
 		}
 	}
-	
+
 	logging.Debugf("[OK] %d of %d Cloud Map service(s) deleted in %s", len(deletedServices), len(identifiers), cms.Region)
-	
+
 	return nil
 }

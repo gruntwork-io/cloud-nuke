@@ -18,16 +18,16 @@ import (
 // It uses pagination to handle large numbers of namespaces.
 func (cns *CloudMapNamespaces) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var result []*string
-	
+
 	// Create a paginator to iterate through all namespaces
 	paginator := servicediscovery.NewListNamespacesPaginator(cns.Client, &servicediscovery.ListNamespacesInput{})
-	
+
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(cns.Context)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
-		
+
 		// Filter namespaces based on configured rules (name patterns, creation time, etc.)
 		for _, namespace := range page.Namespaces {
 			if configObj.CloudMapNamespace.ShouldInclude(config.ResourceValue{
@@ -38,7 +38,7 @@ func (cns *CloudMapNamespaces) getAll(c context.Context, configObj config.Config
 			}
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -48,7 +48,7 @@ func (cns *CloudMapNamespaces) getAll(c context.Context, configObj config.Config
 func (cns *CloudMapNamespaces) waitForServicesToDelete(namespaceId *string) error {
 	maxRetries := 30
 	sleepBetweenRetries := 10 * time.Second
-	
+
 	for i := 0; i < maxRetries; i++ {
 		// List all services that belong to this namespace
 		paginator := servicediscovery.NewListServicesPaginator(cns.Client, &servicediscovery.ListServicesInput{
@@ -60,7 +60,7 @@ func (cns *CloudMapNamespaces) waitForServicesToDelete(namespaceId *string) erro
 				},
 			},
 		})
-		
+
 		// Check if any services still exist in the namespace
 		hasServices := false
 		for paginator.HasMorePages() {
@@ -68,22 +68,22 @@ func (cns *CloudMapNamespaces) waitForServicesToDelete(namespaceId *string) erro
 			if err != nil {
 				return errors.WithStackTrace(err)
 			}
-			
+
 			if len(page.Services) > 0 {
 				hasServices = true
 				break
 			}
 		}
-		
+
 		// If no services remain, namespace is safe to delete
 		if !hasServices {
 			return nil
 		}
-		
+
 		logging.Debugf("Waiting for services in namespace %s to be deleted (attempt %d/%d)", *namespaceId, i+1, maxRetries)
 		time.Sleep(sleepBetweenRetries)
 	}
-	
+
 	return errors.WithStackTrace(fmt.Errorf("timeout waiting for services to be deleted in namespace %s", *namespaceId))
 }
 
@@ -94,9 +94,9 @@ func (cns *CloudMapNamespaces) nukeAll(identifiers []*string) error {
 		logging.Debugf("No Cloud Map namespaces to nuke in region %s", cns.Region)
 		return nil
 	}
-	
+
 	logging.Debugf("Deleting %d Cloud Map namespaces in region %s", len(identifiers), cns.Region)
-	
+
 	var deletedNamespaces []*string
 	for _, id := range identifiers {
 		// First, wait for all services in the namespace to be deleted
@@ -105,7 +105,7 @@ func (cns *CloudMapNamespaces) nukeAll(identifiers []*string) error {
 		if err != nil {
 			logging.Debugf("Error waiting for services to be deleted in namespace %s: %s", *id, err)
 		}
-		
+
 		// Get namespace details to check for associated Route53 hosted zones
 		getResp, err := cns.Client.GetNamespace(cns.Context, &servicediscovery.GetNamespaceInput{
 			Id: id,
@@ -114,22 +114,22 @@ func (cns *CloudMapNamespaces) nukeAll(identifiers []*string) error {
 			logging.Debugf("Error getting namespace %s: %s", *id, err)
 			continue
 		}
-		
+
 		// Log if namespace has DNS properties (Route53 hosted zone will be auto-cleaned)
 		if getResp.Namespace.Properties != nil {
 			if getResp.Namespace.Properties.DnsProperties != nil && getResp.Namespace.Properties.DnsProperties.HostedZoneId != nil {
-				logging.Debugf("Namespace %s has associated Route53 hosted zone %s - it will be cleaned automatically", 
+				logging.Debugf("Namespace %s has associated Route53 hosted zone %s - it will be cleaned automatically",
 					*id, *getResp.Namespace.Properties.DnsProperties.HostedZoneId)
 			}
 		}
-		
+
 		// Attempt to delete the namespace
 		input := &servicediscovery.DeleteNamespaceInput{
 			Id: id,
 		}
-		
+
 		_, err = cns.Client.DeleteNamespace(cns.Context, input)
-		
+
 		// Record the deletion attempt for reporting
 		e := report.Entry{
 			Identifier:   aws.ToString(id),
@@ -137,7 +137,7 @@ func (cns *CloudMapNamespaces) nukeAll(identifiers []*string) error {
 			Error:        err,
 		}
 		report.Record(e)
-		
+
 		if err != nil {
 			logging.Debugf("Error deleting Cloud Map namespace %s: %s", *id, err)
 		} else {
@@ -145,8 +145,8 @@ func (cns *CloudMapNamespaces) nukeAll(identifiers []*string) error {
 			deletedNamespaces = append(deletedNamespaces, id)
 		}
 	}
-	
+
 	logging.Debugf("[OK] %d of %d Cloud Map namespace(s) deleted in %s", len(deletedNamespaces), len(identifiers), cns.Region)
-	
+
 	return nil
 }

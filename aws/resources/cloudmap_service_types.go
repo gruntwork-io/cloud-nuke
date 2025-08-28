@@ -60,7 +60,7 @@ func (cms *CloudMapServices) GetAndSetIdentifiers(c context.Context, configObj c
 	if err != nil {
 		return nil, err
 	}
-	
+
 	cms.ServiceIds = aws.ToStringSlice(identifiers)
 	return cms.ServiceIds, nil
 }

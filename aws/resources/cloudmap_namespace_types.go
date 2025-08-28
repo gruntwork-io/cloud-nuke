@@ -60,7 +60,7 @@ func (cns *CloudMapNamespaces) GetAndSetIdentifiers(c context.Context, configObj
 	if err != nil {
 		return nil, err
 	}
-	
+
 	cns.NamespaceIds = aws.ToStringSlice(identifiers)
 	return cns.NamespaceIds, nil
 }
