@@ -72,6 +72,8 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.CloudWatchAlarms{},
 		&resources.CloudWatchDashboards{},
 		&resources.CloudWatchLogGroups{},
+		&resources.CloudMapServices{},
+		&resources.CloudMapNamespaces{},
 		&resources.CodeDeployApplications{},
 		&resources.ConfigServiceRecorders{},
 		&resources.ConfigServiceRule{},
