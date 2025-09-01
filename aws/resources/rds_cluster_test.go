@@ -38,9 +38,9 @@ func (m mockedDBClusters) ModifyDBCluster(ctx context.Context, params *rds.Modif
 }
 
 func TestRDSClusterGetAll(t *testing.T) {
-
 	t.Parallel()
 
+	// Test data setup
 	testName := "test-db-cluster"
 	testProtectedName := "test-protected-cluster"
 	now := time.Now()
@@ -63,13 +63,13 @@ func TestRDSClusterGetAll(t *testing.T) {
 		},
 	}
 
-	// Testing empty config - should exclude deletion-protected by default
+	// Test Case 1: Empty config - should exclude deletion-protected clusters by default
 	clusters, err := dbCluster.getAll(context.Background(), config.Config{DBClusters: config.AWSProtectectableResourceType{}})
 	assert.NoError(t, err)
 	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
 	assert.NotContains(t, aws.ToStringSlice(clusters), strings.ToLower(testProtectedName))
 
-	// Testing with IncludeDeletionProtected=true - should include protected clusters
+	// Test Case 2: IncludeDeletionProtected=true - should include both protected and unprotected clusters
 	clusters, err = dbCluster.getAll(context.Background(), config.Config{
 		DBClusters: config.AWSProtectectableResourceType{
 			IncludeDeletionProtected: true,
@@ -79,7 +79,7 @@ func TestRDSClusterGetAll(t *testing.T) {
 	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
 	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testProtectedName))
 
-	// Testing db cluster exclusion by time
+	// Test Case 3: Time-based exclusion - should exclude all clusters created after specified time
 	clusters, err = dbCluster.getAll(context.Background(), config.Config{
 		DBClusters: config.AWSProtectectableResourceType{
 			ResourceType: config.ResourceType{

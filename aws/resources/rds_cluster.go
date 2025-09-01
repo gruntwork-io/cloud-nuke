@@ -17,8 +17,11 @@ import (
 )
 
 func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClustersInput) error {
-	// wait up to 15 minutes
-	for i := 0; i < 90; i++ {
+	const maxRetries = 90                   // 90 attempts
+	const retryInterval = 10 * time.Second  // 10 seconds between attempts
+	// Total wait time: 90 * 10s = 900s = 15 minutes
+
+	for i := 0; i < maxRetries; i++ {
 		_, err := instance.Client.DescribeDBClusters(instance.Context, input)
 		if err != nil {
 			var notFoundErr *types.DBClusterNotFoundFault
@@ -29,7 +32,7 @@ func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClus
 			return err
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(retryInterval)
 		logging.Debug("Waiting for RDS Cluster to be deleted")
 	}
 
@@ -44,7 +47,7 @@ func (instance *DBClusters) getAll(c context.Context, configObj config.Config) (
 
 	var names []*string
 	for _, database := range result.DBClusters {
-		// Skip deletion-protected clusters while config object doesn't include deletion-protected
+		// Skip deletion-protected clusters when config doesn't explicitly include them
 		if database.DeletionProtection != nil && *database.DeletionProtection && !configObj.DBClusters.IncludeDeletionProtected {
 			continue
 		}
@@ -71,7 +74,7 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		// Disable deletion protection
+		// Disable deletion protection before attempting to delete the cluster
 		_, err := instance.Client.ModifyDBCluster(instance.Context, &rds.ModifyDBClusterInput{
 			DBClusterIdentifier: name,
 			DeletionProtection:  aws.Bool(false),
