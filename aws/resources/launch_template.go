@@ -20,30 +20,17 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 
 	var templateNames []*string
 	for _, template := range result.LaunchTemplates {
-		// Get tags from the latest version of the launch template
-		// $Latest represents the most current configuration and tags
-		tags := make(map[string]string)
-		versionsResult, err := lt.Client.DescribeLaunchTemplateVersions(c, &ec2.DescribeLaunchTemplateVersionsInput{
-			LaunchTemplateId: template.LaunchTemplateId,
-			Versions:         []string{"$Latest"},
-		})
-		if err == nil && len(versionsResult.LaunchTemplateVersions) > 0 {
-			for _, tag := range versionsResult.LaunchTemplateVersions[0].LaunchTemplateData.TagSpecifications {
-				for _, t := range tag.Tags {
-					if t.Key != nil && t.Value != nil {
-						tags[*t.Key] = *t.Value
-					}
-				}
-			}
-		}
-
+		tags := lt.extractTagsFromLatestVersion(c, template.LaunchTemplateId)
+		
 		logging.Debugf("Tags for Launch Template %s: %v", *template.LaunchTemplateName, tags)
 
-		if configObj.LaunchTemplate.ShouldInclude(config.ResourceValue{
+		resourceValue := config.ResourceValue{
 			Name: template.LaunchTemplateName,
 			Time: template.CreateTime,
 			Tags: tags,
-		}) {
+		}
+		
+		if configObj.LaunchTemplate.ShouldInclude(resourceValue) {
 			templateNames = append(templateNames, template.LaunchTemplateName)
 		}
 	}
@@ -58,6 +45,36 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 	})
 
 	return templateNames, nil
+}
+
+// extractTagsFromLatestVersion retrieves tags from the latest version of a launch template
+func (lt *LaunchTemplates) extractTagsFromLatestVersion(ctx context.Context, templateID *string) map[string]string {
+	tags := make(map[string]string)
+	
+	versionsInput := &ec2.DescribeLaunchTemplateVersionsInput{
+		LaunchTemplateId: templateID,
+		Versions:         []string{"$Latest"},
+	}
+	
+	versionsResult, err := lt.Client.DescribeLaunchTemplateVersions(ctx, versionsInput)
+	if err != nil || len(versionsResult.LaunchTemplateVersions) == 0 {
+		return tags
+	}
+	
+	latestVersion := versionsResult.LaunchTemplateVersions[0]
+	if latestVersion.LaunchTemplateData == nil {
+		return tags
+	}
+	
+	for _, tagSpec := range latestVersion.LaunchTemplateData.TagSpecifications {
+		for _, tag := range tagSpec.Tags {
+			if tag.Key != nil && tag.Value != nil {
+				tags[*tag.Key] = *tag.Value
+			}
+		}
+	}
+	
+	return tags
 }
 
 // Deletes all Launch Templates
