@@ -15,8 +15,9 @@ import (
 
 type mockedLaunchTemplate struct {
 	LaunchTemplatesAPI
-	DescribeLaunchTemplatesOutput ec2.DescribeLaunchTemplatesOutput
-	DeleteLaunchTemplateOutput    ec2.DeleteLaunchTemplateOutput
+	DescribeLaunchTemplatesOutput        ec2.DescribeLaunchTemplatesOutput
+	DeleteLaunchTemplateOutput           ec2.DeleteLaunchTemplateOutput
+	DescribeLaunchTemplateVersionsOutput ec2.DescribeLaunchTemplateVersionsOutput
 }
 
 func (m mockedLaunchTemplate) DescribeLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error) {
@@ -27,6 +28,23 @@ func (m mockedLaunchTemplate) DeleteLaunchTemplate(ctx context.Context, params *
 	return &m.DeleteLaunchTemplateOutput, nil
 }
 
+func (m mockedLaunchTemplate) DescribeLaunchTemplateVersions(ctx context.Context, params *ec2.DescribeLaunchTemplateVersionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+	// Return tags only for the first template (lt-123456789)
+	if params.LaunchTemplateId != nil && *params.LaunchTemplateId == "lt-123456789" {
+		return &m.DescribeLaunchTemplateVersionsOutput, nil
+	}
+	// Return empty tags for other templates
+	return &ec2.DescribeLaunchTemplateVersionsOutput{
+		LaunchTemplateVersions: []types.LaunchTemplateVersion{
+			{
+				LaunchTemplateData: &types.ResponseLaunchTemplateData{
+					TagSpecifications: []types.LaunchTemplateTagSpecification{},
+				},
+			},
+		},
+	}, nil
+}
+
 func TestLaunchTemplate_GetAll(t *testing.T) {
 
 	t.Parallel()
@@ -34,17 +52,39 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 	now := time.Now()
 	testName1 := "test-launch-template1"
 	testName2 := "test-launch-template2"
+	testId1 := "lt-123456789"
+	testId2 := "lt-987654321"
 	lt := LaunchTemplates{
 		Client: mockedLaunchTemplate{
 			DescribeLaunchTemplatesOutput: ec2.DescribeLaunchTemplatesOutput{
 				LaunchTemplates: []types.LaunchTemplate{
 					{
 						LaunchTemplateName: aws.String(testName1),
+						LaunchTemplateId:   aws.String(testId1),
 						CreateTime:         aws.Time(now),
 					},
 					{
 						LaunchTemplateName: aws.String(testName2),
+						LaunchTemplateId:   aws.String(testId2),
 						CreateTime:         aws.Time(now.Add(1)),
+					},
+				},
+			},
+			DescribeLaunchTemplateVersionsOutput: ec2.DescribeLaunchTemplateVersionsOutput{
+				LaunchTemplateVersions: []types.LaunchTemplateVersion{
+					{
+						LaunchTemplateData: &types.ResponseLaunchTemplateData{
+							TagSpecifications: []types.LaunchTemplateTagSpecification{
+								{
+									Tags: []types.Tag{
+										{
+											Key:   aws.String("Environment"),
+											Value: aws.String("test"),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -74,6 +114,16 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 					TimeAfter: aws.Time(now),
 				}},
 			expected: []string{testName1},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"Environment": {RE: *regexp.MustCompile("test")},
+					},
+				},
+			},
+			expected: []string{testName2},
 		},
 	}
 	for name, tc := range tests {

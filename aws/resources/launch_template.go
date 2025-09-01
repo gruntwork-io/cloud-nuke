@@ -20,9 +20,29 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 
 	var templateNames []*string
 	for _, template := range result.LaunchTemplates {
+		// Get tags from the latest version of the launch template
+		// $Latest represents the most current configuration and tags
+		tags := make(map[string]string)
+		versionsResult, err := lt.Client.DescribeLaunchTemplateVersions(c, &ec2.DescribeLaunchTemplateVersionsInput{
+			LaunchTemplateId: template.LaunchTemplateId,
+			Versions:         []string{"$Latest"},
+		})
+		if err == nil && len(versionsResult.LaunchTemplateVersions) > 0 {
+			for _, tag := range versionsResult.LaunchTemplateVersions[0].LaunchTemplateData.TagSpecifications {
+				for _, t := range tag.Tags {
+					if t.Key != nil && t.Value != nil {
+						tags[*t.Key] = *t.Value
+					}
+				}
+			}
+		}
+
+		logging.Debugf("Tags for Launch Template %s: %v", *template.LaunchTemplateName, tags)
+
 		if configObj.LaunchTemplate.ShouldInclude(config.ResourceValue{
 			Name: template.LaunchTemplateName,
 			Time: template.CreateTime,
+			Tags: tags,
 		}) {
 			templateNames = append(templateNames, template.LaunchTemplateName)
 		}
