@@ -44,6 +44,11 @@ func (instance *DBClusters) getAll(c context.Context, configObj config.Config) (
 
 	var names []*string
 	for _, database := range result.DBClusters {
+		// Skip deletion-protected clusters while config object doesn't include deletion-protected
+		if database.DeletionProtection != nil && *database.DeletionProtection && !configObj.DBClusters.IncludeDeletionProtected {
+			continue
+		}
+
 		if configObj.DBClusters.ShouldInclude(config.ResourceValue{
 			Name: database.DBClusterIdentifier,
 			Time: database.ClusterCreateTime,
@@ -66,12 +71,22 @@ func (instance *DBClusters) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
+		// Disable deletion protection
+		_, err := instance.Client.ModifyDBCluster(instance.Context, &rds.ModifyDBClusterInput{
+			DBClusterIdentifier: name,
+			DeletionProtection:  aws.Bool(false),
+			ApplyImmediately:    aws.Bool(true),
+		})
+		if err != nil {
+			logging.Warnf("[Failed] to disable deletion protection for cluster %s: %s", *name, err)
+		}
+
 		params := &rds.DeleteDBClusterInput{
 			DBClusterIdentifier: name,
 			SkipFinalSnapshot:   aws.Bool(true),
 		}
 
-		_, err := instance.Client.DeleteDBCluster(instance.Context, params)
+		_, err = instance.Client.DeleteDBCluster(instance.Context, params)
 
 		// Record status of this resource
 		e := report.Entry{
