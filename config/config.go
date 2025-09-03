@@ -141,6 +141,8 @@ type Config struct {
 	VPCLatticeServiceNetwork        ResourceType                  `yaml:"VPCLatticeServiceNetwork"`
 	VPCLatticeService               ResourceType                  `yaml:"VPCLatticeService"`
 	VPCLatticeTargetGroup           ResourceType                  `yaml:"VPCLatticeTargetGroup"`
+	CloudMapNamespace               ResourceType                  `yaml:"CloudMapNamespace"`
+	CloudMapService                 ResourceType                  `yaml:"CloudMapService"`
 
 	// GCP Resources
 	GCSBucket ResourceType `yaml:"GCSBucket"`
