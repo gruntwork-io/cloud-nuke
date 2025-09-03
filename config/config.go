@@ -35,6 +35,8 @@ type Config struct {
 	CloudWatchAlarm                 ResourceType                  `yaml:"CloudWatchAlarm"`
 	CloudWatchDashboard             ResourceType                  `yaml:"CloudWatchDashboard"`
 	CloudWatchLogGroup              ResourceType                  `yaml:"CloudWatchLogGroup"`
+	CloudMapNamespace               ResourceType                  `yaml:"CloudMapNamespace"`
+	CloudMapService                 ResourceType                  `yaml:"CloudMapService"`
 	CloudtrailTrail                 ResourceType                  `yaml:"CloudtrailTrail"`
 	CloudfrontDistribution          ResourceType                  `yaml:"CloudfrontDistribution"`
 	CodeDeployApplications          ResourceType                  `yaml:"CodeDeployApplications"`
@@ -141,8 +143,6 @@ type Config struct {
 	VPCLatticeServiceNetwork        ResourceType                  `yaml:"VPCLatticeServiceNetwork"`
 	VPCLatticeService               ResourceType                  `yaml:"VPCLatticeService"`
 	VPCLatticeTargetGroup           ResourceType                  `yaml:"VPCLatticeTargetGroup"`
-	CloudMapNamespace               ResourceType                  `yaml:"CloudMapNamespace"`
-	CloudMapService                 ResourceType                  `yaml:"CloudMapService"`
 
 	// GCP Resources
 	GCSBucket ResourceType `yaml:"GCSBucket"`
@@ -516,7 +516,7 @@ func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 		return false
 	} else if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
 		return false
-	} else if value.Tags != nil && len(value.Tags) != 0 && !r.ShouldIncludeBasedOnTag(value.Tags) {
+	} else if !r.ShouldIncludeBasedOnTag(value.Tags) {
 		return false
 	}
 
