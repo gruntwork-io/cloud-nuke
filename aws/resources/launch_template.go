@@ -21,7 +21,7 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 	var templateNames []*string
 	for _, template := range result.LaunchTemplates {
 		tags := lt.extractTagsFromLatestVersion(c, template.LaunchTemplateId)
-		
+
 		logging.Debugf("Tags for Launch Template %s: %v", *template.LaunchTemplateName, tags)
 
 		resourceValue := config.ResourceValue{
@@ -29,7 +29,7 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 			Time: template.CreateTime,
 			Tags: tags,
 		}
-		
+
 		if configObj.LaunchTemplate.ShouldInclude(resourceValue) {
 			templateNames = append(templateNames, template.LaunchTemplateName)
 		}
@@ -50,22 +50,22 @@ func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([
 // extractTagsFromLatestVersion retrieves tags from the latest version of a launch template
 func (lt *LaunchTemplates) extractTagsFromLatestVersion(ctx context.Context, templateID *string) map[string]string {
 	tags := make(map[string]string)
-	
+
 	versionsInput := &ec2.DescribeLaunchTemplateVersionsInput{
 		LaunchTemplateId: templateID,
 		Versions:         []string{"$Latest"},
 	}
-	
+
 	versionsResult, err := lt.Client.DescribeLaunchTemplateVersions(ctx, versionsInput)
 	if err != nil || len(versionsResult.LaunchTemplateVersions) == 0 {
 		return tags
 	}
-	
+
 	latestVersion := versionsResult.LaunchTemplateVersions[0]
 	if latestVersion.LaunchTemplateData == nil {
 		return tags
 	}
-	
+
 	for _, tagSpec := range latestVersion.LaunchTemplateData.TagSpecifications {
 		for _, tag := range tagSpec.Tags {
 			if tag.Key != nil && tag.Value != nil {
@@ -73,7 +73,7 @@ func (lt *LaunchTemplates) extractTagsFromLatestVersion(ctx context.Context, tem
 			}
 		}
 	}
-	
+
 	return tags
 }
 

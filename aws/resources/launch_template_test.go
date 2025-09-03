@@ -32,7 +32,7 @@ func (m mockedLaunchTemplate) DescribeLaunchTemplateVersions(ctx context.Context
 	if params.LaunchTemplateId != nil && *params.LaunchTemplateId == "lt-123456789" {
 		return &m.DescribeLaunchTemplateVersionsOutput, nil
 	}
-	
+
 	emptyVersionOutput := &ec2.DescribeLaunchTemplateVersionsOutput{
 		LaunchTemplateVersions: []types.LaunchTemplateVersion{
 			{
@@ -55,7 +55,7 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 	testId2 := "lt-987654321"
 	templateWithTags := createLaunchTemplateWithTags(testName1, testId1, now)
 	templateWithoutTags := createLaunchTemplateWithoutTags(testName2, testId2, now.Add(1))
-	
+
 	lt := LaunchTemplates{
 		Client: mockedLaunchTemplate{
 			DescribeLaunchTemplatesOutput: ec2.DescribeLaunchTemplatesOutput{
