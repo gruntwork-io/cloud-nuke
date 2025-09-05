@@ -2,6 +2,7 @@ package util
 
 import (
 	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	networkfirewalltypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
@@ -95,6 +96,15 @@ func ConvertSageMakerTagsToMap(tags []sagemakertypes.Tag) map[string]string {
 }
 
 func ConvertRoute53TagsToMap(tags []route53types.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+
+	return tagMap
+}
+
+func ConvertCloudFormationTagsToMap(tags []cloudformationtypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		tagMap[*tag.Key] = *tag.Value

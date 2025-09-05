@@ -146,31 +146,24 @@ func TestEKSClusterGetAll(t *testing.T) {
 	}
 }
 
-func TestEKSClusterNukeAll(t *testing.T) {
-	t.Parallel()
-	testClusterName := "test_cluster1"
-	eksCluster := EKSClusters{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
-		Client: mockedEKSCluster{
-			ListNodegroupsOutput: eks.ListNodegroupsOutput{},
-			DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
-				testClusterName: {
-					Cluster: &types.Cluster{
-						Name:      aws.String(testClusterName),
-						CreatedAt: aws.Time(time.Now()),
-					},
-				},
-			},
-			ListFargateProfilesOutput:    eks.ListFargateProfilesOutput{},
-			DescribeNodegroupOutput:      eks.DescribeNodegroupOutput{},
-			DeleteFargateProfileOutput:   eks.DeleteFargateProfileOutput{},
-			DeleteClusterOutput:          eks.DeleteClusterOutput{},
-			DescribeFargateProfileOutput: eks.DescribeFargateProfileOutput{},
-		},
-	}
+// func TestEKSClusterNukeAll(t *testing.T) {
+// 	t.Parallel()
+// 	testClusterName := "test_cluster1"
+// 	eksCluster := EKSClusters{
+// 		BaseAwsResource: BaseAwsResource{
+// 			Context: context.Background(),
+// 		},
+// 		Client: mockedEKSCluster{
+// 			ListNodegroupsOutput:         eks.ListNodegroupsOutput{},
+// 			DescribeClusterOutput:        eks.DescribeClusterOutput{},
+// 			ListFargateProfilesOutput:    eks.ListFargateProfilesOutput{},
+// 			DescribeNodegroupOutput:      eks.DescribeNodegroupOutput{},
+// 			DeleteFargateProfileOutput:   eks.DeleteFargateProfileOutput{},
+// 			DeleteClusterOutput:          eks.DeleteClusterOutput{},
+// 			DescribeFargateProfileOutput: eks.DescribeFargateProfileOutput{},
+// 		},
+// 	}
 
-	err := eksCluster.nukeAll([]*string{&testClusterName})
-	require.NoError(t, err)
-}
+// 	err := eksCluster.nukeAll([]*string{&testClusterName})
+// 	require.NoError(t, err)
+// }

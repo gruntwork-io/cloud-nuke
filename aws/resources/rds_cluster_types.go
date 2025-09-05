@@ -12,7 +12,6 @@ import (
 type DBClustersAPI interface {
 	DeleteDBCluster(ctx context.Context, params *rds.DeleteDBClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteDBClusterOutput, error)
 	DescribeDBClusters(ctx context.Context, params *rds.DescribeDBClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeDBClustersOutput, error)
-	ModifyDBCluster(ctx context.Context, params *rds.ModifyDBClusterInput, optFns ...func(*rds.Options)) (*rds.ModifyDBClusterOutput, error)
 }
 type DBClusters struct {
 	BaseAwsResource
@@ -40,7 +39,7 @@ func (instance *DBClusters) MaxBatchSize() int {
 }
 
 func (instance *DBClusters) GetAndSetResourceConfig(configObj config.Config) config.ResourceType {
-	return configObj.DBClusters.ResourceType
+	return configObj.DBClusters
 }
 
 func (instance *DBClusters) GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error) {

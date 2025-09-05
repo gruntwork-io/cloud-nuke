@@ -39,13 +39,14 @@ type Config struct {
 	CloudMapService                 ResourceType                  `yaml:"CloudMapService"`
 	CloudtrailTrail                 ResourceType                  `yaml:"CloudtrailTrail"`
 	CloudfrontDistribution          ResourceType                  `yaml:"CloudfrontDistribution"`
+	CloudFormationStack             ResourceType                  `yaml:"CloudFormationStack"`
 	CodeDeployApplications          ResourceType                  `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType                  `yaml:"ConfigServiceRecorder"`
 	ConfigServiceRule               ResourceType                  `yaml:"ConfigServiceRule"`
 	DataSyncLocation                ResourceType                  `yaml:"DataSyncLocation"`
 	DataSyncTask                    ResourceType                  `yaml:"DataSyncTask"`
 	DBGlobalClusters                ResourceType                  `yaml:"DBGlobalClusters"`
-	DBClusters                      AWSProtectectableResourceType `yaml:"DBClusters"`
+	DBClusters                      ResourceType                  `yaml:"DBClusters"`
 	DBInstances                     AWSProtectectableResourceType `yaml:"DBInstances"`
 	DBGlobalClusterMemberships      ResourceType                  `yaml:"DBGlobalClusterMemberships"`
 	DBSubnetGroups                  ResourceType                  `yaml:"DBSubnetGroups"`

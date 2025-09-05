@@ -69,6 +69,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.EventBridgeRule{},
 		&resources.EventBridge{},
 		&resources.CloudtrailTrail{},
+		&resources.CloudFormationStacks{},
 		&resources.CloudWatchAlarms{},
 		&resources.CloudWatchDashboards{},
 		&resources.CloudWatchLogGroups{},
