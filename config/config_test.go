@@ -34,7 +34,7 @@ func emptyConfig() *Config {
 		DataSyncLocation:                ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DataSyncTask:                    ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DBGlobalClusters:                ResourceType{FilterRule{}, FilterRule{}, "", false},
-		DBClusters:                      ResourceType{FilterRule{}, FilterRule{}, "", false},
+		DBClusters:                      AWSProtectectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
 		DBInstances:                     AWSProtectectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
 		DBGlobalClusterMemberships:      ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DBSubnetGroups:                  ResourceType{FilterRule{}, FilterRule{}, "", false},
