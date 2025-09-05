@@ -15,8 +15,9 @@ import (
 
 type mockedLaunchTemplate struct {
 	LaunchTemplatesAPI
-	DescribeLaunchTemplatesOutput ec2.DescribeLaunchTemplatesOutput
-	DeleteLaunchTemplateOutput    ec2.DeleteLaunchTemplateOutput
+	DescribeLaunchTemplatesOutput        ec2.DescribeLaunchTemplatesOutput
+	DeleteLaunchTemplateOutput           ec2.DeleteLaunchTemplateOutput
+	DescribeLaunchTemplateVersionsOutput ec2.DescribeLaunchTemplateVersionsOutput
 }
 
 func (m mockedLaunchTemplate) DescribeLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error) {
@@ -27,27 +28,43 @@ func (m mockedLaunchTemplate) DeleteLaunchTemplate(ctx context.Context, params *
 	return &m.DeleteLaunchTemplateOutput, nil
 }
 
-func TestLaunchTemplate_GetAll(t *testing.T) {
+func (m mockedLaunchTemplate) DescribeLaunchTemplateVersions(ctx context.Context, params *ec2.DescribeLaunchTemplateVersionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+	if params.LaunchTemplateId != nil && *params.LaunchTemplateId == "lt-123456789" {
+		return &m.DescribeLaunchTemplateVersionsOutput, nil
+	}
 
+	emptyVersionOutput := &ec2.DescribeLaunchTemplateVersionsOutput{
+		LaunchTemplateVersions: []types.LaunchTemplateVersion{
+			{
+				LaunchTemplateData: &types.ResponseLaunchTemplateData{
+					TagSpecifications: []types.LaunchTemplateTagSpecification{},
+				},
+			},
+		},
+	}
+	return emptyVersionOutput, nil
+}
+
+func TestLaunchTemplate_GetAll(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	testName1 := "test-launch-template1"
 	testName2 := "test-launch-template2"
+	testId1 := "lt-123456789"
+	testId2 := "lt-987654321"
+	templateWithTags := createLaunchTemplateWithTags(testName1, testId1, now)
+	templateWithoutTags := createLaunchTemplateWithoutTags(testName2, testId2, now.Add(1))
+
 	lt := LaunchTemplates{
 		Client: mockedLaunchTemplate{
 			DescribeLaunchTemplatesOutput: ec2.DescribeLaunchTemplatesOutput{
 				LaunchTemplates: []types.LaunchTemplate{
-					{
-						LaunchTemplateName: aws.String(testName1),
-						CreateTime:         aws.Time(now),
-					},
-					{
-						LaunchTemplateName: aws.String(testName2),
-						CreateTime:         aws.Time(now.Add(1)),
-					},
+					templateWithTags,
+					templateWithoutTags,
 				},
 			},
+			DescribeLaunchTemplateVersionsOutput: createVersionOutputWithTags(),
 		},
 	}
 
@@ -75,6 +92,16 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 				}},
 			expected: []string{testName1},
 		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"Environment": {RE: *regexp.MustCompile("test")},
+					},
+				},
+			},
+			expected: []string{testName2},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -87,8 +114,44 @@ func TestLaunchTemplate_GetAll(t *testing.T) {
 	}
 }
 
-func TestLaunchTemplate_NukeAll(t *testing.T) {
+func createLaunchTemplateWithTags(name, id string, createTime time.Time) types.LaunchTemplate {
+	return types.LaunchTemplate{
+		LaunchTemplateName: aws.String(name),
+		LaunchTemplateId:   aws.String(id),
+		CreateTime:         aws.Time(createTime),
+	}
+}
 
+func createLaunchTemplateWithoutTags(name, id string, createTime time.Time) types.LaunchTemplate {
+	return types.LaunchTemplate{
+		LaunchTemplateName: aws.String(name),
+		LaunchTemplateId:   aws.String(id),
+		CreateTime:         aws.Time(createTime),
+	}
+}
+
+func createVersionOutputWithTags() ec2.DescribeLaunchTemplateVersionsOutput {
+	return ec2.DescribeLaunchTemplateVersionsOutput{
+		LaunchTemplateVersions: []types.LaunchTemplateVersion{
+			{
+				LaunchTemplateData: &types.ResponseLaunchTemplateData{
+					TagSpecifications: []types.LaunchTemplateTagSpecification{
+						{
+							Tags: []types.Tag{
+								{
+									Key:   aws.String("Environment"),
+									Value: aws.String("test"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestLaunchTemplate_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	lt := LaunchTemplates{
