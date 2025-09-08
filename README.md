@@ -632,7 +632,7 @@ of the file that are supported are listed here.
 | ec2-subnet                       | EC2Subnet                     | ✅ (Subnet Name)                       | ✅ (Creation Time)                   | ✅    | ❌       |
 | ec2-endpoint                     | EC2Endpoint                   | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | ecr                              | ECRRepository                 | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    | ✅       |
-| ecscluster                       | ECSCluster                    | ✅ (Cluster Name)                      | ❌                                   | ❌    | ✅       |
+| ecscluster                       | ECSCluster                    | ✅ (Cluster Name)                      | ✅ (First Seen Tag Time)             | ✅    | ✅       |
 | ecsserv                          | ECSService                    | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | ekscluster                       | EKSCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | elb                              | ELBv1                         | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    | ✅       |
