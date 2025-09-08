@@ -38,6 +38,45 @@ func (m mockedEC2Cluster) ListClusters(ctx context.Context, params *ecs.ListClus
 }
 
 func (m mockedEC2Cluster) ListTagsForResource(ctx context.Context, params *ecs.ListTagsForResourceInput, optFns ...func(*ecs.Options)) (*ecs.ListTagsForResourceOutput, error) {
+	// Return different tags based on the cluster ARN
+	if params.ResourceArn != nil {
+		switch *params.ResourceArn {
+		case "arn:aws:ecs:us-east-1:123456789012:cluster/cluster1":
+			return &ecs.ListTagsForResourceOutput{
+				Tags: []types.Tag{
+					{
+						Key:   aws.String(util.FirstSeenTagKey),
+						Value: aws.String(util.FormatTimestamp(time.Now())),
+					},
+					{
+						Key:   aws.String("Environment"),
+						Value: aws.String("test"),
+					},
+					{
+						Key:   aws.String("Team"),
+						Value: aws.String("backend"),
+					},
+				},
+			}, nil
+		case "arn:aws:ecs:us-east-1:123456789012:cluster/cluster2":
+			return &ecs.ListTagsForResourceOutput{
+				Tags: []types.Tag{
+					{
+						Key:   aws.String(util.FirstSeenTagKey),
+						Value: aws.String(util.FormatTimestamp(time.Now())),
+					},
+					{
+						Key:   aws.String("Environment"),
+						Value: aws.String("production"),
+					},
+					{
+						Key:   aws.String("Team"),
+						Value: aws.String("frontend"),
+					},
+				},
+			}, nil
+		}
+	}
 	return &m.ListTagsForResourceOutput, nil
 }
 
@@ -190,6 +229,67 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 			ctx:       context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, true),
 			configObj: config.ResourceType{},
 			expected:  []string{testArn1, testArn2},
+		},
+		"tagInclusionFilter": {
+			ctx: ctx,
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"Environment": {RE: *regexp.MustCompile("test")},
+					},
+				},
+			},
+			expected: []string{testArn1},
+		},
+		"tagExclusionFilter": {
+			ctx: ctx,
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"Environment": {RE: *regexp.MustCompile("test")},
+					},
+				},
+			},
+			expected: []string{testArn2},
+		},
+		"tagInclusionMultipleTagsAnd": {
+			ctx: ctx,
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"Environment": {RE: *regexp.MustCompile("test")},
+						"Team":        {RE: *regexp.MustCompile("backend")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			expected: []string{testArn1},
+		},
+		"tagInclusionMultipleTagsOr": {
+			ctx: ctx,
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"Environment": {RE: *regexp.MustCompile("test")},
+						"Team":        {RE: *regexp.MustCompile("frontend")},
+					},
+					TagsOperator: "OR",
+				},
+			},
+			expected: []string{testArn1, testArn2},
+		},
+		"tagExclusionMultipleTagsAnd": {
+			ctx: ctx,
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"Environment": {RE: *regexp.MustCompile("production")},
+						"Team":        {RE: *regexp.MustCompile("frontend")},
+					},
+					TagsOperator: "AND",
+				},
+			},
+			expected: []string{testArn1},
 		},
 	}
 	for name, tc := range tests {
