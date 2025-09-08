@@ -202,60 +202,28 @@ func (sb S3Buckets) emptyBucket(bucketName *string) error {
 
 	// As bucket versioning is managed separately and you can turn off versioning after the bucket is created,
 	// we need to check if there are any versions in the bucket regardless of the versioning status.
-	// We need to paginate through ALL versioned objects and deletion markers.
 
-	var keyMarker *string
-	var versionIdMarker *string
-
-	// Paginate through all versioned objects and deletion markers
-	for {
-		input := &s3.ListObjectVersionsInput{
-			Bucket:  bucketName,
-			MaxKeys: aws.Int32(int32(sb.MaxBatchSize())),
-		}
-		
-		if keyMarker != nil {
-			input.KeyMarker = keyMarker
-		}
-		if versionIdMarker != nil {
-			input.VersionIdMarker = versionIdMarker
-		}
-
-		outputs, err := sb.Client.ListObjectVersions(sb.Context, input)
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
-
-		// Delete object versions if any exist
-		if len(outputs.Versions) > 0 {
-			logging.Debugf("Deleting page %d of object versions (%d objects) from bucket %s", pageId, len(outputs.Versions), aws.ToString(bucketName))
-			if err := sb.deleteObjectVersions(bucketName, outputs.Versions); err != nil {
-				logging.Errorf("Error deleting objects versions for page %d from bucket %s: %s", pageId, aws.ToString(bucketName), err)
-				return errors.WithStackTrace(err)
-			}
-			logging.Debugf("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(outputs.Versions), aws.ToString(bucketName))
-		}
-
-		// Delete deletion markers if any exist
-		if len(outputs.DeleteMarkers) > 0 {
-			logging.Debugf("Deleting page %d of deletion markers (%d objects) from bucket %s", pageId, len(outputs.DeleteMarkers), aws.ToString(bucketName))
-			if err := sb.deleteDeletionMarkers(bucketName, outputs.DeleteMarkers); err != nil {
-				logging.Errorf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.ToString(bucketName), err)
-				return errors.WithStackTrace(err)
-			}
-			logging.Debugf("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(outputs.DeleteMarkers), aws.ToString(bucketName))
-		}
-
-		// Check if there are more pages
-		if !aws.ToBool(outputs.IsTruncated) {
-			break
-		}
-		
-		// Set up for next page
-		keyMarker = outputs.NextKeyMarker
-		versionIdMarker = outputs.NextVersionIdMarker
-		pageId++
+	outputs, err := sb.Client.ListObjectVersions(sb.Context, &s3.ListObjectVersionsInput{
+		Bucket:  bucketName,
+		MaxKeys: aws.Int32(int32(sb.MaxBatchSize())),
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
+
+	logging.Debugf("Deleting page %d of object versions (%d objects) from bucket %s", pageId, len(outputs.Versions), aws.ToString(bucketName))
+	if err := sb.deleteObjectVersions(bucketName, outputs.Versions); err != nil {
+		logging.Errorf("Error deleting objects versions for page %d from bucket %s: %s", pageId, aws.ToString(bucketName), err)
+		return errors.WithStackTrace(err)
+	}
+	logging.Debugf("[OK] - deleted page %d of object versions (%d objects) from bucket %s", pageId, len(outputs.Versions), aws.ToString(bucketName))
+
+	logging.Debugf("Deleting page %d of object delete markers (%d objects) from bucket %s", pageId, len(outputs.Versions), aws.ToString(bucketName))
+	if err := sb.deleteDeletionMarkers(bucketName, outputs.DeleteMarkers); err != nil {
+		logging.Errorf("Error deleting deletion markers for page %d from bucket %s: %s", pageId, aws.ToString(bucketName), err)
+		return errors.WithStackTrace(err)
+	}
+	logging.Debugf("[OK] - deleted page %d of deletion markers (%d deletion markers) from bucket %s", pageId, len(outputs.DeleteMarkers), aws.ToString(bucketName))
 
 	paginator := s3.NewListObjectsV2Paginator(sb.Client, &s3.ListObjectsV2Input{
 		Bucket:  bucketName,
