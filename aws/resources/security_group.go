@@ -369,6 +369,13 @@ func nukeSecurityGroup(client SecurityGroupAPI, id *string) error {
 	if _, err := client.DeleteSecurityGroup(context.TODO(), &ec2.DeleteSecurityGroupInput{
 		GroupId: id,
 	}); err != nil {
+		// Check if the security group was already deleted (common with EKS cleanup)
+		// This handles race conditions where EKS clusters delete their security groups
+		// before cloud-nuke's security group scanner attempts to delete them
+		if errors.Is(util.TransformAWSError(err), util.ErrInvalidGroupNotFound) {
+			logging.Debugf("[nukeSecurityGroup] Security group %s already deleted (ok)", aws.ToString(id))
+			return nil
+		}
 		logging.Debugf("[nukeSecurityGroup] Failed to delete security group %s: %s", aws.ToString(id), err)
 		return cerrors.WithStackTrace(err)
 	}

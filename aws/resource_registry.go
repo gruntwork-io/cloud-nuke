@@ -92,9 +92,6 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.TransitGatewayPeeringAttachment{},
 		&resources.TransitGatewaysVpcAttachment{},
 		&resources.EC2Endpoints{},
-		&resources.EC2VPCs{},
-		// Note: nuking EC2 DHCP options after nuking EC2 VPC because DHCP options could be associated with VPCs.
-		&resources.EC2DhcpOption{},
 		&resources.ECR{},
 		&resources.ECSClusters{},
 		&resources.ECSServices{},
@@ -164,6 +161,10 @@ func getRegisteredRegionalResources() []AwsResource {
 		&resources.VPCLatticeServiceNetwork{},
 		&resources.VPCLatticeService{},
 		&resources.VPCLatticeTargetGroup{},
+		// Note: VPCs must be deleted last after all resources that create network interfaces (EKS, ECS, etc.)
+		&resources.EC2VPCs{},
+		// Note: nuking EC2 DHCP options after nuking EC2 VPC because DHCP options could be associated with VPCs.
+		&resources.EC2DhcpOption{},
 	}
 }
 
