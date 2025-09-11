@@ -74,7 +74,16 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 				continue
 			}
 
-			if !configObj.ECSCluster.ShouldInclude(config.ResourceValue{Name: cluster.ClusterName}) {
+			// Get all tags for the cluster for filtering purposes
+			tags, err := clusters.getAllTags(cluster.ClusterArn)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if !configObj.ECSCluster.ShouldInclude(config.ResourceValue{
+				Name: cluster.ClusterName,
+				Tags: tags,
+			}) {
 				continue
 			}
 
@@ -98,6 +107,7 @@ func (clusters *ECSClusters) getAll(c context.Context, configObj config.Config) 
 			if configObj.ECSCluster.ShouldInclude(config.ResourceValue{
 				Time: firstSeenTime,
 				Name: cluster.ClusterName,
+				Tags: tags,
 			}) {
 				result = append(result, cluster.ClusterArn)
 			}
@@ -203,6 +213,28 @@ func (clusters *ECSClusters) setFirstSeenTag(clusterArn *string, timestamp time.
 	}
 
 	return nil
+}
+
+// getAllTags retrieves all tags for a given ECS cluster and returns them as a map
+func (clusters *ECSClusters) getAllTags(clusterArn *string) (map[string]string, error) {
+	input := &ecs.ListTagsForResourceInput{
+		ResourceArn: clusterArn,
+	}
+
+	clusterTags, err := clusters.Client.ListTagsForResource(clusters.Context, input)
+	if err != nil {
+		logging.Debugf("Error getting the tags for ECS cluster with ARN %s", aws.ToString(clusterArn))
+		return nil, errors.WithStackTrace(err)
+	}
+
+	tags := make(map[string]string)
+	for _, tag := range clusterTags.Tags {
+		if tag.Key != nil && tag.Value != nil {
+			tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
+		}
+	}
+
+	return tags, nil
 }
 
 // Get the `cloud-nuke-first-seen` tag value for a given ECS cluster
