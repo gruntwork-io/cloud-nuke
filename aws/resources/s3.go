@@ -213,7 +213,7 @@ func (sb S3Buckets) emptyBucket(bucketName *string) error {
 			Bucket:  bucketName,
 			MaxKeys: aws.Int32(int32(sb.MaxBatchSize())),
 		}
-		
+
 		if keyMarker != nil {
 			input.KeyMarker = keyMarker
 		}
@@ -250,7 +250,7 @@ func (sb S3Buckets) emptyBucket(bucketName *string) error {
 		if !aws.ToBool(outputs.IsTruncated) {
 			break
 		}
-		
+
 		// Set up for next page
 		keyMarker = outputs.NextKeyMarker
 		versionIdMarker = outputs.NextVersionIdMarker
