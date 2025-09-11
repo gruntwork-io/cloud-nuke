@@ -46,7 +46,7 @@ type Config struct {
 	DataSyncLocation                ResourceType                  `yaml:"DataSyncLocation"`
 	DataSyncTask                    ResourceType                  `yaml:"DataSyncTask"`
 	DBGlobalClusters                ResourceType                  `yaml:"DBGlobalClusters"`
-	DBClusters                      ResourceType                  `yaml:"DBClusters"`
+	DBClusters                      AWSProtectectableResourceType `yaml:"DBClusters"`
 	DBInstances                     AWSProtectectableResourceType `yaml:"DBInstances"`
 	DBGlobalClusterMemberships      ResourceType                  `yaml:"DBGlobalClusterMemberships"`
 	DBSubnetGroups                  ResourceType                  `yaml:"DBSubnetGroups"`
