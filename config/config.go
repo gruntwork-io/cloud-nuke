@@ -39,6 +39,7 @@ type Config struct {
 	CloudMapService                 ResourceType                  `yaml:"CloudMapService"`
 	CloudtrailTrail                 ResourceType                  `yaml:"CloudtrailTrail"`
 	CloudfrontDistribution          ResourceType                  `yaml:"CloudfrontDistribution"`
+	CloudFormationStack             ResourceType                  `yaml:"CloudFormationStack"`
 	CodeDeployApplications          ResourceType                  `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType                  `yaml:"ConfigServiceRecorder"`
 	ConfigServiceRule               ResourceType                  `yaml:"ConfigServiceRule"`
