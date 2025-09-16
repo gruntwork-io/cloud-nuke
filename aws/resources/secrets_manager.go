@@ -13,6 +13,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -55,6 +56,7 @@ func shouldIncludeSecret(secret *types.SecretListEntry, configObj config.Config)
 	return configObj.SecretsManagerSecrets.ShouldInclude(config.ResourceValue{
 		Time: &referenceTime,
 		Name: secret.Name,
+		Tags: util.ConvertSecretsManagerTagsToMap(secret.Tags),
 	})
 }
 

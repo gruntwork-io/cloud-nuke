@@ -692,7 +692,7 @@ of the file that are supported are listed here.
 | sagemaker-notebook-smni          | SageMakerNotebook             | ✅ (Notebook Instance Name)            | ✅ (Creation Time)                   | ❌    | ✅       |
 | sagemaker-endpoint               | SageMakerEndpoint             | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | sagemaker-studio                 | SageMakerStudioDomain         | ❌                                     | ❌                                   | ❌    | ✅       |
-| secretsmanager                   | SecretsManager                | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ❌    | ✅       |
+| secretsmanager                   | SecretsManager                | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ✅    | ✅       |
 | security-hub                     | SecurityHub                   | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
 | snap                             | Snapshots                     | ❌                                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | transit-gateway                  | TransitGateway                | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
