@@ -31,7 +31,11 @@ func RenderRunReportWithFormat(outputFormat string, outputFile string) {
 		logging.Errorf("Failed to open output file: %s", err)
 		return
 	}
-	defer closer()
+	defer func() {
+		if err := closer(); err != nil {
+			logging.Errorf("Failed to close output writer: %s", err)
+		}
+	}()
 
 	if outputFormat == "json" {
 		if err := RenderNukeReportAsJSON(writer); err != nil {
@@ -154,7 +158,11 @@ func RenderResourcesAsTableWithFormat(account *aws.AwsAccountResources, query *a
 	if err != nil {
 		return err
 	}
-	defer closer()
+	defer func() {
+		if err := closer(); err != nil {
+			logging.Errorf("Failed to close output writer: %s", err)
+		}
+	}()
 
 	if outputFormat == "json" {
 		return RenderInspectAsJSON(account, query, writer)
@@ -206,7 +214,11 @@ func RenderGcpResourcesAsTableWithFormat(account *gcp.GcpProjectResources, outpu
 	if err != nil {
 		return err
 	}
-	defer closer()
+	defer func() {
+		if err := closer(); err != nil {
+			logging.Errorf("Failed to close output writer: %s", err)
+		}
+	}()
 
 	if outputFormat == "json" {
 		return RenderGcpInspectAsJSON(account, writer)

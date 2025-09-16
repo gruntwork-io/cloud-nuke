@@ -551,7 +551,6 @@ func handleGetResources(c *cli.Context, configObj config.Config, query *aws.Quer
 
 func handleGetResourcesWithFormat(c *cli.Context, configObj config.Config, query *aws.Query, outputFormat string, outputFile string) (
 	*aws.AwsAccountResources, error) {
-
 	// Only show progress output for table format
 	if !ui.ShouldSuppressProgressOutput(outputFormat) {
 		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")
@@ -768,7 +767,6 @@ func handleGetGcpResources(c *cli.Context, configObj config.Config, projectID st
 
 func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) (
 	*gcp.GcpProjectResources, error) {
-
 	// Only show progress output for table format
 	if !ui.ShouldSuppressProgressOutput(outputFormat) {
 		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("GCP Resource Query Parameters")
