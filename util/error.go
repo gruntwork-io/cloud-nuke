@@ -13,6 +13,7 @@ var ErrDifferentOwner = errors.New("error:DIFFERENT_OWNER")
 var ErrContextExecutionTimeout = errors.New("error:EXECUTION_TIMEOUT")
 var ErrInterfaceIDNotFound = errors.New("error:InterfaceIdNotFound")
 var ErrInvalidPermisionNotFound = errors.New("error:InvalidPermission.NotFound")
+var ErrInvalidGroupNotFound = errors.New("error:InvalidGroup.NotFound")
 var ErrDeleteProtectionEnabled = errors.New("error:DeleteProtectionEnabled")
 var ErrResourceNotFoundException = errors.New("error:ErrResourceNotFoundException")
 
@@ -37,6 +38,8 @@ func TransformAWSError(err error) error {
 			return ErrInterfaceIDNotFound
 		case "InvalidPermission.NotFound":
 			return ErrInvalidPermisionNotFound
+		case "InvalidGroup.NotFound":
+			return ErrInvalidGroupNotFound
 		case "ResourceNotFoundException":
 			return ErrResourceNotFoundException
 		}
