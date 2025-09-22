@@ -55,7 +55,7 @@ func RenderNukeReportAsJSON(w io.Writer) error {
 
 // buildInspectOutput constructs the JSON output structure for AWS inspection
 func buildInspectOutput(account *aws.AwsAccountResources, query *aws.Query) InspectOutput {
-	resources := []ResourceInfo{}
+	var resources []ResourceInfo
 	byType := make(map[string]int)
 	byRegion := make(map[string]int)
 	nukableCount := 0
@@ -116,7 +116,7 @@ func buildInspectOutput(account *aws.AwsAccountResources, query *aws.Query) Insp
 
 // buildGcpInspectOutput constructs the JSON output structure for GCP inspection
 func buildGcpInspectOutput(project *gcp.GcpProjectResources) InspectOutput {
-	resources := []ResourceInfo{}
+	var resources []ResourceInfo
 	byType := make(map[string]int)
 	byRegion := make(map[string]int)
 	nukableCount := 0

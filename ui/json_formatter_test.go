@@ -194,7 +194,7 @@ func TestJSONOutputValidity(t *testing.T) {
 		jsonBytes, err := json.Marshal(output)
 		require.NoError(t, err)
 
-		// Verify it's valid JSON by unmarshaling
+		// Verify it's valid JSON by unmarshalling
 		var parsed NukeOutput
 		err = json.Unmarshal(jsonBytes, &parsed)
 		require.NoError(t, err)
@@ -255,7 +255,7 @@ func TestJSONOutputValidity(t *testing.T) {
 		jsonBytes, err := json.Marshal(output)
 		require.NoError(t, err)
 
-		// Verify it's valid JSON by unmarshaling
+		// Verify it's valid JSON by unmarshalling
 		var parsed InspectOutput
 		err = json.Unmarshal(jsonBytes, &parsed)
 		require.NoError(t, err)

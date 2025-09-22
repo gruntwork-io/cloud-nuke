@@ -193,15 +193,14 @@ func RenderResourcesAsTableWithFormat(account *aws.AwsAccountResources, query *a
 			WithHasHeader(true).
 			WithHeaderRowSeparator("-").
 			Render()
-	} else {
-		// Use pterm with writer for file output
-		return pterm.DefaultTable.WithBoxed(true).
-			WithData(tableData).
-			WithHasHeader(true).
-			WithHeaderRowSeparator("-").
-			WithWriter(writer).
-			Render()
 	}
+	// Use pterm with writer for file output
+	return pterm.DefaultTable.WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		WithWriter(writer).
+		Render()
 }
 
 func RenderGcpResourcesAsTable(account *gcp.GcpProjectResources) error {
@@ -249,15 +248,14 @@ func RenderGcpResourcesAsTableWithFormat(account *gcp.GcpProjectResources, outpu
 			WithHasHeader(true).
 			WithHeaderRowSeparator("-").
 			Render()
-	} else {
-		// Use pterm with writer for file output
-		return pterm.DefaultTable.WithBoxed(true).
-			WithData(tableData).
-			WithHasHeader(true).
-			WithHeaderRowSeparator("-").
-			WithWriter(writer).
-			Render()
 	}
+	// Use pterm with writer for file output
+	return pterm.DefaultTable.WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		WithWriter(writer).
+		Render()
 }
 
 func RenderResourceTypesAsBulletList(resourceTypes []string) error {
