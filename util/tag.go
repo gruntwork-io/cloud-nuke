@@ -10,6 +10,7 @@ import (
 	route53types "github.com/aws/aws-sdk-go-v2/service/route53/types"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	sagemakertypes "github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
+	secretsmanagertypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 )
 
 func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
@@ -22,6 +23,14 @@ func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
 }
 
 func ConvertTypesTagsToMap(tags []ec2types.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+
+	return tagMap
+}
+func ConvertSecretsManagerTagsToMap(tags []secretsmanagertypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		tagMap[*tag.Key] = *tag.Value
