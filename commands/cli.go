@@ -104,6 +104,15 @@ func CreateCli(version string) *cli.App {
 					Name:  "exclude-first-seen",
 					Usage: "Set a flag for excluding first-seen-tag",
 				},
+				&cli.StringFlag{
+					Name:  "output-format",
+					Usage: "Output format (table, json)",
+					Value: "table",
+				},
+				&cli.StringFlag{
+					Name:  "output-file",
+					Usage: "Write output to file instead of stdout (optional)",
+				},
 			},
 		}, {
 			Name:   "gcp",
@@ -159,6 +168,15 @@ func CreateCli(version string) *cli.App {
 					Name:  "timeout",
 					Usage: "Resource execution timeout.",
 				},
+				&cli.StringFlag{
+					Name:  "output-format",
+					Usage: "Output format (table, json)",
+					Value: "table",
+				},
+				&cli.StringFlag{
+					Name:  "output-file",
+					Usage: "Write output to file instead of stdout (optional)",
+				},
 			},
 		}, {
 			Name:   "inspect-gcp",
@@ -197,6 +215,15 @@ func CreateCli(version string) *cli.App {
 					Value:   "info",
 					Usage:   "Set log level",
 					EnvVars: []string{"LOG_LEVEL"},
+				},
+				&cli.StringFlag{
+					Name:  "output-format",
+					Usage: "Output format (table, json)",
+					Value: "table",
+				},
+				&cli.StringFlag{
+					Name:  "output-file",
+					Usage: "Write output to file instead of stdout (optional)",
 				},
 			},
 		}, {
@@ -275,6 +302,15 @@ func CreateCli(version string) *cli.App {
 				&cli.BoolFlag{
 					Name:  "exclude-first-seen",
 					Usage: "Set a flag for excluding first-seen-tag",
+				},
+				&cli.StringFlag{
+					Name:  "output-format",
+					Usage: "Output format (table, json)",
+					Value: "table",
+				},
+				&cli.StringFlag{
+					Name:  "output-file",
+					Usage: "Write output to file instead of stdout (optional)",
 				},
 			},
 		},
@@ -399,7 +435,10 @@ func awsInspect(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	_, err = handleGetResources(c, config.Config{}, query)
+	outputFormat := c.String("output-format")
+	outputFile := c.String("output-file")
+
+	_, err = handleGetResourcesWithFormat(c, config.Config{}, query, outputFormat, outputFile)
 	return err
 }
 
@@ -464,7 +503,9 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query) er
 		}
 	}
 
-	ui.RenderRunReport()
+	outputFormat := c.String("output-format")
+	outputFile := c.String("output-file")
+	ui.RenderRunReportWithFormat(outputFormat, outputFile)
 	return nil
 }
 
@@ -505,13 +546,20 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 
 func handleGetResources(c *cli.Context, configObj config.Config, query *aws.Query) (
 	*aws.AwsAccountResources, error) {
+	return handleGetResourcesWithFormat(c, configObj, query, "table", "")
+}
 
-	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")
-	err := ui.RenderQueryAsBulletList(query)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
+func handleGetResourcesWithFormat(c *cli.Context, configObj config.Config, query *aws.Query, outputFormat string, outputFile string) (
+	*aws.AwsAccountResources, error) {
+	// Only show progress output for table format
+	if !ui.ShouldSuppressProgressOutput(outputFormat) {
+		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")
+		err := ui.RenderQueryAsBulletList(query)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+		pterm.Println()
 	}
-	pterm.Println()
 
 	accountResources, err := aws.GetAllResources(c.Context, query, configObj)
 	if err != nil {
@@ -521,8 +569,12 @@ func handleGetResources(c *cli.Context, configObj config.Config, query *aws.Quer
 		return nil, errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
-	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
-	err = ui.RenderResourcesAsTable(accountResources)
+	// Only show section header for table format
+	if !ui.ShouldSuppressProgressOutput(outputFormat) {
+		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found AWS Resources")
+	}
+
+	err = ui.RenderResourcesAsTableWithFormat(accountResources, query, outputFormat, outputFile)
 
 	return accountResources, err
 }
@@ -638,7 +690,10 @@ func gcpInspect(c *cli.Context) error {
 		configObj.AddIncludeAfterTime(includeAfter)
 	}
 
-	_, err = handleGetGcpResources(c, configObj, projectID)
+	outputFormat := c.String("output-format")
+	outputFile := c.String("output-file")
+
+	_, err = handleGetGcpResourcesWithFormat(c, configObj, projectID, outputFormat, outputFile)
 	return err
 }
 
@@ -699,16 +754,25 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string) er
 		gcp.NukeAllResources(account, nil)
 	}
 
-	ui.RenderRunReport()
+	outputFormat := c.String("output-format")
+	outputFile := c.String("output-file")
+	ui.RenderRunReportWithFormat(outputFormat, outputFile)
 	return nil
 }
 
 func handleGetGcpResources(c *cli.Context, configObj config.Config, projectID string) (
 	*gcp.GcpProjectResources, error) {
+	return handleGetGcpResourcesWithFormat(c, configObj, projectID, "table", "")
+}
 
-	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("GCP Resource Query Parameters")
-	pterm.Println("Project ID:", projectID)
-	pterm.Println()
+func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) (
+	*gcp.GcpProjectResources, error) {
+	// Only show progress output for table format
+	if !ui.ShouldSuppressProgressOutput(outputFormat) {
+		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("GCP Resource Query Parameters")
+		pterm.Println("Project ID:", projectID)
+		pterm.Println()
+	}
 
 	accountResources, err := gcp.GetAllResources(projectID, configObj, time.Time{}, time.Time{})
 	if err != nil {
@@ -718,8 +782,12 @@ func handleGetGcpResources(c *cli.Context, configObj config.Config, projectID st
 		return nil, errors.WithStackTrace(err)
 	}
 
-	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found GCP Resources")
-	err = ui.RenderGcpResourcesAsTable(accountResources)
+	// Only show section header for table format
+	if !ui.ShouldSuppressProgressOutput(outputFormat) {
+		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found GCP Resources")
+	}
+
+	err = ui.RenderGcpResourcesAsTableWithFormat(accountResources, outputFormat, outputFile)
 
 	return accountResources, err
 }

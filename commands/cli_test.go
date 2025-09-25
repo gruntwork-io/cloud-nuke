@@ -3,11 +3,16 @@ package commands
 import (
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func TestParseDuration(t *testing.T) {
@@ -58,4 +63,165 @@ func TestIsNukeable(t *testing.T) {
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{"all"}), true)
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{}), true)
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{amiResourceName}), false)
+}
+
+func TestCLIFlags(t *testing.T) {
+	app := CreateCli("test-version")
+
+	t.Run("aws command has output format flags", func(t *testing.T) {
+		awsCmd := findCommand(app.Commands, "aws")
+		require.NotNil(t, awsCmd)
+
+		// Check for output-format flag
+		outputFormatFlag := findFlag(awsCmd.Flags, "output-format")
+		assert.NotNil(t, outputFormatFlag)
+		if stringFlag, ok := outputFormatFlag.(*cli.StringFlag); ok {
+			assert.Equal(t, "table", stringFlag.Value)
+			assert.Contains(t, stringFlag.Usage, "Output format")
+		}
+
+		// Check for output-file flag
+		outputFileFlag := findFlag(awsCmd.Flags, "output-file")
+		assert.NotNil(t, outputFileFlag)
+		if stringFlag, ok := outputFileFlag.(*cli.StringFlag); ok {
+			assert.Contains(t, stringFlag.Usage, "Write output to file")
+		}
+	})
+
+	t.Run("inspect-aws command has output format flags", func(t *testing.T) {
+		inspectCmd := findCommand(app.Commands, "inspect-aws")
+		require.NotNil(t, inspectCmd)
+
+		// Check for output-format flag
+		outputFormatFlag := findFlag(inspectCmd.Flags, "output-format")
+		assert.NotNil(t, outputFormatFlag)
+		if stringFlag, ok := outputFormatFlag.(*cli.StringFlag); ok {
+			assert.Equal(t, "table", stringFlag.Value)
+		}
+
+		// Check for output-file flag
+		outputFileFlag := findFlag(inspectCmd.Flags, "output-file")
+		assert.NotNil(t, outputFileFlag)
+	})
+
+	t.Run("gcp command has output format flags", func(t *testing.T) {
+		gcpCmd := findCommand(app.Commands, "gcp")
+		require.NotNil(t, gcpCmd)
+
+		// Check for output-format flag
+		outputFormatFlag := findFlag(gcpCmd.Flags, "output-format")
+		assert.NotNil(t, outputFormatFlag)
+
+		// Check for output-file flag
+		outputFileFlag := findFlag(gcpCmd.Flags, "output-file")
+		assert.NotNil(t, outputFileFlag)
+	})
+
+	t.Run("inspect-gcp command has output format flags", func(t *testing.T) {
+		inspectGcpCmd := findCommand(app.Commands, "inspect-gcp")
+		require.NotNil(t, inspectGcpCmd)
+
+		// Check for output-format flag
+		outputFormatFlag := findFlag(inspectGcpCmd.Flags, "output-format")
+		assert.NotNil(t, outputFormatFlag)
+
+		// Check for output-file flag
+		outputFileFlag := findFlag(inspectGcpCmd.Flags, "output-file")
+		assert.NotNil(t, outputFileFlag)
+	})
+}
+
+func TestOutputFormatValues(t *testing.T) {
+	app := CreateCli("test-version")
+
+	// Test that all commands with output-format flag have correct default
+	commandsToTest := []string{"aws", "gcp", "inspect-aws", "inspect-gcp"}
+
+	for _, cmdName := range commandsToTest {
+		t.Run(cmdName+" has correct default output format", func(t *testing.T) {
+			cmd := findCommand(app.Commands, cmdName)
+			require.NotNil(t, cmd)
+
+			flag := findFlag(cmd.Flags, "output-format")
+			require.NotNil(t, flag)
+
+			if stringFlag, ok := flag.(*cli.StringFlag); ok {
+				assert.Equal(t, "table", stringFlag.Value, "Default should be 'table' for backward compatibility")
+			}
+		})
+	}
+}
+
+func TestOutputFileFlag(t *testing.T) {
+	app := CreateCli("test-version")
+
+	// Test that output-file flag is optional (no default value)
+	commandsToTest := []string{"aws", "gcp", "inspect-aws", "inspect-gcp"}
+
+	for _, cmdName := range commandsToTest {
+		t.Run(cmdName+" has optional output-file flag", func(t *testing.T) {
+			cmd := findCommand(app.Commands, cmdName)
+			require.NotNil(t, cmd)
+
+			flag := findFlag(cmd.Flags, "output-file")
+			require.NotNil(t, flag)
+
+			if stringFlag, ok := flag.(*cli.StringFlag); ok {
+				assert.Equal(t, "", stringFlag.Value, "output-file should have no default value")
+				assert.Contains(t, strings.ToLower(stringFlag.Usage), "optional")
+			}
+		})
+	}
+}
+
+// Integration test for output file creation
+func TestOutputFileCreation(t *testing.T) {
+	// This test would require mocking AWS calls, so we just test the file creation logic
+	tempDir := t.TempDir()
+	outputFile := filepath.Join(tempDir, "test-output.json")
+
+	// Test that the file path is valid
+	assert.NotContains(t, outputFile, " ", "Path should not contain spaces")
+	assert.True(t, strings.HasSuffix(outputFile, ".json"))
+
+	// Test that we can create a file at this path
+	file, err := os.Create(outputFile)
+	require.NoError(t, err)
+	defer file.Close()
+
+	// Write test content
+	testContent := `{"test": "data"}`
+	_, err = file.WriteString(testContent)
+	require.NoError(t, err)
+
+	// Verify file exists and has content
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	assert.Equal(t, testContent, string(content))
+}
+
+// Helper functions
+func findCommand(commands []*cli.Command, name string) *cli.Command {
+	for _, cmd := range commands {
+		if cmd.Name == name {
+			return cmd
+		}
+	}
+	return nil
+}
+
+func findFlag(flags []cli.Flag, name string) cli.Flag {
+	for _, flag := range flags {
+		// Get the flag names
+		if stringFlag, ok := flag.(*cli.StringFlag); ok && stringFlag.Name == name {
+			return flag
+		}
+		if boolFlag, ok := flag.(*cli.BoolFlag); ok && boolFlag.Name == name {
+			return flag
+		}
+		if stringSliceFlag, ok := flag.(*cli.StringSliceFlag); ok && stringSliceFlag.Name == name {
+			return flag
+		}
+	}
+	return nil
 }

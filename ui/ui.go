@@ -21,19 +21,35 @@ import (
 // Note that certain functions don't support the report table, such as aws-inspect,
 // which prints its own findings out directly to os.Stdout
 func RenderRunReport() {
-	// Remove the progressbar, now that we're ready to display the table report
-	//p := GetProgressbar()
-	// This next entry is necessary to workaround an issue where the spinner is not reliably cleaned up before the
-	// final run report table is printed
-	//fmt.Print("\r")
-	//p.Stop()
-	//pterm.Println()
+	RenderRunReportWithFormat("table", "")
+}
 
+// RenderRunReportWithFormat renders the run report in the specified format
+func RenderRunReportWithFormat(outputFormat string, outputFile string) {
+	writer, closer, err := GetOutputWriter(outputFile)
+	if err != nil {
+		logging.Errorf("Failed to open output file: %s", err)
+		return
+	}
+	defer func() {
+		if err := closer(); err != nil {
+			logging.Errorf("Failed to close output writer: %s", err)
+		}
+	}()
+
+	if outputFormat == "json" {
+		if err := RenderNukeReportAsJSON(writer); err != nil {
+			logging.Errorf("Failed to render JSON report: %s", err)
+		}
+		return
+	}
+
+	// Table format output
 	// Conditionally print the general error report, if in fact there were errors
-	PrintGeneralErrorReport(os.Stdout)
+	PrintGeneralErrorReport(writer)
 
 	// Print the report showing the user what happened with each resource
-	PrintRunReport(os.Stdout)
+	PrintRunReport(writer)
 }
 
 func PrintGeneralErrorReport(w io.Writer) {
@@ -133,6 +149,26 @@ func renderTableWithHeader(headers []string, data [][]string, w io.Writer) {
 }
 
 func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
+	return RenderResourcesAsTableWithFormat(account, nil, "table", "")
+}
+
+// RenderResourcesAsTableWithFormat renders resources in the specified format
+func RenderResourcesAsTableWithFormat(account *aws.AwsAccountResources, query *aws.Query, outputFormat string, outputFile string) error {
+	writer, closer, err := GetOutputWriter(outputFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := closer(); err != nil {
+			logging.Errorf("Failed to close output writer: %s", err)
+		}
+	}()
+
+	if outputFormat == "json" {
+		return RenderInspectAsJSON(account, query, writer)
+	}
+
+	// Table format output
 	var tableData [][]string
 	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier", "Nukable"})
 
@@ -150,14 +186,44 @@ func RenderResourcesAsTable(account *aws.AwsAccountResources) error {
 		}
 	}
 
+	if f, ok := writer.(*os.File); ok && (f == os.Stdout || f == os.Stderr) {
+		// Use pterm for console output
+		return pterm.DefaultTable.WithBoxed(true).
+			WithData(tableData).
+			WithHasHeader(true).
+			WithHeaderRowSeparator("-").
+			Render()
+	}
+	// Use pterm with writer for file output
 	return pterm.DefaultTable.WithBoxed(true).
 		WithData(tableData).
 		WithHasHeader(true).
 		WithHeaderRowSeparator("-").
+		WithWriter(writer).
 		Render()
 }
 
 func RenderGcpResourcesAsTable(account *gcp.GcpProjectResources) error {
+	return RenderGcpResourcesAsTableWithFormat(account, "table", "")
+}
+
+// RenderGcpResourcesAsTableWithFormat renders GCP resources in the specified format
+func RenderGcpResourcesAsTableWithFormat(account *gcp.GcpProjectResources, outputFormat string, outputFile string) error {
+	writer, closer, err := GetOutputWriter(outputFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := closer(); err != nil {
+			logging.Errorf("Failed to close output writer: %s", err)
+		}
+	}()
+
+	if outputFormat == "json" {
+		return RenderGcpInspectAsJSON(account, writer)
+	}
+
+	// Table format output
 	var tableData [][]string
 	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier", "Nukable"})
 
@@ -175,10 +241,20 @@ func RenderGcpResourcesAsTable(account *gcp.GcpProjectResources) error {
 		}
 	}
 
+	if f, ok := writer.(*os.File); ok && (f == os.Stdout || f == os.Stderr) {
+		// Use pterm for console output
+		return pterm.DefaultTable.WithBoxed(true).
+			WithData(tableData).
+			WithHasHeader(true).
+			WithHeaderRowSeparator("-").
+			Render()
+	}
+	// Use pterm with writer for file output
 	return pterm.DefaultTable.WithBoxed(true).
 		WithData(tableData).
 		WithHasHeader(true).
 		WithHeaderRowSeparator("-").
+		WithWriter(writer).
 		Render()
 }
 
