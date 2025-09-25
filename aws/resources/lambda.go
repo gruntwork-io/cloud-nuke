@@ -47,9 +47,18 @@ func (lf *LambdaFunctions) shouldInclude(lambdaFn *types.FunctionConfiguration, 
 		return false
 	}
 
+	params := &lambda.ListTagsInput{
+		Resource: lambdaFn.FunctionArn,
+	}
+	tagsOutput, err := lf.Client.ListTags(lf.Context, params)
+	if err != nil {
+		logging.Errorf("failed to list tags for %s: %s", aws.ToString(lambdaFn.FunctionArn), err)
+	}
+
 	return configObj.LambdaFunction.ShouldInclude(config.ResourceValue{
 		Time: &lastModifiedDateTime,
 		Name: fnName,
+		Tags: tagsOutput.Tags,
 	})
 }
 

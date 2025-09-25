@@ -664,7 +664,7 @@ of the file that are supported are listed here.
 | kmscustomerkeys                  | KMSCustomerKeys               | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    | ❌       |
 | kinesis-stream                   | KinesisStream                 | ✅ (Stream Name)                       | ❌                                   | ❌    | ✅       |
 | kinesis-firehose                 | KinesisFirehose               | ✅ (Delivery Stream Name)              | ❌                                   | ❌    | ✅       |
-| lambda                           | LambdaFunction                | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ❌    | ✅       |
+| lambda                           | LambdaFunction                | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ✅    | ✅       |
 | lc                               | LaunchConfiguration           | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    | ✅       |
 | lt                               | LaunchTemplate                | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    | ✅       |
 | macie-member                     | MacieMember                   | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |

@@ -17,6 +17,7 @@ type mockedLambda struct {
 	LambdaFunctionsAPI
 	DeleteFunctionOutput lambda.DeleteFunctionOutput
 	ListFunctionsOutput  lambda.ListFunctionsOutput
+	ListTagsOutput       lambda.ListTagsOutput
 }
 
 func (m mockedLambda) DeleteFunction(ctx context.Context, params *lambda.DeleteFunctionInput, optFns ...func(*lambda.Options)) (*lambda.DeleteFunctionOutput, error) {
@@ -25,6 +26,10 @@ func (m mockedLambda) DeleteFunction(ctx context.Context, params *lambda.DeleteF
 
 func (m mockedLambda) ListFunctions(ctx context.Context, params *lambda.ListFunctionsInput, optFns ...func(*lambda.Options)) (*lambda.ListFunctionsOutput, error) {
 	return &m.ListFunctionsOutput, nil
+}
+
+func (m mockedLambda) ListTags(ctx context.Context, params *lambda.ListTagsInput, optFns ...func(*lambda.Options)) (*lambda.ListTagsOutput, error) {
+	return &m.ListTagsOutput, nil
 }
 
 func TestLambdaFunction_GetAll(t *testing.T) {
