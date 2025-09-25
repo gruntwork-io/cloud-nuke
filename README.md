@@ -533,6 +533,10 @@ You can filter resources by tags using both `include` and `exclude` rules.
 
 > **Note:** The single `tag` and `tag_value` fields are deprecated. Use the `tags` field instead as shown in the examples below.
 
+Tag names are case-sensitive, but tag values are converted to lowercase before regex matching.
+So for example `Project: "foo"` will match `Project: "FOO"` (value is lowercased), but not `project: "foo"` (different key). `"FOO"` will never match anything - always write patterns in lowercase.
+
+
 ##### Multiple Tag Filters with AND/OR Logic
 
 When you specify multiple tag filters, you can control how they are evaluated using the `tags_operator` field:
