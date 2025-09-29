@@ -618,7 +618,7 @@ of the file that are supported are listed here.
 | cloudwatch-dashboard             | CloudWatchDashboard           | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    | ✅       |
 | cloudwatch-loggroup              | CloudWatchLogGroup            | ✅ (Log Group Name)                    | ✅ (Creation Time)                   | ❌    | ✅       |
 | cloudtrail                       | CloudtrailTrail               | ✅ (Trail Name)                        | ❌                                   | ❌    | ✅       |
-| cloudmap-namespace               | CloudMapNamespace             | ✅ (Namespace Name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
+| cloudmap-namespace               | CloudMapNamespace             | ✅ (Namespace Name)                    | ✅ (Creation Time)                   | ❌    | ✅       |
 | cloudmap-service                 | CloudMapService               | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | codedeploy-application           | CodeDeployApplications        | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
 | config-recorders                 | ConfigServiceRecorder         | ✅ (Recorder Name)                     | ❌                                   | ❌    | ✅       |
