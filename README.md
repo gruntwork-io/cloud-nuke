@@ -93,6 +93,8 @@ Cloud-nuke suppports 🔎 inspecting and 🔥💀 deleting the following AWS res
 | API Gateway             | Gateways (v1 and v2)                                     |
 | EFS                     | File systems                                             |
 | SNS                     | Topics                                                   |
+| CloudMap                | Namespace                                                |
+| CloudMap                | Service                                                  |
 | CloudTrail              | Trails                                                   |
 | ECR                     | Repositories                                             |
 | Config                  | Service recorders                                        |
@@ -616,6 +618,8 @@ of the file that are supported are listed here.
 | cloudwatch-dashboard             | CloudWatchDashboard           | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    | ✅       |
 | cloudwatch-loggroup              | CloudWatchLogGroup            | ✅ (Log Group Name)                    | ✅ (Creation Time)                   | ❌    | ✅       |
 | cloudtrail                       | CloudtrailTrail               | ✅ (Trail Name)                        | ❌                                   | ❌    | ✅       |
+| cloudmap-namespace               | CloudMapNamespace             | ✅ (Namespace Name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
+| cloudmap-service                 | CloudMapService               | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | codedeploy-application           | CodeDeployApplications        | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
 | config-recorders                 | ConfigServiceRecorder         | ✅ (Recorder Name)                     | ❌                                   | ❌    | ✅       |
 | config-rules                     | ConfigServiceRule             | ✅ (Rule Name)                         | ❌                                   | ❌    | ✅       |
