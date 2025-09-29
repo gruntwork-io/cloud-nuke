@@ -475,6 +475,18 @@ func ParseTimestamp(timestamp string) (*time.Time, error) {
 }
 
 func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
+	// SAFETY CHECK: If include tag filters are specified but the resource doesn't support tags,
+	// we should exclude it by default to prevent accidentally including unfiltered resources.
+	// Resources that support tags always pass a map (even if empty), while resources that
+	// don't support tags pass nil (by omitting the Tags field in ResourceValue).
+	hasIncludeTagFilters := len(r.IncludeRule.Tags) > 0
+	resourceDoesNotSupportTags := tags == nil
+
+	if hasIncludeTagFilters && resourceDoesNotSupportTags {
+		logging.Debugf("Resource does not support tag filtering but include tag filters are specified - excluding for safety")
+		return false
+	}
+
 	// Handle exclude rule first
 	exclusionTag := r.getExclusionTag()
 	exclusionTagValue := r.getExclusionTagValue()
