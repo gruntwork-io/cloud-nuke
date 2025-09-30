@@ -48,15 +48,24 @@ func (services *ECSServices) filterOutRecentServices(clusterArn *string, ecsServ
 		params := &ecs.DescribeServicesInput{
 			Cluster:  clusterArn,
 			Services: batch,
+			Include:  []types.ServiceField{types.ServiceFieldTags},
 		}
 		describeResult, err := services.Client.DescribeServices(services.Context, params)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 		for _, service := range describeResult.Services {
+			tags := make(map[string]string)
+			for _, tag := range service.Tags {
+				if tag.Key != nil && tag.Value != nil {
+					tags[*tag.Key] = *tag.Value
+				}
+			}
+
 			if configObj.ECSService.ShouldInclude(config.ResourceValue{
 				Name: service.ServiceName,
 				Time: service.CreatedAt,
+				Tags: tags,
 			}) {
 				filteredEcsServiceArns = append(filteredEcsServiceArns, service.ServiceArn)
 			}
