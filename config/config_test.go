@@ -944,3 +944,27 @@ func TestShouldIncludeBasedOnIncludeRuleTags(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldIncludeBasedOnTag_NilTagsSafety(t *testing.T) {
+	// When include tag filters are specified, resources that don't support tags (nil) should be excluded
+	r := ResourceType{
+		IncludeRule: FilterRule{
+			Tags: map[string]Expression{
+				"Environment": {RE: *regexp.MustCompile("production")},
+			},
+		},
+	}
+
+	// Resource doesn't support tags (nil) - should exclude for safety
+	assert.False(t, r.ShouldIncludeBasedOnTag(nil))
+
+	// Resource supports tags but has none (empty map) - should exclude because tags don't match
+	assert.False(t, r.ShouldIncludeBasedOnTag(map[string]string{}))
+
+	// Resource has matching tags - should include
+	assert.True(t, r.ShouldIncludeBasedOnTag(map[string]string{"Environment": "production"}))
+
+	// When no include tag filters specified, resource without tag support should be included
+	r2 := ResourceType{}
+	assert.True(t, r2.ShouldIncludeBasedOnTag(nil))
+}
