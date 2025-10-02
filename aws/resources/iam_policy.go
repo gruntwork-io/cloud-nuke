@@ -26,14 +26,15 @@ func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*st
 		}
 
 		for _, policy := range page.Policies {
-			var tags []types.Tag
-			if len(configObj.IAMPolicies.IncludeRule.Tags) > 0 || len(configObj.IAMPolicies.ExcludeRule.Tags) > 0 {
-				tagsOut, err := ip.Client.ListPolicyTags(c, &iam.ListPolicyTagsInput{PolicyArn: policy.Arn})
-				if err != nil {
-					return nil, errors.WithStackTrace(err)
-				}
-				tags = tagsOut.Tags
+			// Always fetch tags to support tag-based filtering, including the default cloud-nuke-excluded tag.
+			// This ensures that policies with the exclusion tag are properly filtered out even when no explicit
+			// tag filters are configured in the config file.
+			tagsOut, err := ip.Client.ListPolicyTags(c, &iam.ListPolicyTagsInput{PolicyArn: policy.Arn})
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
 			}
+			tags := tagsOut.Tags
+
 			if configObj.IAMPolicies.ShouldInclude(config.ResourceValue{
 				Name: policy.PolicyName,
 				Time: policy.CreateDate,
