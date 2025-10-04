@@ -329,10 +329,10 @@ func TestIAMRoles_GetAll_ServiceLinkedRolesFiltered(t *testing.T) {
 				},
 			},
 			ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
-				"MyCustomRole":                      {Tags: []types.Tag{}},
-				"AWSServiceRoleForTrustedAdvisor":   {Tags: []types.Tag{}},
-				"AWSServiceRoleForSupport":          {Tags: []types.Tag{}},
-				"AnotherCustomRole":                 {Tags: []types.Tag{}},
+				"MyCustomRole":                    {Tags: []types.Tag{}},
+				"AWSServiceRoleForTrustedAdvisor": {Tags: []types.Tag{}},
+				"AWSServiceRoleForSupport":        {Tags: []types.Tag{}},
+				"AnotherCustomRole":               {Tags: []types.Tag{}},
 			},
 		},
 	}
