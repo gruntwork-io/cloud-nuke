@@ -17,10 +17,11 @@ import (
 // It returns predefined responses for API calls, allowing tests to run without AWS credentials.
 type mockedCloudMapNamespacesAPI struct {
 	CloudMapNamespacesAPI
-	ListNamespacesOutput  servicediscovery.ListNamespacesOutput
-	DeleteNamespaceOutput servicediscovery.DeleteNamespaceOutput
-	GetNamespaceOutput    servicediscovery.GetNamespaceOutput
-	ListServicesOutput    servicediscovery.ListServicesOutput
+	ListNamespacesOutput      servicediscovery.ListNamespacesOutput
+	DeleteNamespaceOutput     servicediscovery.DeleteNamespaceOutput
+	GetNamespaceOutput        servicediscovery.GetNamespaceOutput
+	ListServicesOutput        servicediscovery.ListServicesOutput
+	ListTagsForResourceOutput servicediscovery.ListTagsForResourceOutput
 }
 
 func (m mockedCloudMapNamespacesAPI) ListNamespaces(ctx context.Context, params *servicediscovery.ListNamespacesInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListNamespacesOutput, error) {
@@ -39,6 +40,33 @@ func (m mockedCloudMapNamespacesAPI) ListServices(ctx context.Context, params *s
 	return &m.ListServicesOutput, nil
 }
 
+func (m mockedCloudMapNamespacesAPI) ListTagsForResource(ctx context.Context, params *servicediscovery.ListTagsForResourceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListTagsForResourceOutput, error) {
+	// Return different tags based on the namespace ARN
+	if params.ResourceARN != nil {
+		switch *params.ResourceARN {
+		case "arn:aws:servicediscovery:us-east-1:123456789012:namespace/ns-123456789":
+			return &servicediscovery.ListTagsForResourceOutput{
+				Tags: []types.Tag{
+					{
+						Key:   aws.String("Environment"),
+						Value: aws.String("test"),
+					},
+				},
+			}, nil
+		case "arn:aws:servicediscovery:us-east-1:123456789012:namespace/ns-987654321":
+			return &servicediscovery.ListTagsForResourceOutput{
+				Tags: []types.Tag{
+					{
+						Key:   aws.String("Environment"),
+						Value: aws.String("production"),
+					},
+				},
+			}, nil
+		}
+	}
+	return &m.ListTagsForResourceOutput, nil
+}
+
 // TestCloudMapNamespaces_GetAll verifies that namespace filtering works correctly.
 // It tests empty filters, name exclusion, and time-based exclusion.
 func TestCloudMapNamespaces_GetAll(t *testing.T) {
@@ -49,6 +77,8 @@ func TestCloudMapNamespaces_GetAll(t *testing.T) {
 	testNamespace2 := "ns-987654321"
 	testNamespace1Name := "test-namespace-1"
 	testNamespace2Name := "test-namespace-2"
+	testNamespace1Arn := "arn:aws:servicediscovery:us-east-1:123456789012:namespace/ns-123456789"
+	testNamespace2Arn := "arn:aws:servicediscovery:us-east-1:123456789012:namespace/ns-987654321"
 
 	cns := CloudMapNamespaces{
 		Client: mockedCloudMapNamespacesAPI{
@@ -56,15 +86,20 @@ func TestCloudMapNamespaces_GetAll(t *testing.T) {
 				Namespaces: []types.NamespaceSummary{
 					{
 						Id:         aws.String(testNamespace1),
+						Arn:        aws.String(testNamespace1Arn),
 						Name:       aws.String(testNamespace1Name),
 						CreateDate: aws.Time(now.Add(-1 * time.Hour)),
 					},
 					{
 						Id:         aws.String(testNamespace2),
+						Arn:        aws.String(testNamespace2Arn),
 						Name:       aws.String(testNamespace2Name),
 						CreateDate: aws.Time(now),
 					},
 				},
+			},
+			ListTagsForResourceOutput: servicediscovery.ListTagsForResourceOutput{
+				Tags: []types.Tag{},
 			},
 		},
 	}
@@ -102,6 +137,18 @@ func TestCloudMapNamespaces_GetAll(t *testing.T) {
 				},
 			},
 			expected: []string{testNamespace1},
+		},
+		"tagExclusionFilter": { // Should exclude namespaces with tags matching the filter
+			configObj: config.Config{
+				CloudMapNamespace: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						Tags: map[string]config.Expression{
+							"Environment": {RE: *regexp.MustCompile("test")},
+						},
+					},
+				},
+			},
+			expected: []string{testNamespace2},
 		},
 	}
 

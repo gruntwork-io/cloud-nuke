@@ -28,11 +28,18 @@ func (cns *CloudMapNamespaces) getAll(c context.Context, configObj config.Config
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Filter namespaces based on configured rules (name patterns, creation time, etc.)
+		// Filter namespaces based on configured rules (name patterns, creation time, tags, etc.)
 		for _, namespace := range page.Namespaces {
+			// Get all tags for the namespace for filtering purposes
+			tags, err := cns.getAllTags(namespace.Arn)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
 			if configObj.CloudMapNamespace.ShouldInclude(config.ResourceValue{
 				Name: namespace.Name,
 				Time: namespace.CreateDate,
+				Tags: tags,
 			}) {
 				result = append(result, namespace.Id)
 			}
@@ -149,4 +156,27 @@ func (cns *CloudMapNamespaces) nukeAll(identifiers []*string) error {
 	logging.Debugf("[OK] %d of %d Cloud Map namespace(s) deleted in %s", len(deletedNamespaces), len(identifiers), cns.Region)
 
 	return nil
+}
+
+// getAllTags retrieves all tags for a given Cloud Map namespace.
+// Returns a map of tag keys to tag values.
+func (cns *CloudMapNamespaces) getAllTags(namespaceArn *string) (map[string]string, error) {
+	input := &servicediscovery.ListTagsForResourceInput{
+		ResourceARN: namespaceArn,
+	}
+
+	namespaceTags, err := cns.Client.ListTagsForResource(cns.Context, input)
+	if err != nil {
+		logging.Debugf("Error getting the tags for Cloud Map namespace with ARN %s", aws.ToString(namespaceArn))
+		return nil, errors.WithStackTrace(err)
+	}
+
+	tags := make(map[string]string)
+	for _, tag := range namespaceTags.Tags {
+		if tag.Key != nil && tag.Value != nil {
+			tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
+		}
+	}
+
+	return tags, nil
 }

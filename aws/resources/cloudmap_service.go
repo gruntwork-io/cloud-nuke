@@ -27,11 +27,18 @@ func (cms *CloudMapServices) getAll(c context.Context, configObj config.Config) 
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Filter services based on configured rules (name patterns, creation time, etc.)
+		// Filter services based on configured rules (name patterns, creation time, tags, etc.)
 		for _, service := range page.Services {
+			// Get all tags for the service for filtering purposes
+			tags, err := cms.getAllTags(service.Arn)
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
 			if configObj.CloudMapService.ShouldInclude(config.ResourceValue{
 				Name: service.Name,
 				Time: service.CreateDate,
+				Tags: tags,
 			}) {
 				result = append(result, service.Id)
 			}
@@ -162,4 +169,27 @@ func (cms *CloudMapServices) nukeAll(identifiers []*string) error {
 	logging.Debugf("[OK] %d of %d Cloud Map service(s) deleted in %s", len(deletedServices), len(identifiers), cms.Region)
 
 	return nil
+}
+
+// getAllTags retrieves all tags for a given Cloud Map service.
+// Returns a map of tag keys to tag values.
+func (cms *CloudMapServices) getAllTags(serviceArn *string) (map[string]string, error) {
+	input := &servicediscovery.ListTagsForResourceInput{
+		ResourceARN: serviceArn,
+	}
+
+	serviceTags, err := cms.Client.ListTagsForResource(cms.Context, input)
+	if err != nil {
+		logging.Debugf("Error getting the tags for Cloud Map service with ARN %s", aws.ToString(serviceArn))
+		return nil, errors.WithStackTrace(err)
+	}
+
+	tags := make(map[string]string)
+	for _, tag := range serviceTags.Tags {
+		if tag.Key != nil && tag.Value != nil {
+			tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
+		}
+	}
+
+	return tags, nil
 }
