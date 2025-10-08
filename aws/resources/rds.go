@@ -22,20 +22,18 @@ func (di *DBInstances) getAll(ctx context.Context, configObj config.Config) ([]*
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		// instance is deletion-protected while config object doesn't include deletion-protected
+		// Skip deletion-protected instances when config doesn't explicitly include them
 		if database.DeletionProtection != nil && *database.DeletionProtection && !configObj.DBInstances.IncludeDeletionProtected {
 			continue
 		}
 
-		if !configObj.DBInstances.ShouldInclude(config.ResourceValue{
+		if configObj.DBInstances.ShouldInclude(config.ResourceValue{
 			Time: database.InstanceCreateTime,
 			Name: database.DBInstanceIdentifier,
 			Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
 		}) {
-			continue
+			names = append(names, database.DBInstanceIdentifier)
 		}
-
-		names = append(names, database.DBInstanceIdentifier)
 	}
 
 	return names, nil
@@ -51,14 +49,26 @@ func (di *DBInstances) nukeAll(names []*string) error {
 	deletedNames := []*string{}
 
 	for _, name := range names {
-		// Disable deletion protection
-		_, err := di.Client.ModifyDBInstance(context.TODO(), &rds.ModifyDBInstanceInput{
+		// Check if instance is part of a cluster before trying to disable deletion protection
+		describeResp, err := di.Client.DescribeDBInstances(di.Context, &rds.DescribeDBInstancesInput{
 			DBInstanceIdentifier: name,
-			DeletionProtection:   aws.Bool(false),
-			ApplyImmediately:     aws.Bool(true),
 		})
 		if err != nil {
-			logging.Warnf("[Failed] to disable deletion protection for %s: %s", *name, err)
+			logging.Warnf("[Failed] to describe instance %s: %s", *name, err)
+			continue
+		}
+		// Only disable deletion protection if instance is not part of a cluster
+		if len(describeResp.DBInstances) > 0 && describeResp.DBInstances[0].DBClusterIdentifier == nil {
+			_, modifyErr := di.Client.ModifyDBInstance(context.TODO(), &rds.ModifyDBInstanceInput{
+				DBInstanceIdentifier: name,
+				DeletionProtection:   aws.Bool(false),
+				ApplyImmediately:     aws.Bool(true),
+			})
+			if modifyErr != nil {
+				logging.Warnf("[Failed] to disable deletion protection for %s: %s", *name, modifyErr)
+			}
+		} else {
+			logging.Debugf("Skipping deletion protection modification for cluster member instance %s", *name)
 		}
 
 		params := &rds.DeleteDBInstanceInput{
