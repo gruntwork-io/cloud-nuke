@@ -17,10 +17,11 @@ import (
 // It returns predefined responses for API calls, allowing tests to run without AWS credentials.
 type mockedCloudMapServicesAPI struct {
 	CloudMapServicesAPI
-	ListServicesOutput       servicediscovery.ListServicesOutput
-	DeleteServiceOutput      servicediscovery.DeleteServiceOutput
-	ListInstancesOutput      servicediscovery.ListInstancesOutput
-	DeregisterInstanceOutput servicediscovery.DeregisterInstanceOutput
+	ListServicesOutput        servicediscovery.ListServicesOutput
+	DeleteServiceOutput       servicediscovery.DeleteServiceOutput
+	ListInstancesOutput       servicediscovery.ListInstancesOutput
+	DeregisterInstanceOutput  servicediscovery.DeregisterInstanceOutput
+	ListTagsForResourceOutput servicediscovery.ListTagsForResourceOutput
 }
 
 func (m mockedCloudMapServicesAPI) ListServices(ctx context.Context, params *servicediscovery.ListServicesInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListServicesOutput, error) {
@@ -39,6 +40,33 @@ func (m mockedCloudMapServicesAPI) DeregisterInstance(ctx context.Context, param
 	return &m.DeregisterInstanceOutput, nil
 }
 
+func (m mockedCloudMapServicesAPI) ListTagsForResource(ctx context.Context, params *servicediscovery.ListTagsForResourceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListTagsForResourceOutput, error) {
+	// Return different tags based on the service ARN
+	if params.ResourceARN != nil {
+		switch *params.ResourceARN {
+		case "arn:aws:servicediscovery:us-east-1:123456789012:service/srv-123456789":
+			return &servicediscovery.ListTagsForResourceOutput{
+				Tags: []types.Tag{
+					{
+						Key:   aws.String("Environment"),
+						Value: aws.String("test"),
+					},
+				},
+			}, nil
+		case "arn:aws:servicediscovery:us-east-1:123456789012:service/srv-987654321":
+			return &servicediscovery.ListTagsForResourceOutput{
+				Tags: []types.Tag{
+					{
+						Key:   aws.String("Environment"),
+						Value: aws.String("production"),
+					},
+				},
+			}, nil
+		}
+	}
+	return &m.ListTagsForResourceOutput, nil
+}
+
 // TestCloudMapServices_GetAll verifies that service filtering works correctly.
 // It tests empty filters, name exclusion, and time-based exclusion.
 func TestCloudMapServices_GetAll(t *testing.T) {
@@ -49,6 +77,8 @@ func TestCloudMapServices_GetAll(t *testing.T) {
 	testService2 := "srv-987654321"
 	testService1Name := "test-service-1"
 	testService2Name := "test-service-2"
+	testService1Arn := "arn:aws:servicediscovery:us-east-1:123456789012:service/srv-123456789"
+	testService2Arn := "arn:aws:servicediscovery:us-east-1:123456789012:service/srv-987654321"
 
 	cms := CloudMapServices{
 		Client: mockedCloudMapServicesAPI{
@@ -56,15 +86,20 @@ func TestCloudMapServices_GetAll(t *testing.T) {
 				Services: []types.ServiceSummary{
 					{
 						Id:         aws.String(testService1),
+						Arn:        aws.String(testService1Arn),
 						Name:       aws.String(testService1Name),
 						CreateDate: aws.Time(now.Add(-1 * time.Hour)),
 					},
 					{
 						Id:         aws.String(testService2),
+						Arn:        aws.String(testService2Arn),
 						Name:       aws.String(testService2Name),
 						CreateDate: aws.Time(now),
 					},
 				},
+			},
+			ListTagsForResourceOutput: servicediscovery.ListTagsForResourceOutput{
+				Tags: []types.Tag{},
 			},
 		},
 	}
@@ -102,6 +137,18 @@ func TestCloudMapServices_GetAll(t *testing.T) {
 				},
 			},
 			expected: []string{testService1},
+		},
+		"tagExclusionFilter": { // Should exclude services with tags matching the filter
+			configObj: config.Config{
+				CloudMapService: config.ResourceType{
+					ExcludeRule: config.FilterRule{
+						Tags: map[string]config.Expression{
+							"Environment": {RE: *regexp.MustCompile("test")},
+						},
+					},
+				},
+			},
+			expected: []string{testService2},
 		},
 	}
 
