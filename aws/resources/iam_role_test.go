@@ -144,6 +144,42 @@ func TestIAMRoles_GetAll(t *testing.T) {
 
 }
 
+func TestIAMRoles_GetAll_DefaultExclusionTag(t *testing.T) {
+	t.Parallel()
+	testName1 := "test-role-excluded"
+	testName2 := "test-role-included"
+	now := time.Now()
+	ir := IAMRoles{
+		Client: mockedIAMRoles{
+			ListRolesOutput: iam.ListRolesOutput{
+				Roles: []types.Role{
+					{
+						RoleName:   aws.String(testName1),
+						CreateDate: aws.Time(now),
+					},
+					{
+						RoleName:   aws.String(testName2),
+						CreateDate: aws.Time(now),
+					},
+				},
+			},
+			ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
+				testName1: {Tags: []types.Tag{{Key: aws.String("cloud-nuke-excluded"), Value: aws.String("true")}}},
+				testName2: {Tags: []types.Tag{{Key: aws.String("some-other-tag"), Value: aws.String("value")}}},
+			},
+		},
+	}
+
+	// Test that the default cloud-nuke-excluded tag works without explicit tag filters configured
+	names, err := ir.getAll(context.Background(), config.Config{
+		IAMRoles: config.ResourceType{},
+	})
+
+	require.NoError(t, err)
+	// testName1 should be excluded due to cloud-nuke-excluded tag, only testName2 should be returned
+	require.Equal(t, []string{testName2}, aws.ToStringSlice(names))
+}
+
 func TestIAMRoles_NukeAll(t *testing.T) {
 	t.Parallel()
 	ir := IAMRoles{
@@ -291,6 +327,12 @@ func TestIAMRoles_GetAll_ServiceLinkedRolesFiltered(t *testing.T) {
 						CreateDate: aws.Time(now),
 					},
 				},
+			},
+			ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
+				"MyCustomRole":                    {Tags: []types.Tag{}},
+				"AWSServiceRoleForTrustedAdvisor": {Tags: []types.Tag{}},
+				"AWSServiceRoleForSupport":        {Tags: []types.Tag{}},
+				"AnotherCustomRole":               {Tags: []types.Tag{}},
 			},
 		},
 	}

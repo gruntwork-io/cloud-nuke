@@ -27,14 +27,14 @@ func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*strin
 		}
 
 		for _, iamRole := range page.Roles {
-			var tags []types.Tag
-			if len(configObj.IAMRoles.IncludeRule.Tags) > 0 || len(configObj.IAMRoles.ExcludeRule.Tags) > 0 {
-				tagsOut, err := ir.Client.ListRoleTags(c, &iam.ListRoleTagsInput{RoleName: iamRole.RoleName})
-				if err != nil {
-					return nil, errors.WithStackTrace(err)
-				}
-				tags = tagsOut.Tags
+			// Always fetch tags to support tag-based filtering, including the default cloud-nuke-excluded tag.
+			// This ensures that roles with the exclusion tag are properly filtered out even when no explicit
+			// tag filters are configured in the config file.
+			tagsOut, err := ir.Client.ListRoleTags(c, &iam.ListRoleTagsInput{RoleName: iamRole.RoleName})
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
 			}
+			tags := tagsOut.Tags
 
 			if ir.shouldInclude(&iamRole, configObj, tags) {
 				allIAMRoles = append(allIAMRoles, iamRole.RoleName)
