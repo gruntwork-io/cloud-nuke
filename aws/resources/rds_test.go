@@ -156,7 +156,7 @@ func TestDBInstances_NukeAll(t *testing.T) {
 					},
 				},
 				DeleteDBInstanceOutput: rds.DeleteDBInstanceOutput{},
-				ModifyCallExpected:     true, // Should call ModifyDBInstance
+				ModifyCallExpected:     true,                  // Should call ModifyDBInstance
 				InstancesDeleted:       make(map[string]bool), // Track deleted instances
 			},
 		}
@@ -179,7 +179,7 @@ func TestDBInstances_NukeAll(t *testing.T) {
 					},
 				},
 				DeleteDBInstanceOutput: rds.DeleteDBInstanceOutput{},
-				ModifyCallExpected:     false, // Should NOT call ModifyDBInstance
+				ModifyCallExpected:     false,                 // Should NOT call ModifyDBInstance
 				InstancesDeleted:       make(map[string]bool), // Track deleted instances
 			},
 		}
