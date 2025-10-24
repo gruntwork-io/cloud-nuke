@@ -20,9 +20,14 @@ type mockedDBInstance struct {
 	RDSAPI
 	DescribeDBInstancesOutput rds.DescribeDBInstancesOutput
 	DeleteDBInstanceOutput    rds.DeleteDBInstanceOutput
+	ModifyCallExpected        bool
+	InstancesDeleted          map[string]bool
 }
 
 func (m mockedDBInstance) ModifyDBInstance(ctx context.Context, params *rds.ModifyDBInstanceInput, optFns ...func(*rds.Options)) (*rds.ModifyDBInstanceOutput, error) {
+	if !m.ModifyCallExpected {
+		assert.Fail(m.t, "ModifyDBInstance should not be called for cluster member instances")
+	}
 	assert.NotNil(m.t, params)
 	assert.NotEmpty(m.t, *params.DBInstanceIdentifier)
 	assert.False(m.t, *params.DeletionProtection)
@@ -31,10 +36,20 @@ func (m mockedDBInstance) ModifyDBInstance(ctx context.Context, params *rds.Modi
 }
 
 func (m mockedDBInstance) DescribeDBInstances(ctx context.Context, params *rds.DescribeDBInstancesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBInstancesOutput, error) {
+	// If specific instance is requested and it's been deleted, return empty result
+	if params.DBInstanceIdentifier != nil {
+		if m.InstancesDeleted != nil && m.InstancesDeleted[*params.DBInstanceIdentifier] {
+			return &rds.DescribeDBInstancesOutput{DBInstances: []types.DBInstance{}}, nil
+		}
+	}
 	return &m.DescribeDBInstancesOutput, nil
 }
 
 func (m mockedDBInstance) DeleteDBInstance(ctx context.Context, params *rds.DeleteDBInstanceInput, optFns ...func(*rds.Options)) (*rds.DeleteDBInstanceOutput, error) {
+	// Mark instance as deleted for waiter
+	if m.InstancesDeleted != nil && params.DBInstanceIdentifier != nil {
+		m.InstancesDeleted[*params.DBInstanceIdentifier] = true
+	}
 	return &m.DeleteDBInstanceOutput, nil
 }
 
@@ -128,14 +143,49 @@ func TestDBInstances_NukeAll(t *testing.T) {
 
 	t.Parallel()
 
-	di := DBInstances{
-		Client: mockedDBInstance{
-			t:                      t,
-			DeleteDBInstanceOutput: rds.DeleteDBInstanceOutput{},
-		},
-	}
-	di.Context = context.Background()
+	t.Run("standalone instance", func(t *testing.T) {
+		di := DBInstances{
+			Client: mockedDBInstance{
+				t: t,
+				DescribeDBInstancesOutput: rds.DescribeDBInstancesOutput{
+					DBInstances: []types.DBInstance{
+						{
+							DBInstanceIdentifier: aws.String("test-standalone"),
+							DBClusterIdentifier:  nil, // Not part of a cluster
+						},
+					},
+				},
+				DeleteDBInstanceOutput: rds.DeleteDBInstanceOutput{},
+				ModifyCallExpected:     true,                  // Should call ModifyDBInstance
+				InstancesDeleted:       make(map[string]bool), // Track deleted instances
+			},
+		}
+		di.Context = context.Background()
 
-	err := di.nukeAll([]*string{aws.String("test")})
-	require.NoError(t, err)
+		err := di.nukeAll([]*string{aws.String("test-standalone")})
+		require.NoError(t, err)
+	})
+
+	t.Run("cluster member instance", func(t *testing.T) {
+		di := DBInstances{
+			Client: mockedDBInstance{
+				t: t,
+				DescribeDBInstancesOutput: rds.DescribeDBInstancesOutput{
+					DBInstances: []types.DBInstance{
+						{
+							DBInstanceIdentifier: aws.String("test-cluster-member"),
+							DBClusterIdentifier:  aws.String("my-aurora-cluster"), // Part of a cluster
+						},
+					},
+				},
+				DeleteDBInstanceOutput: rds.DeleteDBInstanceOutput{},
+				ModifyCallExpected:     false,                 // Should NOT call ModifyDBInstance
+				InstancesDeleted:       make(map[string]bool), // Track deleted instances
+			},
+		}
+		di.Context = context.Background()
+
+		err := di.nukeAll([]*string{aws.String("test-cluster-member")})
+		require.NoError(t, err)
+	})
 }
