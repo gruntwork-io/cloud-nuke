@@ -151,8 +151,9 @@ func (kck *KmsCustomerKeys) shouldInclude(
 		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
+	// Check time-based filtering (name filtering was already done above)
 	referenceTime := metadata.CreationDate
-	if !configObj.KMSCustomerKeys.ShouldInclude(config.ResourceValue{Time: referenceTime}) {
+	if !configObj.KMSCustomerKeys.ShouldIncludeBasedOnTime(*referenceTime) {
 		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
 		return
 	}
