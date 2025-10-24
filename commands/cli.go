@@ -387,7 +387,10 @@ func awsNuke(c *cli.Context) error {
 		return errors.WithStackTrace(err)
 	}
 
-	return awsNukeHelper(c, configObj, query)
+	outputFormat := c.String("output-format")
+	outputFile := c.String("output-file")
+
+	return awsNukeHelper(c, configObj, query, outputFormat, outputFile)
 }
 
 func awsDefaults(c *cli.Context) error {
@@ -414,7 +417,8 @@ func awsDefaults(c *cli.Context) error {
 	}
 
 	// Note: config feature only available for awsNuke command.
-	return awsNukeHelper(c, config.Config{}, query)
+	// defaults-aws command does not support output format flags, so use table format
+	return awsNukeHelper(c, config.Config{}, query, "table", "")
 }
 
 func awsInspect(c *cli.Context) error {
@@ -442,8 +446,8 @@ func awsInspect(c *cli.Context) error {
 	return err
 }
 
-func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query) error {
-	account, err := handleGetResources(c, configObj, query)
+func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, outputFormat string, outputFile string) error {
+	account, err := handleGetResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -503,8 +507,6 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query) er
 		}
 	}
 
-	outputFormat := c.String("output-format")
-	outputFile := c.String("output-file")
 	ui.RenderRunReportWithFormat(outputFormat, outputFile)
 	return nil
 }
@@ -648,7 +650,10 @@ func gcpNuke(c *cli.Context) error {
 		configObj.AddIncludeAfterTime(includeAfter)
 	}
 
-	return gcpNukeHelper(c, configObj, projectID)
+	outputFormat := c.String("output-format")
+	outputFile := c.String("output-file")
+
+	return gcpNukeHelper(c, configObj, projectID, outputFormat, outputFile)
 }
 
 func gcpInspect(c *cli.Context) error {
@@ -697,8 +702,8 @@ func gcpInspect(c *cli.Context) error {
 	return err
 }
 
-func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string) error {
-	account, err := handleGetGcpResources(c, configObj, projectID)
+func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) error {
+	account, err := handleGetGcpResourcesWithFormat(c, configObj, projectID, outputFormat, outputFile)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -754,8 +759,6 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string) er
 		gcp.NukeAllResources(account, nil)
 	}
 
-	outputFormat := c.String("output-format")
-	outputFile := c.String("output-file")
 	ui.RenderRunReportWithFormat(outputFormat, outputFile)
 	return nil
 }
