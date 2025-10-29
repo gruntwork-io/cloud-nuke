@@ -47,11 +47,6 @@ func (instance *DBClusters) getAll(c context.Context, configObj config.Config) (
 
 	var names []*string
 	for _, database := range result.DBClusters {
-		// Skip deletion-protected clusters when config doesn't explicitly include them
-		if database.DeletionProtection != nil && *database.DeletionProtection && !configObj.DBClusters.IncludeDeletionProtected {
-			continue
-		}
-
 		if configObj.DBClusters.ShouldInclude(config.ResourceValue{
 			Name: database.DBClusterIdentifier,
 			Time: database.ClusterCreateTime,

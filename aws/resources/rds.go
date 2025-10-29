@@ -22,11 +22,6 @@ func (di *DBInstances) getAll(ctx context.Context, configObj config.Config) ([]*
 	var names []*string
 
 	for _, database := range result.DBInstances {
-		// Skip deletion-protected instances when config doesn't explicitly include them
-		if database.DeletionProtection != nil && *database.DeletionProtection && !configObj.DBInstances.IncludeDeletionProtected {
-			continue
-		}
-
 		if configObj.DBInstances.ShouldInclude(config.ResourceValue{
 			Time: database.InstanceCreateTime,
 			Name: database.DBInstanceIdentifier,

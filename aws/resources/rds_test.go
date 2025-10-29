@@ -100,7 +100,7 @@ func TestDBInstances_GetAll(t *testing.T) {
 	}{
 		"emptyFilter": {
 			configObj: config.AWSProtectectableResourceType{},
-			expected:  []string{testIdentifier1, testIdentifier2},
+			expected:  []string{testIdentifier1, testIdentifier2, testIdentifier3},
 		},
 		"nameExclusionFilter": {
 			configObj: config.AWSProtectectableResourceType{ResourceType: config.ResourceType{
@@ -110,7 +110,7 @@ func TestDBInstances_GetAll(t *testing.T) {
 					}},
 				},
 			}},
-			expected: []string{testIdentifier1, testIdentifier2},
+			expected: []string{testIdentifier1, testIdentifier2, testIdentifier3},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.AWSProtectectableResourceType{

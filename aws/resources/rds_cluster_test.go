@@ -63,13 +63,15 @@ func TestRDSClusterGetAll(t *testing.T) {
 		},
 	}
 
-	// Test Case 1: Empty config - should exclude deletion-protected clusters by default
+	// Test Case 1: Empty config - should include both protected and unprotected clusters
+	// Deletion protection is automatically disabled during deletion, so we include these clusters
 	clusters, err := dbCluster.getAll(context.Background(), config.Config{DBClusters: config.AWSProtectectableResourceType{}})
 	assert.NoError(t, err)
 	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
-	assert.NotContains(t, aws.ToStringSlice(clusters), strings.ToLower(testProtectedName))
+	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testProtectedName))
 
-	// Test Case 2: IncludeDeletionProtected=true - should include both protected and unprotected clusters
+	// Test Case 2: With IncludeDeletionProtected flag - behavior is now the same as Test Case 1
+	// since deletion-protected clusters are always included
 	clusters, err = dbCluster.getAll(context.Background(), config.Config{
 		DBClusters: config.AWSProtectectableResourceType{
 			IncludeDeletionProtected: true,
