@@ -42,7 +42,7 @@ func awsNuke(c *cli.Context) error {
 	}
 
 	// Apply timeout to config (consistent with GCP behavior)
-	if err := parseAndApplyTimeout(c, &configObj); err != nil {
+	if err = parseAndApplyTimeout(c, &configObj); err != nil {
 		return err
 	}
 
@@ -199,7 +199,6 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 // in the specified output format. This is used for both inspect and nuke operations.
 func handleGetResourcesWithFormat(c *cli.Context, configObj config.Config, query *aws.Query, outputFormat string, outputFile string) (
 	*aws.AwsAccountResources, error) {
-
 	// Display query parameters (only for table format to avoid cluttering JSON output)
 	if !ui.ShouldSuppressProgressOutput(outputFormat) {
 		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")

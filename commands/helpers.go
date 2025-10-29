@@ -147,7 +147,7 @@ func parseLogLevel(c *cli.Context) error {
 // Returns nil if the paramValue is empty or the default value.
 func parseDurationParam(flagName string, paramValue string) (*time.Time, error) {
 	if paramValue == DefaultDuration || paramValue == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // Returning (nil, nil) is semantically correct here - means "no value provided, not an error"
 	}
 
 	// Parse the duration string (e.g., "10h" -> 10 hours)
@@ -172,7 +172,7 @@ func parseDurationParam(flagName string, paramValue string) (*time.Time, error) 
 // Returns nil if the paramValue is empty or the default value.
 func parseTimeoutDurationParam(flagName string, paramValue string) (*time.Duration, error) {
 	if paramValue == DefaultDuration || paramValue == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // Returning (nil, nil) is semantically correct here - means "no value provided, not an error"
 	}
 
 	// Parse the duration string

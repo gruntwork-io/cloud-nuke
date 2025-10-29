@@ -4,11 +4,11 @@ import "github.com/urfave/cli/v2"
 
 // Default values
 const (
-	DefaultOutputFormat = "table"
-	DefaultDuration     = "0s"
-	DefaultLogLevel     = "info"
-	NukeConfirmationWord = "nuke"
-	ForceNukeCountdown  = 10
+	DefaultOutputFormat     = "table"
+	DefaultDuration         = "0s"
+	DefaultLogLevel         = "info"
+	NukeConfirmationWord    = "nuke"
+	ForceNukeCountdown      = 10
 	MaxConfirmationAttempts = 2
 )
 

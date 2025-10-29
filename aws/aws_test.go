@@ -50,31 +50,31 @@ func TestGetTargetRegions(t *testing.T) {
 	testEnabledRegions := []string{"us-east-1", "us-east-2", "us-west-1", "us-west-2"}
 
 	validInputTests := []test{
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{},
 			excludedRegions: []string{},
 			outputRegions:   testEnabledRegions,
 		},
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{"us-east-1"},
 			excludedRegions: []string{},
 			outputRegions:   []string{"us-east-1"},
 		},
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{"us-east-1", "us-east-2"},
 			excludedRegions: []string{},
 			outputRegions:   []string{"us-east-1", "us-east-2"},
 		},
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{},
 			excludedRegions: []string{"us-east-1"},
 			outputRegions:   []string{"us-east-2", "us-west-1", "us-west-2"},
 		},
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{},
 			excludedRegions: []string{"us-east-1", "us-east-2"},
@@ -90,35 +90,35 @@ func TestGetTargetRegions(t *testing.T) {
 
 	invalidInputTests := []test{
 		// Cannot specify empty enabledRegions
-		test{
+		{
 			enabledRegions:  []string{},
 			selectedRegions: []string{"us-east-1"},
 			excludedRegions: []string{"us-west-1"},
 			outputRegions:   nil,
 		},
 		// Cannot specify both selectedRegions and excludedRegions
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{"us-east-1"},
 			excludedRegions: []string{"us-west-1"},
 			outputRegions:   nil,
 		},
 		// Cannot specify invalid selectedRegion
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{"us-east-1", "xyz"},
 			excludedRegions: []string{},
 			outputRegions:   nil,
 		},
 		// Cannot specify invalid excludedRegion
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{},
 			excludedRegions: []string{"us-east-1", "xyz"},
 			outputRegions:   nil,
 		},
 		// Cannot exclude all regions
-		test{
+		{
 			enabledRegions:  testEnabledRegions,
 			selectedRegions: []string{},
 			excludedRegions: testEnabledRegions,
@@ -160,7 +160,6 @@ func TestHandleResourceTypeSelectionsRejectsInvalid(t *testing.T) {
 			require.ErrorAs(t, err, &tc.Error)
 		})
 	}
-
 }
 
 func TestHandleResourceTypeSelectionsRejectsConflictingParams(t *testing.T) {
@@ -189,7 +188,6 @@ func TestHandleResourceTypeSelectionsRejectsConflictingParams(t *testing.T) {
 			require.ErrorAs(t, err, &tc.Error)
 		})
 	}
-
 }
 
 func TestHandleResourceTypeSelectionsFiltering(t *testing.T) {

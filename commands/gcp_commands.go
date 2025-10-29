@@ -103,7 +103,7 @@ func gcpInspect(c *cli.Context) error {
 	configObj := config.Config{}
 
 	// Apply time filters to config
-	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {
+	if err = parseAndApplyTimeFilters(c, &configObj); err != nil {
 		return err
 	}
 
@@ -150,7 +150,6 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, re
 // in the specified output format. This is used for both inspect and nuke operations.
 func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, projectID string, resourceTypes []string, outputFormat string, outputFile string) (
 	*gcp.GcpProjectResources, error) {
-
 	// Display query parameters (only for table format to avoid cluttering JSON output)
 	if !ui.ShouldSuppressProgressOutput(outputFormat) {
 		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("GCP Resource Query Parameters")

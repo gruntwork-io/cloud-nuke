@@ -119,7 +119,7 @@ func TestEKSClusterGetAll(t *testing.T) {
 		"tagInclusionFilter": {
 			configObj: config.ResourceType{
 				IncludeRule: config.FilterRule{
-					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
 				},
 			},
 			expected: []string{testClusterName1},
@@ -127,7 +127,7 @@ func TestEKSClusterGetAll(t *testing.T) {
 		"tagExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
 				},
 			},
 			expected: []string{testClusterName2, testClusterName3},
