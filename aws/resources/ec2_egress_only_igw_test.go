@@ -136,11 +136,6 @@ func TestEc2EgressOnlyInternetGateway_NukeAll(t *testing.T) {
 	)
 
 	igw := EgressOnlyInternetGateway{
-		BaseAwsResource: BaseAwsResource{
-			Nukables: map[string]error{
-				gateway1: nil,
-			},
-		},
 		Client: mockedEgressOnlyIgw{
 			DescribeEgressOnlyInternetGatewaysOutput: ec2.DescribeEgressOnlyInternetGatewaysOutput{
 				EgressOnlyInternetGateways: []types.EgressOnlyInternetGateway{
@@ -166,6 +161,9 @@ func TestEc2EgressOnlyInternetGateway_NukeAll(t *testing.T) {
 			},
 			DeleteEgressOnlyInternetGatewayOutput: ec2.DeleteEgressOnlyInternetGatewayOutput{},
 		},
+	}
+	igw.Nukables = map[string]error{
+		gateway1: nil,
 	}
 
 	err := igw.nukeAll([]*string{

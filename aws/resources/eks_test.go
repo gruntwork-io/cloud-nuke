@@ -150,9 +150,6 @@ func TestEKSClusterNukeAll(t *testing.T) {
 	t.Parallel()
 	testClusterName := "test_cluster1"
 	eksCluster := EKSClusters{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
 		Client: mockedEKSCluster{
 			ListNodegroupsOutput: eks.ListNodegroupsOutput{},
 			DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
