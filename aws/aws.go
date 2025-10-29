@@ -24,7 +24,10 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	configObj.AddExcludeAfterTime(query.ExcludeAfter)
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
 	configObj.AddTimeout(query.Timeout)
-	configObj.KMSCustomerKeys.IncludeUnaliasedKeys = query.ListUnaliasedKMSKeys
+	// Only override the config file value if the CLI flag is explicitly set to true
+	if query.ListUnaliasedKMSKeys {
+		configObj.KMSCustomerKeys.IncludeUnaliasedKeys = true
+	}
 
 	// Setting the DefaultOnly field
 	// This function only sets the objects that have the `DefaultOnly` field, currently VPC, Subnet, and Security Group.
