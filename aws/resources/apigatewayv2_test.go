@@ -84,6 +84,37 @@ func TestApiGatewayV2GetAll(t *testing.T) {
 				TimeAfter: aws.Time(now.Add(-1))}}})
 	assert.NoError(t, err)
 	assert.NotContains(t, aws.ToStringSlice(apis), testApiID)
+
+	// filter by tags
+	gwWithTags := ApiGatewayV2{
+		Client: mockedApiGatewayV2{
+			GetApisOutput: apigatewayv2.GetApisOutput{
+				Items: []types.Api{{
+					ApiId:       aws.String(testApiID),
+					Name:        aws.String(testApiName),
+					CreatedDate: aws.Time(now),
+					Tags:        map[string]string{"Environment": "production"},
+				}},
+			},
+		},
+	}
+	apis, err = gwWithTags.getAll(context.Background(), config.Config{
+		APIGatewayV2: config.ResourceType{
+			IncludeRule: config.FilterRule{
+				Tags: map[string]config.Expression{
+					"Environment": {RE: *regexp.MustCompile("production")},
+				}}}})
+	assert.NoError(t, err)
+	assert.Contains(t, aws.ToStringSlice(apis), testApiID)
+
+	apis, err = gwWithTags.getAll(context.Background(), config.Config{
+		APIGatewayV2: config.ResourceType{
+			ExcludeRule: config.FilterRule{
+				Tags: map[string]config.Expression{
+					"Environment": {RE: *regexp.MustCompile("production")},
+				}}}})
+	assert.NoError(t, err)
+	assert.NotContains(t, aws.ToStringSlice(apis), testApiID)
 }
 
 func TestApiGatewayV2NukeAll(t *testing.T) {

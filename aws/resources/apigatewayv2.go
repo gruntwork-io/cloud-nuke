@@ -25,6 +25,7 @@ func (gw *ApiGatewayV2) getAll(ctx context.Context, configObj config.Config) ([]
 		if configObj.APIGatewayV2.ShouldInclude(config.ResourceValue{
 			Time: restapi.CreatedDate,
 			Name: restapi.Name,
+			Tags: restapi.Tags,
 		}) {
 			Ids = append(Ids, restapi.ApiId)
 		}
