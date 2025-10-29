@@ -18,20 +18,6 @@ func (err CouldNotDetermineEnabledRegionsError) Error() string {
 	return fmt.Sprintf("Unable to determine enabled regions in target account. Original error: %v", err.Underlying)
 }
 
-type InvalidResourceTypesSuppliedError struct {
-	InvalidTypes []string
-}
-
-func (err InvalidResourceTypesSuppliedError) Error() string {
-	return fmt.Sprintf("Invalid resourceTypes %s specified: %s", err.InvalidTypes, "Try --list-resource-types to get a list of valid resource types.")
-}
-
-type ResourceTypeAndExcludeFlagsBothPassedError struct{}
-
-func (err ResourceTypeAndExcludeFlagsBothPassedError) Error() string {
-	return "You can not specify both --resource-type and --exclude-resource-type"
-}
-
 type InvalidTimeStringPassedError struct {
 	Entry      string
 	Underlying error

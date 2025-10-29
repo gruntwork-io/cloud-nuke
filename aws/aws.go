@@ -7,16 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/pterm/pterm"
-
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/collections"
+	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"github.com/pterm/pterm"
 )
 
 // GetAllResources - Lists all aws resources
@@ -141,6 +140,14 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 		return true
 	}
 	return false
+}
+
+// HandleResourceTypeSelections is a wrapper around the resource package function for AWS resource types.
+// It filters any excluded or invalid types from target resourceTypes then returns the filtered slice.
+func HandleResourceTypeSelections(
+	includeResourceTypes, excludeResourceTypes []string,
+) ([]string, error) {
+	return resource.HandleResourceTypeSelections(includeResourceTypes, excludeResourceTypes, ListResourceTypes())
 }
 
 func nukeAllResourcesInRegion(account *AwsAccountResources, region string, bar *pterm.ProgressbarPrinter) {

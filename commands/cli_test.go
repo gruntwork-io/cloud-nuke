@@ -1,15 +1,16 @@
 package commands
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/aws"
-	"github.com/gruntwork-io/cloud-nuke/aws/resources"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/aws"
+	"github.com/gruntwork-io/cloud-nuke/aws/resources"
+	goCommonErrors "github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
@@ -17,9 +18,9 @@ import (
 
 func TestParseDuration(t *testing.T) {
 	now := time.Now()
-	then, err := parseDurationParam("1h")
+	then, err := parseDurationParam("test-duration", "1h")
 	if err != nil {
-		assert.Fail(t, errors.WithStackTrace(err).Error())
+		assert.Fail(t, goCommonErrors.WithStackTrace(err).Error())
 	}
 
 	if now.Hour() == 0 {
@@ -37,9 +38,69 @@ func TestParseDuration(t *testing.T) {
 }
 
 func TestParseDurationInvalidFormat(t *testing.T) {
-	value, err := parseDurationParam("")
+	value, err := parseDurationParam("test-duration", "")
 	assert.NoError(t, err)
 	assert.Nil(t, value)
+}
+
+func TestStructuredErrors(t *testing.T) {
+	t.Run("InvalidDurationError", func(t *testing.T) {
+		_, err := parseDurationParam("older-than", "invalid-duration")
+		assert.Error(t, err)
+
+		// Unwrap the stacktrace to get the actual error
+		var durationErr InvalidDurationError
+		if errors.As(err, &durationErr) {
+			assert.Equal(t, "older-than", durationErr.FlagName)
+			assert.Equal(t, "invalid-duration", durationErr.Value)
+			assert.NotNil(t, durationErr.Underlying)
+			assert.Contains(t, durationErr.Error(), "older-than")
+			assert.Contains(t, durationErr.Error(), "invalid-duration")
+		} else {
+			t.Error("Expected InvalidDurationError")
+		}
+	})
+
+	t.Run("InvalidDurationError for timeout", func(t *testing.T) {
+		_, err := parseTimeoutDurationParam("timeout", "not-a-duration")
+		assert.Error(t, err)
+
+		var durationErr InvalidDurationError
+		if errors.As(err, &durationErr) {
+			assert.Equal(t, "timeout", durationErr.FlagName)
+			assert.Equal(t, "not-a-duration", durationErr.Value)
+			assert.Contains(t, durationErr.Error(), "timeout")
+		} else {
+			t.Error("Expected InvalidDurationError")
+		}
+	})
+
+	t.Run("ConfigFileReadError", func(t *testing.T) {
+		err := ConfigFileReadError{
+			FilePath:   "/path/to/config.yaml",
+			Underlying: errors.New("file not found"),
+		}
+		assert.Contains(t, err.Error(), "/path/to/config.yaml")
+		assert.Contains(t, err.Error(), "file not found")
+	})
+
+	t.Run("InvalidLogLevelError", func(t *testing.T) {
+		err := InvalidLogLevelError{
+			Value:      "invalid-level",
+			Underlying: errors.New("not a valid log level"),
+		}
+		assert.Contains(t, err.Error(), "invalid-level")
+		assert.Contains(t, err.Error(), "not a valid log level")
+	})
+
+	t.Run("InvalidFlagError", func(t *testing.T) {
+		err := InvalidFlagError{
+			Name:  "test-flag",
+			Value: "bad-value",
+		}
+		assert.Contains(t, err.Error(), "test-flag")
+		assert.Contains(t, err.Error(), "bad-value")
+	})
 }
 
 func TestListResourceTypes(t *testing.T) {

@@ -2,7 +2,7 @@ package ui
 
 import "time"
 
-// InspectOutput represents the JSON output structure for inspect commands
+// InspectOutput represents the JSON output structure for inspect cli
 type InspectOutput struct {
 	Timestamp time.Time      `json:"timestamp"`
 	Command   string         `json:"command"`
@@ -40,7 +40,7 @@ type InspectSummary struct {
 	ByRegion       map[string]int `json:"by_region"`
 }
 
-// NukeOutput represents the JSON output structure for nuke commands
+// NukeOutput represents the JSON output structure for nuke cli
 type NukeOutput struct {
 	Timestamp time.Time          `json:"timestamp"`
 	Command   string             `json:"command"`

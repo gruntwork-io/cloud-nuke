@@ -81,22 +81,20 @@ func TestGCSBuckets_PrepareContext(t *testing.T) {
 	err := gcs.PrepareContext(context.Background(), resourceConfig)
 	assert.NoError(t, err)
 	assert.NotNil(t, gcs.Context)
-	assert.NotNil(t, gcs.cancel)
+	assert.True(t, gcs.HasCancelFunc(), "cancel function should exist when timeout is set")
 
 	// Clean up
 	gcs.CancelContext()
 
-	// Reset the cancel field
-	gcs.cancel = nil
-
-	// Test without timeout
+	// Test without timeout - create a new instance to test clean state
+	gcs2 := &GCSBuckets{}
 	resourceConfig = config.ResourceType{Timeout: ""}
-	err = gcs.PrepareContext(context.Background(), resourceConfig)
+	err = gcs2.PrepareContext(context.Background(), resourceConfig)
 	assert.NoError(t, err)
-	assert.NotNil(t, gcs.Context)
+	assert.NotNil(t, gcs2.Context)
 	// When no timeout is specified, the context should be the same as the parent
 	// and cancel should be nil (no timeout context created)
-	assert.Nil(t, gcs.cancel)
+	assert.False(t, gcs2.HasCancelFunc(), "cancel function should not exist when timeout is not set")
 }
 
 func TestGCSBuckets_ResourceIdentifiers(t *testing.T) {
