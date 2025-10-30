@@ -145,6 +145,7 @@ func TestNetworkAcl_NukeAll(t *testing.T) {
 				NetworkAcls: []types.NetworkAcl{
 					{
 						NetworkAclId: aws.String(testId1),
+						VpcId:        aws.String("vpc-12345678"),
 						Associations: []types.NetworkAclAssociation{
 							{
 								NetworkAclAssociationId: aws.String("assoc-09e36c45cbdbfb001"),
@@ -161,6 +162,7 @@ func TestNetworkAcl_NukeAll(t *testing.T) {
 					},
 					{
 						NetworkAclId: aws.String(testId2),
+						VpcId:        aws.String("vpc-12345678"),
 						Associations: []types.NetworkAclAssociation{
 							{
 								NetworkAclAssociationId: aws.String("assoc-09e36c45cbdbfb002"),
@@ -179,6 +181,8 @@ func TestNetworkAcl_NukeAll(t *testing.T) {
 			},
 		},
 	}
+	resourceObject.Context = context.Background()
+
 	err := resourceObject.nukeAll([]*string{
 		aws.String(testId1),
 		aws.String(testId2),

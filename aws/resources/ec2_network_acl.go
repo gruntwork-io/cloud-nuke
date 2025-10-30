@@ -117,6 +117,11 @@ func (nacl *NetworkACL) nukeAssociatedSubnets(id string) error {
 		vpcID      = networkAcl.VpcId
 	)
 
+	if vpcID == nil {
+		logging.Debugf("[nukeAssociatedSubnets] Network ACL %s has no VPC ID", id)
+		return nil
+	}
+
 	// Get the default network ACL association ID
 	logging.Debugf("[nukeAssociatedSubnets] Describing default network ACL for VPC: %s", *vpcID)
 	networkACLs, err := nacl.Client.DescribeNetworkAcls(
