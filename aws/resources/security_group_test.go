@@ -81,12 +81,6 @@ func TestSecurityGroup_GetAll(t *testing.T) {
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
 	sg := SecurityGroup{
-		BaseAwsResource: BaseAwsResource{
-			Nukables: map[string]error{
-				testId1: nil,
-				testId2: nil,
-			},
-		},
 		Client: &mockedSecurityGroup{
 			DescribeSecurityGroupsOutput: &ec2.DescribeSecurityGroupsOutput{
 				SecurityGroups: []types.SecurityGroup{

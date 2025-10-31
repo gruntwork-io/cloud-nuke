@@ -69,13 +69,11 @@ func TestAutoScalingGroupNukeAll(t *testing.T) {
 	t.Parallel()
 
 	ag := ASGroups{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
 		Client: mockedASGroups{
 			DeleteAutoScalingGroupOutput: autoscaling.DeleteAutoScalingGroupOutput{},
 		},
 	}
+	ag.Context = context.Background()
 
 	err := ag.nukeAll([]*string{aws.String("cloud-nuke-test")})
 	assert.NoError(t, err)

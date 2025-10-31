@@ -339,6 +339,16 @@ func GetConfig(filePath string) (*Config, error) {
 	return &configObj, nil
 }
 
+// ApplyTimeFilters applies time-based filters to the config
+func (c *Config) ApplyTimeFilters(excludeAfter, includeAfter *time.Time) {
+	if excludeAfter != nil {
+		c.AddExcludeAfterTime(excludeAfter)
+	}
+	if includeAfter != nil {
+		c.AddIncludeAfterTime(includeAfter)
+	}
+}
+
 func matches(name string, regexps []Expression) bool {
 	for _, re := range regexps {
 		if re.RE.MatchString(name) {

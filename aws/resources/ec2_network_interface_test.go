@@ -163,12 +163,6 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 	)
 
 	resourceObject := NetworkInterface{
-		BaseAwsResource: BaseAwsResource{
-			Nukables: map[string]error{
-				testId1: nil,
-				testId2: nil,
-			},
-		},
 		Client: mockedNetworkInterface{
 			DeleteNetworkInterfaceOutput: ec2.DeleteNetworkInterfaceOutput{},
 			DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
@@ -222,7 +216,10 @@ func TestNetworkInterface_NukeAll(t *testing.T) {
 			},
 		},
 	}
-	resourceObject.Context = context.Background()
+	resourceObject.Nukables = map[string]error{
+		testId1: nil,
+		testId2: nil,
+	}
 
 	err := resourceObject.nukeAll([]*string{
 		aws.String(testId1),

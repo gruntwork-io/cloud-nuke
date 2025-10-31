@@ -9,19 +9,28 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/gcp/resources"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/go-commons/collections"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/pterm/pterm"
 )
 
 // GetAllResources - Lists all GCP resources that can be deleted.
-func GetAllResources(projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time) (*GcpProjectResources, error) {
+// If targetResourceTypes is empty, all resource types will be retrieved.
+func GetAllResources(projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time, targetResourceTypes []string) (*GcpProjectResources, error) {
 	allResources := GcpProjectResources{
 		Resources: map[string]GcpResources{},
 	}
 
 	// Get all resource types to delete
-	resourceTypes := getAllResourceTypes()
+	allResourceTypes := getAllResourceTypes()
+
+	// Filter resource types if specified
+	resourceTypes := allResourceTypes
+	if len(targetResourceTypes) > 0 {
+		resourceTypes = filterResourceTypes(allResourceTypes, targetResourceTypes)
+	}
 
 	// Create a progress bar
 	bar, _ := pterm.DefaultProgressbar.WithTotal(len(resourceTypes)).WithTitle("Retrieving GCP resources").Start()
@@ -119,6 +128,25 @@ func ListResourceTypes() []string {
 		resourceTypes = append(resourceTypes, resource.ResourceName())
 	}
 	return resourceTypes
+}
+
+// HandleResourceTypeSelections is a wrapper around the resource package function for GCP resource types.
+// It filters any excluded or invalid types from target resourceTypes then returns the filtered slice.
+func HandleResourceTypeSelections(
+	includeResourceTypes, excludeResourceTypes []string,
+) ([]string, error) {
+	return resource.HandleResourceTypeSelections(includeResourceTypes, excludeResourceTypes, ListResourceTypes())
+}
+
+// filterResourceTypes filters the GCP resource types based on the target resource type names
+func filterResourceTypes(allResources []GcpResource, targetNames []string) []GcpResource {
+	filtered := []GcpResource{}
+	for _, resource := range allResources {
+		if collections.ListContainsElement(targetNames, resource.ResourceName()) {
+			filtered = append(filtered, resource)
+		}
+	}
+	return filtered
 }
 
 // splitIntoBatches - Splits a slice into batches

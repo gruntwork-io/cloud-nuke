@@ -94,6 +94,11 @@ func (sg *SecurityGroup) detachAssociatedSecurityGroups(id *string) error {
 		return cerrors.WithStackTrace(err)
 	}
 
+	if resp == nil {
+		logging.Debugf("[detachAssociatedSecurityGroups] Received nil response when listing security groups")
+		return nil
+	}
+
 	for _, securityGroup := range resp.SecurityGroups {
 		// omit the check for current security group
 		if aws.ToString(id) == aws.ToString(securityGroup.GroupId) {
@@ -289,6 +294,11 @@ func (sg *SecurityGroup) terminateInstancesAssociatedWithSecurityGroup(id string
 	if err != nil {
 		logging.Debugf("[terminateInstancesAssociatedWithSecurityGroup] Failed to describe instances associated with security group %s: %s", id, err)
 		return cerrors.WithStackTrace(err)
+	}
+
+	if resp == nil {
+		logging.Debugf("[terminateInstancesAssociatedWithSecurityGroup] Received nil response for security group %s", id)
+		return nil
 	}
 
 	for _, reservation := range resp.Reservations {

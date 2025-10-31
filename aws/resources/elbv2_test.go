@@ -114,9 +114,6 @@ func TestElbV2_NukeAll(t *testing.T) {
 	t.Parallel()
 	var eLBNotFound errMockLoadBalancerNotFound
 	balancer := LoadBalancersV2{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
 		Client: mockedElbV2{
 			DescribeLoadBalancersOutput:    elasticloadbalancingv2.DescribeLoadBalancersOutput{},
 			ErrDescribeLoadBalancersOutput: eLBNotFound,

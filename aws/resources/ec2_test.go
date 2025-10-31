@@ -136,9 +136,6 @@ func TestEc2Instances_GetAll(t *testing.T) {
 func TestEc2Instances_NukeAll(t *testing.T) {
 	t.Parallel()
 	ei := EC2Instances{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
 		Client: mockedEC2Instances{
 			DescribeInstancesOutput: ec2.DescribeInstancesOutput{
 				Reservations: []types.Reservation{
@@ -164,9 +161,6 @@ func TestEc2Instances_NukeAll(t *testing.T) {
 func TestEc2InstancesWithEIP_NukeAll(t *testing.T) {
 	t.Parallel()
 	ei := EC2Instances{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
 		Client: mockedEC2Instances{
 			DescribeInstancesOutput: ec2.DescribeInstancesOutput{
 				Reservations: []types.Reservation{
@@ -193,6 +187,7 @@ func TestEc2InstancesWithEIP_NukeAll(t *testing.T) {
 			},
 		},
 	}
+	ei.Context = context.Background()
 
 	err := ei.nukeAll([]*string{aws.String("testId1")})
 	require.NoError(t, err)

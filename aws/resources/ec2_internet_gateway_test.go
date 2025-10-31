@@ -134,11 +134,6 @@ func TestEc2InternetGateway_NukeAll(t *testing.T) {
 	)
 
 	igw := InternetGateway{
-		BaseAwsResource: BaseAwsResource{
-			Nukables: map[string]error{
-				gateway1: nil,
-			},
-		},
 		Client: mockedInternetGateway{
 			DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
 				InternetGateways: []types.InternetGateway{
@@ -164,6 +159,9 @@ func TestEc2InternetGateway_NukeAll(t *testing.T) {
 			},
 			DeleteInternetGatewayOutput: ec2.DeleteInternetGatewayOutput{},
 		},
+	}
+	igw.Nukables = map[string]error{
+		gateway1: nil,
 	}
 
 	err := igw.nukeAll([]*string{

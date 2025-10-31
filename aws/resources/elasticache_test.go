@@ -103,9 +103,6 @@ func TestElasticache_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	ec := Elasticaches{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
 		Client: mockedElasticache{
 			DescribeReplicationGroupsOutput: elasticache.DescribeReplicationGroupsOutput{
 				ReplicationGroups: []types.ReplicationGroup{

@@ -118,9 +118,6 @@ func TestEC2Service_GetAll(t *testing.T) {
 func TestEC2Service_NukeAll(t *testing.T) {
 	t.Parallel()
 	es := ECSServices{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
 		Client: mockedEC2Service{
 			DescribeServicesOutput: ecs.DescribeServicesOutput{
 				Services: []types.Service{

@@ -131,12 +131,6 @@ func TestEc2Endpoints_NukeAll(t *testing.T) {
 	)
 
 	igw := EC2Endpoints{
-		BaseAwsResource: BaseAwsResource{
-			Nukables: map[string]error{
-				endpoint1: nil,
-				endpoint2: nil,
-			},
-		},
 		Client: mockedEc2VpcEndpoints{
 			DescribeVpcEndpointsOutput: ec2.DescribeVpcEndpointsOutput{
 				VpcEndpoints: []types.VpcEndpoint{
@@ -150,6 +144,10 @@ func TestEc2Endpoints_NukeAll(t *testing.T) {
 			},
 			DeleteVpcEndpointsOutput: ec2.DeleteVpcEndpointsOutput{},
 		},
+	}
+	igw.Nukables = map[string]error{
+		endpoint1: nil,
+		endpoint2: nil,
 	}
 
 	err := igw.nukeAll([]*string{
