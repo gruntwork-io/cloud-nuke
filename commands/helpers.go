@@ -184,5 +184,15 @@ func parseTimeoutDurationParam(flagName string, paramValue string) (*time.Durati
 			Underlying: err,
 		})
 	}
+
+	// Validate that timeout is positive
+	if duration <= 0 {
+		return nil, errors.WithStackTrace(InvalidDurationError{
+			FlagName:   flagName,
+			Value:      paramValue,
+			Underlying: fmt.Errorf("timeout must be positive, got %v", duration),
+		})
+	}
+
 	return &duration, nil
 }

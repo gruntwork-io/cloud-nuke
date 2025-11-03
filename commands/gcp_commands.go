@@ -17,7 +17,10 @@ import (
 // These functions implement the CLI commands for GCP operations
 
 // gcpNuke is the main command handler for nuking (deleting) GCP resources.
-// It supports resource filtering, time-based filtering, and config file overrides.
+// It supports time-based filtering and config file overrides.
+//
+// Note: The --resource-type and --exclude-resource-type flags are currently ignored for GCP.
+// GCP always processes all resource types. This should be implemented in a future PR.
 func gcpNuke(c *cli.Context) error {
 	telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "Start gcp",
@@ -63,6 +66,9 @@ func gcpNuke(c *cli.Context) error {
 
 // gcpInspect is the command handler for non-destructive inspection of GCP resources.
 // It lists resources that would be deleted without actually deleting them.
+//
+// Note: The --resource-type and --exclude-resource-type flags are currently ignored for GCP.
+// GCP always inspects all resource types. This should be implemented in a future PR.
 func gcpInspect(c *cli.Context) error {
 	telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "Start gcp-inspect",
