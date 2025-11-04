@@ -22,12 +22,7 @@ import (
 // Note: The --resource-type and --exclude-resource-type flags are currently ignored for GCP.
 // GCP always processes all resource types. This should be implemented in a future PR.
 func gcpNuke(c *cli.Context) error {
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Start gcp",
-	}, map[string]interface{}{})
-	defer telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "End gcp",
-	}, map[string]interface{}{})
+	defer telemetry.TrackCommandLifecycle("gcp")()
 
 	// Handle the --list-resource-types flag
 	if c.Bool(FlagListResourceTypes) {
@@ -70,12 +65,7 @@ func gcpNuke(c *cli.Context) error {
 // Note: The --resource-type and --exclude-resource-type flags are currently ignored for GCP.
 // GCP always inspects all resource types. This should be implemented in a future PR.
 func gcpInspect(c *cli.Context) error {
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Start gcp-inspect",
-	}, map[string]interface{}{})
-	defer telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "End gcp-inspect",
-	}, map[string]interface{}{})
+	defer telemetry.TrackCommandLifecycle("gcp-inspect")()
 
 	// Handle the --list-resource-types flag
 	if c.Bool(FlagListResourceTypes) {

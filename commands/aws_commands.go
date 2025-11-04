@@ -3,7 +3,6 @@ package commands
 import (
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -18,12 +17,7 @@ import (
 // awsNuke is the main command handler for nuking (deleting) AWS resources.
 // It supports resource filtering, time-based filtering, and config file overrides.
 func awsNuke(c *cli.Context) error {
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Start aws",
-	}, map[string]interface{}{})
-	defer telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "End aws",
-	}, map[string]interface{}{})
+	defer telemetry.TrackCommandLifecycle("aws")()
 
 	// Handle the --list-resource-types flag
 	if c.Bool(FlagListResourceTypes) {
@@ -62,17 +56,11 @@ func awsNuke(c *cli.Context) error {
 // awsDefaults is the command handler for nuking AWS default VPCs and security groups.
 // This is a specialized version of awsNuke that targets only default resources.
 func awsDefaults(c *cli.Context) error {
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Start aws-defaults",
-	}, map[string]interface{}{})
-	defer telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "End aws-defaults",
-	}, map[string]interface{}{})
+	defer telemetry.TrackCommandLifecycle("aws-defaults")()
 
 	// Parse and set log level
-	parseErr := logging.ParseLogLevel(c.String(FlagLogLevel))
-	if parseErr != nil {
-		return errors.WithStackTrace(parseErr)
+	if err := parseLogLevel(c); err != nil {
+		return err
 	}
 
 	// Determine which default resources to target based on flags
@@ -95,12 +83,7 @@ func awsDefaults(c *cli.Context) error {
 // awsInspect is the command handler for non-destructive inspection of AWS resources.
 // It lists resources that would be deleted without actually deleting them.
 func awsInspect(c *cli.Context) error {
-	telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "Start aws-inspect",
-	}, map[string]interface{}{})
-	defer telemetry.TrackEvent(commonTelemetry.EventContext{
-		EventName: "End aws-inspect",
-	}, map[string]interface{}{})
+	defer telemetry.TrackCommandLifecycle("aws-inspect")()
 
 	// Handle the --list-resource-types flag
 	if c.Bool(FlagListResourceTypes) {
