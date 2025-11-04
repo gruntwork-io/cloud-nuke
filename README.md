@@ -641,7 +641,7 @@ of the file that are supported are listed here.
 | ec2-endpoint                     | EC2Endpoint                   | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | ecr                              | ECRRepository                 | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    | ✅       |
 | ecscluster                       | ECSCluster                    | ✅ (Cluster Name)                      | ✅ (First Seen Tag Time)             | ✅    | ✅       |
-| ecsserv                          | ECSService                    | ✅ (Service Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| ecsserv                          | ECSService                    | ✅ (Service Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | ekscluster                       | EKSCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | elb                              | ELBv1                         | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    | ✅       |
 | elbv2                            | ELBv2                         | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    | ✅       |
@@ -670,7 +670,7 @@ of the file that are supported are listed here.
 | kinesis-firehose                 | KinesisFirehose               | ✅ (Delivery Stream Name)              | ❌                                   | ❌    | ✅       |
 | lambda                           | LambdaFunction                | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ✅    | ✅       |
 | lc                               | LaunchConfiguration           | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    | ✅       |
-| lt                               | LaunchTemplate                | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ❌    | ✅       |
+| lt                               | LaunchTemplate                | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ✅    | ✅       |
 | macie-member                     | MacieMember                   | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | msk-cluster                      | MSKCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | managed-prometheus               | ManagedPrometheus             | ✅ (Workspace Alias)                   | ✅ (Creation Time)                   | ✅    | ✅       |
