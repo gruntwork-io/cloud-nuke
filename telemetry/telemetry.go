@@ -36,3 +36,23 @@ func TrackEvent(ctx telemetry.EventContext, extraProperties map[string]interface
 		telemetryClient.TrackEvent(ctx, extraProperties)
 	}
 }
+
+// TrackCommandLifecycle creates a telemetry tracking wrapper for command execution.
+// It tracks the start event immediately and returns a cleanup function that tracks the end event.
+// Usage:
+//
+//	func myCommand(c *cli.Context) error {
+//	    defer TrackCommandLifecycle("my-command")()
+//	    // ... command implementation
+//	}
+func TrackCommandLifecycle(commandName string) func() {
+	TrackEvent(telemetry.EventContext{
+		EventName: "Start " + commandName,
+	}, map[string]interface{}{})
+
+	return func() {
+		TrackEvent(telemetry.EventContext{
+			EventName: "End " + commandName,
+		}, map[string]interface{}{})
+	}
+}
