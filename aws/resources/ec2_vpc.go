@@ -465,7 +465,7 @@ func nukeNetworkInterfaces(client EC2VPCAPI, vpcID string) error {
 			continue
 		}
 
-		err := nukeNetworkInterface(client, netInterface.NetworkInterfaceId)
+		err := nukeNetworkInterface(client, context.Background(), netInterface.NetworkInterfaceId)
 		if err != nil {
 			logging.Debug(fmt.Sprintf("Failed to delete network interface: %v", netInterface))
 			return errors.WithStackTrace(err)
