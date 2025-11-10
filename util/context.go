@@ -5,11 +5,14 @@ import (
 	"errors"
 )
 
+// ContextKey is a custom type to avoid collisions when using context.WithValue
+type ContextKey string
+
 const (
-	ExcludeFirstSeenTagKey = "exclude-first-seen-tag"
+	ExcludeFirstSeenTagKey ContextKey = "exclude-first-seen-tag"
 )
 
-func GetBoolFromContext(ctx context.Context, key string) (bool, error) {
+func GetBoolFromContext(ctx context.Context, key ContextKey) (bool, error) {
 	result, ok := ctx.Value(key).(bool)
 	if !ok {
 		return result, errors.New("unable to find the boolean context value or correct type mismatch.")
