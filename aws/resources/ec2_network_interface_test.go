@@ -119,9 +119,9 @@ func TestNetworkInterface_GetAll(t *testing.T) {
 		usePaginated bool
 	}{
 		"emptyFilter": {
-			ctx:        ctx,
-			configObj:  config.ResourceType{},
-			expected:   []string{testId1, testId2},
+			ctx:         ctx,
+			configObj:   config.ResourceType{},
+			expected:    []string{testId1, testId2},
 			resourceObj: resourceObject,
 		},
 		"nameExclusionFilter": {
@@ -215,7 +215,6 @@ func TestNetworkInterface_GetAll_Pagination(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"eni-page1-001", "eni-page2-001"}, aws.ToStringSlice(identifiers))
 }
-
 
 func TestNetworkInterface_NukeAll(t *testing.T) {
 
