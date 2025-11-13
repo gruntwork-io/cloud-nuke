@@ -31,36 +31,41 @@ func shouldIncludeNetworkInterface(networkInterface types.NetworkInterface, firs
 func (ni *NetworkInterface) getAll(c context.Context, configObj config.Config) ([]*string, error) {
 	var identifiers []*string
 
-	var firstSeenTime *time.Time
-	var err error
+	hasMorePages := true
+	params := &ec2.DescribeNetworkInterfacesInput{}
 
-	resp, err := ni.Client.DescribeNetworkInterfaces(ni.Context, &ec2.DescribeNetworkInterfacesInput{})
-	if err != nil {
-		logging.Debugf("[Internet Gateway] Failed to list internet gateways: %s", err)
-		return nil, err
-	}
-
-	for _, networkInterface := range resp.NetworkInterfaces {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, ni.Client, networkInterface.NetworkInterfaceId, util.ConvertTypesTagsToMap(networkInterface.TagSet))
+	for hasMorePages {
+		resp, err := ni.Client.DescribeNetworkInterfaces(ni.Context, params)
 		if err != nil {
-			logging.Error("unable to retrieve first seen tag")
-			continue
+			logging.Debugf("[Network Interface] Failed to list network interfaces: %s", err)
+			return nil, err
 		}
 
-		// NOTE: Not all network interface types can be detached programmatically, and some may take longer to nuke.
-		// Interfaces attached to Lambda or other AWS services may have specific detachment mechanisms managed by
-		// those services. Attempting to detach these via the API can cause errors. Skipping non-interface types
-		// ensures they are cleaned up automatically upon service deletion.
-		if networkInterface.InterfaceType != NetworkInterfaceTypeInterface {
-			logging.Debugf("[Skip] Can't detach network interface of type '%v' via API. "+
-				"Detachment for this type is managed by the dependent service and will occur automatically upon "+
-				"resource deletion.", networkInterface.InterfaceType)
-			continue
+		for _, networkInterface := range resp.NetworkInterfaces {
+			firstSeenTime, err := util.GetOrCreateFirstSeen(c, ni.Client, networkInterface.NetworkInterfaceId, util.ConvertTypesTagsToMap(networkInterface.TagSet))
+			if err != nil {
+				logging.Errorf("[Network Interface] Unable to retrieve first seen tag for %s: %s", aws.ToString(networkInterface.NetworkInterfaceId), err)
+				continue
+			}
+
+			// NOTE: Not all network interface types can be detached programmatically, and some may take longer to nuke.
+			// Interfaces attached to Lambda or other AWS services may have specific detachment mechanisms managed by
+			// those services. Attempting to detach these via the API can cause errors. Skipping non-interface types
+			// ensures they are cleaned up automatically upon service deletion.
+			if networkInterface.InterfaceType != NetworkInterfaceTypeInterface {
+				logging.Debugf("[Skip] Can't detach network interface of type '%v' via API. "+
+					"Detachment for this type is managed by the dependent service and will occur automatically upon "+
+					"resource deletion.", networkInterface.InterfaceType)
+				continue
+			}
+
+			if shouldIncludeNetworkInterface(networkInterface, firstSeenTime, configObj) {
+				identifiers = append(identifiers, networkInterface.NetworkInterfaceId)
+			}
 		}
 
-		if shouldIncludeNetworkInterface(networkInterface, firstSeenTime, configObj) {
-			identifiers = append(identifiers, networkInterface.NetworkInterfaceId)
-		}
+		params.NextToken = resp.NextToken
+		hasMorePages = params.NextToken != nil
 	}
 
 	// Check and verify the list of allowed nuke actions
@@ -81,7 +86,7 @@ func (ni *NetworkInterface) nuke(id *string) error {
 		return errors.WithStackTrace(err)
 	}
 	// nuking the network interface
-	if err := nukeNetworkInterface(ni.Client, id); err != nil {
+	if err := nukeNetworkInterface(ni.Client, ni.Context, id); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -223,7 +228,7 @@ func (ni *NetworkInterface) nukeAll(identifiers []*string) error {
 		return nil
 	}
 
-	logging.Debugf("Deleting all network interface in region %s", ni.Region)
+	logging.Debugf("Deleting all network interfaces in region %s", ni.Region)
 	var deleted []*string
 
 	for _, id := range identifiers {
@@ -235,7 +240,7 @@ func (ni *NetworkInterface) nukeAll(identifiers []*string) error {
 		err := ni.nuke(id)
 
 		// Record status of this resource
-		e := report.Entry{ // Use the 'r' alias to refer to the package
+		e := report.Entry{
 			Identifier:   aws.ToString(id),
 			ResourceType: "Network Interface",
 			Error:        err,
@@ -252,7 +257,7 @@ func (ni *NetworkInterface) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func nukeNetworkInterface(client NetworkInterfaceAPI, id *string) error {
+func nukeNetworkInterface(client NetworkInterfaceAPI, ctx context.Context, id *string) error {
 	logging.Debugf("Deleting network interface %s", aws.ToString(id))
 
 	// If the network interface was attached to an instance, then when we remove the instance above, the network interface will also be removed.
@@ -261,7 +266,7 @@ func nukeNetworkInterface(client NetworkInterfaceAPI, id *string) error {
 	//
 	// Note: We are handling the situation here by checking the error response from AWS.
 
-	_, err := client.DeleteNetworkInterface(context.Background(), &ec2.DeleteNetworkInterfaceInput{
+	_, err := client.DeleteNetworkInterface(ctx, &ec2.DeleteNetworkInterfaceInput{
 		NetworkInterfaceId: id,
 	})
 
