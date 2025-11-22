@@ -31,13 +31,10 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Prepare Logs Directory
-          command: mkdir -p /tmp/logs
-      - run:
           name: Run Tests
           command: |
             mkdir -p /tmp/logs
-            DISABLE_TELEMETRY=true run-go-tests --parallelism 4 --timeout 45m | tee /tmp/logs/all.log
+            DISABLE_TELEMETRY=true run-go-tests --parallelism 8 --timeout 45m | tee /tmp/logs/all.log
           no_output_timeout: 45m
       - run:
           name: Parse Test Output
