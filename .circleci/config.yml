@@ -30,12 +30,25 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+
+      # Restore Go module cache to avoid re-downloading dependencies
+      - restore_cache:
+          keys:
+            - go-modules-{{ checksum "go.sum" }}
+
       - run:
           name: Run Tests
           command: |
             mkdir -p /tmp/logs
             DISABLE_TELEMETRY=true run-go-tests --parallelism 8 --timeout 45m | tee /tmp/logs/all.log
           no_output_timeout: 45m
+
+      # Save Go module cache after tests complete
+      - save_cache:
+          key: go-modules-{{ checksum "go.sum" }}
+          paths:
+            - /home/circleci/go/pkg/mod
+
       - run:
           name: Parse Test Output
           command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
