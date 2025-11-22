@@ -277,8 +277,6 @@ workflows:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
       - test:
-          requires:
-            - lint
           filters:
             tags:
               only: /^v.*/
