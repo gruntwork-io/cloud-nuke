@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
@@ -69,7 +68,7 @@ func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
 		waiter := elasticloadbalancingv2.NewLoadBalancersDeletedWaiter(balancer.Client)
 		err := waiter.Wait(balancer.Context, &elasticloadbalancingv2.DescribeLoadBalancersInput{
 			LoadBalancerArns: aws.ToStringSlice(deletedArns),
-		}, 15*time.Minute)
+		}, balancer.Timeout)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)

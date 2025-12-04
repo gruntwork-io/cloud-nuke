@@ -88,7 +88,7 @@ func (v *EC2VPCs) nukeAll(vpcIds []string) error {
 		}
 
 		var err error
-		err = nuke(v.Client, v.ELBClient, id)
+		err = nuke(v.Client, v.ELBClient, id, v.Timeout)
 
 		// Record status of this resource
 		e := report.Entry{
@@ -111,7 +111,7 @@ func (v *EC2VPCs) nukeAll(vpcIds []string) error {
 	return nil
 }
 
-func nuke(client EC2VPCAPI, elbClient ELBClientAPI, vpcID string) error {
+func nuke(client EC2VPCAPI, elbClient ELBClientAPI, vpcID string, waitTimeout time.Duration) error {
 	var err error
 	// Note: order is quite important, otherwise you will encounter dependency violation errors.
 
@@ -127,7 +127,7 @@ func nuke(client EC2VPCAPI, elbClient ELBClientAPI, vpcID string) error {
 		return err
 	}
 
-	err = nukeEc2Instances(client, vpcID)
+	err = nukeEc2Instances(client, vpcID, waitTimeout)
 	if err != nil {
 		logging.Debug(fmt.Sprintf("Error nuking instances for VPC %s: %s", vpcID, err.Error()))
 		return err
@@ -894,7 +894,7 @@ func nukeTargetGroups(client ELBClientAPI, vpcID string) error {
 	return nil
 }
 
-func nukeEc2Instances(client EC2VPCAPI, vpcID string) error {
+func nukeEc2Instances(client EC2VPCAPI, vpcID string, waitTimeout time.Duration) error {
 	logging.Debug(fmt.Sprintf("Describing instances for %s", vpcID))
 	output, err := client.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{
 		Filters: []types.Filter{
@@ -933,12 +933,12 @@ func nukeEc2Instances(client EC2VPCAPI, vpcID string) error {
 			return errors.WithStackTrace(err)
 		}
 
-		// weight for terminate the instances
+		// wait for terminate the instances
 		logging.Debug(fmt.Sprintf("waiting for the instance to be terminated for %s", vpcID))
 		waiter := ec2.NewInstanceTerminatedWaiter(client)
 		err = waiter.Wait(context.Background(), &ec2.DescribeInstancesInput{
 			InstanceIds: terminateInstancesIds,
-		}, 5*time.Minute)
+		}, waitTimeout)
 		if err != nil {
 			logging.Debug(fmt.Sprintf("Failed to wait instance termination for %s", vpcID))
 			return errors.WithStackTrace(err)

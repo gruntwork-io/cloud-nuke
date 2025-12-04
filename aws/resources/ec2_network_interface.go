@@ -212,7 +212,7 @@ func (ni *NetworkInterface) nukeInstance(id *string) error {
 	waiter := ec2.NewInstanceTerminatedWaiter(ni.Client)
 	err = waiter.Wait(ni.Context, &ec2.DescribeInstancesInput{
 		InstanceIds: []string{instanceID},
-	}, 5*time.Minute)
+	}, ni.Timeout)
 	if err != nil {
 		logging.Debugf("[nukeInstance] Instance termination waiting failed for instance %s: %v", instanceID, err)
 		return errors.WithStackTrace(err)

@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
@@ -72,7 +71,7 @@ func (ag *ASGroups) nukeAll(groupNames []*string) error {
 		waiter := autoscaling.NewGroupNotExistsWaiter(ag.Client)
 		err := waiter.Wait(ag.Context, &autoscaling.DescribeAutoScalingGroupsInput{
 			AutoScalingGroupNames: deletedGroupNames,
-		}, 5*time.Minute)
+		}, ag.Timeout)
 
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)

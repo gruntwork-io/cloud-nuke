@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
@@ -82,7 +81,7 @@ func (clusters *EKSClusters) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 		err := waiter.Wait(clusters.Context, &eks.DescribeNodegroupInput{
 			ClusterName:   aws.String(eksClusterName),
 			NodegroupName: nodeGroup,
-		}, 15*time.Minute)
+		}, clusters.Timeout)
 		if err != nil {
 			logging.Debugf("[Failed] Failed waiting for Node Group %s associated with cluster %s to be deleted: %s", aws.ToString(nodeGroup), eksClusterName, err)
 			allSubResourceErrs = multierror.Append(allSubResourceErrs, err)
@@ -185,7 +184,7 @@ func (clusters *EKSClusters) deleteEKSClusterFargateProfiles(eksClusterName stri
 		waitErr := waiter.Wait(clusters.Context, &eks.DescribeFargateProfileInput{
 			ClusterName:        aws.String(eksClusterName),
 			FargateProfileName: fargateProfile,
-		}, 15*time.Minute)
+		}, clusters.Timeout)
 		if waitErr != nil {
 			logging.Debugf("[Failed] Failed waiting for Fargate Profile %s associated with cluster %s to be deleted: %s", aws.ToString(fargateProfile), eksClusterName, waitErr)
 			allDeleteErrs = multierror.Append(allDeleteErrs, waitErr)
@@ -206,7 +205,7 @@ func (clusters *EKSClusters) waitUntilEksClustersDeleted(eksClusterNames []*stri
 		waiter := eks.NewClusterDeletedWaiter(clusters.Client)
 		err := waiter.Wait(clusters.Context, &eks.DescribeClusterInput{
 			Name: eksClusterName,
-		}, 15*time.Minute)
+		}, clusters.Timeout)
 
 		// Record status of this resource
 		e := report.Entry{

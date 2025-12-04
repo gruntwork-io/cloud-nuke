@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
@@ -65,7 +64,7 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 			waiter := redshift.NewClusterDeletedWaiter(rc.Client)
 			err := waiter.Wait(rc.Context, &redshift.DescribeClustersInput{
 				ClusterIdentifier: id,
-			}, 5*time.Minute)
+			}, rc.Timeout)
 
 			// Record status of this resource
 			e := report.Entry{

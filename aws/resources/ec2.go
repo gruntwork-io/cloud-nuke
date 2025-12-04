@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -161,7 +160,7 @@ func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
 				Values: aws.ToStringSlice(instanceIds),
 			},
 		},
-	}, 15*time.Minute)
+	}, ei.Timeout)
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)

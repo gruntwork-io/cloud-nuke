@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	goerr "errors"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -118,7 +117,7 @@ func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
 		waiter := ec2.NewVolumeDeletedWaiter(ev.Client)
 		err := waiter.Wait(ev.Context, &ec2.DescribeVolumesInput{
 			VolumeIds: aws.ToStringSlice(deletedVolumeIDs),
-		}, 5*time.Minute)
+		}, ev.Timeout)
 		if err != nil {
 			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)

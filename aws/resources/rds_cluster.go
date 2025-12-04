@@ -17,9 +17,9 @@ import (
 )
 
 func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClustersInput) error {
-	const maxRetries = 90                  // 90 attempts
-	const retryInterval = 10 * time.Second // 10 seconds between attempts
-	// Total wait time: 90 * 10s = 900s = 15 minutes
+	waitTimeout := instance.Timeout
+	const retryInterval = 10 * time.Second
+	maxRetries := int(waitTimeout / retryInterval)
 
 	for i := 0; i < maxRetries; i++ {
 		_, err := instance.Client.DescribeDBClusters(instance.Context, input)

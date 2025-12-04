@@ -16,6 +16,9 @@ const maxStopRetries = 3
 const waitDuration = 5 * time.Second
 const stopWaitDuration = 5 * time.Second
 
+// DefaultWaitTimeout is the default timeout for AWS resource deletion waiters
+const DefaultWaitTimeout = 5 * time.Minute
+
 // BaseAwsResource struct and its associated methods to serve as a placeholder or template for a resource that is not
 // yet fully implemented within a system or framework. Its purpose is to provide a skeleton structure that adheres to a
 // specific interface or contract expected by the system without containing the actual implementation details.
@@ -24,7 +27,6 @@ type BaseAwsResource struct {
 	Nukables map[string]error
 	Timeout  time.Duration
 	Context  context.Context
-	cancel   context.CancelFunc
 }
 
 func (br *BaseAwsResource) Init(cfg aws.Config) {
@@ -62,8 +64,10 @@ func (br *BaseAwsResource) GetAndSetResourceConfig(_ config.Config) config.Resou
 }
 
 func (br *BaseAwsResource) PrepareContext(parentContext context.Context, resourceConfig config.ResourceType) error {
+	br.Timeout = DefaultWaitTimeout
+	br.Context = parentContext
+
 	if resourceConfig.Timeout == "" {
-		br.Context = parentContext
 		return nil
 	}
 
@@ -72,7 +76,14 @@ func (br *BaseAwsResource) PrepareContext(parentContext context.Context, resourc
 		return err
 	}
 
-	br.Context, _ = context.WithTimeout(parentContext, duration)
+	br.Timeout = duration
+	ctx, cancel := context.WithTimeout(parentContext, duration)
+	br.Context = ctx
+	// Note: cancel is intentionally not stored or deferred here.
+	// The context will be cancelled when the parent context is cancelled,
+	// or when the timeout expires. The parent context is managed by the
+	// caller and will be cancelled when the nuke operation completes.
+	_ = cancel
 	return nil
 }
 
@@ -107,3 +118,4 @@ func (br *BaseAwsResource) IsNukable(identifier string) (bool, error) {
 
 	return true, nil
 }
+
