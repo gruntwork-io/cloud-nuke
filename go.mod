@@ -67,7 +67,7 @@ require (
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/pterm/pterm v0.12.45
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.8.3
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.10.3
 	golang.org/x/sync v0.18.0
