@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -143,7 +142,7 @@ func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
 		IpamIds: []string{*ipamID},
 	})
 	if err != nil {
-		logging.Errorf(fmt.Sprintf("Error describing IPAM %s: %s", *ipamID, err.Error()))
+		logging.Errorf("Error describing IPAM %s: %s", *ipamID, err.Error())
 		return errors.WithStackTrace(err)
 	}
 
@@ -155,7 +154,7 @@ func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
 	})
 
 	if err != nil {
-		logging.Errorf(fmt.Sprintf("Error describing IPAM Public scope %s: %s", *ipamID, err.Error()))
+		logging.Errorf("Error describing IPAM Public scope %s: %s", *ipamID, err.Error())
 		return errors.WithStackTrace(err)
 	}
 
@@ -171,7 +170,7 @@ func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
 		},
 	})
 	if err != nil {
-		logging.Errorf(fmt.Sprintf("Error describing IPAM Pools on public scope %s: %s", *ipamID, err.Error()))
+		logging.Errorf("Error describing IPAM Pools on public scope %s: %s", *ipamID, err.Error())
 		return errors.WithStackTrace(err)
 	}
 
@@ -179,14 +178,14 @@ func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
 		// Remove associated CIDRs before deleting IPAM pools to complete de-provisioning.
 		err := ec2Ipam.deProvisionPoolCIDRs(pool.IpamPoolId)
 		if err != nil {
-			logging.Errorf(fmt.Sprintf("Error de-provisioning Pools CIDR  on Pool %s : %s", *pool.IpamPoolId, err.Error()))
+			logging.Errorf("Error de-provisioning Pools CIDR on Pool %s: %s", *pool.IpamPoolId, err.Error())
 			return errors.WithStackTrace(err)
 		}
 
 		// Release custom allocation from the pool
 		err = ec2Ipam.releaseCustomAllocations(pool.IpamPoolId)
 		if err != nil {
-			logging.Errorf(fmt.Sprintf("Error Release custom allocations of Pool %s : %s", *pool.IpamPoolId, err.Error()))
+			logging.Errorf("Error releasing custom allocations of Pool %s: %s", *pool.IpamPoolId, err.Error())
 			return errors.WithStackTrace(err)
 		}
 

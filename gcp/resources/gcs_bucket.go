@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -116,16 +117,16 @@ func (b *GCSBuckets) Nuke(identifiers []string) error {
 			}
 			if err != nil {
 				msg := fmt.Sprintf("Error listing objects in bucket %s: %v", name, err)
-				b.SetNukableStatus(name, fmt.Errorf(msg))
-				logging.Debugf(msg)
+				b.SetNukableStatus(name, errors.New(msg))
+				logging.Debug(msg)
 				lastError = err
 				continue
 			}
 
 			if err := bucket.Object(obj.Name).Delete(b.Context); err != nil {
 				msg := fmt.Sprintf("Error deleting object %s in bucket %s: %v", obj.Name, name, err)
-				b.SetNukableStatus(name, fmt.Errorf(msg))
-				logging.Debugf(msg)
+				b.SetNukableStatus(name, errors.New(msg))
+				logging.Debug(msg)
 				lastError = err
 				continue
 			}
@@ -138,15 +139,15 @@ func (b *GCSBuckets) Nuke(identifiers []string) error {
 				// Try to delete with force option
 				if err := b.forceDeleteBucket(name, bucket); err != nil {
 					msg := fmt.Sprintf("Error force deleting bucket %s: %v", name, err)
-					b.SetNukableStatus(name, fmt.Errorf(msg))
-					logging.Debugf(msg)
+					b.SetNukableStatus(name, errors.New(msg))
+					logging.Debug(msg)
 					lastError = err
 					continue
 				}
 			} else {
 				msg := fmt.Sprintf("Error deleting bucket %s: %v", name, err)
-				b.SetNukableStatus(name, fmt.Errorf(msg))
-				logging.Debugf(msg)
+				b.SetNukableStatus(name, errors.New(msg))
+				logging.Debug(msg)
 				lastError = err
 				continue
 			}
