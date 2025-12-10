@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
@@ -126,7 +125,7 @@ func (cache *Elasticaches) nukeNonReplicationGroupElasticacheCluster(clusterId *
 		&elasticache.DescribeCacheClustersInput{
 			CacheClusterId: clusterId,
 		},
-		15*time.Minute,
+		cache.Timeout,
 	)
 }
 
@@ -145,7 +144,7 @@ func (cache *Elasticaches) nukeReplicationGroupMemberElasticacheCluster(clusterI
 	waitErr := waiter.Wait(
 		cache.Context,
 		&elasticache.DescribeReplicationGroupsInput{ReplicationGroupId: clusterId},
-		15*time.Minute,
+		cache.Timeout,
 	)
 
 	if waitErr != nil {

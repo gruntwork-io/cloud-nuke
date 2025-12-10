@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
@@ -83,11 +82,10 @@ func (di *DBInstances) nukeAll(names []*string) error {
 
 	if len(deletedNames) > 0 {
 		for _, name := range deletedNames {
-
 			waiter := rds.NewDBInstanceDeletedWaiter(di.Client)
 			err := waiter.Wait(di.Context, &rds.DescribeDBInstancesInput{
 				DBInstanceIdentifier: name,
-			}, 1*time.Minute)
+			}, di.Timeout)
 
 			// Record status of this resource
 			e := report.Entry{

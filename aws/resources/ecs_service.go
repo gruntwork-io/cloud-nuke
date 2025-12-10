@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -160,7 +159,7 @@ func (services *ECSServices) waitUntilServicesDrained(ecsServiceArns []*string) 
 		}
 
 		waiter := ecs.NewServicesStableWaiter(services.Client)
-		err := waiter.Wait(services.Context, params, 15*time.Minute)
+		err := waiter.Wait(services.Context, params, services.Timeout)
 		if err != nil {
 			logging.Debugf("[Failed] Failed waiting for service to be stable %s: %s", *ecsServiceArn, err)
 		} else {
@@ -202,7 +201,7 @@ func (services *ECSServices) waitUntilServicesDeleted(ecsServiceArns []*string) 
 		}
 
 		waiter := ecs.NewServicesInactiveWaiter(services.Client)
-		err := waiter.Wait(services.Context, params, 15*time.Minute)
+		err := waiter.Wait(services.Context, params, services.Timeout)
 
 		// Record status of this resource
 		e := report.Entry{
