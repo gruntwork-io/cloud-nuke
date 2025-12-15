@@ -99,7 +99,7 @@ func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
 		e := report.Entry{
 			Identifier:   aws.ToString(hostFailed.ResourceId),
 			ResourceType: "EC2 Dedicated Host",
-			Error:        fmt.Errorf(*hostFailed.Error.Message),
+			Error:        fmt.Errorf("%s", *hostFailed.Error.Message),
 		}
 		report.Record(e)
 	}
