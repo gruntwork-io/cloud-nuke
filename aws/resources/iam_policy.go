@@ -92,8 +92,16 @@ func (ip *IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan err
 	defer wg.Done()
 	var multierr *multierror.Error
 
-	// Detach any entities the policy is attached to
-	err := ip.detachPolicyEntities(policyArn)
+	// Remove the policy as a permissions boundary from any users or roles.
+	// This must be done before detaching regular policy attachments, as AWS
+	// prevents deletion of policies that are still used as permissions boundaries.
+	err := ip.detachPermissionsBoundaryEntities(policyArn)
+	if err != nil {
+		multierr = multierror.Append(multierr, err)
+	}
+
+	// Detach any entities the policy is attached to as a permissions policy
+	err = ip.detachPolicyEntities(policyArn)
 	if err != nil {
 		multierr = multierror.Append(multierr, err)
 	}
@@ -195,6 +203,55 @@ func (ip *IAMPolicies) detachPolicyEntities(policyArn *string) error {
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
+	}
+
+	return nil
+}
+
+// detachPermissionsBoundaryEntities removes the policy as a permissions boundary from any users or roles
+func (ip *IAMPolicies) detachPermissionsBoundaryEntities(policyArn *string) error {
+	var allBoundaryRoles []*string
+	var allBoundaryUsers []*string
+
+	// List entities where this policy is used as a permissions boundary
+	paginator := iam.NewListEntitiesForPolicyPaginator(ip.Client, &iam.ListEntitiesForPolicyInput{
+		PolicyArn:         policyArn,
+		PolicyUsageFilter: types.PolicyUsageTypePermissionsBoundary,
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ip.Context)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, role := range page.PolicyRoles {
+			allBoundaryRoles = append(allBoundaryRoles, role.RoleName)
+		}
+		for _, user := range page.PolicyUsers {
+			allBoundaryUsers = append(allBoundaryUsers, user.UserName)
+		}
+	}
+
+	// Remove permissions boundary from users
+	for _, userName := range allBoundaryUsers {
+		_, err := ip.Client.DeleteUserPermissionsBoundary(ip.Context, &iam.DeleteUserPermissionsBoundaryInput{
+			UserName: userName,
+		})
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+		logging.Debugf("Removed permissions boundary from user %s", aws.ToString(userName))
+	}
+
+	// Remove permissions boundary from roles
+	for _, roleName := range allBoundaryRoles {
+		_, err := ip.Client.DeleteRolePermissionsBoundary(ip.Context, &iam.DeleteRolePermissionsBoundaryInput{
+			RoleName: roleName,
+		})
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+		logging.Debugf("Removed permissions boundary from role %s", aws.ToString(roleName))
 	}
 
 	return nil
