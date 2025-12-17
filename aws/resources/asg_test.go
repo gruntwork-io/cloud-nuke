@@ -71,6 +71,7 @@ func TestAutoScalingGroupNukeAll(t *testing.T) {
 	ag := ASGroups{
 		BaseAwsResource: BaseAwsResource{
 			Context: context.Background(),
+			Timeout: DefaultWaitTimeout,
 		},
 		Client: mockedASGroups{
 			DeleteAutoScalingGroupOutput: autoscaling.DeleteAutoScalingGroupOutput{},

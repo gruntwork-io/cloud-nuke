@@ -108,6 +108,8 @@ func TestRDSClusterNukeAll(t *testing.T) {
 			DeleteDBClusterOutput:    rds.DeleteDBClusterOutput{},
 		},
 	}
+	dbCluster.Context = context.Background()
+	dbCluster.Timeout = DefaultWaitTimeout
 
 	err := dbCluster.nukeAll([]*string{&testName})
 	assert.NoError(t, err)

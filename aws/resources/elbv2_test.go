@@ -116,6 +116,7 @@ func TestElbV2_NukeAll(t *testing.T) {
 	balancer := LoadBalancersV2{
 		BaseAwsResource: BaseAwsResource{
 			Context: context.Background(),
+			Timeout: DefaultWaitTimeout,
 		},
 		Client: mockedElbV2{
 			DescribeLoadBalancersOutput:    elasticloadbalancingv2.DescribeLoadBalancersOutput{},

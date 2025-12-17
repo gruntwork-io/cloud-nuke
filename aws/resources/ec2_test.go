@@ -138,6 +138,7 @@ func TestEc2Instances_NukeAll(t *testing.T) {
 	ei := EC2Instances{
 		BaseAwsResource: BaseAwsResource{
 			Context: context.Background(),
+			Timeout: DefaultWaitTimeout,
 		},
 		Client: mockedEC2Instances{
 			DescribeInstancesOutput: ec2.DescribeInstancesOutput{
@@ -166,6 +167,7 @@ func TestEc2InstancesWithEIP_NukeAll(t *testing.T) {
 	ei := EC2Instances{
 		BaseAwsResource: BaseAwsResource{
 			Context: context.Background(),
+			Timeout: DefaultWaitTimeout,
 		},
 		Client: mockedEC2Instances{
 			DescribeInstancesOutput: ec2.DescribeInstancesOutput{

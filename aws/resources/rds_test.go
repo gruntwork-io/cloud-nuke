@@ -161,6 +161,7 @@ func TestDBInstances_NukeAll(t *testing.T) {
 			},
 		}
 		di.Context = context.Background()
+		di.Timeout = DefaultWaitTimeout
 
 		err := di.nukeAll([]*string{aws.String("test-standalone")})
 		require.NoError(t, err)
@@ -184,6 +185,7 @@ func TestDBInstances_NukeAll(t *testing.T) {
 			},
 		}
 		di.Context = context.Background()
+		di.Timeout = DefaultWaitTimeout
 
 		err := di.nukeAll([]*string{aws.String("test-cluster-member")})
 		require.NoError(t, err)
