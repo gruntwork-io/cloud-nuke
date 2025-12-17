@@ -13,52 +13,7 @@ defaults: &defaults
     - image: 087285199408.dkr.ecr.us-east-1.amazonaws.com/circle-ci-test-image-base:go1.22.6-tf1.5-tg58.8-pck1.8-ci56.0
 version: 2.1
 jobs:
-  lint:
-    <<: *defaults
-    steps:
-      - checkout
-      - run:
-          name: Install mise
-          command: |
-            curl https://mise.run | sh
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> $BASH_ENV
-      - run:
-          name: Install tools via mise
-          command: |
-            mise install
-            eval "$(mise activate bash --shims)"
-            echo 'eval "$(mise activate bash --shims)"' >> $BASH_ENV
-      - run:
-          name: Download Go modules
-          command: go mod download
-      - run:
-          name: Run golangci-lint
-          command: |
-            golangci-lint run --new-from-rev=origin/master ./...
-  
-  test:
-    <<: *defaults
-    steps:
-      - checkout
-      - run:
-          name: Prepare Logs Directory
-          command: mkdir -p /tmp/logs
-      - run:
-          name: Run Tests
-          command: |
-            mkdir -p /tmp/logs
-            DISABLE_TELEMETRY=true run-go-tests --parallelism 4 --timeout 45m | tee /tmp/logs/all.log
-          no_output_timeout: 45m
-      - run:
-          name: Parse Test Output
-          command: terratest_log_parser --testlog /tmp/logs/all.log --outputdir /tmp/logs
-          when: always
-      - store_artifacts:
-          path: /tmp/logs
-      - store_test_results:
-          path: /tmp/logs
-
-
+  # Build job kept for deploy (signing) - will be migrated to GHA in Phase 2
   build:
     <<: *defaults
     parameters:
@@ -276,28 +231,12 @@ jobs:
       - run: upload-github-release-assets bin/*
 workflows:
   version: 2
-  build-and-test:
-    # Make sure this pipeline doesn't run when a schedule is triggered
+  # Release workflow - build and deploy on tags only
+  release:
     when:
       not:
         equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
     jobs:
-      - lint:
-          filters:
-            tags:
-              only: /^v.*/
-          context:
-            - AWS__PHXDEVOPS__circle-ci-test
-            - GITHUB__PAT__gruntwork-ci
-      - test:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v.*/
-          context:
-            - AWS__PHXDEVOPS__circle-ci-test
-            - GITHUB__PAT__gruntwork-ci
       - build:
           matrix:
             parameters:
@@ -306,6 +245,8 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+            branches:
+              ignore: /.*/
           context:
             - AWS__PHXDEVOPS__circle-ci-test
             - GITHUB__PAT__gruntwork-ci
