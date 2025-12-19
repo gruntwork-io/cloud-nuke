@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for --new-from-rev
+      - name: Fetch master branch for comparison
+        run: git fetch origin master:refs/remotes/origin/master
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.12.10
+          experimental: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Go module cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Download Go modules
+        run: go mod download
+      - name: Run golangci-lint
+        run: golangci-lint run --new-from-rev=origin/master ./...
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.12.10
+          experimental: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Go module cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Download Go modules
+        run: go mod download
+      - name: Run tests
+        run: |
+          mkdir -p /tmp/logs
+          go test -v -timeout 45m -parallel 4 ./... 2>&1 | tee /tmp/logs/all.log
+        env:
+          DISABLE_TELEMETRY: "true"
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: /tmp/logs/
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [linux, windows, darwin]
+        arch: ['386', amd64, arm64]
+        exclude:
+          - os: darwin
+            arch: '386'
+          - os: windows
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.12.10
+          experimental: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Go module cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Download Go modules
+        run: go mod download
+      - name: Build binary
+        run: |
+          mkdir -p bin
+          EXT=""
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} \
+            go build -ldflags="-X main.VERSION=${{ github.ref_name }}" \
+            -o bin/cloud-nuke_${{ matrix.os }}_${{ matrix.arch }}${EXT} .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-nuke_${{ matrix.os }}_${{ matrix.arch }}
+          path: bin/
