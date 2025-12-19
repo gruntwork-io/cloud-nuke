@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/gruntwork-io/cloud-nuke/aws"
@@ -15,6 +16,13 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/pterm/pterm"
 )
+
+// MaxResourcesForDetailedTable is the threshold above which we switch from
+// detailed per-resource table to a summary table showing counts by resource type.
+// This prevents performance issues with very large resource counts where pterm
+// table rendering becomes extremely slow.
+// Use JSON output format (--output json) to get the complete list.
+const MaxResourcesForDetailedTable = 500
 
 // RenderRunReport should be called at the end of a support cloud-nuke function
 // It will print a table showing resources were deleted, and what errors occurred
@@ -168,7 +176,16 @@ func RenderResourcesAsTableWithFormat(account *aws.AwsAccountResources, query *a
 		return RenderInspectAsJSON(account, query, writer)
 	}
 
-	// Table format output
+	totalResources := account.TotalResourceCount()
+
+	// For large resource counts, render a summary table instead of detailed table
+	// to prevent performance issues with pterm table rendering
+	if totalResources > MaxResourcesForDetailedTable {
+		summary := buildResourceSummary(account.Resources)
+		return renderSummaryTable(summary, totalResources, writer)
+	}
+
+	// Table format output for smaller datasets
 	var tableData [][]string
 	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier", "Nukable"})
 
@@ -186,21 +203,77 @@ func RenderResourcesAsTableWithFormat(account *aws.AwsAccountResources, query *a
 		}
 	}
 
-	if f, ok := writer.(*os.File); ok && (f == os.Stdout || f == os.Stderr) {
-		// Use pterm for console output
-		return pterm.DefaultTable.WithBoxed(true).
-			WithData(tableData).
-			WithHasHeader(true).
-			WithHeaderRowSeparator("-").
-			Render()
+	return renderPtermTable(tableData, writer)
+}
+
+// buildResourceSummary builds a summary map from AWS resources: map[resourceType]map[region]count
+func buildResourceSummary(resources map[string]aws.AwsResources) map[string]map[string]int {
+	summary := make(map[string]map[string]int)
+	for region, resourcesInRegion := range resources {
+		for _, foundResources := range resourcesInRegion.Resources {
+			resourceType := (*foundResources).ResourceName()
+			count := len((*foundResources).ResourceIdentifiers())
+			if count == 0 {
+				continue
+			}
+			if summary[resourceType] == nil {
+				summary[resourceType] = make(map[string]int)
+			}
+			summary[resourceType][region] = count
+		}
 	}
-	// Use pterm with writer for file output
-	return pterm.DefaultTable.WithBoxed(true).
+	return summary
+}
+
+// renderSummaryTable renders a compact summary table showing resource counts by type and region
+func renderSummaryTable(summary map[string]map[string]int, totalResources int, writer io.Writer) error {
+	// Sort resource types for consistent output
+	var resourceTypes []string
+	for rt := range summary {
+		resourceTypes = append(resourceTypes, rt)
+	}
+	sort.Strings(resourceTypes)
+
+	// Build summary table
+	var tableData [][]string
+	tableData = append(tableData, []string{"Resource Type", "Region", "Count"})
+
+	for _, resourceType := range resourceTypes {
+		regions := summary[resourceType]
+
+		// Sort regions for consistent output
+		var regionNames []string
+		for r := range regions {
+			regionNames = append(regionNames, r)
+		}
+		sort.Strings(regionNames)
+
+		for _, region := range regionNames {
+			tableData = append(tableData, []string{resourceType, region, fmt.Sprintf("%d", regions[region])})
+		}
+	}
+
+	// Print warning about summary mode
+	pterm.Warning.Printfln(
+		"Found %d resources (exceeds display limit of %d). Showing summary by resource type.",
+		totalResources, MaxResourcesForDetailedTable)
+	pterm.Info.Println("Use --output json to get the complete list of resources.")
+	pterm.Println()
+
+	return renderPtermTable(tableData, writer)
+}
+
+// renderPtermTable renders a pterm table to the given writer
+func renderPtermTable(tableData [][]string, writer io.Writer) error {
+	table := pterm.DefaultTable.WithBoxed(true).
 		WithData(tableData).
 		WithHasHeader(true).
-		WithHeaderRowSeparator("-").
-		WithWriter(writer).
-		Render()
+		WithHeaderRowSeparator("-")
+
+	if f, ok := writer.(*os.File); ok && (f == os.Stdout || f == os.Stderr) {
+		return table.Render()
+	}
+	return table.WithWriter(writer).Render()
 }
 
 func RenderGcpResourcesAsTable(account *gcp.GcpProjectResources) error {
@@ -223,7 +296,16 @@ func RenderGcpResourcesAsTableWithFormat(account *gcp.GcpProjectResources, outpu
 		return RenderGcpInspectAsJSON(account, writer)
 	}
 
-	// Table format output
+	totalResources := account.TotalResourceCount()
+
+	// For large resource counts, render a summary table instead of detailed table
+	// to prevent performance issues with pterm table rendering
+	if totalResources > MaxResourcesForDetailedTable {
+		summary := buildGcpResourceSummary(account.Resources)
+		return renderSummaryTable(summary, totalResources, writer)
+	}
+
+	// Table format output for smaller datasets
 	var tableData [][]string
 	tableData = append(tableData, []string{"Resource Type", "Region", "Identifier", "Nukable"})
 
@@ -241,21 +323,26 @@ func RenderGcpResourcesAsTableWithFormat(account *gcp.GcpProjectResources, outpu
 		}
 	}
 
-	if f, ok := writer.(*os.File); ok && (f == os.Stdout || f == os.Stderr) {
-		// Use pterm for console output
-		return pterm.DefaultTable.WithBoxed(true).
-			WithData(tableData).
-			WithHasHeader(true).
-			WithHeaderRowSeparator("-").
-			Render()
+	return renderPtermTable(tableData, writer)
+}
+
+// buildGcpResourceSummary builds a summary map from GCP resources: map[resourceType]map[region]count
+func buildGcpResourceSummary(resources map[string]gcp.GcpResources) map[string]map[string]int {
+	summary := make(map[string]map[string]int)
+	for region, resourcesInRegion := range resources {
+		for _, foundResources := range resourcesInRegion.Resources {
+			resourceType := (*foundResources).ResourceName()
+			count := len((*foundResources).ResourceIdentifiers())
+			if count == 0 {
+				continue
+			}
+			if summary[resourceType] == nil {
+				summary[resourceType] = make(map[string]int)
+			}
+			summary[resourceType][region] = count
+		}
 	}
-	// Use pterm with writer for file output
-	return pterm.DefaultTable.WithBoxed(true).
-		WithData(tableData).
-		WithHasHeader(true).
-		WithHeaderRowSeparator("-").
-		WithWriter(writer).
-		Render()
+	return summary
 }
 
 func RenderResourceTypesAsBulletList(resourceTypes []string) error {
