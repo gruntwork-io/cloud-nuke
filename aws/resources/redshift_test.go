@@ -106,6 +106,7 @@ func TestRedshiftCluster_NukeAll(t *testing.T) {
 		},
 	}
 	rc.Context = context.Background()
+	rc.Timeout = DefaultWaitTimeout
 
 	err := rc.nukeAll([]*string{aws.String("test")})
 	require.NoError(t, err)
