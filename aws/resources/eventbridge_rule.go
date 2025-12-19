@@ -144,12 +144,12 @@ func (ebr *EventBridgeRule) getAll(ctx context.Context, cnfObj config.Config) ([
 
 	for _, bus := range eBusNames {
 		hasMorePages := true
-		params := &eventbridge.ListEventBusesInput{}
+		params := &eventbridge.ListRulesInput{
+			EventBusName: bus,
+		}
 
 		for hasMorePages {
-			rules, err := ebr.Client.ListRules(ctx, &eventbridge.ListRulesInput{
-				EventBusName: bus,
-			})
+			rules, err := ebr.Client.ListRules(ctx, params)
 			if err != nil {
 				logging.Debugf("[Event Bridge] Failed to list event rules: %s", err)
 				return nil, errors.WithStackTrace(err)
