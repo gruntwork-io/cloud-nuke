@@ -117,7 +117,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		gcp.NukeAllResources(account, nil)
+		gcp.NukeAllResources(account, configObj, nil)
 		ui.RenderRunReportWithFormat(outputFormat, outputFile)
 	}
 

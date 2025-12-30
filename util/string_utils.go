@@ -53,3 +53,12 @@ func Truncate(s string, maxLen int) string {
 func RemoveNewlines(s string) string {
 	return strings.ReplaceAll(s, "\n", "")
 }
+
+// ToStringPtrSlice converts a slice of strings to a slice of string pointers.
+func ToStringPtrSlice(strs []string) []*string {
+	result := make([]*string, len(strs))
+	for i := range strs {
+		result[i] = &strs[i]
+	}
+	return result
+}
