@@ -2,35 +2,57 @@ package resources
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
-	"github.com/hashicorp/go-multierror"
-
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (sms *SecretsManagerSecrets) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	allSecrets := []*string{}
-	input := &secretsmanager.ListSecretsInput{}
+// SecretsManagerAPI defines the interface for Secrets Manager operations.
+type SecretsManagerAPI interface {
+	ListSecrets(ctx context.Context, params *secretsmanager.ListSecretsInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error)
+	DescribeSecret(ctx context.Context, params *secretsmanager.DescribeSecretInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.DescribeSecretOutput, error)
+	RemoveRegionsFromReplication(ctx context.Context, params *secretsmanager.RemoveRegionsFromReplicationInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.RemoveRegionsFromReplicationOutput, error)
+	DeleteSecret(ctx context.Context, params *secretsmanager.DeleteSecretInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.DeleteSecretOutput, error)
+}
 
-	paginator := secretsmanager.NewListSecretsPaginator(sms.Client, input)
+// NewSecretsManagerSecrets creates a new SecretsManagerSecrets resource using the generic resource pattern.
+func NewSecretsManagerSecrets() AwsResource {
+	return NewAwsResource(&resource.Resource[SecretsManagerAPI]{
+		ResourceTypeName: "secretsmanager",
+		// Tentative batch size to ensure AWS doesn't throttle. Note that secrets manager does not support bulk delete,
+		// so we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
+		// overloading the runtime and to avoid AWS throttling with many API calls.
+		BatchSize: 10,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[SecretsManagerAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = secretsmanager.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.SecretsManagerSecrets
+		},
+		Lister: listSecretsManagerSecrets,
+		Nuker:  resource.SimpleBatchDeleter(deleteSecretsManagerSecret),
+	})
+}
+
+// listSecretsManagerSecrets retrieves all Secrets Manager secrets that match the config filters.
+func listSecretsManagerSecrets(ctx context.Context, client SecretsManagerAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var allSecrets []*string
+	paginator := secretsmanager.NewListSecretsPaginator(client, &secretsmanager.ListSecretsInput{})
+
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(sms.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[SecretsManager] Failed to list secrets: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, secret := range page.SecretList {
-			if shouldIncludeSecret(&secret, configObj) {
+			if shouldIncludeSecret(&secret, cfg) {
 				allSecrets = append(allSecrets, secret.ARN)
 			}
 		}
@@ -39,7 +61,8 @@ func (sms *SecretsManagerSecrets) getAll(c context.Context, configObj config.Con
 	return allSecrets, nil
 }
 
-func shouldIncludeSecret(secret *types.SecretListEntry, configObj config.Config) bool {
+// shouldIncludeSecret determines if a secret should be included based on config filters.
+func shouldIncludeSecret(secret *types.SecretListEntry, cfg config.ResourceType) bool {
 	if secret == nil {
 		return false
 	}
@@ -53,78 +76,44 @@ func shouldIncludeSecret(secret *types.SecretListEntry, configObj config.Config)
 		referenceTime = *secret.LastAccessedDate
 	}
 
-	return configObj.SecretsManagerSecrets.ShouldInclude(config.ResourceValue{
+	return cfg.ShouldInclude(config.ResourceValue{
 		Time: &referenceTime,
 		Name: secret.Name,
 		Tags: util.ConvertSecretsManagerTagsToMap(secret.Tags),
 	})
 }
 
-func (sms *SecretsManagerSecrets) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Secrets Manager Secrets to nuke in region %s", sms.Region)
-		return nil
-	}
-
-	// There is no bulk delete secrets API, so we delete the batch of secrets concurrently using go routines.
-	logging.Debugf("Deleting Secrets Manager secrets in region %s", sms.Region)
-	wg := new(sync.WaitGroup)
-	wg.Add(len(identifiers))
-	errChans := make([]chan error, len(identifiers))
-	for i, secretID := range identifiers {
-		errChans[i] = make(chan error, 1)
-		go sms.deleteAsync(wg, errChans[i], secretID)
-	}
-	wg.Wait()
-
-	// Collect all the errors from the async delete calls into a single error struct.
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Errorf("[Failed] %s", err)
-		}
-	}
-	return errors.WithStackTrace(allErrs.ErrorOrNil())
-}
-
-// deleteAsync deletes the provided secrets manager secret. Intended to be run in a goroutine, using wait groups
-// and a return channel for errors.
-func (sms *SecretsManagerSecrets) deleteAsync(wg *sync.WaitGroup, errChan chan error, secretID *string) {
-	defer wg.Done()
-
-	// If this region's secret is primary, and it has replicated secrets, remove replication first.
-	// Get replications
-	secret, err := sms.Client.DescribeSecret(sms.Context, &secretsmanager.DescribeSecretInput{
+// deleteSecretsManagerSecret deletes a single Secrets Manager secret.
+// If this region's secret is primary and has replicated secrets, removes replication first.
+func deleteSecretsManagerSecret(ctx context.Context, client SecretsManagerAPI, secretID *string) error {
+	// Get secret details to check for replications
+	secret, err := client.DescribeSecret(ctx, &secretsmanager.DescribeSecretInput{
 		SecretId: secretID,
 	})
+	if err != nil {
+		return err
+	}
 
-	// Delete replications
+	// Delete replications if this is a primary secret with replicas
 	if len(secret.ReplicationStatus) > 0 {
-		replicationRegion := make([]string, 0)
+		replicationRegions := make([]string, 0, len(secret.ReplicationStatus))
 		for _, replicationStatus := range secret.ReplicationStatus {
-			replicationRegion = append(replicationRegion, *replicationStatus.Region)
+			replicationRegions = append(replicationRegions, *replicationStatus.Region)
 		}
 
-		_, err = sms.Client.RemoveRegionsFromReplication(sms.Context, &secretsmanager.RemoveRegionsFromReplicationInput{
+		_, err = client.RemoveRegionsFromReplication(ctx, &secretsmanager.RemoveRegionsFromReplicationInput{
 			SecretId:             secretID,
-			RemoveReplicaRegions: replicationRegion,
+			RemoveReplicaRegions: replicationRegions,
 		})
+		if err != nil {
+			return err
+		}
 	}
 
-	input := &secretsmanager.DeleteSecretInput{
+	// Delete the secret
+	_, err = client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
 		ForceDeleteWithoutRecovery: aws.Bool(true),
 		SecretId:                   secretID,
-	}
-	_, err = sms.Client.DeleteSecret(sms.Context, input)
-
-	// Record status of this resource
-	e := report.Entry{
-		Identifier:   aws.ToString(secretID),
-		ResourceType: "Secrets Manager Secret",
-		Error:        err,
-	}
-	report.Record(e)
-
-	errChan <- err
+	})
+	return err
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/amp"
 	"github.com/aws/aws-sdk-go-v2/service/amp/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,36 +31,32 @@ func (m mockedManagedPrometheusService) DeleteWorkspace(ctx context.Context, par
 }
 
 func Test_ManagedPrometheus_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	now := time.Now()
-
 	workSpace1 := "test-workspace-1"
 	workSpace2 := "test-workspace-2"
 
-	service := ManagedPrometheus{
-		Client: mockedManagedPrometheusService{
-			ListServiceOutput: amp.ListWorkspacesOutput{
-				Workspaces: []types.WorkspaceSummary{
-					{
-						Arn:       aws.String(fmt.Sprintf("arn::%s", workSpace1)),
-						Alias:     aws.String(workSpace1),
-						CreatedAt: &now,
-						Status: &types.WorkspaceStatus{
-							StatusCode: types.WorkspaceStatusCodeActive,
-						},
-						WorkspaceId: aws.String(workSpace1),
+	client := mockedManagedPrometheusService{
+		ListServiceOutput: amp.ListWorkspacesOutput{
+			Workspaces: []types.WorkspaceSummary{
+				{
+					Arn:       aws.String(fmt.Sprintf("arn::%s", workSpace1)),
+					Alias:     aws.String(workSpace1),
+					CreatedAt: &now,
+					Status: &types.WorkspaceStatus{
+						StatusCode: types.WorkspaceStatusCodeActive,
 					},
-					{
-						Arn:       aws.String(fmt.Sprintf("arn::%s", workSpace2)),
-						Alias:     aws.String(workSpace2),
-						CreatedAt: aws.Time(now.Add(time.Hour)),
-						Status: &types.WorkspaceStatus{
-							StatusCode: types.WorkspaceStatusCodeActive,
-						},
-						WorkspaceId: aws.String(workSpace2),
+					WorkspaceId: aws.String(workSpace1),
+				},
+				{
+					Arn:       aws.String(fmt.Sprintf("arn::%s", workSpace2)),
+					Alias:     aws.String(workSpace2),
+					CreatedAt: aws.Time(now.Add(time.Hour)),
+					Status: &types.WorkspaceStatus{
+						StatusCode: types.WorkspaceStatusCodeActive,
 					},
+					WorkspaceId: aws.String(workSpace2),
 				},
 			},
 		},
@@ -93,9 +90,11 @@ func Test_ManagedPrometheus_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			workspaces, err := service.getAll(
+			workspaces, err := listManagedPrometheusWorkspaces(
 				context.Background(),
-				config.Config{ManagedPrometheus: tc.configObj},
+				client,
+				resource.Scope{},
+				tc.configObj,
 			)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(workspaces))
@@ -104,16 +103,13 @@ func Test_ManagedPrometheus_GetAll(t *testing.T) {
 }
 
 func Test_ManagedPrometheus_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	workspaceName := "test-workspace-1"
-	service := ManagedPrometheus{
-		Client: mockedManagedPrometheusService{
-			DeleteWorkspaceOutput: amp.DeleteWorkspaceOutput{},
-		},
+	client := mockedManagedPrometheusService{
+		DeleteWorkspaceOutput: amp.DeleteWorkspaceOutput{},
 	}
 
-	err := service.nukeAll([]*string{&workspaceName})
+	err := deleteManagedPrometheusWorkspace(context.Background(), client, &workspaceName)
 	assert.NoError(t, err)
 }

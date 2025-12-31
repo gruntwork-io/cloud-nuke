@@ -6,103 +6,80 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/require"
-
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/stretchr/testify/require"
 )
 
-type mockedSnapshot struct {
-	SnapshotAPI
-	DeleteSnapshotOutput    ec2.DeleteSnapshotOutput
+type mockSnapshotsClient struct {
 	DescribeSnapshotsOutput ec2.DescribeSnapshotsOutput
 	DescribeImagesOutput    ec2.DescribeImagesOutput
+	DeleteSnapshotOutput    ec2.DeleteSnapshotOutput
 	DeregisterImageOutput   ec2.DeregisterImageOutput
 }
 
-func (m mockedSnapshot) DeleteSnapshot(ctx context.Context, params *ec2.DeleteSnapshotInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSnapshotOutput, error) {
+func (m *mockSnapshotsClient) DescribeSnapshots(ctx context.Context, params *ec2.DescribeSnapshotsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSnapshotsOutput, error) {
+	return &m.DescribeSnapshotsOutput, nil
+}
+
+func (m *mockSnapshotsClient) DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
+	return &m.DescribeImagesOutput, nil
+}
+
+func (m *mockSnapshotsClient) DeleteSnapshot(ctx context.Context, params *ec2.DeleteSnapshotInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSnapshotOutput, error) {
 	return &m.DeleteSnapshotOutput, nil
 }
 
-func (m mockedSnapshot) DescribeSnapshots(ctx context.Context, params *ec2.DescribeSnapshotsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSnapshotsOutput, error) {
-	return &m.DescribeSnapshotsOutput, nil
-}
-func (m mockedSnapshot) DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
-	return &m.DescribeImagesOutput, nil
-}
-func (m mockedSnapshot) DeregisterImage(ctx context.Context, params *ec2.DeregisterImageInput, optFns ...func(*ec2.Options)) (*ec2.DeregisterImageOutput, error) {
+func (m *mockSnapshotsClient) DeregisterImage(ctx context.Context, params *ec2.DeregisterImageInput, optFns ...func(*ec2.Options)) (*ec2.DeregisterImageOutput, error) {
 	return &m.DeregisterImageOutput, nil
 }
 
-func TestSnapshot_GetAll(t *testing.T) {
-
+func TestListSnapshots(t *testing.T) {
 	t.Parallel()
 
-	testSnapshot1 := "test-snapshot1"
-	testSnapshot2 := "test-snapshot2"
 	now := time.Now()
-	s := Snapshots{
-		Client: mockedSnapshot{
-			DescribeSnapshotsOutput: ec2.DescribeSnapshotsOutput{
-				Snapshots: []types.Snapshot{
-					{
-						SnapshotId: aws.String(testSnapshot1),
-						StartTime:  aws.Time(now),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("aws:backup:source-resource"),
-								Value: aws.String(""),
-							},
-						},
-					},
-					{
-						SnapshotId: aws.String(testSnapshot2),
-						StartTime:  aws.Time(now),
-					},
-				},
-			},
-		},
-	}
-
 	tests := map[string]struct {
-		configObj config.ResourceType
+		snapshots []types.Snapshot
+		cfg       config.ResourceType
 		expected  []string
 	}{
-		"emptyFilter": {
-			configObj: config.ResourceType{},
-			expected:  []string{testSnapshot2},
+		"filters out AWS Backup snapshots": {
+			snapshots: []types.Snapshot{
+				{SnapshotId: aws.String("snap-backup"), StartTime: aws.Time(now), Tags: []types.Tag{{Key: aws.String("aws:backup:source-resource"), Value: aws.String("")}}},
+				{SnapshotId: aws.String("snap-regular"), StartTime: aws.Time(now)},
+			},
+			cfg:      config.ResourceType{},
+			expected: []string{"snap-regular"},
 		},
-		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1)),
-				}},
+		"applies time filter": {
+			snapshots: []types.Snapshot{
+				{SnapshotId: aws.String("snap-1"), StartTime: aws.Time(now)},
+			},
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-1 * time.Hour))},
+			},
 			expected: []string{},
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := s.getAll(context.Background(), config.Config{
-				Snapshots: tc.configObj,
-			})
+			mock := &mockSnapshotsClient{
+				DescribeSnapshotsOutput: ec2.DescribeSnapshotsOutput{Snapshots: tc.snapshots},
+			}
+			ids, err := listSnapshots(context.Background(), mock, resource.Scope{}, tc.cfg)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
-func TestSnapshot_NukeAll(t *testing.T) {
-
+func TestDeleteSnapshot(t *testing.T) {
 	t.Parallel()
 
-	s := Snapshots{
-		Client: mockedSnapshot{
-			DeleteSnapshotOutput: ec2.DeleteSnapshotOutput{},
-		},
-	}
-
-	err := s.nukeAll([]*string{aws.String("test-snapshot")})
+	mock := &mockSnapshotsClient{}
+	err := deleteSnapshot(context.Background(), mock, aws.String("snap-test"))
 	require.NoError(t, err)
 }

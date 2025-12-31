@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,14 +31,9 @@ func TestSesIdentities_GetAll(t *testing.T) {
 
 	id1 := "test-id-1"
 	id2 := "test-id-2"
-	identity := SesIdentities{
-		Client: mockedSesIdentities{
-			ListIdentitiesOutput: ses.ListIdentitiesOutput{
-				Identities: []string{
-					(id1),
-					(id2),
-				},
-			},
+	client := mockedSesIdentities{
+		ListIdentitiesOutput: ses.ListIdentitiesOutput{
+			Identities: []string{id1, id2},
 		},
 	}
 
@@ -61,9 +57,12 @@ func TestSesIdentities_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := identity.getAll(context.Background(), config.Config{
-				SESIdentity: tc.configObj,
-			})
+			names, err := listSesIdentities(
+				context.Background(),
+				client,
+				resource.Scope{},
+				tc.configObj,
+			)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -73,12 +72,10 @@ func TestSesIdentities_GetAll(t *testing.T) {
 func TestSesIdentities_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	identity := SesIdentities{
-		Client: mockedSesIdentities{
-			DeleteIdentityOutput: ses.DeleteIdentityOutput{},
-		},
+	client := mockedSesIdentities{
+		DeleteIdentityOutput: ses.DeleteIdentityOutput{},
 	}
 
-	err := identity.nukeAll([]*string{aws.String("test")})
+	err := deleteSesIdentity(context.Background(), client, aws.String("test"))
 	require.NoError(t, err)
 }

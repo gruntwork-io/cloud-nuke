@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,24 +30,21 @@ func (m mockedRdsProxy) DeleteDBProxy(ctx context.Context, params *rds.DeleteDBP
 }
 
 func TestRdsProxy_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName1 := "test-name1"
 	testName2 := "test-name2"
 	now := time.Now()
-	snapshot := RdsProxy{
-		Client: mockedRdsProxy{
-			DescribeDBProxiesOutput: rds.DescribeDBProxiesOutput{
-				DBProxies: []types.DBProxy{
-					{
-						DBProxyName: &testName1,
-						CreatedDate: &now,
-					},
-					{
-						DBProxyName: &testName2,
-						CreatedDate: aws.Time(now.Add(1)),
-					},
+	client := mockedRdsProxy{
+		DescribeDBProxiesOutput: rds.DescribeDBProxiesOutput{
+			DBProxies: []types.DBProxy{
+				{
+					DBProxyName: &testName1,
+					CreatedDate: &now,
+				},
+				{
+					DBProxyName: &testName2,
+					CreatedDate: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -79,9 +77,12 @@ func TestRdsProxy_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := snapshot.getAll(context.Background(), config.Config{
-				RdsProxy: tc.configObj,
-			})
+			names, err := listRdsProxies(
+				context.Background(),
+				client,
+				resource.Scope{},
+				tc.configObj,
+			)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -89,16 +90,13 @@ func TestRdsProxy_GetAll(t *testing.T) {
 }
 
 func TestRdsProxy_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
 	testName := "test-db-proxy"
-	snapshot := RdsProxy{
-		Client: mockedRdsProxy{
-			DeleteDBProxyOutput: rds.DeleteDBProxyOutput{},
-		},
+	client := mockedRdsProxy{
+		DeleteDBProxyOutput: rds.DeleteDBProxyOutput{},
 	}
 
-	err := snapshot.nukeAll([]*string{&testName})
+	err := deleteRdsProxy(context.Background(), client, &testName)
 	assert.NoError(t, err)
 }

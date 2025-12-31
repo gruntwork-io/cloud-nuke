@@ -6,23 +6,45 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (rdp *RdsProxy) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
+// RdsProxyAPI defines the interface for RDS Proxy operations.
+type RdsProxyAPI interface {
+	DescribeDBProxies(ctx context.Context, params *rds.DescribeDBProxiesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBProxiesOutput, error)
+	DeleteDBProxy(ctx context.Context, params *rds.DeleteDBProxyInput, optFns ...func(*rds.Options)) (*rds.DeleteDBProxyOutput, error)
+}
+
+// NewRdsProxy creates a new RdsProxy resource using the generic resource pattern.
+func NewRdsProxy() AwsResource {
+	return NewAwsResource(&resource.Resource[RdsProxyAPI]{
+		ResourceTypeName: "rds-proxy",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsProxyAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = rds.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.RdsProxy
+		},
+		Lister: listRdsProxies,
+		Nuker:  resource.SimpleBatchDeleter(deleteRdsProxy),
+	})
+}
+
+// listRdsProxies retrieves all RDS Proxies that match the config filters.
+func listRdsProxies(ctx context.Context, client RdsProxyAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var names []*string
-	paginator := rds.NewDescribeDBProxiesPaginator(rdp.Client, &rds.DescribeDBProxiesInput{})
+	paginator := rds.NewDescribeDBProxiesPaginator(client, &rds.DescribeDBProxiesInput{})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(rdp.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, proxy := range page.DBProxies {
-			if configObj.RdsProxy.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: proxy.DBProxyName,
 				Time: proxy.CreatedDate,
 			}) {
@@ -33,39 +55,11 @@ func (rdp *RdsProxy) getAll(_ context.Context, configObj config.Config) ([]*stri
 
 	return names, nil
 }
-func (rdp *RdsProxy) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No RDS proxy in region %s", rdp.Region)
-		return nil
-	}
 
-	logging.Debugf("Deleting all DB Proxies in region %s", rdp.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		logging.Debugf("[RDS Proxy] Deleting %s in region %s", *identifier, rdp.Region)
-
-		_, err := rdp.Client.DeleteDBProxy(
-			rdp.Context,
-			&rds.DeleteDBProxyInput{
-				DBProxyName: identifier,
-			})
-		if err != nil {
-			logging.Errorf("[RDS Proxy] Error deleting RDS Proxy %s: %s", *identifier, err)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[RDS Proxy] Deleted RDS Proxy %s", *identifier)
-		}
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: rdp.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d RDS DB proxi(s) nuked in %s", len(deleted), rdp.Region)
-	return nil
+// deleteRdsProxy deletes a single RDS Proxy.
+func deleteRdsProxy(ctx context.Context, client RdsProxyAPI, name *string) error {
+	_, err := client.DeleteDBProxy(ctx, &rds.DeleteDBProxyInput{
+		DBProxyName: name,
+	})
+	return err
 }

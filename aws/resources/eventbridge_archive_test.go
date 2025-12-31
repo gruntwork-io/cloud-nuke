@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,22 +33,19 @@ func Test_EventBridgeArchive_GetAll(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-
 	archive1 := "test-archive-1"
 	archive2 := "test-archive-2"
 
-	service := EventBridgeArchive{
-		Client: mockedEventBridgeArchiveService{
-			ListArchivesOutput: eventbridge.ListArchivesOutput{
-				Archives: []types.Archive{
-					{
-						ArchiveName:  aws.String(archive1),
-						CreationTime: &now,
-					},
-					{
-						ArchiveName:  aws.String(archive2),
-						CreationTime: aws.Time(now.Add(time.Hour)),
-					},
+	client := mockedEventBridgeArchiveService{
+		ListArchivesOutput: eventbridge.ListArchivesOutput{
+			Archives: []types.Archive{
+				{
+					ArchiveName:  aws.String(archive1),
+					CreationTime: &now,
+				},
+				{
+					ArchiveName:  aws.String(archive2),
+					CreationTime: aws.Time(now.Add(time.Hour)),
 				},
 			},
 		},
@@ -81,12 +79,14 @@ func Test_EventBridgeArchive_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			buses, err := service.getAll(
+			archives, err := listEventBridgeArchives(
 				context.Background(),
-				config.Config{EventBridgeArchive: tc.configObj},
+				client,
+				resource.Scope{},
+				tc.configObj,
 			)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(buses))
+			require.Equal(t, tc.expected, aws.ToStringSlice(archives))
 		})
 	}
 }
@@ -95,10 +95,10 @@ func Test_EventBridgeArchive_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	archiveName := "test-archive-1"
-	service := EventBridgeArchive{
-		Client: mockedEventBridgeArchiveService{DeleteArchiveOutput: eventbridge.DeleteArchiveOutput{}},
+	client := mockedEventBridgeArchiveService{
+		DeleteArchiveOutput: eventbridge.DeleteArchiveOutput{},
 	}
 
-	err := service.nukeAll([]*string{&archiveName})
+	err := deleteEventBridgeArchive(context.Background(), client, &archiveName)
 	assert.NoError(t, err)
 }

@@ -8,54 +8,42 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/amp/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (a *ManagedPrometheus) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("[Managed Prometheus] No Prometheus Workspaces found in region %s", a.Region)
-		return nil
-	}
-
-	logging.Debugf("[Managed Prometheus] Deleting all Prometheus Workspaces in %s", a.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		logging.Debugf("[Managed Prometheus] Deleting Prometheus Workspace %s in region %s", *identifier, a.Region)
-
-		_, err := a.Client.DeleteWorkspace(a.Context, &amp.DeleteWorkspaceInput{
-			WorkspaceId: identifier,
-			ClientToken: nil,
-		})
-		if err != nil {
-			logging.Debugf("[Managed Prometheus] Error deleting Workspace %s in region %s", *identifier, a.Region)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[Managed Prometheus] Deleted Workspace %s in region %s", *identifier, a.Region)
-		}
-
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: a.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d Prometheus Workspace(s) deleted in %s", len(deleted), a.Region)
-	return nil
+// ManagedPrometheusAPI defines the interface for Managed Prometheus operations.
+type ManagedPrometheusAPI interface {
+	ListWorkspaces(ctx context.Context, input *amp.ListWorkspacesInput, f ...func(*amp.Options)) (*amp.ListWorkspacesOutput, error)
+	DeleteWorkspace(ctx context.Context, params *amp.DeleteWorkspaceInput, optFns ...func(*amp.Options)) (*amp.DeleteWorkspaceOutput, error)
 }
 
-func (a *ManagedPrometheus) getAll(ctx context.Context, cnfObj config.Config) ([]*string, error) {
-	paginator := amp.NewListWorkspacesPaginator(a.Client, &amp.ListWorkspacesInput{})
+// NewManagedPrometheus creates a new ManagedPrometheus resource using the generic resource pattern.
+func NewManagedPrometheus() AwsResource {
+	return NewAwsResource(&resource.Resource[ManagedPrometheusAPI]{
+		ResourceTypeName: "managed-prometheus",
+		BatchSize:        100,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[ManagedPrometheusAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = amp.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ManagedPrometheus
+		},
+		Lister: listManagedPrometheusWorkspaces,
+		Nuker:  resource.SimpleBatchDeleter(deleteManagedPrometheusWorkspace),
+	})
+}
 
+// listManagedPrometheusWorkspaces retrieves all Managed Prometheus Workspaces that match the config filters.
+func listManagedPrometheusWorkspaces(ctx context.Context, client ManagedPrometheusAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var identifiers []*string
+
+	paginator := amp.NewListWorkspacesPaginator(client, &amp.ListWorkspacesInput{})
 	for paginator.HasMorePages() {
 		workspaces, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[Managed Prometheus] Failed to list workspaces: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, workspace := range workspaces.Workspaces {
@@ -63,7 +51,7 @@ func (a *ManagedPrometheus) getAll(ctx context.Context, cnfObj config.Config) ([
 				continue
 			}
 
-			if cnfObj.ManagedPrometheus.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: workspace.Alias,
 				Time: workspace.CreatedAt,
 				Tags: workspace.Tags,
@@ -74,4 +62,12 @@ func (a *ManagedPrometheus) getAll(ctx context.Context, cnfObj config.Config) ([
 	}
 
 	return identifiers, nil
+}
+
+// deleteManagedPrometheusWorkspace deletes a single Managed Prometheus Workspace.
+func deleteManagedPrometheusWorkspace(ctx context.Context, client ManagedPrometheusAPI, workspaceID *string) error {
+	_, err := client.DeleteWorkspace(ctx, &amp.DeleteWorkspaceInput{
+		WorkspaceId: workspaceID,
+	})
+	return err
 }

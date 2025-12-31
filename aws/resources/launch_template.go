@@ -7,89 +7,74 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a formatted string of Launch Template Names
-func (lt *LaunchTemplates) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := lt.Client.DescribeLaunchTemplates(lt.Context, &ec2.DescribeLaunchTemplatesInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	var templateNames []*string
-	for _, template := range result.LaunchTemplates {
-		// Extract tags directly from the launch template resource
-		tags := make(map[string]string)
-		for _, tag := range template.Tags {
-			if tag.Key != nil && tag.Value != nil {
-				tags[*tag.Key] = *tag.Value
-			}
-		}
-
-		logging.Debugf("Tags for Launch Template %s: %v", *template.LaunchTemplateName, tags)
-
-		resourceValue := config.ResourceValue{
-			Name: template.LaunchTemplateName,
-			Time: template.CreateTime,
-			Tags: tags,
-		}
-
-		if configObj.LaunchTemplate.ShouldInclude(resourceValue) {
-			templateNames = append(templateNames, template.LaunchTemplateName)
-		}
-	}
-
-	// checking the nukable permissions
-	lt.VerifyNukablePermissions(templateNames, func(id *string) error {
-		_, err := lt.Client.DeleteLaunchTemplate(lt.Context, &ec2.DeleteLaunchTemplateInput{
-			LaunchTemplateName: id,
-			DryRun:             aws.Bool(true),
-		})
-		return err
-	})
-
-	return templateNames, nil
+// LaunchTemplatesAPI defines the interface for Launch Template operations.
+type LaunchTemplatesAPI interface {
+	DescribeLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error)
+	DeleteLaunchTemplate(ctx context.Context, params *ec2.DeleteLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.DeleteLaunchTemplateOutput, error)
 }
 
-// Deletes all Launch Templates
-func (lt *LaunchTemplates) nukeAll(templateNames []*string) error {
-	if len(templateNames) == 0 {
-		logging.Debugf("No Launch Templates to nuke in region %s", lt.Region)
-		return nil
-	}
+// NewLaunchTemplates creates a new Launch Templates resource using the generic resource pattern.
+func NewLaunchTemplates() AwsResource {
+	return NewAwsResource(&resource.Resource[LaunchTemplatesAPI]{
+		ResourceTypeName: "lt",
+		BatchSize:        49,
+		InitClient: func(r *resource.Resource[LaunchTemplatesAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for EC2 client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = ec2.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.LaunchTemplate
+		},
+		Lister: listLaunchTemplates,
+		Nuker:  resource.SimpleBatchDeleter(deleteLaunchTemplate),
+	})
+}
 
-	logging.Debugf("Deleting all Launch Templates in region %s", lt.Region)
-	var deletedTemplateNames []*string
+// listLaunchTemplates retrieves all launch templates that match the config filters.
+func listLaunchTemplates(ctx context.Context, client LaunchTemplatesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var names []*string
 
-	for _, templateName := range templateNames {
-
-		if nukable, reason := lt.IsNukable(aws.ToString(templateName)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(templateName), reason)
-			continue
-		}
-
-		_, err := lt.Client.DeleteLaunchTemplate(lt.Context, &ec2.DeleteLaunchTemplateInput{
-			LaunchTemplateName: templateName,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(templateName),
-			ResourceType: "Launch template",
-			Error:        err,
-		}
-		report.Record(e)
-
+	paginator := ec2.NewDescribeLaunchTemplatesPaginator(client, &ec2.DescribeLaunchTemplatesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-		} else {
-			deletedTemplateNames = append(deletedTemplateNames, templateName)
-			logging.Debugf("Deleted Launch template: %s", *templateName)
+			return nil, err
+		}
+
+		for _, template := range page.LaunchTemplates {
+			// Extract tags from the launch template
+			tags := make(map[string]string)
+			for _, tag := range template.Tags {
+				if tag.Key != nil && tag.Value != nil {
+					tags[*tag.Key] = *tag.Value
+				}
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: template.LaunchTemplateName,
+				Time: template.CreateTime,
+				Tags: tags,
+			}) {
+				names = append(names, template.LaunchTemplateName)
+			}
 		}
 	}
 
-	logging.Debugf("[OK] %d Launch Template(s) deleted in %s", len(deletedTemplateNames), lt.Region)
-	return nil
+	return names, nil
+}
+
+// deleteLaunchTemplate deletes a single launch template.
+func deleteLaunchTemplate(ctx context.Context, client LaunchTemplatesAPI, name *string) error {
+	_, err := client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
+		LaunchTemplateName: name,
+	})
+	return err
 }
