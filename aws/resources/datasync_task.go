@@ -6,61 +6,48 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/datasync"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (dst *DataSyncTask) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("[Data Sync Task] No Data Sync Tasks found in region %s", dst.Region)
-		return nil
-	}
-
-	logging.Debugf("[Data Sync Task] Deleting all Data Sync Tasks in region %s", dst.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		logging.Debugf("[Data Sync Task] Deleting Data Sync Task %s in region %s", *identifier, dst.Region)
-		_, err := dst.Client.DeleteTask(dst.Context, &datasync.DeleteTaskInput{
-			TaskArn: identifier,
-		})
-		if err != nil {
-			logging.Debugf("[Data Sync Task] Error deleting Data Sync Task %s in region %s", *identifier, dst.Region)
-			return err
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[Data Sync Task] Deleted Data Sync Task %s in region %s", *identifier, dst.Region)
-		}
-
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: dst.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d Data Sync Task(s) nuked in %s", len(deleted), dst.Region)
-	return nil
+// DataSyncTaskAPI defines the interface for DataSync Task operations.
+type DataSyncTaskAPI interface {
+	DeleteTask(ctx context.Context, params *datasync.DeleteTaskInput, optFns ...func(*datasync.Options)) (*datasync.DeleteTaskOutput, error)
+	ListTasks(ctx context.Context, params *datasync.ListTasksInput, optFns ...func(*datasync.Options)) (*datasync.ListTasksOutput, error)
 }
 
-func (dst *DataSyncTask) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var identifiers []*string
-	param := &datasync.ListTasksInput{
-		MaxResults: aws.Int32(100),
-	}
+// NewDataSyncTask creates a new DataSync Task resource using the generic resource pattern.
+func NewDataSyncTask() AwsResource {
+	return NewAwsResource(&resource.Resource[DataSyncTaskAPI]{
+		ResourceTypeName: "data-sync-task",
+		BatchSize:        19,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[DataSyncTaskAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = datasync.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.DataSyncTask
+		},
+		Lister: listDataSyncTasks,
+		Nuker:  resource.SimpleBatchDeleter(deleteDataSyncTask),
+	})
+}
 
-	tasksPaginator := datasync.NewListTasksPaginator(dst.Client, param)
-	for tasksPaginator.HasMorePages() {
-		output, err := tasksPaginator.NextPage(c)
+// listDataSyncTasks retrieves all DataSync tasks that match the config filters.
+func listDataSyncTasks(ctx context.Context, client DataSyncTaskAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
+
+	paginator := datasync.NewListTasksPaginator(client, &datasync.ListTasksInput{
+		MaxResults: aws.Int32(100),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[Data Sync Task] Failed to list data sync tasks: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
-		for _, task := range output.Tasks {
-			if configObj.DataSyncTask.ShouldInclude(config.ResourceValue{
+		for _, task := range page.Tasks {
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: task.Name,
 			}) {
 				identifiers = append(identifiers, task.TaskArn)
@@ -69,4 +56,12 @@ func (dst *DataSyncTask) getAll(c context.Context, configObj config.Config) ([]*
 	}
 
 	return identifiers, nil
+}
+
+// deleteDataSyncTask deletes a single DataSync task.
+func deleteDataSyncTask(ctx context.Context, client DataSyncTaskAPI, taskArn *string) error {
+	_, err := client.DeleteTask(ctx, &datasync.DeleteTaskInput{
+		TaskArn: taskArn,
+	})
+	return err
 }

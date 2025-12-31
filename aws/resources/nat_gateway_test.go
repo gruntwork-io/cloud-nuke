@@ -9,113 +9,82 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedNatGateway struct {
-	NatGatewaysAPI
-	DeleteNatGatewayOutput    ec2.DeleteNatGatewayOutput
+type mockNatGatewayClient struct {
 	DescribeNatGatewaysOutput ec2.DescribeNatGatewaysOutput
-	DescribeNatGatewaysError  error
+	DeleteNatGatewayOutput    ec2.DeleteNatGatewayOutput
 }
 
-func (m mockedNatGateway) DeleteNatGateway(ctx context.Context, params *ec2.DeleteNatGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNatGatewayOutput, error) {
+func (m *mockNatGatewayClient) DescribeNatGateways(ctx context.Context, params *ec2.DescribeNatGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNatGatewaysOutput, error) {
+	return &m.DescribeNatGatewaysOutput, nil
+}
+
+func (m *mockNatGatewayClient) DeleteNatGateway(ctx context.Context, params *ec2.DeleteNatGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNatGatewayOutput, error) {
 	return &m.DeleteNatGatewayOutput, nil
 }
 
-func (m mockedNatGateway) DescribeNatGateways(ctx context.Context, params *ec2.DescribeNatGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNatGatewaysOutput, error) {
-	return &m.DescribeNatGatewaysOutput, m.DescribeNatGatewaysError
-}
-
-func TestNatGateway_GetAll(t *testing.T) {
-
+func TestListNatGateways(t *testing.T) {
 	t.Parallel()
 
-	testId1 := "test-nat-gateway-id1"
-	testId2 := "test-nat-gateway-id2"
-	testName1 := "test-nat-gateway-1"
-	testName2 := "test-nat-gateway-2"
 	now := time.Now()
-	ng := NatGateways{
-		Client: mockedNatGateway{
-			DescribeNatGatewaysOutput: ec2.DescribeNatGatewaysOutput{
-				NatGateways: []types.NatGateway{
-					{
-						NatGatewayId: aws.String(testId1),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
-							},
-						},
-						CreateTime: aws.Time(now),
-					},
-					{
-						NatGatewayId: aws.String(testId2),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
-							},
-						},
-						CreateTime: aws.Time(now.Add(1)),
-					},
+	tests := map[string]struct {
+		gateways []types.NatGateway
+		config   config.ResourceType
+		expected []string
+	}{
+		"all gateways": {
+			gateways: []types.NatGateway{
+				{NatGatewayId: aws.String("ngw-1"), CreateTime: aws.Time(now), Tags: []types.Tag{{Key: aws.String("Name"), Value: aws.String("test-1")}}},
+				{NatGatewayId: aws.String("ngw-2"), CreateTime: aws.Time(now), Tags: []types.Tag{{Key: aws.String("Name"), Value: aws.String("test-2")}}},
+			},
+			config:   config.ResourceType{},
+			expected: []string{"ngw-1", "ngw-2"},
+		},
+		"exclude by name": {
+			gateways: []types.NatGateway{
+				{NatGatewayId: aws.String("ngw-1"), CreateTime: aws.Time(now), Tags: []types.Tag{{Key: aws.String("Name"), Value: aws.String("skip-this")}}},
+				{NatGatewayId: aws.String("ngw-2"), CreateTime: aws.Time(now), Tags: []types.Tag{{Key: aws.String("Name"), Value: aws.String("keep-this")}}},
+			},
+			config: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
 				},
 			},
+			expected: []string{"ngw-2"},
+		},
+		"skip deleted state": {
+			gateways: []types.NatGateway{
+				{NatGatewayId: aws.String("ngw-1"), CreateTime: aws.Time(now), State: types.NatGatewayStateDeleted},
+				{NatGatewayId: aws.String("ngw-2"), CreateTime: aws.Time(now), State: types.NatGatewayStateAvailable},
+			},
+			config:   config.ResourceType{},
+			expected: []string{"ngw-2"},
 		},
 	}
 
-	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
-	}{
-		"emptyFilter": {
-			configObj: config.ResourceType{},
-			expected:  []string{testId1, testId2},
-		},
-		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
-			},
-			expected: []string{testId2},
-		},
-		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
-				}},
-			expected: []string{testId1},
-		},
-	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ng.getAll(context.Background(), config.Config{
-				NatGateway: tc.configObj,
-			})
+			mock := &mockNatGatewayClient{
+				DescribeNatGatewaysOutput: ec2.DescribeNatGatewaysOutput{
+					NatGateways: tc.gateways,
+				},
+			}
+
+			result, err := listNatGateways(context.Background(), mock, resource.Scope{}, tc.config)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(result))
 		})
 	}
 }
 
-func TestNatGateway_NukeAll(t *testing.T) {
-
+func TestDeleteNatGateway(t *testing.T) {
 	t.Parallel()
 
-	ngw := NatGateways{
-		Client: mockedNatGateway{
-			DeleteNatGatewayOutput: ec2.DeleteNatGatewayOutput{},
-			DescribeNatGatewaysError: &smithy.GenericAPIError{
-				Code: "NatGatewayNotFound",
-			},
-		},
-	}
-
-	err := ngw.nukeAll([]*string{aws.String("test")})
+	mock := &mockNatGatewayClient{}
+	err := deleteNatGateway(context.Background(), mock, aws.String("ngw-test"))
 	require.NoError(t, err)
 }

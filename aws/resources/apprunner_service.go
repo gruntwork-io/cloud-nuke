@@ -6,59 +6,47 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/apprunner"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (a *AppRunnerService) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("[App Runner Service] No App Runner Services found in region %s", a.Region)
-		return nil
-	}
-
-	logging.Debugf("[App Runner Service] Deleting all App Runner Services in region %s", a.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		logging.Debugf("[App Runner Service] Deleting App Runner Service %s in region %s", *identifier, a.Region)
-
-		_, err := a.Client.DeleteService(a.Context, &apprunner.DeleteServiceInput{
-			ServiceArn: identifier,
-		})
-		if err != nil {
-			logging.Debugf("[App Runner Service] Error deleting App Runner Service %s in region %s", *identifier, a.Region)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[App Runner Service] Deleted App Runner Service %s in region %s", *identifier, a.Region)
-		}
-
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: a.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d App Runner Service(s) nuked in %s", len(deleted), a.Region)
-	return nil
+// AppRunnerServiceAPI defines the interface for AppRunner Service operations.
+type AppRunnerServiceAPI interface {
+	DeleteService(ctx context.Context, params *apprunner.DeleteServiceInput, optFns ...func(*apprunner.Options)) (*apprunner.DeleteServiceOutput, error)
+	ListServices(ctx context.Context, params *apprunner.ListServicesInput, optFns ...func(*apprunner.Options)) (*apprunner.ListServicesOutput, error)
 }
 
-func (a *AppRunnerService) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// NewAppRunnerService creates a new AppRunnerService resource using the generic resource pattern.
+func NewAppRunnerService() AwsResource {
+	return NewAwsResource(&resource.Resource[AppRunnerServiceAPI]{
+		ResourceTypeName: "app-runner-service",
+		BatchSize:        19,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[AppRunnerServiceAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = apprunner.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.AppRunnerService
+		},
+		Lister: listAppRunnerServices,
+		Nuker:  resource.SimpleBatchDeleter(deleteAppRunnerService),
+	})
+}
+
+// listAppRunnerServices retrieves all AppRunner Services that match the config filters.
+func listAppRunnerServices(ctx context.Context, client AppRunnerServiceAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var identifiers []*string
-	paginator := apprunner.NewListServicesPaginator(a.Client, &apprunner.ListServicesInput{
+	paginator := apprunner.NewListServicesPaginator(client, &apprunner.ListServicesInput{
 		MaxResults: aws.Int32(19),
 	})
+
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(c)
+		output, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[App Runner Service] Failed to list app runner services: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, service := range output.ServiceSummaryList {
-			if configObj.AppRunnerService.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: service.ServiceName,
 				Time: service.CreatedAt,
 			}) {
@@ -68,4 +56,12 @@ func (a *AppRunnerService) getAll(c context.Context, configObj config.Config) ([
 	}
 
 	return identifiers, nil
+}
+
+// deleteAppRunnerService deletes a single AppRunner Service.
+func deleteAppRunnerService(ctx context.Context, client AppRunnerServiceAPI, serviceArn *string) error {
+	_, err := client.DeleteService(ctx, &apprunner.DeleteServiceInput{
+		ServiceArn: serviceArn,
+	})
+	return err
 }

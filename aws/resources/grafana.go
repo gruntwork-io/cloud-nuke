@@ -8,24 +8,47 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/grafana/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (g *Grafana) getAll(ctx context.Context, cnfObj config.Config) ([]*string, error) {
+// GrafanaAPI defines the interface for Grafana operations.
+type GrafanaAPI interface {
+	ListWorkspaces(ctx context.Context, params *grafana.ListWorkspacesInput, optFns ...func(*grafana.Options)) (*grafana.ListWorkspacesOutput, error)
+	DeleteWorkspace(ctx context.Context, params *grafana.DeleteWorkspaceInput, optFns ...func(*grafana.Options)) (*grafana.DeleteWorkspaceOutput, error)
+}
+
+// NewGrafana creates a new Grafana resource using the generic resource pattern.
+func NewGrafana() AwsResource {
+	return NewAwsResource(&resource.Resource[GrafanaAPI]{
+		ResourceTypeName: "grafana",
+		BatchSize:        100,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[GrafanaAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = grafana.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.Grafana
+		},
+		Lister: listGrafanaWorkspaces,
+		Nuker:  resource.SimpleBatchDeleter(deleteGrafanaWorkspace),
+	})
+}
+
+// listGrafanaWorkspaces retrieves all Grafana Workspaces that match the config filters.
+func listGrafanaWorkspaces(ctx context.Context, client GrafanaAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var workspaceIDs []*string
 
-	paginator := grafana.NewListWorkspacesPaginator(g.Client, &grafana.ListWorkspacesInput{})
+	paginator := grafana.NewListWorkspacesPaginator(client, &grafana.ListWorkspacesInput{})
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, workspace := range page.Workspaces {
 			if workspace.Status != types.WorkspaceStatusActive {
 				logging.Debugf(
-					"[Grafana] skiping grafana workspaces: %s, status: %s",
+					"[Grafana] skipping grafana workspace: %s, status: %s",
 					*workspace.Name,
 					workspace.Status,
 				)
@@ -33,7 +56,7 @@ func (g *Grafana) getAll(ctx context.Context, cnfObj config.Config) ([]*string, 
 				continue
 			}
 
-			if cnfObj.Grafana.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: workspace.Name,
 				Time: workspace.Created,
 				Tags: workspace.Tags,
@@ -46,34 +69,10 @@ func (g *Grafana) getAll(ctx context.Context, cnfObj config.Config) ([]*string, 
 	return workspaceIDs, nil
 }
 
-func (g *Grafana) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("[Grafana] No Grafana Workspaces found in region %s", g.Region)
-		return nil
-	}
-
-	logging.Debugf("[Grafana] Deleting all Grafana Workspaces in %s", g.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		_, err := g.Client.DeleteWorkspace(g.Context, &grafana.DeleteWorkspaceInput{
-			WorkspaceId: identifier,
-		})
-		if err != nil {
-			logging.Debugf("[Grafana] Error deleting Workspace %s in region %s", *identifier, g.Region)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[Grafana] Deleted Workspace %s in region %s", *identifier, g.Region)
-		}
-
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: g.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d Grafana Workspace(s) deleted in %s", len(deleted), g.Region)
-	return nil
+// deleteGrafanaWorkspace deletes a single Grafana Workspace.
+func deleteGrafanaWorkspace(ctx context.Context, client GrafanaAPI, workspaceID *string) error {
+	_, err := client.DeleteWorkspace(ctx, &grafana.DeleteWorkspaceInput{
+		WorkspaceId: workspaceID,
+	})
+	return err
 }

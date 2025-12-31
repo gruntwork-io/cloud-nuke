@@ -6,63 +6,55 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/configservice"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (csr *ConfigServiceRecorders) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-
-	var configRecorderNames []*string
-
-	param := &configservice.DescribeConfigurationRecordersInput{}
-	output, err := csr.Client.DescribeConfigurationRecorders(csr.Context, param)
-	if err != nil {
-		return []*string{}, errors.WithStackTrace(err)
-	}
-
-	for _, configRecorder := range output.ConfigurationRecorders {
-		if configObj.ConfigServiceRecorder.ShouldInclude(config.ResourceValue{
-			Name: configRecorder.Name,
-		}) {
-			configRecorderNames = append(configRecorderNames, configRecorder.Name)
-		}
-	}
-
-	return configRecorderNames, nil
+// ConfigServiceRecordersAPI defines the interface for Config Service Recorder operations.
+type ConfigServiceRecordersAPI interface {
+	DescribeConfigurationRecorders(ctx context.Context, params *configservice.DescribeConfigurationRecordersInput, optFns ...func(*configservice.Options)) (*configservice.DescribeConfigurationRecordersOutput, error)
+	DeleteConfigurationRecorder(ctx context.Context, params *configservice.DeleteConfigurationRecorderInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigurationRecorderOutput, error)
 }
 
-func (csr *ConfigServiceRecorders) nukeAll(configRecorderNames []string) error {
-	if len(configRecorderNames) == 0 {
-		logging.Debugf("No Config recorders to nuke in region %s", csr.Region)
-		return nil
+// NewConfigServiceRecorders creates a new ConfigServiceRecorders resource using the generic resource pattern.
+func NewConfigServiceRecorders() AwsResource {
+	return NewAwsResource(&resource.Resource[ConfigServiceRecordersAPI]{
+		ResourceTypeName: "config-recorders",
+		BatchSize:        50,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[ConfigServiceRecordersAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = configservice.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ConfigServiceRecorder
+		},
+		Lister: listConfigServiceRecorders,
+		Nuker:  resource.SimpleBatchDeleter(deleteConfigServiceRecorder),
+	})
+}
+
+// listConfigServiceRecorders retrieves all Config Service Recorders that match the config filters.
+func listConfigServiceRecorders(ctx context.Context, client ConfigServiceRecordersAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	output, err := client.DescribeConfigurationRecorders(ctx, &configservice.DescribeConfigurationRecordersInput{})
+	if err != nil {
+		return nil, err
 	}
 
-	var deletedNames []*string
-
-	for _, configRecorderName := range configRecorderNames {
-		params := &configservice.DeleteConfigurationRecorderInput{
-			ConfigurationRecorderName: aws.String(configRecorderName),
-		}
-
-		_, err := csr.Client.DeleteConfigurationRecorder(csr.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   configRecorderName,
-			ResourceType: "Config Recorder",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedNames = append(deletedNames, aws.String(configRecorderName))
-			logging.Debugf("Deleted Config Recorder: %s", configRecorderName)
+	var recorderNames []*string
+	for _, recorder := range output.ConfigurationRecorders {
+		if cfg.ShouldInclude(config.ResourceValue{
+			Name: recorder.Name,
+		}) {
+			recorderNames = append(recorderNames, recorder.Name)
 		}
 	}
 
-	logging.Debugf("[OK] %d Config Recorders deleted in %s", len(deletedNames), csr.Region)
-	return nil
+	return recorderNames, nil
+}
+
+// deleteConfigServiceRecorder deletes a single Config Service Recorder.
+func deleteConfigServiceRecorder(ctx context.Context, client ConfigServiceRecordersAPI, name *string) error {
+	_, err := client.DeleteConfigurationRecorder(ctx, &configservice.DeleteConfigurationRecorderInput{
+		ConfigurationRecorderName: name,
+	})
+	return err
 }

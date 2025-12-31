@@ -10,64 +10,49 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedEIPAddresses struct {
-	EIPAddressesAPI
-	ReleaseAddressOutput    ec2.ReleaseAddressOutput
+type mockEIPAddressesClient struct {
 	DescribeAddressesOutput ec2.DescribeAddressesOutput
+	ReleaseAddressOutput    ec2.ReleaseAddressOutput
 }
 
-func (m mockedEIPAddresses) ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error) {
-	return &m.ReleaseAddressOutput, nil
-}
-
-func (m mockedEIPAddresses) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
+func (m *mockEIPAddressesClient) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
 	return &m.DescribeAddressesOutput, nil
 }
 
-func TestEIPAddress_GetAll(t *testing.T) {
+func (m *mockEIPAddressesClient) ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error) {
+	return &m.ReleaseAddressOutput, nil
+}
+
+func (m *mockEIPAddressesClient) CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
+	return &ec2.CreateTagsOutput{}, nil
+}
+
+func TestListEIPAddresses(t *testing.T) {
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
+	now := time.Now()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
-	now := time.Now()
-	testName1 := "test-eip1"
-	testAllocId1 := "alloc1"
-	testName2 := "test-eip2"
-	testAllocId2 := "alloc2"
-	ea := EIPAddresses{
-		Client: &mockedEIPAddresses{
-			DescribeAddressesOutput: ec2.DescribeAddressesOutput{
-				Addresses: []types.Address{
-					{
-						AllocationId: aws.String(testAllocId1),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
-							},
-							{
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now)),
-							},
-						},
+	mock := &mockEIPAddressesClient{
+		DescribeAddressesOutput: ec2.DescribeAddressesOutput{
+			Addresses: []types.Address{
+				{
+					AllocationId: aws.String("eipalloc-1"),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-eip1")},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 					},
-					{
-						AllocationId: aws.String(testAllocId2),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
-							},
-							{
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now.Add(1))),
-							},
-						},
+				},
+				{
+					AllocationId: aws.String("eipalloc-2"),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-eip2")},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 					},
 				},
 			},
@@ -75,53 +60,44 @@ func TestEIPAddress_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
-			expected:  []string{testAllocId1, testAllocId2},
+			expected:  []string{"eipalloc-1", "eipalloc-2"},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test-eip1")}},
+				},
 			},
-			expected: []string{testAllocId2},
+			expected: []string{"eipalloc-2"},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
+				},
+			},
 			expected: []string{},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ea.getAll(tc.ctx, config.Config{
-				ElasticIP: tc.configObj,
-			})
+			ids, err := listEIPAddresses(ctx, mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
-func TestEIPAddress_NukeAll(t *testing.T) {
+func TestReleaseEIPAddress(t *testing.T) {
 	t.Parallel()
-	ea := EIPAddresses{
-		Client: &mockedEIPAddresses{
-			ReleaseAddressOutput: ec2.ReleaseAddressOutput{},
-		},
-	}
 
-	err := ea.nukeAll([]*string{aws.String("alloc1")})
+	mock := &mockEIPAddressesClient{}
+	err := releaseEIPAddress(context.Background(), mock, aws.String("eipalloc-1"))
 	require.NoError(t, err)
 }

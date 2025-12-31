@@ -6,24 +6,42 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a formatted string of ses-identities IDs
-func (sid *SesIdentities) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// SESIdentityAPI defines the interface for SES Identity operations.
+type SESIdentityAPI interface {
+	ListIdentities(ctx context.Context, params *ses.ListIdentitiesInput, optFns ...func(*ses.Options)) (*ses.ListIdentitiesOutput, error)
+	DeleteIdentity(ctx context.Context, params *ses.DeleteIdentityInput, optFns ...func(*ses.Options)) (*ses.DeleteIdentityOutput, error)
+}
 
-	param := &ses.ListIdentitiesInput{}
+// NewSesIdentities creates a new SesIdentities resource using the generic resource pattern.
+func NewSesIdentities() AwsResource {
+	return NewAwsResource(&resource.Resource[SESIdentityAPI]{
+		ResourceTypeName: "ses-identity",
+		BatchSize:        maxBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESIdentityAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ses.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.SESIdentity
+		},
+		Lister: listSesIdentities,
+		Nuker:  resource.SimpleBatchDeleter(deleteSesIdentity),
+	})
+}
 
-	result, err := sid.Client.ListIdentities(sid.Context, param)
+// listSesIdentities retrieves all SES Identities that match the config filters.
+func listSesIdentities(ctx context.Context, client SESIdentityAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	result, err := client.ListIdentities(ctx, &ses.ListIdentitiesInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var ids []*string
 	for _, id := range result.Identities {
-		if configObj.SESIdentity.ShouldInclude(config.ResourceValue{Name: aws.String(id)}) {
+		if cfg.ShouldInclude(config.ResourceValue{Name: aws.String(id)}) {
 			ids = append(ids, aws.String(id))
 		}
 	}
@@ -31,38 +49,10 @@ func (sid *SesIdentities) getAll(c context.Context, configObj config.Config) ([]
 	return ids, nil
 }
 
-// Deletes all identities
-func (sid *SesIdentities) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No SES identities to nuke in region %s", sid.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all SES identities in region %s", sid.Region)
-	var deletedIds []*string
-
-	for _, id := range ids {
-		params := &ses.DeleteIdentityInput{
-			Identity: id,
-		}
-		_, err := sid.Client.DeleteIdentity(sid.Context, params)
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "SES identity",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted SES identity: %s", *id)
-		}
-	}
-
-	logging.Debugf("[OK] %d SES identity(s) deleted in %s", len(deletedIds), sid.Region)
-
-	return nil
+// deleteSesIdentity deletes a single SES Identity.
+func deleteSesIdentity(ctx context.Context, client SESIdentityAPI, id *string) error {
+	_, err := client.DeleteIdentity(ctx, &ses.DeleteIdentityInput{
+		Identity: id,
+	})
+	return err
 }

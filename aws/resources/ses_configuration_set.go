@@ -6,63 +6,66 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a formatted string of ses-configuration set names
-func (s *SesConfigurationSet) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	// Remove default route table, that will be deleted along with its TransitGateway
-	param := &ses.ListConfigurationSetsInput{}
-
-	result, err := s.Client.ListConfigurationSets(s.Context, param)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	var setnames []*string
-	for _, set := range result.ConfigurationSets {
-		if configObj.SESConfigurationSet.ShouldInclude(config.ResourceValue{Name: set.Name}) {
-			setnames = append(setnames, set.Name)
-		}
-	}
-
-	return setnames, nil
+// SesConfigurationSetAPI defines the interface for SES Configuration Set operations.
+type SesConfigurationSetAPI interface {
+	ListConfigurationSets(ctx context.Context, params *ses.ListConfigurationSetsInput, optFns ...func(*ses.Options)) (*ses.ListConfigurationSetsOutput, error)
+	DeleteConfigurationSet(ctx context.Context, params *ses.DeleteConfigurationSetInput, optFns ...func(*ses.Options)) (*ses.DeleteConfigurationSetOutput, error)
 }
 
-// Deletes all sets
-func (s *SesConfigurationSet) nukeAll(sets []*string) error {
-	if len(sets) == 0 {
-		logging.Debugf("No SES configuration sets to nuke in region %s", s.Region)
-		return nil
-	}
+// NewSesConfigurationSet creates a new SES Configuration Set resource using the generic resource pattern.
+func NewSesConfigurationSet() AwsResource {
+	return NewAwsResource(&resource.Resource[SesConfigurationSetAPI]{
+		ResourceTypeName: "ses-configuration-set",
+		BatchSize:        maxBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[SesConfigurationSetAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ses.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.SESConfigurationSet
+		},
+		Lister: listSesConfigurationSets,
+		Nuker:  resource.SimpleBatchDeleter(deleteSesConfigurationSet),
+	})
+}
 
-	logging.Debugf("Deleting all SES configuration sets in region %s", s.Region)
-	var deletedSets []*string
+// listSesConfigurationSets retrieves all SES configuration sets that match the config filters.
+func listSesConfigurationSets(ctx context.Context, client SesConfigurationSetAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var configSets []*string
+	var nextToken *string
 
-	for _, set := range sets {
-		_, err := s.Client.DeleteConfigurationSet(s.Context, &ses.DeleteConfigurationSetInput{
-			ConfigurationSetName: set,
+	for {
+		result, err := client.ListConfigurationSets(ctx, &ses.ListConfigurationSetsInput{
+			NextToken: nextToken,
 		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(set),
-			ResourceType: "SES configuration set",
-			Error:        err,
-		}
-		report.Record(e)
-
 		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedSets = append(deletedSets, set)
-			logging.Debugf("Deleted SES configuration set: %s", *set)
+			return nil, err
 		}
+
+		for _, set := range result.ConfigurationSets {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: set.Name,
+			}) {
+				configSets = append(configSets, set.Name)
+			}
+		}
+
+		if result.NextToken == nil {
+			break
+		}
+		nextToken = result.NextToken
 	}
 
-	logging.Debugf("[OK] %d SES configuration set(s) deleted in %s", len(deletedSets), s.Region)
+	return configSets, nil
+}
 
-	return nil
+// deleteSesConfigurationSet deletes a single SES configuration set.
+func deleteSesConfigurationSet(ctx context.Context, client SesConfigurationSetAPI, configSetName *string) error {
+	_, err := client.DeleteConfigurationSet(ctx, &ses.DeleteConfigurationSetInput{
+		ConfigurationSetName: configSetName,
+	})
+	return err
 }

@@ -6,23 +6,45 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// ECRAPI defines the interface for ECR operations.
+type ECRAPI interface {
+	DescribeRepositories(ctx context.Context, params *ecr.DescribeRepositoriesInput, optFns ...func(*ecr.Options)) (*ecr.DescribeRepositoriesOutput, error)
+	DeleteRepository(ctx context.Context, params *ecr.DeleteRepositoryInput, optFns ...func(*ecr.Options)) (*ecr.DeleteRepositoryOutput, error)
+}
+
+// NewECR creates a new ECR resource using the generic resource pattern.
+func NewECR() AwsResource {
+	return NewAwsResource(&resource.Resource[ECRAPI]{
+		ResourceTypeName: "ecr",
+		BatchSize:        50,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[ECRAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ecr.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ECRRepository
+		},
+		Lister: listECRRepositories,
+		Nuker:  resource.SimpleBatchDeleter(deleteECRRepository),
+	})
+}
+
+// listECRRepositories retrieves all ECR repositories that match the config filters.
+func listECRRepositories(ctx context.Context, client ECRAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var repositoryNames []*string
 
-	paginator := ecr.NewDescribeRepositoriesPaginator(registry.Client, &ecr.DescribeRepositoriesInput{})
+	paginator := ecr.NewDescribeRepositoriesPaginator(client, &ecr.DescribeRepositoriesInput{})
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
-		for _, repository := range output.Repositories {
-			if configObj.ECRRepository.ShouldInclude(config.ResourceValue{
+		for _, repository := range page.Repositories {
+			if cfg.ShouldInclude(config.ResourceValue{
 				Time: repository.CreatedAt,
 				Name: repository.RepositoryName,
 			}) {
@@ -34,40 +56,11 @@ func (registry *ECR) getAll(c context.Context, configObj config.Config) ([]*stri
 	return repositoryNames, nil
 }
 
-func (registry *ECR) nukeAll(repositoryNames []string) error {
-	if len(repositoryNames) == 0 {
-		logging.Debugf("No ECR repositories to nuke in region %s", registry.Region)
-		return nil
-	}
-
-	var deletedNames []*string
-
-	for _, repositoryName := range repositoryNames {
-		params := &ecr.DeleteRepositoryInput{
-			Force:          true,
-			RepositoryName: aws.String(repositoryName),
-		}
-
-		_, err := registry.Client.DeleteRepository(registry.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   repositoryName,
-			ResourceType: "ECR Repository",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-
-			deletedNames = append(deletedNames, aws.String(repositoryName))
-			logging.Debugf("Deleted ECR Repository: %s", repositoryName)
-		}
-	}
-
-	logging.Debugf("[OK] %d ECR Repositories deleted in %s", len(deletedNames), registry.Region)
-
-	return nil
+// deleteECRRepository deletes a single ECR repository.
+func deleteECRRepository(ctx context.Context, client ECRAPI, repositoryName *string) error {
+	_, err := client.DeleteRepository(ctx, &ecr.DeleteRepositoryInput{
+		Force:          true,
+		RepositoryName: repositoryName,
+	})
+	return err
 }

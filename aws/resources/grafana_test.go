@@ -10,100 +10,74 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/grafana"
 	"github.com/aws/aws-sdk-go-v2/service/grafana/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedGrafanaService struct {
-	GrafanaAPI
-	DeleteWorkspaceOutput grafana.DeleteWorkspaceOutput
+type mockGrafanaClient struct {
 	ListWorkspacesOutput  grafana.ListWorkspacesOutput
+	DeleteWorkspaceOutput grafana.DeleteWorkspaceOutput
 }
 
-func (m mockedGrafanaService) DeleteWorkspace(ctx context.Context, params *grafana.DeleteWorkspaceInput, optFns ...func(*grafana.Options)) (*grafana.DeleteWorkspaceOutput, error) {
-	return &m.DeleteWorkspaceOutput, nil
-}
-
-func (m mockedGrafanaService) ListWorkspaces(ctx context.Context, params *grafana.ListWorkspacesInput, optFns ...func(*grafana.Options)) (*grafana.ListWorkspacesOutput, error) {
+func (m *mockGrafanaClient) ListWorkspaces(ctx context.Context, params *grafana.ListWorkspacesInput, optFns ...func(*grafana.Options)) (*grafana.ListWorkspacesOutput, error) {
 	return &m.ListWorkspacesOutput, nil
 }
 
-func Test_Grafana_NukeAll(t *testing.T) {
-	t.Parallel()
-
-	workspaceName := "test-workspace-1"
-	service := Grafana{
-		Client: mockedGrafanaService{
-			DeleteWorkspaceOutput: grafana.DeleteWorkspaceOutput{},
-		},
-	}
-
-	err := service.nukeAll([]*string{&workspaceName})
-	assert.NoError(t, err)
+func (m *mockGrafanaClient) DeleteWorkspace(ctx context.Context, params *grafana.DeleteWorkspaceInput, optFns ...func(*grafana.Options)) (*grafana.DeleteWorkspaceOutput, error) {
+	return &m.DeleteWorkspaceOutput, nil
 }
 
-func Test_Grafana_GetAll(t *testing.T) {
+func TestListGrafanaWorkspaces(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	workSpace1 := "test-workspace-1"
-	workSpace2 := "test-workspace-2"
-
-	service := Grafana{
-		Client: mockedGrafanaService{
-			ListWorkspacesOutput: grafana.ListWorkspacesOutput{
-				Workspaces: []types.WorkspaceSummary{
-					{
-						Id:      aws.String(workSpace1),
-						Name:    aws.String(workSpace1),
-						Created: &now,
-						Status:  types.WorkspaceStatusActive,
-					},
-					{
-						Id:      aws.String(workSpace2),
-						Name:    aws.String(workSpace2),
-						Created: aws.Time(now.Add(time.Hour)),
-						Status:  types.WorkspaceStatusActive,
-					},
-				},
-			},
-		},
-	}
-
 	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
+		workspaces []types.WorkspaceSummary
+		configObj  config.ResourceType
+		expected   []string
 	}{
 		"emptyFilter": {
+			workspaces: []types.WorkspaceSummary{
+				{Id: aws.String("ws1"), Name: aws.String("ws1"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
+				{Id: aws.String("ws2"), Name: aws.String("ws2"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
+			},
 			configObj: config.ResourceType{},
-			expected:  []string{workSpace1, workSpace2},
+			expected:  []string{"ws1", "ws2"},
 		},
 		"nameExclusionFilter": {
+			workspaces: []types.WorkspaceSummary{
+				{Id: aws.String("ws1"), Name: aws.String("ws1"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
+				{Id: aws.String("skip-this"), Name: aws.String("skip-this"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
+			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(workSpace1),
-					}},
-				}},
-			expected: []string{workSpace2},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+				},
+			},
+			expected: []string{"ws1"},
 		},
-		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
-			expected: []string{},
+		"skipsInactiveStatus": {
+			workspaces: []types.WorkspaceSummary{
+				{Id: aws.String("active"), Name: aws.String("active"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
+				{Id: aws.String("creating"), Name: aws.String("creating"), Created: aws.Time(now), Status: types.WorkspaceStatusCreating},
+			},
+			configObj: config.ResourceType{},
+			expected:  []string{"active"},
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			workspaces, err := service.getAll(
-				context.Background(),
-				config.Config{Grafana: tc.configObj},
-			)
+			mock := &mockGrafanaClient{ListWorkspacesOutput: grafana.ListWorkspacesOutput{Workspaces: tc.workspaces}}
+			ids, err := listGrafanaWorkspaces(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(workspaces))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
+}
+
+func TestDeleteGrafanaWorkspace(t *testing.T) {
+	t.Parallel()
+	err := deleteGrafanaWorkspace(context.Background(), &mockGrafanaClient{}, aws.String("test"))
+	require.NoError(t, err)
 }
