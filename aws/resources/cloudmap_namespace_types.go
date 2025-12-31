@@ -68,7 +68,7 @@ func (cns *CloudMapNamespaces) GetAndSetIdentifiers(c context.Context, configObj
 
 // Nuke deletes all Cloud Map namespaces identified by the provided IDs.
 // It ensures proper cleanup by waiting for dependent services to be deleted first.
-func (cns *CloudMapNamespaces) Nuke(identifiers []string) error {
+func (cns *CloudMapNamespaces) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cns.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

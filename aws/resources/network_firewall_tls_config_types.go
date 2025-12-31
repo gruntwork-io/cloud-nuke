@@ -57,7 +57,7 @@ func (nftc *NetworkFirewallTLSConfig) GetAndSetIdentifiers(c context.Context, co
 }
 
 // Nuke - nuke 'em all!!!
-func (nftc *NetworkFirewallTLSConfig) Nuke(identifiers []string) error {
+func (nftc *NetworkFirewallTLSConfig) Nuke(ctx context.Context, identifiers []string) error {
 	if err := nftc.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

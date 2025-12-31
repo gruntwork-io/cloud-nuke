@@ -58,7 +58,7 @@ func (ni *NetworkInterface) GetAndSetIdentifiers(c context.Context, configObj co
 	return ni.InterfaceIds, nil
 }
 
-func (ni *NetworkInterface) Nuke(identifiers []string) error {
+func (ni *NetworkInterface) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ni.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

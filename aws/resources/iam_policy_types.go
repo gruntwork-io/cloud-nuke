@@ -64,7 +64,7 @@ func (ip *IAMPolicies) GetAndSetIdentifiers(c context.Context, configObj config.
 }
 
 // Nuke - Destroy every group in this collection
-func (ip *IAMPolicies) Nuke(identifiers []string) error {
+func (ip *IAMPolicies) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ip.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

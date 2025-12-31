@@ -58,7 +58,7 @@ func (ngw *NatGateways) GetAndSetIdentifiers(c context.Context, configObj config
 }
 
 // Nuke - nuke 'em all!!!
-func (ngw *NatGateways) Nuke(identifiers []string) error {
+func (ngw *NatGateways) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ngw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

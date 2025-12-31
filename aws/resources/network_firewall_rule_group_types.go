@@ -66,7 +66,7 @@ func (nfrg *NetworkFirewallRuleGroup) GetAndSetIdentifiers(c context.Context, co
 }
 
 // Nuke - nuke 'em all!!!
-func (nfrg *NetworkFirewallRuleGroup) Nuke(identifiers []string) error {
+func (nfrg *NetworkFirewallRuleGroup) Nuke(ctx context.Context, identifiers []string) error {
 	if err := nfrg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

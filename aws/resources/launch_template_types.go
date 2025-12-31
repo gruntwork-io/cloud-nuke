@@ -56,7 +56,7 @@ func (lt *LaunchTemplates) GetAndSetIdentifiers(c context.Context, configObj con
 }
 
 // Nuke - nuke 'em all!!!
-func (lt *LaunchTemplates) Nuke(identifiers []string) error {
+func (lt *LaunchTemplates) Nuke(ctx context.Context, identifiers []string) error {
 	if err := lt.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

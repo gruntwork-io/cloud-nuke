@@ -58,7 +58,7 @@ func (m *MSKCluster) GetAndSetIdentifiers(c context.Context, configObj config.Co
 }
 
 // Nuke - nuke 'em all!!!
-func (m *MSKCluster) Nuke(identifiers []string) error {
+func (m *MSKCluster) Nuke(ctx context.Context, identifiers []string) error {
 	if err := m.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

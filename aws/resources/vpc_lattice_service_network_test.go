@@ -111,6 +111,6 @@ func TestVPCLatticeServiceNetwork__NukeAll(t *testing.T) {
 			ListServiceNetworksOutput: vpclattice.ListServiceNetworksOutput{},
 		},
 	}
-	err := obj.Nuke([]string{"test"})
+	err := obj.Nuke(context.TODO(), []string{"test"})
 	require.NoError(t, err)
 }

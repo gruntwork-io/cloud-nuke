@@ -68,7 +68,7 @@ func (cms *CloudMapServices) GetAndSetIdentifiers(c context.Context, configObj c
 
 // Nuke deletes all Cloud Map services identified by the provided IDs.
 // It ensures proper cleanup by deregistering all service instances first.
-func (cms *CloudMapServices) Nuke(identifiers []string) error {
+func (cms *CloudMapServices) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cms.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -53,7 +53,7 @@ func (pg *RdsParameterGroup) GetAndSetIdentifiers(c context.Context, configObj c
 }
 
 // Nuke - nuke 'em all!!!
-func (pg *RdsParameterGroup) Nuke(identifiers []string) error {
+func (pg *RdsParameterGroup) Nuke(ctx context.Context, identifiers []string) error {
 	if err := pg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

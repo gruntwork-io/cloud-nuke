@@ -53,7 +53,7 @@ func (s *SNSTopic) GetAndSetIdentifiers(c context.Context, configObj config.Conf
 	return s.Arns, nil
 }
 
-func (s *SNSTopic) Nuke(identifiers []string) error {
+func (s *SNSTopic) Nuke(ctx context.Context, identifiers []string) error {
 	if err := s.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

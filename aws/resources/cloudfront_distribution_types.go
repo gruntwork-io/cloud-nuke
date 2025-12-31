@@ -57,7 +57,7 @@ func (cd *CloudfrontDistribution) GetAndSetIdentifiers(c context.Context, config
 }
 
 // Nuke - nuke 'em all!!!
-func (cd *CloudfrontDistribution) Nuke(identifiers []string) error {
+func (cd *CloudfrontDistribution) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cd.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

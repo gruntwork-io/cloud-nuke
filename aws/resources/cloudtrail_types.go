@@ -56,7 +56,7 @@ func (ct *CloudtrailTrail) GetAndSetIdentifiers(c context.Context, configObj con
 }
 
 // Nuke - nuke 'em all!!!
-func (ct *CloudtrailTrail) Nuke(identifiers []string) error {
+func (ct *CloudtrailTrail) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ct.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

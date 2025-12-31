@@ -53,7 +53,7 @@ func (rc *RedshiftClusters) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - nuke 'em all!!!
-func (rc *RedshiftClusters) Nuke(identifiers []string) error {
+func (rc *RedshiftClusters) Nuke(ctx context.Context, identifiers []string) error {
 	if err := rc.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

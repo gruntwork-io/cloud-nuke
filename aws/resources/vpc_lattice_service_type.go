@@ -60,7 +60,7 @@ func (n *VPCLatticeService) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - nuke 'em all!!!
-func (n *VPCLatticeService) Nuke(arns []string) error {
+func (n *VPCLatticeService) Nuke(ctx context.Context, arns []string) error {
 	if err := n.nukeAll(aws.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}

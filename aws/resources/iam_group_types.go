@@ -62,7 +62,7 @@ func (ig *IAMGroups) GetAndSetIdentifiers(c context.Context, configObj config.Co
 }
 
 // Nuke - Destroy every group in this collection
-func (ig *IAMGroups) Nuke(identifiers []string) error {
+func (ig *IAMGroups) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ig.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

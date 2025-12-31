@@ -160,7 +160,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, bar *
 			batch := batches[i]
 			bar.UpdateTitle(fmt.Sprintf("Nuking batch of %d %s resource(s) in %s",
 				len(batch), (*awsResource).ResourceName(), region))
-			if err := (*awsResource).Nuke(batch); err != nil {
+			if err := (*awsResource).Nuke(context.TODO(), batch); err != nil {
 				// TODO: Figure out actual error type
 				if strings.Contains(err.Error(), "RequestLimitExceeded") {
 					logging.Debug(

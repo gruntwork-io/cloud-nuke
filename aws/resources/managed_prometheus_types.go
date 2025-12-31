@@ -37,7 +37,7 @@ func (a *ManagedPrometheus) MaxBatchSize() int {
 	return 100
 }
 
-func (a *ManagedPrometheus) Nuke(identifiers []string) error {
+func (a *ManagedPrometheus) Nuke(ctx context.Context, identifiers []string) error {
 	if err := a.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

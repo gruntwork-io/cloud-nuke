@@ -52,7 +52,7 @@ func (tgw *TransitGatewaysVpcAttachment) GetAndSetIdentifiers(c context.Context,
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw *TransitGatewaysVpcAttachment) Nuke(identifiers []string) error {
+func (tgw *TransitGatewaysVpcAttachment) Nuke(ctx context.Context, identifiers []string) error {
 	if err := tgw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

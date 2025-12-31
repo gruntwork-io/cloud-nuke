@@ -52,7 +52,7 @@ func (cfs *CloudFormationStacks) GetAndSetIdentifiers(c context.Context, configO
 	return cfs.StackNames, nil
 }
 
-func (cfs *CloudFormationStacks) Nuke(identifiers []string) error {
+func (cfs *CloudFormationStacks) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cfs.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

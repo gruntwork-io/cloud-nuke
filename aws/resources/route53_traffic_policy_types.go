@@ -57,7 +57,7 @@ func (r *Route53TrafficPolicy) GetAndSetIdentifiers(c context.Context, configObj
 }
 
 // Nuke - nuke 'em all!!!
-func (r *Route53TrafficPolicy) Nuke(identifiers []string) error {
+func (r *Route53TrafficPolicy) Nuke(ctx context.Context, identifiers []string) error {
 	if err := r.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

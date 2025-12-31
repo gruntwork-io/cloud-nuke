@@ -58,7 +58,7 @@ func (oidcprovider *OIDCProviders) GetAndSetIdentifiers(c context.Context, confi
 }
 
 // Nuke - nuke 'em all!!!
-func (oidcprovider *OIDCProviders) Nuke(identifiers []string) error {
+func (oidcprovider *OIDCProviders) Nuke(ctx context.Context, identifiers []string) error {
 	if err := oidcprovider.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

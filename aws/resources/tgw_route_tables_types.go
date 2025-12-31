@@ -53,7 +53,7 @@ func (tgw *TransitGatewaysRouteTables) GetAndSetIdentifiers(c context.Context, c
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw *TransitGatewaysRouteTables) Nuke(identifiers []string) error {
+func (tgw *TransitGatewaysRouteTables) Nuke(ctx context.Context, identifiers []string) error {
 	if err := tgw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -59,7 +59,7 @@ func (s *Snapshots) GetAndSetIdentifiers(c context.Context, configObj config.Con
 }
 
 // Nuke - nuke 'em all!!!
-func (s *Snapshots) Nuke(identifiers []string) error {
+func (s *Snapshots) Nuke(ctx context.Context, identifiers []string) error {
 	if err := s.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

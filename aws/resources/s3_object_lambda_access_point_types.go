@@ -51,7 +51,7 @@ func (ap *S3ObjectLambdaAccessPoint) GetAndSetIdentifiers(c context.Context, con
 	return ap.AccessPoints, nil
 }
 
-func (ap *S3ObjectLambdaAccessPoint) Nuke(identifiers []string) error {
+func (ap *S3ObjectLambdaAccessPoint) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ap.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

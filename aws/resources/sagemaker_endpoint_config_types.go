@@ -85,6 +85,6 @@ func (s *SageMakerEndpointConfig) IsNukable(identifier string) (bool, error) {
 
 // Nuke implements the AwsResource interface by calling nukeAll
 // It takes a list of endpoint configuration identifiers and deletes those endpoint configs
-func (s *SageMakerEndpointConfig) Nuke(identifiers []string) error {
+func (s *SageMakerEndpointConfig) Nuke(ctx context.Context, identifiers []string) error {
 	return s.nukeAll(identifiers)
 }

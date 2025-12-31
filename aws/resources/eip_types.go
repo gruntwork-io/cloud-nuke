@@ -56,7 +56,7 @@ func (eip *EIPAddresses) GetAndSetIdentifiers(c context.Context, configObj confi
 }
 
 // Nuke - nuke 'em all!!!
-func (eip *EIPAddresses) Nuke(identifiers []string) error {
+func (eip *EIPAddresses) Nuke(ctx context.Context, identifiers []string) error {
 	if err := eip.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

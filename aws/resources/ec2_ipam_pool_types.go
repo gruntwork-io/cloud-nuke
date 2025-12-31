@@ -56,7 +56,7 @@ func (pool *EC2IPAMPool) GetAndSetIdentifiers(c context.Context, configObj confi
 }
 
 // Nuke - nuke 'em all!!!
-func (pool *EC2IPAMPool) Nuke(identifiers []string) error {
+func (pool *EC2IPAMPool) Nuke(ctx context.Context, identifiers []string) error {
 	if err := pool.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

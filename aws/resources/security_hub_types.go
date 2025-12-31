@@ -56,7 +56,7 @@ func (sh *SecurityHub) GetAndSetIdentifiers(c context.Context, configObj config.
 	return sh.HubArns, nil
 }
 
-func (sh *SecurityHub) Nuke(identifiers []string) error {
+func (sh *SecurityHub) Nuke(ctx context.Context, identifiers []string) error {
 	if err := sh.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

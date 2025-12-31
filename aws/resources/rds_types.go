@@ -54,7 +54,7 @@ func (di *DBInstances) GetAndSetIdentifiers(c context.Context, configObj config.
 }
 
 // Nuke - nuke 'em all!!!
-func (di *DBInstances) Nuke(identifiers []string) error {
+func (di *DBInstances) Nuke(ctx context.Context, identifiers []string) error {
 	if err := di.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -57,7 +57,7 @@ func (sq *SqsQueue) GetAndSetIdentifiers(c context.Context, configObj config.Con
 }
 
 // Nuke - nuke 'em all!!!
-func (sq *SqsQueue) Nuke(identifiers []string) error {
+func (sq *SqsQueue) Nuke(ctx context.Context, identifiers []string) error {
 	if err := sq.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

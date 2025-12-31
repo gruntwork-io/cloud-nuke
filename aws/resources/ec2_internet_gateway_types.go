@@ -57,7 +57,7 @@ func (igw *InternetGateway) GetAndSetIdentifiers(c context.Context, configObj co
 	return igw.GatewayIds, nil
 }
 
-func (igw *InternetGateway) Nuke(identifiers []string) error {
+func (igw *InternetGateway) Nuke(ctx context.Context, identifiers []string) error {
 	if err := igw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

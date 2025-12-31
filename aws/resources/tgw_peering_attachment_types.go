@@ -52,7 +52,7 @@ func (tgpa *TransitGatewayPeeringAttachment) GetAndSetIdentifiers(c context.Cont
 	return tgpa.Ids, nil
 }
 
-func (tgpa *TransitGatewayPeeringAttachment) Nuke(identifiers []string) error {
+func (tgpa *TransitGatewayPeeringAttachment) Nuke(ctx context.Context, identifiers []string) error {
 	if err := tgpa.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

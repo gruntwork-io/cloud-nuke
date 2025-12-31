@@ -74,7 +74,7 @@ func (iu *IAMUsers) GetAndSetIdentifiers(c context.Context, configObj config.Con
 }
 
 // Nuke - nuke 'em all!!!
-func (iu *IAMUsers) Nuke(users []string) error {
+func (iu *IAMUsers) Nuke(ctx context.Context, users []string) error {
 	if err := iu.nukeAll(aws.StringSlice(users)); err != nil {
 		return errors.WithStackTrace(err)
 	}

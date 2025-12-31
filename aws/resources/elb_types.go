@@ -56,7 +56,7 @@ func (balancer *LoadBalancers) GetAndSetIdentifiers(c context.Context, configObj
 }
 
 // Nuke - nuke 'em all!!!
-func (balancer *LoadBalancers) Nuke(identifiers []string) error {
+func (balancer *LoadBalancers) Nuke(ctx context.Context, identifiers []string) error {
 	if err := balancer.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -60,7 +60,7 @@ func (sms *SecretsManagerSecrets) GetAndSetIdentifiers(c context.Context, config
 }
 
 // Nuke - nuke 'em all!!!
-func (sms *SecretsManagerSecrets) Nuke(identifiers []string) error {
+func (sms *SecretsManagerSecrets) Nuke(ctx context.Context, identifiers []string) error {
 	if err := sms.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

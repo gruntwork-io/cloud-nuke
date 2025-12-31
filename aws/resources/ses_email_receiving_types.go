@@ -60,7 +60,7 @@ func (sef *SesReceiptFilter) GetAndSetIdentifiers(c context.Context, configObj c
 }
 
 // Nuke - nuke 'em all!!!
-func (sef *SesReceiptFilter) Nuke(identifiers []string) error {
+func (sef *SesReceiptFilter) Nuke(ctx context.Context, identifiers []string) error {
 	if err := sef.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -112,7 +112,7 @@ func (ser *SesReceiptRule) GetAndSetIdentifiers(c context.Context, configObj con
 }
 
 // Nuke - nuke 'em all!!!
-func (ser *SesReceiptRule) Nuke(identifiers []string) error {
+func (ser *SesReceiptRule) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ser.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

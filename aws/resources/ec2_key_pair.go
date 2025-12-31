@@ -7,21 +7,43 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
-// getAllEc2KeyPairs extracts the list of existing ec2 key pairs.
-func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := k.Client.DescribeKeyPairs(k.Context, &ec2.DescribeKeyPairsInput{})
+// NewEC2KeyPairs creates a new EC2 Key Pairs resource using the generic resource pattern.
+func NewEC2KeyPairs() AwsResource {
+	return NewAwsResource(&resource.Resource[*ec2.Client]{
+		ResourceTypeName: "ec2-keypairs",
+		BatchSize:        200,
+		InitClient: func(r *resource.Resource[*ec2.Client], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for EC2 client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = ec2.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2KeyPairs
+		},
+		Lister:             listEC2KeyPairs,
+		Nuker:              resource.SimpleBatchDeleter(deleteEC2KeyPair),
+		PermissionVerifier: verifyEC2KeyPairPermission,
+	})
+}
+
+// listEC2KeyPairs retrieves all EC2 key pairs that match the config filters.
+func listEC2KeyPairs(ctx context.Context, client *ec2.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	result, err := client.DescribeKeyPairs(ctx, &ec2.DescribeKeyPairsInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var ids []*string
 	for _, keyPair := range result.KeyPairs {
-		if configObj.EC2KeyPairs.ShouldInclude(config.ResourceValue{
+		if cfg.ShouldInclude(config.ResourceValue{
 			Name: keyPair.KeyName,
 			Time: keyPair.CreateTime,
 			Tags: util.ConvertTypesTagsToMap(keyPair.Tags),
@@ -30,58 +52,27 @@ func (k *EC2KeyPairs) getAll(c context.Context, configObj config.Config) ([]*str
 		}
 	}
 
-	// checking the nukable permissions
-	k.VerifyNukablePermissions(ids, func(id *string) error {
-		_, err := k.Client.DeleteKeyPair(k.Context, &ec2.DeleteKeyPairInput{
-			KeyPairId: id,
-			DryRun:    aws.Bool(true),
-		})
-		return err
-	})
-
 	return ids, nil
 }
 
-// deleteKeyPair is a helper method that deletes the given ec2 key pair.
-func (k *EC2KeyPairs) deleteKeyPair(keyPairId *string) error {
-	params := &ec2.DeleteKeyPairInput{
-		KeyPairId: keyPairId,
-	}
-
-	_, err := k.Client.DeleteKeyPair(k.Context, params)
+// deleteEC2KeyPair deletes a single EC2 key pair.
+func deleteEC2KeyPair(ctx context.Context, client *ec2.Client, id *string) error {
+	_, err := client.DeleteKeyPair(ctx, &ec2.DeleteKeyPairInput{
+		KeyPairId: id,
+	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
+	logging.Debugf("Deleted EC2 KeyPair: %s", aws.ToString(id))
 	return nil
 }
 
-// nukeAllEc2KeyPairs attempts to delete given ec2 key pair IDs.
-func (k *EC2KeyPairs) nukeAll(keypairIds []*string) error {
-	if len(keypairIds) == 0 {
-		logging.Infof("No EC2 key pairs to nuke in region %s", k.Region)
-		return nil
-	}
-
-	logging.Infof("Terminating all EC2 key pairs in region %s", k.Region)
-
-	deletedKeyPairs := 0
-	var multiErr *multierror.Error
-	for _, keypair := range keypairIds {
-		if nukable, reason := k.IsNukable(aws.ToString(keypair)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(keypair), reason)
-			continue
-		}
-
-		if err := k.deleteKeyPair(keypair); err != nil {
-			logging.Errorf("[Failed] %s", err)
-			multiErr = multierror.Append(multiErr, err)
-		} else {
-			deletedKeyPairs++
-			logging.Infof("Deleted EC2 KeyPair: %s", *keypair)
-		}
-	}
-
-	logging.Infof("[OK] %d EC2 KeyPair(s) terminated", deletedKeyPairs)
-	return multiErr.ErrorOrNil()
+// verifyEC2KeyPairPermission performs a dry-run delete to check permissions.
+func verifyEC2KeyPairPermission(ctx context.Context, client *ec2.Client, id *string) error {
+	_, err := client.DeleteKeyPair(ctx, &ec2.DeleteKeyPairInput{
+		KeyPairId: id,
+		DryRun:    aws.Bool(true),
+	})
+	return err
 }

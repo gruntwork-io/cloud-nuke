@@ -56,7 +56,7 @@ func (gateway *ApiGateway) GetAndSetIdentifiers(c context.Context, configObj con
 	return gateway.Ids, nil
 }
 
-func (gateway *ApiGateway) Nuke(identifiers []string) error {
+func (gateway *ApiGateway) Nuke(ctx context.Context, identifiers []string) error {
 	if err := gateway.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

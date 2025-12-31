@@ -57,7 +57,7 @@ func (cda *CodeDeployApplications) GetAndSetIdentifiers(c context.Context, confi
 }
 
 // Nuke - nuke 'em all!!!
-func (cda *CodeDeployApplications) Nuke(identifiers []string) error {
+func (cda *CodeDeployApplications) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cda.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

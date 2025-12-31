@@ -51,7 +51,7 @@ func (g *RedshiftSnapshotCopyGrants) GetAndSetIdentifiers(c context.Context, con
 	return g.GrantNames, nil
 }
 
-func (g *RedshiftSnapshotCopyGrants) Nuke(identifiers []string) error {
+func (g *RedshiftSnapshotCopyGrants) Nuke(ctx context.Context, identifiers []string) error {
 	if err := g.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

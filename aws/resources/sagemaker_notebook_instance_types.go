@@ -58,7 +58,7 @@ func (smni *SageMakerNotebookInstances) GetAndSetIdentifiers(c context.Context, 
 }
 
 // Nuke - nuke 'em all!!!
-func (smni *SageMakerNotebookInstances) Nuke(identifiers []string) error {
+func (smni *SageMakerNotebookInstances) Nuke(ctx context.Context, identifiers []string) error {
 	if err := smni.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

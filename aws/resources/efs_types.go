@@ -55,7 +55,7 @@ func (ef *ElasticFileSystem) GetAndSetIdentifiers(c context.Context, configObj c
 	return ef.Ids, nil
 }
 
-func (ef *ElasticFileSystem) Nuke(identifiers []string) error {
+func (ef *ElasticFileSystem) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ef.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

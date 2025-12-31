@@ -55,7 +55,7 @@ func (ll *LambdaLayers) GetAndSetIdentifiers(c context.Context, configObj config
 }
 
 // Nuke - nuke 'em all!!!
-func (ll *LambdaLayers) Nuke(identifiers []string) error {
+func (ll *LambdaLayers) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ll.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

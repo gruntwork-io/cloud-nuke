@@ -14,7 +14,7 @@ type AwsResource interface {
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int
-	Nuke(identifiers []string) error
+	Nuke(ctx context.Context, identifiers []string) error
 	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
 	IsNukable(string) (bool, error)
 

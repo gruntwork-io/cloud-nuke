@@ -54,7 +54,7 @@ func (ddb *DynamoDB) GetAndSetIdentifiers(c context.Context, configObj config.Co
 }
 
 // Nuke - nuke all Dynamo DB Tables
-func (ddb *DynamoDB) Nuke(identifiers []string) error {
+func (ddb *DynamoDB) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ddb.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

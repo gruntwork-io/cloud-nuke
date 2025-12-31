@@ -7,25 +7,43 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a formatted string of email template names
-func (sem *SesEmailTemplates) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	param := &ses.ListTemplatesInput{}
+// NewSesEmailTemplates creates a new SES Email Templates resource using the generic resource pattern.
+func NewSesEmailTemplates() AwsResource {
+	return NewAwsResource(&resource.Resource[*ses.Client]{
+		ResourceTypeName: "ses-email-template",
+		BatchSize:        maxBatchSize,
+		InitClient: func(r *resource.Resource[*ses.Client], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for SES client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = ses.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.SESEmailTemplates
+		},
+		Lister: listSesEmailTemplates,
+		Nuker:  resource.SimpleBatchDeleter(deleteSesEmailTemplate),
+	})
+}
 
-	result, err := sem.Client.ListTemplates(sem.Context, param)
+// listSesEmailTemplates retrieves all SES email templates that match the config filters.
+func listSesEmailTemplates(ctx context.Context, client *ses.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	result, err := client.ListTemplates(ctx, &ses.ListTemplatesInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var templates []*string
 	for _, template := range result.TemplatesMetadata {
-		createdAt := template.CreatedTimestamp
-		if configObj.SESEmailTemplates.ShouldInclude(config.ResourceValue{
+		if cfg.ShouldInclude(config.ResourceValue{
 			Name: template.Name,
-			Time: createdAt,
+			Time: template.CreatedTimestamp,
 		}) {
 			templates = append(templates, template.Name)
 		}
@@ -34,40 +52,15 @@ func (sem *SesEmailTemplates) getAll(c context.Context, configObj config.Config)
 	return templates, nil
 }
 
-// Deletes all templates
-func (sem *SesEmailTemplates) nukeAll(templates []*string) error {
-	if len(templates) == 0 {
-		logging.Debugf("No SES email templates to nuke in region %s", sem.Region)
-		return nil
+// deleteSesEmailTemplate deletes a single SES email template.
+func deleteSesEmailTemplate(ctx context.Context, client *ses.Client, templateName *string) error {
+	_, err := client.DeleteTemplate(ctx, &ses.DeleteTemplateInput{
+		TemplateName: templateName,
+	})
+	if err != nil {
+		return err
 	}
 
-	logging.Debugf("Deleting all SES email templates in region %s", sem.Region)
-	var deletedIds []*string
-
-	for _, template := range templates {
-		params := &ses.DeleteTemplateInput{
-			TemplateName: template,
-		}
-
-		_, err := sem.Client.DeleteTemplate(sem.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(template),
-			ResourceType: "SES email templates",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedIds = append(deletedIds, template)
-			logging.Debugf("Deleted SES email templates: %s", *template)
-		}
-	}
-
-	logging.Debugf("[OK] %d SES email template(s) deleted in %s", len(deletedIds), sem.Region)
-
+	logging.Debugf("Deleted SES email template: %s", aws.ToString(templateName))
 	return nil
 }

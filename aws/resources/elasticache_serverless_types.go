@@ -52,7 +52,7 @@ func (cache *ElasticCacheServerless) GetAndSetIdentifiers(c context.Context, con
 	return cache.ClusterIds, nil
 }
 
-func (cache *ElasticCacheServerless) Nuke(identifiers []string) error {
+func (cache *ElasticCacheServerless) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cache.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

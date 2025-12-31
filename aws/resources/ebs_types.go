@@ -56,7 +56,7 @@ func (ev *EBSVolumes) GetAndSetIdentifiers(c context.Context, configObj config.C
 }
 
 // Nuke - nuke 'em all!!!
-func (ev *EBSVolumes) Nuke(identifiers []string) error {
+func (ev *EBSVolumes) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ev.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

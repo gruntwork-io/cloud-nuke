@@ -201,7 +201,7 @@ func TestNukeMSKCluster(t *testing.T) {
 		Client: &mockMskClient,
 	}
 
-	err := msk.Nuke([]string{})
+	err := msk.Nuke(context.TODO(), []string{})
 	if err != nil {
 		t.Fatalf("Unable to nuke MSK Clusters: %v", err)
 	}

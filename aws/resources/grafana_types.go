@@ -37,7 +37,7 @@ func (g *Grafana) MaxBatchSize() int {
 	return 100
 }
 
-func (g *Grafana) Nuke(identifiers []string) error {
+func (g *Grafana) Nuke(ctx context.Context, identifiers []string) error {
 	if err := g.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -55,7 +55,7 @@ func (cs *EC2IPAMCustomAllocation) GetAndSetIdentifiers(c context.Context, confi
 }
 
 // Nuke - nuke 'em all!!!
-func (cs *EC2IPAMCustomAllocation) Nuke(identifiers []string) error {
+func (cs *EC2IPAMCustomAllocation) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cs.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

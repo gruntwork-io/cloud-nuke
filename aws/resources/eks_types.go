@@ -65,7 +65,7 @@ func (clusters *EKSClusters) GetAndSetIdentifiers(c context.Context, configObj c
 }
 
 // Nuke - nuke all EKS Cluster resources
-func (clusters *EKSClusters) Nuke(identifiers []string) error {
+func (clusters *EKSClusters) Nuke(ctx context.Context, identifiers []string) error {
 	if err := clusters.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

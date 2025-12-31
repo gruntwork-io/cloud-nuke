@@ -35,7 +35,7 @@ func (dsl *DataSyncLocation) ResourceIdentifiers() []string { return dsl.DataSyn
 
 func (dsl *DataSyncLocation) MaxBatchSize() int { return 19 }
 
-func (dsl *DataSyncLocation) Nuke(identifiers []string) error {
+func (dsl *DataSyncLocation) Nuke(ctx context.Context, identifiers []string) error {
 	if err := dsl.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
