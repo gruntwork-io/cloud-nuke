@@ -9,11 +9,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedTransitGateway struct {
-	TransitGatewayAPI
+	TransitGatewaysAPI
 	DescribeTransitGatewaysOutput               ec2.DescribeTransitGatewaysOutput
 	DeleteTransitGatewayOutput                  ec2.DeleteTransitGatewayOutput
 	DescribeTransitGatewayAttachmentsOutput     ec2.DescribeTransitGatewayAttachmentsOutput
@@ -54,20 +55,18 @@ func TestTransitGateways_GetAll(t *testing.T) {
 	now := time.Now()
 	gatewayId1 := "gateway1"
 	gatewayId2 := "gateway2"
-	tgw := TransitGateways{
-		Client: mockedTransitGateway{
-			DescribeTransitGatewaysOutput: ec2.DescribeTransitGatewaysOutput{
-				TransitGateways: []types.TransitGateway{
-					{
-						TransitGatewayId: aws.String(gatewayId1),
-						CreationTime:     aws.Time(now),
-						State:            "available",
-					},
-					{
-						TransitGatewayId: aws.String(gatewayId2),
-						CreationTime:     aws.Time(now.Add(1)),
-						State:            "deleting",
-					},
+	mockClient := mockedTransitGateway{
+		DescribeTransitGatewaysOutput: ec2.DescribeTransitGatewaysOutput{
+			TransitGateways: []types.TransitGateway{
+				{
+					TransitGatewayId: aws.String(gatewayId1),
+					CreationTime:     aws.Time(now),
+					State:            "available",
+				},
+				{
+					TransitGatewayId: aws.String(gatewayId2),
+					CreationTime:     aws.Time(now.Add(1)),
+					State:            "deleting",
 				},
 			},
 		},
@@ -91,9 +90,7 @@ func TestTransitGateways_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := tgw.getAll(context.Background(), config.Config{
-				TransitGateway: tc.configObj,
-			})
+			names, err := listTransitGateways(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -105,12 +102,10 @@ func TestTransitGateways_NukeAll(t *testing.T) {
 
 	t.Parallel()
 
-	tgw := TransitGateways{
-		Client: mockedTransitGateway{
-			DeleteTransitGatewayOutput: ec2.DeleteTransitGatewayOutput{},
-		},
+	mockClient := mockedTransitGateway{
+		DeleteTransitGatewayOutput: ec2.DeleteTransitGatewayOutput{},
 	}
 
-	err := tgw.nukeAll([]*string{aws.String("test-gateway")})
+	err := deleteTransitGateways(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "transit-gateway", []*string{aws.String("test-gateway")})
 	require.NoError(t, err)
 }

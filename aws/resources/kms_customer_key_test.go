@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,44 +53,42 @@ func TestKMS_GetAll(t *testing.T) {
 	alias1 := "alias/key1"
 	alias2 := "alias/key2"
 	now := time.Now()
-	kck := KmsCustomerKeys{
-		Client: mockedKmsCustomerKeys{
-			ListKeysOutput: kms.ListKeysOutput{
-				Keys: []types.KeyListEntry{
-					{
-						KeyId: aws.String(key1),
-					},
-					{
-						KeyId: aws.String(key2),
-					},
+	mockClient := mockedKmsCustomerKeys{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{
+					KeyId: aws.String(key1),
+				},
+				{
+					KeyId: aws.String(key2),
 				},
 			},
-			ListAliasesOutput: kms.ListAliasesOutput{
-				Aliases: []types.AliasListEntry{
-					{
-						AliasName:   aws.String(alias1),
-						TargetKeyId: aws.String(key1),
-					},
-					{
-						AliasName:   aws.String(alias2),
-						TargetKeyId: aws.String(key2),
-					},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{
+					AliasName:   aws.String(alias1),
+					TargetKeyId: aws.String(key1),
+				},
+				{
+					AliasName:   aws.String(alias2),
+					TargetKeyId: aws.String(key2),
 				},
 			},
-			DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
-				key1: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key1),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now),
-					},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			key1: {
+				KeyMetadata: &types.KeyMetadata{
+					KeyId:        aws.String(key1),
+					KeyManager:   types.KeyManagerTypeCustomer,
+					CreationDate: aws.Time(now),
 				},
-				key2: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key2),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now.Add(1)),
-					},
+			},
+			key2: {
+				KeyMetadata: &types.KeyMetadata{
+					KeyId:        aws.String(key2),
+					KeyManager:   types.KeyManagerTypeCustomer,
+					CreationDate: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -137,9 +136,7 @@ func TestKMS_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := kck.getAll(context.Background(), config.Config{
-				KMSCustomerKeys: tc.configObj,
-			})
+			names, err := listKmsCustomerKeys(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj.ResourceType)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -153,37 +150,35 @@ func TestKMS_GetAll_IncludeUnaliased(t *testing.T) {
 	key2 := "key-without-alias"
 	alias1 := "alias/my-key"
 	now := time.Now()
-	kck := KmsCustomerKeys{
-		Client: mockedKmsCustomerKeys{
-			ListKeysOutput: kms.ListKeysOutput{
-				Keys: []types.KeyListEntry{
-					{KeyId: aws.String(key1)},
-					{KeyId: aws.String(key2)},
+	mockClient := mockedKmsCustomerKeys{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(key1)},
+				{KeyId: aws.String(key2)},
+			},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{
+					AliasName:   aws.String(alias1),
+					TargetKeyId: aws.String(key1),
+				},
+				// key2 has no alias
+			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			key1: {
+				KeyMetadata: &types.KeyMetadata{
+					KeyId:        aws.String(key1),
+					KeyManager:   types.KeyManagerTypeCustomer,
+					CreationDate: aws.Time(now),
 				},
 			},
-			ListAliasesOutput: kms.ListAliasesOutput{
-				Aliases: []types.AliasListEntry{
-					{
-						AliasName:   aws.String(alias1),
-						TargetKeyId: aws.String(key1),
-					},
-					// key2 has no alias
-				},
-			},
-			DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
-				key1: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key1),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now),
-					},
-				},
-				key2: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key2),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now),
-					},
+			key2: {
+				KeyMetadata: &types.KeyMetadata{
+					KeyId:        aws.String(key2),
+					KeyManager:   types.KeyManagerTypeCustomer,
+					CreationDate: aws.Time(now),
 				},
 			},
 		},
@@ -209,9 +204,9 @@ func TestKMS_GetAll_IncludeUnaliased(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := kck.getAll(context.Background(), config.Config{
-				KMSCustomerKeys: tc.configObj,
-			})
+			// Pass IncludeUnaliasedKeys via context
+			ctx := context.WithValue(context.Background(), kmsIncludeUnaliasedKeysKey, tc.configObj.IncludeUnaliasedKeys)
+			names, err := listKmsCustomerKeys(ctx, mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj.ResourceType)
 			require.NoError(t, err)
 			require.ElementsMatch(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -221,13 +216,11 @@ func TestKMS_GetAll_IncludeUnaliased(t *testing.T) {
 func TestKMS_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	kck := KmsCustomerKeys{
-		Client: mockedKmsCustomerKeys{
-			DeleteAliasOutput:         kms.DeleteAliasOutput{},
-			ScheduleKeyDeletionOutput: kms.ScheduleKeyDeletionOutput{},
-		},
+	mockClient := mockedKmsCustomerKeys{
+		DeleteAliasOutput:         kms.DeleteAliasOutput{},
+		ScheduleKeyDeletionOutput: kms.ScheduleKeyDeletionOutput{},
 	}
 
-	err := kck.nukeAll([]*string{aws.String("key1"), aws.String("key2")})
+	err := deleteKmsCustomerKeys(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "kmscustomerkeys", []*string{aws.String("key1"), aws.String("key2")})
 	require.NoError(t, err)
 }

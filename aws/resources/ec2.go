@@ -8,36 +8,45 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// returns only instance Ids of unprotected ec2 instances
-func (ei *EC2Instances) filterOutProtectedInstances(output *ec2.DescribeInstancesOutput, configObj config.Config) ([]*string, error) {
-	var filteredIds []*string
-	for _, reservation := range output.Reservations {
-		for _, instance := range reservation.Instances {
-			instanceID := *instance.InstanceId
-
-			attr, err := ei.Client.DescribeInstanceAttribute(ei.Context, &ec2.DescribeInstanceAttributeInput{
-				Attribute:  types.InstanceAttributeNameDisableApiTermination,
-				InstanceId: aws.String(instanceID),
-			})
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-
-			if shouldIncludeInstanceId(instance, *attr.DisableApiTermination.Value, configObj) {
-				filteredIds = append(filteredIds, &instanceID)
-			}
-		}
-	}
-
-	return filteredIds, nil
+// EC2InstancesAPI defines the interface for EC2 Instances operations.
+type EC2InstancesAPI interface {
+	DescribeInstanceAttribute(ctx context.Context, params *ec2.DescribeInstanceAttributeInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceAttributeOutput, error)
+	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+	DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error)
+	ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error)
+	TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error)
 }
 
-// Returns a formatted string of EC2 instance ids
-func (ei *EC2Instances) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
+// NewEC2Instances creates a new EC2 Instances resource using the generic resource pattern.
+func NewEC2Instances() AwsResource {
+	return NewAwsResource(&resource.Resource[EC2InstancesAPI]{
+		ResourceTypeName: "ec2",
+		// Tentative batch size to ensure AWS doesn't throttle
+		BatchSize: 49,
+		InitClient: func(r *resource.Resource[EC2InstancesAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for EC2 client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = ec2.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2
+		},
+		Lister: listEC2Instances,
+		Nuker:  deleteEC2Instances,
+	})
+}
+
+// listEC2Instances retrieves all EC2 instances that match the config filters.
+func listEC2Instances(ctx context.Context, client EC2InstancesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	params := &ec2.DescribeInstancesInput{
 		Filters: []types.Filter{
 			{
@@ -50,12 +59,12 @@ func (ei *EC2Instances) getAll(ctx context.Context, configObj config.Config) ([]
 		},
 	}
 
-	output, err := ei.Client.DescribeInstances(ctx, params)
+	output, err := client.DescribeInstances(ctx, params)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
-	instanceIds, err := ei.filterOutProtectedInstances(output, configObj)
+	instanceIds, err := filterOutProtectedInstances(ctx, client, output, cfg)
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
@@ -63,7 +72,31 @@ func (ei *EC2Instances) getAll(ctx context.Context, configObj config.Config) ([]
 	return instanceIds, nil
 }
 
-func shouldIncludeInstanceId(instance types.Instance, protected bool, configObj config.Config) bool {
+// filterOutProtectedInstances returns only instance IDs of unprotected EC2 instances
+func filterOutProtectedInstances(ctx context.Context, client EC2InstancesAPI, output *ec2.DescribeInstancesOutput, cfg config.ResourceType) ([]*string, error) {
+	var filteredIds []*string
+	for _, reservation := range output.Reservations {
+		for _, instance := range reservation.Instances {
+			instanceID := *instance.InstanceId
+
+			attr, err := client.DescribeInstanceAttribute(ctx, &ec2.DescribeInstanceAttributeInput{
+				Attribute:  types.InstanceAttributeNameDisableApiTermination,
+				InstanceId: aws.String(instanceID),
+			})
+			if err != nil {
+				return nil, errors.WithStackTrace(err)
+			}
+
+			if shouldIncludeInstanceId(instance, *attr.DisableApiTermination.Value, cfg) {
+				filteredIds = append(filteredIds, &instanceID)
+			}
+		}
+	}
+
+	return filteredIds, nil
+}
+
+func shouldIncludeInstanceId(instance types.Instance, protected bool, cfg config.ResourceType) bool {
 	if protected {
 		return false
 	}
@@ -71,19 +104,19 @@ func shouldIncludeInstanceId(instance types.Instance, protected bool, configObj 
 	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
 	// Ignore this error and pass empty string to config.ShouldInclude
 	instanceName := util.GetEC2ResourceNameTagValue(instance.Tags)
-	return configObj.EC2.ShouldInclude(config.ResourceValue{
+	return cfg.ShouldInclude(config.ResourceValue{
 		Name: instanceName,
 		Time: instance.LaunchTime,
 		Tags: util.ConvertTypesTagsToMap(instance.Tags),
 	})
 }
 
-func (ei *EC2Instances) releaseEIPs(instanceIds []*string) error {
+func releaseEIPs(ctx context.Context, client EC2InstancesAPI, instanceIds []*string) error {
 	logging.Debugf("Releasing Elastic IP address(s) associated with instances")
 
 	for _, instanceID := range instanceIds {
 		// Get the Elastic IPs associated with the EC2 instances
-		output, err := ei.Client.DescribeAddresses(ei.Context, &ec2.DescribeAddressesInput{
+		output, err := client.DescribeAddresses(ctx, &ec2.DescribeAddressesInput{
 			Filters: []types.Filter{
 				{
 					Name: aws.String("instance-id"),
@@ -109,7 +142,7 @@ func (ei *EC2Instances) releaseEIPs(instanceIds []*string) error {
 				continue
 			}
 
-			_, err := ei.Client.ReleaseAddress(ei.Context, &ec2.ReleaseAddressInput{
+			_, err := client.ReleaseAddress(ctx, &ec2.ReleaseAddressInput{
 				AllocationId: address.AllocationId,
 			})
 
@@ -125,48 +158,48 @@ func (ei *EC2Instances) releaseEIPs(instanceIds []*string) error {
 	return nil
 }
 
-// Deletes all non protected EC2 instances
-func (ei *EC2Instances) nukeAll(instanceIds []*string) error {
-	if len(instanceIds) == 0 {
-		logging.Debugf("No EC2 instances to nuke in region %s", ei.Region)
+// deleteEC2Instances deletes all non protected EC2 instances.
+func deleteEC2Instances(ctx context.Context, client EC2InstancesAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
+	if len(identifiers) == 0 {
+		logging.Debugf("No EC2 instances to nuke in region %s", scope.Region)
 		return nil
 	}
 
 	// release the attached elastic ip's
 	// Note: This should be done before terminating the EC2 instances
-	err := ei.releaseEIPs(instanceIds)
+	err := releaseEIPs(ctx, client, identifiers)
 	if err != nil {
 		logging.Debugf("[Failed EIP release] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("Terminating all EC2 instances in region %s", ei.Region)
+	logging.Debugf("Terminating all EC2 instances in region %s", scope.Region)
 
 	params := &ec2.TerminateInstancesInput{
-		InstanceIds: aws.ToStringSlice(instanceIds),
+		InstanceIds: aws.ToStringSlice(identifiers),
 	}
 
-	_, err = ei.Client.TerminateInstances(ei.Context, params)
+	_, err = client.TerminateInstances(ctx, params)
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
-	waiter := ec2.NewInstanceTerminatedWaiter(ei.Client)
-	err = waiter.Wait(ei.Context, &ec2.DescribeInstancesInput{
+	waiter := ec2.NewInstanceTerminatedWaiter(client)
+	err = waiter.Wait(ctx, &ec2.DescribeInstancesInput{
 		Filters: []types.Filter{
 			{
 				Name:   aws.String("instance-id"),
-				Values: aws.ToStringSlice(instanceIds),
+				Values: aws.ToStringSlice(identifiers),
 			},
 		},
-	}, ei.Timeout)
+	}, DefaultWaitTimeout)
 
 	if err != nil {
 		logging.Debugf("[Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("[OK] %d instance(s) terminated in %s", len(instanceIds), ei.Region)
+	logging.Debugf("[OK] %d instance(s) terminated in %s", len(identifiers), scope.Region)
 	return nil
 }

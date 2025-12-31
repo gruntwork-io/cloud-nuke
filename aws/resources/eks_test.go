@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,39 +62,49 @@ func (m mockedEKSCluster) ListFargateProfiles(ctx context.Context, params *eks.L
 func (m mockedEKSCluster) ListNodegroups(ctx context.Context, params *eks.ListNodegroupsInput, optFns ...func(*eks.Options)) (*eks.ListNodegroupsOutput, error) {
 	return &m.ListNodegroupsOutput, nil
 }
-func TestEKSClusterGetAll(t *testing.T) {
+
+func TestEKSClusters_ResourceName(t *testing.T) {
+	r := NewEKSClusters()
+	require.Equal(t, "ekscluster", r.ResourceName())
+}
+
+func TestEKSClusters_MaxBatchSize(t *testing.T) {
+	r := NewEKSClusters()
+	require.Equal(t, 10, r.MaxBatchSize())
+}
+
+func TestListEKSClusters(t *testing.T) {
 	t.Parallel()
 
 	testClusterName1 := "test_cluster1"
 	testClusterName2 := "test_cluster2"
 	testClusterName3 := "test_cluster3"
 	now := time.Now()
-	eksCluster := EKSClusters{
-		Client: mockedEKSCluster{
-			ListClustersOutput: eks.ListClustersOutput{
-				Clusters: []string{testClusterName1, testClusterName2, testClusterName3},
+
+	mock := mockedEKSCluster{
+		ListClustersOutput: eks.ListClustersOutput{
+			Clusters: []string{testClusterName1, testClusterName2, testClusterName3},
+		},
+		DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
+			testClusterName1: {
+				Cluster: &types.Cluster{
+					Name:      aws.String(testClusterName1),
+					CreatedAt: &now,
+					Tags:      map[string]string{"foo": "bar"},
+				},
 			},
-			DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
-				testClusterName1: {
-					Cluster: &types.Cluster{
-						Name:      aws.String(testClusterName1),
-						CreatedAt: &now,
-						Tags:      map[string]string{"foo": "bar"},
-					},
+			testClusterName2: {
+				Cluster: &types.Cluster{
+					Name:      aws.String(testClusterName1),
+					CreatedAt: &now,
+					Tags:      map[string]string{"foz": "boz"},
 				},
-				testClusterName2: {
-					Cluster: &types.Cluster{
-						Name:      aws.String(testClusterName1),
-						CreatedAt: &now,
-						Tags:      map[string]string{"foz": "boz"},
-					},
-				},
-				testClusterName3: {
-					Cluster: &types.Cluster{
-						Name:      aws.String(testClusterName3),
-						CreatedAt: &now,
-						Tags:      map[string]string{"faz": "baz"},
-					},
+			},
+			testClusterName3: {
+				Cluster: &types.Cluster{
+					Name:      aws.String(testClusterName3),
+					CreatedAt: &now,
+					Tags:      map[string]string{"faz": "baz"},
 				},
 			},
 		},
@@ -119,7 +130,7 @@ func TestEKSClusterGetAll(t *testing.T) {
 		"tagInclusionFilter": {
 			configObj: config.ResourceType{
 				IncludeRule: config.FilterRule{
-					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
 				},
 			},
 			expected: []string{testClusterName1},
@@ -127,7 +138,7 @@ func TestEKSClusterGetAll(t *testing.T) {
 		"tagExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
 				},
 			},
 			expected: []string{testClusterName2, testClusterName3},
@@ -136,41 +147,34 @@ func TestEKSClusterGetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := eksCluster.getAll(context.Background(), config.Config{
-				EKSCluster: tc.configObj,
-			})
-
+			names, err := listEKSClusters(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestEKSClusterNukeAll(t *testing.T) {
+func TestDeleteEKSClusters(t *testing.T) {
 	t.Parallel()
 	testClusterName := "test_cluster1"
-	eksCluster := EKSClusters{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
-		Client: mockedEKSCluster{
-			ListNodegroupsOutput: eks.ListNodegroupsOutput{},
-			DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
-				testClusterName: {
-					Cluster: &types.Cluster{
-						Name:      aws.String(testClusterName),
-						CreatedAt: aws.Time(time.Now()),
-					},
+
+	mock := mockedEKSCluster{
+		ListNodegroupsOutput: eks.ListNodegroupsOutput{},
+		DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
+			testClusterName: {
+				Cluster: &types.Cluster{
+					Name:      aws.String(testClusterName),
+					CreatedAt: aws.Time(time.Now()),
 				},
 			},
-			ListFargateProfilesOutput:    eks.ListFargateProfilesOutput{},
-			DescribeNodegroupOutput:      eks.DescribeNodegroupOutput{},
-			DeleteFargateProfileOutput:   eks.DeleteFargateProfileOutput{},
-			DeleteClusterOutput:          eks.DeleteClusterOutput{},
-			DescribeFargateProfileOutput: eks.DescribeFargateProfileOutput{},
 		},
+		ListFargateProfilesOutput:    eks.ListFargateProfilesOutput{},
+		DescribeNodegroupOutput:      eks.DescribeNodegroupOutput{},
+		DeleteFargateProfileOutput:   eks.DeleteFargateProfileOutput{},
+		DeleteClusterOutput:          eks.DeleteClusterOutput{},
+		DescribeFargateProfileOutput: eks.DescribeFargateProfileOutput{},
 	}
 
-	err := eksCluster.nukeAll([]*string{&testClusterName})
+	err := deleteEKSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ekscluster", []*string{&testClusterName})
 	require.NoError(t, err)
 }
