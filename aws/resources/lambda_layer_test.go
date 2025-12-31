@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,29 +48,27 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	testTime, err := time.Parse(layout, testTimeStr)
 	require.NoError(t, err)
 
-	ll := LambdaLayers{
-		Client: mockedLambdaLayer{
-			ListLayersOutput: lambda.ListLayersOutput{
-				Layers: []types.LayersListItem{
-					{
-						LayerName: aws.String(testName1),
-						LatestMatchingVersion: &types.LayerVersionsListItem{
-							CreatedDate: aws.String(testTimeStr),
-						},
+	client := mockedLambdaLayer{
+		ListLayersOutput: lambda.ListLayersOutput{
+			Layers: []types.LayersListItem{
+				{
+					LayerName: aws.String(testName1),
+					LatestMatchingVersion: &types.LayerVersionsListItem{
+						CreatedDate: aws.String(testTimeStr),
 					},
-					{
-						LayerName: aws.String(testName2),
-						LatestMatchingVersion: &types.LayerVersionsListItem{
-							CreatedDate: aws.String(testTimeStr),
-						},
+				},
+				{
+					LayerName: aws.String(testName2),
+					LatestMatchingVersion: &types.LayerVersionsListItem{
+						CreatedDate: aws.String(testTimeStr),
 					},
 				},
 			},
-			ListLayerVersionsOutput: lambda.ListLayerVersionsOutput{
-				LayerVersions: []types.LayerVersionsListItem{
-					{
-						Version: testName1Version1,
-					},
+		},
+		ListLayerVersionsOutput: lambda.ListLayerVersionsOutput{
+			LayerVersions: []types.LayerVersionsListItem{
+				{
+					Version: testName1Version1,
 				},
 			},
 		},
@@ -102,9 +101,7 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ll.getAll(context.Background(), config.Config{
-				LambdaLayer: tc.configObj,
-			})
+			names, err := listLambdaLayers(context.Background(), client, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -114,12 +111,11 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 func TestLambdaLayer_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	ll := LambdaLayers{
-		Client: mockedLambdaLayer{
-			DeleteLayerVersionOutput: lambda.DeleteLayerVersionOutput{},
-		},
+	client := mockedLambdaLayer{
+		DeleteLayerVersionOutput: lambda.DeleteLayerVersionOutput{},
+		ListLayerVersionsOutput:  lambda.ListLayerVersionsOutput{},
 	}
 
-	err := ll.nukeAll([]*string{aws.String("test")})
+	err := deleteLambdaLayers(context.Background(), client, resource.Scope{Region: "us-east-1"}, "lambda_layer", []*string{aws.String("test")})
 	require.NoError(t, err)
 }

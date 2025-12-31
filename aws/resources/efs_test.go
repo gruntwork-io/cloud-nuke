@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/aws/aws-sdk-go-v2/service/efs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,20 +54,18 @@ func TestEFS_GetAll(t *testing.T) {
 	testId2 := "testId2"
 	testName2 := "test-efs2"
 	now := time.Now()
-	ef := ElasticFileSystem{
-		Client: mockedElasticFileSystem{
-			DescribeFileSystemsOutput: efs.DescribeFileSystemsOutput{
-				FileSystems: []types.FileSystemDescription{
-					{
-						FileSystemId: aws.String(testId1),
-						Name:         aws.String(testName1),
-						CreationTime: aws.Time(now),
-					},
-					{
-						FileSystemId: aws.String(testId2),
-						Name:         aws.String(testName2),
-						CreationTime: aws.Time(now.Add(1)),
-					},
+	client := mockedElasticFileSystem{
+		DescribeFileSystemsOutput: efs.DescribeFileSystemsOutput{
+			FileSystems: []types.FileSystemDescription{
+				{
+					FileSystemId: aws.String(testId1),
+					Name:         aws.String(testName1),
+					CreationTime: aws.Time(now),
+				},
+				{
+					FileSystemId: aws.String(testId2),
+					Name:         aws.String(testName2),
+					CreationTime: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -99,9 +98,7 @@ func TestEFS_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ef.getAll(context.Background(), config.Config{
-				ElasticFileSystem: tc.configObj,
-			})
+			names, err := listElasticFileSystems(context.Background(), client, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -110,28 +107,26 @@ func TestEFS_GetAll(t *testing.T) {
 
 func TestEFS_NukeAll(t *testing.T) {
 	t.Parallel()
-	ef := ElasticFileSystem{
-		Client: mockedElasticFileSystem{
-			DescribeAccessPointsOutput: efs.DescribeAccessPointsOutput{
-				AccessPoints: []types.AccessPointDescription{
-					{
-						AccessPointId: aws.String("fsap-1234567890abcdef0"),
-					},
+	client := mockedElasticFileSystem{
+		DescribeAccessPointsOutput: efs.DescribeAccessPointsOutput{
+			AccessPoints: []types.AccessPointDescription{
+				{
+					AccessPointId: aws.String("fsap-1234567890abcdef0"),
 				},
 			},
-			DescribeMountTargetsOutput: efs.DescribeMountTargetsOutput{
-				MountTargets: []types.MountTargetDescription{
-					{
-						MountTargetId: aws.String("fsmt-1234567890abcdef0"),
-					},
-				},
-			},
-			DeleteAccessPointOutput: efs.DeleteAccessPointOutput{},
-			DeleteMountTargetOutput: efs.DeleteMountTargetOutput{},
-			DeleteFileSystemOutput:  efs.DeleteFileSystemOutput{},
 		},
+		DescribeMountTargetsOutput: efs.DescribeMountTargetsOutput{
+			MountTargets: []types.MountTargetDescription{
+				{
+					MountTargetId: aws.String("fsmt-1234567890abcdef0"),
+				},
+			},
+		},
+		DeleteAccessPointOutput: efs.DeleteAccessPointOutput{},
+		DeleteMountTargetOutput: efs.DeleteMountTargetOutput{},
+		DeleteFileSystemOutput:  efs.DeleteFileSystemOutput{},
 	}
 
-	err := ef.nukeAll([]*string{aws.String("fs-1234567890abcdef0")})
+	err := deleteElasticFileSystems(context.Background(), client, resource.Scope{Region: "us-east-1"}, "efs", []*string{aws.String("fs-1234567890abcdef0")})
 	require.NoError(t, err)
 }

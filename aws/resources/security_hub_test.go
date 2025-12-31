@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/securityhub"
@@ -59,12 +60,10 @@ func TestSecurityHub_GetAll(t *testing.T) {
 	now := time.Now()
 	nowStr := now.Format(time.RFC3339)
 	testArn := "test-arn"
-	sh := SecurityHub{
-		Client: mockedSecurityHub{
-			DescribeHubOutput: securityhub.DescribeHubOutput{
-				SubscribedAt: &nowStr,
-				HubArn:       aws.String(testArn),
-			},
+	client := mockedSecurityHub{
+		DescribeHubOutput: securityhub.DescribeHubOutput{
+			SubscribedAt: &nowStr,
+			HubArn:       aws.String(testArn),
 		},
 	}
 
@@ -86,9 +85,7 @@ func TestSecurityHub_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := sh.getAll(context.Background(), config.Config{
-				SecurityHub: tc.configObj,
-			})
+			names, err := listSecurityHubs(context.Background(), client, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -99,25 +96,23 @@ func TestSecurityHub_NukeAll(t *testing.T) {
 
 	t.Parallel()
 
-	sh := SecurityHub{
-		Client: mockedSecurityHub{
-			ListMembersOutput: securityhub.ListMembersOutput{
-				Members: []types.Member{{
-					AccountId: aws.String("123456789012"),
-				}},
-			},
-			DisassociateMembersOutput: securityhub.DisassociateMembersOutput{},
-			DeleteMembersOutput:       securityhub.DeleteMembersOutput{},
-			GetAdministratorAccountOutput: securityhub.GetAdministratorAccountOutput{
-				Administrator: &types.Invitation{
-					AccountId: aws.String("123456789012"),
-				},
-			},
-			DisassociateFromAdministratorAccountOutput: securityhub.DisassociateFromAdministratorAccountOutput{},
-			DisableSecurityHubOutput:                   securityhub.DisableSecurityHubOutput{},
+	client := mockedSecurityHub{
+		ListMembersOutput: securityhub.ListMembersOutput{
+			Members: []types.Member{{
+				AccountId: aws.String("123456789012"),
+			}},
 		},
+		DisassociateMembersOutput: securityhub.DisassociateMembersOutput{},
+		DeleteMembersOutput:       securityhub.DeleteMembersOutput{},
+		GetAdministratorAccountOutput: securityhub.GetAdministratorAccountOutput{
+			Administrator: &types.Invitation{
+				AccountId: aws.String("123456789012"),
+			},
+		},
+		DisassociateFromAdministratorAccountOutput: securityhub.DisassociateFromAdministratorAccountOutput{},
+		DisableSecurityHubOutput:                   securityhub.DisableSecurityHubOutput{},
 	}
 
-	err := sh.nukeAll([]string{"123456789012"})
+	err := deleteSecurityHubs(context.Background(), client, resource.Scope{Region: "us-east-1"}, "security-hub", []*string{aws.String("123456789012")})
 	require.NoError(t, err)
 }

@@ -10,19 +10,49 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (network *VPCLatticeServiceNetwork) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
-	output, err := network.Client.ListServiceNetworks(network.Context, nil)
+// VPCLatticeServiceNetworkAPI defines the interface for VPC Lattice Service Network operations.
+type VPCLatticeServiceNetworkAPI interface {
+	ListServiceNetworks(ctx context.Context, params *vpclattice.ListServiceNetworksInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworksOutput, error)
+	DeleteServiceNetwork(ctx context.Context, params *vpclattice.DeleteServiceNetworkInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkOutput, error)
+	ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error)
+	DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error)
+}
+
+// NewVPCLatticeServiceNetwork creates a new VPC Lattice Service Network resource using the generic resource pattern.
+func NewVPCLatticeServiceNetwork() AwsResource {
+	return NewAwsResource(&resource.Resource[VPCLatticeServiceNetworkAPI]{
+		ResourceTypeName: "vpc-lattice-service-network",
+		BatchSize:        maxBatchSize,
+		InitClient: func(r *resource.Resource[VPCLatticeServiceNetworkAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for VPC Lattice client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = vpclattice.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.VPCLatticeServiceNetwork
+		},
+		Lister: listVPCLatticeServiceNetworks,
+		Nuker:  deleteVPCLatticeServiceNetworks,
+	})
+}
+
+// listVPCLatticeServiceNetworks retrieves all VPC Lattice Service Networks that match the config filters.
+func listVPCLatticeServiceNetworks(ctx context.Context, client VPCLatticeServiceNetworkAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	output, err := client.ListServiceNetworks(ctx, nil)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var ids []*string
 	for _, item := range output.Items {
-
-		if configObj.VPCLatticeServiceNetwork.ShouldInclude(config.ResourceValue{
+		if cfg.ShouldInclude(config.ResourceValue{
 			Name: item.Name,
 			Time: item.CreatedAt,
 		}) {
@@ -33,88 +63,31 @@ func (network *VPCLatticeServiceNetwork) getAll(_ context.Context, configObj con
 	return ids, nil
 }
 
-func (network *VPCLatticeServiceNetwork) nukeServiceAssociations(id *string) error {
-	// list service associations
-	associations, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
+// nukeServiceAssociations deletes all service associations for a service network.
+func nukeServiceAssociations(ctx context.Context, client VPCLatticeServiceNetworkAPI, id *string) error {
+	associations, err := client.ListServiceNetworkServiceAssociations(ctx, &vpclattice.ListServiceNetworkServiceAssociationsInput{
 		ServiceNetworkIdentifier: id,
 	})
 
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	for _, item := range associations.Items {
-		// list service associations
-		_, err := network.Client.DeleteServiceNetworkServiceAssociation(network.Context, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
+		_, err := client.DeleteServiceNetworkServiceAssociation(ctx, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
 			ServiceNetworkServiceAssociationIdentifier: item.Id,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
-
 	}
 	return nil
 }
 
-func (network *VPCLatticeServiceNetwork) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No %s to nuke in region %s", network.ResourceServiceName(), network.Region)
-		return nil
-
-	}
-
-	logging.Debugf("Deleting all %s in region %s", network.ResourceServiceName(), network.Region)
-
-	deletedCount := 0
-	for _, id := range identifiers {
-
-		err := network.nuke(id)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: network.ResourceServiceName(),
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedCount++
-			logging.Debugf("Deleted %s: %s", network.ResourceServiceName(), aws.ToString(id))
-		}
-	}
-
-	logging.Debugf("[OK] %d %s(s) terminated in %s", deletedCount, network.ResourceServiceName(), network.Region)
-	return nil
-}
-
-func (network *VPCLatticeServiceNetwork) nukeServiceNetwork(id *string) error {
-	_, err := network.Client.DeleteServiceNetwork(network.Context, &vpclattice.DeleteServiceNetworkInput{
-		ServiceNetworkIdentifier: id,
-	})
-	return err
-}
-
-func (network *VPCLatticeServiceNetwork) nuke(id *string) error {
-	if err := network.nukeServiceAssociations(id); err != nil {
-		return err
-	}
-
-	if err := network.waitUntilAllServiceAssociationDeleted(id); err != nil {
-		return err
-	}
-	if err := network.nukeServiceNetwork(id); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (network *VPCLatticeServiceNetwork) waitUntilAllServiceAssociationDeleted(id *string) error {
+// waitUntilAllServiceAssociationDeleted waits until all service associations are deleted.
+func waitUntilAllServiceAssociationDeleted(ctx context.Context, client VPCLatticeServiceNetworkAPI, id *string) error {
 	for i := 0; i < 10; i++ {
-		output, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
+		output, err := client.ListServiceNetworkServiceAssociations(ctx, &vpclattice.ListServiceNetworkServiceAssociationsInput{
 			ServiceNetworkIdentifier: id,
 		})
 
@@ -129,5 +102,54 @@ func (network *VPCLatticeServiceNetwork) waitUntilAllServiceAssociationDeleted(i
 	}
 
 	return fmt.Errorf("timed out waiting for service associations to be successfully deleted")
+}
 
+// deleteVPCLatticeServiceNetwork deletes a single VPC Lattice Service Network after removing associations.
+func deleteVPCLatticeServiceNetwork(ctx context.Context, client VPCLatticeServiceNetworkAPI, id *string) error {
+	// First delete all service associations
+	if err := nukeServiceAssociations(ctx, client, id); err != nil {
+		return err
+	}
+
+	// Wait for all associations to be deleted
+	if err := waitUntilAllServiceAssociationDeleted(ctx, client, id); err != nil {
+		return err
+	}
+
+	// Finally delete the service network
+	_, err := client.DeleteServiceNetwork(ctx, &vpclattice.DeleteServiceNetworkInput{
+		ServiceNetworkIdentifier: id,
+	})
+	return err
+}
+
+// deleteVPCLatticeServiceNetworks is a custom nuker for VPC Lattice Service Networks.
+func deleteVPCLatticeServiceNetworks(ctx context.Context, client VPCLatticeServiceNetworkAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
+	if len(identifiers) == 0 {
+		logging.Debugf("No %s to nuke in %s", resourceType, scope)
+		return nil
+	}
+
+	logging.Debugf("Deleting all %s in %s", resourceType, scope)
+
+	deletedCount := 0
+	for _, id := range identifiers {
+		err := deleteVPCLatticeServiceNetwork(ctx, client, id)
+
+		report.Record(report.Entry{
+			Identifier:   aws.ToString(id),
+			ResourceType: resourceType,
+			Error:        err,
+		})
+
+		if err != nil {
+			logging.Debugf("[Failed] %s", err)
+		} else {
+			deletedCount++
+			logging.Debugf("Deleted %s: %s", resourceType, aws.ToString(id))
+		}
+	}
+
+	logging.Debugf("[OK] %d %s(s) terminated in %s", deletedCount, resourceType, scope)
+	return nil
 }
