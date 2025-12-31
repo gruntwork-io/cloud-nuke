@@ -23,15 +23,10 @@ func NewEventBridgeSchedule() AwsResource {
 	return NewAwsResource(&resource.Resource[EventBridgeScheduleAPI]{
 		ResourceTypeName: "event-bridge-schedule",
 		BatchSize:        100,
-		InitClient: func(r *resource.Resource[EventBridgeScheduleAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for Scheduler client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = scheduler.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EventBridgeScheduleAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = scheduler.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.EventBridgeSchedule
 		},

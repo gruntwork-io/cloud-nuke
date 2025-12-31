@@ -10,104 +10,97 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedDynamoDB struct {
-	DynamoDBAPI
+type mockDynamoDBClient struct {
 	ListTablesOutput    dynamodb.ListTablesOutput
 	DescribeTableOutput map[string]dynamodb.DescribeTableOutput
 	DeleteTableOutput   dynamodb.DeleteTableOutput
 }
 
-func (m mockedDynamoDB) ListTables(ctx context.Context, params *dynamodb.ListTablesInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTablesOutput, error) {
+func (m *mockDynamoDBClient) ListTables(ctx context.Context, params *dynamodb.ListTablesInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTablesOutput, error) {
 	return &m.ListTablesOutput, nil
 }
 
-func (m mockedDynamoDB) DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error) {
+func (m *mockDynamoDBClient) DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error) {
 	output := m.DescribeTableOutput[*params.TableName]
 	return &output, nil
 }
 
-func (m mockedDynamoDB) DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error) {
+func (m *mockDynamoDBClient) DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error) {
 	return &m.DeleteTableOutput, nil
 }
 
-func TestDynamoDB_GetAll(t *testing.T) {
+func TestListDynamoDB(t *testing.T) {
 	t.Parallel()
 
-	testName1 := "table1"
-	testName2 := "table2"
 	now := time.Now()
-	ddb := DynamoDB{
-		Client: mockedDynamoDB{
-			ListTablesOutput: dynamodb.ListTablesOutput{
-				TableNames: []string{
-					testName1,
-					testName2,
+	mock := &mockDynamoDBClient{
+		ListTablesOutput: dynamodb.ListTablesOutput{
+			TableNames: []string{"table1", "table2"},
+		},
+		DescribeTableOutput: map[string]dynamodb.DescribeTableOutput{
+			"table1": {
+				Table: &types.TableDescription{
+					TableName:        aws.String("table1"),
+					CreationDateTime: aws.Time(now),
 				},
 			},
-			DescribeTableOutput: map[string]dynamodb.DescribeTableOutput{
-				testName1: {
-					Table: &types.TableDescription{
-						TableName:        aws.String(testName1),
-						CreationDateTime: aws.Time(now),
-					},
-				},
-				testName2: {
-					Table: &types.TableDescription{
-						TableName:        aws.String(testName2),
-						CreationDateTime: aws.Time(now.Add(1)),
-					},
+			"table2": {
+				Table: &types.TableDescription{
+					TableName:        aws.String("table2"),
+					CreationDateTime: aws.Time(now),
 				},
 			},
 		},
 	}
 
-	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
-	}{
-		"emptyFilter": {
-			configObj: config.ResourceType{},
-			expected:  []string{testName1, testName2},
-		},
-		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
-			},
-			expected: []string{testName2},
-		},
-		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1)),
-				}},
-			expected: []string{},
-		},
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			names, err := ddb.getAll(context.Background(), config.Config{
-				DynamoDB: tc.configObj,
-			})
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
-		})
-	}
+	names, err := listDynamoDB(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"table1", "table2"}, aws.ToStringSlice(names))
 }
 
-func TestDynamoDb_NukeAll(t *testing.T) {
+func TestListDynamoDB_WithFilter(t *testing.T) {
 	t.Parallel()
-	ddb := DynamoDB{
-		Client: mockedDynamoDB{
-			DeleteTableOutput: dynamodb.DeleteTableOutput{},
+
+	now := time.Now()
+	mock := &mockDynamoDBClient{
+		ListTablesOutput: dynamodb.ListTablesOutput{
+			TableNames: []string{"table1", "skip-this"},
+		},
+		DescribeTableOutput: map[string]dynamodb.DescribeTableOutput{
+			"table1": {
+				Table: &types.TableDescription{
+					TableName:        aws.String("table1"),
+					CreationDateTime: aws.Time(now),
+				},
+			},
+			"skip-this": {
+				Table: &types.TableDescription{
+					TableName:        aws.String("skip-this"),
+					CreationDateTime: aws.Time(now),
+				},
+			},
 		},
 	}
 
-	err := ddb.nukeAll([]*string{aws.String("table1"), aws.String("table2")})
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+		},
+	}
+
+	names, err := listDynamoDB(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{"table1"}, aws.ToStringSlice(names))
+}
+
+func TestDeleteDynamoDB(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockDynamoDBClient{}
+	err := deleteDynamoDB(context.Background(), mock, aws.String("test-table"))
 	require.NoError(t, err)
 }

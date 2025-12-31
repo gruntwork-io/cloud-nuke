@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -21,15 +20,10 @@ func NewLaunchConfigs() AwsResource {
 	return NewAwsResource(&resource.Resource[LaunchConfigsAPI]{
 		ResourceTypeName: "lc",
 		BatchSize:        49,
-		InitClient: func(r *resource.Resource[LaunchConfigsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for AutoScaling client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = autoscaling.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[LaunchConfigsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = autoscaling.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.LaunchConfiguration
 		},

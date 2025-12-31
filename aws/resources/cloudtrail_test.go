@@ -10,26 +10,26 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedCloudTrail struct {
-	CloudtrailTrailAPI
+type mockCloudtrailClient struct {
 	ListTrailsOutput  cloudtrail.ListTrailsOutput
 	DeleteTrailOutput cloudtrail.DeleteTrailOutput
 	ListTagsOutput    cloudtrail.ListTagsOutput
 	ListTagsError     error
 }
 
-func (m mockedCloudTrail) ListTrails(ctx context.Context, params *cloudtrail.ListTrailsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTrailsOutput, error) {
+func (m *mockCloudtrailClient) ListTrails(ctx context.Context, params *cloudtrail.ListTrailsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTrailsOutput, error) {
 	return &m.ListTrailsOutput, nil
 }
 
-func (m mockedCloudTrail) DeleteTrail(ctx context.Context, params *cloudtrail.DeleteTrailInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.DeleteTrailOutput, error) {
+func (m *mockCloudtrailClient) DeleteTrail(ctx context.Context, params *cloudtrail.DeleteTrailInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.DeleteTrailOutput, error) {
 	return &m.DeleteTrailOutput, nil
 }
 
-func (m mockedCloudTrail) ListTags(ctx context.Context, params *cloudtrail.ListTagsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTagsOutput, error) {
+func (m *mockCloudtrailClient) ListTags(ctx context.Context, params *cloudtrail.ListTagsInput, optFns ...func(*cloudtrail.Options)) (*cloudtrail.ListTagsOutput, error) {
 	if m.ListTagsError != nil {
 		return nil, m.ListTagsError
 	}
@@ -44,121 +44,89 @@ func (m mockedCloudTrail) ListTags(ctx context.Context, params *cloudtrail.ListT
 	return &cloudtrail.ListTagsOutput{}, nil
 }
 
-func TestCloudTrailGetAll(t *testing.T) {
+func TestListCloudtrailTrails(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-name1"
 	testName2 := "test-name2"
 	testArn1 := "test-arn1"
 	testArn2 := "test-arn2"
-	ct := CloudtrailTrail{
-		Client: mockedCloudTrail{
-			ListTrailsOutput: cloudtrail.ListTrailsOutput{
-				Trails: []types.TrailInfo{
-					{
-						Name:     aws.String(testName1),
-						TrailARN: aws.String(testArn1),
-					},
-					{
-						Name:     aws.String(testName2),
-						TrailARN: aws.String(testArn2),
-					},
-				},
+
+	mock := &mockCloudtrailClient{
+		ListTrailsOutput: cloudtrail.ListTrailsOutput{
+			Trails: []types.TrailInfo{
+				{Name: aws.String(testName1), TrailARN: aws.String(testArn1)},
+				{Name: aws.String(testName2), TrailARN: aws.String(testArn2)},
 			},
-			ListTagsOutput: cloudtrail.ListTagsOutput{
-				ResourceTagList: []types.ResourceTag{
-					{
-						ResourceId: aws.String(testArn1),
-						TagsList: []types.Tag{
-							{
-								Key:   aws.String("t_name"),
-								Value: &testName1,
-							},
-							{
-								Key:   aws.String("t_arn"),
-								Value: &testArn1,
-							},
-						},
+		},
+		ListTagsOutput: cloudtrail.ListTagsOutput{
+			ResourceTagList: []types.ResourceTag{
+				{
+					ResourceId: aws.String(testArn1),
+					TagsList: []types.Tag{
+						{Key: aws.String("t_name"), Value: &testName1},
+						{Key: aws.String("t_arn"), Value: &testArn1},
 					},
 				},
 			},
 		},
 	}
 
-	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
-	}{
-		"emptyFilter": {
-			configObj: config.ResourceType{},
-			expected:  []string{testArn1, testArn2},
-		},
-		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
-			},
-			expected: []string{testArn2},
-		},
-		"tagExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					Tags: map[string]config.Expression{
-						"t_arn": {RE: *regexp.MustCompile(testArn1)},
-					},
-				},
-			},
-			expected: []string{testArn2},
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			names, err := ct.getAll(context.Background(), config.Config{
-				CloudtrailTrail: tc.configObj,
-			})
-
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
-		})
-	}
-}
-
-func TestCloudTrailGetAllWithTagsError(t *testing.T) {
-	t.Parallel()
-
-	testName := "test-trail"
-	testArn := "test-arn"
-	ct := CloudtrailTrail{
-		Client: mockedCloudTrail{
-			ListTrailsOutput: cloudtrail.ListTrailsOutput{
-				Trails: []types.TrailInfo{{
-					Name:     aws.String(testName),
-					TrailARN: aws.String(testArn),
-				}},
-			},
-			ListTagsError: errors.New("CloudTrailARNInvalidException: You cannot have resources belonging to multiple owners"),
-		},
-	}
-
-	names, err := ct.getAll(context.Background(), config.Config{
-		CloudtrailTrail: config.ResourceType{},
-	})
-
+	arns, err := listCloudtrailTrails(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
-	require.Equal(t, []string{testArn}, aws.ToStringSlice(names))
+	require.ElementsMatch(t, []string{testArn1, testArn2}, aws.ToStringSlice(arns))
 }
 
-func TestCloudTrailNukeAll(t *testing.T) {
+func TestListCloudtrailTrails_WithFilter(t *testing.T) {
 	t.Parallel()
 
-	ct := CloudtrailTrail{
-		Client: mockedCloudTrail{
-			DeleteTrailOutput: cloudtrail.DeleteTrailOutput{},
-		}}
+	testName1 := "test-name1"
+	testName2 := "skip-this"
+	testArn1 := "test-arn1"
+	testArn2 := "test-arn2"
 
-	err := ct.nukeAll([]*string{aws.String("test-arn")})
+	mock := &mockCloudtrailClient{
+		ListTrailsOutput: cloudtrail.ListTrailsOutput{
+			Trails: []types.TrailInfo{
+				{Name: aws.String(testName1), TrailARN: aws.String(testArn1)},
+				{Name: aws.String(testName2), TrailARN: aws.String(testArn2)},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+		},
+	}
+
+	arns, err := listCloudtrailTrails(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{testArn1}, aws.ToStringSlice(arns))
+}
+
+func TestListCloudtrailTrails_WithTagsError(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockCloudtrailClient{
+		ListTrailsOutput: cloudtrail.ListTrailsOutput{
+			Trails: []types.TrailInfo{{
+				Name:     aws.String("test-trail"),
+				TrailARN: aws.String("test-arn"),
+			}},
+		},
+		ListTagsError: errors.New("CloudTrailARNInvalidException: You cannot have resources belonging to multiple owners"),
+	}
+
+	arns, err := listCloudtrailTrails(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"test-arn"}, aws.ToStringSlice(arns))
+}
+
+func TestDeleteCloudtrailTrail(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockCloudtrailClient{}
+	err := deleteCloudtrailTrail(context.Background(), mock, aws.String("test-arn"))
 	require.NoError(t, err)
 }

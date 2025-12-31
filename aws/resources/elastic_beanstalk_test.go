@@ -10,91 +10,124 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
 	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedEBApplication struct {
-	EBApplicationsAPI
+type mockEBApplicationsClient struct {
 	DescribeApplicationsOutput elasticbeanstalk.DescribeApplicationsOutput
 	DeleteApplicationOutput    elasticbeanstalk.DeleteApplicationOutput
 }
 
-func (m *mockedEBApplication) DescribeApplications(ctx context.Context, params *elasticbeanstalk.DescribeApplicationsInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DescribeApplicationsOutput, error) {
+func (m *mockEBApplicationsClient) DescribeApplications(ctx context.Context, params *elasticbeanstalk.DescribeApplicationsInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DescribeApplicationsOutput, error) {
 	return &m.DescribeApplicationsOutput, nil
 }
 
-func (m *mockedEBApplication) DeleteApplication(ctx context.Context, params *elasticbeanstalk.DeleteApplicationInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DeleteApplicationOutput, error) {
+func (m *mockEBApplicationsClient) DeleteApplication(ctx context.Context, params *elasticbeanstalk.DeleteApplicationInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DeleteApplicationOutput, error) {
 	return &m.DeleteApplicationOutput, nil
 }
 
-func TestEBApplication_GetAll(t *testing.T) {
+func TestListEBApplications(t *testing.T) {
 	t.Parallel()
 
 	app1 := "demo-app-golang-backend"
 	app2 := "demo-app-golang-frontend"
-
 	now := time.Now()
-	eb := EBApplications{
-		Client: &mockedEBApplication{
-			DescribeApplicationsOutput: elasticbeanstalk.DescribeApplicationsOutput{
-				Applications: []types.ApplicationDescription{
-					{
-						ApplicationArn:  aws.String("app-arn-01"),
-						ApplicationName: &app1,
-						DateCreated:     aws.Time(now),
-					},
-					{
-						ApplicationArn:  aws.String("app-arn-02"),
-						ApplicationName: &app2,
-						DateCreated:     aws.Time(now.Add(1)),
-					},
+
+	mock := &mockEBApplicationsClient{
+		DescribeApplicationsOutput: elasticbeanstalk.DescribeApplicationsOutput{
+			Applications: []types.ApplicationDescription{
+				{
+					ApplicationArn:  aws.String("app-arn-01"),
+					ApplicationName: &app1,
+					DateCreated:     aws.Time(now),
+				},
+				{
+					ApplicationArn:  aws.String("app-arn-02"),
+					ApplicationName: &app2,
+					DateCreated:     aws.Time(now.Add(1)),
 				},
 			},
 		},
 	}
 
-	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
-	}{
-		"emptyFilter": {
-			configObj: config.ResourceType{},
-			expected: []string{
-				app1, app2,
+	names, err := listEBApplications(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{app1, app2}, aws.ToStringSlice(names))
+}
+
+func TestListEBApplications_WithFilter(t *testing.T) {
+	t.Parallel()
+
+	app1 := "demo-app-golang-backend"
+	app2 := "skip-this"
+	now := time.Now()
+
+	mock := &mockEBApplicationsClient{
+		DescribeApplicationsOutput: elasticbeanstalk.DescribeApplicationsOutput{
+			Applications: []types.ApplicationDescription{
+				{
+					ApplicationArn:  aws.String("app-arn-01"),
+					ApplicationName: &app1,
+					DateCreated:     aws.Time(now),
+				},
+				{
+					ApplicationArn:  aws.String("app-arn-02"),
+					ApplicationName: &app2,
+					DateCreated:     aws.Time(now),
+				},
 			},
-		},
-		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(app1),
-					}}},
-			},
-			expected: []string{app2},
-		},
-		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
-				}},
-			expected: []string{app1},
-		},
-		"timeBeforeExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeBefore: aws.Time(now.Add(1)),
-				}},
-			expected: []string{app2},
 		},
 	}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			names, err := eb.getAll(context.Background(), config.Config{
-				ElasticBeanstalk: tc.configObj,
-			})
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
-		})
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+		},
 	}
+
+	names, err := listEBApplications(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{app1}, aws.ToStringSlice(names))
+}
+
+func TestListEBApplications_TimeFilter(t *testing.T) {
+	t.Parallel()
+
+	app1 := "app1"
+	app2 := "app2"
+	now := time.Now()
+
+	mock := &mockEBApplicationsClient{
+		DescribeApplicationsOutput: elasticbeanstalk.DescribeApplicationsOutput{
+			Applications: []types.ApplicationDescription{
+				{
+					ApplicationName: &app1,
+					DateCreated:     aws.Time(now),
+				},
+				{
+					ApplicationName: &app2,
+					DateCreated:     aws.Time(now.Add(1)),
+				},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			TimeAfter: aws.Time(now),
+		},
+	}
+
+	names, err := listEBApplications(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{app1}, aws.ToStringSlice(names))
+}
+
+func TestDeleteEBApplication(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockEBApplicationsClient{}
+	err := deleteEBApplication(context.Background(), mock, aws.String("test-app"))
+	require.NoError(t, err)
 }

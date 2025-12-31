@@ -216,3 +216,4 @@ func MultiStepDeleter[C any](steps ...DeleteFunc[C]) NukerFunc[C] {
 		return allErrs.ErrorOrNil()
 	}
 }
+

@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -21,15 +20,10 @@ func NewCloudWatchDashboards() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudWatchDashboardsAPI]{
 		ResourceTypeName: "cloudwatch-dashboard",
 		BatchSize:        49,
-		InitClient: func(r *resource.Resource[CloudWatchDashboardsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for CloudWatch client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = cloudwatch.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudWatchDashboardsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = cloudwatch.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.CloudWatchDashboard
 		},

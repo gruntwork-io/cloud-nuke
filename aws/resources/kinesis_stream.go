@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -21,15 +20,10 @@ func NewKinesisStreams() AwsResource {
 	return NewAwsResource(&resource.Resource[KinesisStreamsAPI]{
 		ResourceTypeName: "kinesis-stream",
 		BatchSize:        35, // Conservative batch size to avoid hitting AWS API rate limits
-		InitClient: func(r *resource.Resource[KinesisStreamsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for Kinesis client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = kinesis.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[KinesisStreamsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = kinesis.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.KinesisStream
 		},
