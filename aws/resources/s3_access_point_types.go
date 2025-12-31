@@ -51,7 +51,7 @@ func (ap *S3AccessPoint) GetAndSetIdentifiers(c context.Context, configObj confi
 	return ap.AccessPoints, nil
 }
 
-func (ap *S3AccessPoint) Nuke(identifiers []string) error {
+func (ap *S3AccessPoint) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ap.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -7,64 +7,65 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a formatted string of Launch config Names
-func (lc *LaunchConfigs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := lc.Client.DescribeLaunchConfigurations(lc.Context, &autoscaling.DescribeLaunchConfigurationsInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	var configNames []*string
-	for _, c := range result.LaunchConfigurations {
-		if configObj.LaunchConfiguration.ShouldInclude(config.ResourceValue{
-			Time: c.CreatedTime,
-			Name: c.LaunchConfigurationName,
-		}) {
-			configNames = append(configNames, c.LaunchConfigurationName)
-		}
-	}
-
-	return configNames, nil
+// LaunchConfigsAPI defines the interface for Launch Configuration operations.
+type LaunchConfigsAPI interface {
+	DescribeLaunchConfigurations(ctx context.Context, params *autoscaling.DescribeLaunchConfigurationsInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeLaunchConfigurationsOutput, error)
+	DeleteLaunchConfiguration(ctx context.Context, params *autoscaling.DeleteLaunchConfigurationInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DeleteLaunchConfigurationOutput, error)
 }
 
-// Deletes all Launch configurations
-func (lc *LaunchConfigs) nukeAll(configNames []*string) error {
+// NewLaunchConfigs creates a new Launch Configurations resource using the generic resource pattern.
+func NewLaunchConfigs() AwsResource {
+	return NewAwsResource(&resource.Resource[LaunchConfigsAPI]{
+		ResourceTypeName: "lc",
+		BatchSize:        49,
+		InitClient: func(r *resource.Resource[LaunchConfigsAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for AutoScaling client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = autoscaling.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.LaunchConfiguration
+		},
+		Lister: listLaunchConfigs,
+		Nuker:  resource.SimpleBatchDeleter(deleteLaunchConfig),
+	})
+}
 
-	if len(configNames) == 0 {
-		logging.Debugf("No Launch Configurations to nuke in region %s", lc.Region)
-		return nil
-	}
+// listLaunchConfigs retrieves all launch configurations that match the config filters.
+func listLaunchConfigs(ctx context.Context, client LaunchConfigsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var names []*string
 
-	logging.Debugf("Deleting all Launch Configurations in region %s", lc.Region)
-	var deletedConfigNames []*string
-
-	for _, configName := range configNames {
-		params := &autoscaling.DeleteLaunchConfigurationInput{
-			LaunchConfigurationName: configName,
-		}
-
-		_, err := lc.Client.DeleteLaunchConfiguration(lc.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(configName),
-			ResourceType: "Launch configuration",
-			Error:        err,
-		}
-		report.Record(e)
-
+	paginator := autoscaling.NewDescribeLaunchConfigurationsPaginator(client, &autoscaling.DescribeLaunchConfigurationsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-		} else {
-			deletedConfigNames = append(deletedConfigNames, configName)
-			logging.Debugf("Deleted Launch configuration: %s", *configName)
+			return nil, err
+		}
+
+		for _, lc := range page.LaunchConfigurations {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Time: lc.CreatedTime,
+				Name: lc.LaunchConfigurationName,
+			}) {
+				names = append(names, lc.LaunchConfigurationName)
+			}
 		}
 	}
 
-	logging.Debugf("[OK] %d Launch Configuration(s) deleted in %s", len(deletedConfigNames), lc.Region)
-	return nil
+	return names, nil
+}
+
+// deleteLaunchConfig deletes a single launch configuration.
+func deleteLaunchConfig(ctx context.Context, client LaunchConfigsAPI, name *string) error {
+	_, err := client.DeleteLaunchConfiguration(ctx, &autoscaling.DeleteLaunchConfigurationInput{
+		LaunchConfigurationName: name,
+	})
+	return err
 }

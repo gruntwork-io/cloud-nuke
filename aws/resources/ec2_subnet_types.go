@@ -52,7 +52,7 @@ func (es *EC2Subnet) GetAndSetIdentifiers(c context.Context, configObj config.Co
 }
 
 // Nuke - nuke 'em all!!!
-func (es *EC2Subnet) Nuke(identifiers []string) error {
+func (es *EC2Subnet) Nuke(ctx context.Context, identifiers []string) error {
 	if err := es.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

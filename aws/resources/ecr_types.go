@@ -51,7 +51,7 @@ func (registry *ECR) GetAndSetIdentifiers(c context.Context, configObj config.Co
 	return registry.RepositoryNames, nil
 }
 
-func (registry *ECR) Nuke(identifiers []string) error {
+func (registry *ECR) Nuke(ctx context.Context, identifiers []string) error {
 	if err := registry.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

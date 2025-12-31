@@ -7,22 +7,50 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (cwdb *CloudWatchDashboards) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// CloudWatchDashboardsAPI defines the interface for CloudWatch dashboard operations.
+type CloudWatchDashboardsAPI interface {
+	ListDashboards(ctx context.Context, params *cloudwatch.ListDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.ListDashboardsOutput, error)
+	DeleteDashboards(ctx context.Context, params *cloudwatch.DeleteDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DeleteDashboardsOutput, error)
+}
+
+// NewCloudWatchDashboards creates a new CloudWatch Dashboards resource using the generic resource pattern.
+func NewCloudWatchDashboards() AwsResource {
+	return NewAwsResource(&resource.Resource[CloudWatchDashboardsAPI]{
+		ResourceTypeName: "cloudwatch-dashboard",
+		BatchSize:        49,
+		InitClient: func(r *resource.Resource[CloudWatchDashboardsAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for CloudWatch client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = cloudwatch.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.CloudWatchDashboard
+		},
+		Lister: listCloudWatchDashboards,
+		Nuker:  resource.BulkDeleter(deleteCloudWatchDashboards),
+	})
+}
+
+// listCloudWatchDashboards retrieves all CloudWatch dashboards that match the config filters.
+func listCloudWatchDashboards(ctx context.Context, client CloudWatchDashboardsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allDashboards []*string
 
-	paginator := cloudwatch.NewListDashboardsPaginator(cwdb.Client, &cloudwatch.ListDashboardsInput{})
+	paginator := cloudwatch.NewListDashboardsPaginator(client, &cloudwatch.ListDashboardsInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, dashboard := range page.DashboardEntries {
-			if configObj.CloudWatchDashboard.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: dashboard.DashboardName,
 				Time: dashboard.LastModified,
 			}) {
@@ -34,48 +62,10 @@ func (cwdb *CloudWatchDashboards) getAll(c context.Context, configObj config.Con
 	return allDashboards, nil
 }
 
-func (cwdb *CloudWatchDashboards) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No CloudWatch Dashboards to nuke in region %s", cwdb.Region)
-		return nil
-	}
-
-	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
-	// based on CloudWatchDashboard.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
-	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
-	// because many APIs in AWS have a limit of 100 requests per second.
-	if len(identifiers) > 100 {
-		logging.Errorf("Nuking too many CloudWatch Dashboards at once (100): halting to avoid hitting AWS API rate limiting")
-		return TooManyCloudWatchDashboardsErr{}
-	}
-
-	logging.Debugf("Deleting CloudWatch Dashboards in region %s", cwdb.Region)
-	input := cloudwatch.DeleteDashboardsInput{DashboardNames: aws.ToStringSlice(identifiers)}
-	_, err := cwdb.Client.DeleteDashboards(cwdb.Context, &input)
-
-	// Record status of this resource
-	e := report.BatchEntry{
-		Identifiers:  aws.ToStringSlice(identifiers),
-		ResourceType: "CloudWatch Dashboard",
-		Error:        err,
-	}
-	report.RecordBatch(e)
-
-	if err != nil {
-		logging.Debugf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
-
-	for _, dashboardName := range identifiers {
-		logging.Debugf("[OK] CloudWatch Dashboard %s was deleted in %s", aws.ToString(dashboardName), cwdb.Region)
-	}
-	return nil
-}
-
-// Custom errors
-
-type TooManyCloudWatchDashboardsErr struct{}
-
-func (err TooManyCloudWatchDashboardsErr) Error() string {
-	return "Too many CloudWatch Dashboards requested at once."
+// deleteCloudWatchDashboards deletes CloudWatch dashboards using the bulk delete API.
+func deleteCloudWatchDashboards(ctx context.Context, client CloudWatchDashboardsAPI, ids []string) error {
+	_, err := client.DeleteDashboards(ctx, &cloudwatch.DeleteDashboardsInput{
+		DashboardNames: ids,
+	})
+	return err
 }

@@ -57,7 +57,7 @@ func (ap *ACMPCA) GetAndSetIdentifiers(c context.Context, configObj config.Confi
 }
 
 // Nuke - nuke 'em all!!!
-func (ap *ACMPCA) Nuke(arns []string) error {
+func (ap *ACMPCA) Nuke(ctx context.Context, arns []string) error {
 	if err := ap.nukeAll(aws.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}

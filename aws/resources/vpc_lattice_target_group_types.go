@@ -63,7 +63,7 @@ func (n *VPCLatticeTargetGroup) GetAndSetIdentifiers(c context.Context, configOb
 }
 
 // Nuke - nuke 'em all!!!
-func (n *VPCLatticeTargetGroup) Nuke(arns []string) error {
+func (n *VPCLatticeTargetGroup) Nuke(ctx context.Context, arns []string) error {
 	if err := n.nukeAll(aws.StringSlice(arns)); err != nil {
 		return errors.WithStackTrace(err)
 	}

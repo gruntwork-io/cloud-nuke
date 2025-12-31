@@ -53,7 +53,7 @@ func (pg *RdsProxy) GetAndSetIdentifiers(c context.Context, configObj config.Con
 }
 
 // Nuke - nuke 'em all!!!
-func (pg *RdsProxy) Nuke(identifiers []string) error {
+func (pg *RdsProxy) Nuke(ctx context.Context, identifiers []string) error {
 	if err := pg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

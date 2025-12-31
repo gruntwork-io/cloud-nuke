@@ -57,7 +57,7 @@ func (tgw *TransitGateways) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - nuke 'em all!!!
-func (tgw *TransitGateways) Nuke(identifiers []string) error {
+func (tgw *TransitGateways) Nuke(ctx context.Context, identifiers []string) error {
 	if err := tgw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

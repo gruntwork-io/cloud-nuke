@@ -7,57 +7,75 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (kf *KinesisFirehose) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
-	var allStreams []*string
-	output, err := kf.Client.ListDeliveryStreams(kf.Context, &firehose.ListDeliveryStreamsInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	for _, stream := range output.DeliveryStreamNames {
-		if configObj.KinesisFirehose.ShouldInclude(config.ResourceValue{
-			Name: aws.String(stream),
-		}) {
-			allStreams = append(allStreams, aws.String(stream))
-		}
-	}
-
-	return allStreams, nil
+// KinesisFirehoseAPI defines the interface for Kinesis Firehose operations.
+type KinesisFirehoseAPI interface {
+	ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error)
+	DeleteDeliveryStream(ctx context.Context, params *firehose.DeleteDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DeleteDeliveryStreamOutput, error)
 }
 
-func (kf *KinesisFirehose) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Kinesis Firhose to nuke in region %s", kf.Region)
-		return nil
-	}
+// NewKinesisFirehose creates a new Kinesis Firehose resource using the generic resource pattern.
+func NewKinesisFirehose() AwsResource {
+	return NewAwsResource(&resource.Resource[KinesisFirehoseAPI]{
+		ResourceTypeName: "kinesis-firehose",
+		// Tentative batch size to ensure AWS doesn't throttle. Note that Kinesis Firehose does not support bulk delete,
+		// so we will be deleting this many in parallel using go routines. We pick 35 here, which is half of what the
+		// AWS web console will do. We pick a conservative number here to avoid hitting AWS API rate limits.
+		BatchSize: 35,
+		InitClient: func(r *resource.Resource[KinesisFirehoseAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for Firehose client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = firehose.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.KinesisFirehose
+		},
+		Lister: listKinesisFirehose,
+		Nuker:  resource.SimpleBatchDeleter(deleteKinesisFirehose),
+	})
+}
 
-	logging.Debugf("Deleting all Kinesis Firhose in region %s", kf.Region)
-	var deleted []*string
-	for _, id := range identifiers {
-		_, err := kf.Client.DeleteDeliveryStream(kf.Context, &firehose.DeleteDeliveryStreamInput{
-			AllowForceDelete:   aws.Bool(true),
-			DeliveryStreamName: id,
+// listKinesisFirehose retrieves all Kinesis Firehose delivery streams that match the config filters.
+func listKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var ids []*string
+	var exclusiveStartName *string
+
+	for {
+		output, err := client.ListDeliveryStreams(ctx, &firehose.ListDeliveryStreamsInput{
+			ExclusiveStartDeliveryStreamName: exclusiveStartName,
 		})
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Kinesis Firehose",
-			Error:        err,
-		}
-		report.Record(e)
-
 		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deleted = append(deleted, id)
-			logging.Debugf("Deleted Kinesis Firehose: %s", *id)
+			return nil, err
 		}
+
+		for _, stream := range output.DeliveryStreamNames {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: aws.String(stream),
+			}) {
+				ids = append(ids, aws.String(stream))
+			}
+		}
+
+		if !aws.ToBool(output.HasMoreDeliveryStreams) || len(output.DeliveryStreamNames) == 0 {
+			break
+		}
+		exclusiveStartName = aws.String(output.DeliveryStreamNames[len(output.DeliveryStreamNames)-1])
 	}
 
-	logging.Debugf("[OK] %d Kinesis Firehose(s) deleted in %s", len(deleted), kf.Region)
+	return ids, nil
+}
 
-	return nil
+// deleteKinesisFirehose deletes a single Kinesis Firehose delivery stream.
+func deleteKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, id *string) error {
+	_, err := client.DeleteDeliveryStream(ctx, &firehose.DeleteDeliveryStreamInput{
+		AllowForceDelete:   aws.Bool(true),
+		DeliveryStreamName: id,
+	})
+	return err
 }

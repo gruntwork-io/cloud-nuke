@@ -54,7 +54,7 @@ func (byoasn *EC2IPAMByoasn) GetAndSetIdentifiers(c context.Context, configObj c
 }
 
 // Nuke - nuke 'em all!!!
-func (byoasn *EC2IPAMByoasn) Nuke(identifiers []string) error {
+func (byoasn *EC2IPAMByoasn) Nuke(ctx context.Context, identifiers []string) error {
 	if err := byoasn.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

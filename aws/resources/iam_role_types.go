@@ -63,7 +63,7 @@ func (ir *IAMRoles) GetAndSetIdentifiers(c context.Context, configObj config.Con
 }
 
 // Nuke - nuke 'em all!!!
-func (ir *IAMRoles) Nuke(identifiers []string) error {
+func (ir *IAMRoles) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ir.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

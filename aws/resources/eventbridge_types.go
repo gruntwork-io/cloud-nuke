@@ -37,7 +37,7 @@ func (eb *EventBridge) MaxBatchSize() int {
 	return 100
 }
 
-func (eb *EventBridge) Nuke(identifiers []string) error {
+func (eb *EventBridge) Nuke(ctx context.Context, identifiers []string) error {
 	if err := eb.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

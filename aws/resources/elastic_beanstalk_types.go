@@ -56,7 +56,7 @@ func (eb *EBApplications) GetAndSetIdentifiers(c context.Context, configObj conf
 }
 
 // Nuke - nuke 'em all!!!
-func (eb *EBApplications) Nuke(identifiers []string) error {
+func (eb *EBApplications) Nuke(ctx context.Context, identifiers []string) error {
 	if err := eb.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

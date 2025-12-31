@@ -57,7 +57,7 @@ func (sg *SecurityGroup) GetAndSetIdentifiers(c context.Context, configObj confi
 	return sg.SecurityGroups, nil
 }
 
-func (sg *SecurityGroup) Nuke(identifiers []string) error {
+func (sg *SecurityGroup) Nuke(ctx context.Context, identifiers []string) error {
 	if err := sg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

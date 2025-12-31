@@ -55,7 +55,7 @@ func (bv *BackupVault) GetAndSetIdentifiers(c context.Context, configObj config.
 }
 
 // Nuke - nuke 'em all!!!
-func (bv *BackupVault) Nuke(identifiers []string) error {
+func (bv *BackupVault) Nuke(ctx context.Context, identifiers []string) error {
 	if err := bv.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

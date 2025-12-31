@@ -51,6 +51,6 @@ func (gd *GuardDuty) GetAndSetIdentifiers(c context.Context, configObj config.Co
 	return gd.detectorIds, nil
 }
 
-func (gd *GuardDuty) Nuke(detectorIds []string) error {
+func (gd *GuardDuty) Nuke(ctx context.Context, detectorIds []string) error {
 	return gd.nukeAll(detectorIds)
 }

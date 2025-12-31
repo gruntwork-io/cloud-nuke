@@ -58,7 +58,7 @@ func (cache *Elasticaches) GetAndSetIdentifiers(c context.Context, configObj con
 }
 
 // Nuke - nuke 'em all!!!
-func (cache *Elasticaches) Nuke(identifiers []string) error {
+func (cache *Elasticaches) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cache.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -111,7 +111,7 @@ func (pg *ElasticacheParameterGroups) GetAndSetIdentifiers(c context.Context, co
 }
 
 // Nuke - nuke 'em all!!!
-func (pg *ElasticacheParameterGroups) Nuke(identifiers []string) error {
+func (pg *ElasticacheParameterGroups) Nuke(ctx context.Context, identifiers []string) error {
 	if err := pg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
@@ -163,7 +163,7 @@ func (sg *ElasticacheSubnetGroups) GetAndSetIdentifiers(c context.Context, confi
 }
 
 // Nuke - nuke 'em all!!!
-func (sg *ElasticacheSubnetGroups) Nuke(identifiers []string) error {
+func (sg *ElasticacheSubnetGroups) Nuke(ctx context.Context, identifiers []string) error {
 	if err := sg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

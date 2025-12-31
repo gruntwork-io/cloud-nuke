@@ -103,7 +103,7 @@ func (s *SageMakerStudio) IsNukable(identifier string) (bool, error) {
 
 // Nuke deletes the specified SageMaker Studio domains and all their associated resources
 // This includes user profiles, apps, spaces, and MLflow tracking servers
-func (s *SageMakerStudio) Nuke(identifiers []string) error {
+func (s *SageMakerStudio) Nuke(ctx context.Context, identifiers []string) error {
 	if err := s.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

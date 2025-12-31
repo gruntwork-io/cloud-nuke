@@ -52,7 +52,7 @@ func (nacl *NetworkACL) GetAndSetIdentifiers(c context.Context, configObj config
 	return nacl.Ids, nil
 }
 
-func (nacl *NetworkACL) Nuke(identifiers []string) error {
+func (nacl *NetworkACL) Nuke(ctx context.Context, identifiers []string) error {
 	if err := nacl.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

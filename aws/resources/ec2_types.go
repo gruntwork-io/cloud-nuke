@@ -59,7 +59,7 @@ func (ei *EC2Instances) GetAndSetIdentifiers(c context.Context, configObj config
 }
 
 // Nuke - nuke 'em all!!!
-func (ei *EC2Instances) Nuke(identifiers []string) error {
+func (ei *EC2Instances) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ei.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

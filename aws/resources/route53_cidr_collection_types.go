@@ -58,7 +58,7 @@ func (r *Route53CidrCollection) GetAndSetIdentifiers(c context.Context, configOb
 }
 
 // Nuke - nuke 'em all!!!
-func (r *Route53CidrCollection) Nuke(identifiers []string) error {
+func (r *Route53CidrCollection) Nuke(ctx context.Context, identifiers []string) error {
 	if err := r.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

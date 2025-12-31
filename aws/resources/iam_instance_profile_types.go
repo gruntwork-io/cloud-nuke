@@ -57,7 +57,7 @@ func (ip *IAMInstanceProfiles) GetAndSetIdentifiers(c context.Context, configObj
 }
 
 // Nuke - Destroy every instance profiles in this collection
-func (ip *IAMInstanceProfiles) Nuke(identifiers []string) error {
+func (ip *IAMInstanceProfiles) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ip.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

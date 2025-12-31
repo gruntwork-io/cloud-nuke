@@ -63,7 +63,7 @@ func (osd *OpenSearchDomains) GetAndSetIdentifiers(c context.Context, configObj 
 }
 
 // Nuke nukes all OpenSearch domain resources
-func (osd *OpenSearchDomains) Nuke(identifiers []string) error {
+func (osd *OpenSearchDomains) Nuke(ctx context.Context, identifiers []string) error {
 	if err := osd.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

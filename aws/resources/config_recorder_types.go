@@ -51,7 +51,7 @@ func (csr *ConfigServiceRecorders) GetAndSetIdentifiers(c context.Context, confi
 	return csr.RecorderNames, nil
 }
 
-func (csr *ConfigServiceRecorders) Nuke(configServiceRecorderNames []string) error {
+func (csr *ConfigServiceRecorders) Nuke(ctx context.Context, configServiceRecorderNames []string) error {
 	if err := csr.nukeAll(configServiceRecorderNames); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -56,7 +56,7 @@ func (ami *AMIs) GetAndSetIdentifiers(c context.Context, configObj config.Config
 }
 
 // Nuke - nuke 'em all!!!
-func (ami *AMIs) Nuke(identifiers []string) error {
+func (ami *AMIs) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ami.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

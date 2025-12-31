@@ -56,7 +56,7 @@ func (cw *CloudWatchAlarms) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - nuke 'em all!!!
-func (cw *CloudWatchAlarms) Nuke(identifiers []string) error {
+func (cw *CloudWatchAlarms) Nuke(ctx context.Context, identifiers []string) error {
 	if err := cw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

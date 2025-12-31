@@ -10,90 +10,80 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedCloudWatchLogGroup struct {
-	CloudWatchLogGroupsAPI
+type mockCloudWatchLogGroupsClient struct {
 	DescribeLogGroupsOutput cloudwatchlogs.DescribeLogGroupsOutput
 	DeleteLogGroupOutput    cloudwatchlogs.DeleteLogGroupOutput
 }
 
-func (m mockedCloudWatchLogGroup) DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
+func (m *mockCloudWatchLogGroupsClient) DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
 	return &m.DescribeLogGroupsOutput, nil
 }
 
-func (m mockedCloudWatchLogGroup) DeleteLogGroup(ctx context.Context, params *cloudwatchlogs.DeleteLogGroupInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DeleteLogGroupOutput, error) {
+func (m *mockCloudWatchLogGroupsClient) DeleteLogGroup(ctx context.Context, params *cloudwatchlogs.DeleteLogGroupInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DeleteLogGroupOutput, error) {
 	return &m.DeleteLogGroupOutput, nil
 }
 
-func TestCloudWatchLogGroup_GetAll(t *testing.T) {
-	t.Parallel()
-
-	testName1 := "test-name1"
-	testName2 := "test-name2"
-	now := time.Now()
-	cw := CloudWatchLogGroups{
-		Client: mockedCloudWatchLogGroup{
-			DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
-				LogGroups: []types.LogGroup{
-					{
-						LogGroupName: aws.String(testName1),
-						CreationTime: aws.Int64(now.UnixMilli()),
-					},
-					{
-						LogGroupName: aws.String(testName2),
-						CreationTime: aws.Int64(now.Add(1).UnixMilli()),
-					},
-				},
-			},
-		}}
-
-	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
-	}{
-		"emptyFilter": {
-			configObj: config.ResourceType{},
-			expected:  []string{testName1, testName2},
-		},
-		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
-			},
-			expected: []string{testName2},
-		},
-		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-2 * time.Hour)),
-				}},
-			expected: []string{},
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			names, err := cw.getAll(context.Background(), config.Config{
-				CloudWatchLogGroup: tc.configObj,
-			})
-
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
-		})
-	}
+func TestCloudWatchLogGroups_ResourceName(t *testing.T) {
+	r := NewCloudWatchLogGroups()
+	assert.Equal(t, "cloudwatch-loggroup", r.ResourceName())
 }
 
-func TestCloudWatchLogGroup_NukeAll(t *testing.T) {
-	t.Parallel()
-	cw := CloudWatchLogGroups{
-		Client: mockedCloudWatchLogGroup{
-			DeleteLogGroupOutput: cloudwatchlogs.DeleteLogGroupOutput{},
-		}}
+func TestCloudWatchLogGroups_MaxBatchSize(t *testing.T) {
+	r := NewCloudWatchLogGroups()
+	assert.Equal(t, 35, r.MaxBatchSize())
+}
 
-	err := cw.nukeAll([]*string{aws.String("test-name1"), aws.String("test-name2")})
+func TestListCloudWatchLogGroups(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UnixMilli()
+	mock := &mockCloudWatchLogGroupsClient{
+		DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
+			LogGroups: []types.LogGroup{
+				{LogGroupName: aws.String("log-group-1"), CreationTime: aws.Int64(now)},
+				{LogGroupName: aws.String("log-group-2"), CreationTime: aws.Int64(now)},
+			},
+		},
+	}
+
+	names, err := listCloudWatchLogGroups(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"log-group-1", "log-group-2"}, aws.ToStringSlice(names))
+}
+
+func TestListCloudWatchLogGroups_WithFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UnixMilli()
+	mock := &mockCloudWatchLogGroupsClient{
+		DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
+			LogGroups: []types.LogGroup{
+				{LogGroupName: aws.String("log-group-1"), CreationTime: aws.Int64(now)},
+				{LogGroupName: aws.String("skip-this"), CreationTime: aws.Int64(now)},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+		},
+	}
+
+	names, err := listCloudWatchLogGroups(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{"log-group-1"}, aws.ToStringSlice(names))
+}
+
+func TestDeleteCloudWatchLogGroup(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockCloudWatchLogGroupsClient{}
+	err := deleteCloudWatchLogGroup(context.Background(), mock, aws.String("test-log-group"))
 	require.NoError(t, err)
 }

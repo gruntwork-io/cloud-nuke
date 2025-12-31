@@ -56,7 +56,7 @@ func (ipam *EC2IPAMResourceDiscovery) GetAndSetIdentifiers(c context.Context, co
 }
 
 // Nuke - nuke 'em all!!!
-func (ipam *EC2IPAMResourceDiscovery) Nuke(identifiers []string) error {
+func (ipam *EC2IPAMResourceDiscovery) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ipam.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

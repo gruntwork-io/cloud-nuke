@@ -56,7 +56,7 @@ func (h *EC2DedicatedHosts) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - nuke 'em all!!!
-func (h *EC2DedicatedHosts) Nuke(identifiers []string) error {
+func (h *EC2DedicatedHosts) Nuke(ctx context.Context, identifiers []string) error {
 	if err := h.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -59,7 +59,7 @@ func (kck *KmsCustomerKeys) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - remove all customer managed keys
-func (kck *KmsCustomerKeys) Nuke(keyIds []string) error {
+func (kck *KmsCustomerKeys) Nuke(ctx context.Context, keyIds []string) error {
 	if err := kck.nukeAll(aws.StringSlice(keyIds)); err != nil {
 		return errors.WithStackTrace(err)
 	}

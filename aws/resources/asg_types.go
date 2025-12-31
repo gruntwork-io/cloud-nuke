@@ -55,7 +55,7 @@ func (ag *ASGroups) GetAndSetIdentifiers(c context.Context, configObj config.Con
 }
 
 // Nuke - nuke 'em all!!!
-func (ag *ASGroups) Nuke(identifiers []string) error {
+func (ag *ASGroups) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ag.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

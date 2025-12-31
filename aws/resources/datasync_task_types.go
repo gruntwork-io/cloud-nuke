@@ -35,7 +35,7 @@ func (dst *DataSyncTask) ResourceIdentifiers() []string { return dst.DataSyncTas
 
 func (dst *DataSyncTask) MaxBatchSize() int { return 19 }
 
-func (dst *DataSyncTask) Nuke(identifiers []string) error {
+func (dst *DataSyncTask) Nuke(ctx context.Context, identifiers []string) error {
 	if err := dst.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

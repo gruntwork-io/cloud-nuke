@@ -51,7 +51,7 @@ func (ap *S3MultiRegionAccessPoint) GetAndSetIdentifiers(c context.Context, conf
 	return ap.AccessPoints, nil
 }
 
-func (ap *S3MultiRegionAccessPoint) Nuke(identifiers []string) error {
+func (ap *S3MultiRegionAccessPoint) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ap.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

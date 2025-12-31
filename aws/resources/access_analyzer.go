@@ -2,30 +2,59 @@ package resources
 
 import (
 	"context"
-	"sync"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (analyzer *AccessAnalyzer) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// AccessAnalyzerAPI defines the interface for AccessAnalyzer operations.
+type AccessAnalyzerAPI interface {
+	ListAnalyzers(ctx context.Context, params *accessanalyzer.ListAnalyzersInput, optFns ...func(*accessanalyzer.Options)) (*accessanalyzer.ListAnalyzersOutput, error)
+	DeleteAnalyzer(ctx context.Context, params *accessanalyzer.DeleteAnalyzerInput, optFns ...func(*accessanalyzer.Options)) (*accessanalyzer.DeleteAnalyzerOutput, error)
+}
+
+// NewAccessAnalyzer creates a new AccessAnalyzer resource using the generic resource pattern.
+func NewAccessAnalyzer() AwsResource {
+	return NewAwsResource(&resource.Resource[AccessAnalyzerAPI]{
+		ResourceTypeName: "accessanalyzer",
+		BatchSize:        10,
+		InitClient: func(r *resource.Resource[AccessAnalyzerAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for AccessAnalyzer client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = accessanalyzer.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.AccessAnalyzer
+		},
+		Lister: listAccessAnalyzers,
+		Nuker:  resource.SimpleBatchDeleter(deleteAccessAnalyzer),
+	})
+}
+
+// listAccessAnalyzers retrieves all IAM Access Analyzers that match the config filters.
+func listAccessAnalyzers(ctx context.Context, client AccessAnalyzerAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allAnalyzers []*string
-	paginator := accessanalyzer.NewListAnalyzersPaginator(analyzer.Client, &accessanalyzer.ListAnalyzersInput{})
+	paginator := accessanalyzer.NewListAnalyzersPaginator(client, &accessanalyzer.ListAnalyzersInput{})
+
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
-		for _, check := range page.Analyzers {
-			if configObj.AccessAnalyzer.ShouldInclude(config.ResourceValue{
-				Time: check.CreatedAt,
-				Name: check.Name,
+		for _, analyzer := range page.Analyzers {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Time: analyzer.CreatedAt,
+				Name: analyzer.Name,
 			}) {
-				allAnalyzers = append(allAnalyzers, check.Name)
+				allAnalyzers = append(allAnalyzers, analyzer.Name)
 			}
 		}
 	}
@@ -33,61 +62,10 @@ func (analyzer *AccessAnalyzer) getAll(c context.Context, configObj config.Confi
 	return allAnalyzers, nil
 }
 
-func (analyzer *AccessAnalyzer) nukeAll(names []*string) error {
-	if len(names) == 0 {
-		logging.Debugf("No IAM Access Analyzers to nuke in region %s", analyzer.Region)
-		return nil
-	}
-
-	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
-	// based on AccessAnalyzer.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
-	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
-	// because many APIs in AWS have a limit of 100 requests per second.
-	if len(names) > 100 {
-		logging.Errorf("Nuking too many Access Analyzers at once (100): halting to avoid hitting AWS API rate limiting")
-		return TooManyAccessAnalyzersErr{}
-	}
-
-	// There is no bulk delete access analyzer API, so we delete the batch of Access Analyzers concurrently using go routines.
-	logging.Debugf("Deleting all Access Analyzers in region %s", analyzer.Region)
-
-	wg := new(sync.WaitGroup)
-	wg.Add(len(names))
-	errChans := make([]chan error, len(names))
-	for i, analyzerName := range names {
-		errChans[i] = make(chan error, 1)
-		go analyzer.deleteAccessAnalyzerAsync(wg, errChans[i], analyzerName)
-	}
-	wg.Wait()
-
-	// Collect all the errors from the async delete calls into a single error struct.
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Debugf("[Failed] %s", err)
-		}
-	}
-	finalErr := allErrs.ErrorOrNil()
-	return errors.WithStackTrace(finalErr)
-}
-
-// deleteAccessAnalyzerAsync deletes the provided IAM Access Analyzer asynchronously in a goroutine, using wait groups
-// for concurrency control and a return channel for errors.
-func (analyzer *AccessAnalyzer) deleteAccessAnalyzerAsync(wg *sync.WaitGroup, errChan chan error, analyzerName *string) {
-	defer wg.Done()
-
-	input := &accessanalyzer.DeleteAnalyzerInput{AnalyzerName: analyzerName}
-	_, err := analyzer.Client.DeleteAnalyzer(
-		analyzer.Context, input,
-	)
-	errChan <- err
-}
-
-// Custom errors
-
-type TooManyAccessAnalyzersErr struct{}
-
-func (err TooManyAccessAnalyzersErr) Error() string {
-	return "Too many Access Analyzers requested at once."
+// deleteAccessAnalyzer deletes a single IAM Access Analyzer.
+func deleteAccessAnalyzer(ctx context.Context, client AccessAnalyzerAPI, analyzerName *string) error {
+	_, err := client.DeleteAnalyzer(ctx, &accessanalyzer.DeleteAnalyzerInput{
+		AnalyzerName: analyzerName,
+	})
+	return err
 }

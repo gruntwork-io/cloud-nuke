@@ -53,7 +53,7 @@ func (csr *ConfigServiceRule) GetAndSetIdentifiers(c context.Context, configObj 
 	return csr.RuleNames, nil
 }
 
-func (csr *ConfigServiceRule) Nuke(identifiers []string) error {
+func (csr *ConfigServiceRule) Nuke(ctx context.Context, identifiers []string) error {
 	if err := csr.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

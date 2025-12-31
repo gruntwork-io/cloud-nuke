@@ -35,7 +35,7 @@ func (a *AppRunnerService) ResourceIdentifiers() []string { return a.AppRunners 
 
 func (a *AppRunnerService) MaxBatchSize() int { return 19 }
 
-func (a *AppRunnerService) Nuke(identifiers []string) error {
+func (a *AppRunnerService) Nuke(ctx context.Context, identifiers []string) error {
 	if err := a.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

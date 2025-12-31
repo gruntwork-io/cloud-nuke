@@ -54,7 +54,7 @@ func (instance *DBGlobalClusterMemberships) GetAndSetIdentifiers(c context.Conte
 }
 
 // Nuke - nuke 'em all!!!
-func (instance *DBGlobalClusterMemberships) Nuke(identifiers []string) error {
+func (instance *DBGlobalClusterMemberships) Nuke(ctx context.Context, identifiers []string) error {
 	if err := instance.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

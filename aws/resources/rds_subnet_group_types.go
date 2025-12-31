@@ -55,7 +55,7 @@ func (dsg *DBSubnetGroups) GetAndSetIdentifiers(c context.Context, configObj con
 }
 
 // Nuke - nuke 'em all!!!
-func (dsg *DBSubnetGroups) Nuke(identifiers []string) error {
+func (dsg *DBSubnetGroups) Nuke(ctx context.Context, identifiers []string) error {
 	if err := dsg.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

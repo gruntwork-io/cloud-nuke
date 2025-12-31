@@ -56,7 +56,7 @@ func (islr *IAMServiceLinkedRoles) GetAndSetIdentifiers(c context.Context, confi
 }
 
 // Nuke - nuke 'em all!!!
-func (islr *IAMServiceLinkedRoles) Nuke(identifiers []string) error {
+func (islr *IAMServiceLinkedRoles) Nuke(ctx context.Context, identifiers []string) error {
 	if err := islr.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

@@ -80,7 +80,7 @@ func (bucket *S3Buckets) GetAndSetIdentifiers(c context.Context, configObj confi
 }
 
 // Nuke - nuke 'em all!!!
-func (bucket *S3Buckets) Nuke(identifiers []string) error {
+func (bucket *S3Buckets) Nuke(ctx context.Context, identifiers []string) error {
 	delCount, err := bucket.nukeAll(aws.StringSlice(identifiers))
 
 	totalCount := len(identifiers)

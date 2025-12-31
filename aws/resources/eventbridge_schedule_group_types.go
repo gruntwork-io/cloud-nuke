@@ -37,7 +37,7 @@ func (sch *EventBridgeScheduleGroup) MaxBatchSize() int {
 	return 100
 }
 
-func (sch *EventBridgeScheduleGroup) Nuke(identifiers []string) error {
+func (sch *EventBridgeScheduleGroup) Nuke(ctx context.Context, identifiers []string) error {
 	if err := sch.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

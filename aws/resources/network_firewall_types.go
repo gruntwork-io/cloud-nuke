@@ -57,7 +57,7 @@ func (nfw *NetworkFirewall) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - nuke 'em all!!!
-func (nfw *NetworkFirewall) Nuke(identifiers []string) error {
+func (nfw *NetworkFirewall) Nuke(ctx context.Context, identifiers []string) error {
 	if err := nfw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

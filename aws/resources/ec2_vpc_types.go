@@ -84,7 +84,7 @@ func (v *EC2VPCs) GetAndSetIdentifiers(c context.Context, configObj config.Confi
 }
 
 // Nuke - nuke 'em all!!!
-func (v *EC2VPCs) Nuke(identifiers []string) error {
+func (v *EC2VPCs) Nuke(ctx context.Context, identifiers []string) error {
 	if err := v.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

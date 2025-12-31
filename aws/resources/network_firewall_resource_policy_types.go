@@ -58,7 +58,7 @@ func (nfrp *NetworkFirewallResourcePolicy) GetAndSetIdentifiers(c context.Contex
 }
 
 // Nuke - nuke 'em all!!!
-func (nfrp *NetworkFirewallResourcePolicy) Nuke(identifiers []string) error {
+func (nfrp *NetworkFirewallResourcePolicy) Nuke(ctx context.Context, identifiers []string) error {
 	if err := nfrp.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

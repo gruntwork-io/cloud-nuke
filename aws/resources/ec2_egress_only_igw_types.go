@@ -56,7 +56,7 @@ func (egigw *EgressOnlyInternetGateway) GetAndSetIdentifiers(c context.Context, 
 }
 
 // Nuke - nuke 'em all!!!
-func (egigw *EgressOnlyInternetGateway) Nuke(identifiers []string) error {
+func (egigw *EgressOnlyInternetGateway) Nuke(ctx context.Context, identifiers []string) error {
 	if err := egigw.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

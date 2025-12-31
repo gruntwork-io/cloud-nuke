@@ -59,7 +59,7 @@ func (v *EC2DhcpOption) GetAndSetIdentifiers(c context.Context, configObj config
 	return v.VPCIds, nil
 }
 
-func (v *EC2DhcpOption) Nuke(identifiers []string) error {
+func (v *EC2DhcpOption) Nuke(ctx context.Context, identifiers []string) error {
 	if err := v.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

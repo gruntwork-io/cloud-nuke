@@ -54,7 +54,7 @@ func (instance *DBClusters) GetAndSetIdentifiers(c context.Context, configObj co
 }
 
 // Nuke - nuke 'em all!!!
-func (instance *DBClusters) Nuke(identifiers []string) error {
+func (instance *DBClusters) Nuke(ctx context.Context, identifiers []string) error {
 	if err := instance.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

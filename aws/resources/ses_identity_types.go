@@ -52,7 +52,7 @@ func (Sid *SesIdentities) GetAndSetIdentifiers(c context.Context, configObj conf
 	return Sid.Ids, nil
 }
 
-func (Sid *SesIdentities) Nuke(identifiers []string) error {
+func (Sid *SesIdentities) Nuke(ctx context.Context, identifiers []string) error {
 	if err := Sid.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

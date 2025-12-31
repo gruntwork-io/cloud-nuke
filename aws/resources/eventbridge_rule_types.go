@@ -40,7 +40,7 @@ func (ebr *EventBridgeRule) MaxBatchSize() int {
 	return 100
 }
 
-func (ebr *EventBridgeRule) Nuke(identifiers []string) error {
+func (ebr *EventBridgeRule) Nuke(ctx context.Context, identifiers []string) error {
 	if err := ebr.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

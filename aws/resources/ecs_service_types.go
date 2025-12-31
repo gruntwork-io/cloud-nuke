@@ -59,7 +59,7 @@ func (services *ECSServices) GetAndSetIdentifiers(c context.Context, configObj c
 }
 
 // Nuke - nuke all ECS service resources
-func (services *ECSServices) Nuke(identifiers []string) error {
+func (services *ECSServices) Nuke(ctx context.Context, identifiers []string) error {
 	if err := services.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}

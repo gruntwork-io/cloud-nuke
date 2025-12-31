@@ -10,89 +10,69 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedCloudWatchDashboard struct {
-	CloudWatchDashboardsAPI
+type mockCloudWatchDashboardsClient struct {
 	ListDashboardsOutput   cloudwatch.ListDashboardsOutput
 	DeleteDashboardsOutput cloudwatch.DeleteDashboardsOutput
 }
 
-func (m mockedCloudWatchDashboard) ListDashboards(ctx context.Context, params *cloudwatch.ListDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.ListDashboardsOutput, error) {
+func (m *mockCloudWatchDashboardsClient) ListDashboards(ctx context.Context, params *cloudwatch.ListDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.ListDashboardsOutput, error) {
 	return &m.ListDashboardsOutput, nil
 }
 
-func (m mockedCloudWatchDashboard) DeleteDashboards(ctx context.Context, params *cloudwatch.DeleteDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DeleteDashboardsOutput, error) {
+func (m *mockCloudWatchDashboardsClient) DeleteDashboards(ctx context.Context, params *cloudwatch.DeleteDashboardsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DeleteDashboardsOutput, error) {
 	return &m.DeleteDashboardsOutput, nil
 }
 
-func TestCloudWatchDashboard_GetAll(t *testing.T) {
+func TestListCloudWatchDashboards(t *testing.T) {
 	t.Parallel()
 
-	testName1 := "test-name1"
-	testName2 := "test-name2"
 	now := time.Now()
-	cw := CloudWatchDashboards{
-		Client: mockedCloudWatchDashboard{
-			ListDashboardsOutput: cloudwatch.ListDashboardsOutput{
-				DashboardEntries: []types.DashboardEntry{
-					{
-						DashboardName: aws.String(testName1),
-						LastModified:  &now,
-					},
-					{
-						DashboardName: aws.String(testName2),
-						LastModified:  aws.Time(now.Add(1)),
-					},
-				}},
-		}}
-
-	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
-	}{
-		"emptyFilter": {
-			configObj: config.ResourceType{},
-			expected:  []string{testName1, testName2},
-		},
-		"nameExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+	mock := &mockCloudWatchDashboardsClient{
+		ListDashboardsOutput: cloudwatch.ListDashboardsOutput{
+			DashboardEntries: []types.DashboardEntry{
+				{DashboardName: aws.String("dashboard1"), LastModified: aws.Time(now)},
+				{DashboardName: aws.String("dashboard2"), LastModified: aws.Time(now)},
 			},
-			expected: []string{testName2},
-		},
-		"timeAfterExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1)),
-				}},
-			expected: []string{},
 		},
 	}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			names, err := cw.getAll(context.Background(), config.Config{
-				CloudWatchDashboard: tc.configObj,
-			})
-
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
-		})
-	}
+	names, err := listCloudWatchDashboards(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"dashboard1", "dashboard2"}, aws.ToStringSlice(names))
 }
 
-func TestCloudWatchDashboard_NukeAll(t *testing.T) {
+func TestListCloudWatchDashboards_WithFilter(t *testing.T) {
 	t.Parallel()
-	cw := CloudWatchDashboards{
-		Client: mockedCloudWatchDashboard{
-			DeleteDashboardsOutput: cloudwatch.DeleteDashboardsOutput{},
-		}}
 
-	err := cw.nukeAll([]*string{aws.String("test-name1"), aws.String("test-name2")})
+	now := time.Now()
+	mock := &mockCloudWatchDashboardsClient{
+		ListDashboardsOutput: cloudwatch.ListDashboardsOutput{
+			DashboardEntries: []types.DashboardEntry{
+				{DashboardName: aws.String("dashboard1"), LastModified: aws.Time(now)},
+				{DashboardName: aws.String("skip-this"), LastModified: aws.Time(now)},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+		},
+	}
+
+	names, err := listCloudWatchDashboards(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{"dashboard1"}, aws.ToStringSlice(names))
+}
+
+func TestDeleteCloudWatchDashboards(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockCloudWatchDashboardsClient{}
+	err := deleteCloudWatchDashboards(context.Background(), mock, []string{"test-dashboard"})
 	require.NoError(t, err)
 }

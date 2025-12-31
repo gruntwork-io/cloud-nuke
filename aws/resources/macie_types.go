@@ -56,7 +56,7 @@ func (mm *MacieMember) GetAndSetIdentifiers(c context.Context, configObj config.
 	return mm.AccountIds, nil
 }
 
-func (mm *MacieMember) Nuke(identifiers []string) error {
+func (mm *MacieMember) Nuke(ctx context.Context, identifiers []string) error {
 	if err := mm.nukeAll(identifiers); err != nil {
 		return errors.WithStackTrace(err)
 	}

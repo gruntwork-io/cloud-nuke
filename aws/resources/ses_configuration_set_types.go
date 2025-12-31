@@ -56,7 +56,7 @@ func (scs *SesConfigurationSet) GetAndSetIdentifiers(c context.Context, configOb
 }
 
 // Nuke - nuke 'em all!!!
-func (scs *SesConfigurationSet) Nuke(identifiers []string) error {
+func (scs *SesConfigurationSet) Nuke(ctx context.Context, identifiers []string) error {
 	if err := scs.nukeAll(aws.StringSlice(identifiers)); err != nil {
 		return errors.WithStackTrace(err)
 	}
