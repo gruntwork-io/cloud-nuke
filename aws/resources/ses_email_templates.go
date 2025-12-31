@@ -74,10 +74,5 @@ func deleteSesEmailTemplate(ctx context.Context, client SesEmailTemplatesAPI, te
 	_, err := client.DeleteTemplate(ctx, &ses.DeleteTemplateInput{
 		TemplateName: templateName,
 	})
-	if err != nil {
-		return err
-	}
-
-	logging.Debugf("Deleted SES email template: %s", aws.ToString(templateName))
-	return nil
+	return err
 }

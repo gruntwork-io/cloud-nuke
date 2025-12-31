@@ -66,12 +66,7 @@ func deleteEC2KeyPair(ctx context.Context, client EC2KeyPairsAPI, id *string) er
 	_, err := client.DeleteKeyPair(ctx, &ec2.DeleteKeyPairInput{
 		KeyPairId: id,
 	})
-	if err != nil {
-		return err
-	}
-
-	logging.Debugf("Deleted EC2 KeyPair: %s", aws.ToString(id))
-	return nil
+	return err
 }
 
 // verifyEC2KeyPairPermission performs a dry-run delete to check permissions.

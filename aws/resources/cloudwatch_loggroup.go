@@ -77,10 +77,5 @@ func deleteCloudWatchLogGroup(ctx context.Context, client CloudWatchLogGroupsAPI
 	_, err := client.DeleteLogGroup(ctx, &cloudwatchlogs.DeleteLogGroupInput{
 		LogGroupName: logGroupName,
 	})
-	if err != nil {
-		return err
-	}
-
-	logging.Debugf("Deleted CloudWatch Log Group: %s", aws.ToString(logGroupName))
-	return nil
+	return err
 }

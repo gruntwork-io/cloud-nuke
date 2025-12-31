@@ -67,10 +67,5 @@ func deleteLaunchConfig(ctx context.Context, client LaunchConfigsAPI, name *stri
 	_, err := client.DeleteLaunchConfiguration(ctx, &autoscaling.DeleteLaunchConfigurationInput{
 		LaunchConfigurationName: name,
 	})
-	if err != nil {
-		return err
-	}
-
-	logging.Debugf("Deleted Launch Configuration: %s", aws.ToString(name))
-	return nil
+	return err
 }

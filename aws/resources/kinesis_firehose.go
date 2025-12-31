@@ -77,10 +77,5 @@ func deleteKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, id *s
 		AllowForceDelete:   aws.Bool(true),
 		DeliveryStreamName: id,
 	})
-	if err != nil {
-		return err
-	}
-
-	logging.Debugf("Deleted Kinesis Firehose: %s", aws.ToString(id))
-	return nil
+	return err
 }

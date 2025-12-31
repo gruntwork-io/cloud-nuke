@@ -67,10 +67,5 @@ func deleteAccessAnalyzer(ctx context.Context, client AccessAnalyzerAPI, analyze
 	_, err := client.DeleteAnalyzer(ctx, &accessanalyzer.DeleteAnalyzerInput{
 		AnalyzerName: analyzerName,
 	})
-	if err != nil {
-		return err
-	}
-
-	logging.Debugf("Deleted Access Analyzer: %s", aws.ToString(analyzerName))
-	return nil
+	return err
 }

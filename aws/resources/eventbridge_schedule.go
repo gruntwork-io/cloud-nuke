@@ -78,10 +78,5 @@ func deleteEventBridgeSchedule(ctx context.Context, client EventBridgeScheduleAP
 		GroupName: aws.String(payload[0]),
 		Name:      aws.String(payload[1]),
 	})
-	if err != nil {
-		return err
-	}
-
-	logging.Debugf("[Event Bridge Schedule] Deleted Schedule %s", *id)
-	return nil
+	return err
 }
