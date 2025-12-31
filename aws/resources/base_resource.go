@@ -119,4 +119,3 @@ func (br *BaseAwsResource) IsNukable(identifier string) (bool, error) {
 
 	return true, nil
 }
-

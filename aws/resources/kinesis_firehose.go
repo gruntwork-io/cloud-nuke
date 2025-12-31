@@ -10,15 +10,21 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+// KinesisFirehoseAPI defines the interface for Kinesis Firehose operations.
+type KinesisFirehoseAPI interface {
+	ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error)
+	DeleteDeliveryStream(ctx context.Context, params *firehose.DeleteDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DeleteDeliveryStreamOutput, error)
+}
+
 // NewKinesisFirehose creates a new Kinesis Firehose resource using the generic resource pattern.
 func NewKinesisFirehose() AwsResource {
-	return NewAwsResource(&resource.Resource[*firehose.Client]{
+	return NewAwsResource(&resource.Resource[KinesisFirehoseAPI]{
 		ResourceTypeName: "kinesis-firehose",
 		// Tentative batch size to ensure AWS doesn't throttle. Note that Kinesis Firehose does not support bulk delete,
 		// so we will be deleting this many in parallel using go routines. We pick 35 here, which is half of what the
 		// AWS web console will do. We pick a conservative number here to avoid hitting AWS API rate limits.
 		BatchSize: 35,
-		InitClient: func(r *resource.Resource[*firehose.Client], cfg any) {
+		InitClient: func(r *resource.Resource[KinesisFirehoseAPI], cfg any) {
 			awsCfg, ok := cfg.(aws.Config)
 			if !ok {
 				logging.Debugf("Invalid config type for Firehose client: expected aws.Config")
@@ -36,26 +42,37 @@ func NewKinesisFirehose() AwsResource {
 }
 
 // listKinesisFirehose retrieves all Kinesis Firehose delivery streams that match the config filters.
-func listKinesisFirehose(ctx context.Context, client *firehose.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	output, err := client.ListDeliveryStreams(ctx, &firehose.ListDeliveryStreamsInput{})
-	if err != nil {
-		return nil, err
-	}
-
+func listKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var ids []*string
-	for _, stream := range output.DeliveryStreamNames {
-		if cfg.ShouldInclude(config.ResourceValue{
-			Name: aws.String(stream),
-		}) {
-			ids = append(ids, aws.String(stream))
+	var exclusiveStartName *string
+
+	for {
+		output, err := client.ListDeliveryStreams(ctx, &firehose.ListDeliveryStreamsInput{
+			ExclusiveStartDeliveryStreamName: exclusiveStartName,
+		})
+		if err != nil {
+			return nil, err
 		}
+
+		for _, stream := range output.DeliveryStreamNames {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: aws.String(stream),
+			}) {
+				ids = append(ids, aws.String(stream))
+			}
+		}
+
+		if !aws.ToBool(output.HasMoreDeliveryStreams) || len(output.DeliveryStreamNames) == 0 {
+			break
+		}
+		exclusiveStartName = aws.String(output.DeliveryStreamNames[len(output.DeliveryStreamNames)-1])
 	}
 
 	return ids, nil
 }
 
 // deleteKinesisFirehose deletes a single Kinesis Firehose delivery stream.
-func deleteKinesisFirehose(ctx context.Context, client *firehose.Client, id *string) error {
+func deleteKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, id *string) error {
 	_, err := client.DeleteDeliveryStream(ctx, &firehose.DeleteDeliveryStreamInput{
 		AllowForceDelete:   aws.Bool(true),
 		DeliveryStreamName: id,

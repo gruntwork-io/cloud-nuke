@@ -10,12 +10,18 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+// AccessAnalyzerAPI defines the interface for AccessAnalyzer operations.
+type AccessAnalyzerAPI interface {
+	ListAnalyzers(ctx context.Context, params *accessanalyzer.ListAnalyzersInput, optFns ...func(*accessanalyzer.Options)) (*accessanalyzer.ListAnalyzersOutput, error)
+	DeleteAnalyzer(ctx context.Context, params *accessanalyzer.DeleteAnalyzerInput, optFns ...func(*accessanalyzer.Options)) (*accessanalyzer.DeleteAnalyzerOutput, error)
+}
+
 // NewAccessAnalyzer creates a new AccessAnalyzer resource using the generic resource pattern.
 func NewAccessAnalyzer() AwsResource {
-	return NewAwsResource(&resource.Resource[*accessanalyzer.Client]{
+	return NewAwsResource(&resource.Resource[AccessAnalyzerAPI]{
 		ResourceTypeName: "accessanalyzer",
 		BatchSize:        10,
-		InitClient: func(r *resource.Resource[*accessanalyzer.Client], cfg any) {
+		InitClient: func(r *resource.Resource[AccessAnalyzerAPI], cfg any) {
 			awsCfg, ok := cfg.(aws.Config)
 			if !ok {
 				logging.Debugf("Invalid config type for AccessAnalyzer client: expected aws.Config")
@@ -33,7 +39,7 @@ func NewAccessAnalyzer() AwsResource {
 }
 
 // listAccessAnalyzers retrieves all IAM Access Analyzers that match the config filters.
-func listAccessAnalyzers(ctx context.Context, client *accessanalyzer.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+func listAccessAnalyzers(ctx context.Context, client AccessAnalyzerAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allAnalyzers []*string
 	paginator := accessanalyzer.NewListAnalyzersPaginator(client, &accessanalyzer.ListAnalyzersInput{})
 
@@ -57,7 +63,7 @@ func listAccessAnalyzers(ctx context.Context, client *accessanalyzer.Client, sco
 }
 
 // deleteAccessAnalyzer deletes a single IAM Access Analyzer.
-func deleteAccessAnalyzer(ctx context.Context, client *accessanalyzer.Client, analyzerName *string) error {
+func deleteAccessAnalyzer(ctx context.Context, client AccessAnalyzerAPI, analyzerName *string) error {
 	_, err := client.DeleteAnalyzer(ctx, &accessanalyzer.DeleteAnalyzerInput{
 		AnalyzerName: analyzerName,
 	})

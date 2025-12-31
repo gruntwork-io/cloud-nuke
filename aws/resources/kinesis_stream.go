@@ -10,12 +10,18 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+// KinesisStreamsAPI defines the interface for Kinesis Streams operations.
+type KinesisStreamsAPI interface {
+	ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error)
+	DeleteStream(ctx context.Context, params *kinesis.DeleteStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DeleteStreamOutput, error)
+}
+
 // NewKinesisStreams creates a new Kinesis Streams resource using the generic resource pattern.
 func NewKinesisStreams() AwsResource {
-	return NewAwsResource(&resource.Resource[*kinesis.Client]{
+	return NewAwsResource(&resource.Resource[KinesisStreamsAPI]{
 		ResourceTypeName: "kinesis-stream",
 		BatchSize:        35, // Conservative batch size to avoid hitting AWS API rate limits
-		InitClient: func(r *resource.Resource[*kinesis.Client], cfg any) {
+		InitClient: func(r *resource.Resource[KinesisStreamsAPI], cfg any) {
 			awsCfg, ok := cfg.(aws.Config)
 			if !ok {
 				logging.Debugf("Invalid config type for Kinesis client: expected aws.Config")
@@ -33,7 +39,7 @@ func NewKinesisStreams() AwsResource {
 }
 
 // listKinesisStreams retrieves all Kinesis streams that match the config filters.
-func listKinesisStreams(ctx context.Context, client *kinesis.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allStreams []*string
 
 	paginator := kinesis.NewListStreamsPaginator(client, &kinesis.ListStreamsInput{})
@@ -56,7 +62,7 @@ func listKinesisStreams(ctx context.Context, client *kinesis.Client, scope resou
 }
 
 // deleteKinesisStream deletes a single Kinesis stream.
-func deleteKinesisStream(ctx context.Context, client *kinesis.Client, streamName *string) error {
+func deleteKinesisStream(ctx context.Context, client KinesisStreamsAPI, streamName *string) error {
 	_, err := client.DeleteStream(ctx, &kinesis.DeleteStreamInput{
 		StreamName: streamName,
 	})

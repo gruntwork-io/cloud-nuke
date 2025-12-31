@@ -12,12 +12,18 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+// EventBridgeScheduleAPI defines the interface for EventBridge Schedule operations.
+type EventBridgeScheduleAPI interface {
+	ListSchedules(ctx context.Context, params *scheduler.ListSchedulesInput, optFns ...func(*scheduler.Options)) (*scheduler.ListSchedulesOutput, error)
+	DeleteSchedule(ctx context.Context, params *scheduler.DeleteScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.DeleteScheduleOutput, error)
+}
+
 // NewEventBridgeSchedule creates a new EventBridge Schedule resource using the generic resource pattern.
 func NewEventBridgeSchedule() AwsResource {
-	return NewAwsResource(&resource.Resource[*scheduler.Client]{
+	return NewAwsResource(&resource.Resource[EventBridgeScheduleAPI]{
 		ResourceTypeName: "event-bridge-schedule",
 		BatchSize:        100,
-		InitClient: func(r *resource.Resource[*scheduler.Client], cfg any) {
+		InitClient: func(r *resource.Resource[EventBridgeScheduleAPI], cfg any) {
 			awsCfg, ok := cfg.(aws.Config)
 			if !ok {
 				logging.Debugf("Invalid config type for Scheduler client: expected aws.Config")
@@ -35,14 +41,14 @@ func NewEventBridgeSchedule() AwsResource {
 }
 
 // listEventBridgeSchedules retrieves all EventBridge schedules that match the config filters.
-func listEventBridgeSchedules(ctx context.Context, client *scheduler.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+func listEventBridgeSchedules(ctx context.Context, client EventBridgeScheduleAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var identifiers []*string
 
 	paginator := scheduler.NewListSchedulesPaginator(client, &scheduler.ListSchedulesInput{})
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[Event Bridge Schedule] Failed to list schedules: %s", err)
+			logging.Errorf("[Event Bridge Schedule] Failed to list schedules: %s", err)
 			return nil, err
 		}
 
@@ -61,10 +67,10 @@ func listEventBridgeSchedules(ctx context.Context, client *scheduler.Client, sco
 }
 
 // deleteEventBridgeSchedule deletes a single EventBridge schedule.
-func deleteEventBridgeSchedule(ctx context.Context, client *scheduler.Client, id *string) error {
+func deleteEventBridgeSchedule(ctx context.Context, client EventBridgeScheduleAPI, id *string) error {
 	payload := strings.Split(*id, "|")
 	if len(payload) != 2 {
-		logging.Debugf("[Event Bridge Schedule] Invalid identifier %s", *id)
+		logging.Errorf("[Event Bridge Schedule] Invalid identifier %s", *id)
 		return fmt.Errorf("invalid identifier format: %s", *id)
 	}
 

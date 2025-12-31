@@ -39,7 +39,7 @@ func logEmptyAndSkip(identifiers []*string, resourceType string, scope Scope) bo
 
 // logDeletionStart logs the start of a deletion operation.
 func logDeletionStart(count int, resourceType string, scope Scope) {
-	logging.Debugf("Deleting %d %s in %s", count, resourceType, scope)
+	logging.Infof("Deleting %d %s in %s", count, resourceType, scope)
 }
 
 // SimpleBatchDeleter creates a nuker that deletes resources concurrently.
@@ -85,7 +85,7 @@ func SimpleBatchDeleter[C any](deleteFn DeleteFunc[C]) NukerFunc[C] {
 					Error:        err,
 				})
 				if err != nil {
-					logging.Debugf("[Failed] %s %s: %s", resourceType, idStr, err)
+					logging.Errorf("[Failed] %s %s: %s", resourceType, idStr, err)
 					allErrs = multierror.Append(allErrs, fmt.Errorf("%s %s: %w", resourceType, idStr, err))
 				} else {
 					logging.Debugf("[OK] Deleted %s: %s", resourceType, idStr)
@@ -121,7 +121,7 @@ func SequentialDeleter[C any](deleteFn DeleteFunc[C]) NukerFunc[C] {
 				Error:        err,
 			})
 			if err != nil {
-				logging.Debugf("[Failed] %s %s: %s", resourceType, idStr, err)
+				logging.Errorf("[Failed] %s %s: %s", resourceType, idStr, err)
 				allErrs = multierror.Append(allErrs, fmt.Errorf("%s %s: %w", resourceType, idStr, err))
 			} else {
 				logging.Debugf("[OK] Deleted %s: %s", resourceType, idStr)
@@ -129,6 +129,50 @@ func SequentialDeleter[C any](deleteFn DeleteFunc[C]) NukerFunc[C] {
 		}
 
 		return allErrs.ErrorOrNil()
+	}
+}
+
+// BulkDeleteFunc is a function that deletes multiple resources in a single API call.
+type BulkDeleteFunc[C any] func(ctx context.Context, client C, ids []string) error
+
+// BulkDeleter creates a nuker for APIs that support batch deletion in a single call.
+// Use this for AWS APIs like DeleteDashboards that accept an array of identifiers.
+func BulkDeleter[C any](deleteFn BulkDeleteFunc[C]) NukerFunc[C] {
+	return func(ctx context.Context, client C, scope Scope, resourceType string, identifiers []*string) error {
+		if logEmptyAndSkip(identifiers, resourceType, scope) {
+			return nil
+		}
+
+		if len(identifiers) > MaxBatchSizeLimit {
+			logging.Errorf("Nuking too many %s at once (%d): halting to avoid hitting rate limiting",
+				resourceType, len(identifiers))
+			return fmt.Errorf("too many %s requested at once (%d > %d limit)", resourceType, len(identifiers), MaxBatchSizeLimit)
+		}
+
+		logDeletionStart(len(identifiers), resourceType, scope)
+
+		ids := make([]string, len(identifiers))
+		for i, id := range identifiers {
+			ids[i] = aws.ToString(id)
+		}
+
+		err := deleteFn(ctx, client, ids)
+
+		report.RecordBatch(report.BatchEntry{
+			Identifiers:  ids,
+			ResourceType: resourceType,
+			Error:        err,
+		})
+
+		if err != nil {
+			logging.Errorf("[Failed] %s: %s", resourceType, err)
+			return err
+		}
+
+		for _, id := range ids {
+			logging.Debugf("[OK] Deleted %s: %s", resourceType, id)
+		}
+		return nil
 	}
 }
 
@@ -151,7 +195,7 @@ func MultiStepDeleter[C any](steps ...DeleteFunc[C]) NukerFunc[C] {
 
 			for i, step := range steps {
 				if err := step(ctx, client, id); err != nil {
-					logging.Debugf("[Failed] %s %s step %d: %s", resourceType, idStr, i+1, err)
+					logging.Errorf("[Failed] %s %s step %d: %s", resourceType, idStr, i+1, err)
 					stepErr = fmt.Errorf("%s %s step %d: %w", resourceType, idStr, i+1, err)
 					break
 				}

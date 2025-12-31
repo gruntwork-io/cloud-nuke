@@ -11,12 +11,19 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
+// EC2PlacementGroupsAPI defines the interface for EC2 Placement Groups operations.
+type EC2PlacementGroupsAPI interface {
+	DescribePlacementGroups(ctx context.Context, params *ec2.DescribePlacementGroupsInput, optFns ...func(*ec2.Options)) (*ec2.DescribePlacementGroupsOutput, error)
+	DeletePlacementGroup(ctx context.Context, params *ec2.DeletePlacementGroupInput, optFns ...func(*ec2.Options)) (*ec2.DeletePlacementGroupOutput, error)
+	CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
+}
+
 // NewEC2PlacementGroups creates a new EC2 Placement Groups resource using the generic resource pattern.
 func NewEC2PlacementGroups() AwsResource {
-	return NewAwsResource(&resource.Resource[*ec2.Client]{
+	return NewAwsResource(&resource.Resource[EC2PlacementGroupsAPI]{
 		ResourceTypeName: "ec2-placement-groups",
 		BatchSize:        200,
-		InitClient: func(r *resource.Resource[*ec2.Client], cfg any) {
+		InitClient: func(r *resource.Resource[EC2PlacementGroupsAPI], cfg any) {
 			awsCfg, ok := cfg.(aws.Config)
 			if !ok {
 				logging.Debugf("Invalid config type for EC2 client: expected aws.Config")
@@ -35,7 +42,7 @@ func NewEC2PlacementGroups() AwsResource {
 }
 
 // listEC2PlacementGroups retrieves all EC2 placement groups that match the config filters.
-func listEC2PlacementGroups(ctx context.Context, client *ec2.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+func listEC2PlacementGroups(ctx context.Context, client EC2PlacementGroupsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	result, err := client.DescribePlacementGroups(ctx, &ec2.DescribePlacementGroupsInput{})
 	if err != nil {
 		return nil, err
@@ -62,7 +69,7 @@ func listEC2PlacementGroups(ctx context.Context, client *ec2.Client, scope resou
 }
 
 // deleteEC2PlacementGroup deletes a single EC2 placement group.
-func deleteEC2PlacementGroup(ctx context.Context, client *ec2.Client, name *string) error {
+func deleteEC2PlacementGroup(ctx context.Context, client EC2PlacementGroupsAPI, name *string) error {
 	_, err := client.DeletePlacementGroup(ctx, &ec2.DeletePlacementGroupInput{
 		GroupName: name,
 	})
@@ -70,7 +77,7 @@ func deleteEC2PlacementGroup(ctx context.Context, client *ec2.Client, name *stri
 }
 
 // verifyEC2PlacementGroupPermission performs a dry-run delete to check permissions.
-func verifyEC2PlacementGroupPermission(ctx context.Context, client *ec2.Client, name *string) error {
+func verifyEC2PlacementGroupPermission(ctx context.Context, client EC2PlacementGroupsAPI, name *string) error {
 	_, err := client.DeletePlacementGroup(ctx, &ec2.DeletePlacementGroupInput{
 		GroupName: name,
 		DryRun:    aws.Bool(true),

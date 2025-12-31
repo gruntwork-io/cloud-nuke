@@ -11,15 +11,21 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+// CloudWatchLogGroupsAPI defines the interface for CloudWatch Log Groups operations.
+type CloudWatchLogGroupsAPI interface {
+	DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
+	DeleteLogGroup(ctx context.Context, params *cloudwatchlogs.DeleteLogGroupInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DeleteLogGroupOutput, error)
+}
+
 // NewCloudWatchLogGroups creates a new CloudWatch Log Groups resource using the generic resource pattern.
 func NewCloudWatchLogGroups() AwsResource {
-	return NewAwsResource(&resource.Resource[*cloudwatchlogs.Client]{
+	return NewAwsResource(&resource.Resource[CloudWatchLogGroupsAPI]{
 		ResourceTypeName: "cloudwatch-loggroup",
 		// Tentative batch size to ensure AWS doesn't throttle. Note that CloudWatch Logs does not support bulk delete,
 		// so we will be deleting this many in parallel using go routines. We pick 35 here, which is half of what the
 		// AWS web console will do. We pick a conservative number here to avoid hitting AWS API rate limits.
 		BatchSize: 35,
-		InitClient: func(r *resource.Resource[*cloudwatchlogs.Client], cfg any) {
+		InitClient: func(r *resource.Resource[CloudWatchLogGroupsAPI], cfg any) {
 			awsCfg, ok := cfg.(aws.Config)
 			if !ok {
 				logging.Debugf("Invalid config type for CloudWatchLogs client: expected aws.Config")
@@ -37,7 +43,7 @@ func NewCloudWatchLogGroups() AwsResource {
 }
 
 // listCloudWatchLogGroups retrieves all CloudWatch Log Groups that match the config filters.
-func listCloudWatchLogGroups(ctx context.Context, client *cloudwatchlogs.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+func listCloudWatchLogGroups(ctx context.Context, client CloudWatchLogGroupsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allLogGroups []*string
 
 	paginator := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, &cloudwatchlogs.DescribeLogGroupsInput{})
@@ -67,7 +73,7 @@ func listCloudWatchLogGroups(ctx context.Context, client *cloudwatchlogs.Client,
 }
 
 // deleteCloudWatchLogGroup deletes a single CloudWatch Log Group.
-func deleteCloudWatchLogGroup(ctx context.Context, client *cloudwatchlogs.Client, logGroupName *string) error {
+func deleteCloudWatchLogGroup(ctx context.Context, client CloudWatchLogGroupsAPI, logGroupName *string) error {
 	_, err := client.DeleteLogGroup(ctx, &cloudwatchlogs.DeleteLogGroupInput{
 		LogGroupName: logGroupName,
 	})

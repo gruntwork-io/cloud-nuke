@@ -10,12 +10,18 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+// SesEmailTemplatesAPI defines the interface for SES Email Templates operations.
+type SesEmailTemplatesAPI interface {
+	ListTemplates(ctx context.Context, params *ses.ListTemplatesInput, optFns ...func(*ses.Options)) (*ses.ListTemplatesOutput, error)
+	DeleteTemplate(ctx context.Context, params *ses.DeleteTemplateInput, optFns ...func(*ses.Options)) (*ses.DeleteTemplateOutput, error)
+}
+
 // NewSesEmailTemplates creates a new SES Email Templates resource using the generic resource pattern.
 func NewSesEmailTemplates() AwsResource {
-	return NewAwsResource(&resource.Resource[*ses.Client]{
+	return NewAwsResource(&resource.Resource[SesEmailTemplatesAPI]{
 		ResourceTypeName: "ses-email-template",
 		BatchSize:        maxBatchSize,
-		InitClient: func(r *resource.Resource[*ses.Client], cfg any) {
+		InitClient: func(r *resource.Resource[SesEmailTemplatesAPI], cfg any) {
 			awsCfg, ok := cfg.(aws.Config)
 			if !ok {
 				logging.Debugf("Invalid config type for SES client: expected aws.Config")
@@ -33,27 +39,38 @@ func NewSesEmailTemplates() AwsResource {
 }
 
 // listSesEmailTemplates retrieves all SES email templates that match the config filters.
-func listSesEmailTemplates(ctx context.Context, client *ses.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	result, err := client.ListTemplates(ctx, &ses.ListTemplatesInput{})
-	if err != nil {
-		return nil, err
-	}
-
+func listSesEmailTemplates(ctx context.Context, client SesEmailTemplatesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var templates []*string
-	for _, template := range result.TemplatesMetadata {
-		if cfg.ShouldInclude(config.ResourceValue{
-			Name: template.Name,
-			Time: template.CreatedTimestamp,
-		}) {
-			templates = append(templates, template.Name)
+	var nextToken *string
+
+	for {
+		result, err := client.ListTemplates(ctx, &ses.ListTemplatesInput{
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return nil, err
 		}
+
+		for _, template := range result.TemplatesMetadata {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: template.Name,
+				Time: template.CreatedTimestamp,
+			}) {
+				templates = append(templates, template.Name)
+			}
+		}
+
+		if result.NextToken == nil {
+			break
+		}
+		nextToken = result.NextToken
 	}
 
 	return templates, nil
 }
 
 // deleteSesEmailTemplate deletes a single SES email template.
-func deleteSesEmailTemplate(ctx context.Context, client *ses.Client, templateName *string) error {
+func deleteSesEmailTemplate(ctx context.Context, client SesEmailTemplatesAPI, templateName *string) error {
 	_, err := client.DeleteTemplate(ctx, &ses.DeleteTemplateInput{
 		TemplateName: templateName,
 	})
