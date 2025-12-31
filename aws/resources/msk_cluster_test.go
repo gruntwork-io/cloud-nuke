@@ -12,24 +12,25 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kafka"
 	"github.com/aws/aws-sdk-go-v2/service/kafka/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/stretchr/testify/require"
 )
 
 type mockMSKClient struct {
-	MSKClusterAPI
 	ListClustersV2Output kafka.ListClustersV2Output
 	DeleteClusterOutput  kafka.DeleteClusterOutput
 }
 
-func (m mockMSKClient) ListClustersV2(ctx context.Context, params *kafka.ListClustersV2Input, optFns ...func(*kafka.Options)) (*kafka.ListClustersV2Output, error) {
+func (m *mockMSKClient) ListClustersV2(ctx context.Context, params *kafka.ListClustersV2Input, optFns ...func(*kafka.Options)) (*kafka.ListClustersV2Output, error) {
 	return &m.ListClustersV2Output, nil
 }
 
-func (m mockMSKClient) DeleteCluster(ctx context.Context, params *kafka.DeleteClusterInput, optFns ...func(*kafka.Options)) (*kafka.DeleteClusterOutput, error) {
+func (m *mockMSKClient) DeleteCluster(ctx context.Context, params *kafka.DeleteClusterInput, optFns ...func(*kafka.Options)) (*kafka.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
 }
 
 func TestListMSKClustersSingle(t *testing.T) {
-	mockMskClient := mockMSKClient{
+	mock := &mockMSKClient{
 		ListClustersV2Output: kafka.ListClustersV2Output{
 			ClusterInfoList: []types.Cluster{
 				{
@@ -42,11 +43,7 @@ func TestListMSKClustersSingle(t *testing.T) {
 		},
 	}
 
-	msk := MSKCluster{
-		Client: &mockMskClient,
-	}
-
-	clusterIDs, err := msk.getAll(context.Background(), config.Config{})
+	clusterIDs, err := listMSKClusters(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	if err != nil {
 		t.Fatalf("Unable to list MSK Clusters: %v", err)
 	}
@@ -61,7 +58,7 @@ func TestListMSKClustersSingle(t *testing.T) {
 }
 
 func TestListMSKClustersMultiple(t *testing.T) {
-	mockMskClient := mockMSKClient{
+	mock := &mockMSKClient{
 		ListClustersV2Output: kafka.ListClustersV2Output{
 			ClusterInfoList: []types.Cluster{
 				{
@@ -84,11 +81,7 @@ func TestListMSKClustersMultiple(t *testing.T) {
 		},
 	}
 
-	msk := MSKCluster{
-		Client: &mockMskClient,
-	}
-
-	clusterIDs, err := msk.getAll(context.Background(), config.Config{})
+	clusterIDs, err := listMSKClusters(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	if err != nil {
 		t.Fatalf("Unable to list MSK Clusters: %v", err)
 	}
@@ -111,7 +104,7 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 
 	tests := map[string]struct {
 		cluster   types.Cluster
-		configObj config.Config
+		configObj config.ResourceType
 		expected  bool
 	}{
 		"cluster is in deleting state": {
@@ -120,7 +113,7 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 				State:        types.ClusterStateDeleting,
 				CreationTime: &creationTime,
 			},
-			configObj: config.Config{},
+			configObj: config.ResourceType{},
 			expected:  false,
 		},
 		"cluster is in creating state": {
@@ -129,7 +122,7 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 				State:        types.ClusterStateCreating,
 				CreationTime: &creationTime,
 			},
-			configObj: config.Config{},
+			configObj: config.ResourceType{},
 			expected:  false,
 		},
 		"cluster is in active state": {
@@ -138,7 +131,7 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 				State:        types.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
-			configObj: config.Config{},
+			configObj: config.ResourceType{},
 			expected:  true,
 		},
 		"cluster excluded by name": {
@@ -147,13 +140,11 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 				State:        types.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
-			configObj: config.Config{
-				MSKCluster: config.ResourceType{
-					ExcludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("test-cluster"),
-							},
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{
+						{
+							RE: *regexp.MustCompile("test-cluster"),
 						},
 					},
 				},
@@ -166,13 +157,11 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 				State:        types.ClusterStateActive,
 				CreationTime: &creationTime,
 			},
-			configObj: config.Config{
-				MSKCluster: config.ResourceType{
-					IncludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{
-							{
-								RE: *regexp.MustCompile("^test-cluster"),
-							},
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{
+						{
+							RE: *regexp.MustCompile("^test-cluster"),
 						},
 					},
 				},
@@ -183,8 +172,7 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			msk := MSKCluster{}
-			actual := msk.shouldInclude(tc.cluster, tc.configObj)
+			actual := shouldIncludeMSKCluster(tc.cluster, tc.configObj)
 			if actual != tc.expected {
 				t.Fatalf("Expected %v, got %v", tc.expected, actual)
 			}
@@ -192,17 +180,11 @@ func TestShouldIncludeMSKCluster(t *testing.T) {
 	}
 }
 
-func TestNukeMSKCluster(t *testing.T) {
-	mockMskClient := mockMSKClient{
+func TestDeleteMSKCluster(t *testing.T) {
+	mock := &mockMSKClient{
 		DeleteClusterOutput: kafka.DeleteClusterOutput{},
 	}
 
-	msk := MSKCluster{
-		Client: &mockMskClient,
-	}
-
-	err := msk.Nuke(context.TODO(), []string{})
-	if err != nil {
-		t.Fatalf("Unable to nuke MSK Clusters: %v", err)
-	}
+	err := deleteMSKCluster(context.Background(), mock, aws.String("test-arn"))
+	require.NoError(t, err)
 }
