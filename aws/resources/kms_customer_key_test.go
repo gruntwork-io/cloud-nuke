@@ -19,7 +19,6 @@ type mockedKmsCustomerKeys struct {
 	ListKeysOutput            kms.ListKeysOutput
 	ListAliasesOutput         kms.ListAliasesOutput
 	DescribeKeyOutput         map[string]kms.DescribeKeyOutput
-	DeleteAliasOutput         kms.DeleteAliasOutput
 	ScheduleKeyDeletionOutput kms.ScheduleKeyDeletionOutput
 }
 
@@ -35,10 +34,6 @@ func (m mockedKmsCustomerKeys) DescribeKey(ctx context.Context, params *kms.Desc
 	id := params.KeyId
 	output := m.DescribeKeyOutput[*id]
 	return &output, nil
-}
-
-func (m mockedKmsCustomerKeys) DeleteAlias(ctx context.Context, params *kms.DeleteAliasInput, optFns ...func(*kms.Options)) (*kms.DeleteAliasOutput, error) {
-	return &m.DeleteAliasOutput, nil
 }
 
 func (m mockedKmsCustomerKeys) ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error) {
@@ -217,10 +212,14 @@ func TestKMS_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	mockClient := mockedKmsCustomerKeys{
-		DeleteAliasOutput:         kms.DeleteAliasOutput{},
 		ScheduleKeyDeletionOutput: kms.ScheduleKeyDeletionOutput{},
 	}
 
-	err := deleteKmsCustomerKeys(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "kmscustomerkeys", []*string{aws.String("key1"), aws.String("key2")})
+	// Test deleting a single key
+	err := deleteKmsCustomerKey(context.Background(), mockClient, aws.String("key1"))
+	require.NoError(t, err)
+
+	// Test deleting another key
+	err = deleteKmsCustomerKey(context.Background(), mockClient, aws.String("key2"))
 	require.NoError(t, err)
 }

@@ -32,15 +32,6 @@ type TransitGatewaysAPI interface {
 	DeleteTransitGatewayConnect(ctx context.Context, params *ec2.DeleteTransitGatewayConnectInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayConnectOutput, error)
 }
 
-// transitGatewayState holds shared state for permission verification
-type transitGatewayState struct {
-	nukables map[string]error
-}
-
-var globalTransitGatewayState = &transitGatewayState{
-	nukables: make(map[string]error),
-}
-
 // NewTransitGateways creates a new TransitGateways resource using the generic resource pattern.
 func NewTransitGateways() AwsResource {
 	return NewAwsResource(&resource.Resource[TransitGatewaysAPI]{
@@ -54,15 +45,12 @@ func NewTransitGateways() AwsResource {
 			}
 			r.Scope.Region = awsCfg.Region
 			r.Client = ec2.NewFromConfig(awsCfg)
-			// Reset global state on init
-			globalTransitGatewayState.nukables = make(map[string]error)
 		},
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.TransitGateway
 		},
-		Lister:             listTransitGateways,
-		Nuker:              deleteTransitGateways,
-		PermissionVerifier: verifyTransitGatewayPermission,
+		Lister: listTransitGateways,
+		Nuker:  deleteTransitGateways,
 	})
 }
 
@@ -83,45 +71,53 @@ func listTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope r
 	currentOwner := ctx.Value(util.AccountIdKey)
 	var ids []*string
 	for _, transitGateway := range result.TransitGateways {
-		hostNameTagValue := util.GetEC2ResourceNameTagValue(transitGateway.Tags)
-
-		if cfg.ShouldInclude(config.ResourceValue{
-			Time: transitGateway.CreationTime,
-			Name: hostNameTagValue,
-		}) &&
-			transitGateway.State != types.TransitGatewayStateDeleted && transitGateway.State != types.TransitGatewayStateDeleting {
-			ids = append(ids, transitGateway.TransitGatewayId)
-		}
-
-		if currentOwner != nil && transitGateway.OwnerId != nil && currentOwner != aws.ToString(transitGateway.OwnerId) {
-			globalTransitGatewayState.nukables[*transitGateway.TransitGatewayId] = util.ErrDifferentOwner
+		// Skip deleted/deleting transit gateways
+		if transitGateway.State == types.TransitGatewayStateDeleted || transitGateway.State == types.TransitGatewayStateDeleting {
 			continue
 		}
+
+		// Skip if owned by a different account
+		if currentOwner != nil && transitGateway.OwnerId != nil && currentOwner != aws.ToString(transitGateway.OwnerId) {
+			logging.Debugf("[Skipping] Transit Gateway %s owned by different account", aws.ToString(transitGateway.TransitGatewayId))
+			continue
+		}
+
+		hostNameTagValue := util.GetEC2ResourceNameTagValue(transitGateway.Tags)
+		if !cfg.ShouldInclude(config.ResourceValue{
+			Time: transitGateway.CreationTime,
+			Name: hostNameTagValue,
+		}) {
+			continue
+		}
+
+		// Verify permission using dry-run before including in the list
+		if err := verifyTransitGatewayNukePermission(ctx, client, transitGateway.TransitGatewayId); err != nil {
+			logging.Debugf("[Skipping] Transit Gateway %s: no permission to nuke: %v", aws.ToString(transitGateway.TransitGatewayId), err)
+			continue
+		}
+
+		ids = append(ids, transitGateway.TransitGatewayId)
 	}
 
 	return ids, nil
 }
 
-// verifyTransitGatewayPermission performs a dry-run delete to check permissions.
-func verifyTransitGatewayPermission(ctx context.Context, client TransitGatewaysAPI, id *string) error {
+// verifyTransitGatewayNukePermission performs a dry-run delete to check permissions.
+// Returns nil if the user has permission, otherwise returns an error.
+func verifyTransitGatewayNukePermission(ctx context.Context, client TransitGatewaysAPI, id *string) error {
 	params := &ec2.DeleteTransitGatewayInput{
 		TransitGatewayId: id,
 		DryRun:           aws.Bool(true), // dry run set as true, checks permission without actually making the request
 	}
 	_, err := client.DeleteTransitGateway(ctx, params)
-
-	// Store result in global state for use during nuke
 	if err != nil {
-		globalTransitGatewayState.nukables[*id] = util.TransformAWSError(err)
-	} else {
-		globalTransitGatewayState.nukables[*id] = nil
+		return util.TransformAWSError(err)
 	}
-
-	return err
+	return nil
 }
 
-// deleteTransitGateways deletes all TransitGateways
-// it attempts to nuke only those resources for which the current IAM user has permission
+// deleteTransitGateways deletes all TransitGateways.
+// All resources passed to this function have already been verified for permissions in the lister.
 func deleteTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope resource.Scope, resourceType string, ids []*string) error {
 	if len(ids) == 0 {
 		logging.Debugf("No Transit Gateways to nuke in region %s", scope.Region)
@@ -132,12 +128,6 @@ func deleteTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope
 	var deletedIds []*string
 
 	for _, id := range ids {
-		// Check the id has the permission to nuke, if not, continue the execution
-		if err, ok := globalTransitGatewayState.nukables[*id]; ok && err != nil {
-			// Not adding the report on final result hence not adding a record entry here
-			logging.Debugf("[Skipping] %s nuke because %v", *id, err)
-			continue
-		}
 		err := nukeTransitGateway(ctx, client, id)
 
 		// Record status of this resource

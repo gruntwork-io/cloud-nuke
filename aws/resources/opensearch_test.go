@@ -126,8 +126,7 @@ func TestOpenSearch_GetAll(t *testing.T) {
 	}
 }
 
-func TestOpenSearch_NukeAll(t *testing.T) {
-
+func TestOpenSearch_Nuke(t *testing.T) {
 	t.Parallel()
 
 	mockClient := mockedOpenSearch{
@@ -135,6 +134,21 @@ func TestOpenSearch_NukeAll(t *testing.T) {
 		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{},
 	}
 
-	err := deleteOpenSearchDomains(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "opensearchdomain", []*string{aws.String("test")})
+	// Test the individual delete function
+	err := deleteOpenSearchDomain(context.Background(), mockClient, aws.String("test-domain"))
+	require.NoError(t, err)
+}
+
+func TestOpenSearch_WaitForDeleted(t *testing.T) {
+	t.Parallel()
+
+	// Mock returns empty list, meaning domains are deleted
+	mockClient := mockedOpenSearch{
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
+			DomainStatusList: []types.DomainStatus{},
+		},
+	}
+
+	err := waitForOpenSearchDomainsDeleted(context.Background(), mockClient, []string{"test-domain"})
 	require.NoError(t, err)
 }

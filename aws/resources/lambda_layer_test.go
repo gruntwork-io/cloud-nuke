@@ -37,11 +37,7 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-lambda-layer1"
-	testName1Version1 := int64(1)
-
 	testName2 := "test-lambda-layer2"
-
-	testTime := time.Now()
 
 	layout := "2006-01-02T15:04:05.000+0000"
 	testTimeStr := "2023-07-28T12:34:56.789+0000"
@@ -68,7 +64,7 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 		ListLayerVersionsOutput: lambda.ListLayerVersionsOutput{
 			LayerVersions: []types.LayerVersionsListItem{
 				{
-					Version: testName1Version1,
+					Version: 1,
 				},
 			},
 		},
@@ -80,7 +76,8 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 	}{
 		"emptyFilter": {
 			configObj: config.ResourceType{},
-			expected:  []string{testName1, testName2},
+			// Each layer has one version (1), so identifiers are "layerName:1"
+			expected: []string{testName1 + ":1", testName2 + ":1"},
 		},
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
@@ -89,7 +86,7 @@ func TestLambdaLayer_GetAll(t *testing.T) {
 						RE: *regexp.MustCompile(testName1),
 					}}},
 			},
-			expected: []string{testName2},
+			expected: []string{testName2 + ":1"},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
@@ -113,9 +110,23 @@ func TestLambdaLayer_NukeAll(t *testing.T) {
 
 	client := mockedLambdaLayer{
 		DeleteLayerVersionOutput: lambda.DeleteLayerVersionOutput{},
-		ListLayerVersionsOutput:  lambda.ListLayerVersionsOutput{},
 	}
 
-	err := deleteLambdaLayers(context.Background(), client, resource.Scope{Region: "us-east-1"}, "lambda_layer", []*string{aws.String("test")})
+	// Test deleting a layer version with composite identifier
+	err := deleteLambdaLayerVersion(context.Background(), client, aws.String("test-layer:1"))
 	require.NoError(t, err)
+
+	// Test with multiple versions
+	err = deleteLambdaLayerVersion(context.Background(), client, aws.String("test-layer:2"))
+	require.NoError(t, err)
+
+	// Test with invalid identifier (no colon)
+	err = deleteLambdaLayerVersion(context.Background(), client, aws.String("invalid-identifier"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid layer version identifier")
+
+	// Test with invalid version number
+	err = deleteLambdaLayerVersion(context.Background(), client, aws.String("test-layer:invalid"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid version number")
 }

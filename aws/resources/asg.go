@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -38,7 +37,7 @@ func NewASGroups() AwsResource {
 			return c.AutoScalingGroup
 		},
 		Lister: listASGroups,
-		Nuker:  deleteASGroups,
+		Nuker:  resource.SequentialDeleteThenWaitAll(deleteASG, waitForASGsDeleted),
 	})
 }
 
@@ -63,52 +62,19 @@ func listASGroups(ctx context.Context, client ASGroupsAPI, scope resource.Scope,
 	return groupNames, nil
 }
 
-// deleteASGroups deletes all Auto Scaling Groups.
-func deleteASGroups(ctx context.Context, client ASGroupsAPI, scope resource.Scope, resourceType string, groupNames []*string) error {
-	if len(groupNames) == 0 {
-		logging.Debugf("No Auto Scaling Groups to nuke in region %s", scope.Region)
-		return nil
-	}
+// deleteASG deletes a single Auto Scaling Group by name.
+func deleteASG(ctx context.Context, client ASGroupsAPI, name *string) error {
+	_, err := client.DeleteAutoScalingGroup(ctx, &autoscaling.DeleteAutoScalingGroupInput{
+		AutoScalingGroupName: name,
+		ForceDelete:          aws.Bool(true),
+	})
+	return errors.WithStackTrace(err)
+}
 
-	logging.Debugf("Deleting all Auto Scaling Groups in region %s", scope.Region)
-	var deletedGroupNames []string
-
-	for _, groupName := range groupNames {
-		params := &autoscaling.DeleteAutoScalingGroupInput{
-			AutoScalingGroupName: groupName,
-			ForceDelete:          aws.Bool(true),
-		}
-
-		_, err := client.DeleteAutoScalingGroup(ctx, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   *groupName,
-			ResourceType: "Auto-Scaling Group",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedGroupNames = append(deletedGroupNames, *groupName)
-			logging.Debugf("Deleted Auto Scaling Group: %s", *groupName)
-		}
-	}
-
-	if len(deletedGroupNames) > 0 {
-		waiter := autoscaling.NewGroupNotExistsWaiter(client)
-		err := waiter.Wait(ctx, &autoscaling.DescribeAutoScalingGroupsInput{
-			AutoScalingGroupNames: deletedGroupNames,
-		}, 5*time.Minute)
-
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-	}
-
-	logging.Debugf("[OK] %d Auto Scaling Group(s) deleted in %s", len(deletedGroupNames), scope.Region)
-	return nil
+// waitForASGsDeleted waits for all specified Auto Scaling Groups to be deleted.
+func waitForASGsDeleted(ctx context.Context, client ASGroupsAPI, names []string) error {
+	waiter := autoscaling.NewGroupNotExistsWaiter(client)
+	return waiter.Wait(ctx, &autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: names,
+	}, 5*time.Minute)
 }

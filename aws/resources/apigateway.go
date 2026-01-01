@@ -17,11 +17,9 @@ import (
 // ApiGatewayAPI defines the interface for API Gateway (v1) operations.
 type ApiGatewayAPI interface {
 	GetRestApis(ctx context.Context, params *apigateway.GetRestApisInput, optFns ...func(*apigateway.Options)) (*apigateway.GetRestApisOutput, error)
-	GetStages(ctx context.Context, params *apigateway.GetStagesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetStagesOutput, error)
 	GetDomainNames(ctx context.Context, params *apigateway.GetDomainNamesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetDomainNamesOutput, error)
 	GetBasePathMappings(ctx context.Context, params *apigateway.GetBasePathMappingsInput, optFns ...func(*apigateway.Options)) (*apigateway.GetBasePathMappingsOutput, error)
 	DeleteBasePathMapping(ctx context.Context, params *apigateway.DeleteBasePathMappingInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteBasePathMappingOutput, error)
-	DeleteClientCertificate(ctx context.Context, params *apigateway.DeleteClientCertificateInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteClientCertificateOutput, error)
 	DeleteRestApi(ctx context.Context, params *apigateway.DeleteRestApiInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteRestApiOutput, error)
 }
 
@@ -105,42 +103,6 @@ func deleteApiGateways(ctx context.Context, client ApiGatewayAPI, scope resource
 	return nil
 }
 
-func getAttachedStageClientCerts(ctx context.Context, client ApiGatewayAPI, apigwID *string) ([]*string, error) {
-	var clientCerts []*string
-
-	// remove the client certificate attached with the stages
-	stages, err := client.GetStages(ctx, &apigateway.GetStagesInput{
-		RestApiId: apigwID,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	// get the stages attached client certificates
-	for _, stage := range stages.Item {
-		if stage.ClientCertificateId == nil {
-			logging.Debugf("Skipping certyficate for stage %s, certyficate ID is nil", *stage.StageName)
-			continue
-		}
-		clientCerts = append(clientCerts, stage.ClientCertificateId)
-	}
-	return clientCerts, nil
-}
-
-func removeAttachedClientCertificates(ctx context.Context, client ApiGatewayAPI, clientCerts []*string) error {
-	for _, cert := range clientCerts {
-		logging.Debugf("Deleting Client Certificate %s", *cert)
-		_, err := client.DeleteClientCertificate(ctx, &apigateway.DeleteClientCertificateInput{
-			ClientCertificateId: cert,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] Error deleting Client Certificate %s", *cert)
-			return err
-		}
-	}
-	return nil
-}
-
 func deleteApiGatewayAsync(
 	ctx context.Context, client ApiGatewayAPI, region string,
 	wg *sync.WaitGroup, errChan chan error, apigwID *string,
@@ -168,13 +130,6 @@ func deleteApiGatewayAsync(
 		}
 	}()
 
-	// get the attached client certificates
-	var clientCerts []*string
-	clientCerts, err = getAttachedStageClientCerts(ctx, client, apigwID)
-	if err != nil {
-		return
-	}
-
 	// Check if the API Gateway has any associated API mappings.
 	// If so, remove them before deleting the API Gateway.
 	err = deleteAssociatedApiMappingsV1(ctx, client, []*string{apigwID})
@@ -185,12 +140,6 @@ func deleteApiGatewayAsync(
 	// delete the API Gateway
 	input := &apigateway.DeleteRestApiInput{RestApiId: apigwID}
 	_, err = client.DeleteRestApi(ctx, input)
-	if err != nil {
-		return
-	}
-
-	// When the rest-api endpoint delete successfully, then remove attached client certs
-	err = removeAttachedClientCertificates(ctx, client, clientCerts)
 }
 
 // deleteAssociatedApiMappingsV1 deletes API mappings for API Gateway v1.

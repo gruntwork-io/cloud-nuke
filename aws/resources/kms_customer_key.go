@@ -9,10 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
 // https://docs.aws.amazon.com/sdk-for-go/api/service/kms/#ScheduleKeyDeletionInput
@@ -29,20 +27,7 @@ type KmsCustomerKeysAPI interface {
 	ListKeys(ctx context.Context, params *kms.ListKeysInput, optFns ...func(*kms.Options)) (*kms.ListKeysOutput, error)
 	ListAliases(ctx context.Context, params *kms.ListAliasesInput, optFns ...func(*kms.Options)) (*kms.ListAliasesOutput, error)
 	DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error)
-	DeleteAlias(ctx context.Context, params *kms.DeleteAliasInput, optFns ...func(*kms.Options)) (*kms.DeleteAliasOutput, error)
 	ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error)
-}
-
-// kmsState holds state that needs to be shared between list and nuke phases.
-type kmsState struct {
-	mu         sync.Mutex
-	keyAliases map[string][]string
-}
-
-// globalKMSState is the global state for KMS operations.
-// This is needed because the generic pattern separates list and nuke into different functions.
-var globalKMSState = &kmsState{
-	keyAliases: make(map[string][]string),
 }
 
 // NewKmsCustomerKeys creates a new KMS Customer Keys resource using the generic resource pattern.
@@ -63,7 +48,7 @@ func NewKmsCustomerKeys() AwsResource {
 			return c.KMSCustomerKeys.ResourceType
 		},
 		Lister: listKmsCustomerKeys,
-		Nuker:  deleteKmsCustomerKeys,
+		Nuker:  resource.SimpleBatchDeleter(deleteKmsCustomerKey),
 	})
 }
 
@@ -138,7 +123,6 @@ func listKmsCustomerKeys(ctx context.Context, client KmsCustomerKeysAPI, scope r
 	wg.Wait()
 
 	var kmsIds []*string
-	aliases := map[string][]string{}
 
 	for _, channel := range resultsChan {
 		result := <-channel
@@ -148,15 +132,9 @@ func listKmsCustomerKeys(ctx context.Context, client KmsCustomerKeysAPI, scope r
 			continue
 		}
 		if result.KeyId != "" {
-			aliases[result.KeyId] = keyAliases[result.KeyId]
 			kmsIds = append(kmsIds, &result.KeyId)
 		}
 	}
-
-	// Store aliases in global state for use during nuke phase
-	globalKMSState.mu.Lock()
-	globalKMSState.keyAliases = aliases
-	globalKMSState.mu.Unlock()
 
 	return kmsIds, nil
 }
@@ -228,74 +206,12 @@ func shouldIncludeKmsKey(
 	resultsChan <- &KmsCheckIncludeResult{KeyId: key}
 }
 
-// deleteKmsCustomerKeys deletes KMS customer keys.
-func deleteKmsCustomerKeys(ctx context.Context, client KmsCustomerKeysAPI, scope resource.Scope, resourceType string, keyIds []*string) error {
-	if len(keyIds) == 0 {
-		logging.Debugf("No Customer Keys to nuke in region %s", scope.Region)
-		return nil
-	}
-
-	// Get aliases from global state
-	globalKMSState.mu.Lock()
-	keyAliases := globalKMSState.keyAliases
-	globalKMSState.mu.Unlock()
-
-	// usage of go routines for parallel keys removal
-	logging.Debugf("Deleting Keys secrets in region %s", scope.Region)
-	wg := new(sync.WaitGroup)
-	wg.Add(len(keyIds))
-	errChans := make([]chan error, len(keyIds))
-	for i, secretID := range keyIds {
-		errChans[i] = make(chan error, 1)
-		go requestKmsKeyDeletion(ctx, client, wg, errChans[i], secretID)
-	}
-	wg.Wait()
-
-	wgAlias := new(sync.WaitGroup)
-	wgAlias.Add(len(keyAliases))
-	for _, aliases := range keyAliases {
-		go deleteKmsAliases(ctx, client, wgAlias, aliases)
-	}
-	wgAlias.Wait()
-
-	// collect errors from each channel
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Debugf("[Failed] %s", err)
-		}
-	}
-	return errors.WithStackTrace(allErrs.ErrorOrNil())
-}
-
-func deleteKmsAliases(ctx context.Context, client KmsCustomerKeysAPI, wg *sync.WaitGroup, aliases []string) {
-	defer wg.Done()
-
-	for _, aliasName := range aliases {
-		input := &kms.DeleteAliasInput{AliasName: &aliasName}
-		_, err := client.DeleteAlias(ctx, input)
-
-		if err != nil {
-			logging.Errorf("[Failed] Failed deleting alias: %s", aliasName)
-		} else {
-			logging.Debugf("Deleted alias %s", aliasName)
-		}
-	}
-}
-
-func requestKmsKeyDeletion(ctx context.Context, client KmsCustomerKeysAPI, wg *sync.WaitGroup, errChan chan error, key *string) {
-	defer wg.Done()
-	input := &kms.ScheduleKeyDeletionInput{KeyId: key, PendingWindowInDays: aws.Int32(int32(kmsRemovalWindow))}
-	_, err := client.ScheduleKeyDeletion(ctx, input)
-
-	// Record status of this resource
-	e := report.Entry{
-		Identifier:   aws.ToString(key),
-		ResourceType: "Key Management Service (KMS) Key",
-		Error:        err,
-	}
-	report.Record(e)
-
-	errChan <- err
+// deleteKmsCustomerKey schedules a single KMS customer key for deletion.
+// AWS automatically deletes all aliases associated with a key when the key is deleted.
+func deleteKmsCustomerKey(ctx context.Context, client KmsCustomerKeysAPI, keyId *string) error {
+	_, err := client.ScheduleKeyDeletion(ctx, &kms.ScheduleKeyDeletionInput{
+		KeyId:               keyId,
+		PendingWindowInDays: aws.Int32(int32(kmsRemovalWindow)),
+	})
+	return err
 }

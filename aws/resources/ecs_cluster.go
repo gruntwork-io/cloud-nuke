@@ -9,11 +9,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
 // ECSClustersAPI defines the interface for ECS Clusters operations.
@@ -53,7 +51,7 @@ func NewECSClusters() AwsResource {
 			return c.ECSCluster
 		},
 		Lister: listECSClusters,
-		Nuker:  deleteECSClusters,
+		Nuker:  resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster),
 	})
 }
 
@@ -256,60 +254,10 @@ func stopClusterRunningTasks(ctx context.Context, client ECSClustersAPI, cluster
 	return nil
 }
 
-// deleteECSClusters is a custom nuker function for ECS clusters.
-// ECS clusters require stopping running tasks before deletion.
-func deleteECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
-	numNuking := len(identifiers)
-
-	if numNuking == 0 {
-		logging.Debugf("No ECS clusters to nuke in region %s", scope.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting %d ECS clusters in region %s", numNuking, scope.Region)
-
-	var allErrs *multierror.Error
-	var nukedEcsClusters []*string
-	for _, clusterArn := range identifiers {
-		// before nuking the clusters, do check active tasks on the cluster and stop all of them
-		err := stopClusterRunningTasks(ctx, client, clusterArn)
-		if err != nil {
-			logging.Debugf("Error, unable to stop the running tasks on the cluster %s %s", aws.ToString(clusterArn), err)
-			// Record status of this resource
-			report.Record(report.Entry{
-				Identifier:   aws.ToString(clusterArn),
-				ResourceType: resourceType,
-				Error:        err,
-			})
-			allErrs = multierror.Append(allErrs, errors.WithStackTrace(err))
-			continue
-		}
-
-		params := &ecs.DeleteClusterInput{
-			Cluster: clusterArn,
-		}
-		_, err = client.DeleteCluster(ctx, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(clusterArn),
-			ResourceType: resourceType,
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("Error, failed to delete cluster with ARN %s %s", aws.ToString(clusterArn), err)
-			allErrs = multierror.Append(allErrs, errors.WithStackTrace(err))
-			continue
-		}
-
-		logging.Debugf("Success, deleted cluster: %s", aws.ToString(clusterArn))
-		nukedEcsClusters = append(nukedEcsClusters, clusterArn)
-	}
-
-	numNuked := len(nukedEcsClusters)
-	logging.Debugf("[OK] %d of %d ECS cluster(s) deleted in %s", numNuked, numNuking, scope.Region)
-
-	return allErrs.ErrorOrNil()
+// deleteECSCluster deletes a single ECS cluster
+func deleteECSCluster(ctx context.Context, client ECSClustersAPI, clusterArn *string) error {
+	_, err := client.DeleteCluster(ctx, &ecs.DeleteClusterInput{
+		Cluster: clusterArn,
+	})
+	return err
 }

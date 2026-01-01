@@ -398,28 +398,46 @@ func TestListECSClusters_EmptyList(t *testing.T) {
 	require.Empty(t, names)
 }
 
-func TestDeleteECSClusters(t *testing.T) {
+func TestDeleteECSCluster(t *testing.T) {
 	t.Parallel()
 
 	mock := mockedEC2Cluster{
 		DeleteClusterOutput: ecs.DeleteClusterOutput{},
-		ListTasksOutput:     ecs.ListTasksOutput{TaskArns: []string{}},
 	}
 
-	err := deleteECSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	err := deleteECSCluster(context.Background(), mock, aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"))
 	require.NoError(t, err)
 }
 
-func TestDeleteECSClusters_EmptyList(t *testing.T) {
+func TestStopClusterRunningTasks(t *testing.T) {
 	t.Parallel()
 
-	mock := mockedEC2Cluster{}
+	mock := mockedEC2Cluster{
+		ListTasksOutput: ecs.ListTasksOutput{TaskArns: []string{}},
+	}
 
-	err := deleteECSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{})
+	err := stopClusterRunningTasks(context.Background(), mock, aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"))
 	require.NoError(t, err)
 }
 
-func TestDeleteECSClustersWithTasks(t *testing.T) {
+func TestStopClusterRunningTasksWithTasks(t *testing.T) {
+	t.Parallel()
+
+	mock := mockedEC2Cluster{
+		ListTasksOutput: ecs.ListTasksOutput{
+			TaskArns: []string{
+				"task-arn-001",
+				"task-arn-002",
+			},
+		},
+		StopTaskOutput: ecs.StopTaskOutput{},
+	}
+
+	err := stopClusterRunningTasks(context.Background(), mock, aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"))
+	require.NoError(t, err)
+}
+
+func TestECSClustersMultiStepDeleter(t *testing.T) {
 	t.Parallel()
 
 	mock := mockedEC2Cluster{
@@ -433,7 +451,18 @@ func TestDeleteECSClustersWithTasks(t *testing.T) {
 		StopTaskOutput: ecs.StopTaskOutput{},
 	}
 
-	err := deleteECSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster)
+	err := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	require.NoError(t, err)
+}
+
+func TestECSClustersMultiStepDeleter_EmptyList(t *testing.T) {
+	t.Parallel()
+
+	mock := mockedEC2Cluster{}
+
+	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster)
+	err := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{})
 	require.NoError(t, err)
 }
 

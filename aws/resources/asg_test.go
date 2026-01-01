@@ -62,13 +62,13 @@ func TestAutoScalingGroupGetAll(t *testing.T) {
 	assert.NotContains(t, aws.ToStringSlice(groups), testName)
 }
 
-func TestAutoScalingGroupNukeAll(t *testing.T) {
+func TestAutoScalingGroupNuke(t *testing.T) {
 	t.Parallel()
 
 	mock := mockedASGroups{
 		DeleteAutoScalingGroupOutput: autoscaling.DeleteAutoScalingGroupOutput{},
 	}
 
-	err := deleteASGroups(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "asg", []*string{aws.String("cloud-nuke-test")})
+	err := deleteASG(context.Background(), mock, aws.String("cloud-nuke-test"))
 	assert.NoError(t, err)
 }

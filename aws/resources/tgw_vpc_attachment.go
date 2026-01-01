@@ -10,7 +10,6 @@ import (
 	goerror "github.com/go-errors/errors"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -39,7 +38,7 @@ func NewTransitGatewaysVpcAttachment() AwsResource {
 			return c.TransitGatewaysVpcAttachment
 		},
 		Lister: listTransitGatewaysVpcAttachments,
-		Nuker:  deleteTransitGatewaysVpcAttachments,
+		Nuker:  resource.SequentialDeleteThenWaitAll(deleteTransitGatewayVpcAttachment, waitForTransitGatewayAttachmentsToBeDeleted),
 	})
 }
 
@@ -71,43 +70,16 @@ func listTransitGatewaysVpcAttachments(ctx context.Context, client TransitGatewa
 	return identifiers, nil
 }
 
-// deleteTransitGatewaysVpcAttachments deletes all Transit Gateway VPC Attachments.
-func deleteTransitGatewaysVpcAttachments(ctx context.Context, client TransitGatewaysVpcAttachmentAPI, scope resource.Scope, resourceType string, ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No Transit Gateway Vpc Attachments to nuke in region %s", scope.Region)
-		return nil
+// deleteTransitGatewayVpcAttachment deletes a single Transit Gateway VPC Attachment.
+func deleteTransitGatewayVpcAttachment(ctx context.Context, client TransitGatewaysVpcAttachmentAPI, id *string) error {
+	param := &ec2.DeleteTransitGatewayVpcAttachmentInput{
+		TransitGatewayAttachmentId: id,
 	}
 
-	logging.Debugf("Deleting all Transit Gateway Vpc Attachments in region %s", scope.Region)
-	var deletedIds []*string
-
-	for _, id := range ids {
-		param := &ec2.DeleteTransitGatewayVpcAttachmentInput{
-			TransitGatewayAttachmentId: id,
-		}
-
-		_, err := client.DeleteTransitGatewayVpcAttachment(ctx, param)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: resourceType,
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Transit Gateway Vpc Attachment: %s", *id)
-		}
+	_, err := client.DeleteTransitGatewayVpcAttachment(ctx, param)
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
-
-	if waiterr := waitForTransitGatewayAttachmentsToBeDeleted(ctx, client, aws.ToStringSlice(ids)); waiterr != nil {
-		return errors.WithStackTrace(waiterr)
-	}
-	logging.Debugf("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s", len(deletedIds), scope.Region)
 	return nil
 }
 

@@ -17,11 +17,8 @@ import (
 
 type mockedApiGateway struct {
 	ApiGatewayAPI
-	GetRestApisOutput             apigateway.GetRestApisOutput
-	GetStagesOutput               apigateway.GetStagesOutput
-	DeleteClientCertificateOutput apigateway.DeleteClientCertificateOutput
-	DeleteRestApiOutput           apigateway.DeleteRestApiOutput
-
+	GetRestApisOutput           apigateway.GetRestApisOutput
+	DeleteRestApiOutput         apigateway.DeleteRestApiOutput
 	GetDomainNamesOutput        apigateway.GetDomainNamesOutput
 	GetBasePathMappingsOutput   apigateway.GetBasePathMappingsOutput
 	DeleteBasePathMappingOutput apigateway.DeleteBasePathMappingOutput
@@ -29,13 +26,6 @@ type mockedApiGateway struct {
 
 func (m mockedApiGateway) GetRestApis(ctx context.Context, params *apigateway.GetRestApisInput, optFns ...func(*apigateway.Options)) (*apigateway.GetRestApisOutput, error) {
 	return &m.GetRestApisOutput, nil
-}
-func (m mockedApiGateway) GetStages(ctx context.Context, params *apigateway.GetStagesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetStagesOutput, error) {
-	return &m.GetStagesOutput, nil
-}
-
-func (m mockedApiGateway) DeleteClientCertificate(ctx context.Context, params *apigateway.DeleteClientCertificateInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteClientCertificateOutput, error) {
-	return &m.DeleteClientCertificateOutput, nil
 }
 
 func (m mockedApiGateway) DeleteRestApi(ctx context.Context, params *apigateway.DeleteRestApiInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteRestApiOutput, error) {
@@ -121,40 +111,6 @@ func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
 			},
 		},
 		DeleteRestApiOutput: apigateway.DeleteRestApiOutput{},
-	}
-
-	apis, err := listApiGateways(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
-	require.NoError(t, err)
-	require.Contains(t, aws.ToStringSlice(apis), testApiID1)
-	require.Contains(t, aws.ToStringSlice(apis), testApiID2)
-
-	err = deleteApiGateways(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "apigateway", []*string{aws.String(testApiID1), aws.String(testApiID2)})
-	require.NoError(t, err)
-}
-
-func TestNukeAPIGatewayWithCertificates(t *testing.T) {
-	t.Parallel()
-
-	testApiID1 := "aws-nuke-test-" + util.UniqueID()
-	testApiID2 := "aws-nuke-test-" + util.UniqueID()
-
-	clientCertID := "aws-client-cert" + util.UniqueID()
-	mockClient := mockedApiGateway{
-		GetRestApisOutput: apigateway.GetRestApisOutput{
-			Items: []types.RestApi{
-				{Id: aws.String(testApiID1)},
-				{Id: aws.String(testApiID2)},
-			},
-		},
-		GetStagesOutput: apigateway.GetStagesOutput{
-			Item: []types.Stage{
-				{
-					ClientCertificateId: aws.String(clientCertID),
-				},
-			},
-		},
-		DeleteClientCertificateOutput: apigateway.DeleteClientCertificateOutput{},
-		DeleteRestApiOutput:           apigateway.DeleteRestApiOutput{},
 	}
 
 	apis, err := listApiGateways(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, config.ResourceType{})

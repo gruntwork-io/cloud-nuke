@@ -234,3 +234,170 @@ func MultiStepDeleter[C any](steps ...DeleteFunc[C]) NukerFunc[C] {
 		return allErrs.ErrorOrNil()
 	}
 }
+
+// WaitAllFunc is a function that waits for multiple resources to be deleted.
+// Used with SequentialDeleteThenWaitAll for batch waiting after all deletes complete.
+type WaitAllFunc[C any] func(ctx context.Context, client C, ids []string) error
+
+// SequentialDeleteThenWaitAll creates a nuker that:
+// 1. Deletes all resources sequentially, recording each result
+// 2. Waits for ALL successfully deleted resources to be confirmed deleted
+//
+// Use this for resources where the delete API returns immediately but the resource
+// takes time to be fully deleted, and the wait API can check multiple resources at once.
+//
+// Example:
+//
+//	Nuker: resource.SequentialDeleteThenWaitAll(
+//	    deleteASG,
+//	    waitForASGsDeleted,  // Uses autoscaling.NewGroupNotExistsWaiter
+//	)
+func SequentialDeleteThenWaitAll[C any](deleteFn DeleteFunc[C], waitAllFn WaitAllFunc[C]) NukerFunc[C] {
+	return func(ctx context.Context, client C, scope Scope, resourceType string, identifiers []*string) error {
+		if logEmptyAndSkip(identifiers, resourceType, scope) {
+			return nil
+		}
+
+		if len(identifiers) > MaxBatchSizeLimit {
+			logging.Errorf("Nuking too many %s at once (%d): halting to avoid hitting rate limiting",
+				resourceType, len(identifiers))
+			return fmt.Errorf("too many %s requested at once (%d > %d limit)", resourceType, len(identifiers), MaxBatchSizeLimit)
+		}
+
+		logDeletionStart(len(identifiers), resourceType, scope)
+
+		var allErrs *multierror.Error
+		var deletedIds []string
+
+		// Phase 1: Delete all resources sequentially
+		for _, id := range identifiers {
+			idStr := aws.ToString(id)
+			err := deleteFn(ctx, client, id)
+
+			if err != nil {
+				logging.Errorf("[Failed] %s %s: %s", resourceType, idStr, err)
+				allErrs = multierror.Append(allErrs, fmt.Errorf("%s %s: %w", resourceType, idStr, err))
+				report.Record(report.Entry{
+					Identifier:   idStr,
+					ResourceType: resourceType,
+					Error:        err,
+				})
+			} else {
+				deletedIds = append(deletedIds, idStr)
+				logging.Debugf("[Deleted] %s: %s (waiting for confirmation)", resourceType, idStr)
+			}
+		}
+
+		// Phase 2: Wait for all successfully deleted resources
+		if len(deletedIds) > 0 {
+			waitErr := waitAllFn(ctx, client, deletedIds)
+			// Record results for all deleted resources
+			for _, idStr := range deletedIds {
+				report.Record(report.Entry{
+					Identifier:   idStr,
+					ResourceType: resourceType,
+					Error:        waitErr,
+				})
+				if waitErr != nil {
+					logging.Errorf("[Failed] %s %s wait: %s", resourceType, idStr, waitErr)
+				} else {
+					logging.Debugf("[OK] Deleted %s: %s", resourceType, idStr)
+				}
+			}
+			if waitErr != nil {
+				allErrs = multierror.Append(allErrs, fmt.Errorf("wait for %s deletion: %w", resourceType, waitErr))
+			}
+		}
+
+		return allErrs.ErrorOrNil()
+	}
+}
+
+// ConcurrentDeleteThenWaitAll creates a nuker that:
+// 1. Deletes all resources concurrently with controlled parallelism
+// 2. Waits for ALL successfully deleted resources to be confirmed deleted
+//
+// Use this for resources where concurrent deletion is safe and the wait API
+// can check multiple resources at once.
+//
+// Example:
+//
+//	Nuker: resource.ConcurrentDeleteThenWaitAll(
+//	    deleteOpenSearchDomain,
+//	    waitForOpenSearchDomainsDeleted,
+//	)
+func ConcurrentDeleteThenWaitAll[C any](deleteFn DeleteFunc[C], waitAllFn WaitAllFunc[C]) NukerFunc[C] {
+	return func(ctx context.Context, client C, scope Scope, resourceType string, identifiers []*string) error {
+		if logEmptyAndSkip(identifiers, resourceType, scope) {
+			return nil
+		}
+
+		if len(identifiers) > MaxBatchSizeLimit {
+			logging.Errorf("Nuking too many %s at once (%d): halting to avoid hitting rate limiting",
+				resourceType, len(identifiers))
+			return fmt.Errorf("too many %s requested at once (%d > %d limit)", resourceType, len(identifiers), MaxBatchSizeLimit)
+		}
+
+		logDeletionStart(len(identifiers), resourceType, scope)
+
+		// Phase 1: Delete all resources concurrently
+		sem := make(chan struct{}, DefaultMaxConcurrent)
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		var allErrs *multierror.Error
+		var deletedIds []string
+
+		for _, id := range identifiers {
+			wg.Add(1)
+			sem <- struct{}{}
+
+			go func(identifier *string) {
+				defer wg.Done()
+				defer func() { <-sem }()
+
+				idStr := aws.ToString(identifier)
+				err := deleteFn(ctx, client, identifier)
+
+				mu.Lock()
+				if err != nil {
+					logging.Errorf("[Failed] %s %s: %s", resourceType, idStr, err)
+					allErrs = multierror.Append(allErrs, fmt.Errorf("%s %s: %w", resourceType, idStr, err))
+					report.Record(report.Entry{
+						Identifier:   idStr,
+						ResourceType: resourceType,
+						Error:        err,
+					})
+				} else {
+					deletedIds = append(deletedIds, idStr)
+					logging.Debugf("[Deleted] %s: %s (waiting for confirmation)", resourceType, idStr)
+				}
+				mu.Unlock()
+			}(id)
+		}
+
+		wg.Wait()
+
+		// Phase 2: Wait for all successfully deleted resources
+		if len(deletedIds) > 0 {
+			waitErr := waitAllFn(ctx, client, deletedIds)
+			// Record results for all deleted resources
+			for _, idStr := range deletedIds {
+				report.Record(report.Entry{
+					Identifier:   idStr,
+					ResourceType: resourceType,
+					Error:        waitErr,
+				})
+				if waitErr != nil {
+					logging.Errorf("[Failed] %s %s wait: %s", resourceType, idStr, waitErr)
+				} else {
+					logging.Debugf("[OK] Deleted %s: %s", resourceType, idStr)
+				}
+			}
+			if waitErr != nil {
+				allErrs = multierror.Append(allErrs, fmt.Errorf("wait for %s deletion: %w", resourceType, waitErr))
+			}
+		}
+
+		return allErrs.ErrorOrNil()
+	}
+}

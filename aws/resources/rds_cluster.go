@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
@@ -40,7 +39,7 @@ func NewDBClusters() AwsResource {
 			return c.DBClusters.ResourceType
 		},
 		Lister: listDBClusters,
-		Nuker:  deleteDBClusters,
+		Nuker:  resource.SequentialDeleter(resource.DeleteThenWait(deleteDBCluster, waitUntilRdsClusterDeleted)),
 	})
 }
 
@@ -66,14 +65,14 @@ func listDBClusters(ctx context.Context, client DBClustersAPI, scope resource.Sc
 }
 
 // waitUntilRdsClusterDeleted waits until the RDS cluster is deleted.
-func waitUntilRdsClusterDeleted(ctx context.Context, client DBClustersAPI, clusterIdentifier string) error {
+func waitUntilRdsClusterDeleted(ctx context.Context, client DBClustersAPI, clusterIdentifier *string) error {
 	waitTimeout := DefaultWaitTimeout
 	const retryInterval = 10 * time.Second
 	maxRetries := int(waitTimeout / retryInterval)
 
 	for i := 0; i < maxRetries; i++ {
 		_, err := client.DescribeDBClusters(ctx, &rds.DescribeDBClustersInput{
-			DBClusterIdentifier: aws.String(clusterIdentifier),
+			DBClusterIdentifier: clusterIdentifier,
 		})
 		if err != nil {
 			var notFoundErr *types.DBClusterNotFoundFault
@@ -87,7 +86,7 @@ func waitUntilRdsClusterDeleted(ctx context.Context, client DBClustersAPI, clust
 		logging.Debug("Waiting for RDS Cluster to be deleted")
 	}
 
-	return RdsDeleteError{name: clusterIdentifier}
+	return RdsDeleteError{name: aws.ToString(clusterIdentifier)}
 }
 
 // deleteDBCluster deletes a single RDS DB Cluster after disabling deletion protection.
@@ -109,44 +108,4 @@ func deleteDBCluster(ctx context.Context, client DBClustersAPI, name *string) er
 
 	_, err = client.DeleteDBCluster(ctx, params)
 	return err
-}
-
-// deleteDBClusters is a custom nuker for RDS DB Clusters.
-func deleteDBClusters(ctx context.Context, client DBClustersAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No %s to nuke in %s", resourceType, scope)
-		return nil
-	}
-
-	logging.Debugf("Deleting all %s in %s", resourceType, scope)
-
-	var deletedNames []*string
-	for _, name := range identifiers {
-		err := deleteDBCluster(ctx, client, name)
-
-		report.Record(report.Entry{
-			Identifier:   aws.ToString(name),
-			ResourceType: resourceType,
-			Error:        err,
-		})
-
-		if err != nil {
-			logging.Debugf("[Failed] %s: %s", aws.ToString(name), err)
-		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Cluster: %s", aws.ToString(name))
-		}
-	}
-
-	// Wait for all deleted clusters to be fully deleted
-	for _, name := range deletedNames {
-		err := waitUntilRdsClusterDeleted(ctx, client, aws.ToString(name))
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-			return err
-		}
-	}
-
-	logging.Debugf("[OK] %d %s(s) nuked in %s", len(deletedNames), resourceType, scope)
-	return nil
 }

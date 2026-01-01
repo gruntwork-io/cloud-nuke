@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -37,7 +36,7 @@ func NewRedshiftClusters() AwsResource {
 			return c.Redshift
 		},
 		Lister: listRedshiftClusters,
-		Nuker:  deleteRedshiftClusters,
+		Nuker:  resource.SequentialDeleter(resource.DeleteThenWait(deleteRedshiftCluster, waitForRedshiftClusterDeleted)),
 	})
 }
 
@@ -66,51 +65,19 @@ func listRedshiftClusters(ctx context.Context, client RedshiftClustersAPI, scope
 	return clusterIds, nil
 }
 
-// deleteRedshiftClusters deletes all Redshift clusters.
-func deleteRedshiftClusters(ctx context.Context, client RedshiftClustersAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Redshift Clusters to nuke in region %s", scope.Region)
-		return nil
-	}
+// deleteRedshiftCluster deletes a single Redshift cluster.
+func deleteRedshiftCluster(ctx context.Context, client RedshiftClustersAPI, id *string) error {
+	_, err := client.DeleteCluster(ctx, &redshift.DeleteClusterInput{
+		ClusterIdentifier:        id,
+		SkipFinalClusterSnapshot: aws.Bool(true),
+	})
+	return err
+}
 
-	logging.Debugf("Deleting all Redshift Clusters in region %s", scope.Region)
-	deletedIds := []*string{}
-
-	for _, id := range identifiers {
-		_, err := client.DeleteCluster(ctx, &redshift.DeleteClusterInput{
-			ClusterIdentifier:        id,
-			SkipFinalClusterSnapshot: aws.Bool(true),
-		})
-		if err != nil {
-			logging.Errorf("[Failed] %s: %s", *id, err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Redshift Cluster: %s", aws.ToString(id))
-		}
-	}
-
-	if len(deletedIds) > 0 {
-		for _, id := range deletedIds {
-			waiter := redshift.NewClusterDeletedWaiter(client)
-			err := waiter.Wait(ctx, &redshift.DescribeClustersInput{
-				ClusterIdentifier: id,
-			}, 5*time.Minute)
-
-			// Record status of this resource
-			e := report.Entry{
-				Identifier:   aws.ToString(id),
-				ResourceType: "Redshift Cluster",
-				Error:        err,
-			}
-			report.Record(e)
-
-			if err != nil {
-				logging.Errorf("[Failed] %s", err)
-				return errors.WithStackTrace(err)
-			}
-		}
-	}
-
-	logging.Debugf("[OK] %d Redshift Cluster(s) deleted in %s", len(deletedIds), scope.Region)
-	return nil
+// waitForRedshiftClusterDeleted waits for a Redshift cluster to be deleted.
+func waitForRedshiftClusterDeleted(ctx context.Context, client RedshiftClustersAPI, id *string) error {
+	waiter := redshift.NewClusterDeletedWaiter(client)
+	return waiter.Wait(ctx, &redshift.DescribeClustersInput{
+		ClusterIdentifier: id,
+	}, 5*time.Minute)
 }

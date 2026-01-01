@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -190,8 +191,10 @@ func deleteElasticFileSystem(ctx context.Context, client ElasticFileSystemAPI, s
 		}
 	}
 
-	logging.Debug("Sleeping 20 seconds to allow AWS to realize the Elastic FileSystem is no longer in use...")
-	time.Sleep(20 * time.Second)
+	// Wait for mount targets to be fully deleted before attempting to delete the file system
+	if err := waitForMountTargetsDeleted(ctx, client, efsID); err != nil {
+		allErrs = multierror.Append(allErrs, err)
+	}
 
 	// Now we can attempt to delete the Elastic FileSystem itself
 	deleteEfsParam := &efs.DeleteFileSystemInput{
@@ -218,6 +221,26 @@ func deleteElasticFileSystem(ctx context.Context, client ElasticFileSystemAPI, s
 	}
 
 	return allErrs.ErrorOrNil()
+}
+
+// waitForMountTargetsDeleted polls until all mount targets for the given EFS are deleted.
+// It returns nil if mount targets are deleted or an error occurs (indicating the file system may not exist).
+// It times out after 30 attempts (60 seconds total with 2-second intervals).
+func waitForMountTargetsDeleted(ctx context.Context, client ElasticFileSystemAPI, efsID *string) error {
+	for i := 0; i < 30; i++ {
+		output, err := client.DescribeMountTargets(ctx, &efs.DescribeMountTargetsInput{
+			FileSystemId: efsID,
+		})
+		if err != nil {
+			// If we get an error (like FileSystemNotFound), mount targets are gone
+			return nil //nolint:nilerr // Error here indicates file system was deleted, which is success
+		}
+		if len(output.MountTargets) == 0 {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("timed out waiting for mount targets to be deleted for EFS %s", aws.ToString(efsID))
 }
 
 // custom errors

@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,12 +11,10 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
-	"github.com/hashicorp/go-multierror"
 )
 
 // OpenSearchDomainsAPI defines the interface for OpenSearch operations.
@@ -47,7 +44,7 @@ func NewOpenSearchDomains() AwsResource {
 			return c.OpenSearchDomain
 		},
 		Lister: listOpenSearchDomains,
-		Nuker:  deleteOpenSearchDomains,
+		Nuker:  resource.ConcurrentDeleteThenWaitAll(deleteOpenSearchDomain, waitForOpenSearchDomainsDeleted),
 	})
 }
 
@@ -172,55 +169,25 @@ func getOpenSearchFirstSeenTag(ctx context.Context, client OpenSearchDomainsAPI,
 	return firstSeenTime, nil
 }
 
-// deleteOpenSearchDomains nukes the given list of OpenSearch domains concurrently. Note that the opensearch API
-// does not support bulk delete, so this routine will spawn a goroutine for each domain that needs to be nuked so that
-// they can be issued concurrently.
-func deleteOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No OpenSearch Domains to nuke in region %s", scope.Region)
-		return nil
+// deleteOpenSearchDomain deletes a single OpenSearch domain.
+func deleteOpenSearchDomain(ctx context.Context, client OpenSearchDomainsAPI, domainName *string) error {
+	input := &opensearch.DeleteDomainInput{DomainName: domainName}
+	_, err := client.DeleteDomain(ctx, input)
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
+	return nil
+}
 
-	// NOTE: we don't need to do pagination here, because the caller handles the pagination to this function,
-	// based on OpenSearchDomains.MaxBatchSize, however, we add a guard here to warn users when the batching fails and has a
-	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
-	// because many APIs in AWS have a limit of 100 requests per second.
-	if len(identifiers) > 100 {
-		logging.Errorf("Nuking too many OpenSearch Domains at once (100): halting to avoid hitting AWS API rate limiting")
-		return TooManyOpenSearchDomainsErr{}
-	}
-
-	logging.Debugf("Deleting OpenSearch Domains in region %s", scope.Region)
-	wg := new(sync.WaitGroup)
-	wg.Add(len(identifiers))
-	errChans := make([]chan error, len(identifiers))
-	for i, domainName := range identifiers {
-		errChans[i] = make(chan error, 1)
-		go deleteOpenSearchDomainAsync(ctx, client, wg, errChans[i], domainName)
-	}
-	wg.Wait()
-
-	// Collect all the errors from the async delete calls into a single error struct.
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Errorf("[Failed] %s", err)
-		}
-	}
-	finalErr := allErrs.ErrorOrNil()
-	if finalErr != nil {
-		return errors.WithStackTrace(finalErr)
-	}
-
-	// Now wait until the OpenSearch Domains are deleted
-	err := retry.DoWithRetry(
+// waitForOpenSearchDomainsDeleted waits for all OpenSearch domains to be fully deleted.
+func waitForOpenSearchDomainsDeleted(ctx context.Context, client OpenSearchDomainsAPI, names []string) error {
+	return retry.DoWithRetry(
 		logging.Logger.WithTime(time.Now()),
 		"Waiting for all OpenSearch Domains to be deleted.",
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
 		30, 10*time.Second,
 		func() error {
-			resp, err := client.DescribeDomains(ctx, &opensearch.DescribeDomainsInput{DomainNames: aws.ToStringSlice(identifiers)})
+			resp, err := client.DescribeDomains(ctx, &opensearch.DescribeDomainsInput{DomainNames: names})
 			if err != nil {
 				return errors.WithStackTrace(retry.FatalError{Underlying: err})
 			}
@@ -230,32 +197,6 @@ func deleteOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, s
 			return fmt.Errorf("Not all OpenSearch domains are deleted.")
 		},
 	)
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-	for _, domainName := range identifiers {
-		logging.Debugf("[OK] OpenSearch Domain %s was deleted in %s", aws.ToString(domainName), scope.Region)
-	}
-	return nil
-}
-
-// deleteOpenSearchDomainAsync deletes the provided OpenSearch Domain asynchronously in a goroutine, using wait groups
-// for concurrency control and a return channel for errors.
-func deleteOpenSearchDomainAsync(ctx context.Context, client OpenSearchDomainsAPI, wg *sync.WaitGroup, errChan chan error, domainName *string) {
-	defer wg.Done()
-
-	input := &opensearch.DeleteDomainInput{DomainName: domainName}
-	_, err := client.DeleteDomain(ctx, input)
-
-	// Record status of this resource
-	e := report.Entry{
-		Identifier:   aws.ToString(domainName),
-		ResourceType: "OpenSearch Domain",
-		Error:        err,
-	}
-	report.Record(e)
-
-	errChan <- err
 }
 
 // Custom errors

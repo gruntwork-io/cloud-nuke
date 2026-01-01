@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -39,7 +38,7 @@ func NewVPCLatticeServiceNetwork() AwsResource {
 			return c.VPCLatticeServiceNetwork
 		},
 		Lister: listVPCLatticeServiceNetworks,
-		Nuker:  deleteVPCLatticeServiceNetworks,
+		Nuker:  resource.SequentialDeleter(deleteVPCLatticeServiceNetwork),
 	})
 }
 
@@ -121,35 +120,4 @@ func deleteVPCLatticeServiceNetwork(ctx context.Context, client VPCLatticeServic
 		ServiceNetworkIdentifier: id,
 	})
 	return err
-}
-
-// deleteVPCLatticeServiceNetworks is a custom nuker for VPC Lattice Service Networks.
-func deleteVPCLatticeServiceNetworks(ctx context.Context, client VPCLatticeServiceNetworkAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No %s to nuke in %s", resourceType, scope)
-		return nil
-	}
-
-	logging.Debugf("Deleting all %s in %s", resourceType, scope)
-
-	deletedCount := 0
-	for _, id := range identifiers {
-		err := deleteVPCLatticeServiceNetwork(ctx, client, id)
-
-		report.Record(report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: resourceType,
-			Error:        err,
-		})
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedCount++
-			logging.Debugf("Deleted %s: %s", resourceType, aws.ToString(id))
-		}
-	}
-
-	logging.Debugf("[OK] %d %s(s) terminated in %s", deletedCount, resourceType, scope)
-	return nil
 }

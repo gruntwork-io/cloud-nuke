@@ -75,13 +75,13 @@ func TestListTransitGatewayVpcAttachments(t *testing.T) {
 	}
 }
 
-func TestDeleteTransitGatewayVpcAttachments(t *testing.T) {
+func TestDeleteTransitGatewayVpcAttachment(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockTransitGatewayVpcAttachmentClient{
 		DeleteTransitGatewayVpcAttachmentOutput: ec2.DeleteTransitGatewayVpcAttachmentOutput{},
 	}
 
-	err := deleteTransitGatewaysVpcAttachments(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "transit-gateway-attachment", []*string{aws.String("test-attachment")})
+	err := deleteTransitGatewayVpcAttachment(context.Background(), mock, aws.String("test-attachment"))
 	require.NoError(t, err)
 }

@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/types"
+	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
@@ -20,6 +22,7 @@ type mockedEKSCluster struct {
 	DeleteFargateProfileOutput   eks.DeleteFargateProfileOutput
 	DeleteNodegroupOutput        eks.DeleteNodegroupOutput
 	DescribeClusterOutputByName  map[string]*eks.DescribeClusterOutput
+	DescribeClusterError         error // Error to return for DescribeCluster (simulates deleted cluster)
 	DescribeFargateProfileOutput eks.DescribeFargateProfileOutput
 	DescribeNodegroupOutput      eks.DescribeNodegroupOutput
 	ListClustersOutput           eks.ListClustersOutput
@@ -40,6 +43,9 @@ func (m mockedEKSCluster) DeleteNodegroup(ctx context.Context, params *eks.Delet
 }
 
 func (m mockedEKSCluster) DescribeCluster(ctx context.Context, params *eks.DescribeClusterInput, optFns ...func(*eks.Options)) (*eks.DescribeClusterOutput, error) {
+	if m.DescribeClusterError != nil {
+		return nil, m.DescribeClusterError
+	}
 	return m.DescribeClusterOutputByName[aws.ToString(params.Name)], nil
 }
 
@@ -154,25 +160,39 @@ func TestListEKSClusters(t *testing.T) {
 	}
 }
 
+// errMockEKSClusterNotFound simulates ResourceNotFoundException for EKS
+type errMockEKSClusterNotFound struct{}
+
+func (e errMockEKSClusterNotFound) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+
+func (e errMockEKSClusterNotFound) ErrorCode() string {
+	return "ResourceNotFoundException"
+}
+
+func (e errMockEKSClusterNotFound) ErrorMessage() string {
+	return "The specified cluster does not exist."
+}
+
+func (e errMockEKSClusterNotFound) ErrorFault() smithy.ErrorFault {
+	return smithy.FaultClient
+}
+
 func TestDeleteEKSClusters(t *testing.T) {
 	t.Parallel()
 	testClusterName := "test_cluster1"
 
+	// Mock returns ResourceNotFoundException to simulate the cluster being deleted
+	// This is required for the SDK waiter to succeed
 	mock := mockedEKSCluster{
-		ListNodegroupsOutput: eks.ListNodegroupsOutput{},
-		DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
-			testClusterName: {
-				Cluster: &types.Cluster{
-					Name:      aws.String(testClusterName),
-					CreatedAt: aws.Time(time.Now()),
-				},
-			},
-		},
+		ListNodegroupsOutput:         eks.ListNodegroupsOutput{},
 		ListFargateProfilesOutput:    eks.ListFargateProfilesOutput{},
 		DescribeNodegroupOutput:      eks.DescribeNodegroupOutput{},
 		DeleteFargateProfileOutput:   eks.DeleteFargateProfileOutput{},
 		DeleteClusterOutput:          eks.DeleteClusterOutput{},
 		DescribeFargateProfileOutput: eks.DescribeFargateProfileOutput{},
+		DescribeClusterError:         errMockEKSClusterNotFound{}, // Simulate deleted cluster
 	}
 
 	err := deleteEKSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ekscluster", []*string{&testClusterName})

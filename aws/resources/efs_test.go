@@ -21,6 +21,9 @@ type mockedElasticFileSystem struct {
 	DescribeAccessPointsOutput efs.DescribeAccessPointsOutput
 	DescribeMountTargetsOutput efs.DescribeMountTargetsOutput
 	DescribeFileSystemsOutput  efs.DescribeFileSystemsOutput
+
+	// Track calls to DescribeMountTargets to simulate deletion
+	describeMountTargetsCalls int
 }
 
 func (m mockedElasticFileSystem) DeleteAccessPoint(ctx context.Context, params *efs.DeleteAccessPointInput, optFns ...func(*efs.Options)) (*efs.DeleteAccessPointOutput, error) {
@@ -39,8 +42,14 @@ func (m mockedElasticFileSystem) DescribeAccessPoints(ctx context.Context, param
 	return &m.DescribeAccessPointsOutput, nil
 }
 
-func (m mockedElasticFileSystem) DescribeMountTargets(ctx context.Context, params *efs.DescribeMountTargetsInput, optFns ...func(*efs.Options)) (*efs.DescribeMountTargetsOutput, error) {
-	return &m.DescribeMountTargetsOutput, nil
+func (m *mockedElasticFileSystem) DescribeMountTargets(ctx context.Context, params *efs.DescribeMountTargetsInput, optFns ...func(*efs.Options)) (*efs.DescribeMountTargetsOutput, error) {
+	m.describeMountTargetsCalls++
+	// First call returns mount targets (used during enumeration and first waiter check)
+	// Subsequent calls return empty list (simulating mount targets being deleted)
+	if m.describeMountTargetsCalls <= 1 {
+		return &m.DescribeMountTargetsOutput, nil
+	}
+	return &efs.DescribeMountTargetsOutput{MountTargets: []types.MountTargetDescription{}}, nil
 }
 
 func (m mockedElasticFileSystem) DescribeFileSystems(ctx context.Context, params *efs.DescribeFileSystemsInput, optFns ...func(*efs.Options)) (*efs.DescribeFileSystemsOutput, error) {
@@ -54,7 +63,7 @@ func TestEFS_GetAll(t *testing.T) {
 	testId2 := "testId2"
 	testName2 := "test-efs2"
 	now := time.Now()
-	client := mockedElasticFileSystem{
+	client := &mockedElasticFileSystem{
 		DescribeFileSystemsOutput: efs.DescribeFileSystemsOutput{
 			FileSystems: []types.FileSystemDescription{
 				{
@@ -107,7 +116,7 @@ func TestEFS_GetAll(t *testing.T) {
 
 func TestEFS_NukeAll(t *testing.T) {
 	t.Parallel()
-	client := mockedElasticFileSystem{
+	client := &mockedElasticFileSystem{
 		DescribeAccessPointsOutput: efs.DescribeAccessPointsOutput{
 			AccessPoints: []types.AccessPointDescription{
 				{

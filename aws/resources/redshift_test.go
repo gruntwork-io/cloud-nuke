@@ -94,6 +94,11 @@ func TestRedshiftCluster_NukeAll(t *testing.T) {
 		},
 	}
 
-	err := deleteRedshiftClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "redshift", []*string{aws.String("test")})
+	// Test the delete function
+	err := deleteRedshiftCluster(context.Background(), mock, aws.String("test"))
+	require.NoError(t, err)
+
+	// Test the wait function (returns nil because ClusterNotFound means it's deleted)
+	err = waitForRedshiftClusterDeleted(context.Background(), mock, aws.String("test"))
 	require.NoError(t, err)
 }

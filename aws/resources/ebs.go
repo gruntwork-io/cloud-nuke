@@ -2,16 +2,13 @@ package resources
 
 import (
 	"context"
-	goerr "errors"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
@@ -40,7 +37,7 @@ func NewEBSVolumes() AwsResource {
 			return c.EBSVolume
 		},
 		Lister:             listEBSVolumes,
-		Nuker:              deleteEBSVolumes,
+		Nuker:              resource.SequentialDeleteThenWaitAll(deleteEBSVolume, waitForEBSVolumesDeleted),
 		PermissionVerifier: verifyEBSVolumePermission,
 	})
 }
@@ -102,59 +99,10 @@ func deleteEBSVolume(ctx context.Context, client EBSVolumesAPI, volumeID *string
 	return err
 }
 
-// deleteEBSVolumes is a custom nuker for EBS volumes that handles error codes and waits for deletion.
-func deleteEBSVolumes(ctx context.Context, client EBSVolumesAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No %s to nuke in %s", resourceType, scope)
-		return nil
-	}
-
-	logging.Debugf("Deleting all %s in %s", resourceType, scope)
-	var deletedVolumeIDs []*string
-
-	for _, volumeID := range identifiers {
-		err := deleteEBSVolume(ctx, client, volumeID)
-
-		report.Record(report.Entry{
-			Identifier:   aws.ToString(volumeID),
-			ResourceType: resourceType,
-			Error:        err,
-		})
-
-		if err != nil {
-			var apiErr smithy.APIError
-			if goerr.As(err, &apiErr) {
-				switch apiErr.ErrorCode() {
-				case "VolumeInUse":
-					logging.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
-				case "InvalidVolume.NotFound":
-					logging.Debugf("EBS volume %s has already been deleted", *volumeID)
-				default:
-					logging.Debugf("[Failed] %s", err)
-				}
-			}
-		} else {
-			deletedVolumeIDs = append(deletedVolumeIDs, volumeID)
-			logging.Debugf("Deleted EBS Volume: %s", *volumeID)
-		}
-	}
-
-	// Wait for all deleted volumes to be fully deleted
-	if len(deletedVolumeIDs) > 0 {
-		// The waiter accepts the interface so this should work
-		waiter := ec2.NewVolumeDeletedWaiter(client)
-		err := waiter.Wait(ctx, &ec2.DescribeVolumesInput{
-			VolumeIds: aws.ToStringSlice(deletedVolumeIDs),
-		}, DefaultWaitTimeout)
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			return err
-		}
-	}
-
-	logging.Debugf("[OK] %d %s(s) terminated in %s", len(deletedVolumeIDs), resourceType, scope)
-	return nil
+// waitForEBSVolumesDeleted waits for all specified EBS volumes to be fully deleted.
+func waitForEBSVolumesDeleted(ctx context.Context, client EBSVolumesAPI, ids []string) error {
+	waiter := ec2.NewVolumeDeletedWaiter(client)
+	return waiter.Wait(ctx, &ec2.DescribeVolumesInput{
+		VolumeIds: ids,
+	}, 5*time.Minute)
 }
-
-// DefaultEBSWaitTimeout is the default timeout for EBS volume deletion
-const DefaultEBSWaitTimeout = 5 * time.Minute
