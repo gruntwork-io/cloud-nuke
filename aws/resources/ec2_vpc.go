@@ -530,7 +530,7 @@ func nukeNatGateways(client EC2VPCAPI, vpcID string) error {
 			continue
 		}
 
-		err := nukeNATGateway(client, gateway.NatGatewayId)
+		err := deleteNatGateway(context.Background(), client, gateway.NatGatewayId)
 		if err != nil {
 			logging.Debug(
 				fmt.Sprintf("Failed to delete NAT gateway %s for vpc %v", aws.ToString(gateway.NatGatewayId), vpcID))

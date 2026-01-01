@@ -9,108 +9,136 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedACMPCA struct {
-	ACMPCAServiceAPI
-	acmpca.DeleteCertificateAuthorityOutput
-	acmpca.DescribeCertificateAuthorityOutput
-	acmpca.ListCertificateAuthoritiesOutput
-	acmpca.UpdateCertificateAuthorityOutput
+type mockACMPCAClient struct {
+	ListCertificateAuthoritiesOutput   acmpca.ListCertificateAuthoritiesOutput
+	DescribeCertificateAuthorityOutput acmpca.DescribeCertificateAuthorityOutput
+	UpdateCertificateAuthorityOutput   acmpca.UpdateCertificateAuthorityOutput
+	DeleteCertificateAuthorityOutput   acmpca.DeleteCertificateAuthorityOutput
 }
 
-func (m mockedACMPCA) DeleteCertificateAuthority(ctx context.Context, params *acmpca.DeleteCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DeleteCertificateAuthorityOutput, error) {
-	return &m.DeleteCertificateAuthorityOutput, nil
-}
-
-func (m mockedACMPCA) DescribeCertificateAuthority(ctx context.Context, params *acmpca.DescribeCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
-	return &m.DescribeCertificateAuthorityOutput, nil
-}
-
-func (m mockedACMPCA) ListCertificateAuthorities(ctx context.Context, params *acmpca.ListCertificateAuthoritiesInput, optFns ...func(*acmpca.Options)) (*acmpca.ListCertificateAuthoritiesOutput, error) {
+func (m *mockACMPCAClient) ListCertificateAuthorities(ctx context.Context, params *acmpca.ListCertificateAuthoritiesInput, optFns ...func(*acmpca.Options)) (*acmpca.ListCertificateAuthoritiesOutput, error) {
 	return &m.ListCertificateAuthoritiesOutput, nil
 }
 
-func (m mockedACMPCA) UpdateCertificateAuthority(ctx context.Context, params *acmpca.UpdateCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.UpdateCertificateAuthorityOutput, error) {
+func (m *mockACMPCAClient) DescribeCertificateAuthority(ctx context.Context, params *acmpca.DescribeCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
+	return &m.DescribeCertificateAuthorityOutput, nil
+}
+
+func (m *mockACMPCAClient) UpdateCertificateAuthority(ctx context.Context, params *acmpca.UpdateCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.UpdateCertificateAuthorityOutput, error) {
 	return &m.UpdateCertificateAuthorityOutput, nil
 }
 
-func TestAcmPcaGetAll(t *testing.T) {
-	t.Parallel()
-
-	testArn := "test-arn"
-	now := time.Now()
-	acmPca := ACMPCA{
-		Client: mockedACMPCA{
-			ListCertificateAuthoritiesOutput: acmpca.ListCertificateAuthoritiesOutput{
-				CertificateAuthorities: []types.CertificateAuthority{
-					{
-						CreatedAt: &now,
-						Arn:       &testArn,
-					},
-				},
-			},
-		},
-	}
-
-	// without filters
-	arns, err := acmPca.getAll(context.Background(), config.Config{})
-	require.NoError(t, err)
-	require.Contains(t, aws.ToStringSlice(arns), testArn)
-
-	// with exclude after filter
-	arns, err = acmPca.getAll(context.Background(), config.Config{
-		ACMPCA: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				TimeAfter: aws.Time(now.Add(-1))}},
-	})
-
-	require.NoError(t, err)
-	require.NotContains(t, aws.ToStringSlice(arns), testArn)
+func (m *mockACMPCAClient) DeleteCertificateAuthority(ctx context.Context, params *acmpca.DeleteCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DeleteCertificateAuthorityOutput, error) {
+	return &m.DeleteCertificateAuthorityOutput, nil
 }
 
-func TestAcmPcaNukeAll_DisabledCA(t *testing.T) {
+func TestListACMPCA(t *testing.T) {
 	t.Parallel()
 
 	testArn := "test-arn"
 	now := time.Now()
-	acmPca := ACMPCA{
-		Client: mockedACMPCA{
-			DescribeCertificateAuthorityOutput: acmpca.DescribeCertificateAuthorityOutput{
-				CertificateAuthority: &types.CertificateAuthority{
-					Status:    types.CertificateAuthorityStatusDisabled,
+
+	tests := []struct {
+		name     string
+		cas      []types.CertificateAuthority
+		cfg      config.ResourceType
+		expected []string
+	}{
+		{
+			name: "returns all CAs without filters",
+			cas: []types.CertificateAuthority{
+				{
 					CreatedAt: &now,
 					Arn:       &testArn,
 				},
 			},
-			DeleteCertificateAuthorityOutput: acmpca.DeleteCertificateAuthorityOutput{},
+			cfg:      config.ResourceType{},
+			expected: []string{testArn},
 		},
-	}
-
-	err := acmPca.nukeAll([]*string{&testArn})
-	require.NoError(t, err)
-}
-
-func TestAcmPcaNukeAll_EnabledCA(t *testing.T) {
-	t.Parallel()
-
-	testArn := "test-arn"
-	now := time.Now()
-	acmPca := ACMPCA{
-		Client: mockedACMPCA{
-			DescribeCertificateAuthorityOutput: acmpca.DescribeCertificateAuthorityOutput{
-				CertificateAuthority: &types.CertificateAuthority{
-					Status:    types.CertificateAuthorityStatusActive,
+		{
+			name: "excludes CAs with exclude after filter",
+			cas: []types.CertificateAuthority{
+				{
 					CreatedAt: &now,
 					Arn:       &testArn,
 				},
 			},
-			UpdateCertificateAuthorityOutput: acmpca.UpdateCertificateAuthorityOutput{},
-			DeleteCertificateAuthorityOutput: acmpca.DeleteCertificateAuthorityOutput{},
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1)),
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "excludes deleted CAs",
+			cas: []types.CertificateAuthority{
+				{
+					CreatedAt: &now,
+					Arn:       &testArn,
+					Status:    types.CertificateAuthorityStatusDeleted,
+				},
+			},
+			cfg:      config.ResourceType{},
+			expected: nil,
 		},
 	}
 
-	err := acmPca.nukeAll([]*string{&testArn})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockACMPCAClient{
+				ListCertificateAuthoritiesOutput: acmpca.ListCertificateAuthoritiesOutput{
+					CertificateAuthorities: tc.cas,
+				},
+			}
+
+			arns, err := listACMPCA(context.Background(), mock, resource.Scope{}, tc.cfg)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.expected, aws.ToStringSlice(arns))
+		})
+	}
+}
+
+func TestDeleteACMPCA_DisabledCA(t *testing.T) {
+	t.Parallel()
+
+	testArn := "test-arn"
+	now := time.Now()
+
+	mock := &mockACMPCAClient{
+		DescribeCertificateAuthorityOutput: acmpca.DescribeCertificateAuthorityOutput{
+			CertificateAuthority: &types.CertificateAuthority{
+				Status:    types.CertificateAuthorityStatusDisabled,
+				CreatedAt: &now,
+				Arn:       &testArn,
+			},
+		},
+	}
+
+	err := deleteACMPCA(context.Background(), mock, &testArn)
+	require.NoError(t, err)
+}
+
+func TestDeleteACMPCA_EnabledCA(t *testing.T) {
+	t.Parallel()
+
+	testArn := "test-arn"
+	now := time.Now()
+
+	mock := &mockACMPCAClient{
+		DescribeCertificateAuthorityOutput: acmpca.DescribeCertificateAuthorityOutput{
+			CertificateAuthority: &types.CertificateAuthority{
+				Status:    types.CertificateAuthorityStatusActive,
+				CreatedAt: &now,
+				Arn:       &testArn,
+			},
+		},
+	}
+
+	err := deleteACMPCA(context.Background(), mock, &testArn)
 	require.NoError(t, err)
 }

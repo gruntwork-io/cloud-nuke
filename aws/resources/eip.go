@@ -2,112 +2,82 @@ package resources
 
 import (
 	"context"
-	goerr "errors"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of EIP allocation ids
-func (eip *EIPAddresses) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// EIPAddressesAPI defines the interface for Elastic IP operations.
+type EIPAddressesAPI interface {
+	DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error)
+	ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error)
+	CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
+}
 
-	var firstSeenTime *time.Time
-	var err error
-	result, err := eip.Client.DescribeAddresses(eip.Context, &ec2.DescribeAddressesInput{})
+// NewEIPAddresses creates a new Elastic IP resource using the generic resource pattern.
+func NewEIPAddresses() AwsResource {
+	return NewAwsResource(&resource.Resource[EIPAddressesAPI]{
+		ResourceTypeName: "eip",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EIPAddressesAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ElasticIP
+		},
+		Lister:             listEIPAddresses,
+		Nuker:              resource.SimpleBatchDeleter(releaseEIPAddress),
+		PermissionVerifier: verifyEIPAddressPermission,
+	})
+}
+
+// listEIPAddresses retrieves all Elastic IP addresses that match the config filters.
+func listEIPAddresses(ctx context.Context, client EIPAddressesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	result, err := client.DescribeAddresses(ctx, &ec2.DescribeAddressesInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, eip.Client, address.AllocationId, util.ConvertTypesTagsToMap(address.Tags))
+		firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, address.AllocationId, util.ConvertTypesTagsToMap(address.Tags))
 		if err != nil {
-			logging.Error("unable to retrieve first seen tag")
-			return nil, errors.WithStackTrace(err)
+			logging.Errorf("Unable to retrieve tags for EIP %s: %v", aws.ToString(address.AllocationId), err)
+			return nil, err
 		}
 
-		if eip.shouldInclude(address, firstSeenTime, configObj) {
+		// If Name is unset, GetEC2ResourceNameTagValue returns nil
+		allocationName := util.GetEC2ResourceNameTagValue(address.Tags)
+		if cfg.ShouldInclude(config.ResourceValue{
+			Time: firstSeenTime,
+			Name: allocationName,
+			Tags: util.ConvertTypesTagsToMap(address.Tags),
+		}) {
 			allocationIds = append(allocationIds, address.AllocationId)
 		}
 	}
 
-	// checking the nukable permissions
-	eip.VerifyNukablePermissions(allocationIds, func(id *string) error {
-		_, err := eip.Client.ReleaseAddress(eip.Context, &ec2.ReleaseAddressInput{
-			AllocationId: id,
-			DryRun:       aws.Bool(true),
-		})
-		return err
-	})
-
 	return allocationIds, nil
 }
 
-func (eip *EIPAddresses) shouldInclude(address types.Address, firstSeenTime *time.Time, configObj config.Config) bool {
-	// If Name is unset, GetEC2ResourceNameTagValue returns error and zero value string
-	// Ignore this error and pass empty string to config.ShouldInclude
-	allocationName := util.GetEC2ResourceNameTagValue(address.Tags)
-	return configObj.ElasticIP.ShouldInclude(config.ResourceValue{
-		Time: firstSeenTime,
-		Name: allocationName,
-		Tags: util.ConvertTypesTagsToMap(address.Tags),
+// releaseEIPAddress releases a single Elastic IP address.
+func releaseEIPAddress(ctx context.Context, client EIPAddressesAPI, allocationId *string) error {
+	_, err := client.ReleaseAddress(ctx, &ec2.ReleaseAddressInput{
+		AllocationId: allocationId,
 	})
+	return err
 }
 
-// Deletes all EIP allocation ids
-func (eip *EIPAddresses) nukeAll(allocationIds []*string) error {
-	if len(allocationIds) == 0 {
-		logging.Debugf("No Elastic IPs to nuke in region %s", eip.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Elastic IPs in region %s", eip.Region)
-	var deletedAllocationIDs []*string
-
-	for _, allocationID := range allocationIds {
-
-		if nukable, reason := eip.IsNukable(aws.ToString(allocationID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(allocationID), reason)
-			continue
-		}
-
-		_, err := eip.Client.ReleaseAddress(eip.Context, &ec2.ReleaseAddressInput{
-			AllocationId: allocationID,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(allocationID),
-			ResourceType: "Elastic IP Address (EIP)",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			var apiErr smithy.APIError
-			if goerr.As(err, &apiErr) {
-				switch apiErr.ErrorCode() {
-				case "AuthFailure":
-					// TODO: Figure out why we get an AuthFailure
-					logging.Debugf("EIP %s can't be deleted, it is still attached to an active resource", *allocationID)
-				default:
-					logging.Debugf("[Failed] %s", err)
-				}
-			}
-		} else {
-			deletedAllocationIDs = append(deletedAllocationIDs, allocationID)
-			logging.Debugf("Deleted Elastic IP: %s", *allocationID)
-		}
-	}
-
-	logging.Debugf("[OK] %d Elastic IP(s) deleted in %s", len(deletedAllocationIDs), eip.Region)
-	return nil
+// verifyEIPAddressPermission performs a dry-run release to check permissions.
+func verifyEIPAddressPermission(ctx context.Context, client EIPAddressesAPI, allocationId *string) error {
+	_, err := client.ReleaseAddress(ctx, &ec2.ReleaseAddressInput{
+		AllocationId: allocationId,
+		DryRun:       aws.Bool(true),
+	})
+	return err
 }

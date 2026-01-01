@@ -4,31 +4,55 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/acm"
 	"github.com/aws/aws-sdk-go-v2/service/acm/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a list of strings of ACM ARNs
-func (a *ACM) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// ACMAPI defines the interface for ACM operations.
+type ACMAPI interface {
+	ListCertificates(ctx context.Context, params *acm.ListCertificatesInput, optFns ...func(*acm.Options)) (*acm.ListCertificatesOutput, error)
+	DeleteCertificate(ctx context.Context, params *acm.DeleteCertificateInput, optFns ...func(*acm.Options)) (*acm.DeleteCertificateOutput, error)
+}
+
+// NewACM creates a new ACM resource using the generic resource pattern.
+func NewACM() AwsResource {
+	return NewAwsResource(&resource.Resource[ACMAPI]{
+		ResourceTypeName: "acm",
+		BatchSize:        10,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[ACMAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = acm.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ACM
+		},
+		Lister: listACMCertificates,
+		Nuker:  resource.SimpleBatchDeleter(deleteACMCertificate),
+	})
+}
+
+// listACMCertificates retrieves all ACM certificates that match the config filters.
+func listACMCertificates(ctx context.Context, client ACMAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var acmArns []*string
-	paginator := acm.NewListCertificatesPaginator(a.Client, &acm.ListCertificatesInput{})
+	paginator := acm.NewListCertificatesPaginator(client, &acm.ListCertificatesInput{})
+
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, cert := range page.CertificateSummaryList {
-			logging.Debug(fmt.Sprintf("Found ACM %s with domain name %s", *cert.CertificateArn, *cert.DomainName))
-			if a.shouldInclude(cert, configObj) {
-				logging.Debug(fmt.Sprintf("Including ACM %s", *cert.CertificateArn))
+			logging.Debugf("Found ACM %s with domain name %s", *cert.CertificateArn, *cert.DomainName)
+			if shouldIncludeACMCertificate(cert, cfg) {
+				logging.Debugf("Including ACM %s", *cert.CertificateArn)
 				acmArns = append(acmArns, cert.CertificateArn)
 			} else {
-				logging.Debug(fmt.Sprintf("Skipping ACM %s", *cert.CertificateArn))
+				logging.Debugf("Skipping ACM %s", *cert.CertificateArn)
 			}
 		}
 	}
@@ -36,51 +60,29 @@ func (a *ACM) getAll(c context.Context, configObj config.Config) ([]*string, err
 	return acmArns, nil
 }
 
-func (a *ACM) shouldInclude(acm types.CertificateSummary, configObj config.Config) bool {
-	if acm.InUse != nil && *acm.InUse {
-		logging.Debug(fmt.Sprintf("ACM %s is in use", *acm.CertificateArn))
+// shouldIncludeACMCertificate determines if an ACM certificate should be included based on config filters.
+func shouldIncludeACMCertificate(cert types.CertificateSummary, cfg config.ResourceType) bool {
+	if cert.InUse != nil && *cert.InUse {
+		logging.Debugf("ACM %s is in use", *cert.CertificateArn)
 		return false
 	}
 
-	shouldInclude := configObj.ACM.ShouldInclude(config.ResourceValue{
-		Name: acm.DomainName,
-		Time: acm.CreatedAt,
+	shouldInclude := cfg.ShouldInclude(config.ResourceValue{
+		Name: cert.DomainName,
+		Time: cert.CreatedAt,
 	})
-	logging.Debug(fmt.Sprintf("shouldInclude result for ACM: %s w/ domain name: %s, time: %s, and config: %+v",
-		*acm.CertificateArn, *acm.DomainName, acm.CreatedAt, configObj.ACM))
+	logging.Debugf("shouldInclude result for ACM: %s w/ domain name: %s, time: %s, and config: %+v",
+		aws.ToString(cert.CertificateArn), aws.ToString(cert.DomainName), cert.CreatedAt, cfg)
 	return shouldInclude
 }
 
-// Deletes all ACMs
-func (a *ACM) nukeAll(arns []*string) error {
-	if len(arns) == 0 {
-		logging.Debugf("No ACMs to nuke in region %s", a.Region)
-		return nil
+// deleteACMCertificate deletes a single ACM certificate.
+func deleteACMCertificate(ctx context.Context, client ACMAPI, arn *string) error {
+	_, err := client.DeleteCertificate(ctx, &acm.DeleteCertificateInput{
+		CertificateArn: arn,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete ACM certificate %s: %w", aws.ToString(arn), err)
 	}
-
-	logging.Debugf("Deleting all ACMs in region %s", a.Region)
-	deletedCount := 0
-	for _, acmArn := range arns {
-		params := &acm.DeleteCertificateInput{
-			CertificateArn: acmArn,
-		}
-
-		_, err := a.Client.DeleteCertificate(a.Context, params)
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedCount++
-			logging.Debugf("Deleted ACM: %s", *acmArn)
-		}
-
-		e := report.Entry{
-			Identifier:   *acmArn,
-			ResourceType: "ACM",
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d ACM(s) terminated in %s", deletedCount, a.Region)
 	return nil
 }

@@ -118,7 +118,7 @@ func TestIsValidResourceType(t *testing.T) {
 
 func TestIsNukeable(t *testing.T) {
 	ec2ResourceName := (&resources.EC2Instances{}).ResourceName()
-	amiResourceName := (&resources.AMIs{}).ResourceName()
+	amiResourceName := resources.NewAMIs().ResourceName()
 
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{ec2ResourceName}), true)
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{"all"}), true)

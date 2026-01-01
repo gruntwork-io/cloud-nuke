@@ -4,31 +4,50 @@ import (
 	"context"
 	"strings"
 
-	"github.com/gruntwork-io/cloud-nuke/util"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
-// Returns a formatted string of AMI Image ids
-func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// AMIsAPI defines the interface for AMI operations.
+type AMIsAPI interface {
+	DeregisterImage(ctx context.Context, params *ec2.DeregisterImageInput, optFns ...func(*ec2.Options)) (*ec2.DeregisterImageOutput, error)
+	DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)
+}
+
+// NewAMIs creates a new AMIs resource using the generic resource pattern.
+func NewAMIs() AwsResource {
+	return NewAwsResource(&resource.Resource[AMIsAPI]{
+		ResourceTypeName: "ami",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[AMIsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.AMI
+		},
+		Lister: listAMIs,
+		Nuker:  resource.SimpleBatchDeleter(deleteAMI),
+	})
+}
+
+// listAMIs retrieves all user-owned AMIs that match the config filters.
+func listAMIs(ctx context.Context, client AMIsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var imageIds []*string
-	paginator := ec2.NewDescribeImagesPaginator(ami.Client, &ec2.DescribeImagesInput{
+	paginator := ec2.NewDescribeImagesPaginator(client, &ec2.DescribeImagesInput{
 		Owners: []string{"self"},
 	})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, image := range page.Images {
-
 			createdTime, errTimeParse := util.ParseTimestamp(image.CreationDate)
 			if errTimeParse != nil {
 				return nil, errTimeParse
@@ -48,65 +67,29 @@ func (ami *AMIs) getAll(c context.Context, configObj config.Config) ([]*string, 
 				continue
 			}
 
-			if configObj.AMI.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: image.Name,
 				Time: createdTime,
 			}) {
 				imageIds = append(imageIds, image.ImageId)
 			}
-
 		}
 	}
-
-	// checking the nukable permissions
-	ami.VerifyNukablePermissions(imageIds, func(id *string) error {
-		_, err := ami.Client.DeregisterImage(ami.Context, &ec2.DeregisterImageInput{
-			ImageId: id,
-			DryRun:  aws.Bool(true),
-		})
-		return err
-	})
 
 	return imageIds, nil
 }
 
-// Deletes all AMI
-func (ami *AMIs) nukeAll(imageIds []*string) error {
-	if len(imageIds) == 0 {
-		logging.Debugf("No AMI to nuke in region %s", ami.Region)
-		return nil
+// deleteAMI deletes a single AMI.
+func deleteAMI(ctx context.Context, client AMIsAPI, imageID *string) error {
+	_, err := client.DeregisterImage(ctx, &ec2.DeregisterImageInput{
+		ImageId: imageID,
+	})
+	return err
+}
 
-	}
+// ImageAvailableError is returned when an image doesn't become available within wait attempts.
+type ImageAvailableError struct{}
 
-	logging.Debugf("Deleting all AMI in region %s", ami.Region)
-
-	deletedCount := 0
-	for _, imageID := range imageIds {
-		if nukable, reason := ami.IsNukable(aws.ToString(imageID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(imageID), reason)
-			continue
-		}
-
-		_, err := ami.Client.DeregisterImage(ami.Context, &ec2.DeregisterImageInput{
-			ImageId: imageID,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(imageID),
-			ResourceType: "Amazon Machine Image (AMI)",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedCount++
-			logging.Debugf("Deleted AMI: %s", *imageID)
-		}
-	}
-
-	logging.Debugf("[OK] %d AMI(s) terminated in %s", deletedCount, ami.Region)
-	return nil
+func (e ImageAvailableError) Error() string {
+	return "Image didn't become available within wait attempts"
 }

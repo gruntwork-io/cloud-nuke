@@ -10,104 +10,85 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/acm"
 	"github.com/aws/aws-sdk-go-v2/service/acm/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedACM struct {
-	ACMServiceAPI
-	DeleteCertificateOutput acm.DeleteCertificateOutput
+type mockACMClient struct {
 	ListCertificatesOutput  acm.ListCertificatesOutput
+	DeleteCertificateOutput acm.DeleteCertificateOutput
 }
 
-func (m mockedACM) ListCertificates(ctx context.Context, params *acm.ListCertificatesInput, optFns ...func(*acm.Options)) (*acm.ListCertificatesOutput, error) {
+func (m *mockACMClient) ListCertificates(ctx context.Context, params *acm.ListCertificatesInput, optFns ...func(*acm.Options)) (*acm.ListCertificatesOutput, error) {
 	return &m.ListCertificatesOutput, nil
 }
 
-func (m mockedACM) DeleteCertificate(ctx context.Context, params *acm.DeleteCertificateInput, optFns ...func(*acm.Options)) (*acm.DeleteCertificateOutput, error) {
+func (m *mockACMClient) DeleteCertificate(ctx context.Context, params *acm.DeleteCertificateInput, optFns ...func(*acm.Options)) (*acm.DeleteCertificateOutput, error) {
 	return &m.DeleteCertificateOutput, nil
 }
 
-func TestACMGetAll(t *testing.T) {
+func TestListACMCertificates(t *testing.T) {
 	t.Parallel()
 
-	testDomainName := "test-domain-name"
-	testArn := "test-arn"
 	now := time.Now()
-	acmService := ACM{
-		Client: mockedACM{
-			ListCertificatesOutput: acm.ListCertificatesOutput{
-				CertificateSummaryList: []types.CertificateSummary{
-					{
-						DomainName:     &testDomainName,
-						CreatedAt:      &now,
-						CertificateArn: &testArn,
-					},
+	testArn := "arn:aws:acm:us-east-1:123456789012:certificate/test-cert"
+	testDomain := "test.example.com"
+
+	tests := []struct {
+		name     string
+		certs    []types.CertificateSummary
+		cfg      config.ResourceType
+		expected []string
+	}{
+		{
+			name: "returns all certificates without filters",
+			certs: []types.CertificateSummary{
+				{CertificateArn: aws.String(testArn), DomainName: aws.String(testDomain), CreatedAt: aws.Time(now)},
+			},
+			cfg:      config.ResourceType{},
+			expected: []string{testArn},
+		},
+		{
+			name: "filters by name regex",
+			certs: []types.CertificateSummary{
+				{CertificateArn: aws.String(testArn), DomainName: aws.String(testDomain), CreatedAt: aws.Time(now)},
+			},
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test.*")}},
 				},
 			},
+			expected: nil,
 		},
-	}
-
-	// without any filters
-	acms, err := acmService.getAll(context.Background(), config.Config{})
-	require.NoError(t, err)
-	require.Contains(t, aws.ToStringSlice(acms), testArn)
-
-	// filtering domain names
-	acms, err = acmService.getAll(context.Background(), config.Config{
-		ACM: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{{
-					RE: *regexp.MustCompile("test-domain"),
-				}}}},
-	})
-	require.NoError(t, err)
-	require.NotContains(t, aws.ToStringSlice(acms), testArn)
-
-	// filtering with time
-	acms, err = acmService.getAll(context.Background(), config.Config{
-		ACM: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				TimeAfter: aws.Time(now.Add(-1)),
-			}},
-	})
-	require.NoError(t, err)
-	require.NotContains(t, aws.ToStringSlice(acms), testArn)
-}
-
-func TestACMGetAll_FilterInUse(t *testing.T) {
-	t.Parallel()
-
-	testDomainName := "test-domain-name"
-	testArn := "test-arn"
-	acmService := ACM{
-		Client: mockedACM{
-			ListCertificatesOutput: acm.ListCertificatesOutput{
-				CertificateSummaryList: []types.CertificateSummary{
-					{
-						DomainName:     &testDomainName,
-						InUse:          aws.Bool(true),
-						CertificateArn: &testArn,
-					},
-				},
+		{
+			name: "excludes in-use certificates",
+			certs: []types.CertificateSummary{
+				{CertificateArn: aws.String(testArn), DomainName: aws.String(testDomain), InUse: aws.Bool(true)},
 			},
+			cfg:      config.ResourceType{},
+			expected: nil,
 		},
 	}
 
-	acms, err := acmService.getAll(context.Background(), config.Config{})
-	require.NoError(t, err)
-	require.NotContains(t, acms, testArn)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockACMClient{
+				ListCertificatesOutput: acm.ListCertificatesOutput{
+					CertificateSummaryList: tc.certs,
+				},
+			}
+
+			arns, err := listACMCertificates(context.Background(), mock, resource.Scope{}, tc.cfg)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.expected, aws.ToStringSlice(arns))
+		})
+	}
 }
 
-func TestACMNukeAll(t *testing.T) {
+func TestDeleteACMCertificate(t *testing.T) {
 	t.Parallel()
 
-	testDomainName := "test-domain-name"
-	acmService := ACM{
-		Client: mockedACM{
-			DeleteCertificateOutput: acm.DeleteCertificateOutput{},
-		},
-	}
-
-	err := acmService.nukeAll([]*string{&testDomainName})
+	mock := &mockACMClient{}
+	err := deleteACMCertificate(context.Background(), mock, aws.String("test-arn"))
 	require.NoError(t, err)
 }

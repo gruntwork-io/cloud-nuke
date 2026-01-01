@@ -8,12 +8,34 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a formatted string of TransitGatewayRouteTable IDs
-func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// TransitGatewaysRouteTablesAPI defines the interface for Transit Gateway Route Tables operations.
+type TransitGatewaysRouteTablesAPI interface {
+	DescribeTransitGatewayRouteTables(ctx context.Context, params *ec2.DescribeTransitGatewayRouteTablesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayRouteTablesOutput, error)
+	DeleteTransitGatewayRouteTable(ctx context.Context, params *ec2.DeleteTransitGatewayRouteTableInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayRouteTableOutput, error)
+}
+
+// NewTransitGatewaysRouteTables creates a new TransitGatewaysRouteTables resource using the generic resource pattern.
+func NewTransitGatewaysRouteTables() AwsResource {
+	return NewAwsResource(&resource.Resource[TransitGatewaysRouteTablesAPI]{
+		ResourceTypeName: "transit-gateway-route-table",
+		BatchSize:        maxBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[TransitGatewaysRouteTablesAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.TransitGatewayRouteTable
+		},
+		Lister: listTransitGatewayRouteTables,
+		Nuker:  resource.SimpleBatchDeleter(deleteTransitGatewayRouteTable),
+	})
+}
+
+// listTransitGatewayRouteTables retrieves all Transit Gateway Route Tables that match the config filters.
+func listTransitGatewayRouteTables(ctx context.Context, client TransitGatewaysRouteTablesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	// Remove default route table, that will be deleted along with its TransitGateway
 	param := &ec2.DescribeTransitGatewayRouteTablesInput{
 		Filters: []types.Filter{
@@ -24,14 +46,14 @@ func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj confi
 		},
 	}
 
-	result, err := tgw.Client.DescribeTransitGatewayRouteTables(tgw.Context, param)
+	result, err := client.DescribeTransitGatewayRouteTables(ctx, param)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var ids []*string
 	for _, transitGatewayRouteTable := range result.TransitGatewayRouteTables {
-		if configObj.TransitGatewayRouteTable.ShouldInclude(config.ResourceValue{Time: transitGatewayRouteTable.CreationTime}) &&
+		if cfg.ShouldInclude(config.ResourceValue{Time: transitGatewayRouteTable.CreationTime}) &&
 			transitGatewayRouteTable.State != types.TransitGatewayRouteTableStateDeleted &&
 			transitGatewayRouteTable.State != types.TransitGatewayRouteTableStateDeleting {
 			ids = append(ids, transitGatewayRouteTable.TransitGatewayRouteTableId)
@@ -41,30 +63,10 @@ func (tgw *TransitGatewaysRouteTables) getAll(c context.Context, configObj confi
 	return ids, nil
 }
 
-// Delete all TransitGatewayRouteTables
-func (tgw *TransitGatewaysRouteTables) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No Transit Gateway Route Tables to nuke in region %s", tgw.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Transit Gateway Route Tables in region %s", tgw.Region)
-	var deletedIds []*string
-
-	for _, id := range ids {
-		param := &ec2.DeleteTransitGatewayRouteTableInput{
-			TransitGatewayRouteTableId: id,
-		}
-
-		_, err := tgw.Client.DeleteTransitGatewayRouteTable(tgw.Context, param)
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Transit Gateway Route Table: %s", *id)
-		}
-	}
-
-	logging.Debugf("[OK] %d Transit Gateway Route Table(s) deleted in %s", len(deletedIds), tgw.Region)
-	return nil
+// deleteTransitGatewayRouteTable deletes a single Transit Gateway Route Table.
+func deleteTransitGatewayRouteTable(ctx context.Context, client TransitGatewaysRouteTablesAPI, id *string) error {
+	_, err := client.DeleteTransitGatewayRouteTable(ctx, &ec2.DeleteTransitGatewayRouteTableInput{
+		TransitGatewayRouteTableId: id,
+	})
+	return err
 }
