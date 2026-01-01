@@ -176,6 +176,24 @@ func BulkDeleter[C any](deleteFn BulkDeleteFunc[C]) NukerFunc[C] {
 	}
 }
 
+// DeleteThenWait combines a delete function with a wait function into a single DeleteFunc.
+// Use this with SequentialDeleter for resources that need to wait for deletion to complete.
+//
+// Example:
+//
+//	Nuker: resource.SequentialDeleter(resource.DeleteThenWait(
+//	    deleteCluster,
+//	    waitForClusterDeleted,
+//	))
+func DeleteThenWait[C any](deleteFn DeleteFunc[C], waitFn DeleteFunc[C]) DeleteFunc[C] {
+	return func(ctx context.Context, client C, id *string) error {
+		if err := deleteFn(ctx, client, id); err != nil {
+			return err
+		}
+		return waitFn(ctx, client, id)
+	}
+}
+
 // MultiStepDeleter creates a nuker that executes multiple steps per resource in sequence.
 // Use this for resources that require cleanup before deletion (e.g., detach policies, empty bucket).
 // Each resource is processed sequentially, but if any step fails for a resource, it moves to the next resource.

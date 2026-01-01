@@ -116,6 +116,11 @@ func TestElbV2_NukeAll(t *testing.T) {
 		DeleteLoadBalancerOutput:       elasticloadbalancingv2.DeleteLoadBalancerOutput{},
 	}
 
-	err := deleteLoadBalancersV2(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "elbv2", []*string{aws.String("test-arn-1")})
+	// Test the delete function
+	err := deleteLoadBalancerV2(context.Background(), mock, aws.String("test-arn-1"))
+	require.NoError(t, err)
+
+	// Test the wait function (returns nil because LoadBalancerNotFound means it's deleted)
+	err = waitForLoadBalancerV2Deleted(context.Background(), mock, aws.String("test-arn-1"))
 	require.NoError(t, err)
 }
