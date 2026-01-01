@@ -89,6 +89,6 @@ func TestElb_NukeAll(t *testing.T) {
 		DeleteLoadBalancerOutput: elasticloadbalancing.DeleteLoadBalancerOutput{},
 	}
 
-	err := deleteLoadBalancers(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "elb", []*string{aws.String("test-arn-1"), aws.String("test-arn-2")})
+	err := deleteLoadBalancer(context.Background(), mock, aws.String("test-arn-1"))
 	require.NoError(t, err)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -41,7 +40,7 @@ func NewDBSubnetGroups() AwsResource {
 			return c.DBSubnetGroups
 		},
 		Lister: listDBSubnetGroups,
-		Nuker:  deleteDBSubnetGroups,
+		Nuker:  resource.SequentialDeleter(deleteDBSubnetGroup),
 	})
 }
 
@@ -80,49 +79,16 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 	return names, nil
 }
 
-// deleteDBSubnetGroups deletes all RDS DB Subnet Groups.
-func deleteDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope resource.Scope, resourceType string, names []*string) error {
-	if len(names) == 0 {
-		logging.Debugf("No DB Subnet groups in region %s", scope.Region)
-		return nil
+// deleteDBSubnetGroup deletes a single RDS DB Subnet Group.
+func deleteDBSubnetGroup(ctx context.Context, client DBSubnetGroupsAPI, name *string) error {
+	_, err := client.DeleteDBSubnetGroup(ctx, &rds.DeleteDBSubnetGroupInput{
+		DBSubnetGroupName: name,
+	})
+	if err != nil {
+		return err
 	}
 
-	logging.Debugf("Deleting all DB Subnet groups in region %s", scope.Region)
-	deletedNames := []*string{}
-
-	for _, name := range names {
-		_, err := client.DeleteDBSubnetGroup(ctx, &rds.DeleteDBSubnetGroupInput{
-			DBSubnetGroupName: name,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(name),
-			ResourceType: "RDS DB Subnet Group",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s: %s", *name, err)
-		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB subnet group: %s", aws.ToString(name))
-		}
-	}
-
-	if len(deletedNames) > 0 {
-		for _, name := range deletedNames {
-			err := waitUntilRdsDbSubnetGroupDeleted(ctx, client, name)
-			if err != nil {
-				logging.Errorf("[Failed] %s", err)
-				return errors.WithStackTrace(err)
-			}
-		}
-	}
-
-	logging.Debugf("[OK] %d RDS DB subnet group(s) nuked in %s", len(deletedNames), scope.Region)
-	return nil
+	return waitUntilRdsDbSubnetGroupDeleted(ctx, client, name)
 }
 
 // waitUntilRdsDbSubnetGroupDeleted waits for an RDS DB Subnet Group to be deleted.

@@ -107,7 +107,7 @@ func TestListElasticaches(t *testing.T) {
 	}
 }
 
-func TestDeleteElasticaches(t *testing.T) {
+func TestDeleteElasticacheCluster(t *testing.T) {
 	t.Parallel()
 
 	mock := mockedElasticache{
@@ -124,6 +124,6 @@ func TestDeleteElasticaches(t *testing.T) {
 		DeleteReplicationGroupOutput: elasticache.DeleteReplicationGroupOutput{},
 	}
 
-	err := deleteElasticaches(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "elasticache", aws.StringSlice([]string{"test-name-1"}))
+	err := deleteElasticacheCluster(context.Background(), mock, aws.String("test-name-1"))
 	require.NoError(t, err)
 }

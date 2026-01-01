@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -37,7 +36,7 @@ func NewLoadBalancers() AwsResource {
 			return c.ELBv1
 		},
 		Lister: listLoadBalancers,
-		Nuker:  deleteLoadBalancers,
+		Nuker:  resource.SequentialDeleter(deleteLoadBalancer),
 	})
 }
 
@@ -61,12 +60,27 @@ func listLoadBalancers(ctx context.Context, client LoadBalancersAPI, scope resou
 	return names, nil
 }
 
+// deleteLoadBalancer deletes a single Classic ELB load balancer.
+func deleteLoadBalancer(ctx context.Context, client LoadBalancersAPI, name *string) error {
+	_, err := client.DeleteLoadBalancer(ctx, &elasticloadbalancing.DeleteLoadBalancerInput{
+		LoadBalancerName: name,
+	})
+	if err != nil {
+		return err
+	}
+
+	return waitUntilElbDeleted(ctx, client, name)
+}
+
 // waitUntilElbDeleted waits until the ELB is deleted.
-func waitUntilElbDeleted(ctx context.Context, client LoadBalancersAPI, input *elasticloadbalancing.DescribeLoadBalancersInput) error {
+func waitUntilElbDeleted(ctx context.Context, client LoadBalancersAPI, name *string) error {
 	for i := 0; i < 30; i++ {
-		output, err := client.DescribeLoadBalancers(ctx, input)
+		output, err := client.DescribeLoadBalancers(ctx, &elasticloadbalancing.DescribeLoadBalancersInput{
+			LoadBalancerNames: []string{aws.ToString(name)},
+		})
 		if err != nil {
-			return err
+			// ELB not found means it's deleted
+			return nil
 		}
 
 		if len(output.LoadBalancerDescriptions) == 0 {
@@ -78,53 +92,6 @@ func waitUntilElbDeleted(ctx context.Context, client LoadBalancersAPI, input *el
 	}
 
 	return ElbDeleteError{}
-}
-
-// deleteLoadBalancers deletes all Classic ELB load balancers.
-func deleteLoadBalancers(ctx context.Context, client LoadBalancersAPI, scope resource.Scope, resourceType string, names []*string) error {
-	if len(names) == 0 {
-		logging.Debugf("No Elastic Load Balancers to nuke in region %s", scope.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Elastic Load Balancers in region %s", scope.Region)
-	var deletedNames []*string
-
-	for _, name := range names {
-		params := &elasticloadbalancing.DeleteLoadBalancerInput{
-			LoadBalancerName: name,
-		}
-
-		_, err := client.DeleteLoadBalancer(ctx, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(name),
-			ResourceType: "Load Balancer (v1)",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted ELB: %s", *name)
-		}
-	}
-
-	if len(deletedNames) > 0 {
-		err := waitUntilElbDeleted(ctx, client, &elasticloadbalancing.DescribeLoadBalancersInput{
-			LoadBalancerNames: aws.ToStringSlice(deletedNames),
-		})
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-	}
-
-	logging.Debugf("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), scope.Region)
-	return nil
 }
 
 // ElbDeleteError represents an error when deleting ELB.

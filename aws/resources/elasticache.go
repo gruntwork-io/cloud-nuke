@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticache/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	goerrors "github.com/gruntwork-io/go-commons/errors"
 )
@@ -42,7 +41,8 @@ func NewElasticaches() AwsResource {
 			return c.Elasticache
 		},
 		Lister: listElasticaches,
-		Nuker:  deleteElasticaches,
+		// Use SequentialDeleter since each deletion involves waiters
+		Nuker: resource.SequentialDeleter(deleteElasticacheCluster),
 	})
 }
 
@@ -177,51 +177,23 @@ func nukeReplicationGroupMemberElasticacheCluster(ctx context.Context, client El
 	return nil
 }
 
-// deleteElasticaches is a custom nuker function for Elasticache clusters.
-func deleteElasticaches(ctx context.Context, client ElasticachesAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Elasticache clusters to nuke in region %s", scope.Region)
-		return nil
+// deleteElasticacheCluster deletes a single Elasticache cluster.
+// It determines whether the cluster is standalone or part of a replication group
+// and calls the appropriate delete function.
+func deleteElasticacheCluster(ctx context.Context, client ElasticachesAPI, clusterId *string) error {
+	// We need to look up the cache cluster to determine if it is a member of a replication group or not,
+	// because there are two separate codepaths for deleting a cluster. Cache clusters that are not members of a
+	// replication group can be deleted via DeleteCacheCluster, whereas those that are members require a call to
+	// DeleteReplicationGroup, which will destroy both the replication group and its member clusters
+	resolvedClusterId, clusterType, err := determineCacheClusterType(ctx, client, clusterId)
+	if err != nil {
+		return err
 	}
 
-	logging.Debugf("Deleting %d Elasticache clusters in region %s", len(identifiers), scope.Region)
-
-	var deletedClusterIds []*string
-	for _, clusterId := range identifiers {
-		// We need to look up the cache cluster again to determine if it is a member of a replication group or not,
-		// because there are two separate codepaths for deleting a cluster. Cache clusters that are not members of a
-		// replication group can be deleted via DeleteCacheCluster, whereas those that are members require a call to
-		// DeleteReplicationGroup, which will destroy both the replication group and its member clusters
-		resolvedClusterId, clusterType, describeErr := determineCacheClusterType(ctx, client, clusterId)
-		if describeErr != nil {
-			return describeErr
-		}
-
-		var err error
-		if clusterType == Single {
-			err = nukeNonReplicationGroupElasticacheCluster(ctx, client, resolvedClusterId)
-		} else if clusterType == Replication {
-			err = nukeReplicationGroupMemberElasticacheCluster(ctx, client, resolvedClusterId)
-		}
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(clusterId),
-			ResourceType: resourceType,
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedClusterIds = append(deletedClusterIds, clusterId)
-			logging.Debugf("Deleted Elasticache cluster: %s", *clusterId)
-		}
+	if clusterType == Single {
+		return nukeNonReplicationGroupElasticacheCluster(ctx, client, resolvedClusterId)
 	}
-
-	logging.Debugf("[OK] %d Elasticache clusters deleted in %s", len(deletedClusterIds), scope.Region)
-	return nil
+	return nukeReplicationGroupMemberElasticacheCluster(ctx, client, resolvedClusterId)
 }
 
 // Custom errors

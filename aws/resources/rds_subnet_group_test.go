@@ -99,7 +99,7 @@ func TestListDBSubnetGroups(t *testing.T) {
 	}
 }
 
-func TestDeleteDBSubnetGroups(t *testing.T) {
+func TestDeleteDBSubnetGroup(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockDBSubnetGroupsClient{
@@ -107,6 +107,6 @@ func TestDeleteDBSubnetGroups(t *testing.T) {
 		DescribeDBSubnetGroupError: dbSubnetGroupNotFoundError,
 	}
 
-	err := deleteDBSubnetGroups(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "rds-subnet-group", []*string{aws.String("test")})
+	err := deleteDBSubnetGroup(context.Background(), mock, aws.String("test"))
 	require.NoError(t, err)
 }
