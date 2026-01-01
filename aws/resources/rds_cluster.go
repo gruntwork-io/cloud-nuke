@@ -45,19 +45,23 @@ func NewDBClusters() AwsResource {
 
 // listDBClusters retrieves all RDS DB Clusters that match the config filters.
 func listDBClusters(ctx context.Context, client DBClustersAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	result, err := client.DescribeDBClusters(ctx, &rds.DescribeDBClustersInput{})
-	if err != nil {
-		return nil, err
-	}
-
 	var names []*string
-	for _, database := range result.DBClusters {
-		if cfg.ShouldInclude(config.ResourceValue{
-			Name: database.DBClusterIdentifier,
-			Time: database.ClusterCreateTime,
-			Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
-		}) {
-			names = append(names, database.DBClusterIdentifier)
+	paginator := rds.NewDescribeDBClustersPaginator(client, &rds.DescribeDBClustersInput{})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, database := range page.DBClusters {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: database.DBClusterIdentifier,
+				Time: database.ClusterCreateTime,
+				Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
+			}) {
+				names = append(names, database.DBClusterIdentifier)
+			}
 		}
 	}
 
