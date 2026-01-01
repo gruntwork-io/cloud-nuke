@@ -9,24 +9,25 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedDBSubnetGroups struct {
-	DBSubnetGroupsAPI
+type mockDBSubnetGroupsClient struct {
 	DescribeDBSubnetGroupsOutput rds.DescribeDBSubnetGroupsOutput
 	DescribeDBSubnetGroupError   error
 	DeleteDBSubnetGroupOutput    rds.DeleteDBSubnetGroupOutput
 }
 
-func (m mockedDBSubnetGroups) DescribeDBSubnetGroups(ctx context.Context, params *rds.DescribeDBSubnetGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBSubnetGroupsOutput, error) {
+func (m *mockDBSubnetGroupsClient) DescribeDBSubnetGroups(ctx context.Context, params *rds.DescribeDBSubnetGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBSubnetGroupsOutput, error) {
 	return &m.DescribeDBSubnetGroupsOutput, m.DescribeDBSubnetGroupError
 }
 
-func (m mockedDBSubnetGroups) DeleteDBSubnetGroup(ctx context.Context, params *rds.DeleteDBSubnetGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBSubnetGroupOutput, error) {
+func (m *mockDBSubnetGroupsClient) DeleteDBSubnetGroup(ctx context.Context, params *rds.DeleteDBSubnetGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBSubnetGroupOutput, error) {
 	return &m.DeleteDBSubnetGroupOutput, nil
 }
-func (m mockedDBSubnetGroups) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
+
+func (m *mockDBSubnetGroupsClient) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
 	return &rds.ListTagsForResourceOutput{
 		TagList: []types.Tag{
 			{
@@ -39,24 +40,22 @@ func (m mockedDBSubnetGroups) ListTagsForResource(ctx context.Context, params *r
 
 var dbSubnetGroupNotFoundError = &types.DBSubnetGroupNotFoundFault{}
 
-func TestDBSubnetGroups_GetAll(t *testing.T) {
-
+func TestListDBSubnetGroups(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-db-subnet-group1"
 	testName2 := "test-db-subnet-group2"
-	dsg := DBSubnetGroups{
-		Client: mockedDBSubnetGroups{
-			DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
-				DBSubnetGroups: []types.DBSubnetGroup{
-					{
-						DBSubnetGroupName: aws.String(testName1),
-						DBSubnetGroupArn:  aws.String("arn:" + testName1),
-					},
-					{
-						DBSubnetGroupName: aws.String(testName2),
-						DBSubnetGroupArn:  aws.String("arn:" + testName2),
-					},
+
+	mock := &mockDBSubnetGroupsClient{
+		DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
+			DBSubnetGroups: []types.DBSubnetGroup{
+				{
+					DBSubnetGroupName: aws.String(testName1),
+					DBSubnetGroupArn:  aws.String("arn:" + testName1),
+				},
+				{
+					DBSubnetGroupName: aws.String(testName2),
+					DBSubnetGroupArn:  aws.String("arn:" + testName2),
 				},
 			},
 		},
@@ -93,27 +92,21 @@ func TestDBSubnetGroups_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := dsg.getAll(context.Background(), config.Config{
-				DBSubnetGroups: tc.configObj,
-			})
+			names, err := listDBSubnetGroups(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
-func TestDBSubnetGroups_NukeAll(t *testing.T) {
-
+func TestDeleteDBSubnetGroups(t *testing.T) {
 	t.Parallel()
 
-	dsg := DBSubnetGroups{
-		Client: mockedDBSubnetGroups{
-			DeleteDBSubnetGroupOutput:  rds.DeleteDBSubnetGroupOutput{},
-			DescribeDBSubnetGroupError: dbSubnetGroupNotFoundError,
-		},
+	mock := &mockDBSubnetGroupsClient{
+		DeleteDBSubnetGroupOutput:  rds.DeleteDBSubnetGroupOutput{},
+		DescribeDBSubnetGroupError: dbSubnetGroupNotFoundError,
 	}
 
-	err := dsg.nukeAll([]*string{aws.String("test")})
+	err := deleteDBSubnetGroups(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "rds-subnet-group", []*string{aws.String("test")})
 	require.NoError(t, err)
 }

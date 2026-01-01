@@ -10,11 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 )
 
 type mockedASGroups struct {
-	ASGroupsAPI
 	DescribeAutoScalingGroupsOutput autoscaling.DescribeAutoScalingGroupsOutput
 	DeleteAutoScalingGroupOutput    autoscaling.DeleteAutoScalingGroupOutput
 }
@@ -32,35 +32,32 @@ func TestAutoScalingGroupGetAll(t *testing.T) {
 
 	testName := "cloud-nuke-test"
 	now := time.Now()
-	ag := ASGroups{
-		Client: mockedASGroups{
-			DescribeAutoScalingGroupsOutput: autoscaling.DescribeAutoScalingGroupsOutput{
-				AutoScalingGroups: []types.AutoScalingGroup{{
-					AutoScalingGroupName: aws.String(testName),
-					CreatedTime:          aws.Time(now),
-				}}}}}
+	mock := mockedASGroups{
+		DescribeAutoScalingGroupsOutput: autoscaling.DescribeAutoScalingGroupsOutput{
+			AutoScalingGroups: []types.AutoScalingGroup{{
+				AutoScalingGroupName: aws.String(testName),
+				CreatedTime:          aws.Time(now),
+			}}}}
 
 	// empty filter
-	groups, err := ag.getAll(context.Background(), config.Config{})
+	groups, err := listASGroups(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	assert.NoError(t, err)
 	assert.Contains(t, aws.ToStringSlice(groups), testName)
 
 	// name filter
-	groups, err = ag.getAll(context.Background(), config.Config{
-		AutoScalingGroup: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{{
-					RE: *regexp.MustCompile("^cloud-nuke-*"),
-				}}}}})
+	groups, err = listASGroups(context.Background(), mock, resource.Scope{}, config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{
+				RE: *regexp.MustCompile("^cloud-nuke-*"),
+			}}}})
 	assert.NoError(t, err)
 	assert.NotContains(t, aws.ToStringSlice(groups), testName)
 
 	// time filter
-	groups, err = ag.getAll(context.Background(), config.Config{
-		AutoScalingGroup: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				TimeAfter: aws.Time(now.Add(-1)),
-			}}})
+	groups, err = listASGroups(context.Background(), mock, resource.Scope{}, config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			TimeAfter: aws.Time(now.Add(-1)),
+		}})
 	assert.NoError(t, err)
 	assert.NotContains(t, aws.ToStringSlice(groups), testName)
 }
@@ -68,16 +65,10 @@ func TestAutoScalingGroupGetAll(t *testing.T) {
 func TestAutoScalingGroupNukeAll(t *testing.T) {
 	t.Parallel()
 
-	ag := ASGroups{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-			Timeout: DefaultWaitTimeout,
-		},
-		Client: mockedASGroups{
-			DeleteAutoScalingGroupOutput: autoscaling.DeleteAutoScalingGroupOutput{},
-		},
+	mock := mockedASGroups{
+		DeleteAutoScalingGroupOutput: autoscaling.DeleteAutoScalingGroupOutput{},
 	}
 
-	err := ag.nukeAll([]*string{aws.String("cloud-nuke-test")})
+	err := deleteASGroups(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "asg", []*string{aws.String("cloud-nuke-test")})
 	assert.NoError(t, err)
 }

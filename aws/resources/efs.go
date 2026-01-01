@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,22 +9,56 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
-func (ef *ElasticFileSystem) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// ElasticFileSystemAPI defines the interface for EFS operations.
+type ElasticFileSystemAPI interface {
+	DeleteAccessPoint(ctx context.Context, params *efs.DeleteAccessPointInput, optFns ...func(*efs.Options)) (*efs.DeleteAccessPointOutput, error)
+	DeleteFileSystem(ctx context.Context, params *efs.DeleteFileSystemInput, optFns ...func(*efs.Options)) (*efs.DeleteFileSystemOutput, error)
+	DeleteMountTarget(ctx context.Context, params *efs.DeleteMountTargetInput, optFns ...func(*efs.Options)) (*efs.DeleteMountTargetOutput, error)
+	DescribeAccessPoints(ctx context.Context, params *efs.DescribeAccessPointsInput, optFns ...func(*efs.Options)) (*efs.DescribeAccessPointsOutput, error)
+	DescribeMountTargets(ctx context.Context, params *efs.DescribeMountTargetsInput, optFns ...func(*efs.Options)) (*efs.DescribeMountTargetsOutput, error)
+	DescribeFileSystems(ctx context.Context, params *efs.DescribeFileSystemsInput, optFns ...func(*efs.Options)) (*efs.DescribeFileSystemsOutput, error)
+}
+
+// NewElasticFileSystem creates a new ElasticFileSystem resource using the generic resource pattern.
+func NewElasticFileSystem() AwsResource {
+	return NewAwsResource(&resource.Resource[ElasticFileSystemAPI]{
+		ResourceTypeName: "efs",
+		BatchSize:        10,
+		InitClient: func(r *resource.Resource[ElasticFileSystemAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for EFS client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = efs.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ElasticFileSystem
+		},
+		Lister: listElasticFileSystems,
+		Nuker:  deleteElasticFileSystems,
+	})
+}
+
+// listElasticFileSystems retrieves all Elastic File Systems that match the config filters.
+func listElasticFileSystems(ctx context.Context, client ElasticFileSystemAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allEfs []*string
 
-	paginator := efs.NewDescribeFileSystemsPaginator(ef.Client, &efs.DescribeFileSystemsInput{})
+	paginator := efs.NewDescribeFileSystemsPaginator(client, &efs.DescribeFileSystemsInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, system := range page.FileSystems {
-			if configObj.ElasticFileSystem.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: system.Name,
 				Time: system.CreationTime,
 			}) {
@@ -37,9 +70,12 @@ func (ef *ElasticFileSystem) getAll(c context.Context, configObj config.Config) 
 	return allEfs, nil
 }
 
-func (ef *ElasticFileSystem) nukeAll(identifiers []*string) error {
+// deleteElasticFileSystems is a custom nuker for Elastic File Systems.
+// It deletes access points, mount targets, and then the file system.
+func deleteElasticFileSystems(ctx context.Context, client ElasticFileSystemAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Debugf("No Elastic FileSystems (efs) to nuke in region %s", ef.Region)
+		logging.Debugf("No Elastic FileSystems (efs) to nuke in %s", scope)
+		return nil
 	}
 
 	if len(identifiers) > 100 {
@@ -47,24 +83,16 @@ func (ef *ElasticFileSystem) nukeAll(identifiers []*string) error {
 		return TooManyElasticFileSystemsErr{}
 	}
 
-	// There is no bulk delete EFS API, so we delete the batch of Elastic FileSystems concurrently using goroutines
-	logging.Debugf("Deleting Elastic FileSystems (efs) in region %s", ef.Region)
-	wg := new(sync.WaitGroup)
-	wg.Add(len(identifiers))
-	errChans := make([]chan error, len(identifiers))
-	for i, efsID := range identifiers {
-		errChans[i] = make(chan error, 1)
-		go ef.deleteAsync(wg, errChans[i], efsID)
-	}
-	wg.Wait()
+	logging.Debugf("Deleting Elastic FileSystems (efs) in %s", scope)
 
 	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
+	for _, efsID := range identifiers {
+		if err := deleteElasticFileSystem(ctx, client, scope, resourceType, efsID); err != nil {
 			allErrs = multierror.Append(allErrs, err)
 			logging.Debugf("[Failed] %s", err)
 		}
 	}
+
 	finalErr := allErrs.ErrorOrNil()
 	if finalErr != nil {
 		return errors.WithStackTrace(finalErr)
@@ -72,11 +100,8 @@ func (ef *ElasticFileSystem) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error, efsID *string) {
+func deleteElasticFileSystem(ctx context.Context, client ElasticFileSystemAPI, scope resource.Scope, resourceType string, efsID *string) error {
 	var allErrs *multierror.Error
-
-	defer wg.Done()
-	defer func() { errChan <- allErrs.ErrorOrNil() }()
 
 	// First, we need to check if the Elastic FileSystem is "in-use", because an in-use file system cannot be deleted
 	// An Elastic FileSystem is considered in-use if it has any access points, or any mount targets
@@ -87,7 +112,7 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 		FileSystemId: efsID,
 	}
 
-	out, err := ef.Client.DescribeAccessPoints(ef.Context, accessPointParam)
+	out, err := client.DescribeAccessPoints(ctx, accessPointParam)
 	if err != nil {
 		allErrs = multierror.Append(allErrs, err)
 	}
@@ -102,13 +127,13 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 			AccessPointId: apID,
 		}
 
-		logging.Debugf("Deleting access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.ToString(apID), aws.ToString(efsID), ef.Region)
+		logging.Debugf("Deleting access point (id=%s) for Elastic FileSystem (%s) in %s", aws.ToString(apID), aws.ToString(efsID), scope)
 
-		_, err := ef.Client.DeleteAccessPoint(ef.Context, deleteParam)
+		_, err := client.DeleteAccessPoint(ctx, deleteParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
-			logging.Debugf("[OK] Deleted access point (id=%s) for Elastic FileSystem (%s) in region: %s", aws.ToString(apID), aws.ToString(efsID), ef.Region)
+			logging.Debugf("[OK] Deleted access point (id=%s) for Elastic FileSystem (%s) in %s", aws.ToString(apID), aws.ToString(efsID), scope)
 		}
 	}
 
@@ -132,9 +157,9 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 			mountTargetParam.Marker = marker
 		}
 
-		mountTargetsOutput, describeMountsErr := ef.Client.DescribeMountTargets(ef.Context, mountTargetParam)
+		mountTargetsOutput, describeMountsErr := client.DescribeMountTargets(ctx, mountTargetParam)
 		if describeMountsErr != nil {
-			allErrs = multierror.Append(allErrs, err)
+			allErrs = multierror.Append(allErrs, describeMountsErr)
 		}
 
 		for _, mountTarget := range mountTargetsOutput.MountTargets {
@@ -155,13 +180,13 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 			MountTargetId: mtID,
 		}
 
-		logging.Debugf("Deleting mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.ToString(mtID), aws.ToString(efsID), ef.Region)
+		logging.Debugf("Deleting mount target (id=%s) for Elastic FileSystem (%s) in %s", aws.ToString(mtID), aws.ToString(efsID), scope)
 
-		_, err := ef.Client.DeleteMountTarget(ef.Context, deleteMtParam)
+		_, err := client.DeleteMountTarget(ctx, deleteMtParam)
 		if err != nil {
 			allErrs = multierror.Append(allErrs, err)
 		} else {
-			logging.Debugf("[OK] Deleted mount target (id=%s) for Elastic FileSystem (%s) in region: %s", aws.ToString(mtID), aws.ToString(efsID), ef.Region)
+			logging.Debugf("[OK] Deleted mount target (id=%s) for Elastic FileSystem (%s) in %s", aws.ToString(mtID), aws.ToString(efsID), scope)
 		}
 	}
 
@@ -173,12 +198,12 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 		FileSystemId: efsID,
 	}
 
-	_, deleteErr := ef.Client.DeleteFileSystem(ef.Context, deleteEfsParam)
+	_, deleteErr := client.DeleteFileSystem(ctx, deleteEfsParam)
 	// Record status of this resource
 	e := report.Entry{
 		Identifier:   aws.ToString(efsID),
-		ResourceType: "Elastic FileSystem (EFS)",
-		Error:        err,
+		ResourceType: resourceType,
+		Error:        deleteErr,
 	}
 	report.Record(e)
 
@@ -186,9 +211,19 @@ func (ef *ElasticFileSystem) deleteAsync(wg *sync.WaitGroup, errChan chan error,
 		allErrs = multierror.Append(allErrs, deleteErr)
 	}
 
-	if err == nil {
-		logging.Debugf("[OK] Elastic FileSystem (efs) %s deleted in %s", aws.ToString(efsID), ef.Region)
+	if deleteErr == nil {
+		logging.Debugf("[OK] Elastic FileSystem (efs) %s deleted in %s", aws.ToString(efsID), scope)
 	} else {
-		logging.Debugf("[Failed] Error deleting Elastic FileSystem (efs) %s in %s", aws.ToString(efsID), ef.Region)
+		logging.Debugf("[Failed] Error deleting Elastic FileSystem (efs) %s in %s", aws.ToString(efsID), scope)
 	}
+
+	return allErrs.ErrorOrNil()
+}
+
+// custom errors
+
+type TooManyElasticFileSystemsErr struct{}
+
+func (err TooManyElasticFileSystemsErr) Error() string {
+	return "Too many Elastic FileSystems requested at once."
 }

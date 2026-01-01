@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,22 +28,30 @@ func (m mockedRdsDBParameterGroup) DeleteDBParameterGroup(ctx context.Context, p
 	return &m.DeleteDBParameterGroupOutput, nil
 }
 
-func TestRDSparameterGroupGetAll(t *testing.T) {
+func TestRdsParameterGroup_ResourceName(t *testing.T) {
+	r := NewRdsParameterGroup()
+	require.Equal(t, "rds-parameter-group", r.ResourceName())
+}
+
+func TestRdsParameterGroup_MaxBatchSize(t *testing.T) {
+	r := NewRdsParameterGroup()
+	require.Equal(t, 49, r.MaxBatchSize())
+}
+
+func TestListRdsParameterGroups(t *testing.T) {
 	t.Parallel()
 
 	testName01 := "test-db-paramater-group-01"
 	testName02 := "test-db-paramater-group-02"
 
-	pg := RdsParameterGroup{
-		Client: mockedRdsDBParameterGroup{
-			DescribeDBParameterGroupsOutput: rds.DescribeDBParameterGroupsOutput{
-				DBParameterGroups: []types.DBParameterGroup{
-					{
-						DBParameterGroupName: aws.String(testName01),
-					},
-					{
-						DBParameterGroupName: aws.String(testName02),
-					},
+	mock := mockedRdsDBParameterGroup{
+		DescribeDBParameterGroupsOutput: rds.DescribeDBParameterGroupsOutput{
+			DBParameterGroups: []types.DBParameterGroup{
+				{
+					DBParameterGroupName: aws.String(testName01),
+				},
+				{
+					DBParameterGroupName: aws.String(testName02),
 				},
 			},
 		},
@@ -68,9 +77,7 @@ func TestRDSparameterGroupGetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := pg.getAll(context.Background(), config.Config{
-				RdsParameterGroup: tc.configObj,
-			})
+			names, err := listRdsParameterGroups(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 
 			require.Equal(t, len(tc.expected), len(names))
@@ -81,15 +88,13 @@ func TestRDSparameterGroupGetAll(t *testing.T) {
 	}
 }
 
-func TestRDSParameterGroupNukeAll(t *testing.T) {
+func TestDeleteRdsParameterGroup(t *testing.T) {
 	t.Parallel()
 
 	testName := "test-db-parameter-group"
-	dbCluster := RdsParameterGroup{
-		Client: mockedRdsDBParameterGroup{
-			DeleteDBParameterGroupOutput: rds.DeleteDBParameterGroupOutput{},
-		},
+	mock := mockedRdsDBParameterGroup{
+		DeleteDBParameterGroupOutput: rds.DeleteDBParameterGroupOutput{},
 	}
-	err := dbCluster.nukeAll([]*string{&testName})
+	err := deleteRdsParameterGroup(context.Background(), mock, &testName)
 	assert.NoError(t, err)
 }

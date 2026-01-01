@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,54 +9,89 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
-func (gw *ApiGatewayV2) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
-	output, err := gw.Client.GetApis(gw.Context, &apigatewayv2.GetApisInput{})
+// ApiGatewayV2API defines the interface for API Gateway V2 operations.
+type ApiGatewayV2API interface {
+	GetApis(ctx context.Context, params *apigatewayv2.GetApisInput, optFns ...func(*apigatewayv2.Options)) (*apigatewayv2.GetApisOutput, error)
+	GetDomainNames(ctx context.Context, params *apigatewayv2.GetDomainNamesInput, optFns ...func(*apigatewayv2.Options)) (*apigatewayv2.GetDomainNamesOutput, error)
+	GetApiMappings(ctx context.Context, params *apigatewayv2.GetApiMappingsInput, optFns ...func(*apigatewayv2.Options)) (*apigatewayv2.GetApiMappingsOutput, error)
+	DeleteApi(ctx context.Context, params *apigatewayv2.DeleteApiInput, optFns ...func(*apigatewayv2.Options)) (*apigatewayv2.DeleteApiOutput, error)
+	DeleteApiMapping(ctx context.Context, params *apigatewayv2.DeleteApiMappingInput, optFns ...func(*apigatewayv2.Options)) (*apigatewayv2.DeleteApiMappingOutput, error)
+}
+
+// NewApiGatewayV2 creates a new ApiGatewayV2 resource using the generic resource pattern.
+func NewApiGatewayV2() AwsResource {
+	return NewAwsResource(&resource.Resource[ApiGatewayV2API]{
+		ResourceTypeName: "apigatewayv2",
+		BatchSize:        10,
+		InitClient: func(r *resource.Resource[ApiGatewayV2API], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for ApiGatewayV2 client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = apigatewayv2.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.APIGatewayV2
+		},
+		Lister: listApiGatewaysV2,
+		Nuker:  deleteApiGatewaysV2,
+	})
+}
+
+// listApiGatewaysV2 retrieves all API Gateways V2 that match the config filters.
+func listApiGatewaysV2(ctx context.Context, client ApiGatewayV2API, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	output, err := client.GetApis(ctx, &apigatewayv2.GetApisInput{})
 	if err != nil {
 		return []*string{}, errors.WithStackTrace(err)
 	}
 
-	var Ids []*string
+	var ids []*string
 	for _, restapi := range output.Items {
-		if configObj.APIGatewayV2.ShouldInclude(config.ResourceValue{
+		if cfg.ShouldInclude(config.ResourceValue{
 			Time: restapi.CreatedDate,
 			Name: restapi.Name,
 			Tags: restapi.Tags,
 		}) {
-			Ids = append(Ids, restapi.ApiId)
+			ids = append(ids, restapi.ApiId)
 		}
 	}
 
-	return Ids, nil
+	return ids, nil
 }
 
-func (gw *ApiGatewayV2) nukeAll(identifiers []*string) error {
+// deleteApiGatewaysV2 is a custom nuker for API Gateway V2 resources.
+// It first deletes associated API mappings, then deletes the APIs themselves.
+func deleteApiGatewaysV2(ctx context.Context, client ApiGatewayV2API, scope resource.Scope, resourceType string, identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Debug(fmt.Sprintf("No API Gateways (v2) to nuke in region %s", gw.Region))
+		logging.Debugf("No API Gateways (v2) to nuke in %s", scope)
+		return nil
 	}
 
 	if len(identifiers) > 100 {
-		logging.Debug(fmt.Sprintf(
-			"Nuking too many API Gateways (v2) at once (100): halting to avoid hitting AWS API rate limiting"))
+		logging.Debugf("Nuking too many API Gateways (v2) at once (100): halting to avoid hitting AWS API rate limiting")
 		return TooManyApiGatewayV2Err{}
 	}
 
-	err := deleteAssociatedApiMappings(gw.Context, gw.Client, identifiers)
+	err := deleteAssociatedApiMappings(ctx, client, identifiers)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
 	// There is no bulk delete Api Gateway API, so we delete the batch of gateways concurrently using goroutines
-	logging.Debug(fmt.Sprintf("Deleting Api Gateways (v2) in region %s", gw.Region))
+	logging.Debugf("Deleting Api Gateways (v2) in %s", scope)
 	wg := new(sync.WaitGroup)
 	wg.Add(len(identifiers))
 	errChans := make([]chan error, len(identifiers))
 	for i, apigwID := range identifiers {
 		errChans[i] = make(chan error, 1)
-		go gw.deleteAsync(wg, errChans[i], apigwID)
+		go deleteApiGatewayV2Async(ctx, client, scope, resourceType, wg, errChans[i], apigwID)
 	}
 	wg.Wait()
 
@@ -74,25 +108,25 @@ func (gw *ApiGatewayV2) nukeAll(identifiers []*string) error {
 	return nil
 }
 
-func (gw *ApiGatewayV2) deleteAsync(wg *sync.WaitGroup, errChan chan error, apiId *string) {
+func deleteApiGatewayV2Async(ctx context.Context, client ApiGatewayV2API, scope resource.Scope, resourceType string, wg *sync.WaitGroup, errChan chan error, apiId *string) {
 	defer wg.Done()
 
 	input := &apigatewayv2.DeleteApiInput{ApiId: apiId}
-	_, err := gw.Client.DeleteApi(gw.Context, input)
+	_, err := client.DeleteApi(ctx, input)
 	errChan <- err
 
 	// Record status of this resource
 	e := report.Entry{
 		Identifier:   *apiId,
-		ResourceType: "APIGateway (v2)",
+		ResourceType: resourceType,
 		Error:        err,
 	}
 	report.Record(e)
 
 	if err == nil {
-		logging.Debug(fmt.Sprintf("Successfully deleted API Gateway (v2) %s in %s", aws.ToString(apiId), gw.Region))
+		logging.Debugf("Successfully deleted API Gateway (v2) %s in %s", aws.ToString(apiId), scope)
 	} else {
-		logging.Debug(fmt.Sprintf("Failed to delete API Gateway (v2) %s in %s", aws.ToString(apiId), gw.Region))
+		logging.Debugf("Failed to delete API Gateway (v2) %s in %s", aws.ToString(apiId), scope)
 	}
 }
 
@@ -105,17 +139,17 @@ func deleteAssociatedApiMappings(ctx context.Context, client ApiGatewayV2API, id
 
 	domainNames, err := client.GetDomainNames(ctx, &apigatewayv2.GetDomainNamesInput{})
 	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to get domain names: %s", err))
+		logging.Debugf("Failed to get domain names: %s", err)
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debug(fmt.Sprintf("Found %d domain names", len(domainNames.Items)))
+	logging.Debugf("Found %d domain names", len(domainNames.Items))
 	for _, domainName := range domainNames.Items {
 		apiMappings, err := client.GetApiMappings(ctx, &apigatewayv2.GetApiMappingsInput{
 			DomainName: domainName.DomainName,
 		})
 		if err != nil {
-			logging.Debug(fmt.Sprintf("Failed to get api mappings: %s", err))
+			logging.Debugf("Failed to get api mappings: %s", err)
 			return errors.WithStackTrace(err)
 		}
 
@@ -129,13 +163,19 @@ func deleteAssociatedApiMappings(ctx context.Context, client ApiGatewayV2API, id
 				DomainName:   domainName.DomainName,
 			})
 			if err != nil {
-				logging.Debug(fmt.Sprintf("Failed to delete api mapping: %s", err))
+				logging.Debugf("Failed to delete api mapping: %s", err)
 				return errors.WithStackTrace(err)
 			}
 
-			logging.Debug(fmt.Sprintf("Deleted api mapping: %s", *apiMapping.ApiMappingId))
+			logging.Debugf("Deleted api mapping: %s", *apiMapping.ApiMappingId)
 		}
 	}
 
 	return nil
+}
+
+type TooManyApiGatewayV2Err struct{}
+
+func (err TooManyApiGatewayV2Err) Error() string {
+	return "Too many Api Gateways requested at once."
 }

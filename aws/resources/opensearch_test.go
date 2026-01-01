@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/opensearch/types"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -50,40 +51,38 @@ func TestOpenSearch_GetAll(t *testing.T) {
 	testName1 := "test-domain1"
 	testName2 := "test-domain2"
 	now := time.Now()
-	osd := OpenSearchDomains{
-		Client: mockedOpenSearch{
-			ListDomainNamesOutput: opensearch.ListDomainNamesOutput{
-				DomainNames: []types.DomainInfo{
-					{DomainName: aws.String(testName1)},
-					{DomainName: aws.String(testName2)},
+	mockClient := mockedOpenSearch{
+		ListDomainNamesOutput: opensearch.ListDomainNamesOutput{
+			DomainNames: []types.DomainInfo{
+				{DomainName: aws.String(testName1)},
+				{DomainName: aws.String(testName2)},
+			},
+		},
+
+		ListTagsOutput: opensearch.ListTagsOutput{
+			TagList: []types.Tag{
+				{
+					Key:   aws.String(firstSeenTagKey),
+					Value: aws.String(util.FormatTimestamp(now)),
+				},
+				{
+					Key:   aws.String(firstSeenTagKey),
+					Value: aws.String(util.FormatTimestamp(now.Add(1))),
 				},
 			},
+		},
 
-			ListTagsOutput: opensearch.ListTagsOutput{
-				TagList: []types.Tag{
-					{
-						Key:   aws.String(firstSeenTagKey),
-						Value: aws.String(util.FormatTimestamp(now)),
-					},
-					{
-						Key:   aws.String(firstSeenTagKey),
-						Value: aws.String(util.FormatTimestamp(now.Add(1))),
-					},
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
+			DomainStatusList: []types.DomainStatus{
+				{
+					DomainName: aws.String(testName1),
+					Created:    aws.Bool(true),
+					Deleted:    aws.Bool(false),
 				},
-			},
-
-			DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
-				DomainStatusList: []types.DomainStatus{
-					{
-						DomainName: aws.String(testName1),
-						Created:    aws.Bool(true),
-						Deleted:    aws.Bool(false),
-					},
-					{
-						DomainName: aws.String(testName2),
-						Created:    aws.Bool(true),
-						Deleted:    aws.Bool(false),
-					},
+				{
+					DomainName: aws.String(testName2),
+					Created:    aws.Bool(true),
+					Deleted:    aws.Bool(false),
 				},
 			},
 		},
@@ -120,9 +119,7 @@ func TestOpenSearch_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := osd.getAll(tc.ctx, config.Config{
-				OpenSearchDomain: tc.configObj,
-			})
+			names, err := listOpenSearchDomains(tc.ctx, mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -133,13 +130,11 @@ func TestOpenSearch_NukeAll(t *testing.T) {
 
 	t.Parallel()
 
-	osd := OpenSearchDomains{
-		Client: mockedOpenSearch{
-			DeleteDomainOutput:    opensearch.DeleteDomainOutput{},
-			DescribeDomainsOutput: opensearch.DescribeDomainsOutput{},
-		},
+	mockClient := mockedOpenSearch{
+		DeleteDomainOutput:    opensearch.DeleteDomainOutput{},
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{},
 	}
 
-	err := osd.nukeAll([]*string{aws.String("test")})
+	err := deleteOpenSearchDomains(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "opensearchdomain", []*string{aws.String("test")})
 	require.NoError(t, err)
 }

@@ -11,12 +11,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshift/types"
 	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedRedshift struct {
-	RedshiftClustersAPI
-
 	DeleteClusterOutput    redshift.DeleteClusterOutput
 	DescribeClustersOutput redshift.DescribeClustersOutput
 	DescribeClusterError   error
@@ -30,28 +29,22 @@ func (m mockedRedshift) DeleteCluster(ctx context.Context, input *redshift.Delet
 	return &m.DeleteClusterOutput, nil
 }
 
-func (m mockedRedshift) WaitForOutput(ctx context.Context, params *redshift.DescribeClustersInput, maxWaitDur time.Duration, optFns ...func(*redshift.Options)) (*redshift.DescribeClustersOutput, error) {
-	return nil, nil
-}
 func TestRedshiftCluster_GetAll(t *testing.T) {
-
 	t.Parallel()
 
 	now := time.Now()
 	testName1 := "test-cluster1"
 	testName2 := "test-cluster2"
-	rc := RedshiftClusters{
-		Client: mockedRedshift{
-			DescribeClustersOutput: redshift.DescribeClustersOutput{
-				Clusters: []types.Cluster{
-					{
-						ClusterIdentifier: aws.String(testName1),
-						ClusterCreateTime: aws.Time(now),
-					},
-					{
-						ClusterIdentifier: aws.String(testName2),
-						ClusterCreateTime: aws.Time(now.Add(1)),
-					},
+	mock := mockedRedshift{
+		DescribeClustersOutput: redshift.DescribeClustersOutput{
+			Clusters: []types.Cluster{
+				{
+					ClusterIdentifier: aws.String(testName1),
+					ClusterCreateTime: aws.Time(now),
+				},
+				{
+					ClusterIdentifier: aws.String(testName2),
+					ClusterCreateTime: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -84,9 +77,7 @@ func TestRedshiftCluster_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := rc.getAll(context.Background(), config.Config{
-				Redshift: tc.configObj,
-			})
+			names, err := listRedshiftClusters(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -94,20 +85,15 @@ func TestRedshiftCluster_GetAll(t *testing.T) {
 }
 
 func TestRedshiftCluster_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
-	rc := RedshiftClusters{
-		Client: mockedRedshift{
-			DeleteClusterOutput: redshift.DeleteClusterOutput{},
-			DescribeClusterError: &smithy.GenericAPIError{
-				Code: "ClusterNotFound",
-			},
+	mock := mockedRedshift{
+		DeleteClusterOutput: redshift.DeleteClusterOutput{},
+		DescribeClusterError: &smithy.GenericAPIError{
+			Code: "ClusterNotFound",
 		},
 	}
-	rc.Context = context.Background()
-	rc.Timeout = DefaultWaitTimeout
 
-	err := rc.nukeAll([]*string{aws.String("test")})
+	err := deleteRedshiftClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "redshift", []*string{aws.String("test")})
 	require.NoError(t, err)
 }

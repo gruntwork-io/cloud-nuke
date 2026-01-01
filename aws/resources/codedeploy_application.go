@@ -2,23 +2,51 @@ package resources
 
 import (
 	"context"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
-func (cda *CodeDeployApplications) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// CodeDeployApplicationsAPI defines the interface for CodeDeploy operations.
+type CodeDeployApplicationsAPI interface {
+	ListApplications(ctx context.Context, params *codedeploy.ListApplicationsInput, optFns ...func(*codedeploy.Options)) (*codedeploy.ListApplicationsOutput, error)
+	BatchGetApplications(ctx context.Context, params *codedeploy.BatchGetApplicationsInput, optFns ...func(*codedeploy.Options)) (*codedeploy.BatchGetApplicationsOutput, error)
+	DeleteApplication(ctx context.Context, params *codedeploy.DeleteApplicationInput, optFns ...func(*codedeploy.Options)) (*codedeploy.DeleteApplicationOutput, error)
+}
+
+// NewCodeDeployApplications creates a new CodeDeployApplications resource using the generic resource pattern.
+func NewCodeDeployApplications() AwsResource {
+	return NewAwsResource(&resource.Resource[CodeDeployApplicationsAPI]{
+		ResourceTypeName: "codedeploy-application",
+		BatchSize:        100,
+		InitClient: func(r *resource.Resource[CodeDeployApplicationsAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for CodeDeployApplications client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = codedeploy.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.CodeDeployApplications
+		},
+		Lister: listCodeDeployApplications,
+		Nuker:  resource.SimpleBatchDeleter(deleteCodeDeployApplication),
+	})
+}
+
+// listCodeDeployApplications retrieves all CodeDeploy applications that match the config filters.
+func listCodeDeployApplications(ctx context.Context, client CodeDeployApplicationsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var codeDeployApplicationsFilteredByName []string
 
-	paginator := codedeploy.NewListApplicationsPaginator(cda.Client, &codedeploy.ListApplicationsInput{})
+	paginator := codedeploy.NewListApplicationsPaginator(client, &codedeploy.ListApplicationsInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -27,7 +55,7 @@ func (cda *CodeDeployApplications) getAll(c context.Context, configObj config.Co
 			// Check if the CodeDeploy Application should be excluded by name as that information is available to us here.
 			// CreationDate is not available in the ListApplications API call, so we can't filter by that here, but we do filter by it later.
 			// By filtering the name here, we can reduce the number of BatchGetApplication API calls we have to make.
-			if configObj.CodeDeployApplications.ShouldInclude(config.ResourceValue{Name: aws.String(application)}) {
+			if cfg.ShouldInclude(config.ResourceValue{Name: aws.String(application)}) {
 				codeDeployApplicationsFilteredByName = append(codeDeployApplicationsFilteredByName, application)
 			}
 		}
@@ -35,11 +63,11 @@ func (cda *CodeDeployApplications) getAll(c context.Context, configObj config.Co
 
 	// Check if the CodeDeploy Application should be excluded by CreationDate and return.
 	// We have to do this after the ListApplicationsPages API call because CreationDate is not available in that call.
-	return cda.batchDescribeAndFilter(codeDeployApplicationsFilteredByName, configObj)
+	return batchDescribeAndFilterCodeDeployApplications(ctx, client, codeDeployApplicationsFilteredByName, cfg)
 }
 
 // batchDescribeAndFilterCodeDeployApplications - Describe the CodeDeploy Applications and filter out the ones that should be excluded by CreationDate.
-func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, configObj config.Config) ([]*string, error) {
+func batchDescribeAndFilterCodeDeployApplications(ctx context.Context, client CodeDeployApplicationsAPI, identifiers []string, cfg config.ResourceType) ([]*string, error) {
 	// BatchGetApplications can only take 100 identifiers at a time, so we have to break up the identifiers into chunks of 100.
 	batchSize := 100
 	var applicationNames []*string
@@ -58,8 +86,8 @@ func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, 
 		// get the next batch of identifiers
 		batch := identifiers[:batchSize]
 		// then using that batch of identifiers, get the applicationsinfo
-		resp, err := cda.Client.BatchGetApplications(
-			cda.Context,
+		resp, err := client.BatchGetApplications(
+			ctx,
 			&codedeploy.BatchGetApplicationsInput{ApplicationNames: batch},
 		)
 		if err != nil {
@@ -68,7 +96,7 @@ func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, 
 
 		// for each applicationsinfo, check if it should be excluded by creation date
 		for j := range resp.ApplicationsInfo {
-			if configObj.CodeDeployApplications.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Time: resp.ApplicationsInfo[j].CreateTime,
 			}) {
 				applicationNames = append(applicationNames, resp.ApplicationsInfo[j].ApplicationName)
@@ -82,59 +110,8 @@ func (cda *CodeDeployApplications) batchDescribeAndFilter(identifiers []string, 
 	return applicationNames, nil
 }
 
-func (cda *CodeDeployApplications) nukeAll(identifiers []string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No CodeDeploy Applications to nuke in region %s", cda.Region)
-		return nil
-	}
-
-	logging.Infof("Deleting CodeDeploy Applications in region %s", cda.Region)
-
-	var wg sync.WaitGroup
-	errChan := make(chan error, len(identifiers))
-
-	for _, identifier := range identifiers {
-		wg.Add(1)
-		go cda.deleteAsync(&wg, errChan, identifier)
-	}
-
-	wg.Wait()
-	close(errChan)
-
-	var allErrors *multierror.Error
-	for err := range errChan {
-		allErrors = multierror.Append(allErrors, err)
-
-		logging.Errorf("[Failed] Error deleting CodeDeploy Application: %s", err)
-	}
-
-	finalErr := allErrors.ErrorOrNil()
-	if finalErr != nil {
-		return errors.WithStackTrace(finalErr)
-	}
-
-	return nil
-}
-
-func (cda *CodeDeployApplications) deleteAsync(wg *sync.WaitGroup, errChan chan<- error, identifier string) {
-	defer wg.Done()
-
-	_, err := cda.Client.DeleteApplication(cda.Context, &codedeploy.DeleteApplicationInput{ApplicationName: &identifier})
-	if err != nil {
-		errChan <- err
-	}
-
-	// record the status of the nuke attempt
-	e := report.Entry{
-		Identifier:   identifier,
-		ResourceType: "CodeDeploy Application",
-		Error:        err,
-	}
-	report.Record(e)
-
-	if err == nil {
-		logging.Debugf("[OK] Deleted CodeDeploy Application: %s", identifier)
-	} else {
-		logging.Debugf("[Failed] Error deleting CodeDeploy Application %s: %s", identifier, err)
-	}
+// deleteCodeDeployApplication deletes a single CodeDeploy Application.
+func deleteCodeDeployApplication(ctx context.Context, client CodeDeployApplicationsAPI, identifier *string) error {
+	_, err := client.DeleteApplication(ctx, &codedeploy.DeleteApplicationInput{ApplicationName: identifier})
+	return err
 }

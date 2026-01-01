@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -92,7 +93,17 @@ func (m mockedEC2Cluster) TagResource(ctx context.Context, params *ecs.TagResour
 	return &m.TagResourceOutput, nil
 }
 
-func TestEC2Cluster_GetAll(t *testing.T) {
+func TestECSClusters_ResourceName(t *testing.T) {
+	r := NewECSClusters()
+	require.Equal(t, "ecscluster", r.ResourceName())
+}
+
+func TestECSClusters_MaxBatchSize(t *testing.T) {
+	r := NewECSClusters()
+	require.Equal(t, maxBatchSize, r.MaxBatchSize())
+}
+
+func TestListECSClusters(t *testing.T) {
 	t.Parallel()
 	// Set excludeFirstSeenTag to false for testing
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
@@ -102,43 +113,42 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 	testName1 := "cluster1"
 	testName2 := "cluster2"
 	now := time.Now()
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{
-			ListClustersOutput: ecs.ListClustersOutput{
-				ClusterArns: []string{
-					testArn1,
-					testArn2,
-				},
-			},
 
-			DescribeClustersOutput: ecs.DescribeClustersOutput{
-				Clusters: []types.Cluster{
-					{
-						ClusterArn:  aws.String(testArn1),
-						Status:      aws.String("ACTIVE"),
-						ClusterName: aws.String(testName1),
-					},
-					{
-						ClusterArn:  aws.String(testArn2),
-						Status:      aws.String("ACTIVE"),
-						ClusterName: aws.String(testName2),
-					},
-				},
+	mock := mockedEC2Cluster{
+		ListClustersOutput: ecs.ListClustersOutput{
+			ClusterArns: []string{
+				testArn1,
+				testArn2,
 			},
+		},
 
-			ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
-				Tags: []types.Tag{
-					{
-						Key:   aws.String(util.FirstSeenTagKey),
-						Value: aws.String(util.FormatTimestamp(now)),
-					},
+		DescribeClustersOutput: ecs.DescribeClustersOutput{
+			Clusters: []types.Cluster{
+				{
+					ClusterArn:  aws.String(testArn1),
+					Status:      aws.String("ACTIVE"),
+					ClusterName: aws.String(testName1),
+				},
+				{
+					ClusterArn:  aws.String(testArn2),
+					Status:      aws.String("ACTIVE"),
+					ClusterName: aws.String(testName2),
 				},
 			},
-			ListTasksOutput: ecs.ListTasksOutput{
-				TaskArns: []string{
-					"task-arn-001",
-					"task-arn-002",
+		},
+
+		ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
+			Tags: []types.Tag{
+				{
+					Key:   aws.String(util.FirstSeenTagKey),
+					Value: aws.String(util.FormatTimestamp(now)),
 				},
+			},
+		},
+		ListTasksOutput: ecs.ListTasksOutput{
+			TaskArns: []string{
+				"task-arn-001",
+				"task-arn-002",
 			},
 		},
 	}
@@ -294,16 +304,14 @@ func TestEC2Cluster_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ec.getAll(tc.ctx, config.Config{
-				ECSCluster: tc.configObj,
-			})
+			names, err := listECSClusters(tc.ctx, mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestEC2Cluster_GetAll_InactiveClusters(t *testing.T) {
+func TestListECSClusters_InactiveClusters(t *testing.T) {
 	t.Parallel()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
@@ -311,134 +319,125 @@ func TestEC2Cluster_GetAll_InactiveClusters(t *testing.T) {
 	testArn2 := "arn:aws:ecs:us-east-1:123456789012:cluster/active1"
 	now := time.Now()
 
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{
-			ListClustersOutput: ecs.ListClustersOutput{
-				ClusterArns: []string{testArn1, testArn2},
-			},
-			DescribeClustersOutput: ecs.DescribeClustersOutput{
-				Clusters: []types.Cluster{
-					{
-						ClusterArn:  aws.String(testArn1),
-						Status:      aws.String("INACTIVE"),
-						ClusterName: aws.String("inactive1"),
-					},
-					{
-						ClusterArn:  aws.String(testArn2),
-						Status:      aws.String("ACTIVE"),
-						ClusterName: aws.String("active1"),
-					},
+	mock := mockedEC2Cluster{
+		ListClustersOutput: ecs.ListClustersOutput{
+			ClusterArns: []string{testArn1, testArn2},
+		},
+		DescribeClustersOutput: ecs.DescribeClustersOutput{
+			Clusters: []types.Cluster{
+				{
+					ClusterArn:  aws.String(testArn1),
+					Status:      aws.String("INACTIVE"),
+					ClusterName: aws.String("inactive1"),
+				},
+				{
+					ClusterArn:  aws.String(testArn2),
+					Status:      aws.String("ACTIVE"),
+					ClusterName: aws.String("active1"),
 				},
 			},
-			ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
-				Tags: []types.Tag{
-					{
-						Key:   aws.String(util.FirstSeenTagKey),
-						Value: aws.String(util.FormatTimestamp(now)),
-					},
+		},
+		ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
+			Tags: []types.Tag{
+				{
+					Key:   aws.String(util.FirstSeenTagKey),
+					Value: aws.String(util.FormatTimestamp(now)),
 				},
 			},
 		},
 	}
 
-	names, err := ec.getAll(ctx, config.Config{ECSCluster: config.ResourceType{}})
+	names, err := listECSClusters(ctx, mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
 	// Only active cluster should be returned
 	require.Equal(t, []string{testArn2}, aws.ToStringSlice(names))
 }
 
-func TestEC2Cluster_GetAll_NoFirstSeenTag(t *testing.T) {
+func TestListECSClusters_NoFirstSeenTag(t *testing.T) {
 	t.Parallel()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
 	testArn := "arn:aws:ecs:us-east-1:123456789012:cluster/new-cluster"
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{
-			ListClustersOutput: ecs.ListClustersOutput{
-				ClusterArns: []string{testArn},
-			},
-			DescribeClustersOutput: ecs.DescribeClustersOutput{
-				Clusters: []types.Cluster{
-					{
-						ClusterArn:  aws.String(testArn),
-						Status:      aws.String("ACTIVE"),
-						ClusterName: aws.String("new-cluster"),
-					},
+	mock := mockedEC2Cluster{
+		ListClustersOutput: ecs.ListClustersOutput{
+			ClusterArns: []string{testArn},
+		},
+		DescribeClustersOutput: ecs.DescribeClustersOutput{
+			Clusters: []types.Cluster{
+				{
+					ClusterArn:  aws.String(testArn),
+					Status:      aws.String("ACTIVE"),
+					ClusterName: aws.String("new-cluster"),
 				},
 			},
-			ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
-				Tags: []types.Tag{}, // No tags
-			},
-			TagResourceOutput: ecs.TagResourceOutput{},
 		},
+		ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
+			Tags: []types.Tag{}, // No tags
+		},
+		TagResourceOutput: ecs.TagResourceOutput{},
 	}
 
-	names, err := ec.getAll(ctx, config.Config{ECSCluster: config.ResourceType{}})
+	names, err := listECSClusters(ctx, mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
 	// Should return empty since cluster gets tagged but not included until next run
 	require.Empty(t, names)
 }
 
-func TestEC2Cluster_GetAll_EmptyList(t *testing.T) {
+func TestListECSClusters_EmptyList(t *testing.T) {
 	t.Parallel()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{
-			ListClustersOutput:        ecs.ListClustersOutput{ClusterArns: []string{}},
-			DescribeClustersOutput:    ecs.DescribeClustersOutput{Clusters: []types.Cluster{}},
-			ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{Tags: []types.Tag{}},
-		},
+	mock := mockedEC2Cluster{
+		ListClustersOutput:        ecs.ListClustersOutput{ClusterArns: []string{}},
+		DescribeClustersOutput:    ecs.DescribeClustersOutput{Clusters: []types.Cluster{}},
+		ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{Tags: []types.Tag{}},
 	}
 
-	names, err := ec.getAll(ctx, config.Config{ECSCluster: config.ResourceType{}})
+	names, err := listECSClusters(ctx, mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
 	require.Empty(t, names)
 }
 
-func TestEC2Cluster_NukeAll(t *testing.T) {
+func TestDeleteECSClusters(t *testing.T) {
 	t.Parallel()
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{
-			DeleteClusterOutput: ecs.DeleteClusterOutput{},
-			ListTasksOutput:     ecs.ListTasksOutput{TaskArns: []string{}},
-		},
+
+	mock := mockedEC2Cluster{
+		DeleteClusterOutput: ecs.DeleteClusterOutput{},
+		ListTasksOutput:     ecs.ListTasksOutput{TaskArns: []string{}},
 	}
 
-	err := ec.nukeAll([]*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	err := deleteECSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
 	require.NoError(t, err)
 }
 
-func TestEC2Cluster_NukeAll_EmptyList(t *testing.T) {
+func TestDeleteECSClusters_EmptyList(t *testing.T) {
 	t.Parallel()
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{},
-	}
 
-	err := ec.nukeAll([]*string{})
+	mock := mockedEC2Cluster{}
+
+	err := deleteECSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{})
 	require.NoError(t, err)
 }
 
-func TestEC2ClusterWithTasks_NukeAll(t *testing.T) {
+func TestDeleteECSClustersWithTasks(t *testing.T) {
 	t.Parallel()
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{
-			DeleteClusterOutput: ecs.DeleteClusterOutput{},
-			ListTasksOutput: ecs.ListTasksOutput{
-				TaskArns: []string{
-					"task-arn-001",
-					"task-arn-002",
-				},
+
+	mock := mockedEC2Cluster{
+		DeleteClusterOutput: ecs.DeleteClusterOutput{},
+		ListTasksOutput: ecs.ListTasksOutput{
+			TaskArns: []string{
+				"task-arn-001",
+				"task-arn-002",
 			},
-			StopTaskOutput: ecs.StopTaskOutput{},
 		},
+		StopTaskOutput: ecs.StopTaskOutput{},
 	}
 
-	err := ec.nukeAll([]*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	err := deleteECSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
 	require.NoError(t, err)
 }
 
-func TestEC2Cluster_GetAll_MultipleRegexPatterns(t *testing.T) {
+func TestListECSClusters_MultipleRegexPatterns(t *testing.T) {
 	t.Parallel()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
@@ -447,36 +446,34 @@ func TestEC2Cluster_GetAll_MultipleRegexPatterns(t *testing.T) {
 	testArn3 := "arn:aws:ecs:us-east-1:123456789012:cluster/test-service"
 	now := time.Now()
 
-	ec := ECSClusters{
-		Client: mockedEC2Cluster{
-			ListClustersOutput: ecs.ListClustersOutput{
-				ClusterArns: []string{testArn1, testArn2, testArn3},
-			},
-			DescribeClustersOutput: ecs.DescribeClustersOutput{
-				Clusters: []types.Cluster{
-					{
-						ClusterArn:  aws.String(testArn1),
-						Status:      aws.String("ACTIVE"),
-						ClusterName: aws.String("prod-cluster"),
-					},
-					{
-						ClusterArn:  aws.String(testArn2),
-						Status:      aws.String("ACTIVE"),
-						ClusterName: aws.String("dev-cluster"),
-					},
-					{
-						ClusterArn:  aws.String(testArn3),
-						Status:      aws.String("ACTIVE"),
-						ClusterName: aws.String("test-service"),
-					},
+	mock := mockedEC2Cluster{
+		ListClustersOutput: ecs.ListClustersOutput{
+			ClusterArns: []string{testArn1, testArn2, testArn3},
+		},
+		DescribeClustersOutput: ecs.DescribeClustersOutput{
+			Clusters: []types.Cluster{
+				{
+					ClusterArn:  aws.String(testArn1),
+					Status:      aws.String("ACTIVE"),
+					ClusterName: aws.String("prod-cluster"),
+				},
+				{
+					ClusterArn:  aws.String(testArn2),
+					Status:      aws.String("ACTIVE"),
+					ClusterName: aws.String("dev-cluster"),
+				},
+				{
+					ClusterArn:  aws.String(testArn3),
+					Status:      aws.String("ACTIVE"),
+					ClusterName: aws.String("test-service"),
 				},
 			},
-			ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
-				Tags: []types.Tag{
-					{
-						Key:   aws.String(util.FirstSeenTagKey),
-						Value: aws.String(util.FormatTimestamp(now)),
-					},
+		},
+		ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{
+			Tags: []types.Tag{
+				{
+					Key:   aws.String(util.FirstSeenTagKey),
+					Value: aws.String(util.FormatTimestamp(now)),
 				},
 			},
 		},
@@ -512,7 +509,7 @@ func TestEC2Cluster_GetAll_MultipleRegexPatterns(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ec.getAll(ctx, config.Config{ECSCluster: tc.configObj})
+			names, err := listECSClusters(ctx, mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})

@@ -8,31 +8,60 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kafka/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (m *MSKCluster) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var clusterIDs []*string
+// MSKClusterAPI defines the interface for MSK Cluster operations.
+type MSKClusterAPI interface {
+	ListClustersV2(ctx context.Context, params *kafka.ListClustersV2Input, optFns ...func(*kafka.Options)) (*kafka.ListClustersV2Output, error)
+	DeleteCluster(ctx context.Context, params *kafka.DeleteClusterInput, optFns ...func(*kafka.Options)) (*kafka.DeleteClusterOutput, error)
+}
 
-	paginator := kafka.NewListClustersV2Paginator(m.Client, &kafka.ListClustersV2Input{})
+// NewMSKCluster creates a new MSKCluster resource using the generic resource pattern.
+func NewMSKCluster() AwsResource {
+	return NewAwsResource(&resource.Resource[MSKClusterAPI]{
+		ResourceTypeName: "msk-cluster",
+		BatchSize:        10,
+		InitClient: func(r *resource.Resource[MSKClusterAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for MSKCluster client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = kafka.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.MSKCluster
+		},
+		Lister: listMSKClusters,
+		Nuker:  resource.SimpleBatchDeleter(deleteMSKCluster),
+	})
+}
+
+// listMSKClusters retrieves all MSK clusters that match the config filters.
+func listMSKClusters(ctx context.Context, client MSKClusterAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var clusterArns []*string
+
+	paginator := kafka.NewListClustersV2Paginator(client, &kafka.ListClustersV2Input{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, cluster := range page.ClusterInfoList {
-			if m.shouldInclude(cluster, configObj) {
-				clusterIDs = append(clusterIDs, cluster.ClusterArn)
+			if shouldIncludeMSKCluster(cluster, cfg) {
+				clusterArns = append(clusterArns, cluster.ClusterArn)
 			}
 		}
 	}
 
-	return clusterIDs, nil
+	return clusterArns, nil
 }
 
-func (m *MSKCluster) shouldInclude(cluster types.Cluster, configObj config.Config) bool {
+// shouldIncludeMSKCluster determines if a cluster should be included based on state and config.
+func shouldIncludeMSKCluster(cluster types.Cluster, cfg config.ResourceType) bool {
 	if cluster.State == types.ClusterStateDeleting {
 		return false
 	}
@@ -49,33 +78,16 @@ func (m *MSKCluster) shouldInclude(cluster types.Cluster, configObj config.Confi
 		return false
 	}
 
-	return configObj.MSKCluster.ShouldInclude(config.ResourceValue{
+	return cfg.ShouldInclude(config.ResourceValue{
 		Name: cluster.ClusterName,
 		Time: cluster.CreationTime,
 	})
 }
 
-func (m *MSKCluster) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		return nil
-	}
-
-	for _, clusterArn := range identifiers {
-		_, err := m.Client.DeleteCluster(m.Context, &kafka.DeleteClusterInput{
-			ClusterArn: clusterArn,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-		}
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(clusterArn),
-			ResourceType: "MSKCluster",
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	return nil
+// deleteMSKCluster deletes a single MSK cluster.
+func deleteMSKCluster(ctx context.Context, client MSKClusterAPI, clusterArn *string) error {
+	_, err := client.DeleteCluster(ctx, &kafka.DeleteClusterInput{
+		ClusterArn: clusterArn,
+	})
+	return err
 }

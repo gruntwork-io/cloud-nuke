@@ -2,22 +2,50 @@ package resources
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (rc *RedshiftClusters) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
+// RedshiftClustersAPI defines the interface for Redshift Cluster operations.
+type RedshiftClustersAPI interface {
+	DescribeClusters(ctx context.Context, params *redshift.DescribeClustersInput, optFns ...func(*redshift.Options)) (*redshift.DescribeClustersOutput, error)
+	DeleteCluster(ctx context.Context, params *redshift.DeleteClusterInput, optFns ...func(*redshift.Options)) (*redshift.DeleteClusterOutput, error)
+}
+
+// NewRedshiftClusters creates a new RedshiftClusters resource using the generic resource pattern.
+func NewRedshiftClusters() AwsResource {
+	return NewAwsResource(&resource.Resource[RedshiftClustersAPI]{
+		ResourceTypeName: "redshift",
+		BatchSize:        49,
+		InitClient: func(r *resource.Resource[RedshiftClustersAPI], cfg any) {
+			awsCfg, ok := cfg.(aws.Config)
+			if !ok {
+				logging.Debugf("Invalid config type for Redshift client: expected aws.Config")
+				return
+			}
+			r.Scope.Region = awsCfg.Region
+			r.Client = redshift.NewFromConfig(awsCfg)
+		},
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.Redshift
+		},
+		Lister: listRedshiftClusters,
+		Nuker:  deleteRedshiftClusters,
+	})
+}
+
+// listRedshiftClusters retrieves all Redshift clusters that match the config filters.
+func listRedshiftClusters(ctx context.Context, client RedshiftClustersAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var clusterIds []*string
 
-	// Initialize the paginator with any optional settings.
-	paginator := redshift.NewDescribeClustersPaginator(rc.Client, &redshift.DescribeClustersInput{})
-
-	// Use the paginator to go through each page of clusters.
+	paginator := redshift.NewDescribeClustersPaginator(client, &redshift.DescribeClustersInput{})
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(ctx)
 		if err != nil {
@@ -25,9 +53,8 @@ func (rc *RedshiftClusters) getAll(ctx context.Context, configObj config.Config)
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Process each cluster in the current page.
 		for _, cluster := range output.Clusters {
-			if configObj.Redshift.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Time: cluster.ClusterCreateTime,
 				Name: cluster.ClusterIdentifier,
 			}) {
@@ -39,15 +66,18 @@ func (rc *RedshiftClusters) getAll(ctx context.Context, configObj config.Config)
 	return clusterIds, nil
 }
 
-func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
+// deleteRedshiftClusters deletes all Redshift clusters.
+func deleteRedshiftClusters(ctx context.Context, client RedshiftClustersAPI, scope resource.Scope, resourceType string, identifiers []*string) error {
 	if len(identifiers) == 0 {
-		logging.Debugf("No Redshift Clusters to nuke in region %s", rc.Region)
+		logging.Debugf("No Redshift Clusters to nuke in region %s", scope.Region)
 		return nil
 	}
-	logging.Debugf("Deleting all Redshift Clusters in region %s", rc.Region)
+
+	logging.Debugf("Deleting all Redshift Clusters in region %s", scope.Region)
 	deletedIds := []*string{}
+
 	for _, id := range identifiers {
-		_, err := rc.Client.DeleteCluster(rc.Context, &redshift.DeleteClusterInput{
+		_, err := client.DeleteCluster(ctx, &redshift.DeleteClusterInput{
 			ClusterIdentifier:        id,
 			SkipFinalClusterSnapshot: aws.Bool(true),
 		})
@@ -61,10 +91,10 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 
 	if len(deletedIds) > 0 {
 		for _, id := range deletedIds {
-			waiter := redshift.NewClusterDeletedWaiter(rc.Client)
-			err := waiter.Wait(rc.Context, &redshift.DescribeClustersInput{
+			waiter := redshift.NewClusterDeletedWaiter(client)
+			err := waiter.Wait(ctx, &redshift.DescribeClustersInput{
 				ClusterIdentifier: id,
-			}, rc.Timeout)
+			}, 5*time.Minute)
 
 			// Record status of this resource
 			e := report.Entry{
@@ -73,12 +103,14 @@ func (rc *RedshiftClusters) nukeAll(identifiers []*string) error {
 				Error:        err,
 			}
 			report.Record(e)
+
 			if err != nil {
 				logging.Errorf("[Failed] %s", err)
 				return errors.WithStackTrace(err)
 			}
 		}
 	}
-	logging.Debugf("[OK] %d Redshift Cluster(s) deleted in %s", len(deletedIds), rc.Region)
+
+	logging.Debugf("[OK] %d Redshift Cluster(s) deleted in %s", len(deletedIds), scope.Region)
 	return nil
 }

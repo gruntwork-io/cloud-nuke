@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,20 +38,18 @@ func TestElbV2_GetAll(t *testing.T) {
 	testName2 := "test-name-2"
 	testArn2 := "test-arn-2"
 	now := time.Now()
-	balancer := LoadBalancersV2{
-		Client: mockedElbV2{
-			DescribeLoadBalancersOutput: elasticloadbalancingv2.DescribeLoadBalancersOutput{
-				LoadBalancers: []types.LoadBalancer{
-					{
-						LoadBalancerArn:  aws.String(testArn1),
-						LoadBalancerName: aws.String(testName1),
-						CreatedTime:      aws.Time(now),
-					},
-					{
-						LoadBalancerArn:  aws.String(testArn2),
-						LoadBalancerName: aws.String(testName2),
-						CreatedTime:      aws.Time(now.Add(1)),
-					},
+	mock := mockedElbV2{
+		DescribeLoadBalancersOutput: elasticloadbalancingv2.DescribeLoadBalancersOutput{
+			LoadBalancers: []types.LoadBalancer{
+				{
+					LoadBalancerArn:  aws.String(testArn1),
+					LoadBalancerName: aws.String(testName1),
+					CreatedTime:      aws.Time(now),
+				},
+				{
+					LoadBalancerArn:  aws.String(testArn2),
+					LoadBalancerName: aws.String(testName2),
+					CreatedTime:      aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -83,9 +82,7 @@ func TestElbV2_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := balancer.getAll(context.Background(), config.Config{
-				ELBv2: tc.configObj,
-			})
+			names, err := listLoadBalancersV2(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -113,18 +110,12 @@ func (e errMockLoadBalancerNotFound) ErrorFault() smithy.ErrorFault {
 func TestElbV2_NukeAll(t *testing.T) {
 	t.Parallel()
 	var eLBNotFound errMockLoadBalancerNotFound
-	balancer := LoadBalancersV2{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-			Timeout: DefaultWaitTimeout,
-		},
-		Client: mockedElbV2{
-			DescribeLoadBalancersOutput:    elasticloadbalancingv2.DescribeLoadBalancersOutput{},
-			ErrDescribeLoadBalancersOutput: eLBNotFound,
-			DeleteLoadBalancerOutput:       elasticloadbalancingv2.DeleteLoadBalancerOutput{},
-		},
+	mock := mockedElbV2{
+		DescribeLoadBalancersOutput:    elasticloadbalancingv2.DescribeLoadBalancersOutput{},
+		ErrDescribeLoadBalancersOutput: eLBNotFound,
+		DeleteLoadBalancerOutput:       elasticloadbalancingv2.DeleteLoadBalancerOutput{},
 	}
 
-	err := balancer.nukeAll([]*string{aws.String("test-arn-1")})
+	err := deleteLoadBalancersV2(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "elbv2", []*string{aws.String("test-arn-1")})
 	require.NoError(t, err)
 }

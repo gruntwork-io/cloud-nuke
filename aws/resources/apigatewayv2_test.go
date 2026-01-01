@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/apigatewayv2"
 	"github.com/aws/aws-sdk-go-v2/service/apigatewayv2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,71 +49,63 @@ func TestApiGatewayV2GetAll(t *testing.T) {
 	testApiID := "test-api-id"
 	testApiName := "test-api-name"
 	now := time.Now()
-	gw := ApiGatewayV2{
-		Client: mockedApiGatewayV2{
-			GetApisOutput: apigatewayv2.GetApisOutput{
-				Items: []types.Api{
-					{
-						ApiId:       aws.String(testApiID),
-						Name:        aws.String(testApiName),
-						CreatedDate: aws.Time(now),
-					},
+	client := mockedApiGatewayV2{
+		GetApisOutput: apigatewayv2.GetApisOutput{
+			Items: []types.Api{
+				{
+					ApiId:       aws.String(testApiID),
+					Name:        aws.String(testApiName),
+					CreatedDate: aws.Time(now),
 				},
 			},
 		},
 	}
 
 	// empty filter
-	apis, err := gw.getAll(context.Background(), config.Config{})
+	apis, err := listApiGatewaysV2(context.Background(), client, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
 	assert.NoError(t, err)
 	assert.Contains(t, aws.ToStringSlice(apis), testApiID)
 
 	// filter by name
-	apis, err = gw.getAll(context.Background(), config.Config{
-		APIGatewayV2: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{{
-					RE: *regexp.MustCompile("test-api-name"),
-				}}}}})
+	apis, err = listApiGatewaysV2(context.Background(), client, resource.Scope{Region: "us-east-1"}, config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{
+				RE: *regexp.MustCompile("test-api-name"),
+			}}}})
 	assert.NoError(t, err)
 	assert.NotContains(t, aws.ToStringSlice(apis), testApiID)
 
 	// filter by date
-	apis, err = gw.getAll(context.Background(), config.Config{
-		APIGatewayV2: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				TimeAfter: aws.Time(now.Add(-1))}}})
+	apis, err = listApiGatewaysV2(context.Background(), client, resource.Scope{Region: "us-east-1"}, config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			TimeAfter: aws.Time(now.Add(-1))}})
 	assert.NoError(t, err)
 	assert.NotContains(t, aws.ToStringSlice(apis), testApiID)
 
 	// filter by tags
-	gwWithTags := ApiGatewayV2{
-		Client: mockedApiGatewayV2{
-			GetApisOutput: apigatewayv2.GetApisOutput{
-				Items: []types.Api{{
-					ApiId:       aws.String(testApiID),
-					Name:        aws.String(testApiName),
-					CreatedDate: aws.Time(now),
-					Tags:        map[string]string{"Environment": "production"},
-				}},
-			},
+	clientWithTags := mockedApiGatewayV2{
+		GetApisOutput: apigatewayv2.GetApisOutput{
+			Items: []types.Api{{
+				ApiId:       aws.String(testApiID),
+				Name:        aws.String(testApiName),
+				CreatedDate: aws.Time(now),
+				Tags:        map[string]string{"Environment": "production"},
+			}},
 		},
 	}
-	apis, err = gwWithTags.getAll(context.Background(), config.Config{
-		APIGatewayV2: config.ResourceType{
-			IncludeRule: config.FilterRule{
-				Tags: map[string]config.Expression{
-					"Environment": {RE: *regexp.MustCompile("production")},
-				}}}})
+	apis, err = listApiGatewaysV2(context.Background(), clientWithTags, resource.Scope{Region: "us-east-1"}, config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{
+				"Environment": {RE: *regexp.MustCompile("production")},
+			}}})
 	assert.NoError(t, err)
 	assert.Contains(t, aws.ToStringSlice(apis), testApiID)
 
-	apis, err = gwWithTags.getAll(context.Background(), config.Config{
-		APIGatewayV2: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				Tags: map[string]config.Expression{
-					"Environment": {RE: *regexp.MustCompile("production")},
-				}}}})
+	apis, err = listApiGatewaysV2(context.Background(), clientWithTags, resource.Scope{Region: "us-east-1"}, config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{
+				"Environment": {RE: *regexp.MustCompile("production")},
+			}}})
 	assert.NoError(t, err)
 	assert.NotContains(t, aws.ToStringSlice(apis), testApiID)
 }
@@ -120,26 +113,24 @@ func TestApiGatewayV2GetAll(t *testing.T) {
 func TestApiGatewayV2NukeAll(t *testing.T) {
 	t.Parallel()
 
-	gw := ApiGatewayV2{
-		Client: mockedApiGatewayV2{
-			DeleteApiOutput: apigatewayv2.DeleteApiOutput{},
-			GetDomainNamesOutput: apigatewayv2.GetDomainNamesOutput{
-				Items: []types.DomainName{
-					{
-						DomainName: aws.String("test-domain-name"),
-					},
+	client := mockedApiGatewayV2{
+		DeleteApiOutput: apigatewayv2.DeleteApiOutput{},
+		GetDomainNamesOutput: apigatewayv2.GetDomainNamesOutput{
+			Items: []types.DomainName{
+				{
+					DomainName: aws.String("test-domain-name"),
 				},
 			},
-			GetApisOutput: apigatewayv2.GetApisOutput{
-				Items: []types.Api{
-					{
-						ApiId: aws.String("test-api-id"),
-					},
-				},
-			},
-			DeleteApiMappingOutput: apigatewayv2.DeleteApiMappingOutput{},
 		},
+		GetApisOutput: apigatewayv2.GetApisOutput{
+			Items: []types.Api{
+				{
+					ApiId: aws.String("test-api-id"),
+				},
+			},
+		},
+		DeleteApiMappingOutput: apigatewayv2.DeleteApiMappingOutput{},
 	}
-	err := gw.nukeAll([]*string{aws.String("test-api-id")})
+	err := deleteApiGatewaysV2(context.Background(), client, resource.Scope{Region: "us-east-1"}, "apigatewayv2", []*string{aws.String("test-api-id")})
 	assert.NoError(t, err)
 }
