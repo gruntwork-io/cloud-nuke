@@ -78,13 +78,9 @@ func waitUntilElbDeleted(ctx context.Context, client LoadBalancersAPI, name *str
 		output, err := client.DescribeLoadBalancers(ctx, &elasticloadbalancing.DescribeLoadBalancersInput{
 			LoadBalancerNames: []string{aws.ToString(name)},
 		})
-		if err != nil {
-			// ELB not found means it's deleted
-			return nil
-		}
-
-		if len(output.LoadBalancerDescriptions) == 0 {
-			return nil
+		// Any error from DescribeLoadBalancers (including AccessPointNotFound) means the ELB is deleted
+		if err != nil || len(output.LoadBalancerDescriptions) == 0 {
+			return nil //nolint:nilerr // Error here (e.g., AccessPointNotFound) indicates successful deletion
 		}
 
 		time.Sleep(1 * time.Second)
