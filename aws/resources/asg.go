@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -24,15 +23,9 @@ func NewASGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[ASGroupsAPI]{
 		ResourceTypeName: "asg",
 		BatchSize:        49,
-		InitClient: func(r *resource.Resource[ASGroupsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for ASGroups client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = autoscaling.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[ASGroupsAPI], cfg aws.Config) {
+			r.Client = autoscaling.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.AutoScalingGroup
 		},
@@ -43,19 +36,23 @@ func NewASGroups() AwsResource {
 
 // listASGroups retrieves all Auto Scaling Groups that match the config filters.
 func listASGroups(ctx context.Context, client ASGroupsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	result, err := client.DescribeAutoScalingGroups(ctx, &autoscaling.DescribeAutoScalingGroupsInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
 	var groupNames []*string
-	for _, group := range result.AutoScalingGroups {
-		if cfg.ShouldInclude(config.ResourceValue{
-			Time: group.CreatedTime,
-			Name: group.AutoScalingGroupName,
-			Tags: util.ConvertAutoScalingTagsToMap(group.Tags),
-		}) {
-			groupNames = append(groupNames, group.AutoScalingGroupName)
+	paginator := autoscaling.NewDescribeAutoScalingGroupsPaginator(client, &autoscaling.DescribeAutoScalingGroupsInput{})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, group := range page.AutoScalingGroups {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Time: group.CreatedTime,
+				Name: group.AutoScalingGroupName,
+				Tags: util.ConvertAutoScalingTagsToMap(group.Tags),
+			}) {
+				groupNames = append(groupNames, group.AutoScalingGroupName)
+			}
 		}
 	}
 
