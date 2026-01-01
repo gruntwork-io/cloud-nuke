@@ -193,16 +193,16 @@ func deleteElasticaches(ctx context.Context, client ElasticachesAPI, scope resou
 		// because there are two separate codepaths for deleting a cluster. Cache clusters that are not members of a
 		// replication group can be deleted via DeleteCacheCluster, whereas those that are members require a call to
 		// DeleteReplicationGroup, which will destroy both the replication group and its member clusters
-		clusterId, clusterType, describeErr := determineCacheClusterType(ctx, client, clusterId)
+		resolvedClusterId, clusterType, describeErr := determineCacheClusterType(ctx, client, clusterId)
 		if describeErr != nil {
 			return describeErr
 		}
 
 		var err error
 		if clusterType == Single {
-			err = nukeNonReplicationGroupElasticacheCluster(ctx, client, clusterId)
+			err = nukeNonReplicationGroupElasticacheCluster(ctx, client, resolvedClusterId)
 		} else if clusterType == Replication {
-			err = nukeReplicationGroupMemberElasticacheCluster(ctx, client, clusterId)
+			err = nukeReplicationGroupMemberElasticacheCluster(ctx, client, resolvedClusterId)
 		}
 
 		// Record status of this resource

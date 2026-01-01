@@ -192,8 +192,7 @@ func getEcsClusterFirstSeenTag(ctx context.Context, client ECSClustersAPI, clust
 
 	for _, tag := range clusterTags.Tags {
 		if util.IsFirstSeenTag(tag.Key) {
-
-			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			firstSeenTime, err = util.ParseTimestamp(tag.Value)
 			if err != nil {
 				logging.Debugf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.ToString(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
@@ -272,7 +271,6 @@ func deleteECSClusters(ctx context.Context, client ECSClustersAPI, scope resourc
 	var allErrs *multierror.Error
 	var nukedEcsClusters []*string
 	for _, clusterArn := range identifiers {
-
 		// before nuking the clusters, do check active tasks on the cluster and stop all of them
 		err := stopClusterRunningTasks(ctx, client, clusterArn)
 		if err != nil {
