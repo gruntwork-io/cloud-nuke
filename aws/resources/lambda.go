@@ -9,23 +9,47 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (lf *LambdaFunctions) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// LambdaFunctionsAPI defines the interface for Lambda operations.
+type LambdaFunctionsAPI interface {
+	DeleteFunction(ctx context.Context, params *lambda.DeleteFunctionInput, optFns ...func(*lambda.Options)) (*lambda.DeleteFunctionOutput, error)
+	ListFunctions(ctx context.Context, params *lambda.ListFunctionsInput, optFns ...func(*lambda.Options)) (*lambda.ListFunctionsOutput, error)
+	ListTags(ctx context.Context, params *lambda.ListTagsInput, optFns ...func(*lambda.Options)) (*lambda.ListTagsOutput, error)
+}
+
+// NewLambdaFunctions creates a new Lambda Functions resource using the generic resource pattern.
+func NewLambdaFunctions() AwsResource {
+	return NewAwsResource(&resource.Resource[LambdaFunctionsAPI]{
+		ResourceTypeName: "lambda",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[LambdaFunctionsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = lambda.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.LambdaFunction
+		},
+		Lister: listLambdaFunctions,
+		Nuker:  resource.SimpleBatchDeleter(deleteLambdaFunction),
+	})
+}
+
+// listLambdaFunctions retrieves all Lambda functions that match the config filters.
+func listLambdaFunctions(ctx context.Context, client LambdaFunctionsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var names []*string
 
-	paginator := lambda.NewListFunctionsPaginator(lf.Client, &lambda.ListFunctionsInput{})
+	paginator := lambda.NewListFunctionsPaginator(client, &lambda.ListFunctionsInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
-		for _, name := range page.Functions {
-			if lf.shouldInclude(&name, configObj) {
-				names = append(names, name.FunctionName)
+		for _, fn := range page.Functions {
+			if shouldIncludeLambdaFunction(ctx, client, &fn, cfg) {
+				names = append(names, fn.FunctionName)
 			}
 		}
 	}
@@ -33,7 +57,8 @@ func (lf *LambdaFunctions) getAll(c context.Context, configObj config.Config) ([
 	return names, nil
 }
 
-func (lf *LambdaFunctions) shouldInclude(lambdaFn *types.FunctionConfiguration, configObj config.Config) bool {
+// shouldIncludeLambdaFunction determines if a Lambda function should be included for deletion.
+func shouldIncludeLambdaFunction(ctx context.Context, client LambdaFunctionsAPI, lambdaFn *types.FunctionConfiguration, cfg config.ResourceType) bool {
 	if lambdaFn == nil {
 		return false
 	}
@@ -50,50 +75,27 @@ func (lf *LambdaFunctions) shouldInclude(lambdaFn *types.FunctionConfiguration, 
 	params := &lambda.ListTagsInput{
 		Resource: lambdaFn.FunctionArn,
 	}
-	tagsOutput, err := lf.Client.ListTags(lf.Context, params)
+	tagsOutput, err := client.ListTags(ctx, params)
 	if err != nil {
 		logging.Errorf("failed to list tags for %s: %s", aws.ToString(lambdaFn.FunctionArn), err)
 	}
 
-	return configObj.LambdaFunction.ShouldInclude(config.ResourceValue{
+	var tags map[string]string
+	if tagsOutput != nil {
+		tags = tagsOutput.Tags
+	}
+
+	return cfg.ShouldInclude(config.ResourceValue{
 		Time: &lastModifiedDateTime,
 		Name: fnName,
-		Tags: tagsOutput.Tags,
+		Tags: tags,
 	})
 }
 
-func (lf *LambdaFunctions) nukeAll(names []*string) error {
-	if len(names) == 0 {
-		logging.Debugf("No Lambda Functions to nuke in region %s", lf.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Lambda Functions in region %s", lf.Region)
-	var deletedNames []*string
-
-	for _, name := range names {
-		params := &lambda.DeleteFunctionInput{
-			FunctionName: name,
-		}
-
-		_, err := lf.Client.DeleteFunction(lf.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(name),
-			ResourceType: "Lambda function",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Errorf("[Failed] %s: %s", *name, err)
-		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted Lambda Function: %s", aws.ToString(name))
-		}
-	}
-
-	logging.Debugf("[OK] %d Lambda Function(s) deleted in %s", len(deletedNames), lf.Region)
-	return nil
+// deleteLambdaFunction deletes a single Lambda function.
+func deleteLambdaFunction(ctx context.Context, client LambdaFunctionsAPI, name *string) error {
+	_, err := client.DeleteFunction(ctx, &lambda.DeleteFunctionInput{
+		FunctionName: name,
+	})
+	return err
 }

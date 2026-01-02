@@ -40,12 +40,15 @@ func (m *mockSecretsManagerClient) RemoveRegionsFromReplication(ctx context.Cont
 func TestListSecretsManagerSecrets(t *testing.T) {
 	t.Parallel()
 
+	testARN1 := "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret1"
+	testARN2 := "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret2"
 	now := time.Now()
+
 	mock := &mockSecretsManagerClient{
 		ListSecretsOutput: secretsmanager.ListSecretsOutput{
 			SecretList: []types.SecretListEntry{
-				{Name: aws.String("secret1"), ARN: aws.String("arn:aws:secretsmanager:us-east-1:123456789012:secret:secret1"), CreatedDate: aws.Time(now)},
-				{Name: aws.String("secret2"), ARN: aws.String("arn:aws:secretsmanager:us-east-1:123456789012:secret:secret2"), CreatedDate: aws.Time(now)},
+				{Name: aws.String("secret1"), ARN: aws.String(testARN1), CreatedDate: aws.Time(now)},
+				{Name: aws.String("secret2"), ARN: aws.String(testARN2), CreatedDate: aws.Time(now.Add(1 * time.Hour))},
 			},
 		},
 	}
@@ -56,10 +59,7 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 	}{
 		"emptyFilter": {
 			configObj: config.ResourceType{},
-			expected: []string{
-				"arn:aws:secretsmanager:us-east-1:123456789012:secret:secret1",
-				"arn:aws:secretsmanager:us-east-1:123456789012:secret:secret2",
-			},
+			expected:  []string{testARN1, testARN2},
 		},
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
@@ -67,7 +67,15 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("secret1")}},
 				},
 			},
-			expected: []string{"arn:aws:secretsmanager:us-east-1:123456789012:secret:secret2"},
+			expected: []string{testARN2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testARN1},
 		},
 	}
 
@@ -80,12 +88,29 @@ func TestListSecretsManagerSecrets(t *testing.T) {
 	}
 }
 
-func TestDeleteSecretsManagerSecret(t *testing.T) {
+func TestDeleteSecretsManagerSecret_NoReplicas(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockSecretsManagerClient{
 		DescribeSecretOutput: secretsmanager.DescribeSecretOutput{
 			ARN: aws.String("arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret"),
+		},
+	}
+
+	err := deleteSecretsManagerSecret(context.Background(), mock, aws.String("arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret"))
+	require.NoError(t, err)
+}
+
+func TestDeleteSecretsManagerSecret_WithReplicas(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSecretsManagerClient{
+		DescribeSecretOutput: secretsmanager.DescribeSecretOutput{
+			ARN: aws.String("arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret"),
+			ReplicationStatus: []types.ReplicationStatusType{
+				{Region: aws.String("us-west-2")},
+				{Region: aws.String("eu-west-1")},
+			},
 		},
 	}
 

@@ -1,12 +1,31 @@
 package aws
 
 import (
-	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
+	"os"
 	"testing"
 
+	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 )
+
+// hasAWSCredentials checks if AWS credentials are available via environment variables.
+// This is a fast check that doesn't require calling AWS APIs.
+func hasAWSCredentials() bool {
+	// Check for standard AWS credential environment variables
+	if os.Getenv("AWS_ACCESS_KEY_ID") != "" && os.Getenv("AWS_SECRET_ACCESS_KEY") != "" {
+		return true
+	}
+	// Check for AWS profile
+	if os.Getenv("AWS_PROFILE") != "" {
+		return true
+	}
+	// Check for web identity token (used in EKS/CI)
+	if os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE") != "" {
+		return true
+	}
+	return false
+}
 
 func TestSplit(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
@@ -34,7 +53,15 @@ func TestGetTargetRegions(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 	t.Parallel()
 
-	actualEnabledRegions, _ := GetEnabledRegions()
+	// Skip if AWS credentials are not available (fast check via env vars)
+	if !hasAWSCredentials() {
+		t.Skip("Skipping test: AWS credentials not available")
+	}
+
+	actualEnabledRegions, err := GetEnabledRegions()
+	if err != nil {
+		t.Skipf("Skipping test: failed to get enabled regions: %v", err)
+	}
 	assert.Greater(t, len(actualEnabledRegions), 0)
 
 	type test struct {

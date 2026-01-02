@@ -21,7 +21,7 @@ type TransitGatewaysRouteTablesAPI interface {
 func NewTransitGatewaysRouteTables() AwsResource {
 	return NewAwsResource(&resource.Resource[TransitGatewaysRouteTablesAPI]{
 		ResourceTypeName: "transit-gateway-route-table",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[TransitGatewaysRouteTablesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)
@@ -35,9 +35,10 @@ func NewTransitGatewaysRouteTables() AwsResource {
 }
 
 // listTransitGatewayRouteTables retrieves all Transit Gateway Route Tables that match the config filters.
+// Uses pagination to handle large numbers of route tables.
 func listTransitGatewayRouteTables(ctx context.Context, client TransitGatewaysRouteTablesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	// Remove default route table, that will be deleted along with its TransitGateway
-	param := &ec2.DescribeTransitGatewayRouteTablesInput{
+	// Filter out default route tables - they are deleted along with their TransitGateway
+	input := &ec2.DescribeTransitGatewayRouteTablesInput{
 		Filters: []types.Filter{
 			{
 				Name:   aws.String("default-association-route-table"),
@@ -46,17 +47,24 @@ func listTransitGatewayRouteTables(ctx context.Context, client TransitGatewaysRo
 		},
 	}
 
-	result, err := client.DescribeTransitGatewayRouteTables(ctx, param)
-	if err != nil {
-		return nil, err
-	}
-
 	var ids []*string
-	for _, transitGatewayRouteTable := range result.TransitGatewayRouteTables {
-		if cfg.ShouldInclude(config.ResourceValue{Time: transitGatewayRouteTable.CreationTime}) &&
-			transitGatewayRouteTable.State != types.TransitGatewayRouteTableStateDeleted &&
-			transitGatewayRouteTable.State != types.TransitGatewayRouteTableStateDeleting {
-			ids = append(ids, transitGatewayRouteTable.TransitGatewayRouteTableId)
+	paginator := ec2.NewDescribeTransitGatewayRouteTablesPaginator(client, input)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, rt := range page.TransitGatewayRouteTables {
+			// Skip deleted/deleting route tables
+			if rt.State == types.TransitGatewayRouteTableStateDeleted ||
+				rt.State == types.TransitGatewayRouteTableStateDeleting {
+				continue
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{Time: rt.CreationTime}) {
+				ids = append(ids, rt.TransitGatewayRouteTableId)
+			}
 		}
 	}
 

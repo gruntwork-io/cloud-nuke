@@ -4,154 +4,151 @@ import (
 	"context"
 	"strings"
 
-	"github.com/gruntwork-io/cloud-nuke/config"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/macie2"
+	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// getAll will find and return any Macie accounts that were created via accepting an invite from another AWS Account
-// Unfortunately, the Macie API doesn't provide the metadata information we'd need to implement the configObj pattern, so we
-// currently can only accept a session and excludeAfter
-func (mm *MacieMember) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var macieStatus []*string
+// MacieMemberAPI defines the interface for Macie operations.
+type MacieMemberAPI interface {
+	GetMacieSession(ctx context.Context, params *macie2.GetMacieSessionInput, optFns ...func(*macie2.Options)) (*macie2.GetMacieSessionOutput, error)
+	ListMembers(ctx context.Context, params *macie2.ListMembersInput, optFns ...func(*macie2.Options)) (*macie2.ListMembersOutput, error)
+	DisassociateMember(ctx context.Context, params *macie2.DisassociateMemberInput, optFns ...func(*macie2.Options)) (*macie2.DisassociateMemberOutput, error)
+	DeleteMember(ctx context.Context, params *macie2.DeleteMemberInput, optFns ...func(*macie2.Options)) (*macie2.DeleteMemberOutput, error)
+	GetAdministratorAccount(ctx context.Context, params *macie2.GetAdministratorAccountInput, optFns ...func(*macie2.Options)) (*macie2.GetAdministratorAccountOutput, error)
+	DisassociateFromAdministratorAccount(ctx context.Context, params *macie2.DisassociateFromAdministratorAccountInput, optFns ...func(*macie2.Options)) (*macie2.DisassociateFromAdministratorAccountOutput, error)
+	DisableMacie(ctx context.Context, params *macie2.DisableMacieInput, optFns ...func(*macie2.Options)) (*macie2.DisableMacieOutput, error)
+}
 
-	output, err := mm.Client.GetMacieSession(mm.Context, &macie2.GetMacieSessionInput{})
+// NewMacieMember creates a new MacieMember resource using the generic resource pattern.
+func NewMacieMember() AwsResource {
+	return NewAwsResource(&resource.Resource[MacieMemberAPI]{
+		ResourceTypeName: "macie-member",
+		BatchSize:        10,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[MacieMemberAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = macie2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.MacieMember
+		},
+		Lister: listMacieSessions,
+		Nuker:  deleteMacieSessions,
+	})
+}
+
+// listMacieSessions retrieves Macie sessions that match the config filters.
+// Unlike most resources, Macie has a single session per region, so we return
+// the status as an identifier if the session exists and matches filters.
+func listMacieSessions(ctx context.Context, client MacieMemberAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	output, err := client.GetMacieSession(ctx, &macie2.GetMacieSessionInput{})
 	if err != nil {
-		// If Macie is not enabled when we call GetMacieSession, we get back an error
-		// so we should ignore the error if it's just telling us the account/region is not
-		// enabled and return nil to indicate there are no resources to nuke
+		// If Macie is not enabled, the API returns an error indicating so.
+		// This is expected behavior, not an error - just return nil to indicate
+		// there are no resources to nuke.
 		if strings.Contains(err.Error(), "Macie is not enabled") {
 			return nil, nil
 		}
 		return nil, errors.WithStackTrace(err)
 	}
 
-	// Note: there's no identifier for the Macie resource, so we just insert random elements to the return array
-	//  to follow the similar framework as other resources.
-	if configObj.MacieMember.ShouldInclude(config.ResourceValue{
-		Time: output.CreatedAt,
-	}) {
-		macieStatus = append(macieStatus, aws.String(string(output.Status)))
+	// Use status as identifier since Macie doesn't have a unique resource ID
+	if cfg.ShouldInclude(config.ResourceValue{Time: output.CreatedAt}) {
+		return []*string{aws.String(string(output.Status))}, nil
 	}
 
-	return macieStatus, nil
+	return nil, nil
 }
 
-func (mm *MacieMember) getAllMacieMembers() ([]*string, error) {
+// getAllMacieMembers retrieves all member accounts attached to Macie with pagination.
+func getAllMacieMembers(ctx context.Context, client MacieMemberAPI) ([]*string, error) {
 	var memberAccountIds []*string
 
-	// OnlyAssociated=false input parameter includes "pending" invite members
-	members, err := mm.Client.ListMembers(mm.Context, &macie2.ListMembersInput{OnlyAssociated: aws.String("false")})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-	for _, member := range members.Members {
-		memberAccountIds = append(memberAccountIds, member.AccountId)
-	}
+	paginator := macie2.NewListMembersPaginator(client, &macie2.ListMembersInput{
+		OnlyAssociated: aws.String("false"), // Include "pending" invite members
+	})
 
-	// Paginate through all members
-	nextToken := members.NextToken
-	for nextToken != nil && aws.ToString(nextToken) != "" {
-		members, err = mm.Client.ListMembers(mm.Context, &macie2.ListMembersInput{NextToken: nextToken})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
-		for _, member := range members.Members {
+		for _, member := range page.Members {
 			memberAccountIds = append(memberAccountIds, member.AccountId)
 		}
-		nextToken = members.NextToken
 	}
 
-	logging.Debugf("Found %d member accounts attached to macie", len(memberAccountIds))
+	logging.Debugf("Found %d member accounts attached to Macie", len(memberAccountIds))
 	return memberAccountIds, nil
 }
 
-func (mm *MacieMember) removeMacieMembers(memberAccountIds []*string) error {
-
-	// Member accounts must first be disassociated
+// removeMacieMembers disassociates and deletes all member accounts.
+// Members must be disassociated before they can be deleted.
+func removeMacieMembers(ctx context.Context, client MacieMemberAPI, memberAccountIds []*string) error {
 	for _, accountId := range memberAccountIds {
 		if accountId == nil {
-			logging.Warnf("Encountered nil accountId in member list, skipping.")
 			continue
 		}
 
-		_, err := mm.Client.DisassociateMember(mm.Context, &macie2.DisassociateMemberInput{Id: accountId})
-		if err != nil {
+		// Disassociate the member first
+		if _, err := client.DisassociateMember(ctx, &macie2.DisassociateMemberInput{Id: accountId}); err != nil {
 			return err
 		}
-		logging.Debugf("%s member account disassociated", *accountId)
+		logging.Debugf("Disassociated Macie member account: %s", *accountId)
 
-		// Once disassociated, member accounts can be deleted
-		_, err = mm.Client.DeleteMember(mm.Context, &macie2.DeleteMemberInput{Id: accountId})
-		if err != nil {
+		// Then delete the member
+		if _, err := client.DeleteMember(ctx, &macie2.DeleteMemberInput{Id: accountId}); err != nil {
 			return err
 		}
-		logging.Debugf("%s member account deleted", *accountId)
+		logging.Debugf("Deleted Macie member account: %s", *accountId)
 	}
 	return nil
 }
 
-func (mm *MacieMember) nukeAll(identifier []string) error {
-	if len(identifier) == 0 {
-		logging.Debugf("No Macie member accounts to nuke in region %s", mm.Region)
+// deleteMacieSessions is a custom nuker for Macie resources.
+// Macie requires special handling because:
+// 1. Member accounts must be disassociated and deleted before disabling
+// 2. Administrator account must be disassociated before disabling
+// 3. The service itself is disabled (not deleted like typical resources)
+func deleteMacieSessions(ctx context.Context, client MacieMemberAPI, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
+	if len(identifiers) == 0 {
+		logging.Debugf("No Macie resources to nuke in %s", scope)
 		return nil
 	}
 
-	// Check for and remove any member accounts in Macie
-	// Macie cannot be disabled with active member accounts
-	memberAccountIds, err := mm.getAllMacieMembers()
+	logging.Infof("Deleting %d %s in %s", len(identifiers), resourceType, scope)
+
+	// Step 1: Remove member accounts (Macie cannot be disabled with active members)
+	memberAccountIds, err := getAllMacieMembers(ctx, client)
 	if err != nil {
-		logging.Errorf("[Failed] Failed to get Macie members: %v", err)
+		logging.Debugf("Failed to get Macie members: %s", err)
 	}
-	if err == nil && len(memberAccountIds) > 0 {
-		err = mm.removeMacieMembers(memberAccountIds)
-		if err != nil {
-			logging.Errorf("[Failed] Failed to remove members from macie: %v", err)
+
+	if len(memberAccountIds) > 0 {
+		if err := removeMacieMembers(ctx, client, memberAccountIds); err != nil {
+			logging.Debugf("Failed to remove Macie members: %s", err)
 		}
 	}
 
-	// Check for an administrator account
-	// Macie cannot be disabled with an active administrator account
-	adminAccount, err := mm.Client.GetAdministratorAccount(
-		mm.Context, &macie2.GetAdministratorAccountInput{})
+	// Step 2: Disassociate from administrator account if one exists
+	adminAccount, err := client.GetAdministratorAccount(ctx, &macie2.GetAdministratorAccountInput{})
 	if err != nil {
-		if strings.Contains(err.Error(), "there isn't a delegated Macie administrator") {
-			logging.Debugf("No delegated Macie administrator found to remove.")
-		} else {
-			logging.Errorf("[Failed] Failed to check for administrator account: %v", err)
+		if !strings.Contains(err.Error(), "there isn't a delegated Macie administrator") {
+			logging.Debugf("Failed to check for administrator account: %s", err)
 		}
 	}
 
-	// Disassociate administrator account if it exists
 	if adminAccount != nil && adminAccount.Administrator != nil {
-		_, err := mm.Client.DisassociateFromAdministratorAccount(
-			mm.Context, &macie2.DisassociateFromAdministratorAccountInput{})
-		if err != nil {
-			logging.Errorf("[Failed] Failed to disassociate from administrator account: %v", err)
+		if _, err := client.DisassociateFromAdministratorAccount(ctx, &macie2.DisassociateFromAdministratorAccountInput{}); err != nil {
+			logging.Debugf("Failed to disassociate from administrator account: %s", err)
 		}
 	}
 
-	// Disable Macie
-	_, err = mm.Client.DisableMacie(mm.Context, &macie2.DisableMacieInput{})
-	if err != nil {
-		logging.Errorf("[Failed] Failed to disable macie: %v", err)
-		e := report.Entry{
-			Identifier:   aws.ToString(&identifier[0]),
-			ResourceType: "Macie",
-			Error:        err,
-		}
-		report.Record(e)
-	} else {
-		logging.Debugf("[OK] Macie disabled in %s", mm.Region)
-		e := report.Entry{
-			Identifier:   mm.Region,
-			ResourceType: "Macie",
-		}
-		report.Record(e)
-	}
-	return nil
+	// Step 3: Disable Macie
+	_, err = client.DisableMacie(ctx, &macie2.DisableMacieInput{})
+
+	return []resource.NukeResult{{Identifier: aws.ToString(identifiers[0]), Error: err}}
 }

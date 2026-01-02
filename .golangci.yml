@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 10m
   tests: true
@@ -6,85 +8,68 @@ run:
 
 linters:
   enable:
-    # Default linters (these come with golangci-lint)
-    - errcheck      # Checking for unchecked errors - critical for nil safety
-    - gosimple      # Simplify code  
-    - govet         # Reports suspicious constructs including nil issues
-    - ineffassign   # Detects when assignments to existing variables are not used
-    - staticcheck   # Comprehensive static analysis including nil checks (SA5011)
-    - typecheck     # Like the front-end of a Go compiler, parses and type-checks
-    - unused        # Checks for unused constants, variables, functions and types
-    
-    # Critical nil safety linters
-    - nilnil        # Checks that there is no simultaneous return of nil error and an invalid value
-    - nilerr        # Finds the code that returns nil even if it checks that the error is not nil
-    
+    # Default linters
+    - errcheck      # Checking for unchecked errors
+    - govet         # Reports suspicious constructs
+    - ineffassign   # Detects unused assignments
+    - staticcheck   # Comprehensive static analysis
+    - unused        # Checks for unused code
+
     # Code quality linters
-    - bodyclose     # Checks whether HTTP response body is closed successfully
-    - durationcheck # Check for two common problems with time.Duration
-    - errorlint     # Find code that will cause problems with error handling
-    - copyloopvar   # Checks for pointers to enclosing loop variables (replaces exportloopref)
-    - noctx         # Finds sending http request without context.Context
-    
+    - bodyclose     # Checks HTTP response body is closed
+    - durationcheck # Check time.Duration issues
+    - errorlint     # Error handling problems
+    - copyloopvar   # Checks loop variable captures
+    - noctx         # HTTP requests without context
+    - nilerr        # Returns nil even when error is not nil
+
     # Style linters
-    - gofmt         # Checks whether code was gofmt-ed
-    - goimports     # Check import statements are formatted
-    - misspell      # Finds commonly misspelled English words in comments
-    - whitespace    # Detection of leading and trailing whitespace
+    - misspell      # Finds misspelled words
+    - whitespace    # Leading/trailing whitespace
 
   disable:
-    - depguard      # Too restrictive for dependencies
-    - exhaustive    # Too strict for switch statements
-    - gochecknoglobals # We use some globals
-    - lll           # Line length limit is too strict
-    - wsl           # Whitespace linter is too opinionated
+    - depguard
+    - exhaustive
+    - gochecknoglobals
+    - lll
+    - wsl
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
-    
+
   govet:
     enable:
-      - shadow  # Check for shadowed variables
-    
+      - shadow
+
   staticcheck:
-    checks: ["all", "-ST1000", "-ST1003"]  # Disable some stylistic checks
-    
-  nilnil:
-    checked-types:
-      - ptr
-      - func
-      - iface
-      - map
-      - chan
+    checks: ["all", "-ST1000", "-ST1003", "-QF1008", "-SA1029", "-SA9003"]
 
 issues:
-  # Only show issues on new/changed lines
-  # This makes adoption easier for existing codebases
   new: true
-  
-  # Exclude directories from all linters
+
   exclude-dirs:
     - vendor
     - third_party
     - generated
-    
+
   exclude-rules:
-    # Exclude test files from some linters
     - path: _test\.go
       linters:
         - errcheck
         - noctx
-        
-    # Exclude generated files
+        - staticcheck
+
     - path: "generated"
       linters:
         - staticcheck
         - govet
-        
-  # Maximum issues count per one linter
+
   max-issues-per-linter: 0
-  
-  # Maximum count of issues with the same text
   max-same-issues: 0

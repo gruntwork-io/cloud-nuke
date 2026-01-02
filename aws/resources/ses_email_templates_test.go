@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,56 +27,55 @@ func (m *mockSesEmailTemplatesClient) DeleteTemplate(ctx context.Context, params
 	return &m.DeleteTemplateOutput, nil
 }
 
-func TestSesEmailTemplates_ResourceName(t *testing.T) {
-	r := NewSesEmailTemplates()
-	assert.Equal(t, "ses-email-template", r.ResourceName())
-}
-
-func TestSesEmailTemplates_MaxBatchSize(t *testing.T) {
-	r := NewSesEmailTemplates()
-	assert.Equal(t, 49, r.MaxBatchSize())
-}
-
 func TestListSesEmailTemplates(t *testing.T) {
 	t.Parallel()
 
+	testName1 := "template1"
+	testName2 := "template2"
 	now := time.Now()
+
 	mock := &mockSesEmailTemplatesClient{
 		ListTemplatesOutput: ses.ListTemplatesOutput{
 			TemplatesMetadata: []types.TemplateMetadata{
-				{Name: aws.String("template1"), CreatedTimestamp: aws.Time(now)},
-				{Name: aws.String("template2"), CreatedTimestamp: aws.Time(now)},
+				{Name: aws.String(testName1), CreatedTimestamp: aws.Time(now)},
+				{Name: aws.String(testName2), CreatedTimestamp: aws.Time(now.Add(1 * time.Hour))},
 			},
 		},
 	}
 
-	names, err := listSesEmailTemplates(context.Background(), mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"template1", "template2"}, aws.ToStringSlice(names))
-}
-
-func TestListSesEmailTemplates_WithFilter(t *testing.T) {
-	t.Parallel()
-
-	now := time.Now()
-	mock := &mockSesEmailTemplatesClient{
-		ListTemplatesOutput: ses.ListTemplatesOutput{
-			TemplatesMetadata: []types.TemplateMetadata{
-				{Name: aws.String("template1"), CreatedTimestamp: aws.Time(now)},
-				{Name: aws.String("skip-this"), CreatedTimestamp: aws.Time(now)},
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
 			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testName1},
 		},
 	}
 
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
-		},
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := listSesEmailTemplates(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
 	}
-
-	names, err := listSesEmailTemplates(context.Background(), mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Equal(t, []string{"template1"}, aws.ToStringSlice(names))
 }
 
 func TestDeleteSesEmailTemplate(t *testing.T) {

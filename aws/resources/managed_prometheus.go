@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/amp"
 	"github.com/aws/aws-sdk-go-v2/service/amp/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -36,17 +35,16 @@ func NewManagedPrometheus() AwsResource {
 
 // listManagedPrometheusWorkspaces retrieves all Managed Prometheus Workspaces that match the config filters.
 func listManagedPrometheusWorkspaces(ctx context.Context, client ManagedPrometheusAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	var identifiers []*string
+	var workspaceIDs []*string
 
 	paginator := amp.NewListWorkspacesPaginator(client, &amp.ListWorkspacesInput{})
 	for paginator.HasMorePages() {
-		workspaces, err := paginator.NextPage(ctx)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[Managed Prometheus] Failed to list workspaces: %s", err)
 			return nil, err
 		}
 
-		for _, workspace := range workspaces.Workspaces {
+		for _, workspace := range page.Workspaces {
 			if workspace.Status.StatusCode != types.WorkspaceStatusCodeActive {
 				continue
 			}
@@ -56,12 +54,12 @@ func listManagedPrometheusWorkspaces(ctx context.Context, client ManagedPromethe
 				Time: workspace.CreatedAt,
 				Tags: workspace.Tags,
 			}) {
-				identifiers = append(identifiers, workspace.WorkspaceId)
+				workspaceIDs = append(workspaceIDs, workspace.WorkspaceId)
 			}
 		}
 	}
 
-	return identifiers, nil
+	return workspaceIDs, nil
 }
 
 // deleteManagedPrometheusWorkspace deletes a single Managed Prometheus Workspace.

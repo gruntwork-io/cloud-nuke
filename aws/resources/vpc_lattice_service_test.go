@@ -1,4 +1,4 @@
-package resources_test
+package resources
 
 import (
 	"context"
@@ -9,60 +9,46 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
-	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedVPCLatticeService struct {
-	resources.VPCLatticeServiceAPI
-
-	ListServicesOutput  vpclattice.ListServicesOutput
-	DeleteServiceOutput vpclattice.DeleteServiceOutput
-
+type mockVPCLatticeServiceClient struct {
+	ListServicesOutput                           vpclattice.ListServicesOutput
+	DeleteServiceOutput                          vpclattice.DeleteServiceOutput
 	ListServiceNetworkServiceAssociationsOutput  vpclattice.ListServiceNetworkServiceAssociationsOutput
 	DeleteServiceNetworkServiceAssociationOutput vpclattice.DeleteServiceNetworkServiceAssociationOutput
 }
 
-func (m mockedVPCLatticeService) ListServices(ctx context.Context, params *vpclattice.ListServicesInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServicesOutput, error) {
+func (m *mockVPCLatticeServiceClient) ListServices(ctx context.Context, params *vpclattice.ListServicesInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServicesOutput, error) {
 	return &m.ListServicesOutput, nil
 }
 
-func (m mockedVPCLatticeService) DeleteService(ctx context.Context, params *vpclattice.DeleteServiceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceOutput, error) {
+func (m *mockVPCLatticeServiceClient) DeleteService(ctx context.Context, params *vpclattice.DeleteServiceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceOutput, error) {
 	return &m.DeleteServiceOutput, nil
 }
-func (m mockedVPCLatticeService) ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error) {
+
+func (m *mockVPCLatticeServiceClient) ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error) {
 	return &m.ListServiceNetworkServiceAssociationsOutput, nil
 }
-func (m mockedVPCLatticeService) DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error) {
+
+func (m *mockVPCLatticeServiceClient) DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error) {
 	return &m.DeleteServiceNetworkServiceAssociationOutput, nil
 }
 
-func TestVPCLatticeService_GetAll(t *testing.T) {
-
+func TestListVPCLatticeServices(t *testing.T) {
 	t.Parallel()
 
-	var (
-		id1 = "aws-nuke-test-" + util.UniqueID()
-		id2 = "aws-nuke-test-" + util.UniqueID()
-		now = time.Now()
-	)
+	testName1 := "test-service-1"
+	testName2 := "test-service-2"
+	now := time.Now()
 
-	obj := resources.VPCLatticeService{
-		Client: mockedVPCLatticeService{
-			ListServicesOutput: vpclattice.ListServicesOutput{
-				Items: []types.ServiceSummary{
-					{
-						Arn:       aws.String(id1),
-						Name:      aws.String(id1),
-						CreatedAt: aws.Time(now),
-					}, {
-						Arn:       aws.String(id2),
-						Name:      aws.String(id2),
-						CreatedAt: aws.Time(now.Add(1 * time.Hour)),
-					},
-				},
+	mock := &mockVPCLatticeServiceClient{
+		ListServicesOutput: vpclattice.ListServicesOutput{
+			Items: []types.ServiceSummary{
+				{Arn: aws.String(testName1), Name: aws.String(testName1), CreatedAt: aws.Time(now)},
+				{Arn: aws.String(testName2), Name: aws.String(testName2), CreatedAt: aws.Time(now.Add(1 * time.Hour))},
 			},
 		},
 	}
@@ -73,44 +59,70 @@ func TestVPCLatticeService_GetAll(t *testing.T) {
 	}{
 		"emptyFilter": {
 			configObj: config.ResourceType{},
-			expected:  []string{id1, id2},
+			expected:  []string{testName1, testName2},
 		},
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(id2),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName2)}},
+				},
 			},
-			expected: []string{id1},
+			expected: []string{testName1},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
-				}},
-			expected: []string{id1},
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testName1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := obj.GetAndSetIdentifiers(context.Background(), config.Config{
-				VPCLatticeService: tc.configObj,
-			})
+			names, err := listVPCLatticeServices(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, names)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestVPCLatticeService_NukeAll(t *testing.T) {
+func TestDeleteVPCLatticeServiceAssociations(t *testing.T) {
 	t.Parallel()
 
-	obj := resources.VPCLatticeService{
-		Client: mockedVPCLatticeService{
-			ListServicesOutput: vpclattice.ListServicesOutput{},
+	mock := &mockVPCLatticeServiceClient{
+		ListServiceNetworkServiceAssociationsOutput: vpclattice.ListServiceNetworkServiceAssociationsOutput{
+			Items: []types.ServiceNetworkServiceAssociationSummary{
+				{Id: aws.String("assoc-1")},
+				{Id: aws.String("assoc-2")},
+			},
 		},
 	}
-	err := obj.Nuke(context.TODO(), []string{"test"})
+
+	err := deleteVPCLatticeServiceAssociations(context.Background(), mock, aws.String("test-service"))
+	require.NoError(t, err)
+}
+
+func TestDeleteVPCLatticeService(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockVPCLatticeServiceClient{}
+
+	err := deleteVPCLatticeService(context.Background(), mock, aws.String("test-service"))
+	require.NoError(t, err)
+}
+
+func TestWaitForVPCLatticeServiceAssociationsDeleted(t *testing.T) {
+	t.Parallel()
+
+	// Test with no associations (should return immediately)
+	mock := &mockVPCLatticeServiceClient{
+		ListServiceNetworkServiceAssociationsOutput: vpclattice.ListServiceNetworkServiceAssociationsOutput{
+			Items: []types.ServiceNetworkServiceAssociationSummary{},
+		},
+	}
+
+	err := waitForVPCLatticeServiceAssociationsDeleted(context.Background(), mock, aws.String("test-service"))
 	require.NoError(t, err)
 }

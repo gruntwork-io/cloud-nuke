@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,41 +38,28 @@ func (m mockedNetworkFirewallResourcePolicy) DescribeResourcePolicy(ctx context.
 }
 
 func TestNetworkFirewallResourcePolicy_GetAll(t *testing.T) {
-
 	t.Parallel()
 
-	var (
-		policy1 = "test-network-firewall-policy-1"
-		policy2 = "test-network-firewall-policy-2"
-		group1  = "test-network-firewall-group-1"
-		group2  = "test-network-firewall-group-2"
-	)
+	policy1 := "arn:aws:network-firewall:us-east-1:123456789012:firewall-policy/test-policy-1"
+	policy2 := "arn:aws:network-firewall:us-east-1:123456789012:firewall-policy/test-policy-2"
+	group1 := "arn:aws:network-firewall:us-east-1:123456789012:stateless-rulegroup/test-group-1"
+	group2 := "arn:aws:network-firewall:us-east-1:123456789012:stateless-rulegroup/test-group-2"
 
-	nfw := NetworkFirewallResourcePolicy{
-		Client: mockedNetworkFirewallResourcePolicy{
-			ListFirewallPoliciesOutput: networkfirewall.ListFirewallPoliciesOutput{
-				FirewallPolicies: []types.FirewallPolicyMetadata{
-					{
-						Arn: aws.String(policy1),
-					},
-					{
-						Arn: aws.String(policy2),
-					},
-				},
+	mock := mockedNetworkFirewallResourcePolicy{
+		ListFirewallPoliciesOutput: networkfirewall.ListFirewallPoliciesOutput{
+			FirewallPolicies: []types.FirewallPolicyMetadata{
+				{Arn: aws.String(policy1)},
+				{Arn: aws.String(policy2)},
 			},
-			ListRuleGroupsOutput: networkfirewall.ListRuleGroupsOutput{
-				RuleGroups: []types.RuleGroupMetadata{
-					{
-						Arn: aws.String(group1),
-					},
-					{
-						Arn: aws.String(group2),
-					},
-				},
+		},
+		ListRuleGroupsOutput: networkfirewall.ListRuleGroupsOutput{
+			RuleGroups: []types.RuleGroupMetadata{
+				{Arn: aws.String(group1)},
+				{Arn: aws.String(group2)},
 			},
-			DescribeResourcePolicyOutput: networkfirewall.DescribeResourcePolicyOutput{
-				Policy: aws.String("policy-statements"),
-			},
+		},
+		DescribeResourcePolicyOutput: networkfirewall.DescribeResourcePolicyOutput{
+			Policy: aws.String(`{"Version":"2012-10-17","Statement":[]}`),
 		},
 	}
 
@@ -87,33 +75,30 @@ func TestNetworkFirewallResourcePolicy_GetAll(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(policy1),
-					}}},
+						RE: *regexp.MustCompile("test-policy-1"),
+					}},
+				},
 			},
 			expected: []string{policy2, group1, group2},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := nfw.getAll(context.Background(), config.Config{
-				NetworkFirewallResourcePolicy: tc.configObj,
-			})
+			ids, err := listNetworkFirewallResourcePolicies(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
 func TestNetworkFirewallResourcePolicy_NukeAll(t *testing.T) {
-
 	t.Parallel()
 
-	ngw := NetworkFirewallResourcePolicy{
-		Client: mockedNetworkFirewallResourcePolicy{
-			DeleteResourcePolicyOutput: networkfirewall.DeleteResourcePolicyOutput{},
-		},
+	mock := mockedNetworkFirewallResourcePolicy{
+		DeleteResourcePolicyOutput: networkfirewall.DeleteResourcePolicyOutput{},
 	}
 
-	err := ngw.nukeAll([]*string{aws.String("test")})
+	err := deleteNetworkFirewallResourcePolicy(context.Background(), mock, aws.String("arn:aws:network-firewall:us-east-1:123456789012:firewall-policy/test"))
 	require.NoError(t, err)
 }

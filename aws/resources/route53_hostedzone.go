@@ -2,7 +2,7 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/util"
+	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,111 +10,151 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
-func (r *Route53HostedZone) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var ids []*string
-	paginator := route53.NewListHostedZonesPaginator(r.Client, &route53.ListHostedZonesInput{})
+// Route53HostedZoneAPI defines the interface for Route53 hosted zone operations.
+type Route53HostedZoneAPI interface {
+	ListHostedZones(ctx context.Context, params *route53.ListHostedZonesInput, optFns ...func(*route53.Options)) (*route53.ListHostedZonesOutput, error)
+	ListTagsForResources(ctx context.Context, params *route53.ListTagsForResourcesInput, optFns ...func(*route53.Options)) (*route53.ListTagsForResourcesOutput, error)
+	ListResourceRecordSets(ctx context.Context, params *route53.ListResourceRecordSetsInput, optFns ...func(*route53.Options)) (*route53.ListResourceRecordSetsOutput, error)
+	ChangeResourceRecordSets(ctx context.Context, params *route53.ChangeResourceRecordSetsInput, optFns ...func(*route53.Options)) (*route53.ChangeResourceRecordSetsOutput, error)
+	DeleteHostedZone(ctx context.Context, params *route53.DeleteHostedZoneInput, optFns ...func(*route53.Options)) (*route53.DeleteHostedZoneOutput, error)
+	DeleteTrafficPolicyInstance(ctx context.Context, params *route53.DeleteTrafficPolicyInstanceInput, optFns ...func(*route53.Options)) (*route53.DeleteTrafficPolicyInstanceOutput, error)
+}
 
+// NewRoute53HostedZone creates a new Route53 Hosted Zone resource using the generic resource pattern.
+func NewRoute53HostedZone() AwsResource {
+	return NewAwsResource(&resource.Resource[Route53HostedZoneAPI]{
+		ResourceTypeName: "route53-hosted-zone",
+		BatchSize:        DefaultBatchSize,
+		IsGlobal:         true,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[Route53HostedZoneAPI], cfg aws.Config) {
+			r.Scope.Region = "global"
+			r.Client = route53.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.Route53HostedZone
+		},
+		Lister: listRoute53HostedZones,
+		Nuker:  resource.SequentialDeleter(deleteRoute53HostedZone),
+	})
+}
+
+// listRoute53HostedZones retrieves all Route53 hosted zones that match the config filters.
+// Returns identifiers in format "zoneId|domainName" since deletion needs the domain name
+// to identify which NS/SOA records to skip.
+func listRoute53HostedZones(ctx context.Context, client Route53HostedZoneAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
+
+	paginator := route53.NewListHostedZonesPaginator(client, &route53.ListHostedZonesInput{})
 	for paginator.HasMorePages() {
-		result, err := paginator.NextPage(r.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] unable to list hosted-zones: %s", err)
 			return nil, err
 		}
 
-		zoneIds := make([]string, 0, len(result.HostedZones))
-		for _, zone := range result.HostedZones {
+		// Collect zone IDs for batch tag lookup
+		zoneIds := make([]string, 0, len(page.HostedZones))
+		for _, zone := range page.HostedZones {
 			zoneIds = append(zoneIds, strings.TrimPrefix(aws.ToString(zone.Id), "/hostedzone/"))
 		}
 
+		// Fetch tags for all zones in this page
 		tagsByZoneId := make(map[string][]types.Tag)
-		output, err := r.Client.ListTagsForResources(c, &route53.ListTagsForResourcesInput{
-			ResourceType: types.TagResourceTypeHostedzone,
-			ResourceIds:  zoneIds,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] unable to list tags for hosted zones: %s", err)
-			return nil, err
-		}
-		for _, tagSet := range output.ResourceTagSets {
-			tagsByZoneId[*tagSet.ResourceId] = tagSet.Tags
+		if len(zoneIds) > 0 {
+			tagsOutput, err := client.ListTagsForResources(ctx, &route53.ListTagsForResourcesInput{
+				ResourceType: types.TagResourceTypeHostedzone,
+				ResourceIds:  zoneIds,
+			})
+			if err != nil {
+				return nil, err
+			}
+			for _, tagSet := range tagsOutput.ResourceTagSets {
+				tagsByZoneId[aws.ToString(tagSet.ResourceId)] = tagSet.Tags
+			}
 		}
 
-		for _, zone := range result.HostedZones {
-			if configObj.Route53HostedZone.ShouldInclude(config.ResourceValue{
+		// Filter zones based on config
+		for _, zone := range page.HostedZones {
+			zoneId := strings.TrimPrefix(aws.ToString(zone.Id), "/hostedzone/")
+			tags := util.ConvertRoute53TagsToMap(tagsByZoneId[zoneId])
+
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: zone.Name,
-				Tags: util.ConvertRoute53TagsToMap(tagsByZoneId[strings.TrimPrefix(aws.ToString(zone.Id), "/hostedzone/")]),
+				Tags: tags,
 			}) {
-				ids = append(ids, zone.Id)
-				r.HostedZonesDomains[aws.ToString(zone.Id)] = &zone
+				// Encode both zone ID and domain name in the identifier
+				identifier := fmt.Sprintf("%s|%s", aws.ToString(zone.Id), aws.ToString(zone.Name))
+				identifiers = append(identifiers, aws.String(identifier))
 			}
 		}
 	}
-	return ids, nil
+
+	return identifiers, nil
 }
 
-// IMPORTANT:
-// (https://docs.aws.amazon.com/Route53/latest/APIReference/API_DeleteTrafficPolicyInstance.html).
-// Amazon Route 53 will delete the resource record set automatically. If you delete the resource record set by using ChangeResourceRecordSets,
-// Route 53 doesn't automatically delete the traffic policy instance, and you'll continue to be charged for it even though it's no longer in use.
-func (r *Route53HostedZone) nukeTrafficPolicy(id *string) (err error) {
-	logging.Debugf("[Traffic Policy] nuking the traffic policy attached with the hosted zone")
+// deleteRoute53HostedZone deletes a single Route53 hosted zone and all its record sets.
+// Expects identifier in format "zoneId|domainName".
+func deleteRoute53HostedZone(ctx context.Context, client Route53HostedZoneAPI, identifier *string) error {
+	zoneId, domainName, err := parseHostedZoneIdentifier(aws.ToString(identifier))
+	if err != nil {
+		return err
+	}
 
-	_, err = r.Client.DeleteTrafficPolicyInstance(r.Context, &route53.DeleteTrafficPolicyInstanceInput{
-		Id: id,
+	// Step 1: Delete all record sets (except required SOA and NS records)
+	if err := deleteHostedZoneRecordSets(ctx, client, zoneId, domainName); err != nil {
+		return err
+	}
+
+	// Step 2: Delete the hosted zone
+	_, err = client.DeleteHostedZone(ctx, &route53.DeleteHostedZoneInput{
+		Id: aws.String(zoneId),
 	})
 	return err
 }
 
-func (r *Route53HostedZone) nukeHostedZone(id *string) (err error) {
-
-	_, err = r.Client.DeleteHostedZone(r.Context, &route53.DeleteHostedZoneInput{
-		Id: id,
-	})
-
-	return err
+// parseHostedZoneIdentifier parses an identifier in format "zoneId|domainName".
+func parseHostedZoneIdentifier(identifier string) (string, string, error) {
+	parts := strings.SplitN(identifier, "|", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid hosted zone identifier format: %s", identifier)
+	}
+	return parts[0], parts[1], nil
 }
 
-func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
+// deleteHostedZoneRecordSets deletes all deletable record sets from a hosted zone.
+func deleteHostedZoneRecordSets(ctx context.Context, client Route53HostedZoneAPI, zoneId, domainName string) error {
 	var changes []types.Change
 
-	// get the domain name
-	domainName := aws.ToString(r.HostedZonesDomains[aws.ToString(id)].Name)
-
-	paginator := route53.NewListResourceRecordSetsPaginator(r.Client, &route53.ListResourceRecordSetsInput{
-		HostedZoneId: id,
+	paginator := route53.NewListResourceRecordSetsPaginator(client, &route53.ListResourceRecordSetsInput{
+		HostedZoneId: aws.String(zoneId),
 	})
-	// get the resource records
+
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(r.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] unable to list resource record set: %s", err)
 			return err
 		}
 
-		for _, record := range output.ResourceRecordSets {
-			// Note : We can't delete the SOA record or the NS record named ${domain-name}.
-			// Reference : https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-deleting.html
+		for _, record := range page.ResourceRecordSets {
+			// Skip required SOA and NS records at the zone apex
+			// Reference: https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-deleting.html
 			if (record.Type == types.RRTypeNs || record.Type == types.RRTypeSoa) && aws.ToString(record.Name) == domainName {
-				logging.Infof("[Skipping] resource record set type is : %s", string(record.Type))
+				logging.Debugf("Skipping required %s record for zone apex", record.Type)
 				continue
 			}
 
-			// Note : the request shoud contain exactly one of [AliasTarget, all of [TTL, and ResourceRecords], or TrafficPolicyInstanceId]
+			// Handle traffic policy instances
+			// Reference: https://docs.aws.amazon.com/Route53/latest/APIReference/API_DeleteTrafficPolicyInstance.html
 			if record.TrafficPolicyInstanceId != nil {
-				// nuke the traffic policy
-				err := r.nukeTrafficPolicy(record.TrafficPolicyInstanceId)
-				if err != nil {
-					logging.Errorf("[Failed] unable to nuke traffic policy: %s", err)
+				if err := deleteTrafficPolicyInstance(ctx, client, record.TrafficPolicyInstanceId); err != nil {
 					return err
 				}
-
 				record.ResourceRecords = nil
 			}
 
-			// set the changes slice
 			changes = append(changes, types.Change{
 				Action:            types.ChangeActionDelete,
 				ResourceRecordSet: &record,
@@ -123,15 +163,13 @@ func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
 	}
 
 	if len(changes) > 0 {
-		_, err = r.Client.ChangeResourceRecordSets(r.Context, &route53.ChangeResourceRecordSetsInput{
-			HostedZoneId: id,
+		_, err := client.ChangeResourceRecordSets(ctx, &route53.ChangeResourceRecordSetsInput{
+			HostedZoneId: aws.String(zoneId),
 			ChangeBatch: &types.ChangeBatch{
 				Changes: changes,
 			},
 		})
-
 		if err != nil {
-			logging.Errorf("[Failed] unable to nuke resource record set: %s", err)
 			return err
 		}
 	}
@@ -139,51 +177,12 @@ func (r *Route53HostedZone) nukeRecordSet(id *string) (err error) {
 	return nil
 }
 
-func (r *Route53HostedZone) nuke(id *string) (err error) {
-
-	err = r.nukeRecordSet(id)
-	if err != nil {
-		logging.Errorf("[Failed] unable to nuke record sets: %s", err)
-		return err
-	}
-
-	err = r.nukeHostedZone(id)
-	if err != nil {
-		logging.Errorf("[Failed] unable to nuke hosted zone: %s", err)
-		return err
-	}
-
-	return nil
-}
-
-func (r *Route53HostedZone) nukeAll(identifiers []*string) (err error) {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Route53 Hosted Zones to nuke in region %s", r.Region)
-		return nil
-	}
-	logging.Debugf("Deleting all Route53 Hosted Zones in region %s", r.Region)
-
-	var deletedIds []*string
-	for _, id := range identifiers {
-
-		err = r.nuke(id)
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Route53 hosted zone",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Errorf("[Failed] %s: %s", *id, err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Route53 Hosted Zone: %s", aws.ToString(id))
-		}
-	}
-
-	logging.Debugf("[OK] %d Route53 hosted zone(s) deleted in %s", len(deletedIds), r.Region)
-
-	return nil
+// deleteTrafficPolicyInstance deletes a traffic policy instance.
+// This must be done before deleting the associated record set, otherwise the traffic policy
+// instance continues to be charged even though it's no longer in use.
+func deleteTrafficPolicyInstance(ctx context.Context, client Route53HostedZoneAPI, instanceId *string) error {
+	_, err := client.DeleteTrafficPolicyInstance(ctx, &route53.DeleteTrafficPolicyInstanceInput{
+		Id: instanceId,
+	})
+	return err
 }

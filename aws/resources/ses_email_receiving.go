@@ -8,107 +8,134 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+// ReceiptRuleAllowedRegions lists AWS regions where SES email receiving is supported.
+// SES does not support email receiving in many regions. Reference:
+// https://docs.aws.amazon.com/ses/latest/dg/regions.html#region-receive-email
 var ReceiptRuleAllowedRegions = []string{
 	"us-east-1", "us-east-2", "us-west-2", "ap-southeast-3", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
 	"ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2",
 }
 
-// Returns a formatted string of receipt rule names
-func (s *SesReceiptRule) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	// NOTE : SES does not support email receiving in the following Regions: US West (N. California), Africa (Cape Town), Asia Pacific (Mumbai), Asia Pacific (Osaka),
-	// Asia Pacific (Seoul), Europe (Milan), Europe (Paris), Europe (Stockholm), Israel (Tel Aviv), Middle East (Bahrain), South America (São Paulo),
-	// AWS GovCloud (US-West), and AWS GovCloud (US-East).
-	// Reference : https://docs.aws.amazon.com/ses/latest/dg/regions.html#region-receive-email
+// SESReceiptRuleSetAPI defines the interface for SES Receipt Rule Set operations.
+type SESReceiptRuleSetAPI interface {
+	DescribeActiveReceiptRuleSet(ctx context.Context, params *ses.DescribeActiveReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DescribeActiveReceiptRuleSetOutput, error)
+	ListReceiptRuleSets(ctx context.Context, params *ses.ListReceiptRuleSetsInput, optFns ...func(*ses.Options)) (*ses.ListReceiptRuleSetsOutput, error)
+	DeleteReceiptRuleSet(ctx context.Context, params *ses.DeleteReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptRuleSetOutput, error)
+}
 
-	// since the aws doesn't provide an api to check the ses receipt rule is allowed for the region
-	if !slices.Contains(ReceiptRuleAllowedRegions, s.Region) {
-		logging.Debugf("Region %s is not allowed for Email receiving", s.Region)
+// NewSesReceiptRule creates a new SES Receipt Rule Set resource using the generic resource pattern.
+func NewSesReceiptRule() AwsResource {
+	return NewAwsResource(&resource.Resource[SESReceiptRuleSetAPI]{
+		ResourceTypeName: "ses-receipt-rule-set",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESReceiptRuleSetAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ses.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.SESReceiptRuleSet
+		},
+		Lister: listSesReceiptRuleSets,
+		Nuker:  resource.SimpleBatchDeleter(deleteSesReceiptRuleSet),
+	})
+}
+
+// listSesReceiptRuleSets retrieves all SES receipt rule sets that match the config filters.
+// Note: Active rule sets cannot be deleted, so they are excluded from the results.
+func listSesReceiptRuleSets(ctx context.Context, client SESReceiptRuleSetAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	// Check if region supports email receiving
+	if !slices.Contains(ReceiptRuleAllowedRegions, scope.Region) {
+		logging.Debugf("Region %s is not allowed for Email receiving", scope.Region)
 		return nil, nil
 	}
 
-	// https://docs.aws.amazon.com/cli/latest/reference/ses/delete-receipt-rule-set.html
-	// Important : The currently active rule set cannot be deleted.
-	activeRule, err := s.Client.DescribeActiveReceiptRuleSet(s.Context, &ses.DescribeActiveReceiptRuleSetInput{})
+	// Get active rule set to exclude it (active rule sets cannot be deleted)
+	activeRule, err := client.DescribeActiveReceiptRuleSet(ctx, &ses.DescribeActiveReceiptRuleSetInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
-	result, err := s.Client.ListReceiptRuleSets(s.Context, &ses.ListReceiptRuleSetsInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+	var ruleSets []*string
+	var nextToken *string
 
-	var rulesets []*string
-	for _, sets := range result.RuleSets {
-		// checking the rule set is the active one
-		if activeRule != nil && activeRule.Metadata != nil && aws.ToString(activeRule.Metadata.Name) == aws.ToString(sets.Name) {
-			logging.Debugf("The Ruleset %s is active and you wont able to delete it", aws.ToString(sets.Name))
-			continue
-		}
-		if configObj.SESReceiptRuleSet.ShouldInclude(config.ResourceValue{
-			Name: sets.Name,
-			Time: sets.CreatedTimestamp,
-		}) {
-			rulesets = append(rulesets, sets.Name)
-		}
-	}
-
-	return rulesets, nil
-}
-
-// Deletes all receipt rules
-func (s *SesReceiptRule) nukeAll(sets []*string) error {
-	if len(sets) == 0 {
-		logging.Debugf("No SES rule sets sets to nuke in region %s", s.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all SES rule sets in region %s", s.Region)
-	var deletedSets []*string
-
-	for _, set := range sets {
-
-		param := &ses.DeleteReceiptRuleSetInput{
-			RuleSetName: set,
-		}
-		_, err := s.Client.DeleteReceiptRuleSet(s.Context, param)
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(set),
-			ResourceType: "SES receipt rule set",
-			Error:        err,
-		}
-		report.Record(e)
-
+	for {
+		output, err := client.ListReceiptRuleSets(ctx, &ses.ListReceiptRuleSetsInput{
+			NextToken: nextToken,
+		})
 		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedSets = append(deletedSets, set)
-			logging.Debugf("Deleted SES receipt rule set: %s", *set)
+			return nil, err
 		}
+
+		for _, ruleSet := range output.RuleSets {
+			// Skip active rule set (cannot be deleted)
+			if activeRule != nil && activeRule.Metadata != nil &&
+				aws.ToString(activeRule.Metadata.Name) == aws.ToString(ruleSet.Name) {
+				logging.Debugf("Skipping active ruleset %s (cannot be deleted)", aws.ToString(ruleSet.Name))
+				continue
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: ruleSet.Name,
+				Time: ruleSet.CreatedTimestamp,
+			}) {
+				ruleSets = append(ruleSets, ruleSet.Name)
+			}
+		}
+
+		if output.NextToken == nil {
+			break
+		}
+		nextToken = output.NextToken
 	}
 
-	logging.Debugf("[OK] %d SES receipt rule set(s) deleted in %s", len(deletedSets), s.Region)
-
-	return nil
+	return ruleSets, nil
 }
 
-// ///////////////////////receipt Ip filters //////////////////////////////////////
+// deleteSesReceiptRuleSet deletes a single SES receipt rule set.
+func deleteSesReceiptRuleSet(ctx context.Context, client SESReceiptRuleSetAPI, id *string) error {
+	_, err := client.DeleteReceiptRuleSet(ctx, &ses.DeleteReceiptRuleSetInput{
+		RuleSetName: id,
+	})
+	return err
+}
 
-// Returns a formatted string of ses-identities IDs
-func (s *SesReceiptFilter) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := s.Client.ListReceiptFilters(s.Context, &ses.ListReceiptFiltersInput{})
+// SESReceiptFilterAPI defines the interface for SES Receipt Filter operations.
+type SESReceiptFilterAPI interface {
+	ListReceiptFilters(ctx context.Context, params *ses.ListReceiptFiltersInput, optFns ...func(*ses.Options)) (*ses.ListReceiptFiltersOutput, error)
+	DeleteReceiptFilter(ctx context.Context, params *ses.DeleteReceiptFilterInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptFilterOutput, error)
+}
+
+// NewSesReceiptFilter creates a new SES Receipt Filter resource using the generic resource pattern.
+func NewSesReceiptFilter() AwsResource {
+	return NewAwsResource(&resource.Resource[SESReceiptFilterAPI]{
+		ResourceTypeName: "ses-receipt-filter",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESReceiptFilterAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ses.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.SESReceiptFilter
+		},
+		Lister: listSesReceiptFilters,
+		Nuker:  resource.SimpleBatchDeleter(deleteSesReceiptFilter),
+	})
+}
+
+// listSesReceiptFilters retrieves all SES receipt filters that match the config filters.
+// Note: ListReceiptFilters does not support pagination.
+func listSesReceiptFilters(ctx context.Context, client SESReceiptFilterAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	output, err := client.ListReceiptFilters(ctx, &ses.ListReceiptFiltersInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var filters []*string
-	for _, filter := range result.Filters {
-		if configObj.SESReceiptFilter.ShouldInclude(config.ResourceValue{
+	for _, filter := range output.Filters {
+		if cfg.ShouldInclude(config.ResourceValue{
 			Name: filter.Name,
 		}) {
 			filters = append(filters, filter.Name)
@@ -118,39 +145,10 @@ func (s *SesReceiptFilter) getAll(c context.Context, configObj config.Config) ([
 	return filters, nil
 }
 
-// Deletes all filters
-func (s *SesReceiptFilter) nukeAll(filters []*string) error {
-	if len(filters) == 0 {
-		logging.Debugf("No SES receipt filters to nuke in region %s", s.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all SES receipt  filters in region %s", s.Region)
-	var deletedFilters []*string
-
-	for _, filter := range filters {
-
-		param := &ses.DeleteReceiptFilterInput{
-			FilterName: filter,
-		}
-		_, err := s.Client.DeleteReceiptFilter(s.Context, param)
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(filter),
-			ResourceType: "SES receipt filter",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedFilters = append(deletedFilters, filter)
-			logging.Debugf("Deleted SES receipt filter: %s", *filter)
-		}
-	}
-
-	logging.Debugf("[OK] %d SES receipt receipt filter(s) deleted in %s", len(deletedFilters), s.Region)
-
-	return nil
+// deleteSesReceiptFilter deletes a single SES receipt filter.
+func deleteSesReceiptFilter(ctx context.Context, client SESReceiptFilterAPI, id *string) error {
+	_, err := client.DeleteReceiptFilter(ctx, &ses.DeleteReceiptFilterInput{
+		FilterName: id,
+	})
+	return err
 }

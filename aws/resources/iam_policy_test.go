@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,33 +80,32 @@ func (m mockedIAMPolicies) DeleteRolePermissionsBoundary(ctx context.Context, pa
 	return &m.DeleteRolePermissionsBoundaryOutput, nil
 }
 
-func TestIAMPolicy_GetAll(t *testing.T) {
+func TestIAMPolicy_ListIAMPolicies(t *testing.T) {
 	t.Parallel()
 	testName1 := "MyPolicy1"
 	testName2 := "MyPolicy2"
 	testArn1 := "arn:aws:iam::123456789012:policy/MyPolicy1"
 	testArn2 := "arn:aws:iam::123456789012:policy/MyPolicy2"
 	now := time.Now()
-	ip := IAMPolicies{
-		Client: mockedIAMPolicies{
-			ListPoliciesOutput: iam.ListPoliciesOutput{
-				Policies: []types.Policy{
-					{
-						Arn:        aws.String(testArn1),
-						PolicyName: aws.String(testName1),
-						CreateDate: aws.Time(now),
-					},
-					{
-						Arn:        aws.String(testArn2),
-						PolicyName: aws.String(testName2),
-						CreateDate: aws.Time(now.Add(1)),
-					},
+
+	client := mockedIAMPolicies{
+		ListPoliciesOutput: iam.ListPoliciesOutput{
+			Policies: []types.Policy{
+				{
+					Arn:        aws.String(testArn1),
+					PolicyName: aws.String(testName1),
+					CreateDate: aws.Time(now),
+				},
+				{
+					Arn:        aws.String(testArn2),
+					PolicyName: aws.String(testName2),
+					CreateDate: aws.Time(now.Add(1)),
 				},
 			},
-			ListPolicyTagsOutputByArn: map[string]*iam.ListPolicyTagsOutput{
-				testArn1: {Tags: []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
-				testArn2: {Tags: []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}}},
-			},
+		},
+		ListPolicyTagsOutputByArn: map[string]*iam.ListPolicyTagsOutput{
+			testArn1: {Tags: []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
+			testArn2: {Tags: []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}}},
 		},
 	}
 
@@ -152,87 +152,81 @@ func TestIAMPolicy_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ip.getAll(context.Background(), config.Config{
-				IAMPolicies: tc.configObj,
-			})
+			names, err := listIAMPolicies(context.Background(), client, resource.Scope{Region: "global"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestIAMPolicy_NukeAll(t *testing.T) {
+func TestIAMPolicy_DeleteIAMPolicy(t *testing.T) {
 	t.Parallel()
 
-	ip := IAMPolicies{
-		Client: mockedIAMPolicies{
-			ListEntitiesForPolicyOutput: iam.ListEntitiesForPolicyOutput{
-				PolicyGroups: []types.PolicyGroup{
-					{GroupName: aws.String("group1")},
-				},
-				PolicyUsers: []types.PolicyUser{
-					{UserName: aws.String("user1")},
-				},
-				PolicyRoles: []types.PolicyRole{
-					{RoleName: aws.String("role1")},
-				},
+	client := mockedIAMPolicies{
+		ListEntitiesForPolicyOutput: iam.ListEntitiesForPolicyOutput{
+			PolicyGroups: []types.PolicyGroup{
+				{GroupName: aws.String("group1")},
 			},
-			ListEntitiesForPolicyPermBoundaryOutput: iam.ListEntitiesForPolicyOutput{},
-			DetachUserPolicyOutput:                  iam.DetachUserPolicyOutput{},
-			DetachGroupPolicyOutput:                 iam.DetachGroupPolicyOutput{},
-			DetachRolePolicyOutput:                  iam.DetachRolePolicyOutput{},
-			ListPolicyVersionsOutput: iam.ListPolicyVersionsOutput{
-				Versions: []types.PolicyVersion{
-					{
-						VersionId:        aws.String("v1"),
-						IsDefaultVersion: false,
-					},
-				},
+			PolicyUsers: []types.PolicyUser{
+				{UserName: aws.String("user1")},
 			},
-			DeletePolicyVersionOutput: iam.DeletePolicyVersionOutput{},
-			DeletePolicyOutput:        iam.DeletePolicyOutput{},
+			PolicyRoles: []types.PolicyRole{
+				{RoleName: aws.String("role1")},
+			},
 		},
+		ListEntitiesForPolicyPermBoundaryOutput: iam.ListEntitiesForPolicyOutput{},
+		DetachUserPolicyOutput:                  iam.DetachUserPolicyOutput{},
+		DetachGroupPolicyOutput:                 iam.DetachGroupPolicyOutput{},
+		DetachRolePolicyOutput:                  iam.DetachRolePolicyOutput{},
+		ListPolicyVersionsOutput: iam.ListPolicyVersionsOutput{
+			Versions: []types.PolicyVersion{
+				{
+					VersionId:        aws.String("v1"),
+					IsDefaultVersion: false,
+				},
+			},
+		},
+		DeletePolicyVersionOutput: iam.DeletePolicyVersionOutput{},
+		DeletePolicyOutput:        iam.DeletePolicyOutput{},
 	}
 
-	err := ip.nukeAll([]*string{aws.String("arn:aws:iam::123456789012:policy/MyPolicy1")})
+	err := deleteIAMPolicy(context.Background(), client, aws.String("arn:aws:iam::123456789012:policy/MyPolicy1"))
 	require.NoError(t, err)
 }
 
-func TestIAMPolicy_NukeAll_WithPermissionsBoundary(t *testing.T) {
+func TestIAMPolicy_DeleteIAMPolicy_WithPermissionsBoundary(t *testing.T) {
 	t.Parallel()
 
-	ip := IAMPolicies{
-		Client: mockedIAMPolicies{
-			// Regular policy attachments
-			ListEntitiesForPolicyOutput: iam.ListEntitiesForPolicyOutput{
-				PolicyRoles: []types.PolicyRole{
-					{RoleName: aws.String("role-with-policy")},
-				},
+	client := mockedIAMPolicies{
+		// Regular policy attachments
+		ListEntitiesForPolicyOutput: iam.ListEntitiesForPolicyOutput{
+			PolicyRoles: []types.PolicyRole{
+				{RoleName: aws.String("role-with-policy")},
 			},
-			// Permissions boundary attachments
-			ListEntitiesForPolicyPermBoundaryOutput: iam.ListEntitiesForPolicyOutput{
-				PolicyUsers: []types.PolicyUser{
-					{UserName: aws.String("user-with-boundary")},
-				},
-				PolicyRoles: []types.PolicyRole{
-					{RoleName: aws.String("role-with-boundary")},
-				},
-			},
-			DetachRolePolicyOutput:              iam.DetachRolePolicyOutput{},
-			DeleteUserPermissionsBoundaryOutput: iam.DeleteUserPermissionsBoundaryOutput{},
-			DeleteRolePermissionsBoundaryOutput: iam.DeleteRolePermissionsBoundaryOutput{},
-			ListPolicyVersionsOutput: iam.ListPolicyVersionsOutput{
-				Versions: []types.PolicyVersion{
-					{
-						VersionId:        aws.String("v1"),
-						IsDefaultVersion: true,
-					},
-				},
-			},
-			DeletePolicyOutput: iam.DeletePolicyOutput{},
 		},
+		// Permissions boundary attachments
+		ListEntitiesForPolicyPermBoundaryOutput: iam.ListEntitiesForPolicyOutput{
+			PolicyUsers: []types.PolicyUser{
+				{UserName: aws.String("user-with-boundary")},
+			},
+			PolicyRoles: []types.PolicyRole{
+				{RoleName: aws.String("role-with-boundary")},
+			},
+		},
+		DetachRolePolicyOutput:              iam.DetachRolePolicyOutput{},
+		DeleteUserPermissionsBoundaryOutput: iam.DeleteUserPermissionsBoundaryOutput{},
+		DeleteRolePermissionsBoundaryOutput: iam.DeleteRolePermissionsBoundaryOutput{},
+		ListPolicyVersionsOutput: iam.ListPolicyVersionsOutput{
+			Versions: []types.PolicyVersion{
+				{
+					VersionId:        aws.String("v1"),
+					IsDefaultVersion: true,
+				},
+			},
+		},
+		DeletePolicyOutput: iam.DeletePolicyOutput{},
 	}
 
-	err := ip.nukeAll([]*string{aws.String("arn:aws:iam::123456789012:policy/BoundaryPolicy")})
+	err := deleteIAMPolicy(context.Background(), client, aws.String("arn:aws:iam::123456789012:policy/BoundaryPolicy"))
 	require.NoError(t, err)
 }

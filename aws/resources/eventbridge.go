@@ -7,72 +7,55 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (eb *EventBridge) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("[Event Bridge] No Event Bridges found in region %s", eb.Region)
-		return nil
-	}
-
-	logging.Debugf("[Event Bridge] Deleting all Event Bridges in %s", eb.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		if *identifier == "default" {
-			logging.Debugf("[Event Bridge] skipping deleteing default Bus in region %s", eb.Region)
-			continue
-		}
-
-		_, err := eb.Client.DeleteEventBus(eb.Context, &eventbridge.DeleteEventBusInput{
-			Name: identifier,
-		})
-		if err != nil {
-			logging.Debugf(
-				"[Event Bridge] Error deleting Bus %s in region %s, err %s",
-				*identifier,
-				eb.Region,
-				err,
-			)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[Event Bridge] Deleted Bus %s in region %s", *identifier, eb.Region)
-		}
-
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: eb.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d Event Bridges Bus(es) deleted in %s", len(deleted), eb.Region)
-	return nil
+// EventBridgeAPI defines the interface for EventBridge operations.
+type EventBridgeAPI interface {
+	DeleteEventBus(ctx context.Context, params *eventbridge.DeleteEventBusInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteEventBusOutput, error)
+	ListEventBuses(ctx context.Context, params *eventbridge.ListEventBusesInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListEventBusesOutput, error)
 }
 
-func (eb *EventBridge) getAll(ctx context.Context, cnfObj config.Config) ([]*string, error) {
+// NewEventBridge creates a new EventBridge resource using the generic resource pattern.
+func NewEventBridge() AwsResource {
+	return NewAwsResource(&resource.Resource[EventBridgeAPI]{
+		ResourceTypeName: "event-bridge",
+		BatchSize:        100,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EventBridgeAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = eventbridge.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EventBridge
+		},
+		Lister: listEventBuses,
+		Nuker:  resource.SimpleBatchDeleter(deleteEventBus),
+	})
+}
+
+// listEventBuses retrieves all EventBridge Buses that match the config filters.
+// Uses manual pagination since ListEventBuses does not have an SDK paginator.
+func listEventBuses(ctx context.Context, client EventBridgeAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var identifiers []*string
 
 	hasMorePages := true
 	params := &eventbridge.ListEventBusesInput{}
 
 	for hasMorePages {
-		buses, err := eb.Client.ListEventBuses(ctx, params)
+		buses, err := client.ListEventBuses(ctx, params)
 		if err != nil {
 			logging.Debugf("[Event Bridge] Failed to list event buses: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, bus := range buses.EventBuses {
-			if *bus.Name == "default" {
-				logging.Debugf("[Event Bridge] skipping default event bus in region %s", eb.Region)
+			// Skip the default bus in listing
+			if aws.ToString(bus.Name) == "default" {
+				logging.Debugf("[Event Bridge] skipping default event bus in region %s", scope.Region)
 				continue
 			}
 
-			if cnfObj.EventBridge.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: bus.Name,
 				Time: bus.CreationTime,
 			}) {
@@ -85,4 +68,18 @@ func (eb *EventBridge) getAll(ctx context.Context, cnfObj config.Config) ([]*str
 	}
 
 	return identifiers, nil
+}
+
+// deleteEventBus deletes a single EventBridge Bus.
+func deleteEventBus(ctx context.Context, client EventBridgeAPI, busName *string) error {
+	// Skip the default bus in deletion (should already be filtered out in listing,
+	// but this is a safety check)
+	if aws.ToString(busName) == "default" {
+		return nil
+	}
+
+	_, err := client.DeleteEventBus(ctx, &eventbridge.DeleteEventBusInput{
+		Name: busName,
+	})
+	return err
 }

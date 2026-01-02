@@ -10,52 +10,52 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedEBS struct {
-	EBSVolumesAPI
+type mockEBSVolumesClient struct {
 	DescribeVolumesOutput ec2.DescribeVolumesOutput
 	DeleteVolumeOutput    ec2.DeleteVolumeOutput
 }
 
-func (m mockedEBS) DescribeVolumes(ctx context.Context, params *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVolumesOutput, error) {
+func (m *mockEBSVolumesClient) DescribeVolumes(ctx context.Context, params *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVolumesOutput, error) {
 	return &m.DescribeVolumesOutput, nil
 }
 
-func (m mockedEBS) DeleteVolume(ctx context.Context, params *ec2.DeleteVolumeInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVolumeOutput, error) {
+func (m *mockEBSVolumesClient) DeleteVolume(ctx context.Context, params *ec2.DeleteVolumeInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVolumeOutput, error) {
 	return &m.DeleteVolumeOutput, nil
 }
 
-func TestEBSVolume_GetAll(t *testing.T) {
+func TestListEBSVolumes(t *testing.T) {
 	t.Parallel()
 
-	testName1 := "test-name1"
-	testName2 := "test-name2"
-	testVolume1 := "test-volume1"
-	testVolume2 := "test-volume2"
+	testVolume1 := "vol-test1"
+	testVolume2 := "vol-test2"
 	now := time.Now()
-	ev := EBSVolumes{
-		Client: mockedEBS{
-			DescribeVolumesOutput: ec2.DescribeVolumesOutput{
-				Volumes: []types.Volume{
-					{
-						VolumeId:   aws.String(testVolume1),
-						CreateTime: aws.Time(now),
-						Tags: []types.Tag{{
-							Key:   aws.String("Name"),
-							Value: aws.String(testName1),
-						}},
-					},
-					{
-						VolumeId:   aws.String(testVolume2),
-						CreateTime: aws.Time(now.Add(1)),
-						Tags: []types.Tag{{
-							Key:   aws.String("Name"),
-							Value: aws.String(testName2),
-						}},
-					},
-				}}}}
+
+	mock := &mockEBSVolumesClient{
+		DescribeVolumesOutput: ec2.DescribeVolumesOutput{
+			Volumes: []types.Volume{
+				{
+					VolumeId:   aws.String(testVolume1),
+					CreateTime: aws.Time(now),
+					Tags: []types.Tag{{
+						Key:   aws.String("Name"),
+						Value: aws.String("test-name1"),
+					}},
+				},
+				{
+					VolumeId:   aws.String(testVolume2),
+					CreateTime: aws.Time(now.Add(1 * time.Hour)),
+					Tags: []types.Tag{{
+						Key:   aws.String("Name"),
+						Value: aws.String("test-name2"),
+					}},
+				},
+			},
+		},
+	}
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -68,41 +68,37 @@ func TestEBSVolume_GetAll(t *testing.T) {
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test-name1")}},
+				},
 			},
 			expected: []string{testVolume2},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-2 * time.Hour)),
-				}},
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				},
+			},
 			expected: []string{},
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ev.getAll(context.Background(), config.Config{
-				EBSVolume: tc.configObj,
-			})
+			ids, err := listEBSVolumes(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
-func TestEBSVolume_NukeAll(t *testing.T) {
+func TestDeleteEBSVolume(t *testing.T) {
 	t.Parallel()
 
-	ev := EBSVolumes{
-		Client: mockedEBS{
-			DeleteVolumeOutput: ec2.DeleteVolumeOutput{},
-		},
+	mock := &mockEBSVolumesClient{
+		DeleteVolumeOutput: ec2.DeleteVolumeOutput{},
 	}
 
-	err := ev.nukeAll([]*string{aws.String("test-volume")})
+	err := deleteEBSVolume(context.Background(), mock, aws.String("vol-test"))
 	require.NoError(t, err)
 }

@@ -9,10 +9,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedR53CidrCollection struct {
+type mockedRoute53CidrCollectionAPI struct {
 	Route53CidrCollectionAPI
 	ListCidrCollectionsOutput  route53.ListCidrCollectionsOutput
 	ListCidrBlocksOutput       route53.ListCidrBlocksOutput
@@ -20,105 +22,120 @@ type mockedR53CidrCollection struct {
 	DeleteCidrCollectionOutput route53.DeleteCidrCollectionOutput
 }
 
-func (mock mockedR53CidrCollection) ListCidrBlocks(_ context.Context, _ *route53.ListCidrBlocksInput, _ ...func(*route53.Options)) (*route53.ListCidrBlocksOutput, error) {
-	return &mock.ListCidrBlocksOutput, nil
+func (m mockedRoute53CidrCollectionAPI) ListCidrCollections(_ context.Context, _ *route53.ListCidrCollectionsInput, _ ...func(*route53.Options)) (*route53.ListCidrCollectionsOutput, error) {
+	return &m.ListCidrCollectionsOutput, nil
 }
 
-func (mock mockedR53CidrCollection) ChangeCidrCollection(_ context.Context, _ *route53.ChangeCidrCollectionInput, _ ...func(*route53.Options)) (*route53.ChangeCidrCollectionOutput, error) {
-	return &mock.ChangeCidrCollectionOutput, nil
+func (m mockedRoute53CidrCollectionAPI) ListCidrBlocks(_ context.Context, _ *route53.ListCidrBlocksInput, _ ...func(*route53.Options)) (*route53.ListCidrBlocksOutput, error) {
+	return &m.ListCidrBlocksOutput, nil
 }
 
-func (mock mockedR53CidrCollection) ListCidrCollections(_ context.Context, _ *route53.ListCidrCollectionsInput, _ ...func(*route53.Options)) (*route53.ListCidrCollectionsOutput, error) {
-	return &mock.ListCidrCollectionsOutput, nil
+func (m mockedRoute53CidrCollectionAPI) ChangeCidrCollection(_ context.Context, _ *route53.ChangeCidrCollectionInput, _ ...func(*route53.Options)) (*route53.ChangeCidrCollectionOutput, error) {
+	return &m.ChangeCidrCollectionOutput, nil
 }
 
-func (mock mockedR53CidrCollection) DeleteCidrCollection(_ context.Context, _ *route53.DeleteCidrCollectionInput, _ ...func(*route53.Options)) (*route53.DeleteCidrCollectionOutput, error) {
-	return &mock.DeleteCidrCollectionOutput, nil
+func (m mockedRoute53CidrCollectionAPI) DeleteCidrCollection(_ context.Context, _ *route53.DeleteCidrCollectionInput, _ ...func(*route53.Options)) (*route53.DeleteCidrCollectionOutput, error) {
+	return &m.DeleteCidrCollectionOutput, nil
 }
 
-func TestR53CidrCollection_GetAll(t *testing.T) {
-
+func TestListRoute53CidrCollections(t *testing.T) {
 	t.Parallel()
 
-	testId1 := "d8c6f2db-89dd-5533-f30c-13e28eba8818"
-	testId2 := "d8c6f2db-90dd-5533-f30c-13e28eba8818"
-
-	testName1 := "Test name 01"
-	testName2 := "Test name 02"
-	rc := Route53CidrCollection{
-		Client: mockedR53CidrCollection{
-			ListCidrCollectionsOutput: route53.ListCidrCollectionsOutput{
-				CidrCollections: []types.CollectionSummary{
-					{
-						Id:   aws.String(testId1),
-						Name: aws.String(testName1),
-					},
-					{
-						Id:   aws.String(testId2),
-						Name: aws.String(testName2),
-					},
-				},
-			},
-		},
-	}
-
 	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
+		collections []types.CollectionSummary
+		configObj   config.ResourceType
+		expected    []string
 	}{
 		"emptyFilter": {
+			collections: []types.CollectionSummary{
+				{Id: aws.String("id-1"), Name: aws.String("collection-1")},
+				{Id: aws.String("id-2"), Name: aws.String("collection-2")},
+			},
 			configObj: config.ResourceType{},
-			expected:  []string{testId1, testId2},
+			expected:  []string{"id-1", "id-2"},
 		},
 		"nameExclusionFilter": {
+			collections: []types.CollectionSummary{
+				{Id: aws.String("id-1"), Name: aws.String("collection-1")},
+				{Id: aws.String("id-2"), Name: aws.String("collection-2")},
+			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("collection-1")}},
+				},
 			},
-			expected: []string{testId2},
+			expected: []string{"id-2"},
+		},
+		"emptyCollections": {
+			collections: []types.CollectionSummary{},
+			configObj:   config.ResourceType{},
+			expected:    []string{},
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := rc.getAll(context.Background(), config.Config{
-				Route53CIDRCollection: tc.configObj,
-			})
+			t.Parallel()
+
+			client := mockedRoute53CidrCollectionAPI{
+				ListCidrCollectionsOutput: route53.ListCidrCollectionsOutput{
+					CidrCollections: tc.collections,
+				},
+			}
+
+			ids, err := listRoute53CidrCollections(context.Background(), client, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			assert.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
-func TestR53CidrCollection_Nuke(t *testing.T) {
-
+func TestNukeCidrBlocks(t *testing.T) {
 	t.Parallel()
 
-	rc := Route53CidrCollection{
-		Client: mockedR53CidrCollection{
-			ListCidrBlocksOutput: route53.ListCidrBlocksOutput{
-				CidrBlocks: []types.CidrBlockSummary{
-					{
-						CidrBlock:    aws.String("222::0"),
-						LocationName: aws.String("sample-location-01"),
-					},
-				},
+	tests := map[string]struct {
+		blocks    []types.CidrBlockSummary
+		expectErr bool
+	}{
+		"withBlocks": {
+			blocks: []types.CidrBlockSummary{
+				{CidrBlock: aws.String("10.0.0.0/8"), LocationName: aws.String("location-1")},
+				{CidrBlock: aws.String("192.168.0.0/16"), LocationName: aws.String("location-2")},
 			},
-			ChangeCidrCollectionOutput: route53.ChangeCidrCollectionOutput{},
-			ListCidrCollectionsOutput: route53.ListCidrCollectionsOutput{
-				CidrCollections: []types.CollectionSummary{
-					{
-						Id:   aws.String("collection-id-01"),
-						Name: aws.String("collection-name-01"),
-					},
-				},
-			},
-			DeleteCidrCollectionOutput: route53.DeleteCidrCollectionOutput{},
+			expectErr: false,
+		},
+		"noBlocks": {
+			blocks:    []types.CidrBlockSummary{},
+			expectErr: false,
 		},
 	}
 
-	err := rc.nukeAll([]*string{aws.String("collection-id-01")})
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			client := mockedRoute53CidrCollectionAPI{
+				ListCidrBlocksOutput:       route53.ListCidrBlocksOutput{CidrBlocks: tc.blocks},
+				ChangeCidrCollectionOutput: route53.ChangeCidrCollectionOutput{},
+			}
+
+			err := nukeCidrBlocks(context.Background(), client, aws.String("test-id"))
+			if tc.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDeleteRoute53CidrCollection(t *testing.T) {
+	t.Parallel()
+
+	client := mockedRoute53CidrCollectionAPI{
+		DeleteCidrCollectionOutput: route53.DeleteCidrCollectionOutput{},
+	}
+
+	err := deleteRoute53CidrCollection(context.Background(), client, aws.String("test-id"))
 	require.NoError(t, err)
 }

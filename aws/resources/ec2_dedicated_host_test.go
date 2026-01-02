@@ -10,54 +10,54 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedEC2DedicatedHosts struct {
-	EC2DedicatedHostsAPI
+type mockEC2DedicatedHostsClient struct {
 	DescribeHostsOutput ec2.DescribeHostsOutput
 	ReleaseHostsOutput  ec2.ReleaseHostsOutput
 }
 
-func (m mockedEC2DedicatedHosts) DescribeHosts(ctx context.Context, params *ec2.DescribeHostsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeHostsOutput, error) {
+func (m *mockEC2DedicatedHostsClient) DescribeHosts(ctx context.Context, params *ec2.DescribeHostsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeHostsOutput, error) {
 	return &m.DescribeHostsOutput, nil
 }
 
-func (m mockedEC2DedicatedHosts) ReleaseHosts(ctx context.Context, params *ec2.ReleaseHostsInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseHostsOutput, error) {
+func (m *mockEC2DedicatedHostsClient) ReleaseHosts(ctx context.Context, params *ec2.ReleaseHostsInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseHostsOutput, error) {
 	return &m.ReleaseHostsOutput, nil
 }
 
-func TestEC2DedicatedHosts_GetAll(t *testing.T) {
+func TestListEC2DedicatedHosts(t *testing.T) {
 	t.Parallel()
+
 	testId1 := "test-host-id-1"
 	testId2 := "test-host-id-2"
 	testName1 := "test-host-name-1"
 	testName2 := "test-host-name-2"
 	now := time.Now()
-	h := EC2DedicatedHosts{
-		Client: mockedEC2DedicatedHosts{
-			DescribeHostsOutput: ec2.DescribeHostsOutput{
-				Hosts: []types.Host{
-					{
-						HostId: aws.String(testId1),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
-							},
+
+	mock := &mockEC2DedicatedHostsClient{
+		DescribeHostsOutput: ec2.DescribeHostsOutput{
+			Hosts: []types.Host{
+				{
+					HostId: aws.String(testId1),
+					Tags: []types.Tag{
+						{
+							Key:   aws.String("Name"),
+							Value: aws.String(testName1),
 						},
-						AllocationTime: aws.Time(now),
 					},
-					{
-						HostId: aws.String(testId2),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
-							},
+					AllocationTime: aws.Time(now),
+				},
+				{
+					HostId: aws.String(testId2),
+					Tags: []types.Tag{
+						{
+							Key:   aws.String("Name"),
+							Value: aws.String(testName2),
 						},
-						AllocationTime: aws.Time(now.Add(1)),
 					},
+					AllocationTime: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -90,24 +90,80 @@ func TestEC2DedicatedHosts_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := h.getAll(context.Background(), config.Config{
-				EC2DedicatedHosts: tc.configObj,
-			})
+			names, err := listEC2DedicatedHosts(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
-func TestEC2DedicatedHosts_NukeAll(t *testing.T) {
+func TestReleaseEC2DedicatedHosts(t *testing.T) {
 	t.Parallel()
-	h := EC2DedicatedHosts{
-		Client: mockedEC2DedicatedHosts{
-			ReleaseHostsOutput: ec2.ReleaseHostsOutput{},
+
+	tests := map[string]struct {
+		output          ec2.ReleaseHostsOutput
+		hostIds         []string
+		expectedSuccess int
+		expectedFailure int
+	}{
+		"allSuccessful": {
+			output: ec2.ReleaseHostsOutput{
+				Successful: []string{"test-host-id-1", "test-host-id-2"},
+			},
+			hostIds:         []string{"test-host-id-1", "test-host-id-2"},
+			expectedSuccess: 2,
+			expectedFailure: 0,
+		},
+		"allFailed": {
+			output: ec2.ReleaseHostsOutput{
+				Unsuccessful: []types.UnsuccessfulItem{
+					{ResourceId: aws.String("test-host-id-1"), Error: &types.UnsuccessfulItemError{Message: aws.String("error1")}},
+					{ResourceId: aws.String("test-host-id-2"), Error: &types.UnsuccessfulItemError{Message: aws.String("error2")}},
+				},
+			},
+			hostIds:         []string{"test-host-id-1", "test-host-id-2"},
+			expectedSuccess: 0,
+			expectedFailure: 2,
+		},
+		"mixed": {
+			output: ec2.ReleaseHostsOutput{
+				Successful: []string{"test-host-id-1"},
+				Unsuccessful: []types.UnsuccessfulItem{
+					{ResourceId: aws.String("test-host-id-2"), Error: &types.UnsuccessfulItemError{Message: aws.String("error")}},
+				},
+			},
+			hostIds:         []string{"test-host-id-1", "test-host-id-2"},
+			expectedSuccess: 1,
+			expectedFailure: 1,
+		},
+		"emptyInput": {
+			output:          ec2.ReleaseHostsOutput{},
+			hostIds:         []string{},
+			expectedSuccess: 0,
+			expectedFailure: 0,
 		},
 	}
 
-	err := h.nukeAll([]*string{aws.String("test-host-id-1"), aws.String("test-host-id-2")})
-	require.NoError(t, err)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mock := &mockEC2DedicatedHostsClient{
+				ReleaseHostsOutput: tc.output,
+			}
+
+			results := releaseEC2DedicatedHosts(context.Background(), mock, tc.hostIds)
+
+			successCount := 0
+			failureCount := 0
+			for _, result := range results {
+				if result.Error == nil {
+					successCount++
+				} else {
+					failureCount++
+				}
+			}
+
+			require.Equal(t, tc.expectedSuccess, successCount, "success count mismatch")
+			require.Equal(t, tc.expectedFailure, failureCount, "failure count mismatch")
+		})
+	}
 }

@@ -20,7 +20,7 @@ type CloudtrailTrailAPI interface {
 func NewCloudtrailTrail() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudtrailTrailAPI]{
 		ResourceTypeName: "cloudtrail",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudtrailTrailAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = cloudtrail.NewFromConfig(cfg)

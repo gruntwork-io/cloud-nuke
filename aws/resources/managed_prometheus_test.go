@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -18,98 +17,90 @@ import (
 
 type mockedManagedPrometheusService struct {
 	ManagedPrometheusAPI
-	ListServiceOutput     amp.ListWorkspacesOutput
+	ListWorkspacesOutput  amp.ListWorkspacesOutput
 	DeleteWorkspaceOutput amp.DeleteWorkspaceOutput
 }
 
 func (m mockedManagedPrometheusService) ListWorkspaces(ctx context.Context, input *amp.ListWorkspacesInput, f ...func(*amp.Options)) (*amp.ListWorkspacesOutput, error) {
-	return &m.ListServiceOutput, nil
+	return &m.ListWorkspacesOutput, nil
 }
 
 func (m mockedManagedPrometheusService) DeleteWorkspace(ctx context.Context, params *amp.DeleteWorkspaceInput, optFns ...func(*amp.Options)) (*amp.DeleteWorkspaceOutput, error) {
 	return &m.DeleteWorkspaceOutput, nil
 }
 
-func Test_ManagedPrometheus_GetAll(t *testing.T) {
+func Test_ManagedPrometheus_List(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	workSpace1 := "test-workspace-1"
-	workSpace2 := "test-workspace-2"
-
-	client := mockedManagedPrometheusService{
-		ListServiceOutput: amp.ListWorkspacesOutput{
-			Workspaces: []types.WorkspaceSummary{
-				{
-					Arn:       aws.String(fmt.Sprintf("arn::%s", workSpace1)),
-					Alias:     aws.String(workSpace1),
-					CreatedAt: &now,
-					Status: &types.WorkspaceStatus{
-						StatusCode: types.WorkspaceStatusCodeActive,
-					},
-					WorkspaceId: aws.String(workSpace1),
-				},
-				{
-					Arn:       aws.String(fmt.Sprintf("arn::%s", workSpace2)),
-					Alias:     aws.String(workSpace2),
-					CreatedAt: aws.Time(now.Add(time.Hour)),
-					Status: &types.WorkspaceStatus{
-						StatusCode: types.WorkspaceStatusCodeActive,
-					},
-					WorkspaceId: aws.String(workSpace2),
-				},
-			},
-		},
-	}
 
 	tests := map[string]struct {
-		configObj config.ResourceType
-		expected  []string
+		workspaces []types.WorkspaceSummary
+		configObj  config.ResourceType
+		expected   []string
 	}{
 		"emptyFilter": {
+			workspaces: []types.WorkspaceSummary{
+				{Alias: aws.String("ws-1"), CreatedAt: &now, Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeActive}, WorkspaceId: aws.String("ws-1")},
+				{Alias: aws.String("ws-2"), CreatedAt: aws.Time(now.Add(time.Hour)), Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeActive}, WorkspaceId: aws.String("ws-2")},
+			},
 			configObj: config.ResourceType{},
-			expected:  []string{workSpace1, workSpace2},
+			expected:  []string{"ws-1", "ws-2"},
 		},
 		"nameExclusionFilter": {
+			workspaces: []types.WorkspaceSummary{
+				{Alias: aws.String("ws-1"), CreatedAt: &now, Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeActive}, WorkspaceId: aws.String("ws-1")},
+				{Alias: aws.String("ws-2"), CreatedAt: &now, Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeActive}, WorkspaceId: aws.String("ws-2")},
+			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(workSpace1),
-					}},
-				}},
-			expected: []string{workSpace2},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("ws-1")}},
+				},
+			},
+			expected: []string{"ws-2"},
 		},
 		"timeAfterExclusionFilter": {
+			workspaces: []types.WorkspaceSummary{
+				{Alias: aws.String("ws-1"), CreatedAt: &now, Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeActive}, WorkspaceId: aws.String("ws-1")},
+			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
+				},
+			},
 			expected: []string{},
+		},
+		"skipsNonActiveWorkspaces": {
+			workspaces: []types.WorkspaceSummary{
+				{Alias: aws.String("active"), CreatedAt: &now, Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeActive}, WorkspaceId: aws.String("active")},
+				{Alias: aws.String("creating"), CreatedAt: &now, Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeCreating}, WorkspaceId: aws.String("creating")},
+				{Alias: aws.String("deleting"), CreatedAt: &now, Status: &types.WorkspaceStatus{StatusCode: types.WorkspaceStatusCodeDeleting}, WorkspaceId: aws.String("deleting")},
+			},
+			configObj: config.ResourceType{},
+			expected:  []string{"active"},
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			workspaces, err := listManagedPrometheusWorkspaces(
-				context.Background(),
-				client,
-				resource.Scope{},
-				tc.configObj,
-			)
+			client := mockedManagedPrometheusService{
+				ListWorkspacesOutput: amp.ListWorkspacesOutput{Workspaces: tc.workspaces},
+			}
+			workspaces, err := listManagedPrometheusWorkspaces(context.Background(), client, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(workspaces))
+			assert.Equal(t, tc.expected, aws.ToStringSlice(workspaces))
 		})
 	}
 }
 
-func Test_ManagedPrometheus_NukeAll(t *testing.T) {
+func Test_ManagedPrometheus_Delete(t *testing.T) {
 	t.Parallel()
 
-	workspaceName := "test-workspace-1"
 	client := mockedManagedPrometheusService{
 		DeleteWorkspaceOutput: amp.DeleteWorkspaceOutput{},
 	}
 
-	err := deleteManagedPrometheusWorkspace(context.Background(), client, &workspaceName)
+	workspaceID := "test-workspace-1"
+	err := deleteManagedPrometheusWorkspace(context.Background(), client, &workspaceID)
 	assert.NoError(t, err)
 }

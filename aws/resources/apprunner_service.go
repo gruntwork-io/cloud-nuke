@@ -9,17 +9,17 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// AppRunnerServiceAPI defines the interface for AppRunner Service operations.
+// AppRunnerServiceAPI defines the interface for App Runner service operations.
 type AppRunnerServiceAPI interface {
 	DeleteService(ctx context.Context, params *apprunner.DeleteServiceInput, optFns ...func(*apprunner.Options)) (*apprunner.DeleteServiceOutput, error)
 	ListServices(ctx context.Context, params *apprunner.ListServicesInput, optFns ...func(*apprunner.Options)) (*apprunner.ListServicesOutput, error)
 }
 
-// NewAppRunnerService creates a new AppRunnerService resource using the generic resource pattern.
+// NewAppRunnerService creates a new App Runner service resource.
 func NewAppRunnerService() AwsResource {
 	return NewAwsResource(&resource.Resource[AppRunnerServiceAPI]{
 		ResourceTypeName: "app-runner-service",
-		BatchSize:        19,
+		BatchSize:        20,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[AppRunnerServiceAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = apprunner.NewFromConfig(cfg)
@@ -32,20 +32,20 @@ func NewAppRunnerService() AwsResource {
 	})
 }
 
-// listAppRunnerServices retrieves all AppRunner Services that match the config filters.
+// listAppRunnerServices retrieves all App Runner services that match the config filters.
 func listAppRunnerServices(ctx context.Context, client AppRunnerServiceAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var identifiers []*string
 	paginator := apprunner.NewListServicesPaginator(client, &apprunner.ListServicesInput{
-		MaxResults: aws.Int32(19),
+		MaxResults: aws.Int32(20),
 	})
 
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(ctx)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, service := range output.ServiceSummaryList {
+		for _, service := range page.ServiceSummaryList {
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: service.ServiceName,
 				Time: service.CreatedAt,
@@ -58,7 +58,7 @@ func listAppRunnerServices(ctx context.Context, client AppRunnerServiceAPI, scop
 	return identifiers, nil
 }
 
-// deleteAppRunnerService deletes a single AppRunner Service.
+// deleteAppRunnerService deletes a single App Runner service (asynchronous operation).
 func deleteAppRunnerService(ctx context.Context, client AppRunnerServiceAPI, serviceArn *string) error {
 	_, err := client.DeleteService(ctx, &apprunner.DeleteServiceInput{
 		ServiceArn: serviceArn,

@@ -11,94 +11,75 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedNetworkFirewall struct {
-	NetworkFirewallAPI
-
+type mockNetworkFirewallClient struct {
 	ListFirewallsOutput    networkfirewall.ListFirewallsOutput
 	DescribeFirewallOutput map[string]networkfirewall.DescribeFirewallOutput
 	DeleteFirewallOutput   networkfirewall.DeleteFirewallOutput
 }
 
-func (m mockedNetworkFirewall) DeleteFirewall(ctx context.Context, params *networkfirewall.DeleteFirewallInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteFirewallOutput, error) {
-	return &m.DeleteFirewallOutput, nil
-}
-
-func (m mockedNetworkFirewall) ListFirewalls(ctx context.Context, params *networkfirewall.ListFirewallsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListFirewallsOutput, error) {
+func (m *mockNetworkFirewallClient) ListFirewalls(ctx context.Context, params *networkfirewall.ListFirewallsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListFirewallsOutput, error) {
 	return &m.ListFirewallsOutput, nil
 }
 
-func (m mockedNetworkFirewall) DescribeFirewall(ctx context.Context, params *networkfirewall.DescribeFirewallInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeFirewallOutput, error) {
-	raw := aws.ToString(params.FirewallArn)
-	v, ok := m.DescribeFirewallOutput[raw]
-	if !ok {
-		return nil, fmt.Errorf("unable to describe the %s", raw)
+func (m *mockNetworkFirewallClient) DescribeFirewall(ctx context.Context, params *networkfirewall.DescribeFirewallInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeFirewallOutput, error) {
+	key := aws.ToString(params.FirewallArn)
+	if key == "" {
+		key = aws.ToString(params.FirewallName)
 	}
-	return &v, nil
+	if output, ok := m.DescribeFirewallOutput[key]; ok {
+		return &output, nil
+	}
+	return nil, fmt.Errorf("firewall not found: %s", key)
 }
 
-func TestNetworkFirewall_GetAll(t *testing.T) {
+func (m *mockNetworkFirewallClient) DeleteFirewall(ctx context.Context, params *networkfirewall.DeleteFirewallInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteFirewallOutput, error) {
+	return &m.DeleteFirewallOutput, nil
+}
 
+func TestListNetworkFirewalls(t *testing.T) {
 	t.Parallel()
 
-	var (
-		now       = time.Now()
-		testId1   = "test-network-firewall-id1"
-		testId2   = "test-network-firewall-id2"
-		testName1 = "test-network-firewall-1"
-		testName2 = "test-network-firewall-2"
-		ctx       = context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-	)
+	testName1 := "test-firewall-1"
+	testName2 := "test-firewall-2"
+	testArn1 := "arn:aws:network-firewall:us-east-1:123456789012:firewall/test-firewall-1"
+	testArn2 := "arn:aws:network-firewall:us-east-1:123456789012:firewall/test-firewall-2"
+	now := time.Now()
 
-	nfw := NetworkFirewall{
-		Client: mockedNetworkFirewall{
-			ListFirewallsOutput: networkfirewall.ListFirewallsOutput{
-				Firewalls: []types.FirewallMetadata{
-					{
-						FirewallArn:  aws.String(testId1),
-						FirewallName: aws.String(testName1),
-					},
-					{
-						FirewallArn:  aws.String(testId2),
-						FirewallName: aws.String(testName2),
+	mock := &mockNetworkFirewallClient{
+		ListFirewallsOutput: networkfirewall.ListFirewallsOutput{
+			Firewalls: []types.FirewallMetadata{
+				{FirewallArn: aws.String(testArn1), FirewallName: aws.String(testName1)},
+				{FirewallArn: aws.String(testArn2), FirewallName: aws.String(testName2)},
+			},
+		},
+		DescribeFirewallOutput: map[string]networkfirewall.DescribeFirewallOutput{
+			testArn1: {
+				Firewall: &types.Firewall{
+					FirewallName: aws.String(testName1),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String(testName1)},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 					},
 				},
 			},
-			DescribeFirewallOutput: map[string]networkfirewall.DescribeFirewallOutput{
-				testId1: {
-					Firewall: &types.Firewall{
-						FirewallName: aws.String(testName1),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
-							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now)),
-							},
-						},
-					},
-				},
-				testId2: {
-					Firewall: &types.Firewall{
-						FirewallName: aws.String(testName2),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
-							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
-							},
-						},
+			testArn2: {
+				Firewall: &types.Firewall{
+					FirewallName: aws.String(testName2),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String(testName2)},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour)))},
 					},
 				},
 			},
 		},
 	}
+
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -111,41 +92,68 @@ func TestNetworkFirewall_GetAll(t *testing.T) {
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
 			},
 			expected: []string{testName2},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
-				}},
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
 			expected: []string{testName1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := nfw.getAll(ctx, config.Config{
-				NetworkFirewall: tc.configObj,
-			})
+			names, err := listNetworkFirewalls(ctx, mock, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestNetworkFirewall_NukeAll(t *testing.T) {
-
+func TestDeleteNetworkFirewall(t *testing.T) {
 	t.Parallel()
 
-	ngw := NetworkFirewall{
-		Client: mockedNetworkFirewall{
-			DeleteFirewallOutput: networkfirewall.DeleteFirewallOutput{},
-		},
+	mock := &mockNetworkFirewallClient{}
+	err := deleteNetworkFirewall(context.Background(), mock, aws.String("test-firewall"))
+	require.NoError(t, err)
+}
+
+func TestVerifyNetworkFirewallPermissions(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		deleteProtection bool
+		expectErr        bool
+	}{
+		"not protected":    {deleteProtection: false, expectErr: false},
+		"delete protected": {deleteProtection: true, expectErr: true},
 	}
 
-	err := ngw.nukeAll([]*string{aws.String("test")})
-	require.NoError(t, err)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mock := &mockNetworkFirewallClient{
+				DescribeFirewallOutput: map[string]networkfirewall.DescribeFirewallOutput{
+					"test-firewall": {
+						Firewall: &types.Firewall{
+							FirewallName:     aws.String("test-firewall"),
+							DeleteProtection: tc.deleteProtection,
+						},
+					},
+				},
+			}
+
+			err := verifyNetworkFirewallPermissions(context.Background(), mock, aws.String("test-firewall"))
+			if tc.expectErr {
+				require.ErrorIs(t, err, util.ErrDeleteProtectionEnabled)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

@@ -9,10 +9,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// mockKinesisFirehoseClient implements KinesisFirehoseAPI for testing.
 type mockKinesisFirehoseClient struct {
 	ListDeliveryStreamsOutput  firehose.ListDeliveryStreamsOutput
 	DeleteDeliveryStreamOutput firehose.DeleteDeliveryStreamOutput
@@ -26,16 +26,6 @@ func (m *mockKinesisFirehoseClient) DeleteDeliveryStream(ctx context.Context, pa
 	return &m.DeleteDeliveryStreamOutput, nil
 }
 
-func TestKinesisFirehose_ResourceName(t *testing.T) {
-	r := NewKinesisFirehose()
-	assert.Equal(t, "kinesis-firehose", r.ResourceName())
-}
-
-func TestKinesisFirehose_MaxBatchSize(t *testing.T) {
-	r := NewKinesisFirehose()
-	assert.Equal(t, 35, r.MaxBatchSize())
-}
-
 func TestListKinesisFirehose(t *testing.T) {
 	t.Parallel()
 
@@ -45,29 +35,33 @@ func TestListKinesisFirehose(t *testing.T) {
 		},
 	}
 
-	names, err := listKinesisFirehose(context.Background(), mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"stream1", "stream2"}, aws.ToStringSlice(names))
-}
-
-func TestListKinesisFirehose_WithFilter(t *testing.T) {
-	t.Parallel()
-
-	mock := &mockKinesisFirehoseClient{
-		ListDeliveryStreamsOutput: firehose.ListDeliveryStreamsOutput{
-			DeliveryStreamNames: []string{"stream1", "skip-this"},
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{"stream1", "stream2"},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile("stream1"),
+					}},
+				},
+			},
+			expected: []string{"stream2"},
 		},
 	}
 
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
-		},
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := listKinesisFirehose(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
 	}
-
-	names, err := listKinesisFirehose(context.Background(), mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Equal(t, []string{"stream1"}, aws.ToStringSlice(names))
 }
 
 func TestDeleteKinesisFirehose(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
 	"github.com/aws/aws-sdk-go-v2/service/codedeploy/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,24 +54,22 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 	testName1 := "cloud-nuke-test-1"
 	testName2 := "cloud-nuke-test-2"
 	now := time.Now()
-	c := CodeDeployApplications{
-		Client: mockedCodeDeployApplications{
-			ListApplicationsOutput: codedeploy.ListApplicationsOutput{
-				Applications: []string{
-					testName1,
-					testName2,
-				},
+	client := mockedCodeDeployApplications{
+		ListApplicationsOutput: codedeploy.ListApplicationsOutput{
+			Applications: []string{
+				testName1,
+				testName2,
 			},
-			BatchGetApplicationsOutput: codedeploy.BatchGetApplicationsOutput{
-				ApplicationsInfo: []types.ApplicationInfo{
-					{
-						ApplicationName: aws.String(testName1),
-						CreateTime:      aws.Time(now),
-					},
-					{
-						ApplicationName: aws.String(testName2),
-						CreateTime:      aws.Time(now.Add(1)),
-					},
+		},
+		BatchGetApplicationsOutput: codedeploy.BatchGetApplicationsOutput{
+			ApplicationsInfo: []types.ApplicationInfo{
+				{
+					ApplicationName: aws.String(testName1),
+					CreateTime:      aws.Time(now),
+				},
+				{
+					ApplicationName: aws.String(testName2),
+					CreateTime:      aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -103,9 +102,7 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := c.getAll(context.Background(), config.Config{
-				CodeDeployApplications: tc.configObj,
-			})
+			names, err := listCodeDeployApplications(context.Background(), client, resource.Scope{Region: "us-east-1"}, tc.configObj)
 
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
@@ -114,12 +111,10 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 }
 
 func TestCodeDeployApplication_NukeAll(t *testing.T) {
-	c := CodeDeployApplications{
-		Client: mockedCodeDeployApplications{
-			DeleteApplicationOutput: codedeploy.DeleteApplicationOutput{},
-		},
+	client := mockedCodeDeployApplications{
+		DeleteApplicationOutput: codedeploy.DeleteApplicationOutput{},
 	}
 
-	err := c.nukeAll([]string{"test"})
+	err := deleteCodeDeployApplication(context.Background(), client, aws.String("test"))
 	require.NoError(t, err)
 }

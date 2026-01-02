@@ -9,45 +9,44 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/configservice"
 	"github.com/aws/aws-sdk-go-v2/service/configservice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedConfigServiceRule struct {
-	ConfigServiceRuleAPI
+type mockConfigServiceRuleClient struct {
 	DescribeConfigRulesOutput               configservice.DescribeConfigRulesOutput
 	DescribeRemediationConfigurationsOutput configservice.DescribeRemediationConfigurationsOutput
 	DeleteRemediationConfigurationOutput    configservice.DeleteRemediationConfigurationOutput
 	DeleteConfigRuleOutput                  configservice.DeleteConfigRuleOutput
 }
 
-func (m mockedConfigServiceRule) DescribeConfigRules(ctx context.Context, params *configservice.DescribeConfigRulesInput, optFns ...func(*configservice.Options)) (*configservice.DescribeConfigRulesOutput, error) {
+func (m *mockConfigServiceRuleClient) DescribeConfigRules(ctx context.Context, params *configservice.DescribeConfigRulesInput, optFns ...func(*configservice.Options)) (*configservice.DescribeConfigRulesOutput, error) {
 	return &m.DescribeConfigRulesOutput, nil
 }
 
-func (m mockedConfigServiceRule) DescribeRemediationConfigurations(ctx context.Context, params *configservice.DescribeRemediationConfigurationsInput, optFns ...func(*configservice.Options)) (*configservice.DescribeRemediationConfigurationsOutput, error) {
+func (m *mockConfigServiceRuleClient) DescribeRemediationConfigurations(ctx context.Context, params *configservice.DescribeRemediationConfigurationsInput, optFns ...func(*configservice.Options)) (*configservice.DescribeRemediationConfigurationsOutput, error) {
 	return &m.DescribeRemediationConfigurationsOutput, nil
 }
 
-func (m mockedConfigServiceRule) DeleteRemediationConfiguration(ctx context.Context, params *configservice.DeleteRemediationConfigurationInput, optFns ...func(*configservice.Options)) (*configservice.DeleteRemediationConfigurationOutput, error) {
+func (m *mockConfigServiceRuleClient) DeleteRemediationConfiguration(ctx context.Context, params *configservice.DeleteRemediationConfigurationInput, optFns ...func(*configservice.Options)) (*configservice.DeleteRemediationConfigurationOutput, error) {
 	return &m.DeleteRemediationConfigurationOutput, nil
 }
 
-func (m mockedConfigServiceRule) DeleteConfigRule(ctx context.Context, params *configservice.DeleteConfigRuleInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigRuleOutput, error) {
+func (m *mockConfigServiceRuleClient) DeleteConfigRule(ctx context.Context, params *configservice.DeleteConfigRuleInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigRuleOutput, error) {
 	return &m.DeleteConfigRuleOutput, nil
 }
 
-func TestConfigServiceRule_GetAll(t *testing.T) {
+func TestListConfigServiceRules(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-rule-1"
 	testName2 := "test-rule-2"
-	csr := ConfigServiceRule{
-		Client: mockedConfigServiceRule{
-			DescribeConfigRulesOutput: configservice.DescribeConfigRulesOutput{
-				ConfigRules: []types.ConfigRule{
-					{ConfigRuleName: aws.String(testName1), ConfigRuleState: types.ConfigRuleStateActive},
-					{ConfigRuleName: aws.String(testName2), ConfigRuleState: types.ConfigRuleStateActive},
-				},
+
+	mock := &mockConfigServiceRuleClient{
+		DescribeConfigRulesOutput: configservice.DescribeConfigRulesOutput{
+			ConfigRules: []types.ConfigRule{
+				{ConfigRuleName: aws.String(testName1), ConfigRuleState: types.ConfigRuleStateActive},
+				{ConfigRuleName: aws.String(testName2), ConfigRuleState: types.ConfigRuleStateActive},
 			},
 		},
 	}
@@ -65,34 +64,47 @@ func TestConfigServiceRule_GetAll(t *testing.T) {
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
 						RE: *regexp.MustCompile(testName1),
-					}}},
+					}},
+				},
 			},
 			expected: []string{testName2},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := csr.getAll(context.Background(), config.Config{
-				ConfigServiceRule: tc.configObj,
-			})
-
+			names, err := listConfigServiceRules(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestConfigServiceRule_NukeAll(t *testing.T) {
+func TestDeleteConfigServiceRule(t *testing.T) {
 	t.Parallel()
 
-	csr := ConfigServiceRule{
-		Client: mockedConfigServiceRule{
-			DeleteConfigRuleOutput:                  configservice.DeleteConfigRuleOutput{},
-			DeleteRemediationConfigurationOutput:    configservice.DeleteRemediationConfigurationOutput{},
-			DescribeRemediationConfigurationsOutput: configservice.DescribeRemediationConfigurationsOutput{},
-		},
+	mock := &mockConfigServiceRuleClient{
+		DescribeRemediationConfigurationsOutput: configservice.DescribeRemediationConfigurationsOutput{},
+		DeleteConfigRuleOutput:                  configservice.DeleteConfigRuleOutput{},
 	}
 
-	err := csr.nukeAll([]string{"test"})
+	err := deleteConfigServiceRule(context.Background(), mock, aws.String("test-rule"))
+	require.NoError(t, err)
+}
+
+func TestDeleteConfigServiceRule_WithRemediation(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockConfigServiceRuleClient{
+		DescribeRemediationConfigurationsOutput: configservice.DescribeRemediationConfigurationsOutput{
+			RemediationConfigurations: []types.RemediationConfiguration{
+				{ConfigRuleName: aws.String("test-rule")},
+			},
+		},
+		DeleteRemediationConfigurationOutput: configservice.DeleteRemediationConfigurationOutput{},
+		DeleteConfigRuleOutput:               configservice.DeleteConfigRuleOutput{},
+	}
+
+	err := deleteConfigServiceRule(context.Background(), mock, aws.String("test-rule"))
 	require.NoError(t, err)
 }

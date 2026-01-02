@@ -10,122 +10,95 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedIPAMResourceDiscovery struct {
-	EC2IPAMResourceDiscoveryAPI
+type mockEC2IPAMResourceDiscoveryClient struct {
 	DescribeIpamResourceDiscoveriesOutput ec2.DescribeIpamResourceDiscoveriesOutput
 	DeleteIpamResourceDiscoveryOutput     ec2.DeleteIpamResourceDiscoveryOutput
 }
 
-func (m mockedIPAMResourceDiscovery) DescribeIpamResourceDiscoveries(ctx context.Context, params *ec2.DescribeIpamResourceDiscoveriesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamResourceDiscoveriesOutput, error) {
+func (m *mockEC2IPAMResourceDiscoveryClient) DescribeIpamResourceDiscoveries(ctx context.Context, params *ec2.DescribeIpamResourceDiscoveriesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamResourceDiscoveriesOutput, error) {
 	return &m.DescribeIpamResourceDiscoveriesOutput, nil
 }
 
-func (m mockedIPAMResourceDiscovery) DeleteIpamResourceDiscovery(ctx context.Context, params *ec2.DeleteIpamResourceDiscoveryInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamResourceDiscoveryOutput, error) {
+func (m *mockEC2IPAMResourceDiscoveryClient) DeleteIpamResourceDiscovery(ctx context.Context, params *ec2.DeleteIpamResourceDiscoveryInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamResourceDiscoveryOutput, error) {
 	return &m.DeleteIpamResourceDiscoveryOutput, nil
 }
 
-func TestIPAMRDiscovery_GetAll(t *testing.T) {
+func TestListEC2IPAMResourceDiscoveries(t *testing.T) {
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+	now := time.Now()
+	testId1 := "ipam-res-disco-0dfc56f901b2c3462"
+	testId2 := "ipam-res-disco-0dfc56f901b2c3463"
+	testName1 := "test-ipam-resource-id1"
+	testName2 := "test-ipam-resource-id2"
 
-	var (
-		now       = time.Now()
-		testId1   = "ipam-res-disco-0dfc56f901b2c3462"
-		testId2   = "ipam-res-disco-0dfc56f901b2c3463"
-		testName1 = "test-ipam-resource-id1"
-		testName2 = "test-ipam-resource-id2"
-	)
-
-	ipam := EC2IPAMResourceDiscovery{
-		Client: mockedIPAMResourceDiscovery{
-			DescribeIpamResourceDiscoveriesOutput: ec2.DescribeIpamResourceDiscoveriesOutput{
-				IpamResourceDiscoveries: []types.IpamResourceDiscovery{
-					{
-						IpamResourceDiscoveryId: aws.String(testId1),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
-							},
-							{
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now)),
-							},
-						},
+	mock := &mockEC2IPAMResourceDiscoveryClient{
+		DescribeIpamResourceDiscoveriesOutput: ec2.DescribeIpamResourceDiscoveriesOutput{
+			IpamResourceDiscoveries: []types.IpamResourceDiscovery{
+				{
+					IpamResourceDiscoveryId: aws.String(testId1),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String(testName1)},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 					},
-					{
-						IpamResourceDiscoveryId: aws.String(testId2),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
-							},
-							{
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now)),
-							},
-						},
+				},
+				{
+					IpamResourceDiscoveryId: aws.String(testId2),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String(testName2)},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 					},
 				},
 			},
 		},
 	}
 
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+
 	tests := map[string]struct {
-		ctx       context.Context
-		configObj config.ResourceType
-		expected  []string
+		cfg      config.ResourceType
+		expected []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
-			configObj: config.ResourceType{},
-			expected:  []string{testId1, testId2},
+			cfg:      config.ResourceType{},
+			expected: []string{testId1, testId2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
-			configObj: config.ResourceType{
+			cfg: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
 			},
 			expected: []string{testId2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
-			configObj: config.ResourceType{
+			cfg: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
+				},
+			},
 			expected: []string{},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			ids, err := ipam.getAll(tc.ctx, config.Config{
-				EC2IPAMResourceDiscovery: tc.configObj,
-			})
+			ids, err := listEC2IPAMResourceDiscoveries(ctx, mock, resource.Scope{}, tc.cfg)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
-func TestIPAMRDiscovery_NukeAll(t *testing.T) {
+func TestDeleteEC2IPAMResourceDiscovery(t *testing.T) {
 	t.Parallel()
 
-	ipam := EC2IPAMResourceDiscovery{
-		Client: mockedIPAMResourceDiscovery{
-			DeleteIpamResourceDiscoveryOutput: ec2.DeleteIpamResourceDiscoveryOutput{},
-		},
-	}
-
-	err := ipam.nukeAll([]*string{aws.String("test")})
+	mock := &mockEC2IPAMResourceDiscoveryClient{}
+	err := deleteEC2IPAMResourceDiscovery(context.Background(), mock, aws.String("ipam-res-disco-test"))
 	require.NoError(t, err)
 }

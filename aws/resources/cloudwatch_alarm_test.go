@@ -35,136 +35,78 @@ func (m *mockCloudWatchAlarmsClient) PutCompositeAlarm(ctx context.Context, para
 func TestListCloudWatchAlarms(t *testing.T) {
 	t.Parallel()
 
-	testName1 := "test-name1"
-	testName2 := "test-name2"
+	testName1 := "test-alarm-1"
+	testName2 := "test-alarm-2"
 	now := time.Now()
 
 	mock := &mockCloudWatchAlarmsClient{
 		DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
 			MetricAlarms: []types.MetricAlarm{
 				{AlarmName: aws.String(testName1), AlarmConfigurationUpdatedTimestamp: &now},
-				{AlarmName: aws.String(testName2), AlarmConfigurationUpdatedTimestamp: aws.Time(now.Add(1))},
+				{AlarmName: aws.String(testName2), AlarmConfigurationUpdatedTimestamp: aws.Time(now.Add(1 * time.Hour))},
 			},
 		},
 	}
 
-	names, err := listCloudWatchAlarms(context.Background(), mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.ElementsMatch(t, []string{testName1, testName2}, aws.ToStringSlice(names))
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
+			},
+			expected: []string{testName2},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testName1},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := listCloudWatchAlarms(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
+	}
 }
 
-func TestListCloudWatchAlarms_WithFilter(t *testing.T) {
+func TestDeleteCloudWatchAlarm_MetricAlarm(t *testing.T) {
 	t.Parallel()
-
-	testName1 := "test-name1"
-	testName2 := "test-name2"
-	now := time.Now()
 
 	mock := &mockCloudWatchAlarmsClient{
 		DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
-			MetricAlarms: []types.MetricAlarm{
-				{AlarmName: aws.String(testName1), AlarmConfigurationUpdatedTimestamp: &now},
-				{AlarmName: aws.String(testName2), AlarmConfigurationUpdatedTimestamp: &now},
-			},
+			CompositeAlarms: []types.CompositeAlarm{}, // Not a composite alarm
 		},
 	}
 
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
-		},
-	}
-
-	names, err := listCloudWatchAlarms(context.Background(), mock, resource.Scope{}, cfg)
+	err := deleteCloudWatchAlarm(context.Background(), mock, aws.String("metric-alarm"))
 	require.NoError(t, err)
-	require.Equal(t, []string{testName2}, aws.ToStringSlice(names))
 }
 
-func TestListCloudWatchAlarms_TimeFilter(t *testing.T) {
+func TestDeleteCloudWatchAlarm_CompositeAlarm(t *testing.T) {
 	t.Parallel()
-
-	testName1 := "test-name1"
-	now := time.Now()
 
 	mock := &mockCloudWatchAlarmsClient{
 		DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
-			MetricAlarms: []types.MetricAlarm{
-				{AlarmName: aws.String(testName1), AlarmConfigurationUpdatedTimestamp: &now},
-			},
-		},
-	}
-
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			TimeAfter: aws.Time(now.Add(-1)),
-		},
-	}
-
-	names, err := listCloudWatchAlarms(context.Background(), mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Empty(t, names)
-}
-
-func TestDeleteCompositeAlarm(t *testing.T) {
-	t.Parallel()
-
-	mock := &mockCloudWatchAlarmsClient{}
-	err := deleteCompositeAlarm(context.Background(), mock, aws.String("test-alarm"))
-	require.NoError(t, err)
-}
-
-func TestDeleteMetricAlarmsBulk(t *testing.T) {
-	t.Parallel()
-
-	mock := &mockCloudWatchAlarmsClient{}
-	err := deleteMetricAlarmsBulk(context.Background(), mock, []string{"alarm1", "alarm2"})
-	require.NoError(t, err)
-}
-
-func TestNukeCloudWatchAlarms_MetricOnly(t *testing.T) {
-	t.Parallel()
-
-	testName1 := "test-name1"
-	testName2 := "test-name2"
-	now := time.Now()
-
-	mock := &mockCloudWatchAlarmsClient{
-		DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
-			MetricAlarms: []types.MetricAlarm{
-				{AlarmName: aws.String(testName1), AlarmConfigurationUpdatedTimestamp: &now},
-				{AlarmName: aws.String(testName2), AlarmConfigurationUpdatedTimestamp: aws.Time(now.Add(1))},
-			},
-		},
-	}
-
-	err := nukeCloudWatchAlarms(context.Background(), mock, resource.Scope{}, "cloudwatch-alarm", []*string{aws.String(testName1), aws.String(testName2)})
-	require.NoError(t, err)
-}
-
-func TestNukeCloudWatchAlarms_CompositeAndMetric(t *testing.T) {
-	t.Parallel()
-
-	testCompositeAlarm1 := "test-composite-1"
-	testCompositeAlarm2 := "test-composite-2"
-	testMetricAlarm := "test-metric"
-	now := time.Now()
-
-	mock := &mockCloudWatchAlarmsClient{
-		DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
-			MetricAlarms: []types.MetricAlarm{
-				{AlarmName: aws.String(testMetricAlarm), AlarmConfigurationUpdatedTimestamp: &now},
-			},
 			CompositeAlarms: []types.CompositeAlarm{
-				{AlarmName: aws.String(testCompositeAlarm1), AlarmConfigurationUpdatedTimestamp: &now},
-				{AlarmName: aws.String(testCompositeAlarm2), AlarmConfigurationUpdatedTimestamp: &now},
+				{AlarmName: aws.String("composite-alarm")},
 			},
 		},
 	}
 
-	err := nukeCloudWatchAlarms(context.Background(), mock, resource.Scope{}, "cloudwatch-alarm", []*string{
-		aws.String(testCompositeAlarm1),
-		aws.String(testCompositeAlarm2),
-		aws.String(testMetricAlarm),
-	})
+	err := deleteCloudWatchAlarm(context.Background(), mock, aws.String("composite-alarm"))
 	require.NoError(t, err)
 }

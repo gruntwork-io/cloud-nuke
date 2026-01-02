@@ -23,15 +23,10 @@ func NewEC2PlacementGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2PlacementGroupsAPI]{
 		ResourceTypeName: "ec2-placement-groups",
 		BatchSize:        200,
-		InitClient: func(r *resource.Resource[EC2PlacementGroupsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for EC2 client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = ec2.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2PlacementGroupsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.EC2PlacementGroups
 		},

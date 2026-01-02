@@ -8,112 +8,100 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (network *VPCLatticeTargetGroup) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
-	output, err := network.Client.ListTargetGroups(network.Context, nil)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+// VPCLatticeTargetGroupAPI defines the interface for VPC Lattice Target Group operations.
+type VPCLatticeTargetGroupAPI interface {
+	ListTargetGroups(ctx context.Context, params *vpclattice.ListTargetGroupsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTargetGroupsOutput, error)
+	ListTargets(ctx context.Context, params *vpclattice.ListTargetsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTargetsOutput, error)
+	DeregisterTargets(ctx context.Context, params *vpclattice.DeregisterTargetsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeregisterTargetsOutput, error)
+	DeleteTargetGroup(ctx context.Context, params *vpclattice.DeleteTargetGroupInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteTargetGroupOutput, error)
+}
 
+// NewVPCLatticeTargetGroup creates a new VPC Lattice Target Group resource using the generic resource pattern.
+func NewVPCLatticeTargetGroup() AwsResource {
+	return NewAwsResource(&resource.Resource[VPCLatticeTargetGroupAPI]{
+		ResourceTypeName: "vpc-lattice-target-group",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[VPCLatticeTargetGroupAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = vpclattice.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.VPCLatticeTargetGroup
+		},
+		Lister: listVPCLatticeTargetGroups,
+		Nuker:  resource.MultiStepDeleter(deregisterVPCLatticeTargets, deleteVPCLatticeTargetGroup),
+	})
+}
+
+// listVPCLatticeTargetGroups retrieves all VPC Lattice Target Groups that match the config filters.
+func listVPCLatticeTargetGroups(ctx context.Context, client VPCLatticeTargetGroupAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var ids []*string
-	for _, item := range output.Items {
+	paginator := vpclattice.NewListTargetGroupsPaginator(client, &vpclattice.ListTargetGroupsInput{})
 
-		if configObj.VPCLatticeTargetGroup.ShouldInclude(config.ResourceValue{
-			Name: item.Name,
-			Time: item.CreatedAt,
-		}) {
-			ids = append(ids, item.Arn)
-			// also keep the complete info about the target groups as the target group assoiation needs to be nuked before removing it
-			network.TargetGroups[aws.ToString(item.Arn)] = &item
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, item := range page.Items {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: item.Name,
+				Time: item.CreatedAt,
+			}) {
+				ids = append(ids, item.Arn)
+			}
 		}
 	}
 
 	return ids, nil
 }
 
-func (network *VPCLatticeTargetGroup) nukeTargets(identifier *string) error {
-	// list the targets associated on the target group
-	output, err := network.Client.ListTargets(network.Context, &vpclattice.ListTargetsInput{
+// deregisterVPCLatticeTargets deregisters all targets from a target group.
+func deregisterVPCLatticeTargets(ctx context.Context, client VPCLatticeTargetGroupAPI, identifier *string) error {
+	var targets []types.Target
+	paginator := vpclattice.NewListTargetsPaginator(client, &vpclattice.ListTargetsInput{
 		TargetGroupIdentifier: identifier,
 	})
-	if err != nil {
-		logging.Debugf("[ListTargetsWithContext Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
 
-	var targets []types.Target
-	for _, target := range output.Items {
-		targets = append(targets, types.Target{
-			Id: target.Id,
-		})
-	}
-
-	if len(targets) > 0 {
-		// before deleting the targets, we need to deregister the targets registered with it
-		_, err = network.Client.DeregisterTargets(network.Context, &vpclattice.DeregisterTargetsInput{
-			TargetGroupIdentifier: identifier,
-			Targets:               targets,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[DeregisterTargetsWithContext Failed] %s", err)
+			logging.Debugf("[ListTargets Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
+
+		for _, target := range page.Items {
+			targets = append(targets, types.Target{
+				Id: target.Id,
+			})
+		}
 	}
 
-	return nil
-}
-
-func (network *VPCLatticeTargetGroup) nuke(identifier *string) error {
-
-	var err error
-	err = network.nukeTargets(identifier)
-	if err != nil {
-		return errors.WithStackTrace(err)
+	if len(targets) == 0 {
+		return nil
 	}
 
-	// delete the target group
-	_, err = network.Client.DeleteTargetGroup(network.Context, &vpclattice.DeleteTargetGroupInput{
+	_, err := client.DeregisterTargets(ctx, &vpclattice.DeregisterTargetsInput{
 		TargetGroupIdentifier: identifier,
+		Targets:               targets,
 	})
 	if err != nil {
+		logging.Debugf("[DeregisterTargets Failed] %s", err)
 		return errors.WithStackTrace(err)
 	}
 
 	return nil
 }
-func (network *VPCLatticeTargetGroup) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No %s to nuke in region %s", network.ResourceServiceName(), network.Region)
-		return nil
 
-	}
-
-	logging.Debugf("Deleting all %s in region %s", network.ResourceServiceName(), network.Region)
-
-	deletedCount := 0
-	for _, id := range identifiers {
-
-		err := network.nuke(id)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: network.ResourceServiceName(),
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedCount++
-			logging.Debugf("Deleted %s: %s", network.ResourceServiceName(), aws.ToString(id))
-		}
-	}
-
-	logging.Debugf("[OK] %d %s(s) terminated in %s", deletedCount, network.ResourceServiceName(), network.Region)
-	return nil
+// deleteVPCLatticeTargetGroup deletes a single VPC Lattice Target Group.
+func deleteVPCLatticeTargetGroup(ctx context.Context, client VPCLatticeTargetGroupAPI, identifier *string) error {
+	_, err := client.DeleteTargetGroup(ctx, &vpclattice.DeleteTargetGroupInput{
+		TargetGroupIdentifier: identifier,
+	})
+	return errors.WithStackTrace(err)
 }

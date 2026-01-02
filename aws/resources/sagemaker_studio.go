@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,318 +11,73 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	goerrors "github.com/gruntwork-io/go-commons/errors"
-	"golang.org/x/sync/errgroup"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 const (
-	// sagemakerRetryInitialDelay is the initial delay between retries for SageMaker operations
-	sagemakerRetryInitialDelay = 10 * time.Second
-	// sagemakerRetryMaxDelay is the maximum delay between retries for SageMaker operations
-	sagemakerRetryMaxDelay = 2 * time.Minute
-	// sagemakerMaxRetries is the maximum number of retry attempts for SageMaker operations
-	sagemakerMaxRetries = 3
-	// maxWaitTime is the maximum time to wait for any resource deletion
-	maxWaitTime = 30 * time.Minute
-	// retryDelay is the delay between retry attempts
-	retryDelay = 10 * time.Second
+	// sageMakerMaxWaitTime is the maximum time to wait for any resource deletion
+	sageMakerMaxWaitTime = 30 * time.Minute
+	// sageMakerRetryDelay is the delay between retry attempts
+	sageMakerRetryDelay = 10 * time.Second
 )
 
-// waitForResourceDeletion is a generic wait function that polls until a resource is confirmed to be deleted
-// It uses exponential backoff with a maximum wait time
-type resourceChecker func() (bool, error)
+// SageMakerStudioAPI defines the interface for SageMaker Studio operations.
+type SageMakerStudioAPI interface {
+	// Domain operations
+	ListDomains(ctx context.Context, params *sagemaker.ListDomainsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListDomainsOutput, error)
+	DescribeDomain(ctx context.Context, params *sagemaker.DescribeDomainInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeDomainOutput, error)
+	DeleteDomain(ctx context.Context, params *sagemaker.DeleteDomainInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteDomainOutput, error)
 
-// deleteResourceWithRetry is a helper function that handles resource deletion with retry logic
-func (s *SageMakerStudio) deleteResourceWithRetry(
-	resourceType string,
-	identifier string,
-	deleteFunc func() error,
-	waitFunc func() error,
-) error {
-	delay := sagemakerRetryInitialDelay
-	var lastErr error
+	// UserProfile operations
+	ListUserProfiles(ctx context.Context, params *sagemaker.ListUserProfilesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListUserProfilesOutput, error)
+	DeleteUserProfile(ctx context.Context, params *sagemaker.DeleteUserProfileInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteUserProfileOutput, error)
 
-	for i := 0; i < sagemakerMaxRetries; i++ {
-		logging.Debugf("Attempting to delete %s %s (attempt %d/%d)", resourceType, identifier, i+1, sagemakerMaxRetries)
+	// App operations
+	ListApps(ctx context.Context, params *sagemaker.ListAppsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListAppsOutput, error)
+	DeleteApp(ctx context.Context, params *sagemaker.DeleteAppInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteAppOutput, error)
 
-		if err := deleteFunc(); err != nil {
-			lastErr = err
-			logging.Debugf("[Retrying] Delete %s %s in %s: %s", resourceType, identifier, s.Region, err)
-			time.Sleep(delay)
-			if delay < sagemakerRetryMaxDelay {
-				delay *= 2
+	// Space operations
+	ListSpaces(ctx context.Context, params *sagemaker.ListSpacesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListSpacesOutput, error)
+	DeleteSpace(ctx context.Context, params *sagemaker.DeleteSpaceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteSpaceOutput, error)
+
+	// MLflow tracking server operations
+	ListMlflowTrackingServers(ctx context.Context, params *sagemaker.ListMlflowTrackingServersInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListMlflowTrackingServersOutput, error)
+	DeleteMlflowTrackingServer(ctx context.Context, params *sagemaker.DeleteMlflowTrackingServerInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteMlflowTrackingServerOutput, error)
+}
+
+// NewSageMakerStudio creates a new SageMaker Studio resource using the generic resource pattern.
+func NewSageMakerStudio() AwsResource {
+	return NewAwsResource(&resource.Resource[SageMakerStudioAPI]{
+		ResourceTypeName: "sagemaker-studio",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[SageMakerStudioAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = sagemaker.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return config.ResourceType{
+				Timeout:            c.SageMakerStudioDomain.Timeout,
+				ProtectUntilExpire: c.SageMakerStudioDomain.ProtectUntilExpire,
 			}
-			continue
-		}
-
-		if err := waitFunc(); err != nil {
-			lastErr = err
-			continue
-		}
-
-		report.Record(report.Entry{
-			Identifier:   identifier,
-			ResourceType: resourceType,
-			Error:        nil,
-		})
-		return nil
-	}
-
-	// Record failed deletion
-	report.Record(report.Entry{
-		Identifier:   identifier,
-		ResourceType: resourceType,
-		Error:        lastErr,
-	})
-	return goerrors.WithStackTrace(fmt.Errorf("failed to delete %s %s after %d retries: %v", resourceType, identifier, sagemakerMaxRetries, lastErr))
-}
-
-// listUserProfiles lists all user profiles for a domain
-func (s *SageMakerStudio) listUserProfiles(domainID string) ([]types.UserProfileDetails, error) {
-	var profiles []types.UserProfileDetails
-	paginator := sagemaker.NewListUserProfilesPaginator(s.Client, &sagemaker.ListUserProfilesInput{
-		DomainIdEquals: aws.String(domainID),
-	})
-	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(s.Context)
-		if err != nil {
-			logging.Debugf("[Failed] Error listing user profiles in %s: %s", s.Region, err)
-			return nil, goerrors.WithStackTrace(err)
-		}
-		profiles = append(profiles, output.UserProfiles...)
-	}
-	return profiles, nil
-}
-
-// listSpaces lists all spaces for a domain
-func (s *SageMakerStudio) listSpaces(domainID string) ([]types.SpaceDetails, error) {
-	var spaces []types.SpaceDetails
-	paginator := sagemaker.NewListSpacesPaginator(s.Client, &sagemaker.ListSpacesInput{
-		DomainIdEquals: aws.String(domainID),
-	})
-	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(s.Context)
-		if err != nil {
-			logging.Debugf("[Failed] Error listing spaces in %s: %s", s.Region, err)
-			return nil, goerrors.WithStackTrace(err)
-		}
-		spaces = append(spaces, output.Spaces...)
-	}
-	return spaces, nil
-}
-
-// listAppsForResource lists all apps for a given resource (user profile or space)
-func (s *SageMakerStudio) listAppsForResource(domainID string, resourceName *string, isUserProfile bool) ([]types.AppDetails, error) {
-	input := &sagemaker.ListAppsInput{
-		DomainIdEquals: aws.String(domainID),
-	}
-	if isUserProfile {
-		input.UserProfileNameEquals = resourceName
-	} else {
-		input.SpaceNameEquals = resourceName
-	}
-
-	apps, err := s.Client.ListApps(s.Context, input)
-	if err != nil {
-		resourceType := "space"
-		if isUserProfile {
-			resourceType = "user profile"
-		}
-		return nil, goerrors.WithStackTrace(
-			fmt.Errorf("error listing apps for %s %s in %s: %v",
-				resourceType, *resourceName, s.Region, err))
-	}
-	return apps.Apps, nil
-}
-
-// waitForDeletion polls until a resource is confirmed deleted or timeout occurs
-func (s *SageMakerStudio) waitForDeletion(resourceName string, maxWait time.Duration, checkExists func() (bool, error)) error {
-	startTime := time.Now()
-	for {
-		if time.Since(startTime) > maxWait {
-			return fmt.Errorf("timeout waiting for %s deletion after %v", resourceName, maxWait)
-		}
-
-		exists, err := checkExists()
-		if err != nil {
-			return err
-		}
-		if !exists {
-			logging.Debugf("[OK] %s deletion confirmed in %s", resourceName, s.Region)
-			return nil
-		}
-
-		time.Sleep(retryDelay)
-	}
-}
-
-// nukeDomain deletes a SageMaker Studio domain and all its resources
-func (s *SageMakerStudio) nukeDomain(domainID string) error {
-	logging.Debugf("Starting deletion of SageMaker Studio domain %s in region %s", domainID, s.Region)
-
-	// Delete apps, spaces, and MLflow tracking servers in parallel
-	g := new(errgroup.Group)
-
-	// Delete apps
-	if apps, err := s.Client.ListApps(s.Context, &sagemaker.ListAppsInput{DomainIdEquals: aws.String(domainID)}); err == nil {
-		for _, app := range apps.Apps {
-			if app.Status == types.AppStatusDeleted {
-				continue
-			}
-			app := app
-			g.Go(func() error {
-				input := &sagemaker.DeleteAppInput{
-					AppName: app.AppName, AppType: app.AppType, DomainId: aws.String(domainID),
-					UserProfileName: app.UserProfileName, SpaceName: app.SpaceName,
-				}
-				_, err := s.Client.DeleteApp(s.Context, input)
-				if err != nil {
-					return err
-				}
-
-				return s.waitForDeletion(fmt.Sprintf("app %s", *app.AppName), maxWaitTime, func() (bool, error) {
-					apps, err := s.Client.ListApps(s.Context, &sagemaker.ListAppsInput{DomainIdEquals: aws.String(domainID)})
-					if err != nil {
-						return false, err
-					}
-					for _, a := range apps.Apps {
-						if *a.AppName == *app.AppName && a.Status != types.AppStatusDeleted {
-							return true, nil
-						}
-					}
-					return false, nil
-				})
-			})
-		}
-	}
-
-	// Delete spaces
-	if spaces, err := s.Client.ListSpaces(s.Context, &sagemaker.ListSpacesInput{DomainIdEquals: aws.String(domainID)}); err == nil {
-		for _, space := range spaces.Spaces {
-			space := space
-			g.Go(func() error {
-				_, err := s.Client.DeleteSpace(s.Context, &sagemaker.DeleteSpaceInput{
-					DomainId: aws.String(domainID), SpaceName: space.SpaceName,
-				})
-				if err != nil {
-					return err
-				}
-
-				return s.waitForDeletion(fmt.Sprintf("space %s", *space.SpaceName), maxWaitTime, func() (bool, error) {
-					spaces, err := s.Client.ListSpaces(s.Context, &sagemaker.ListSpacesInput{DomainIdEquals: aws.String(domainID)})
-					if err != nil {
-						return false, err
-					}
-					for _, s := range spaces.Spaces {
-						if *s.SpaceName == *space.SpaceName {
-							return true, nil
-						}
-					}
-					return false, nil
-				})
-			})
-		}
-	}
-
-	// Delete MLflow tracking servers
-	if servers, err := s.Client.ListMlflowTrackingServers(s.Context, &sagemaker.ListMlflowTrackingServersInput{}); err == nil {
-		for _, server := range servers.TrackingServerSummaries {
-			server := server
-			g.Go(func() error {
-				return s.deleteResourceWithRetry(
-					"MLflow tracking server",
-					*server.TrackingServerName,
-					func() error {
-						_, err := s.Client.DeleteMlflowTrackingServer(s.Context, &sagemaker.DeleteMlflowTrackingServerInput{
-							TrackingServerName: server.TrackingServerName,
-						})
-						return err
-					},
-					func() error {
-						return s.waitForDeletion(fmt.Sprintf("MLflow server %s", *server.TrackingServerName), maxWaitTime, func() (bool, error) {
-							servers, err := s.Client.ListMlflowTrackingServers(s.Context, &sagemaker.ListMlflowTrackingServersInput{})
-							if err != nil {
-								return false, err
-							}
-							for _, s := range servers.TrackingServerSummaries {
-								if *s.TrackingServerName == *server.TrackingServerName {
-									return true, nil
-								}
-							}
-							return false, nil
-						})
-					},
-				)
-			})
-		}
-	}
-
-	// Wait for all app, spaces and tracking servers to be deleted
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	// Delete user profiles
-	if profiles, err := s.Client.ListUserProfiles(s.Context, &sagemaker.ListUserProfilesInput{DomainIdEquals: aws.String(domainID)}); err == nil {
-		g = new(errgroup.Group)
-		for _, profile := range profiles.UserProfiles {
-			profile := profile
-			g.Go(func() error {
-				_, err := s.Client.DeleteUserProfile(s.Context, &sagemaker.DeleteUserProfileInput{
-					DomainId: aws.String(domainID), UserProfileName: profile.UserProfileName,
-				})
-				if err != nil {
-					return err
-				}
-
-				return s.waitForDeletion(fmt.Sprintf("user profile %s", *profile.UserProfileName), maxWaitTime, func() (bool, error) {
-					profiles, err := s.Client.ListUserProfiles(s.Context, &sagemaker.ListUserProfilesInput{DomainIdEquals: aws.String(domainID)})
-					if err != nil {
-						return false, err
-					}
-					for _, p := range profiles.UserProfiles {
-						if *p.UserProfileName == *profile.UserProfileName {
-							return true, nil
-						}
-					}
-					return false, nil
-				})
-			})
-		}
-		// Wait for all users to be deleted
-		if err := g.Wait(); err != nil {
-			return err
-		}
-	}
-
-	// Delete the domain
-	_, err := s.Client.DeleteDomain(s.Context, &sagemaker.DeleteDomainInput{
-		DomainId:        aws.String(domainID),
-		RetentionPolicy: &types.RetentionPolicy{HomeEfsFileSystem: types.RetentionTypeDelete},
-	})
-	if err != nil {
-		return err
-	}
-
-	return s.waitForDeletion(fmt.Sprintf("domain %s", domainID), maxWaitTime, func() (bool, error) {
-		_, err := s.Client.DescribeDomain(s.Context, &sagemaker.DescribeDomainInput{DomainId: aws.String(domainID)})
-		return err == nil, nil
+		},
+		Lister: listSageMakerDomains,
+		Nuker:  nukeSageMakerDomains,
 	})
 }
 
-// getAll retrieves all SageMaker Studio domains in the region
-func (s *SageMakerStudio) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// listSageMakerDomains retrieves all SageMaker Studio domains that match the config filters.
+func listSageMakerDomains(ctx context.Context, client SageMakerStudioAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var domainIDs []*string
-	paginator := sagemaker.NewListDomainsPaginator(s.Client, &sagemaker.ListDomainsInput{})
 
+	paginator := sagemaker.NewListDomainsPaginator(client, &sagemaker.ListDomainsInput{})
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, goerrors.WithStackTrace(err)
+			return nil, errors.WithStackTrace(err)
 		}
 
-		for _, domain := range output.Domains {
+		for _, domain := range page.Domains {
 			if domain.DomainId != nil {
 				logging.Debugf("Found SageMaker Studio domain: %s (Status: %s)", *domain.DomainId, domain.Status)
 				domainIDs = append(domainIDs, domain.DomainId)
@@ -332,34 +88,338 @@ func (s *SageMakerStudio) getAll(c context.Context, configObj config.Config) ([]
 	return domainIDs, nil
 }
 
-// nukeAll deletes all provided SageMaker Studio domains and their resources
-func (s *SageMakerStudio) nukeAll(identifiers []string) error {
+// nukeSageMakerDomains is a custom nuker function for SageMaker Studio domains.
+// SageMaker domains require deleting sub-resources (apps, spaces, user profiles, MLflow servers) before deletion.
+func nukeSageMakerDomains(ctx context.Context, client SageMakerStudioAPI, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
 	if len(identifiers) == 0 {
-		logging.Debugf("No SageMaker Studio domains to nuke in region %s", s.Region)
+		logging.Debugf("No SageMaker Studio domains to nuke in %s", scope)
 		return nil
 	}
 
-	g := new(errgroup.Group)
+	logging.Infof("Deleting %d %s in %s", len(identifiers), resourceType, scope)
+
+	// Process domains concurrently
+	wg := new(sync.WaitGroup)
+	resultsChan := make(chan resource.NukeResult, len(identifiers))
+
 	for _, domainID := range identifiers {
-		if domainID == "" {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			err := nukeSageMakerDomain(ctx, client, scope, id)
+			resultsChan <- resource.NukeResult{Identifier: id, Error: err}
+		}(aws.ToString(domainID))
+	}
+
+	wg.Wait()
+	close(resultsChan)
+
+	// Collect results
+	results := make([]resource.NukeResult, 0, len(identifiers))
+	for result := range resultsChan {
+		results = append(results, result)
+	}
+
+	return results
+}
+
+// nukeSageMakerDomain deletes a single SageMaker Studio domain and all its resources.
+func nukeSageMakerDomain(ctx context.Context, client SageMakerStudioAPI, scope resource.Scope, domainID string) error {
+	logging.Debugf("Starting deletion of SageMaker Studio domain %s in %s", domainID, scope)
+
+	// Phase 1: Delete apps, spaces, and MLflow tracking servers in parallel
+	var wg sync.WaitGroup
+	errChan := make(chan error, 3)
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		if err := deleteAllApps(ctx, client, domainID, scope); err != nil {
+			errChan <- err
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if err := deleteAllSpaces(ctx, client, domainID, scope); err != nil {
+			errChan <- err
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if err := deleteAllMlflowServers(ctx, client, scope); err != nil {
+			errChan <- err
+		}
+	}()
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors from phase 1
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	// Phase 2: Delete user profiles (after apps are deleted)
+	if err := deleteAllUserProfiles(ctx, client, domainID, scope); err != nil {
+		return err
+	}
+
+	// Phase 3: Delete the domain itself
+	if _, err := client.DeleteDomain(ctx, &sagemaker.DeleteDomainInput{
+		DomainId:        aws.String(domainID),
+		RetentionPolicy: &types.RetentionPolicy{HomeEfsFileSystem: types.RetentionTypeDelete},
+	}); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	// Wait for domain deletion
+	return waitForDeletion(ctx, client, fmt.Sprintf("domain %s", domainID), func() (bool, error) {
+		_, err := client.DescribeDomain(ctx, &sagemaker.DescribeDomainInput{DomainId: aws.String(domainID)})
+		return err == nil, nil
+	})
+}
+
+// deleteAllApps deletes all apps for a domain.
+func deleteAllApps(ctx context.Context, client SageMakerStudioAPI, domainID string, scope resource.Scope) error {
+	apps, err := client.ListApps(ctx, &sagemaker.ListAppsInput{DomainIdEquals: aws.String(domainID)})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(apps.Apps))
+
+	for _, app := range apps.Apps {
+		if app.Status == types.AppStatusDeleted {
 			continue
 		}
-		domainID := domainID
-		g.Go(func() error {
-			err := s.nukeDomain(domainID)
-			report.Record(report.Entry{
-				Identifier:   domainID,
-				ResourceType: "SageMaker Studio Domain",
-				Error:        err,
-			})
+		wg.Add(1)
+		go func(a types.AppDetails) {
+			defer wg.Done()
+			if err := deleteApp(ctx, client, domainID, a); err != nil {
+				errChan <- err
+			}
+		}(app)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
 			return err
-		})
+		}
 	}
-
-	if err := g.Wait(); err != nil {
-		return goerrors.WithStackTrace(err)
-	}
-
-	logging.Debugf("[OK] %d SageMaker Studio domain(s) deleted in %s", len(identifiers), s.Region)
 	return nil
+}
+
+// deleteApp deletes a single app and waits for deletion.
+func deleteApp(ctx context.Context, client SageMakerStudioAPI, domainID string, app types.AppDetails) error {
+	input := &sagemaker.DeleteAppInput{
+		AppName:         app.AppName,
+		AppType:         app.AppType,
+		DomainId:        aws.String(domainID),
+		UserProfileName: app.UserProfileName,
+		SpaceName:       app.SpaceName,
+	}
+
+	if _, err := client.DeleteApp(ctx, input); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return waitForDeletion(ctx, client, fmt.Sprintf("app %s", aws.ToString(app.AppName)), func() (bool, error) {
+		apps, err := client.ListApps(ctx, &sagemaker.ListAppsInput{DomainIdEquals: aws.String(domainID)})
+		if err != nil {
+			return false, err
+		}
+		for _, a := range apps.Apps {
+			if aws.ToString(a.AppName) == aws.ToString(app.AppName) && a.Status != types.AppStatusDeleted {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+}
+
+// deleteAllSpaces deletes all spaces for a domain.
+func deleteAllSpaces(ctx context.Context, client SageMakerStudioAPI, domainID string, scope resource.Scope) error {
+	spaces, err := client.ListSpaces(ctx, &sagemaker.ListSpacesInput{DomainIdEquals: aws.String(domainID)})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(spaces.Spaces))
+
+	for _, space := range spaces.Spaces {
+		wg.Add(1)
+		go func(s types.SpaceDetails) {
+			defer wg.Done()
+			if err := deleteSpace(ctx, client, domainID, s); err != nil {
+				errChan <- err
+			}
+		}(space)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteSpace deletes a single space and waits for deletion.
+func deleteSpace(ctx context.Context, client SageMakerStudioAPI, domainID string, space types.SpaceDetails) error {
+	if _, err := client.DeleteSpace(ctx, &sagemaker.DeleteSpaceInput{
+		DomainId:  aws.String(domainID),
+		SpaceName: space.SpaceName,
+	}); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return waitForDeletion(ctx, client, fmt.Sprintf("space %s", aws.ToString(space.SpaceName)), func() (bool, error) {
+		spaces, err := client.ListSpaces(ctx, &sagemaker.ListSpacesInput{DomainIdEquals: aws.String(domainID)})
+		if err != nil {
+			return false, err
+		}
+		for _, s := range spaces.Spaces {
+			if aws.ToString(s.SpaceName) == aws.ToString(space.SpaceName) {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+}
+
+// deleteAllMlflowServers deletes all MLflow tracking servers.
+func deleteAllMlflowServers(ctx context.Context, client SageMakerStudioAPI, scope resource.Scope) error {
+	servers, err := client.ListMlflowTrackingServers(ctx, &sagemaker.ListMlflowTrackingServersInput{})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(servers.TrackingServerSummaries))
+
+	for _, server := range servers.TrackingServerSummaries {
+		wg.Add(1)
+		go func(s types.TrackingServerSummary) {
+			defer wg.Done()
+			if err := deleteMlflowServer(ctx, client, s); err != nil {
+				errChan <- err
+			}
+		}(server)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteMlflowServer deletes a single MLflow tracking server and waits for deletion.
+func deleteMlflowServer(ctx context.Context, client SageMakerStudioAPI, server types.TrackingServerSummary) error {
+	if _, err := client.DeleteMlflowTrackingServer(ctx, &sagemaker.DeleteMlflowTrackingServerInput{
+		TrackingServerName: server.TrackingServerName,
+	}); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return waitForDeletion(ctx, client, fmt.Sprintf("MLflow server %s", aws.ToString(server.TrackingServerName)), func() (bool, error) {
+		servers, err := client.ListMlflowTrackingServers(ctx, &sagemaker.ListMlflowTrackingServersInput{})
+		if err != nil {
+			return false, err
+		}
+		for _, s := range servers.TrackingServerSummaries {
+			if aws.ToString(s.TrackingServerName) == aws.ToString(server.TrackingServerName) {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+}
+
+// deleteAllUserProfiles deletes all user profiles for a domain.
+func deleteAllUserProfiles(ctx context.Context, client SageMakerStudioAPI, domainID string, scope resource.Scope) error {
+	profiles, err := client.ListUserProfiles(ctx, &sagemaker.ListUserProfilesInput{DomainIdEquals: aws.String(domainID)})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(profiles.UserProfiles))
+
+	for _, profile := range profiles.UserProfiles {
+		wg.Add(1)
+		go func(p types.UserProfileDetails) {
+			defer wg.Done()
+			if err := deleteUserProfile(ctx, client, domainID, p); err != nil {
+				errChan <- err
+			}
+		}(profile)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteUserProfile deletes a single user profile and waits for deletion.
+func deleteUserProfile(ctx context.Context, client SageMakerStudioAPI, domainID string, profile types.UserProfileDetails) error {
+	if _, err := client.DeleteUserProfile(ctx, &sagemaker.DeleteUserProfileInput{
+		DomainId:        aws.String(domainID),
+		UserProfileName: profile.UserProfileName,
+	}); err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return waitForDeletion(ctx, client, fmt.Sprintf("user profile %s", aws.ToString(profile.UserProfileName)), func() (bool, error) {
+		profiles, err := client.ListUserProfiles(ctx, &sagemaker.ListUserProfilesInput{DomainIdEquals: aws.String(domainID)})
+		if err != nil {
+			return false, err
+		}
+		for _, p := range profiles.UserProfiles {
+			if aws.ToString(p.UserProfileName) == aws.ToString(profile.UserProfileName) {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+}
+
+// waitForDeletion polls until a resource is confirmed deleted or timeout occurs.
+func waitForDeletion(ctx context.Context, client SageMakerStudioAPI, resourceName string, checkExists func() (bool, error)) error {
+	startTime := time.Now()
+	for {
+		if time.Since(startTime) > sageMakerMaxWaitTime {
+			return fmt.Errorf("timeout waiting for %s deletion after %v", resourceName, sageMakerMaxWaitTime)
+		}
+
+		exists, err := checkExists()
+		if err != nil {
+			return err
+		}
+		if !exists {
+			logging.Debugf("[OK] %s deletion confirmed", resourceName)
+			return nil
+		}
+
+		time.Sleep(sageMakerRetryDelay)
+	}
 }

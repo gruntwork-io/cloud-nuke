@@ -3,175 +3,158 @@ package resources
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Get all active pools
-func (cs *EC2IPAMCustomAllocation) getPools() ([]*string, error) {
-	var result []*string
-
-	params := &ec2.DescribeIpamPoolsInput{
-		MaxResults: aws.Int32(10),
-	}
-
-	poolsPaginator := ec2.NewDescribeIpamPoolsPaginator(cs.Client, params)
-	for poolsPaginator.HasMorePages() {
-		page, err := poolsPaginator.NextPage(cs.Context)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		for _, p := range page.IpamPools {
-			result = append(result, p.IpamPoolId)
-		}
-	}
-
-	return result, nil
+// EC2IPAMCustomAllocationAPI defines the interface for EC2 IPAM Custom Allocation operations.
+type EC2IPAMCustomAllocationAPI interface {
+	DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error)
+	GetIpamPoolAllocations(ctx context.Context, params *ec2.GetIpamPoolAllocationsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolAllocationsOutput, error)
+	ReleaseIpamPoolAllocation(ctx context.Context, params *ec2.ReleaseIpamPoolAllocationInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseIpamPoolAllocationOutput, error)
 }
 
-// getPoolAllocationCIDR retrieves the CIDR block associated with an IPAM pool allocation in AWS.
-func (cs *EC2IPAMCustomAllocation) getPoolAllocationCIDR(allocationID *string) (*string, error) {
-	// get the pool id corresponding to the allocation id
-	allocationIPAMPoolID, ok := cs.PoolAndAllocationMap[*allocationID]
-	if !ok {
-		return nil, errors.WithStackTrace(fmt.Errorf("unable to find the pool allocation with %s", *allocationID))
-	}
+// ipamCustomAllocationState holds runtime state needed for custom allocation operations.
+// This is stored alongside the Resource to track pool-allocation mappings during listing and deletion.
+type ipamCustomAllocationState struct {
+	mu                   sync.RWMutex
+	poolAndAllocationMap map[string]allocationInfo
+}
 
-	output, err := cs.Client.GetIpamPoolAllocations(cs.Context, &ec2.GetIpamPoolAllocationsInput{
-		IpamPoolId:           &allocationIPAMPoolID,
-		IpamPoolAllocationId: allocationID,
+type allocationInfo struct {
+	PoolID string
+	Cidr   string
+}
+
+var customAllocationState = &ipamCustomAllocationState{
+	poolAndAllocationMap: make(map[string]allocationInfo),
+}
+
+// NewEC2IPAMCustomAllocation creates a new EC2 IPAM Custom Allocation resource using the generic resource pattern.
+func NewEC2IPAMCustomAllocation() AwsResource {
+	return NewAwsResource(&resource.Resource[EC2IPAMCustomAllocationAPI]{
+		ResourceTypeName: "ipam-custom-allocation",
+		BatchSize:        1000,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMCustomAllocationAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+			// Reset state on init
+			customAllocationState.mu.Lock()
+			customAllocationState.poolAndAllocationMap = make(map[string]allocationInfo)
+			customAllocationState.mu.Unlock()
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2IPAMCustomAllocation
+		},
+		Lister:             listEC2IPAMCustomAllocations,
+		Nuker:              resource.SimpleBatchDeleter(deleteEC2IPAMCustomAllocation),
+		PermissionVerifier: verifyEC2IPAMCustomAllocationPermission,
 	})
-
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	if !(len(output.IpamPoolAllocations) > 0) {
-		return nil, errors.WithStackTrace(fmt.Errorf("unable to find the pool allocation with %s", *allocationID))
-	}
-
-	return output.IpamPoolAllocations[0].Cidr, nil
 }
 
-// Get all the allocations
-func (cs *EC2IPAMCustomAllocation) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	activePools, errPool := cs.getPools()
-	if errPool != nil {
-		return nil, errors.WithStackTrace(errPool)
+// listEC2IPAMCustomAllocations retrieves all custom allocations across all IPAM pools.
+func listEC2IPAMCustomAllocations(ctx context.Context, client EC2IPAMCustomAllocationAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	// First, get all pools
+	pools, err := getPools(ctx, client)
+	if err != nil {
+		return nil, err
 	}
 
-	// check though the filters and see the custom allocations
 	var result []*string
-	for _, pool := range activePools {
-		// prepare the params
-		params := &ec2.GetIpamPoolAllocationsInput{
-			MaxResults: aws.Int32(int32(cs.MaxBatchSize())),
-			IpamPoolId: pool,
-		}
 
-		allocationsPaginator := ec2.NewGetIpamPoolAllocationsPaginator(cs.Client, params)
-		for allocationsPaginator.HasMorePages() {
-			page, err := allocationsPaginator.NextPage(cs.Context)
+	// For each pool, get all custom allocations
+	for _, poolID := range pools {
+		paginator := ec2.NewGetIpamPoolAllocationsPaginator(client, &ec2.GetIpamPoolAllocationsInput{
+			MaxResults: aws.Int32(1000),
+			IpamPoolId: poolID,
+		})
+
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
 			if err != nil {
-				logging.Debugf("[Failed] %s", err)
+				logging.Debugf("Failed to get allocations for pool %s: %v", aws.ToString(poolID), err)
 				continue
 			}
 
 			for _, allocation := range page.IpamPoolAllocations {
 				if allocation.ResourceType == types.IpamPoolAllocationResourceTypeCustom {
 					result = append(result, allocation.IpamPoolAllocationId)
-					cs.PoolAndAllocationMap[*allocation.IpamPoolAllocationId] = *pool
+					// Store pool and CIDR info for later use during deletion
+					customAllocationState.mu.Lock()
+					customAllocationState.poolAndAllocationMap[aws.ToString(allocation.IpamPoolAllocationId)] = allocationInfo{
+						PoolID: aws.ToString(poolID),
+						Cidr:   aws.ToString(allocation.Cidr),
+					}
+					customAllocationState.mu.Unlock()
 				}
 			}
 		}
 	}
 
-	// checking the nukable permissions
-	cs.VerifyNukablePermissions(result, func(id *string) error {
-		cidr, err := cs.getPoolAllocationCIDR(id)
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-			return err
-		}
+	return result, nil
+}
 
-		allocationIPAMPoolID, ok := cs.PoolAndAllocationMap[*id]
-		if !ok {
-			logging.Errorf("[Failed] %s", fmt.Errorf("unable to find the pool allocation with %s", *id))
-			return fmt.Errorf("unable to find the pool allocation with %s", *id)
-		}
+// getPools retrieves all IPAM pools.
+func getPools(ctx context.Context, client EC2IPAMCustomAllocationAPI) ([]*string, error) {
+	var result []*string
 
-		_, err = cs.Client.ReleaseIpamPoolAllocation(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
-			IpamPoolId:           &allocationIPAMPoolID,
-			IpamPoolAllocationId: id,
-			Cidr:                 cidr,
-			DryRun:               aws.Bool(true),
-		})
-		return err
+	paginator := ec2.NewDescribeIpamPoolsPaginator(client, &ec2.DescribeIpamPoolsInput{
+		MaxResults: aws.Int32(10),
 	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, pool := range page.IpamPools {
+			result = append(result, pool.IpamPoolId)
+		}
+	}
 
 	return result, nil
 }
 
-// Deletes all IPAMs
-func (cs *EC2IPAMCustomAllocation) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No IPAM Custom Allocation to nuke in region %s", cs.Region)
-		return nil
+// verifyEC2IPAMCustomAllocationPermission performs a dry-run release to check permissions.
+func verifyEC2IPAMCustomAllocationPermission(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string) error {
+	customAllocationState.mu.RLock()
+	info, ok := customAllocationState.poolAndAllocationMap[aws.ToString(id)]
+	customAllocationState.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("unable to find pool allocation info for %s", aws.ToString(id))
 	}
 
-	logging.Debugf("Deleting all IPAM Custom Allocation in region %s", cs.Region)
-	var deletedAddresses []*string
+	_, err := client.ReleaseIpamPoolAllocation(ctx, &ec2.ReleaseIpamPoolAllocationInput{
+		IpamPoolId:           aws.String(info.PoolID),
+		IpamPoolAllocationId: id,
+		Cidr:                 aws.String(info.Cidr),
+		DryRun:               aws.Bool(true),
+	})
+	return err
+}
 
-	for _, id := range ids {
+// deleteEC2IPAMCustomAllocation releases a single custom allocation.
+func deleteEC2IPAMCustomAllocation(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string) error {
+	customAllocationState.mu.RLock()
+	info, ok := customAllocationState.poolAndAllocationMap[aws.ToString(id)]
+	customAllocationState.mu.RUnlock()
 
-		if nukable, reason := cs.IsNukable(aws.ToString(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
-			continue
-		}
-
-		// get the IPamPool details
-		cidr, err := cs.getPoolAllocationCIDR(id)
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-			continue
-		}
-		allocationIPAMPoolID, ok := cs.PoolAndAllocationMap[*id]
-		if !ok {
-			logging.Errorf("[Failed] %s", fmt.Errorf("unable to find the pool allocation with %s", *id))
-			continue
-		}
-
-		// Release the allocation
-		_, err = cs.Client.ReleaseIpamPoolAllocation(cs.Context, &ec2.ReleaseIpamPoolAllocationInput{
-			IpamPoolId:           &allocationIPAMPoolID,
-			IpamPoolAllocationId: id,
-			Cidr:                 cidr,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "IPAM",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedAddresses = append(deletedAddresses, id)
-			logging.Debugf("Deleted IPAM: %s", *id)
-		}
+	if !ok {
+		return fmt.Errorf("unable to find pool allocation info for %s", aws.ToString(id))
 	}
 
-	logging.Debugf("[OK] %d IPAM Custom Allocation(s) deleted in %s", len(deletedAddresses), cs.Region)
-
-	return nil
+	_, err := client.ReleaseIpamPoolAllocation(ctx, &ec2.ReleaseIpamPoolAllocationInput{
+		IpamPoolId:           aws.String(info.PoolID),
+		IpamPoolAllocationId: id,
+		Cidr:                 aws.String(info.Cidr),
+	})
+	return err
 }

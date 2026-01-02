@@ -10,73 +10,63 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedEC2Service struct {
+type mockedECSService struct {
 	ECSServicesAPI
 	ListClustersOutput     ecs.ListClustersOutput
 	ListServicesOutput     ecs.ListServicesOutput
 	DescribeServicesOutput ecs.DescribeServicesOutput
 	DeleteServiceOutput    ecs.DeleteServiceOutput
 	UpdateServiceOutput    ecs.UpdateServiceOutput
+
+	// Track calls to simulate service becoming inactive after delete
+	describeServicesCalls int
 }
 
-func (m mockedEC2Service) ListClusters(ctx context.Context, params *ecs.ListClustersInput, optFns ...func(*ecs.Options)) (*ecs.ListClustersOutput, error) {
+func (m mockedECSService) ListClusters(ctx context.Context, params *ecs.ListClustersInput, optFns ...func(*ecs.Options)) (*ecs.ListClustersOutput, error) {
 	return &m.ListClustersOutput, nil
 }
 
-func (m mockedEC2Service) ListServices(ctx context.Context, params *ecs.ListServicesInput, optFns ...func(*ecs.Options)) (*ecs.ListServicesOutput, error) {
+func (m mockedECSService) ListServices(ctx context.Context, params *ecs.ListServicesInput, optFns ...func(*ecs.Options)) (*ecs.ListServicesOutput, error) {
 	return &m.ListServicesOutput, nil
 }
 
-func (m mockedEC2Service) DescribeServices(ctx context.Context, params *ecs.DescribeServicesInput, optFns ...func(*ecs.Options)) (*ecs.DescribeServicesOutput, error) {
-	return &m.DescribeServicesOutput, nil
+func (m *mockedECSService) DescribeServices(ctx context.Context, params *ecs.DescribeServicesInput, optFns ...func(*ecs.Options)) (*ecs.DescribeServicesOutput, error) {
+	m.describeServicesCalls++
+	// First call returns services (for scheduling strategy check)
+	// Subsequent calls return INACTIVE status (for waiter to succeed)
+	if m.describeServicesCalls <= 1 {
+		return &m.DescribeServicesOutput, nil
+	}
+	// Return service with INACTIVE status so the waiter is satisfied
+	return &ecs.DescribeServicesOutput{
+		Services: []types.Service{
+			{
+				ServiceArn: aws.String("testArn1"),
+				Status:     aws.String("INACTIVE"),
+			},
+		},
+	}, nil
 }
 
-func (m mockedEC2Service) DeleteService(ctx context.Context, params *ecs.DeleteServiceInput, optFns ...func(*ecs.Options)) (*ecs.DeleteServiceOutput, error) {
+func (m mockedECSService) DeleteService(ctx context.Context, params *ecs.DeleteServiceInput, optFns ...func(*ecs.Options)) (*ecs.DeleteServiceOutput, error) {
 	return &m.DeleteServiceOutput, nil
 }
 
-func (m mockedEC2Service) UpdateService(ctx context.Context, params *ecs.UpdateServiceInput, optFns ...func(*ecs.Options)) (*ecs.UpdateServiceOutput, error) {
+func (m mockedECSService) UpdateService(ctx context.Context, params *ecs.UpdateServiceInput, optFns ...func(*ecs.Options)) (*ecs.UpdateServiceOutput, error) {
 	return &m.UpdateServiceOutput, nil
 }
 
-func TestEC2Service_GetAll(t *testing.T) {
+func TestECSService_GetAll(t *testing.T) {
 	t.Parallel()
 	testArn1 := "testArn1"
 	testArn2 := "testArn2"
 	testName1 := "testService1"
 	testName2 := "testService2"
 	now := time.Now()
-	es := ECSServices{
-		Client: mockedEC2Service{
-			ListClustersOutput: ecs.ListClustersOutput{
-				ClusterArns: []string{
-					testArn1,
-				},
-			},
-			ListServicesOutput: ecs.ListServicesOutput{
-				ServiceArns: []string{
-					testArn1,
-				},
-			},
-			DescribeServicesOutput: ecs.DescribeServicesOutput{
-				Services: []types.Service{
-					{
-						ServiceArn:  aws.String(testArn1),
-						ServiceName: aws.String(testName1),
-						CreatedAt:   aws.Time(now),
-					},
-					{
-						ServiceArn:  aws.String(testArn2),
-						ServiceName: aws.String(testName2),
-						CreatedAt:   aws.Time(now.Add(1)),
-					},
-				},
-			},
-		},
-	}
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -105,37 +95,59 @@ func TestEC2Service_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := es.getAll(context.Background(), config.Config{
-				ECSService: tc.configObj,
-			})
+			mockClient := &mockedECSService{
+				ListClustersOutput: ecs.ListClustersOutput{
+					ClusterArns: []string{testArn1},
+				},
+				ListServicesOutput: ecs.ListServicesOutput{
+					ServiceArns: []string{testArn1},
+				},
+				DescribeServicesOutput: ecs.DescribeServicesOutput{
+					Services: []types.Service{
+						{
+							ServiceArn:  aws.String(testArn1),
+							ServiceName: aws.String(testName1),
+							CreatedAt:   aws.Time(now),
+						},
+						{
+							ServiceArn:  aws.String(testArn2),
+							ServiceName: aws.String(testName2),
+							CreatedAt:   aws.Time(now.Add(1)),
+						},
+					},
+				},
+			}
+			serviceClusterMap := make(map[string]string)
+			names, err := listECSServices(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj, serviceClusterMap)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
-func TestEC2Service_NukeAll(t *testing.T) {
+func TestECSService_NukeAll(t *testing.T) {
 	t.Parallel()
-	es := ECSServices{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-		},
-		Client: mockedEC2Service{
-			DescribeServicesOutput: ecs.DescribeServicesOutput{
-				Services: []types.Service{
-					{
-						SchedulingStrategy: types.SchedulingStrategyDaemon,
-						ServiceArn:         aws.String("testArn1"),
-						Status:             aws.String("DRAINING"),
-					},
-				},
-			},
-			UpdateServiceOutput: ecs.UpdateServiceOutput{},
-			DeleteServiceOutput: ecs.DeleteServiceOutput{},
-		},
+
+	// Service cluster map holds the service-to-cluster mapping needed for deletion
+	serviceClusterMap := map[string]string{
+		"testArn1": "testCluster1",
 	}
 
-	err := es.nukeAll([]*string{aws.String("testArn1")})
-	require.NoError(t, err)
+	mockClient := &mockedECSService{
+		DescribeServicesOutput: ecs.DescribeServicesOutput{
+			Services: []types.Service{
+				{
+					SchedulingStrategy: types.SchedulingStrategyDaemon,
+					ServiceArn:         aws.String("testArn1"),
+					Status:             aws.String("DRAINING"),
+				},
+			},
+		},
+		UpdateServiceOutput: ecs.UpdateServiceOutput{},
+		DeleteServiceOutput: ecs.DeleteServiceOutput{},
+	}
+
+	results := deleteECSServices(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "ecsserv", []*string{aws.String("testArn1")}, serviceClusterMap)
+	require.Len(t, results, 1)
+	require.Equal(t, "testArn1", results[0].Identifier)
 }

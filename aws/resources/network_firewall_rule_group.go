@@ -2,126 +2,106 @@ package resources
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
-	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeNetworkFirewallRuleGroup(group *types.RuleGroupResponse, firstSeenTime *time.Time, configObj config.Config) bool {
-	// if the firewall policy has any attachments, then we can't remove that policy
-	if aws.ToInt32(group.NumberOfAssociations) > 0 {
-		logging.Debugf("[Skipping] the rule group %s is still in use", aws.ToString(group.RuleGroupName))
-		return false
-	}
+// NetworkFirewallRuleGroupAPI defines the interface for NetworkFirewall Rule Group operations.
+type NetworkFirewallRuleGroupAPI interface {
+	ListRuleGroups(ctx context.Context, params *networkfirewall.ListRuleGroupsInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListRuleGroupsOutput, error)
+	DescribeRuleGroup(ctx context.Context, params *networkfirewall.DescribeRuleGroupInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeRuleGroupOutput, error)
+	DeleteRuleGroup(ctx context.Context, params *networkfirewall.DeleteRuleGroupInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteRuleGroupOutput, error)
+	TagResource(ctx context.Context, params *networkfirewall.TagResourceInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.TagResourceOutput, error)
+}
 
-	var identifierName string
-	tags := util.ConvertNetworkFirewallTagsToMap(group.Tags)
-
-	identifierName = aws.ToString(group.RuleGroupName) // set the default
-	if v, ok := tags["Name"]; ok {
-		identifierName = v
-	}
-
-	return configObj.NetworkFirewallRuleGroup.ShouldInclude(config.ResourceValue{
-		Name: &identifierName,
-		Tags: tags,
-		Time: firstSeenTime,
+// NewNetworkFirewallRuleGroup creates a new NetworkFirewall Rule Group resource.
+func NewNetworkFirewallRuleGroup() AwsResource {
+	return NewAwsResource(&resource.Resource[NetworkFirewallRuleGroupAPI]{
+		ResourceTypeName: "network-firewall-rule-group",
+		BatchSize:        10,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[NetworkFirewallRuleGroupAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = networkfirewall.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.NetworkFirewallRuleGroup
+		},
+		Lister: listNetworkFirewallRuleGroups,
+		Nuker:  resource.SimpleBatchDeleter(deleteNetworkFirewallRuleGroup),
 	})
 }
 
-func (nfrg *NetworkFirewallRuleGroup) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var (
-		identifiers   []*string
-		firstSeenTime *time.Time
-		err           error
-	)
+// listNetworkFirewallRuleGroups retrieves all Network Firewall rule groups that match the config filters.
+func listNetworkFirewallRuleGroups(ctx context.Context, client NetworkFirewallRuleGroupAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
 
-	meta, err := nfrg.Client.ListRuleGroups(nfrg.Context, nil)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+	paginator := networkfirewall.NewListRuleGroupsPaginator(client, &networkfirewall.ListRuleGroupsInput{})
 
-	for _, group := range meta.RuleGroups {
-		output, err := nfrg.Client.DescribeRuleGroup(nfrg.Context, &networkfirewall.DescribeRuleGroupInput{
-			RuleGroupArn: group.Arn,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] to describe the firewall rule group %s", aws.ToString(group.Name))
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
-		if output.RuleGroupResponse == nil {
-			logging.Errorf("[Failed] no firewall rule group information found for %s", aws.ToString(group.Name))
-			continue
-		}
-
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nfrg.Client, group.Arn, util.ConvertNetworkFirewallTagsToMap(output.RuleGroupResponse.Tags))
-		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
-		}
-
-		if shouldIncludeNetworkFirewallRuleGroup(output.RuleGroupResponse, firstSeenTime, configObj) {
-			identifiers = append(identifiers, group.Name)
-
-			raw := aws.ToString(group.Name)
-			nfrg.RuleGroups[raw] = RuleGroup{
-				Name: output.RuleGroupResponse.RuleGroupName,
-				Type: aws.String(string(output.RuleGroupResponse.Type)),
+		for _, group := range page.RuleGroups {
+			output, err := client.DescribeRuleGroup(ctx, &networkfirewall.DescribeRuleGroupInput{
+				RuleGroupArn: group.Arn,
+			})
+			if err != nil {
+				logging.Errorf("[Failed] to describe firewall rule group %s: %s", aws.ToString(group.Name), err)
+				continue
 			}
+
+			if output.RuleGroupResponse == nil {
+				logging.Debugf("[Skip] no rule group response found for %s", aws.ToString(group.Name))
+				continue
+			}
+
+			resp := output.RuleGroupResponse
+
+			// Skip rule groups that are still in use
+			if aws.ToInt32(resp.NumberOfAssociations) > 0 {
+				logging.Debugf("[Skip] rule group %s is still in use", aws.ToString(resp.RuleGroupName))
+				continue
+			}
+
+			tags := util.ConvertNetworkFirewallTagsToMap(resp.Tags)
+			identifierName := aws.ToString(resp.RuleGroupName)
+			if nameTag, ok := tags["Name"]; ok {
+				identifierName = nameTag
+			}
+
+			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, group.Arn, tags)
+			if err != nil {
+				logging.Errorf("[Failed] to get first seen time for %s: %s", aws.ToString(group.Name), err)
+				continue
+			}
+
+			if !cfg.ShouldInclude(config.ResourceValue{
+				Name: &identifierName,
+				Tags: tags,
+				Time: firstSeenTime,
+			}) {
+				continue
+			}
+
+			// Use ARN as identifier - DeleteRuleGroup can use ARN without requiring Type
+			identifiers = append(identifiers, group.Arn)
 		}
 	}
 
 	return identifiers, nil
 }
 
-func (nfrg *NetworkFirewallRuleGroup) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Network Firewall rule group to nuke in region %s", nfrg.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting Network firewall rule group in region %s", nfrg.Region)
-	var deleted []*string
-
-	for _, id := range identifiers {
-		// check and get the type for this identifier
-		group, ok := nfrg.RuleGroups[aws.ToString(id)]
-		if !ok {
-			logging.Errorf("couldn't find the rule group type for %s", aws.ToString(id))
-			return fmt.Errorf("couldn't find the rule group type for %s", aws.ToString(id))
-		}
-
-		// delete the rule group
-		_, err := nfrg.Client.DeleteRuleGroup(nfrg.Context, &networkfirewall.DeleteRuleGroupInput{
-			RuleGroupName: id,
-			Type:          types.RuleGroupType(aws.ToString(group.Type)),
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Network Firewall Rule group",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deleted = append(deleted, id)
-		}
-	}
-
-	logging.Debugf("[OK] %d Network Firewall Rule group(s) deleted in %s", len(deleted), nfrg.Region)
-
-	return nil
+// deleteNetworkFirewallRuleGroup deletes a single Network Firewall rule group by ARN.
+func deleteNetworkFirewallRuleGroup(ctx context.Context, client NetworkFirewallRuleGroupAPI, arn *string) error {
+	_, err := client.DeleteRuleGroup(ctx, &networkfirewall.DeleteRuleGroupInput{
+		RuleGroupArn: arn,
+	})
+	return err
 }

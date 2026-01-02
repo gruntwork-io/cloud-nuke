@@ -12,47 +12,32 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
 	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/stretchr/testify/require"
 )
 
-// Mocked SageMaker Studio client for testing
-type mockedSageMakerStudio struct {
-	SageMakerStudioAPI
+type mockSageMakerStudioClient struct {
 	mu sync.Mutex
 
 	// Domain operations
 	ListDomainsOutput    sagemaker.ListDomainsOutput
 	DescribeDomainOutput sagemaker.DescribeDomainOutput
-	DeleteDomainOutput   sagemaker.DeleteDomainOutput
-	DescribeDomainError  error
 	ListDomainsError     error
-	domainStatus         map[string]types.DomainStatus
 
 	// UserProfile operations
-	ListUserProfilesOutput    sagemaker.ListUserProfilesOutput
-	DeleteUserProfileOutput   sagemaker.DeleteUserProfileOutput
-	DescribeUserProfileOutput sagemaker.DescribeUserProfileOutput
-	DescribeUserProfileError  error
-	DeleteUserProfileError    error
+	ListUserProfilesOutput sagemaker.ListUserProfilesOutput
+	DeleteUserProfileError error
 
 	// App operations
-	ListAppsOutput    sagemaker.ListAppsOutput
-	DeleteAppOutput   sagemaker.DeleteAppOutput
-	DescribeAppOutput sagemaker.DescribeAppOutput
-	DescribeAppError  error
-	DeleteAppError    error
+	ListAppsOutput sagemaker.ListAppsOutput
+	DeleteAppError error
 
 	// Space operations
-	ListSpacesOutput  sagemaker.ListSpacesOutput
-	DeleteSpaceOutput sagemaker.DeleteSpaceOutput
-	ListSpacesError   error
-	DeleteSpaceError  error
+	ListSpacesOutput sagemaker.ListSpacesOutput
+	DeleteSpaceError error
 
 	// MLflow tracking server operations
-	ListMlflowTrackingServersOutput    sagemaker.ListMlflowTrackingServersOutput
-	DeleteMlflowTrackingServerOutput   sagemaker.DeleteMlflowTrackingServerOutput
-	DescribeMlflowTrackingServerOutput sagemaker.DescribeMlflowTrackingServerOutput
-	ListMlflowTrackingServersError     error
+	ListMlflowTrackingServersOutput sagemaker.ListMlflowTrackingServersOutput
 
 	// Track deleted resources
 	deletedApps     map[string]bool
@@ -62,18 +47,17 @@ type mockedSageMakerStudio struct {
 	deletedSpaces   map[string]bool
 }
 
-func newMockedSageMakerStudio() *mockedSageMakerStudio {
-	return &mockedSageMakerStudio{
+func newMockSageMakerStudioClient() *mockSageMakerStudioClient {
+	return &mockSageMakerStudioClient{
 		deletedApps:     make(map[string]bool),
 		deletedProfiles: make(map[string]bool),
 		deletedDomains:  make(map[string]bool),
 		deletedServers:  make(map[string]bool),
 		deletedSpaces:   make(map[string]bool),
-		domainStatus:    make(map[string]types.DomainStatus),
 	}
 }
 
-func (m *mockedSageMakerStudio) ListDomains(ctx context.Context, params *sagemaker.ListDomainsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListDomainsOutput, error) {
+func (m *mockSageMakerStudioClient) ListDomains(ctx context.Context, params *sagemaker.ListDomainsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListDomainsOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -81,7 +65,6 @@ func (m *mockedSageMakerStudio) ListDomains(ctx context.Context, params *sagemak
 		return nil, m.ListDomainsError
 	}
 
-	// Filter out deleted domains
 	var activeDomains []types.DomainDetails
 	for _, domain := range m.ListDomainsOutput.Domains {
 		if !m.deletedDomains[*domain.DomainId] {
@@ -91,45 +74,30 @@ func (m *mockedSageMakerStudio) ListDomains(ctx context.Context, params *sagemak
 	return &sagemaker.ListDomainsOutput{Domains: activeDomains}, nil
 }
 
-func (m *mockedSageMakerStudio) DescribeDomain(ctx context.Context, params *sagemaker.DescribeDomainInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeDomainOutput, error) {
+func (m *mockSageMakerStudioClient) DescribeDomain(ctx context.Context, params *sagemaker.DescribeDomainInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeDomainOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.DescribeDomainError != nil {
-		return nil, m.DescribeDomainError
-	}
-
 	if m.deletedDomains[*params.DomainId] {
-		return nil, &smithy.GenericAPIError{
-			Code:    "ResourceNotFound",
-			Message: "Domain not found",
-		}
+		return nil, &smithy.GenericAPIError{Code: "ResourceNotFound", Message: "Domain not found"}
 	}
-
-	if status, exists := m.domainStatus[*params.DomainId]; exists {
-		m.DescribeDomainOutput.Status = status
-		return &m.DescribeDomainOutput, nil
-	}
-
 	return &m.DescribeDomainOutput, nil
 }
 
-func (m *mockedSageMakerStudio) DeleteDomain(ctx context.Context, params *sagemaker.DeleteDomainInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteDomainOutput, error) {
+func (m *mockSageMakerStudioClient) DeleteDomain(ctx context.Context, params *sagemaker.DeleteDomainInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteDomainOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.deletedDomains[*params.DomainId] = true
-	m.domainStatus[*params.DomainId] = types.DomainStatusDeleting
-	return &m.DeleteDomainOutput, nil
+	return &sagemaker.DeleteDomainOutput{}, nil
 }
 
-func (m *mockedSageMakerStudio) ListUserProfiles(ctx context.Context, params *sagemaker.ListUserProfilesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListUserProfilesOutput, error) {
+func (m *mockSageMakerStudioClient) ListUserProfiles(ctx context.Context, params *sagemaker.ListUserProfilesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListUserProfilesOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Filter out deleted profiles
 	var activeProfiles []types.UserProfileDetails
 	for _, profile := range m.ListUserProfilesOutput.UserProfiles {
-		key := *profile.DomainId + "/" + *profile.UserProfileName
+		key := aws.ToString(profile.DomainId) + "/" + aws.ToString(profile.UserProfileName)
 		if !m.deletedProfiles[key] {
 			activeProfiles = append(activeProfiles, profile)
 		}
@@ -137,14 +105,7 @@ func (m *mockedSageMakerStudio) ListUserProfiles(ctx context.Context, params *sa
 	return &sagemaker.ListUserProfilesOutput{UserProfiles: activeProfiles}, nil
 }
 
-func (m *mockedSageMakerStudio) DescribeUserProfile(ctx context.Context, params *sagemaker.DescribeUserProfileInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeUserProfileOutput, error) {
-	if m.DescribeUserProfileError != nil {
-		return nil, m.DescribeUserProfileError
-	}
-	return &m.DescribeUserProfileOutput, nil
-}
-
-func (m *mockedSageMakerStudio) DeleteUserProfile(ctx context.Context, params *sagemaker.DeleteUserProfileInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteUserProfileOutput, error) {
+func (m *mockSageMakerStudioClient) DeleteUserProfile(ctx context.Context, params *sagemaker.DeleteUserProfileInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteUserProfileOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -152,19 +113,18 @@ func (m *mockedSageMakerStudio) DeleteUserProfile(ctx context.Context, params *s
 		return nil, m.DeleteUserProfileError
 	}
 
-	key := *params.DomainId + "/" + *params.UserProfileName
+	key := aws.ToString(params.DomainId) + "/" + aws.ToString(params.UserProfileName)
 	m.deletedProfiles[key] = true
-	return &m.DeleteUserProfileOutput, nil
+	return &sagemaker.DeleteUserProfileOutput{}, nil
 }
 
-func (m *mockedSageMakerStudio) ListApps(ctx context.Context, params *sagemaker.ListAppsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListAppsOutput, error) {
+func (m *mockSageMakerStudioClient) ListApps(ctx context.Context, params *sagemaker.ListAppsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListAppsOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Filter out deleted apps and update status of deleted apps
 	var activeApps []types.AppDetails
 	for _, app := range m.ListAppsOutput.Apps {
-		key := *app.DomainId + "/" + *app.UserProfileName + "/" + *app.AppName
+		key := aws.ToString(app.DomainId) + "/" + aws.ToString(app.UserProfileName) + "/" + aws.ToString(app.AppName)
 		if m.deletedApps[key] {
 			app.Status = types.AppStatusDeleted
 		}
@@ -173,14 +133,7 @@ func (m *mockedSageMakerStudio) ListApps(ctx context.Context, params *sagemaker.
 	return &sagemaker.ListAppsOutput{Apps: activeApps}, nil
 }
 
-func (m *mockedSageMakerStudio) DescribeApp(ctx context.Context, params *sagemaker.DescribeAppInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeAppOutput, error) {
-	if m.DescribeAppError != nil {
-		return nil, m.DescribeAppError
-	}
-	return &m.DescribeAppOutput, nil
-}
-
-func (m *mockedSageMakerStudio) DeleteApp(ctx context.Context, params *sagemaker.DeleteAppInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteAppOutput, error) {
+func (m *mockSageMakerStudioClient) DeleteApp(ctx context.Context, params *sagemaker.DeleteAppInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteAppOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -188,58 +141,44 @@ func (m *mockedSageMakerStudio) DeleteApp(ctx context.Context, params *sagemaker
 		return nil, m.DeleteAppError
 	}
 
-	key := *params.DomainId + "/"
+	key := aws.ToString(params.DomainId) + "/"
 	if params.UserProfileName != nil {
-		key += *params.UserProfileName
+		key += aws.ToString(params.UserProfileName)
 	} else if params.SpaceName != nil {
-		key += *params.SpaceName
+		key += aws.ToString(params.SpaceName)
 	}
-	key += "/" + *params.AppName
+	key += "/" + aws.ToString(params.AppName)
 	m.deletedApps[key] = true
-	return &m.DeleteAppOutput, nil
+	return &sagemaker.DeleteAppOutput{}, nil
 }
 
-func (m *mockedSageMakerStudio) ListMlflowTrackingServers(ctx context.Context, params *sagemaker.ListMlflowTrackingServersInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListMlflowTrackingServersOutput, error) {
+func (m *mockSageMakerStudioClient) ListMlflowTrackingServers(ctx context.Context, params *sagemaker.ListMlflowTrackingServersInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListMlflowTrackingServersOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.ListMlflowTrackingServersError != nil {
-		return nil, m.ListMlflowTrackingServersError
-	}
-
-	// Filter out deleted servers
 	var activeServers []types.TrackingServerSummary
 	for _, server := range m.ListMlflowTrackingServersOutput.TrackingServerSummaries {
-		if !m.deletedServers[*server.TrackingServerName] {
+		if !m.deletedServers[aws.ToString(server.TrackingServerName)] {
 			activeServers = append(activeServers, server)
 		}
 	}
 	return &sagemaker.ListMlflowTrackingServersOutput{TrackingServerSummaries: activeServers}, nil
 }
 
-func (m *mockedSageMakerStudio) DeleteMlflowTrackingServer(ctx context.Context, params *sagemaker.DeleteMlflowTrackingServerInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteMlflowTrackingServerOutput, error) {
+func (m *mockSageMakerStudioClient) DeleteMlflowTrackingServer(ctx context.Context, params *sagemaker.DeleteMlflowTrackingServerInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteMlflowTrackingServerOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.deletedServers[*params.TrackingServerName] = true
-	return &m.DeleteMlflowTrackingServerOutput, nil
+	m.deletedServers[aws.ToString(params.TrackingServerName)] = true
+	return &sagemaker.DeleteMlflowTrackingServerOutput{}, nil
 }
 
-func (m *mockedSageMakerStudio) DescribeMlflowTrackingServer(ctx context.Context, params *sagemaker.DescribeMlflowTrackingServerInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeMlflowTrackingServerOutput, error) {
-	return &m.DescribeMlflowTrackingServerOutput, nil
-}
-
-func (m *mockedSageMakerStudio) ListSpaces(ctx context.Context, params *sagemaker.ListSpacesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListSpacesOutput, error) {
+func (m *mockSageMakerStudioClient) ListSpaces(ctx context.Context, params *sagemaker.ListSpacesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListSpacesOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.ListSpacesError != nil {
-		return nil, m.ListSpacesError
-	}
-
-	// Filter out deleted spaces
 	var activeSpaces []types.SpaceDetails
 	for _, space := range m.ListSpacesOutput.Spaces {
-		key := *space.DomainId + "/" + *space.SpaceName
+		key := aws.ToString(space.DomainId) + "/" + aws.ToString(space.SpaceName)
 		if !m.deletedSpaces[key] {
 			activeSpaces = append(activeSpaces, space)
 		}
@@ -247,7 +186,7 @@ func (m *mockedSageMakerStudio) ListSpaces(ctx context.Context, params *sagemake
 	return &sagemaker.ListSpacesOutput{Spaces: activeSpaces}, nil
 }
 
-func (m *mockedSageMakerStudio) DeleteSpace(ctx context.Context, params *sagemaker.DeleteSpaceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteSpaceOutput, error) {
+func (m *mockSageMakerStudioClient) DeleteSpace(ctx context.Context, params *sagemaker.DeleteSpaceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteSpaceOutput, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -255,345 +194,200 @@ func (m *mockedSageMakerStudio) DeleteSpace(ctx context.Context, params *sagemak
 		return nil, m.DeleteSpaceError
 	}
 
-	key := *params.DomainId + "/" + *params.SpaceName
+	key := aws.ToString(params.DomainId) + "/" + aws.ToString(params.SpaceName)
 	m.deletedSpaces[key] = true
-	return &m.DeleteSpaceOutput, nil
+	return &sagemaker.DeleteSpaceOutput{}, nil
 }
 
-// testConfig holds test-specific timing configurations
-type testConfig struct {
-	retryInitialDelay time.Duration
-	retryMaxDelay     time.Duration
-	maxWaitTime       time.Duration
-	maxRetries        int
-}
+func TestListSageMakerDomains(t *testing.T) {
+	t.Parallel()
 
-// mockWaiter implements a fast mock waiter for testing
-type mockWaiter struct {
-	*mockedSageMakerStudio
-	config testConfig
-}
-
-func (m *mockWaiter) waitForResourceDeletion(resourceName string, checkResource resourceChecker) error {
-	delay := m.config.retryInitialDelay
-	startTime := time.Now()
-
-	for {
-		if time.Since(startTime) > m.config.maxWaitTime {
-			return fmt.Errorf("timeout waiting for %s to be deleted after %v", resourceName, m.config.maxWaitTime)
-		}
-		exists, err := checkResource()
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return nil
-		}
-		time.Sleep(delay)
-		if delay < m.config.retryMaxDelay {
-			delay *= 2
-		}
-	}
-}
-
-// createTestSageMakerStudio creates a test instance with accelerated timeouts
-func createTestSageMakerStudio(mockClient *mockedSageMakerStudio) *SageMakerStudio {
-	waiter := &mockWaiter{
-		mockedSageMakerStudio: mockClient,
-		config: testConfig{
-			retryInitialDelay: 100 * time.Millisecond,
-			retryMaxDelay:     200 * time.Millisecond,
-			maxWaitTime:       1 * time.Second,
-			maxRetries:        2,
-		},
-	}
-
-	return &SageMakerStudio{
-		Client: waiter,
-		Region: "us-east-1",
-	}
-}
-
-func TestSageMakerStudio_GetAll(t *testing.T) {
 	now := time.Now()
-	testCases := []struct {
-		name          string
-		mockClient    *mockedSageMakerStudio
-		config        config.Config
-		expectedIds   []*string
-		expectedError bool
+
+	tests := map[string]struct {
+		mock        *mockSageMakerStudioClient
+		expected    []string
+		expectError bool
 	}{
-		{
-			name: "Basic successful case",
-			mockClient: &mockedSageMakerStudio{
+		"singleDomain": {
+			mock: &mockSageMakerStudioClient{
 				ListDomainsOutput: sagemaker.ListDomainsOutput{
 					Domains: []types.DomainDetails{
-						{
-							DomainId:     aws.String("domain-1"),
-							DomainName:   aws.String("test-domain-1"),
-							CreationTime: &now,
-						},
+						{DomainId: aws.String("domain-1"), DomainName: aws.String("test-domain-1"), CreationTime: &now},
 					},
 				},
 			},
-			config: config.Config{
-				SageMakerStudioDomain: config.ResourceType{},
-			},
-			expectedIds:   []*string{aws.String("domain-1")},
-			expectedError: false,
+			expected:    []string{"domain-1"},
+			expectError: false,
 		},
-		{
-			name: "Empty domains list",
-			mockClient: &mockedSageMakerStudio{
-				ListDomainsOutput: sagemaker.ListDomainsOutput{
-					Domains: []types.DomainDetails{},
-				},
-			},
-			config: config.Config{
-				SageMakerStudioDomain: config.ResourceType{},
-			},
-			expectedIds:   nil,
-			expectedError: false,
-		},
-		{
-			name: "Multiple domains",
-			mockClient: &mockedSageMakerStudio{
+		"multipleDomains": {
+			mock: &mockSageMakerStudioClient{
 				ListDomainsOutput: sagemaker.ListDomainsOutput{
 					Domains: []types.DomainDetails{
-						{
-							DomainId:     aws.String("domain-1"),
-							DomainName:   aws.String("test-domain-1"),
-							CreationTime: &now,
-						},
-						{
-							DomainId:     aws.String("domain-2"),
-							DomainName:   aws.String("test-domain-2"),
-							CreationTime: &now,
-						},
+						{DomainId: aws.String("domain-1"), DomainName: aws.String("test-domain-1"), CreationTime: &now},
+						{DomainId: aws.String("domain-2"), DomainName: aws.String("test-domain-2"), CreationTime: &now},
 					},
 				},
 			},
-			config: config.Config{
-				SageMakerStudioDomain: config.ResourceType{},
-			},
-			expectedIds:   []*string{aws.String("domain-1"), aws.String("domain-2")},
-			expectedError: false,
+			expected:    []string{"domain-1", "domain-2"},
+			expectError: false,
 		},
-		{
-			name: "Error listing domains",
-			mockClient: &mockedSageMakerStudio{
-				ListDomainsOutput: sagemaker.ListDomainsOutput{},
-				ListDomainsError:  fmt.Errorf("AWS API error"),
-			},
-			config: config.Config{
-				SageMakerStudioDomain: config.ResourceType{},
-			},
-			expectedIds:   nil,
-			expectedError: true,
+		"emptyList": {
+			mock:        &mockSageMakerStudioClient{ListDomainsOutput: sagemaker.ListDomainsOutput{}},
+			expected:    []string{},
+			expectError: false,
+		},
+		"apiError": {
+			mock:        &mockSageMakerStudioClient{ListDomainsError: fmt.Errorf("AWS API error")},
+			expected:    nil,
+			expectError: true,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			studio := createTestSageMakerStudio(tc.mockClient)
-			domains, err := studio.getAll(context.Background(), tc.config)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ids, err := listSageMakerDomains(context.Background(), tc.mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
 
-			if tc.expectedError {
-				assert.Error(t, err)
+			if tc.expectError {
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedIds, domains)
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 			}
 		})
 	}
 }
 
-func TestSageMakerStudio_NukeAll(t *testing.T) {
-	testCases := []struct {
-		name          string
-		mockClient    *mockedSageMakerStudio
-		domains       []*string
-		expectedError bool
+func TestNukeSageMakerDomains(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		mock            *mockSageMakerStudioClient
+		identifiers     []string
+		expectedSuccess int
+		expectedFailure int
 	}{
-		{
-			name: "Successfully delete domain with apps and user profiles",
-			mockClient: func() *mockedSageMakerStudio {
-				mock := newMockedSageMakerStudio()
-				mock.ListAppsOutput = sagemaker.ListAppsOutput{
+		"successWithAppsAndProfiles": {
+			mock: func() *mockSageMakerStudioClient {
+				m := newMockSageMakerStudioClient()
+				m.ListAppsOutput = sagemaker.ListAppsOutput{
 					Apps: []types.AppDetails{
-						{
-							AppName:         aws.String("app-1"),
-							AppType:         types.AppTypeJupyterServer,
-							DomainId:        aws.String("domain-1"),
-							UserProfileName: aws.String("user-1"),
-							Status:          types.AppStatusInService,
-						},
+						{AppName: aws.String("app-1"), AppType: types.AppTypeJupyterServer, DomainId: aws.String("domain-1"), UserProfileName: aws.String("user-1"), Status: types.AppStatusInService},
 					},
 				}
-				mock.ListUserProfilesOutput = sagemaker.ListUserProfilesOutput{
+				m.ListUserProfilesOutput = sagemaker.ListUserProfilesOutput{
 					UserProfiles: []types.UserProfileDetails{
-						{
-							DomainId:        aws.String("domain-1"),
-							UserProfileName: aws.String("user-1"),
-						},
+						{DomainId: aws.String("domain-1"), UserProfileName: aws.String("user-1")},
 					},
 				}
-				return mock
+				return m
 			}(),
-			domains:       []*string{aws.String("domain-1")},
-			expectedError: false,
+			identifiers:     []string{"domain-1"},
+			expectedSuccess: 1,
+			expectedFailure: 0,
 		},
-		{
-			name:          "Empty domains list",
-			mockClient:    newMockedSageMakerStudio(),
-			domains:       []*string{},
-			expectedError: false,
+		"emptyIdentifiers": {
+			mock:            newMockSageMakerStudioClient(),
+			identifiers:     []string{},
+			expectedSuccess: 0,
+			expectedFailure: 0,
 		},
-		{
-			name: "Error deleting app",
-			mockClient: func() *mockedSageMakerStudio {
-				mock := newMockedSageMakerStudio()
-				mock.ListAppsOutput = sagemaker.ListAppsOutput{
+		"appDeleteError": {
+			mock: func() *mockSageMakerStudioClient {
+				m := newMockSageMakerStudioClient()
+				m.ListAppsOutput = sagemaker.ListAppsOutput{
 					Apps: []types.AppDetails{
-						{
-							AppName:         aws.String("app-1"),
-							AppType:         types.AppTypeJupyterServer,
-							DomainId:        aws.String("domain-1"),
-							UserProfileName: aws.String("user-1"),
-							Status:          types.AppStatusInService,
-						},
+						{AppName: aws.String("app-1"), AppType: types.AppTypeJupyterServer, DomainId: aws.String("domain-1"), UserProfileName: aws.String("user-1"), Status: types.AppStatusInService},
 					},
 				}
-				mock.DeleteAppError = fmt.Errorf("Failed to delete app")
-				mock.ListUserProfilesOutput = sagemaker.ListUserProfilesOutput{
-					UserProfiles: []types.UserProfileDetails{
-						{
-							DomainId:        aws.String("domain-1"),
-							UserProfileName: aws.String("user-1"),
-						},
-					},
-				}
-				mock.DescribeAppOutput = sagemaker.DescribeAppOutput{
-					AppArn:          aws.String("arn:aws:sagemaker:us-east-1:123456789012:app/domain-1/user-1/app-1"),
-					AppName:         aws.String("app-1"),
-					AppType:         types.AppTypeJupyterServer,
-					DomainId:        aws.String("domain-1"),
-					UserProfileName: aws.String("user-1"),
-					Status:          types.AppStatusInService,
-				}
-				mock.domainStatus = map[string]types.DomainStatus{
-					"domain-1": types.DomainStatusInService,
-				}
-				mock.DescribeDomainOutput = sagemaker.DescribeDomainOutput{
-					DomainId: aws.String("domain-1"),
-					Status:   types.DomainStatusInService,
-				}
-				return mock
+				m.DeleteAppError = fmt.Errorf("failed to delete app")
+				return m
 			}(),
-			domains:       []*string{aws.String("domain-1")},
-			expectedError: true,
+			identifiers:     []string{"domain-1"},
+			expectedSuccess: 0,
+			expectedFailure: 1,
 		},
-		{
-			name: "Error deleting user profile",
-			mockClient: func() *mockedSageMakerStudio {
-				mock := newMockedSageMakerStudio()
-				mock.ListUserProfilesOutput = sagemaker.ListUserProfilesOutput{
+		"userProfileDeleteError": {
+			mock: func() *mockSageMakerStudioClient {
+				m := newMockSageMakerStudioClient()
+				m.ListUserProfilesOutput = sagemaker.ListUserProfilesOutput{
 					UserProfiles: []types.UserProfileDetails{
-						{
-							DomainId:        aws.String("domain-1"),
-							UserProfileName: aws.String("user-1"),
-						},
+						{DomainId: aws.String("domain-1"), UserProfileName: aws.String("user-1")},
 					},
 				}
-				mock.DeleteUserProfileError = fmt.Errorf("Failed to delete user profile")
-				return mock
+				m.DeleteUserProfileError = fmt.Errorf("failed to delete user profile")
+				return m
 			}(),
-			domains:       []*string{aws.String("domain-1")},
-			expectedError: true,
+			identifiers:     []string{"domain-1"},
+			expectedSuccess: 0,
+			expectedFailure: 1,
 		},
-		{
-			name: "Domain with MLflow tracking server",
-			mockClient: func() *mockedSageMakerStudio {
-				mock := newMockedSageMakerStudio()
-				mock.ListMlflowTrackingServersOutput = sagemaker.ListMlflowTrackingServersOutput{
+		"spaceDeleteError": {
+			mock: func() *mockSageMakerStudioClient {
+				m := newMockSageMakerStudioClient()
+				m.ListSpacesOutput = sagemaker.ListSpacesOutput{
+					Spaces: []types.SpaceDetails{
+						{SpaceName: aws.String("space-1"), DomainId: aws.String("domain-1"), Status: types.SpaceStatusInService},
+					},
+				}
+				m.DeleteSpaceError = fmt.Errorf("failed to delete space")
+				return m
+			}(),
+			identifiers:     []string{"domain-1"},
+			expectedSuccess: 0,
+			expectedFailure: 1,
+		},
+		"withMlflowServer": {
+			mock: func() *mockSageMakerStudioClient {
+				m := newMockSageMakerStudioClient()
+				m.ListMlflowTrackingServersOutput = sagemaker.ListMlflowTrackingServersOutput{
 					TrackingServerSummaries: []types.TrackingServerSummary{
-						{
-							TrackingServerName:   aws.String("server-1"),
-							TrackingServerStatus: types.TrackingServerStatusCreated,
-						},
+						{TrackingServerName: aws.String("server-1"), TrackingServerStatus: types.TrackingServerStatusCreated},
 					},
 				}
-				mock.ListDomainsOutput = sagemaker.ListDomainsOutput{
-					Domains: []types.DomainDetails{
-						{
-							DomainId: aws.String("domain-1"),
-						},
-					},
-				}
-				return mock
+				return m
 			}(),
-			domains:       []*string{aws.String("domain-1")},
-			expectedError: false,
+			identifiers:     []string{"domain-1"},
+			expectedSuccess: 1,
+			expectedFailure: 0,
 		},
-		{
-			name: "Domain with spaces",
-			mockClient: func() *mockedSageMakerStudio {
-				mock := newMockedSageMakerStudio()
-				mock.ListSpacesOutput = sagemaker.ListSpacesOutput{
+		"withSpaces": {
+			mock: func() *mockSageMakerStudioClient {
+				m := newMockSageMakerStudioClient()
+				m.ListSpacesOutput = sagemaker.ListSpacesOutput{
 					Spaces: []types.SpaceDetails{
-						{
-							SpaceName: aws.String("space-1"),
-							DomainId:  aws.String("domain-1"),
-							Status:    types.SpaceStatusInService,
-						},
+						{SpaceName: aws.String("space-1"), DomainId: aws.String("domain-1"), Status: types.SpaceStatusInService},
 					},
 				}
-				mock.ListDomainsOutput = sagemaker.ListDomainsOutput{
-					Domains: []types.DomainDetails{
-						{
-							DomainId: aws.String("domain-1"),
-							Status:   types.DomainStatusInService,
-						},
-					},
-				}
-				return mock
+				return m
 			}(),
-			domains:       []*string{aws.String("domain-1")},
-			expectedError: false,
-		},
-		{
-			name: "Error deleting space",
-			mockClient: func() *mockedSageMakerStudio {
-				mock := newMockedSageMakerStudio()
-				mock.ListSpacesOutput = sagemaker.ListSpacesOutput{
-					Spaces: []types.SpaceDetails{
-						{
-							SpaceName: aws.String("space-1"),
-							DomainId:  aws.String("domain-1"),
-							Status:    types.SpaceStatusInService,
-						},
-					},
-				}
-				mock.DeleteSpaceError = fmt.Errorf("Failed to delete space")
-				return mock
-			}(),
-			domains:       []*string{aws.String("domain-1")},
-			expectedError: true,
+			identifiers:     []string{"domain-1"},
+			expectedSuccess: 1,
+			expectedFailure: 0,
 		},
 	}
 
-	for _, tc := range testCases {
-		tc := tc // capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel() // Enable parallel test execution
-			studio := createTestSageMakerStudio(tc.mockClient)
-			err := studio.nukeAll(aws.ToStringSlice(tc.domains))
-
-			if tc.expectedError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			identifiers := make([]*string, len(tc.identifiers))
+			for i, id := range tc.identifiers {
+				identifiers[i] = aws.String(id)
 			}
+
+			results := nukeSageMakerDomains(context.Background(), tc.mock, resource.Scope{Region: "us-east-1"}, "sagemaker-studio", identifiers)
+
+			successCount := 0
+			failureCount := 0
+			for _, result := range results {
+				if result.Error == nil {
+					successCount++
+				} else {
+					failureCount++
+				}
+			}
+
+			require.Equal(t, tc.expectedSuccess, successCount, "success count mismatch")
+			require.Equal(t, tc.expectedFailure, failureCount, "failure count mismatch")
 		})
 	}
 }

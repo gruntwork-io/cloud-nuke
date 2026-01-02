@@ -2,79 +2,174 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeIpamID(ipam *types.Ipam, firstSeenTime *time.Time, configObj config.Config) bool {
-	var ipamName string
-	// get the tags as map
-	tagMap := util.ConvertTypesTagsToMap(ipam.Tags)
-	if name, ok := tagMap["Name"]; ok {
-		ipamName = name
-	}
+// EC2IPAMAPI defines the interface for EC2 IPAM operations.
+type EC2IPAMAPI interface {
+	DescribeIpams(ctx context.Context, params *ec2.DescribeIpamsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamsOutput, error)
+	DeleteIpam(ctx context.Context, params *ec2.DeleteIpamInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamOutput, error)
+	GetIpamPoolCidrs(ctx context.Context, params *ec2.GetIpamPoolCidrsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolCidrsOutput, error)
+	DeprovisionIpamPoolCidr(ctx context.Context, params *ec2.DeprovisionIpamPoolCidrInput, optFns ...func(*ec2.Options)) (*ec2.DeprovisionIpamPoolCidrOutput, error)
+	GetIpamPoolAllocations(ctx context.Context, params *ec2.GetIpamPoolAllocationsInput, optFns ...func(*ec2.Options)) (*ec2.GetIpamPoolAllocationsOutput, error)
+	ReleaseIpamPoolAllocation(ctx context.Context, params *ec2.ReleaseIpamPoolAllocationInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseIpamPoolAllocationOutput, error)
+	DescribeIpamScopes(ctx context.Context, params *ec2.DescribeIpamScopesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamScopesOutput, error)
+	DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error)
+	DeleteIpamPool(ctx context.Context, params *ec2.DeleteIpamPoolInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamPoolOutput, error)
+}
 
-	return configObj.EC2IPAM.ShouldInclude(config.ResourceValue{
-		Name: &ipamName,
-		Time: firstSeenTime,
-		Tags: tagMap,
+// NewEC2IPAM creates a new EC2 IPAM resource using the generic resource pattern.
+func NewEC2IPAM() AwsResource {
+	return NewAwsResource(&resource.Resource[EC2IPAMAPI]{
+		ResourceTypeName: "ipam",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2IPAM
+		},
+		Lister:             listEC2IPAMs,
+		Nuker:              resource.SequentialDeleter(nukeEC2IPAM),
+		PermissionVerifier: verifyEC2IPAMPermission,
 	})
 }
 
-// Returns a formatted string of IPAM URLs
-func (ec2Ipam *EC2IPAMs) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// listEC2IPAMs retrieves all IPAMs that match the config filters.
+func listEC2IPAMs(ctx context.Context, client EC2IPAMAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var result []*string
-	var firstSeenTime *time.Time
-	var err error
 
-	params := &ec2.DescribeIpamsInput{
+	paginator := ec2.NewDescribeIpamsPaginator(client, &ec2.DescribeIpamsInput{
 		MaxResults: aws.Int32(10),
-	}
-
-	ipamsPaginator := ec2.NewDescribeIpamsPaginator(ec2Ipam.Client, params)
-	for ipamsPaginator.HasMorePages() {
-		page, errPage := ipamsPaginator.NextPage(c)
-		if errPage != nil {
-			return nil, errors.WithStackTrace(errPage)
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
 		}
 
 		for _, ipam := range page.Ipams {
-			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Ipam.Client, ipam.IpamId, util.ConvertTypesTagsToMap(ipam.Tags))
+			tagMap := util.ConvertTypesTagsToMap(ipam.Tags)
+			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, ipam.IpamId, tagMap)
 			if err != nil {
-				logging.Error("Unable to retrieve tags")
+				logging.Errorf("Unable to retrieve first seen tag for IPAM %s: %v", aws.ToString(ipam.IpamId), err)
 				continue
 			}
-			// Check for include this ipam
-			if shouldIncludeIpamID(&ipam, firstSeenTime, configObj) {
+
+			var ipamName string
+			if name, ok := tagMap["Name"]; ok {
+				ipamName = name
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: &ipamName,
+				Time: firstSeenTime,
+				Tags: tagMap,
+			}) {
 				result = append(result, ipam.IpamId)
 			}
 		}
 	}
 
-	// checking the nukable permissions
-	ec2Ipam.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Ipam.Client.DeleteIpam(ec2Ipam.Context, &ec2.DeleteIpamInput{
-			IpamId:  id,
-			Cascade: aws.Bool(true),
-			DryRun:  aws.Bool(true),
-		})
-		return err
-	})
-
 	return result, nil
 }
 
-// deProvisionPoolCIDRs : Detach the CIDR provisioned on the pool
-func (ec2Ipam *EC2IPAMs) deProvisionPoolCIDRs(poolID *string) error {
-	output, err := ec2Ipam.Client.GetIpamPoolCidrs(ec2Ipam.Context, &ec2.GetIpamPoolCidrsInput{
+// verifyEC2IPAMPermission performs a dry-run delete to check permissions.
+func verifyEC2IPAMPermission(ctx context.Context, client EC2IPAMAPI, id *string) error {
+	_, err := client.DeleteIpam(ctx, &ec2.DeleteIpamInput{
+		IpamId:  id,
+		Cascade: aws.Bool(true),
+		DryRun:  aws.Bool(true),
+	})
+	return err
+}
+
+// nukeEC2IPAM deletes a single IPAM and its associated public scope pools.
+func nukeEC2IPAM(ctx context.Context, client EC2IPAMAPI, id *string) error {
+	// First, nuke public IPAM pools (cascade delete only handles private scope)
+	if err := nukePublicIPAMPools(ctx, client, id); err != nil {
+		return err
+	}
+
+	// Then delete the IPAM itself
+	_, err := client.DeleteIpam(ctx, &ec2.DeleteIpamInput{
+		IpamId:  id,
+		Cascade: aws.Bool(true), // Deletes private scopes, pools, and allocations
+	})
+	return err
+}
+
+// nukePublicIPAMPools deletes all pools in the public scope of an IPAM.
+// The deleteIPAM cascade option only handles private scope, so we must
+// manually delete public scope pools before deleting the IPAM.
+func nukePublicIPAMPools(ctx context.Context, client EC2IPAMAPI, ipamID *string) error {
+	// Get the IPAM to find its public scope ID
+	ipam, err := client.DescribeIpams(ctx, &ec2.DescribeIpamsInput{
+		IpamIds: []string{*ipamID},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(ipam.Ipams) == 0 {
+		return nil
+	}
+
+	// Get the public scope details
+	scope, err := client.DescribeIpamScopes(ctx, &ec2.DescribeIpamScopesInput{
+		IpamScopeIds: []string{*ipam.Ipams[0].PublicDefaultScopeId},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(scope.IpamScopes) == 0 {
+		return nil
+	}
+
+	// Get pools in the public scope
+	pools, err := client.DescribeIpamPools(ctx, &ec2.DescribeIpamPoolsInput{
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("ipam-scope-arn"),
+				Values: []string{*scope.IpamScopes[0].IpamScopeArn},
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Delete each pool after cleaning up its CIDRs and allocations
+	for _, pool := range pools.IpamPools {
+		if err := deProvisionPoolCIDRs(ctx, client, pool.IpamPoolId); err != nil {
+			return err
+		}
+		if err := releaseCustomAllocations(ctx, client, pool.IpamPoolId); err != nil {
+			return err
+		}
+		if _, err := client.DeleteIpamPool(ctx, &ec2.DeleteIpamPoolInput{
+			IpamPoolId: pool.IpamPoolId,
+		}); err != nil {
+			return err
+		}
+		logging.Debugf("Deleted IPAM Pool %s from IPAM %s", aws.ToString(pool.IpamPoolId), aws.ToString(ipamID))
+	}
+
+	return nil
+}
+
+// deProvisionPoolCIDRs removes all provisioned CIDRs from a pool.
+func deProvisionPoolCIDRs(ctx context.Context, client EC2IPAMAPI, poolID *string) error {
+	output, err := client.GetIpamPoolCidrs(ctx, &ec2.GetIpamPoolCidrsInput{
 		IpamPoolId: poolID,
 		Filters: []types.Filter{
 			{
@@ -84,201 +179,44 @@ func (ec2Ipam *EC2IPAMs) deProvisionPoolCIDRs(poolID *string) error {
 		},
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	for _, poolCidr := range output.IpamPoolCidrs {
-		_, err := ec2Ipam.Client.DeprovisionIpamPoolCidr(ec2Ipam.Context, &ec2.DeprovisionIpamPoolCidrInput{
+		if _, err := client.DeprovisionIpamPoolCidr(ctx, &ec2.DeprovisionIpamPoolCidrInput{
 			IpamPoolId: poolID,
 			Cidr:       poolCidr.Cidr,
-		})
-
-		if err != nil {
-			return errors.WithStackTrace(err)
+		}); err != nil {
+			return err
 		}
-		logging.Debugf("De-Provisioned CIDR(s) from IPAM Pool %s", aws.ToString(poolID))
+		logging.Debugf("De-Provisioned CIDR from IPAM Pool %s", aws.ToString(poolID))
 	}
 
 	return nil
 }
 
-// releaseCustomAllocations : Release the custom allocated CIDR(s) from the pool
-func (ec2Ipam *EC2IPAMs) releaseCustomAllocations(poolID *string) error {
-	output, err := ec2Ipam.Client.GetIpamPoolAllocations(ec2Ipam.Context, &ec2.GetIpamPoolAllocationsInput{
+// releaseCustomAllocations releases all custom allocated CIDRs from a pool.
+func releaseCustomAllocations(ctx context.Context, client EC2IPAMAPI, poolID *string) error {
+	output, err := client.GetIpamPoolAllocations(ctx, &ec2.GetIpamPoolAllocationsInput{
 		IpamPoolId: poolID,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
-	for _, poolAllocation := range output.IpamPoolAllocations {
-		// we only can release the custom allocations
-		if poolAllocation.ResourceType != types.IpamPoolAllocationResourceTypeCustom {
+	for _, allocation := range output.IpamPoolAllocations {
+		if allocation.ResourceType != types.IpamPoolAllocationResourceTypeCustom {
 			continue
 		}
-		_, err := ec2Ipam.Client.ReleaseIpamPoolAllocation(ec2Ipam.Context, &ec2.ReleaseIpamPoolAllocationInput{
+		if _, err := client.ReleaseIpamPoolAllocation(ctx, &ec2.ReleaseIpamPoolAllocationInput{
 			IpamPoolId:           poolID,
-			IpamPoolAllocationId: poolAllocation.IpamPoolAllocationId,
-			Cidr:                 poolAllocation.Cidr,
-		})
-
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
-		logging.Debugf("Release custom allocated CIDR(s) from IPAM Pool %s", aws.ToString(poolID))
-	}
-
-	return nil
-}
-
-// nukePublicIPAMPools : Nuke the pools on an IPAM
-// Before deleting the IPAM, it is necessary to manually remove any pools within our public scope,
-// as the deleteIPAM operation will not handle their deletion with cascade option.
-//
-// We cannot delete an IPAM pool if there are allocations in it or CIDRs provisioned to it. We must first release the allocations and Deprovision CIDRs
-// from a pool before we can delete the pool
-func (ec2Ipam *EC2IPAMs) nukePublicIPAMPools(ipamID *string) error {
-	ipam, err := ec2Ipam.Client.DescribeIpams(ec2Ipam.Context, &ec2.DescribeIpamsInput{
-		IpamIds: []string{*ipamID},
-	})
-	if err != nil {
-		logging.Errorf("Error describing IPAM %s: %s", *ipamID, err.Error())
-		return errors.WithStackTrace(err)
-	}
-
-	// Describe the scope to read the scope arn
-	scope, err := ec2Ipam.Client.DescribeIpamScopes(ec2Ipam.Context, &ec2.DescribeIpamScopesInput{
-		IpamScopeIds: []string{
-			*ipam.Ipams[0].PublicDefaultScopeId,
-		},
-	})
-
-	if err != nil {
-		logging.Errorf("Error describing IPAM Public scope %s: %s", *ipamID, err.Error())
-		return errors.WithStackTrace(err)
-	}
-
-	// get the pools which is assigned on the public scope of the IPAM
-	output, err := ec2Ipam.Client.DescribeIpamPools(ec2Ipam.Context, &ec2.DescribeIpamPoolsInput{
-		Filters: []types.Filter{
-			{
-				Name: aws.String("ipam-scope-arn"),
-				Values: []string{
-					*scope.IpamScopes[0].IpamScopeArn,
-				},
-			},
-		},
-	})
-	if err != nil {
-		logging.Errorf("Error describing IPAM Pools on public scope %s: %s", *ipamID, err.Error())
-		return errors.WithStackTrace(err)
-	}
-
-	for _, pool := range output.IpamPools {
-		// Remove associated CIDRs before deleting IPAM pools to complete de-provisioning.
-		err := ec2Ipam.deProvisionPoolCIDRs(pool.IpamPoolId)
-		if err != nil {
-			logging.Errorf("Error de-provisioning Pools CIDR on Pool %s: %s", *pool.IpamPoolId, err.Error())
-			return errors.WithStackTrace(err)
-		}
-
-		// Release custom allocation from the pool
-		err = ec2Ipam.releaseCustomAllocations(pool.IpamPoolId)
-		if err != nil {
-			logging.Errorf("Error releasing custom allocations of Pool %s: %s", *pool.IpamPoolId, err.Error())
-			return errors.WithStackTrace(err)
-		}
-
-		// delete ipam pool
-		_, err = ec2Ipam.Client.DeleteIpamPool(ec2Ipam.Context, &ec2.DeleteIpamPoolInput{
-			IpamPoolId: pool.IpamPoolId,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] Delete IPAM Pool %s", err)
-			return errors.WithStackTrace(err)
-		}
-		logging.Debugf("Deleted IPAM Pool %s from IPAM %s", aws.ToString(pool.IpamPoolId), aws.ToString(ipamID))
-	}
-
-	return nil
-}
-
-// deleteIPAM : Delete the IPAM
-func (ec2Ipam *EC2IPAMs) deleteIPAM(id *string) error {
-	params := &ec2.DeleteIpamInput{
-		IpamId: id,
-		// NOTE : Enables you to quickly delete an IPAM, private scopes, pools in private scopes, and any allocations in the pools in private scopes.
-		// You cannot delete the IPAM with this option if there is a pool in your public scope.
-		// IPAM does the following when this is enabled
-		//
-		// * Deallocates any CIDRs allocated to VPC resources (such as VPCs) in pools
-		// * Deprovisions all IPv4 CIDRs provisioned to IPAM pools in private scopes.
-		// * Deletes all IPAM pools in private scopes.
-		// * Deletes all non-default private scopes in the IPAM.
-		// * Deletes the default public and private scopes and the IPAM.
-		Cascade: aws.Bool(true),
-	}
-
-	_, err := ec2Ipam.Client.DeleteIpam(ec2Ipam.Context, params)
-
-	return err
-}
-
-func (ec2Ipam *EC2IPAMs) nukeIPAM(id *string) error {
-	// Functions used to really nuke an IPAM as an IPAM can have many attached
-	// items we need delete/detach them before actually deleting it.
-	// NOTE: The actual IPAM deletion should always be the last one. This way we
-	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(*string) error{
-		ec2Ipam.nukePublicIPAMPools,
-		ec2Ipam.deleteIPAM,
-	}
-
-	for _, fn := range functions {
-		if err := fn(id); err != nil {
+			IpamPoolAllocationId: allocation.IpamPoolAllocationId,
+			Cidr:                 allocation.Cidr,
+		}); err != nil {
 			return err
 		}
+		logging.Debugf("Released custom allocated CIDR from IPAM Pool %s", aws.ToString(poolID))
 	}
-
-	return nil
-}
-
-// Deletes all IPAMs
-func (ec2Ipam *EC2IPAMs) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No IPAM ids to nuke in region %s", ec2Ipam.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all IPAM ids in region %s", ec2Ipam.Region)
-	var deletedAddresses []*string
-
-	for _, id := range ids {
-
-		if nukable, reason := ec2Ipam.IsNukable(aws.ToString(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
-			continue
-		}
-
-		err := ec2Ipam.nukeIPAM(id)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "IPAM",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedAddresses = append(deletedAddresses, id)
-			logging.Debugf("Deleted IPAM: %s", *id)
-		}
-	}
-
-	logging.Debugf("[OK] %d IPAM address(s) deleted in %s", len(deletedAddresses), ec2Ipam.Region)
 
 	return nil
 }

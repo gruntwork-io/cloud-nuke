@@ -8,6 +8,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // RdsSnapshotAPI defines the interface for RDS Snapshot operations.
@@ -20,7 +21,7 @@ type RdsSnapshotAPI interface {
 func NewRdsSnapshot() AwsResource {
 	return NewAwsResource(&resource.Resource[RdsSnapshotAPI]{
 		ResourceTypeName: "rds-snapshot",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsSnapshotAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)
@@ -42,7 +43,7 @@ func listRdsSnapshots(ctx context.Context, client RdsSnapshotAPI, scope resource
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, s := range page.DBSnapshots {

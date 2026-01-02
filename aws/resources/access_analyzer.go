@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/accessanalyzer"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -21,15 +20,10 @@ func NewAccessAnalyzer() AwsResource {
 	return NewAwsResource(&resource.Resource[AccessAnalyzerAPI]{
 		ResourceTypeName: "accessanalyzer",
 		BatchSize:        10,
-		InitClient: func(r *resource.Resource[AccessAnalyzerAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for AccessAnalyzer client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = accessanalyzer.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[AccessAnalyzerAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = accessanalyzer.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.AccessAnalyzer
 		},

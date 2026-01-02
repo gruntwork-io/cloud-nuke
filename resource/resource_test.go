@@ -74,11 +74,13 @@ func TestResource_Nuke(t *testing.T) {
 	nuked := []string{}
 	r := &Resource[*mockClient]{
 		ResourceTypeName: "test",
-		Nuker: func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) error {
-			for _, id := range ids {
+		Nuker: func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) []NukeResult {
+			results := make([]NukeResult, len(ids))
+			for i, id := range ids {
 				nuked = append(nuked, *id)
+				results[i] = NukeResult{Identifier: *id, Error: nil}
 			}
-			return nil
+			return results
 		},
 	}
 	r.Init(nil)
@@ -92,7 +94,7 @@ func TestResource_Nuke(t *testing.T) {
 func TestResource_Nuke_EmptySkipsNuker(t *testing.T) {
 	nukerCalled := false
 	r := &Resource[*mockClient]{
-		Nuker: func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) error {
+		Nuker: func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) []NukeResult {
 			nukerCalled = true
 			return nil
 		},
@@ -107,8 +109,8 @@ func TestResource_Nuke_EmptySkipsNuker(t *testing.T) {
 func TestResource_Nuke_PropagatesError(t *testing.T) {
 	r := &Resource[*mockClient]{
 		ResourceTypeName: "test",
-		Nuker: func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) error {
-			return errors.New("delete failed")
+		Nuker: func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) []NukeResult {
+			return []NukeResult{{Identifier: *ids[0], Error: errors.New("delete failed")}}
 		},
 	}
 	r.Init(nil)
@@ -174,27 +176,13 @@ func TestSimpleBatchDeleter(t *testing.T) {
 	})
 
 	ids := []*string{aws.String("1"), aws.String("2"), aws.String("3")}
-	err := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
 
-	require.NoError(t, err)
-	assert.Equal(t, 3, deleteCount)
-}
-
-func TestSimpleBatchDeleter_RejectsOverLimit(t *testing.T) {
-	deleter := SimpleBatchDeleter(func(ctx context.Context, client *mockClient, id *string) error {
-		return nil
-	})
-
-	ids := make([]*string, 101) // exceeds MaxBatchSizeLimit
-	for i := range ids {
-		s := "id"
-		ids[i] = &s
+	assert.Len(t, results, 3)
+	for _, result := range results {
+		assert.NoError(t, result.Error)
 	}
-
-	err := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "too many")
+	assert.Equal(t, 3, deleteCount)
 }
 
 func TestSequentialDeleter(t *testing.T) {
@@ -205,9 +193,12 @@ func TestSequentialDeleter(t *testing.T) {
 	})
 
 	ids := []*string{aws.String("a"), aws.String("b"), aws.String("c")}
-	err := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
 
-	require.NoError(t, err)
+	assert.Len(t, results, 3)
+	for _, result := range results {
+		assert.NoError(t, result.Error)
+	}
 	assert.Equal(t, []string{"a", "b", "c"}, order)
 }
 
@@ -220,10 +211,13 @@ func TestSequentialDeleter_AccumulatesErrors(t *testing.T) {
 	})
 
 	ids := []*string{aws.String("ok"), aws.String("fail"), aws.String("also-ok")}
-	err := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed")
+	assert.Len(t, results, 3)
+	assert.NoError(t, results[0].Error)
+	assert.Error(t, results[1].Error)
+	assert.Contains(t, results[1].Error.Error(), "failed")
+	assert.NoError(t, results[2].Error)
 }
 
 func TestMultiStepDeleter(t *testing.T) {
@@ -239,9 +233,10 @@ func TestMultiStepDeleter(t *testing.T) {
 		},
 	)
 
-	err := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
 
-	require.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.NoError(t, results[0].Error)
 	assert.Equal(t, []string{"step1", "step2"}, steps)
 }
 
@@ -257,9 +252,10 @@ func TestMultiStepDeleter_StopsOnFailure(t *testing.T) {
 		},
 	)
 
-	err := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
 
-	require.Error(t, err)
+	assert.Len(t, results, 1)
+	assert.Error(t, results[0].Error)
 	assert.False(t, step2Called)
 }
 

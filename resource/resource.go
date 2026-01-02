@@ -6,8 +6,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/hashicorp/go-multierror"
 )
 
 // DefaultBatchSize is the maximum number of resources per batch
@@ -155,6 +158,7 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 }
 
 // Nuke deletes the resources with the given identifiers (implements AwsResource/GcpResource interface)
+// This is the single place where all reporting happens.
 func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) error {
 	if len(identifiers) == 0 {
 		return nil
@@ -165,11 +169,30 @@ func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) error {
 	}
 
 	ptrIdentifiers := util.ToStringPtrSlice(identifiers)
+	results := r.Nuker(ctx, r.Client, r.Scope, r.ResourceTypeName, ptrIdentifiers)
 
-	if err := r.Nuker(ctx, r.Client, r.Scope, r.ResourceTypeName, ptrIdentifiers); err != nil {
-		return errors.WithStackTrace(err)
+	// Centralized reporting and error aggregation
+	var allErrs *multierror.Error
+	for _, result := range results {
+		// Report to the report package
+		report.Record(report.Entry{
+			Identifier:   result.Identifier,
+			ResourceType: r.ResourceTypeName,
+			Error:        result.Error,
+		})
+
+		// Log the result
+		if result.Error != nil {
+			logging.Errorf("[Failed] %s %s: %s", r.ResourceTypeName, result.Identifier, result.Error)
+			allErrs = multierror.Append(allErrs, fmt.Errorf("%s: %w", result.Identifier, result.Error))
+		} else {
+			logging.Debugf("[OK] Deleted %s: %s", r.ResourceTypeName, result.Identifier)
+		}
 	}
 
+	if err := allErrs.ErrorOrNil(); err != nil {
+		return errors.WithStackTrace(err)
+	}
 	return nil
 }
 

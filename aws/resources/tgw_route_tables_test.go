@@ -8,12 +8,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
+// mockTransitGatewayRouteTablesClient implements TransitGatewaysRouteTablesAPI for testing.
 type mockTransitGatewayRouteTablesClient struct {
 	DescribeTransitGatewayRouteTablesOutput ec2.DescribeTransitGatewayRouteTablesOutput
 	DeleteTransitGatewayRouteTableOutput    ec2.DeleteTransitGatewayRouteTableOutput
@@ -27,24 +27,31 @@ func (m *mockTransitGatewayRouteTablesClient) DeleteTransitGatewayRouteTable(_ c
 	return &m.DeleteTransitGatewayRouteTableOutput, nil
 }
 
-func TestListTransitGatewayRouteTables(t *testing.T) {
+func TestTransitGatewayRouteTables_List(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	tableId1 := "table1"
-	tableId2 := "table2"
+	tableId1 := "tgw-rtb-111111"
+	tableId2 := "tgw-rtb-222222"
+	tableId3 := "tgw-rtb-333333"
+
 	mock := &mockTransitGatewayRouteTablesClient{
 		DescribeTransitGatewayRouteTablesOutput: ec2.DescribeTransitGatewayRouteTablesOutput{
 			TransitGatewayRouteTables: []types.TransitGatewayRouteTable{
 				{
 					TransitGatewayRouteTableId: aws.String(tableId1),
 					CreationTime:               aws.Time(now),
-					State:                      "available",
+					State:                      types.TransitGatewayRouteTableStateAvailable,
 				},
 				{
 					TransitGatewayRouteTableId: aws.String(tableId2),
-					CreationTime:               aws.Time(now.Add(1)),
-					State:                      "deleting",
+					CreationTime:               aws.Time(now.Add(1 * time.Hour)),
+					State:                      types.TransitGatewayRouteTableStateDeleting,
+				},
+				{
+					TransitGatewayRouteTableId: aws.String(tableId3),
+					CreationTime:               aws.Time(now.Add(-2 * time.Hour)),
+					State:                      types.TransitGatewayRouteTableStateAvailable,
 				},
 			},
 		},
@@ -56,29 +63,39 @@ func TestListTransitGatewayRouteTables(t *testing.T) {
 	}{
 		"emptyFilter": {
 			configObj: config.ResourceType{},
-			expected:  []string{tableId1},
+			expected:  []string{tableId1, tableId3},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
-			expected: []string{},
+				},
+			},
+			expected: []string{tableId3},
+		},
+		"timeBeforeExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeBefore: aws.Time(now.Add(-1 * time.Hour)),
+				},
+			},
+			expected: []string{tableId1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := listTransitGatewayRouteTables(context.Background(), mock, resource.Scope{}, tc.configObj)
+			ids, err := listTransitGatewayRouteTables(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
-func TestDeleteTransitGatewayRouteTable(t *testing.T) {
+func TestTransitGatewayRouteTables_Delete(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockTransitGatewayRouteTablesClient{}
-	err := deleteTransitGatewayRouteTable(context.Background(), mock, aws.String("test-route-table"))
+	err := deleteTransitGatewayRouteTable(context.Background(), mock, aws.String("tgw-rtb-test"))
 	require.NoError(t, err)
 }

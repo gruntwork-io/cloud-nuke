@@ -63,8 +63,17 @@ func awsDefaults(c *cli.Context) error {
 		return err
 	}
 
-	// Determine which default resources to target based on flags
-	resourceTypes := []string{"vpc"} // VPC deletion will remove attached default security groups
+	// Determine which default resources to target based on flags.
+	// Default VPCs have dependencies that must be deleted first.
+	// The resource ordering in resource_registry.go ensures correct deletion order.
+	resourceTypes := []string{
+		"ec2-endpoint",      // Delete VPC endpoints in default VPCs
+		"nat-gateway",       // Delete NAT gateways in default VPCs
+		"network-interface", // Delete ENIs in default VPCs
+		"internet-gateway",  // Detach and delete IGWs attached to default VPCs
+		"ec2-subnet",        // Delete default subnets
+		"vpc",               // Delete default VPCs (SGs and NACLs auto-deleted)
+	}
 	if c.Bool(FlagSGOnly) {
 		resourceTypes = []string{"security-group"} // Only target default security groups
 	}

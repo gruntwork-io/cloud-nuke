@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // RdsProxyAPI defines the interface for RDS Proxy operations.
@@ -19,7 +20,7 @@ type RdsProxyAPI interface {
 func NewRdsProxy() AwsResource {
 	return NewAwsResource(&resource.Resource[RdsProxyAPI]{
 		ResourceTypeName: "rds-proxy",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsProxyAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)
@@ -40,7 +41,7 @@ func listRdsProxies(ctx context.Context, client RdsProxyAPI, scope resource.Scop
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, proxy := range page.DBProxies {

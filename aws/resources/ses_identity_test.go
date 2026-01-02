@@ -12,26 +12,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockedSesIdentities struct {
-	SESIdentityAPI
-	DeleteIdentityOutput ses.DeleteIdentityOutput
+// mockSESIdentityClient implements SESIdentityAPI for testing.
+type mockSESIdentityClient struct {
 	ListIdentitiesOutput ses.ListIdentitiesOutput
+	DeleteIdentityOutput ses.DeleteIdentityOutput
+	DeleteIdentityError  error
 }
 
-func (m mockedSesIdentities) ListIdentities(_ context.Context, _ *ses.ListIdentitiesInput, _ ...func(*ses.Options)) (*ses.ListIdentitiesOutput, error) {
+func (m *mockSESIdentityClient) ListIdentities(_ context.Context, _ *ses.ListIdentitiesInput, _ ...func(*ses.Options)) (*ses.ListIdentitiesOutput, error) {
 	return &m.ListIdentitiesOutput, nil
 }
 
-func (m mockedSesIdentities) DeleteIdentity(_ context.Context, _ *ses.DeleteIdentityInput, _ ...func(*ses.Options)) (*ses.DeleteIdentityOutput, error) {
-	return &m.DeleteIdentityOutput, nil
+func (m *mockSESIdentityClient) DeleteIdentity(_ context.Context, _ *ses.DeleteIdentityInput, _ ...func(*ses.Options)) (*ses.DeleteIdentityOutput, error) {
+	return &m.DeleteIdentityOutput, m.DeleteIdentityError
 }
 
 func TestSesIdentities_GetAll(t *testing.T) {
 	t.Parallel()
 
-	id1 := "test-id-1"
-	id2 := "test-id-2"
-	client := mockedSesIdentities{
+	id1 := "test-identity-1@example.com"
+	id2 := "test-identity-2@example.com"
+
+	mock := &mockSESIdentityClient{
 		ListIdentitiesOutput: ses.ListIdentitiesOutput{
 			Identities: []string{id1, id2},
 		},
@@ -49,33 +51,30 @@ func TestSesIdentities_GetAll(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(id2),
-					}}},
+						RE: *regexp.MustCompile("test-identity-2"),
+					}},
+				},
 			},
 			expected: []string{id1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := listSesIdentities(
-				context.Background(),
-				client,
-				resource.Scope{},
-				tc.configObj,
-			)
+			ids, err := listSesIdentities(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
 }
 
-func TestSesIdentities_NukeAll(t *testing.T) {
+func TestSesIdentities_Delete(t *testing.T) {
 	t.Parallel()
 
-	client := mockedSesIdentities{
+	mock := &mockSESIdentityClient{
 		DeleteIdentityOutput: ses.DeleteIdentityOutput{},
 	}
 
-	err := deleteSesIdentity(context.Background(), client, aws.String("test"))
+	err := deleteSesIdentity(context.Background(), mock, aws.String("test@example.com"))
 	require.NoError(t, err)
 }

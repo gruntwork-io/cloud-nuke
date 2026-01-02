@@ -2,28 +2,58 @@ package resources
 
 import (
 	"context"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/gruntwork-cli/errors"
-	"github.com/hashicorp/go-multierror"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (ig *IAMGroups) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// IAMGroupsAPI defines the interface for IAM group operations.
+type IAMGroupsAPI interface {
+	DetachGroupPolicy(ctx context.Context, params *iam.DetachGroupPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachGroupPolicyOutput, error)
+	DeleteGroupPolicy(ctx context.Context, params *iam.DeleteGroupPolicyInput, optFns ...func(*iam.Options)) (*iam.DeleteGroupPolicyOutput, error)
+	DeleteGroup(ctx context.Context, params *iam.DeleteGroupInput, optFns ...func(*iam.Options)) (*iam.DeleteGroupOutput, error)
+	GetGroup(ctx context.Context, params *iam.GetGroupInput, optFns ...func(*iam.Options)) (*iam.GetGroupOutput, error)
+	ListAttachedGroupPolicies(ctx context.Context, params *iam.ListAttachedGroupPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedGroupPoliciesOutput, error)
+	ListGroups(ctx context.Context, params *iam.ListGroupsInput, optFns ...func(*iam.Options)) (*iam.ListGroupsOutput, error)
+	ListGroupPolicies(ctx context.Context, params *iam.ListGroupPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListGroupPoliciesOutput, error)
+	RemoveUserFromGroup(ctx context.Context, params *iam.RemoveUserFromGroupInput, optFns ...func(*iam.Options)) (*iam.RemoveUserFromGroupOutput, error)
+}
+
+// NewIAMGroups creates a new IAMGroups resource using the generic resource pattern.
+func NewIAMGroups() AwsResource {
+	return NewAwsResource(&resource.Resource[IAMGroupsAPI]{
+		ResourceTypeName: "iam-group",
+		BatchSize:        DefaultBatchSize,
+		IsGlobal:         true,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMGroupsAPI], cfg aws.Config) {
+			r.Scope.Region = "global"
+			r.Client = iam.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.IAMGroups
+		},
+		Lister: listIAMGroups,
+		Nuker:  resource.SequentialDeleter(deleteIAMGroup),
+	})
+}
+
+// listIAMGroups retrieves all IAM groups that match the config filters.
+func listIAMGroups(ctx context.Context, client IAMGroupsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allIamGroups []*string
-	paginator := iam.NewListGroupsPaginator(ig.Client, &iam.ListGroupsInput{})
+
+	paginator := iam.NewListGroupsPaginator(client, &iam.ListGroupsInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, iamGroup := range page.Groups {
-			if configObj.IAMGroups.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Time: iamGroup.CreateDate,
 				Name: iamGroup.GroupName,
 			}) {
@@ -35,136 +65,100 @@ func (ig *IAMGroups) getAll(c context.Context, configObj config.Config) ([]*stri
 	return allIamGroups, nil
 }
 
-// nukeAll - delete all IAM groups.  Caller is responsible for pagination (no more than 100/request)
-func (ig *IAMGroups) nukeAll(groupNames []*string) error {
-	if len(groupNames) == 0 {
-		logging.Debug("No IAM Groups to nuke")
-		return nil
+// deleteIAMGroup deletes a single IAM group.
+// This requires: removing users from group, detaching policies, deleting inline policies, then deleting the group.
+func deleteIAMGroup(ctx context.Context, client IAMGroupsAPI, groupName *string) error {
+	// Remove any users from the group
+	if err := removeUsersFromGroup(ctx, client, groupName); err != nil {
+		return err
 	}
 
-	// Probably not required since pagination is handled by the caller
-	if len(groupNames) > 100 {
-		logging.Errorf("Nuking too many IAM Groups at once (100): Halting to avoid rate limits")
-		return TooManyIamGroupErr{}
+	// Detach any attached policies on the group
+	if err := detachGroupPolicies(ctx, client, groupName); err != nil {
+		return err
 	}
 
-	// No bulk delete exists, do it with goroutines
-	logging.Debug("Deleting all IAM Groups")
-	wg := new(sync.WaitGroup)
-	wg.Add(len(groupNames))
-	errChans := make([]chan error, len(groupNames))
-	for i, groupName := range groupNames {
-		errChans[i] = make(chan error, 1)
-		go ig.deleteAsync(wg, errChans[i], groupName)
+	// Delete any inline policies on the group
+	if err := deleteGroupInlinePolicies(ctx, client, groupName); err != nil {
+		return err
 	}
-	wg.Wait()
 
-	// Collapse the errors down to one
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Errorf("[Failed] %s", err)
+	// Delete the group
+	_, err := client.DeleteGroup(ctx, &iam.DeleteGroupInput{
+		GroupName: groupName,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debugf("[OK] IAM Group %s was deleted in global", aws.ToString(groupName))
+	return nil
+}
+
+// removeUsersFromGroup removes all users from the specified IAM group.
+func removeUsersFromGroup(ctx context.Context, client IAMGroupsAPI, groupName *string) error {
+	grp, err := client.GetGroup(ctx, &iam.GetGroupInput{
+		GroupName: groupName,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	for _, user := range grp.Users {
+		_, err := client.RemoveUserFromGroup(ctx, &iam.RemoveUserFromGroupInput{
+			UserName:  user.UserName,
+			GroupName: groupName,
+		})
+		if err != nil {
+			return errors.WithStackTrace(err)
 		}
-	}
-	finalErr := allErrs.ErrorOrNil()
-	if finalErr != nil {
-		return errors.WithStackTrace(finalErr)
 	}
 
 	return nil
 }
 
-// deleteIamGroup - removes an IAM group from AWS, designed to run as a goroutine
-func (ig *IAMGroups) deleteAsync(wg *sync.WaitGroup, errChan chan error, groupName *string) {
-	defer wg.Done()
-	var multierr *multierror.Error
-
-	// Remove any users from the group
-	getGroupInput := &iam.GetGroupInput{
-		GroupName: groupName,
-	}
-	grp, err := ig.Client.GetGroup(ig.Context, getGroupInput)
-	for _, user := range grp.Users {
-		unlinkUserInput := &iam.RemoveUserFromGroupInput{
-			UserName:  user.UserName,
-			GroupName: groupName,
-		}
-		_, err := ig.Client.RemoveUserFromGroup(ig.Context, unlinkUserInput)
-		if err != nil {
-			multierr = multierror.Append(multierr, err)
-		}
-	}
-
-	// Detach any policies on the group
-	var allPolicies []*string
-	paginator := iam.NewListAttachedGroupPoliciesPaginator(ig.Client, &iam.ListAttachedGroupPoliciesInput{GroupName: groupName})
+// detachGroupPolicies detaches all attached policies from the specified IAM group.
+func detachGroupPolicies(ctx context.Context, client IAMGroupsAPI, groupName *string) error {
+	paginator := iam.NewListAttachedGroupPoliciesPaginator(client, &iam.ListAttachedGroupPoliciesInput{GroupName: groupName})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ig.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			multierr = multierror.Append(multierr, err)
-			break
+			return errors.WithStackTrace(err)
 		}
 
-		for _, iamPolicy := range page.AttachedPolicies {
-			allPolicies = append(allPolicies, iamPolicy.PolicyArn)
+		for _, policy := range page.AttachedPolicies {
+			_, err := client.DetachGroupPolicy(ctx, &iam.DetachGroupPolicyInput{
+				GroupName: groupName,
+				PolicyArn: policy.PolicyArn,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
 		}
 	}
 
-	for _, policy := range allPolicies {
-		unlinkPolicyInput := &iam.DetachGroupPolicyInput{
-			GroupName: groupName,
-			PolicyArn: policy,
-		}
-		_, err = ig.Client.DetachGroupPolicy(ig.Context, unlinkPolicyInput)
-	}
+	return nil
+}
 
-	// Detach any inline policies on the group
-	var allInlinePolicyNames []*string
-
-	policiesPaginator := iam.NewListGroupPoliciesPaginator(ig.Client, &iam.ListGroupPoliciesInput{GroupName: groupName})
-	for policiesPaginator.HasMorePages() {
-		page, err := policiesPaginator.NextPage(ig.Context)
+// deleteGroupInlinePolicies deletes all inline policies from the specified IAM group.
+func deleteGroupInlinePolicies(ctx context.Context, client IAMGroupsAPI, groupName *string) error {
+	paginator := iam.NewListGroupPoliciesPaginator(client, &iam.ListGroupPoliciesInput{GroupName: groupName})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			multierr = multierror.Append(multierr, err)
-			break
+			return errors.WithStackTrace(err)
 		}
 
 		for _, policyName := range page.PolicyNames {
-			allInlinePolicyNames = append(allInlinePolicyNames, aws.String(policyName))
+			_, err := client.DeleteGroupPolicy(ctx, &iam.DeleteGroupPolicyInput{
+				GroupName:  groupName,
+				PolicyName: aws.String(policyName),
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
 		}
 	}
 
-	for _, policyName := range allInlinePolicyNames {
-		_, err = ig.Client.DeleteGroupPolicy(ig.Context, &iam.DeleteGroupPolicyInput{
-			GroupName:  groupName,
-			PolicyName: policyName,
-		})
-	}
-
-	// Delete the group
-	_, err = ig.Client.DeleteGroup(ig.Context, &iam.DeleteGroupInput{
-		GroupName: groupName,
-	})
-	if err != nil {
-		multierr = multierror.Append(multierr, err)
-	} else {
-		logging.Debugf("[OK] IAM Group %s was deleted in global", aws.ToString(groupName))
-	}
-
-	e := report.Entry{
-		Identifier:   aws.ToString(groupName),
-		ResourceType: "IAM Group",
-		Error:        multierr.ErrorOrNil(),
-	}
-	report.Record(e)
-
-	errChan <- multierr.ErrorOrNil()
-}
-
-// TooManyIamGroupErr Custom Errors
-type TooManyIamGroupErr struct{}
-
-func (err TooManyIamGroupErr) Error() string {
-	return "Too many IAM Groups requested at once"
+	return nil
 }

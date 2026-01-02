@@ -19,7 +19,7 @@ type ConfigServiceRecordersAPI interface {
 func NewConfigServiceRecorders() AwsResource {
 	return NewAwsResource(&resource.Resource[ConfigServiceRecordersAPI]{
 		ResourceTypeName: "config-recorders",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ConfigServiceRecordersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = configservice.NewFromConfig(cfg)

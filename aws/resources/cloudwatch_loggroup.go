@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -25,15 +24,10 @@ func NewCloudWatchLogGroups() AwsResource {
 		// so we will be deleting this many in parallel using go routines. We pick 35 here, which is half of what the
 		// AWS web console will do. We pick a conservative number here to avoid hitting AWS API rate limits.
 		BatchSize: 35,
-		InitClient: func(r *resource.Resource[CloudWatchLogGroupsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for CloudWatchLogs client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = cloudwatchlogs.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudWatchLogGroupsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = cloudwatchlogs.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.CloudWatchLogGroup
 		},

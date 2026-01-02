@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,20 +38,18 @@ func Test_EventBridge_GetAll(t *testing.T) {
 	bus1 := "test-bus-1"
 	bus2 := "test-bus-2"
 
-	service := EventBridge{
-		Client: mockedEventBridgeService{
-			ListEventBusesOutput: eventbridge.ListEventBusesOutput{
-				EventBuses: []types.EventBus{
-					{
-						Arn:          aws.String(fmt.Sprintf("arn::%s", bus1)),
-						CreationTime: &now,
-						Name:         aws.String(bus1),
-					},
-					{
-						Arn:          aws.String(fmt.Sprintf("arn::%s", bus2)),
-						CreationTime: aws.Time(now.Add(time.Hour)),
-						Name:         aws.String(bus2),
-					},
+	client := mockedEventBridgeService{
+		ListEventBusesOutput: eventbridge.ListEventBusesOutput{
+			EventBuses: []types.EventBus{
+				{
+					Arn:          aws.String(fmt.Sprintf("arn::%s", bus1)),
+					CreationTime: &now,
+					Name:         aws.String(bus1),
+				},
+				{
+					Arn:          aws.String(fmt.Sprintf("arn::%s", bus2)),
+					CreationTime: aws.Time(now.Add(time.Hour)),
+					Name:         aws.String(bus2),
 				},
 			},
 		},
@@ -84,9 +83,11 @@ func Test_EventBridge_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			buses, err := service.getAll(
+			buses, err := listEventBuses(
 				context.Background(),
-				config.Config{EventBridge: tc.configObj},
+				client,
+				resource.Scope{Region: "us-east-1"},
+				tc.configObj,
 			)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(buses))
@@ -98,12 +99,43 @@ func Test_EventBridge_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	busName := "test-bus-1"
-	service := EventBridge{
-		Client: mockedEventBridgeService{
-			DeleteEventBusOutput: eventbridge.DeleteEventBusOutput{},
+	client := mockedEventBridgeService{
+		DeleteEventBusOutput: eventbridge.DeleteEventBusOutput{},
+	}
+
+	err := deleteEventBus(context.Background(), client, &busName)
+	assert.NoError(t, err)
+}
+
+func Test_EventBridge_SkipsDefaultBus(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	client := mockedEventBridgeService{
+		ListEventBusesOutput: eventbridge.ListEventBusesOutput{
+			EventBuses: []types.EventBus{
+				{
+					Arn:          aws.String("arn::default"),
+					CreationTime: &now,
+					Name:         aws.String("default"),
+				},
+				{
+					Arn:          aws.String("arn::custom-bus"),
+					CreationTime: &now,
+					Name:         aws.String("custom-bus"),
+				},
+			},
 		},
 	}
 
-	err := service.nukeAll([]*string{&busName})
-	assert.NoError(t, err)
+	buses, err := listEventBuses(
+		context.Background(),
+		client,
+		resource.Scope{Region: "us-east-1"},
+		config.ResourceType{},
+	)
+	require.NoError(t, err)
+	// Should only include custom-bus, not default
+	require.Equal(t, []string{"custom-bus"}, aws.ToStringSlice(buses))
 }

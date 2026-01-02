@@ -2,7 +2,8 @@ package resources
 
 import (
 	"context"
-	"strings"
+	"errors"
+	"regexp"
 	"testing"
 	"time"
 
@@ -10,107 +11,152 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-type mockedDBClusters struct {
-	DBClustersAPI
+type mockDBClustersClient struct {
 	DescribeDBClustersOutput rds.DescribeDBClustersOutput
 	DescribeDBClustersError  error
 	DeleteDBClusterOutput    rds.DeleteDBClusterOutput
+	DeleteDBClusterError     error
 	ModifyDBClusterOutput    rds.ModifyDBClusterOutput
+	ModifyDBClusterError     error
 }
 
-func (m mockedDBClusters) waitUntilRdsClusterDeleted(*rds.DescribeDBClustersInput) error {
-	return nil
+func (m *mockDBClustersClient) DeleteDBCluster(ctx context.Context, params *rds.DeleteDBClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteDBClusterOutput, error) {
+	return &m.DeleteDBClusterOutput, m.DeleteDBClusterError
 }
 
-func (m mockedDBClusters) DeleteDBCluster(ctx context.Context, params *rds.DeleteDBClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteDBClusterOutput, error) {
-	return &m.DeleteDBClusterOutput, nil
-}
-
-func (m mockedDBClusters) DescribeDBClusters(ctx context.Context, params *rds.DescribeDBClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeDBClustersOutput, error) {
+func (m *mockDBClustersClient) DescribeDBClusters(ctx context.Context, params *rds.DescribeDBClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeDBClustersOutput, error) {
 	return &m.DescribeDBClustersOutput, m.DescribeDBClustersError
 }
 
-func (m mockedDBClusters) ModifyDBCluster(ctx context.Context, params *rds.ModifyDBClusterInput, optFns ...func(*rds.Options)) (*rds.ModifyDBClusterOutput, error) {
-	return &m.ModifyDBClusterOutput, nil
+func (m *mockDBClustersClient) ModifyDBCluster(ctx context.Context, params *rds.ModifyDBClusterInput, optFns ...func(*rds.Options)) (*rds.ModifyDBClusterOutput, error) {
+	return &m.ModifyDBClusterOutput, m.ModifyDBClusterError
 }
 
-func TestRDSClusterGetAll(t *testing.T) {
+func TestDBClusters_ResourceName(t *testing.T) {
+	t.Parallel()
+	r := NewDBClusters()
+	assert.Equal(t, "rds-cluster", r.ResourceName())
+}
+
+func TestDBClusters_MaxBatchSize(t *testing.T) {
+	t.Parallel()
+	r := NewDBClusters()
+	assert.Equal(t, DefaultBatchSize, r.MaxBatchSize())
+}
+
+func TestListDBClusters(t *testing.T) {
 	t.Parallel()
 
-	// Test data setup
-	testName := "test-db-cluster"
-	testProtectedName := "test-protected-cluster"
 	now := time.Now()
-	dbCluster := DBClusters{
-		Client: mockedDBClusters{
-			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{
-				DBClusters: []types.DBCluster{
-					{
-						DBClusterIdentifier: &testName,
-						ClusterCreateTime:   &now,
-						DeletionProtection:  aws.Bool(false),
-					},
-					{
-						DBClusterIdentifier: &testProtectedName,
-						ClusterCreateTime:   &now,
-						DeletionProtection:  aws.Bool(true),
-					},
+	tests := []struct {
+		name     string
+		clusters []types.DBCluster
+		cfg      config.ResourceType
+		expected []string
+	}{
+		{
+			name: "returns all clusters when no filter",
+			clusters: []types.DBCluster{
+				{DBClusterIdentifier: aws.String("cluster-1"), ClusterCreateTime: &now},
+				{DBClusterIdentifier: aws.String("cluster-2"), ClusterCreateTime: &now},
+			},
+			cfg:      config.ResourceType{},
+			expected: []string{"cluster-1", "cluster-2"},
+		},
+		{
+			name: "filters by time exclusion",
+			clusters: []types.DBCluster{
+				{DBClusterIdentifier: aws.String("old-cluster"), ClusterCreateTime: aws.Time(now.Add(-1 * time.Hour))},
+				{DBClusterIdentifier: aws.String("new-cluster"), ClusterCreateTime: &now},
+			},
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-30 * time.Minute)),
 				},
 			},
+			expected: []string{"old-cluster"},
+		},
+		{
+			name: "filters by name pattern",
+			clusters: []types.DBCluster{
+				{DBClusterIdentifier: aws.String("prod-cluster"), ClusterCreateTime: &now},
+				{DBClusterIdentifier: aws.String("dev-cluster"), ClusterCreateTime: &now},
+			},
+			cfg: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("^dev-")}},
+				},
+			},
+			expected: []string{"dev-cluster"},
 		},
 	}
 
-	// Test Case 1: Empty config - should include both protected and unprotected clusters
-	// Deletion protection is automatically disabled during deletion, so we include these clusters
-	clusters, err := dbCluster.getAll(context.Background(), config.Config{DBClusters: config.AWSProtectectableResourceType{}})
-	assert.NoError(t, err)
-	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
-	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testProtectedName))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	// Test Case 2: With IncludeDeletionProtected flag - behavior is now the same as Test Case 1
-	// since deletion-protected clusters are always included
-	clusters, err = dbCluster.getAll(context.Background(), config.Config{
-		DBClusters: config.AWSProtectectableResourceType{
-			IncludeDeletionProtected: true,
-		},
-	})
-	assert.NoError(t, err)
-	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
-	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testProtectedName))
-
-	// Test Case 3: Time-based exclusion - should exclude all clusters created after specified time
-	clusters, err = dbCluster.getAll(context.Background(), config.Config{
-		DBClusters: config.AWSProtectectableResourceType{
-			ResourceType: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1)),
+			mock := &mockDBClustersClient{
+				DescribeDBClustersOutput: rds.DescribeDBClustersOutput{
+					DBClusters: tt.clusters,
 				},
-			},
-		},
-	})
-	assert.NoError(t, err)
-	assert.NotContains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
-	assert.NotContains(t, aws.ToStringSlice(clusters), strings.ToLower(testProtectedName))
+			}
+
+			clusters, err := listDBClusters(context.Background(), mock, resource.Scope{}, tt.cfg)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, aws.ToStringSlice(clusters))
+		})
+	}
 }
 
-func TestRDSClusterNukeAll(t *testing.T) {
+func TestDeleteDBCluster(t *testing.T) {
 	t.Parallel()
 
-	testName := "test-db-cluster"
-	dbCluster := DBClusters{
-		Client: mockedDBClusters{
-			DescribeDBClustersOutput: rds.DescribeDBClustersOutput{},
-			DescribeDBClustersError:  &types.DBClusterNotFoundFault{},
-			ModifyDBClusterOutput:    rds.ModifyDBClusterOutput{},
-			DeleteDBClusterOutput:    rds.DeleteDBClusterOutput{},
+	tests := []struct {
+		name        string
+		mock        *mockDBClustersClient
+		expectError bool
+	}{
+		{
+			name: "successfully deletes cluster",
+			mock: &mockDBClustersClient{
+				ModifyDBClusterOutput: rds.ModifyDBClusterOutput{},
+				DeleteDBClusterOutput: rds.DeleteDBClusterOutput{},
+			},
+			expectError: false,
+		},
+		{
+			name: "continues on modify error but returns delete error",
+			mock: &mockDBClustersClient{
+				ModifyDBClusterError:  errors.New("modify failed"),
+				DeleteDBClusterOutput: rds.DeleteDBClusterOutput{},
+			},
+			expectError: false,
+		},
+		{
+			name: "returns error when delete fails",
+			mock: &mockDBClustersClient{
+				ModifyDBClusterOutput: rds.ModifyDBClusterOutput{},
+				DeleteDBClusterError:  errors.New("delete failed"),
+			},
+			expectError: true,
 		},
 	}
-	dbCluster.Context = context.Background()
-	dbCluster.Timeout = DefaultWaitTimeout
 
-	err := dbCluster.nukeAll([]*string{&testName})
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := deleteDBCluster(context.Background(), tt.mock, aws.String("test-cluster"))
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
