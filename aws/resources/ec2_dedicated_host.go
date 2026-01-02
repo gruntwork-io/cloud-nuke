@@ -24,7 +24,7 @@ type EC2DedicatedHostsAPI interface {
 func NewEC2DedicatedHosts() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2DedicatedHostsAPI]{
 		ResourceTypeName: "ec2-dedicated-hosts",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2DedicatedHostsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

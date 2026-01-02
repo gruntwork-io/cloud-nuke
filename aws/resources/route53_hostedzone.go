@@ -28,7 +28,7 @@ type Route53HostedZoneAPI interface {
 func NewRoute53HostedZone() AwsResource {
 	return NewAwsResource(&resource.Resource[Route53HostedZoneAPI]{
 		ResourceTypeName: "route53-hosted-zone",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[Route53HostedZoneAPI], cfg aws.Config) {
 			r.Scope.Region = "global"

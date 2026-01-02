@@ -30,7 +30,7 @@ type SageMakerNotebookInstancesAPI interface {
 func NewSageMakerNotebookInstances() AwsResource {
 	return NewAwsResource(&resource.Resource[SageMakerNotebookInstancesAPI]{
 		ResourceTypeName: "sagemaker-notebook-smni",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SageMakerNotebookInstancesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = sagemaker.NewFromConfig(cfg)

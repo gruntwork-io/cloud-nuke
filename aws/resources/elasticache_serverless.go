@@ -22,7 +22,7 @@ func NewElasticCacheServerless() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticCacheServerlessAPI]{
 		ResourceTypeName: "elasticcache-serverless",
 		// Tentative batch size to ensure AWS doesn't throttle
-		BatchSize: 49,
+		BatchSize: DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticCacheServerlessAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = elasticache.NewFromConfig(cfg)

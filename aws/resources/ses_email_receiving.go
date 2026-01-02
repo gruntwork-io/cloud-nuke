@@ -30,7 +30,7 @@ type SESReceiptRuleSetAPI interface {
 func NewSesReceiptRule() AwsResource {
 	return NewAwsResource(&resource.Resource[SESReceiptRuleSetAPI]{
 		ResourceTypeName: "ses-receipt-rule-set",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESReceiptRuleSetAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ses.NewFromConfig(cfg)
@@ -112,7 +112,7 @@ type SESReceiptFilterAPI interface {
 func NewSesReceiptFilter() AwsResource {
 	return NewAwsResource(&resource.Resource[SESReceiptFilterAPI]{
 		ResourceTypeName: "ses-receipt-filter",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESReceiptFilterAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ses.NewFromConfig(cfg)

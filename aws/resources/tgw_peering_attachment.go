@@ -19,7 +19,7 @@ type TransitGatewayPeeringAttachmentAPI interface {
 func NewTransitGatewayPeeringAttachment() AwsResource {
 	return NewAwsResource(&resource.Resource[TransitGatewayPeeringAttachmentAPI]{
 		ResourceTypeName: "transit-gateway-peering-attachment",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[TransitGatewayPeeringAttachmentAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

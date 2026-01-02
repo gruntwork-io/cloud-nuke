@@ -20,7 +20,7 @@ type LaunchConfigsAPI interface {
 func NewLaunchConfigs() AwsResource {
 	return NewAwsResource(&resource.Resource[LaunchConfigsAPI]{
 		ResourceTypeName: "lc",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[LaunchConfigsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = autoscaling.NewFromConfig(cfg)

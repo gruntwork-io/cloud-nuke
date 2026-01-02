@@ -50,7 +50,7 @@ var activeStackStatuses = []types.StackStatus{
 func NewCloudFormationStacks() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudFormationStacksAPI]{
 		ResourceTypeName: "cloudformation-stack",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudFormationStacksAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = cloudformation.NewFromConfig(cfg)

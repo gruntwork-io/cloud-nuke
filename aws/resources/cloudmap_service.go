@@ -26,7 +26,7 @@ type CloudMapServicesAPI interface {
 func NewCloudMapServices() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudMapServicesAPI]{
 		ResourceTypeName: "cloudmap-service",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudMapServicesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = servicediscovery.NewFromConfig(cfg)

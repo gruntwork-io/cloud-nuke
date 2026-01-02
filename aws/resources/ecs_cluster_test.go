@@ -100,7 +100,7 @@ func TestECSClusters_ResourceName(t *testing.T) {
 
 func TestECSClusters_MaxBatchSize(t *testing.T) {
 	r := NewECSClusters()
-	require.Equal(t, maxBatchSize, r.MaxBatchSize())
+	require.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestListECSClusters(t *testing.T) {

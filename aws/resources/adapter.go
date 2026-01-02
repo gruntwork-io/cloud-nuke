@@ -23,7 +23,7 @@
 //	func NewMyResource() AwsResource {
 //	    return NewAwsResource(&resource.Resource[MyClientAPI]{
 //	        ResourceTypeName: "my-resource",
-//	        BatchSize:        50,
+//	        BatchSize:        DefaultBatchSize,
 //	        InitClient: WrapAwsInitClient(func(r *resource.Resource[MyClientAPI], cfg aws.Config) {
 //	            r.Scope.Region = cfg.Region
 //	            r.Client = myservice.NewFromConfig(cfg)
@@ -47,9 +47,8 @@ const (
 	// DefaultWaitTimeout is the default timeout for AWS resource deletion waiters.
 	DefaultWaitTimeout = 5 * time.Minute
 
-	// maxBatchSize is the default maximum batch size for resource operations.
-	// This is set to 49 as a safe maximum across most AWS API limits.
-	maxBatchSize = 49
+	// DefaultBatchSize is the default batch size for resource deletion operations.
+	DefaultBatchSize = 50
 
 	// firstSeenTagKey is a tag used to track resource creation time for resources
 	// that don't have a native created-at timestamp (e.g., EIP, ECS Clusters).
@@ -150,3 +149,62 @@ func (a *AwsResourceAdapter[C]) PrepareContext(_ context.Context, _ config.Resou
 // Compile-time interface satisfaction check.
 // This ensures AwsResourceAdapter correctly implements AwsResource at compile time.
 var _ AwsResource = (*AwsResourceAdapter[any])(nil)
+
+// EC2ListerFunc is a lister function signature for EC2 resources that need DefaultOnly support.
+type EC2ListerFunc[C any] func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType, defaultOnly bool) ([]*string, error)
+
+// EC2ResourceOptions contains optional configuration for NewEC2AwsResource.
+type EC2ResourceOptions[C any] struct {
+	// PermissionVerifier is an optional function to verify deletion permissions via dry-run.
+	PermissionVerifier func(ctx context.Context, client C, id *string) error
+}
+
+// NewEC2AwsResource creates an AWS resource that uses EC2ResourceType config (with DefaultOnly support).
+// This helper encapsulates the closure pattern needed to pass DefaultOnly from ConfigGetter to Lister.
+//
+// Example:
+//
+//	func NewEC2VPC() AwsResource {
+//	    return NewEC2AwsResource[EC2VpcAPI](
+//	        "vpc",
+//	        WrapAwsInitClient(func(r *resource.Resource[EC2VpcAPI], cfg aws.Config) {
+//	            r.Scope.Region = cfg.Region
+//	            r.Client = ec2.NewFromConfig(cfg)
+//	        }),
+//	        func(c config.Config) config.EC2ResourceType { return c.VPC },
+//	        listVPCs,
+//	        resource.SequentialDeleter(deleteVPC),
+//	        nil, // no options
+//	    )
+//	}
+func NewEC2AwsResource[C any](
+	resourceTypeName string,
+	initClient func(r *resource.Resource[C], cfg any),
+	configExtractor func(c config.Config) config.EC2ResourceType,
+	lister EC2ListerFunc[C],
+	nuker resource.NukerFunc[C],
+	opts *EC2ResourceOptions[C],
+) AwsResource {
+	var defaultOnly bool
+
+	r := &resource.Resource[C]{
+		ResourceTypeName: resourceTypeName,
+		BatchSize:        DefaultBatchSize,
+		InitClient:       initClient,
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			ec2Cfg := configExtractor(c)
+			defaultOnly = ec2Cfg.DefaultOnly
+			return ec2Cfg.ResourceType
+		},
+		Lister: func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+			return lister(ctx, client, scope, cfg, defaultOnly)
+		},
+		Nuker: nuker,
+	}
+
+	if opts != nil && opts.PermissionVerifier != nil {
+		r.PermissionVerifier = opts.PermissionVerifier
+	}
+
+	return NewAwsResource(r)
+}

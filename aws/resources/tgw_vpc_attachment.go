@@ -24,7 +24,7 @@ type TransitGatewaysVpcAttachmentAPI interface {
 func NewTransitGatewaysVpcAttachment() AwsResource {
 	return NewAwsResource(&resource.Resource[TransitGatewaysVpcAttachmentAPI]{
 		ResourceTypeName: "transit-gateway-attachment",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[TransitGatewaysVpcAttachmentAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

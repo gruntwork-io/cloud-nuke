@@ -17,6 +17,7 @@ import (
 type mockNatGatewayClient struct {
 	DescribeNatGatewaysOutput ec2.DescribeNatGatewaysOutput
 	DeleteNatGatewayOutput    ec2.DeleteNatGatewayOutput
+	DescribeVpcsOutput        ec2.DescribeVpcsOutput
 }
 
 func (m *mockNatGatewayClient) DescribeNatGateways(ctx context.Context, params *ec2.DescribeNatGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNatGatewaysOutput, error) {
@@ -25,6 +26,10 @@ func (m *mockNatGatewayClient) DescribeNatGateways(ctx context.Context, params *
 
 func (m *mockNatGatewayClient) DeleteNatGateway(ctx context.Context, params *ec2.DeleteNatGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNatGatewayOutput, error) {
 	return &m.DeleteNatGatewayOutput, nil
+}
+
+func (m *mockNatGatewayClient) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
+	return &m.DescribeVpcsOutput, nil
 }
 
 func TestListNatGateways(t *testing.T) {
@@ -76,7 +81,7 @@ func TestListNatGateways(t *testing.T) {
 				},
 			}
 
-			result, err := listNatGateways(context.Background(), mock, resource.Scope{}, tc.config)
+			result, err := listNatGateways(context.Background(), mock, resource.Scope{}, tc.config, false)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(result))
 		})

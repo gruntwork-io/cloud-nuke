@@ -38,7 +38,7 @@ func NewSecurityGroup() AwsResource {
 	r := &securityGroupResource{
 		Resource: &resource.Resource[SecurityGroupAPI]{
 			ResourceTypeName: "security-group",
-			BatchSize:        maxBatchSize,
+			BatchSize:        DefaultBatchSize,
 		},
 	}
 

@@ -27,7 +27,7 @@ type SNSTopicAPI interface {
 func NewSNSTopic() AwsResource {
 	return NewAwsResource(&resource.Resource[SNSTopicAPI]{
 		ResourceTypeName: "snstopic",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SNSTopicAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = sns.NewFromConfig(cfg)

@@ -24,7 +24,7 @@ type VPCLatticeTargetGroupAPI interface {
 func NewVPCLatticeTargetGroup() AwsResource {
 	return NewAwsResource(&resource.Resource[VPCLatticeTargetGroupAPI]{
 		ResourceTypeName: "vpc-lattice-target-group",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[VPCLatticeTargetGroupAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = vpclattice.NewFromConfig(cfg)

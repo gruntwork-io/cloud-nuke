@@ -33,7 +33,7 @@ func NewECSServices() AwsResource {
 	r := &ecsServicesResource{
 		Resource: &resource.Resource[ECSServicesAPI]{
 			ResourceTypeName: "ecsserv",
-			BatchSize:        49,
+			BatchSize:        DefaultBatchSize,
 		},
 		serviceClusterMap: make(map[string]string),
 	}

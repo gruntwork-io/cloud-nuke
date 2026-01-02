@@ -27,7 +27,7 @@ func NewEC2Instances() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2InstancesAPI]{
 		ResourceTypeName: "ec2",
 		// Tentative batch size to ensure AWS doesn't throttle
-		BatchSize: 49,
+		BatchSize: DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2InstancesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

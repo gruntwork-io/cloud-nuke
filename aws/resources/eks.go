@@ -143,7 +143,7 @@ func deleteEKSClusters(ctx context.Context, client EKSClustersAPI, scope resourc
 		} else if successSet[idStr] {
 			results = append(results, resource.NukeResult{Identifier: idStr, Error: nil})
 		} else {
-			results = append(results, resource.NukeResult{Identifier: idStr, Error: fmt.Errorf("cluster deletion timed out")})
+			results = append(results, resource.NukeResult{Identifier: idStr, Error: fmt.Errorf("EKS cluster %s deletion timed out after %s", idStr, DefaultWaitTimeout)})
 		}
 	}
 

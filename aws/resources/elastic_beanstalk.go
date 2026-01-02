@@ -19,7 +19,7 @@ type EBApplicationsAPI interface {
 func NewEBApplications() AwsResource {
 	return NewAwsResource(&resource.Resource[EBApplicationsAPI]{
 		ResourceTypeName: "elastic-beanstalk",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EBApplicationsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = elasticbeanstalk.NewFromConfig(cfg)

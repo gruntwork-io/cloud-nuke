@@ -21,7 +21,7 @@ type RdsSnapshotAPI interface {
 func NewRdsSnapshot() AwsResource {
 	return NewAwsResource(&resource.Resource[RdsSnapshotAPI]{
 		ResourceTypeName: "rds-snapshot",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsSnapshotAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)

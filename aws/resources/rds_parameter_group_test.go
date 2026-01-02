@@ -35,7 +35,7 @@ func TestRdsParameterGroup_ResourceName(t *testing.T) {
 
 func TestRdsParameterGroup_MaxBatchSize(t *testing.T) {
 	r := NewRdsParameterGroup()
-	require.Equal(t, 49, r.MaxBatchSize())
+	require.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestListRdsParameterGroups(t *testing.T) {

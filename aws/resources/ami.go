@@ -24,7 +24,7 @@ type AMIsAPI interface {
 func NewAMIs() AwsResource {
 	return NewAwsResource(&resource.Resource[AMIsAPI]{
 		ResourceTypeName: "ami",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[AMIsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

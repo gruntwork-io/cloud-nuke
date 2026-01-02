@@ -28,7 +28,7 @@ type LoadBalancersAPI interface {
 func NewLoadBalancers() AwsResource {
 	return NewAwsResource(&resource.Resource[LoadBalancersAPI]{
 		ResourceTypeName: "elb",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[LoadBalancersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = elasticloadbalancing.NewFromConfig(cfg)

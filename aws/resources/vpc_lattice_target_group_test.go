@@ -43,7 +43,7 @@ func TestVPCLatticeTargetGroup_Properties(t *testing.T) {
 
 	r := NewVPCLatticeTargetGroup()
 	assert.Equal(t, "vpc-lattice-target-group", r.ResourceName())
-	assert.Equal(t, 49, r.MaxBatchSize())
+	assert.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestListVPCLatticeTargetGroups(t *testing.T) {

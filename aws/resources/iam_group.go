@@ -27,7 +27,7 @@ type IAMGroupsAPI interface {
 func NewIAMGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[IAMGroupsAPI]{
 		ResourceTypeName: "iam-group",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = "global"

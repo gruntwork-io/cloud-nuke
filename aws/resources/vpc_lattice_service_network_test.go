@@ -50,7 +50,7 @@ func TestVPCLatticeServiceNetwork_ResourceMetadata(t *testing.T) {
 
 	r := NewVPCLatticeServiceNetwork()
 	require.Equal(t, "vpc-lattice-service-network", r.ResourceName())
-	require.Equal(t, 49, r.MaxBatchSize())
+	require.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestVPCLatticeServiceNetwork_GetAll(t *testing.T) {

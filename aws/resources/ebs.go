@@ -23,7 +23,7 @@ type EBSVolumesAPI interface {
 func NewEBSVolumes() AwsResource {
 	return NewAwsResource(&resource.Resource[EBSVolumesAPI]{
 		ResourceTypeName: "ebs",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EBSVolumesAPI], cfg aws.Config) {
 			r.Client = ec2.NewFromConfig(cfg)
 		}),

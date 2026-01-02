@@ -20,7 +20,7 @@ type RdsProxyAPI interface {
 func NewRdsProxy() AwsResource {
 	return NewAwsResource(&resource.Resource[RdsProxyAPI]{
 		ResourceTypeName: "rds-proxy",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsProxyAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)

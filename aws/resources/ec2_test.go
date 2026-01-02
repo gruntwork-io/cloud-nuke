@@ -53,7 +53,7 @@ func TestEC2Instances_ResourceName(t *testing.T) {
 
 func TestEC2Instances_MaxBatchSize(t *testing.T) {
 	r := NewEC2Instances()
-	require.Equal(t, 49, r.MaxBatchSize())
+	require.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestListEC2Instances(t *testing.T) {

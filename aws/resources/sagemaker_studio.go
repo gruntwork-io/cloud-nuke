@@ -50,7 +50,7 @@ type SageMakerStudioAPI interface {
 func NewSageMakerStudio() AwsResource {
 	return NewAwsResource(&resource.Resource[SageMakerStudioAPI]{
 		ResourceTypeName: "sagemaker-studio",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SageMakerStudioAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = sagemaker.NewFromConfig(cfg)

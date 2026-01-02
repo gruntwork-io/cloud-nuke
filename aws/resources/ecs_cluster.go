@@ -37,7 +37,7 @@ const describeClustersRequestBatchSize = 100
 func NewECSClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[ECSClustersAPI]{
 		ResourceTypeName: "ecscluster",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ECSClustersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ecs.NewFromConfig(cfg)

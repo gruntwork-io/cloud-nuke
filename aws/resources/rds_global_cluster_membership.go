@@ -24,7 +24,7 @@ type DBGlobalClusterMembershipsAPI interface {
 func NewDBGlobalClusterMemberships() AwsResource {
 	return NewAwsResource(&resource.Resource[DBGlobalClusterMembershipsAPI]{
 		ResourceTypeName: "rds-global-cluster-membership",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBGlobalClusterMembershipsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)

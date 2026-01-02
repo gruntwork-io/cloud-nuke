@@ -23,7 +23,7 @@ type LambdaFunctionsAPI interface {
 func NewLambdaFunctions() AwsResource {
 	return NewAwsResource(&resource.Resource[LambdaFunctionsAPI]{
 		ResourceTypeName: "lambda",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[LambdaFunctionsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = lambda.NewFromConfig(cfg)

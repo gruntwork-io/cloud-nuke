@@ -22,7 +22,7 @@ type ASGroupsAPI interface {
 func NewASGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[ASGroupsAPI]{
 		ResourceTypeName: "asg",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ASGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = autoscaling.NewFromConfig(cfg)

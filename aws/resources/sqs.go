@@ -25,7 +25,7 @@ type SqsQueueAPI interface {
 func NewSqsQueue() AwsResource {
 	return NewAwsResource(&resource.Resource[SqsQueueAPI]{
 		ResourceTypeName: "sqs",
-		BatchSize:        49, // Tentative batch size to ensure AWS doesn't throttle
+		BatchSize:        DefaultBatchSize, // Tentative batch size to ensure AWS doesn't throttle
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SqsQueueAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = sqs.NewFromConfig(cfg)

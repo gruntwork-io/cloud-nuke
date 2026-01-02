@@ -18,6 +18,7 @@ import (
 type mockEC2EndpointsClient struct {
 	DescribeVpcEndpointsOutput ec2.DescribeVpcEndpointsOutput
 	DeleteVpcEndpointsOutput   ec2.DeleteVpcEndpointsOutput
+	DescribeVpcsOutput         ec2.DescribeVpcsOutput
 }
 
 func (m *mockEC2EndpointsClient) DescribeVpcEndpoints(ctx context.Context, params *ec2.DescribeVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointsOutput, error) {
@@ -26,6 +27,10 @@ func (m *mockEC2EndpointsClient) DescribeVpcEndpoints(ctx context.Context, param
 
 func (m *mockEC2EndpointsClient) DeleteVpcEndpoints(ctx context.Context, params *ec2.DeleteVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcEndpointsOutput, error) {
 	return &m.DeleteVpcEndpointsOutput, nil
+}
+
+func (m *mockEC2EndpointsClient) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
+	return &m.DescribeVpcsOutput, nil
 }
 
 func TestListEC2Endpoints(t *testing.T) {
@@ -88,7 +93,7 @@ func TestListEC2Endpoints(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			ids, err := listEC2Endpoints(ctx, mock, resource.Scope{}, tc.configObj)
+			ids, err := listEC2Endpoints(ctx, mock, resource.Scope{}, tc.configObj, false)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})

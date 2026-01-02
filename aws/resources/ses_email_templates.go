@@ -19,7 +19,7 @@ type SesEmailTemplatesAPI interface {
 func NewSesEmailTemplates() AwsResource {
 	return NewAwsResource(&resource.Resource[SesEmailTemplatesAPI]{
 		ResourceTypeName: "ses-email-template",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SesEmailTemplatesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ses.NewFromConfig(cfg)

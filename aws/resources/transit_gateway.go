@@ -29,7 +29,7 @@ type TransitGatewaysAPI interface {
 func NewTransitGateways() AwsResource {
 	return NewAwsResource(&resource.Resource[TransitGatewaysAPI]{
 		ResourceTypeName: "transit-gateway",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[TransitGatewaysAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

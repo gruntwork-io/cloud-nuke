@@ -45,7 +45,7 @@ func TestElasticaches_ResourceName(t *testing.T) {
 
 func TestElasticaches_MaxBatchSize(t *testing.T) {
 	r := NewElasticaches()
-	require.Equal(t, 49, r.MaxBatchSize())
+	require.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestListElasticaches(t *testing.T) {

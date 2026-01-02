@@ -25,7 +25,7 @@ type SnapshotsAPI interface {
 func NewSnapshots() AwsResource {
 	return NewAwsResource(&resource.Resource[SnapshotsAPI]{
 		ResourceTypeName: "snap",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SnapshotsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

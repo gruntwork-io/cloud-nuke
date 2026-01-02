@@ -28,28 +28,46 @@ type NetworkInterfaceAPI interface {
 	TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error)
 	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
 	CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
+	DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error)
 }
 
 // NewNetworkInterface creates a new Network Interface resource using the generic resource pattern.
 func NewNetworkInterface() AwsResource {
-	return NewAwsResource(&resource.Resource[NetworkInterfaceAPI]{
-		ResourceTypeName: "network-interface",
-		BatchSize:        50,
-		InitClient: WrapAwsInitClient(func(r *resource.Resource[NetworkInterfaceAPI], cfg aws.Config) {
+	return NewEC2AwsResource[NetworkInterfaceAPI](
+		"network-interface",
+		WrapAwsInitClient(func(r *resource.Resource[NetworkInterfaceAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)
 		}),
-		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.NetworkInterface
-		},
-		Lister:             listNetworkInterfaces,
-		Nuker:              resource.SequentialDeleter(deleteNetworkInterfaceWithDetach),
-		PermissionVerifier: verifyNetworkInterfacePermission,
-	})
+		func(c config.Config) config.EC2ResourceType { return c.NetworkInterface },
+		listNetworkInterfaces,
+		resource.SequentialDeleter(deleteNetworkInterfaceWithDetach),
+		&EC2ResourceOptions[NetworkInterfaceAPI]{PermissionVerifier: verifyNetworkInterfacePermission},
+	)
 }
 
 // listNetworkInterfaces retrieves all Network Interfaces that match the config filters.
-func listNetworkInterfaces(ctx context.Context, client NetworkInterfaceAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+func listNetworkInterfaces(ctx context.Context, client NetworkInterfaceAPI, scope resource.Scope, cfg config.ResourceType, defaultOnly bool) ([]*string, error) {
+	// When defaultOnly is true, get the list of default VPC IDs to filter by
+	var defaultVpcIds map[string]bool
+	if defaultOnly {
+		defaultVpcIds = make(map[string]bool)
+		vpcs, err := client.DescribeVpcs(ctx, &ec2.DescribeVpcsInput{
+			Filters: []types.Filter{
+				{Name: aws.String("is-default"), Values: []string{"true"}},
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, vpc := range vpcs.Vpcs {
+			defaultVpcIds[aws.ToString(vpc.VpcId)] = true
+		}
+		if len(defaultVpcIds) == 0 {
+			return nil, nil
+		}
+	}
+
 	var interfaceIds []*string
 
 	paginator := ec2.NewDescribeNetworkInterfacesPaginator(client, &ec2.DescribeNetworkInterfacesInput{})
@@ -61,6 +79,11 @@ func listNetworkInterfaces(ctx context.Context, client NetworkInterfaceAPI, scop
 		}
 
 		for _, networkInterface := range page.NetworkInterfaces {
+			// When defaultOnly is true, skip network interfaces not in default VPCs
+			if defaultOnly && !defaultVpcIds[aws.ToString(networkInterface.VpcId)] {
+				continue
+			}
+
 			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, networkInterface.NetworkInterfaceId, util.ConvertTypesTagsToMap(networkInterface.TagSet))
 			if err != nil {
 				logging.Errorf("[Network Interface] Unable to retrieve first seen tag for %s: %s", aws.ToString(networkInterface.NetworkInterfaceId), err)

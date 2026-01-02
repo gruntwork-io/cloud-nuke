@@ -24,7 +24,7 @@ type DBInstancesAPI interface {
 func NewDBInstances() AwsResource {
 	return NewAwsResource(&resource.Resource[DBInstancesAPI]{
 		ResourceTypeName: "rds",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBInstancesAPI], cfg aws.Config) {
 			r.Client = rds.NewFromConfig(cfg)
 		}),

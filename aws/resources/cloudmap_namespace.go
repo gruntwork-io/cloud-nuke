@@ -23,7 +23,7 @@ type CloudMapNamespacesAPI interface {
 func NewCloudMapNamespaces() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudMapNamespacesAPI]{
 		ResourceTypeName: "cloudmap-namespace",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudMapNamespacesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = servicediscovery.NewFromConfig(cfg)

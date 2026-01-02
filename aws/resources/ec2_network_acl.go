@@ -25,7 +25,7 @@ type NetworkACLAPI interface {
 func NewNetworkACL() AwsResource {
 	return NewAwsResource(&resource.Resource[NetworkACLAPI]{
 		ResourceTypeName: "network-acl",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[NetworkACLAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

@@ -24,7 +24,7 @@ type DynamoDBAPI interface {
 func NewDynamoDB() AwsResource {
 	return NewAwsResource(&resource.Resource[DynamoDBAPI]{
 		ResourceTypeName: "dynamodb",
-		BatchSize:        49, // Tentative batch size to ensure AWS doesn't throttle
+		BatchSize:        DefaultBatchSize, // Tentative batch size to ensure AWS doesn't throttle
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DynamoDBAPI], cfg aws.Config) {
 			r.Client = dynamodb.NewFromConfig(cfg)
 		}),

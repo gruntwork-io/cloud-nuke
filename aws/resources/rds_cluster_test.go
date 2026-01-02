@@ -46,7 +46,7 @@ func TestDBClusters_ResourceName(t *testing.T) {
 func TestDBClusters_MaxBatchSize(t *testing.T) {
 	t.Parallel()
 	r := NewDBClusters()
-	assert.Equal(t, 49, r.MaxBatchSize())
+	assert.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestListDBClusters(t *testing.T) {

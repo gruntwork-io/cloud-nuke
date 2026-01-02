@@ -24,7 +24,7 @@ type DBClustersAPI interface {
 func NewDBClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[DBClustersAPI]{
 		ResourceTypeName: "rds-cluster",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBClustersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)

@@ -17,6 +17,7 @@ import (
 // InternetGatewayAPI defines the interface for Internet Gateway operations.
 type InternetGatewayAPI interface {
 	DescribeInternetGateways(ctx context.Context, params *ec2.DescribeInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInternetGatewaysOutput, error)
+	DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error)
 	DeleteInternetGateway(ctx context.Context, params *ec2.DeleteInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteInternetGatewayOutput, error)
 	DetachInternetGateway(ctx context.Context, params *ec2.DetachInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachInternetGatewayOutput, error)
 	CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
@@ -24,32 +25,53 @@ type InternetGatewayAPI interface {
 
 // NewInternetGateway creates a new InternetGateway resource using the generic resource pattern.
 func NewInternetGateway() AwsResource {
-	return NewAwsResource(&resource.Resource[InternetGatewayAPI]{
-		ResourceTypeName: "internet-gateway",
-		BatchSize:        50,
-		InitClient: WrapAwsInitClient(func(r *resource.Resource[InternetGatewayAPI], cfg aws.Config) {
+	return NewEC2AwsResource[InternetGatewayAPI](
+		"internet-gateway",
+		WrapAwsInitClient(func(r *resource.Resource[InternetGatewayAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)
 		}),
-		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.InternetGateway
-		},
-		Lister: listInternetGateways,
-		Nuker:  resource.MultiStepDeleter(detachInternetGateway, deleteInternetGateway),
-		PermissionVerifier: func(ctx context.Context, client InternetGatewayAPI, id *string) error {
-			_, err := client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
-				InternetGatewayId: id,
-				DryRun:            aws.Bool(true),
-			})
-			return err
-		},
+		func(c config.Config) config.EC2ResourceType { return c.InternetGateway },
+		listInternetGateways,
+		resource.MultiStepDeleter(detachInternetGateway, deleteInternetGateway),
+		&EC2ResourceOptions[InternetGatewayAPI]{PermissionVerifier: verifyInternetGatewayPermission},
+	)
+}
+
+// verifyInternetGatewayPermission performs a dry-run delete to check permissions.
+func verifyInternetGatewayPermission(ctx context.Context, client InternetGatewayAPI, id *string) error {
+	_, err := client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
+		InternetGatewayId: id,
+		DryRun:            aws.Bool(true),
 	})
+	return err
 }
 
 // listInternetGateways retrieves all Internet Gateways that match the config filters.
-func listInternetGateways(ctx context.Context, client InternetGatewayAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	var identifiers []*string
+// When defaultOnly is true, only IGWs attached to default VPCs are returned (for defaults-aws command).
+func listInternetGateways(ctx context.Context, client InternetGatewayAPI, scope resource.Scope, cfg config.ResourceType, defaultOnly bool) ([]*string, error) {
+	// When defaultOnly is true, get the list of default VPC IDs to filter by
+	var defaultVpcIds map[string]bool
+	if defaultOnly {
+		defaultVpcIds = make(map[string]bool)
+		vpcs, err := client.DescribeVpcs(ctx, &ec2.DescribeVpcsInput{
+			Filters: []types.Filter{
+				{Name: aws.String("is-default"), Values: []string{"true"}},
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to describe default VPCs: %w", err)
+		}
+		for _, vpc := range vpcs.Vpcs {
+			defaultVpcIds[aws.ToString(vpc.VpcId)] = true
+		}
+		if len(defaultVpcIds) == 0 {
+			logging.Debugf("[Internet Gateway] No default VPCs found, skipping")
+			return nil, nil
+		}
+	}
 
+	var identifiers []*string
 	paginator := ec2.NewDescribeInternetGatewaysPaginator(client, &ec2.DescribeInternetGatewaysInput{})
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
@@ -59,6 +81,20 @@ func listInternetGateways(ctx context.Context, client InternetGatewayAPI, scope 
 		}
 
 		for _, ig := range page.InternetGateways {
+			// When defaultOnly is true, skip IGWs not attached to default VPCs
+			if defaultOnly {
+				attachedToDefault := false
+				for _, att := range ig.Attachments {
+					if defaultVpcIds[aws.ToString(att.VpcId)] {
+						attachedToDefault = true
+						break
+					}
+				}
+				if !attachedToDefault {
+					continue
+				}
+			}
+
 			tagMap := util.ConvertTypesTagsToMap(ig.Tags)
 			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, ig.InternetGatewayId, tagMap)
 			if err != nil {
@@ -140,34 +176,5 @@ func deleteInternetGateway(ctx context.Context, client InternetGatewayAPI, id *s
 	}
 
 	logging.Debugf("Successfully deleted Internet Gateway %s", aws.ToString(id))
-	return nil
-}
-
-// nukeInternetGateway detaches and deletes an internet gateway with an explicit VPC ID.
-// This function is exported for use by ec2_vpc.go when cleaning up VPC resources.
-func nukeInternetGateway(client InternetGatewayAPI, gatewayId *string, vpcID string) error {
-	ctx := context.Background()
-
-	logging.Debugf("Detaching Internet Gateway %s from VPC %s", aws.ToString(gatewayId), vpcID)
-	_, err := client.DetachInternetGateway(ctx, &ec2.DetachInternetGatewayInput{
-		InternetGatewayId: gatewayId,
-		VpcId:             aws.String(vpcID),
-	})
-	if err != nil {
-		logging.Debugf("Failed to detach internet gateway %s: %s", aws.ToString(gatewayId), err)
-		return err
-	}
-	logging.Debugf("Successfully detached internet gateway %s", aws.ToString(gatewayId))
-
-	logging.Debugf("Deleting internet gateway %s", aws.ToString(gatewayId))
-	_, err = client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
-		InternetGatewayId: gatewayId,
-	})
-	if err != nil {
-		logging.Debugf("Failed to delete internet gateway %s: %s", aws.ToString(gatewayId), err)
-		return err
-	}
-	logging.Debugf("Successfully deleted internet gateway %s", aws.ToString(gatewayId))
-
 	return nil
 }

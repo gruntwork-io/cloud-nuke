@@ -21,39 +21,19 @@ type EC2VpcAPI interface {
 	CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
 }
 
-// ec2VpcResource holds extra state needed for EC2 VPC operations.
-type ec2VpcResource struct {
-	*resource.Resource[EC2VpcAPI]
-	defaultOnly bool
-}
-
 // NewEC2VPC creates a new EC2 VPC resource using the generic resource pattern.
 func NewEC2VPC() AwsResource {
-	r := &ec2VpcResource{
-		Resource: &resource.Resource[EC2VpcAPI]{
-			ResourceTypeName: "vpc",
-			BatchSize:        49,
-		},
-	}
-
-	r.InitClient = WrapAwsInitClient(func(res *resource.Resource[EC2VpcAPI], cfg aws.Config) {
-		res.Scope.Region = cfg.Region
-		res.Client = ec2.NewFromConfig(cfg)
-	})
-
-	r.ConfigGetter = func(c config.Config) config.ResourceType {
-		// Store the DefaultOnly flag for use in the lister
-		r.defaultOnly = c.VPC.DefaultOnly
-		return c.VPC.ResourceType
-	}
-
-	r.Lister = func(ctx context.Context, client EC2VpcAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-		return listVPCs(ctx, client, scope, cfg, r.defaultOnly)
-	}
-
-	r.Nuker = resource.SequentialDeleter(deleteVPC)
-
-	return &AwsResourceAdapter[EC2VpcAPI]{Resource: r.Resource}
+	return NewEC2AwsResource[EC2VpcAPI](
+		"vpc",
+		WrapAwsInitClient(func(r *resource.Resource[EC2VpcAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		func(c config.Config) config.EC2ResourceType { return c.VPC },
+		listVPCs,
+		resource.SequentialDeleter(deleteVPC),
+		nil,
+	)
 }
 
 func listVPCs(ctx context.Context, client EC2VpcAPI, scope resource.Scope, cfg config.ResourceType, defaultOnly bool) ([]*string, error) {

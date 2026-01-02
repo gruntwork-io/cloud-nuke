@@ -24,7 +24,7 @@ type BackupVaultAPI interface {
 func NewBackupVault() AwsResource {
 	return NewAwsResource(&resource.Resource[BackupVaultAPI]{
 		ResourceTypeName: "backup-vault",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[BackupVaultAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = backup.NewFromConfig(cfg)

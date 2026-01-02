@@ -21,6 +21,7 @@ type mockNetworkInterfaceClient struct {
 	DescribeAddrOutput ec2.DescribeAddressesOutput
 	TerminateOutput    ec2.TerminateInstancesOutput
 	ReleaseOutput      ec2.ReleaseAddressOutput
+	DescribeVpcsOutput ec2.DescribeVpcsOutput
 	DescribeError      error
 	DeleteError        error
 	DescribeAddrError  error
@@ -53,6 +54,10 @@ func (m *mockNetworkInterfaceClient) DescribeInstances(ctx context.Context, para
 
 func (m *mockNetworkInterfaceClient) CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
 	return &ec2.CreateTagsOutput{}, nil
+}
+
+func (m *mockNetworkInterfaceClient) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
+	return &m.DescribeVpcsOutput, nil
 }
 
 func TestListNetworkInterfaces(t *testing.T) {
@@ -217,7 +222,7 @@ func TestListNetworkInterfaces(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-			ids, err := listNetworkInterfaces(ctx, tc.mock, resource.Scope{}, tc.cfg)
+			ids, err := listNetworkInterfaces(ctx, tc.mock, resource.Scope{}, tc.cfg, false)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})

@@ -51,7 +51,7 @@ func TestDynamoDB_ResourceName(t *testing.T) {
 func TestDynamoDB_MaxBatchSize(t *testing.T) {
 	t.Parallel()
 	r := NewDynamoDB()
-	assert.Equal(t, 49, r.MaxBatchSize())
+	assert.Equal(t, DefaultBatchSize, r.MaxBatchSize())
 }
 
 func TestListDynamoDBTables(t *testing.T) {

@@ -25,7 +25,7 @@ type VPCLatticeServiceNetworkAPI interface {
 func NewVPCLatticeServiceNetwork() AwsResource {
 	return NewAwsResource(&resource.Resource[VPCLatticeServiceNetworkAPI]{
 		ResourceTypeName: "vpc-lattice-service-network",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[VPCLatticeServiceNetworkAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = vpclattice.NewFromConfig(cfg)

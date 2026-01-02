@@ -18,12 +18,17 @@ import (
 type mockedInternetGateway struct {
 	InternetGatewayAPI
 	DescribeInternetGatewaysOutput ec2.DescribeInternetGatewaysOutput
+	DescribeVpcsOutput             ec2.DescribeVpcsOutput
 	DetachInternetGatewayOutput    ec2.DetachInternetGatewayOutput
 	DeleteInternetGatewayOutput    ec2.DeleteInternetGatewayOutput
 }
 
 func (m mockedInternetGateway) DescribeInternetGateways(ctx context.Context, params *ec2.DescribeInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInternetGatewaysOutput, error) {
 	return &m.DescribeInternetGatewaysOutput, nil
+}
+
+func (m mockedInternetGateway) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
+	return &m.DescribeVpcsOutput, nil
 }
 
 func (m mockedInternetGateway) DetachInternetGateway(ctx context.Context, params *ec2.DetachInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachInternetGatewayOutput, error) {
@@ -95,7 +100,7 @@ func TestInternetGateway_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := listInternetGateways(ctx, mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj)
+			names, err := listInternetGateways(ctx, mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj, false)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})

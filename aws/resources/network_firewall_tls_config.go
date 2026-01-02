@@ -23,7 +23,7 @@ type NetworkFirewallTLSConfigAPI interface {
 func NewNetworkFirewallTLSConfig() AwsResource {
 	return NewAwsResource(&resource.Resource[NetworkFirewallTLSConfigAPI]{
 		ResourceTypeName: "network-firewall-tls-config",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[NetworkFirewallTLSConfigAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = networkfirewall.NewFromConfig(cfg)

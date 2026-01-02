@@ -21,7 +21,7 @@ type RedshiftClustersAPI interface {
 func NewRedshiftClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[RedshiftClustersAPI]{
 		ResourceTypeName: "redshift",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RedshiftClustersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = redshift.NewFromConfig(cfg)

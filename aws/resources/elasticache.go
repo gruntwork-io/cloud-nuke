@@ -27,7 +27,7 @@ func NewElasticaches() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticachesAPI]{
 		ResourceTypeName: "elasticache",
 		// Tentative batch size to ensure AWS doesn't throttle
-		BatchSize: 49,
+		BatchSize: DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticachesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = elasticache.NewFromConfig(cfg)

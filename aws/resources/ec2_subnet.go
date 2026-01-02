@@ -19,40 +19,19 @@ type EC2SubnetAPI interface {
 	DescribeSubnets(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
 }
 
-// ec2SubnetResource holds extra state needed for EC2 Subnet operations.
-type ec2SubnetResource struct {
-	*resource.Resource[EC2SubnetAPI]
-	defaultOnly bool
-}
-
 // NewEC2Subnet creates a new EC2 Subnet resource using the generic resource pattern.
 func NewEC2Subnet() AwsResource {
-	r := &ec2SubnetResource{
-		Resource: &resource.Resource[EC2SubnetAPI]{
-			ResourceTypeName: "ec2-subnet",
-			BatchSize:        49,
-		},
-	}
-
-	r.InitClient = WrapAwsInitClient(func(res *resource.Resource[EC2SubnetAPI], cfg aws.Config) {
-		res.Scope.Region = cfg.Region
-		res.Client = ec2.NewFromConfig(cfg)
-	})
-
-	r.ConfigGetter = func(c config.Config) config.ResourceType {
-		// Store the DefaultOnly flag for use in the lister
-		r.defaultOnly = c.EC2Subnet.DefaultOnly
-		return c.EC2Subnet.ResourceType
-	}
-
-	r.Lister = func(ctx context.Context, client EC2SubnetAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-		return listEC2Subnets(ctx, client, scope, cfg, r.defaultOnly)
-	}
-
-	r.Nuker = resource.SimpleBatchDeleter(deleteSubnet)
-	r.PermissionVerifier = verifyEC2SubnetPermission
-
-	return &AwsResourceAdapter[EC2SubnetAPI]{Resource: r.Resource}
+	return NewEC2AwsResource[EC2SubnetAPI](
+		"ec2-subnet",
+		WrapAwsInitClient(func(r *resource.Resource[EC2SubnetAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		func(c config.Config) config.EC2ResourceType { return c.EC2Subnet },
+		listEC2Subnets,
+		resource.SimpleBatchDeleter(deleteSubnet),
+		&EC2ResourceOptions[EC2SubnetAPI]{PermissionVerifier: verifyEC2SubnetPermission},
+	)
 }
 
 // listEC2Subnets retrieves all EC2 Subnets that match the config filters.

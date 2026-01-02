@@ -24,7 +24,7 @@ type EC2DhcpOptionAPI interface {
 func NewEC2DhcpOptions() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2DhcpOptionAPI]{
 		ResourceTypeName: "ec2-dhcp-option",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2DhcpOptionAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

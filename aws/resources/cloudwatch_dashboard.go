@@ -19,7 +19,7 @@ type CloudWatchDashboardsAPI interface {
 func NewCloudWatchDashboards() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudWatchDashboardsAPI]{
 		ResourceTypeName: "cloudwatch-dashboard",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudWatchDashboardsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = cloudwatch.NewFromConfig(cfg)

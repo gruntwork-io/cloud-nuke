@@ -22,7 +22,7 @@ type DBSubnetGroupsAPI interface {
 func NewDBSubnetGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[DBSubnetGroupsAPI]{
 		ResourceTypeName: "rds-subnet-group",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBSubnetGroupsAPI], cfg aws.Config) {
 			r.Client = rds.NewFromConfig(cfg)
 		}),

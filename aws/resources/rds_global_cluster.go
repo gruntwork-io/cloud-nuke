@@ -25,7 +25,7 @@ type DBGlobalClustersAPI interface {
 func NewDBGlobalClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[DBGlobalClustersAPI]{
 		ResourceTypeName: "rds-global-cluster",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBGlobalClustersAPI], cfg aws.Config) {
 			r.Scope.Region = "global"

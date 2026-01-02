@@ -63,7 +63,7 @@ type Config struct {
 	EC2IPAMPool                     ResourceType                  `yaml:"EC2IPAMPool"`
 	EC2IPAMResourceDiscovery        ResourceType                  `yaml:"EC2IPAMResourceDiscovery"`
 	EC2IPAMScope                    ResourceType                  `yaml:"EC2IPAMScope"`
-	EC2Endpoint                     ResourceType                  `yaml:"EC2Endpoint"`
+	EC2Endpoint                     EC2ResourceType               `yaml:"EC2Endpoint"`
 	EC2Subnet                       EC2ResourceType               `yaml:"EC2Subnet"`
 	EC2PlacementGroups              ResourceType                  `yaml:"EC2PlacementGroups"`
 	EgressOnlyInternetGateway       ResourceType                  `yaml:"EgressOnlyInternetGateway"`
@@ -101,7 +101,7 @@ type Config struct {
 	LaunchTemplate                  ResourceType                  `yaml:"LaunchTemplate"`
 	MacieMember                     ResourceType                  `yaml:"MacieMember"`
 	MSKCluster                      ResourceType                  `yaml:"MSKCluster"`
-	NatGateway                      ResourceType                  `yaml:"NatGateway"`
+	NatGateway                      EC2ResourceType               `yaml:"NatGateway"`
 	OIDCProvider                    ResourceType                  `yaml:"OIDCProvider"`
 	OpenSearchDomain                ResourceType                  `yaml:"OpenSearchDomain"`
 	Redshift                        ResourceType                  `yaml:"Redshift"`
@@ -135,9 +135,9 @@ type Config struct {
 	Route53HostedZone               ResourceType                  `yaml:"Route53HostedZone"`
 	Route53CIDRCollection           ResourceType                  `yaml:"Route53CIDRCollection"`
 	Route53TrafficPolicy            ResourceType                  `yaml:"Route53TrafficPolicy"`
-	InternetGateway                 ResourceType                  `yaml:"InternetGateway"`
+	InternetGateway                 EC2ResourceType               `yaml:"InternetGateway"`
 	NetworkACL                      ResourceType                  `yaml:"NetworkACL"`
-	NetworkInterface                ResourceType                  `yaml:"NetworkInterface"`
+	NetworkInterface                EC2ResourceType               `yaml:"NetworkInterface"`
 	SecurityGroup                   EC2ResourceType               `yaml:"SecurityGroup"`
 	NetworkFirewall                 ResourceType                  `yaml:"NetworkFirewall"`
 	NetworkFirewallPolicy           ResourceType                  `yaml:"NetworkFirewallPolicy"`
@@ -189,29 +189,6 @@ func (c *Config) addTimeOut(timeout *time.Duration, fieldName string) {
 	}
 }
 
-func (c *Config) addDefautlOnly(flag bool) {
-	// Do nothing if the flag filter is false, by default it will be false
-	if flag == false {
-		return
-	}
-
-	v := reflect.ValueOf(c).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if field.Kind() != reflect.Struct {
-			continue
-		}
-
-		defaultOnlyField := field.FieldByName("DefaultOnly")
-		// IsValid reports whether v represents a value.
-		// It returns false if v is the zero Value.
-		// If IsValid returns false, all other methods except String panic.
-		if defaultOnlyField.IsValid() {
-			defaultOnlyVal := defaultOnlyField.Addr().Interface().(*bool)
-			*defaultOnlyVal = flag
-		}
-	}
-}
 
 func (c *Config) addBoolFlag(flag bool, fieldName string) {
 	// Do nothing if the flag filter is false, by default it will be false

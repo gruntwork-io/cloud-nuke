@@ -27,7 +27,7 @@ type LambdaLayersAPI interface {
 func NewLambdaLayers() AwsResource {
 	return NewAwsResource(&resource.Resource[LambdaLayersAPI]{
 		ResourceTypeName: "lambda_layer",
-		BatchSize:        49,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[LambdaLayersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = lambda.NewFromConfig(cfg)
