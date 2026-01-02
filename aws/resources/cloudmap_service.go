@@ -9,71 +9,112 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/servicediscovery"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// getAll retrieves all Cloud Map services in the current region that match the configured filters.
-// It uses pagination to handle large numbers of services.
-func (cms *CloudMapServices) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var result []*string
+// CloudMapServicesAPI defines the interface for AWS Cloud Map API operations.
+type CloudMapServicesAPI interface {
+	ListServices(ctx context.Context, params *servicediscovery.ListServicesInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListServicesOutput, error)
+	DeleteService(ctx context.Context, params *servicediscovery.DeleteServiceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.DeleteServiceOutput, error)
+	ListInstances(ctx context.Context, params *servicediscovery.ListInstancesInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListInstancesOutput, error)
+	DeregisterInstance(ctx context.Context, params *servicediscovery.DeregisterInstanceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.DeregisterInstanceOutput, error)
+	ListTagsForResource(ctx context.Context, params *servicediscovery.ListTagsForResourceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListTagsForResourceOutput, error)
+}
 
-	// Create a paginator to iterate through all services
-	paginator := servicediscovery.NewListServicesPaginator(cms.Client, &servicediscovery.ListServicesInput{})
+// NewCloudMapServices creates a new CloudMapServices resource using the generic resource pattern.
+func NewCloudMapServices() AwsResource {
+	return NewAwsResource(&resource.Resource[CloudMapServicesAPI]{
+		ResourceTypeName: "cloudmap-service",
+		BatchSize:        50,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudMapServicesAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = servicediscovery.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.CloudMapService
+		},
+		Lister: listCloudMapServices,
+		Nuker:  resource.SequentialDeleter(deleteCloudMapService),
+	})
+}
 
+// listCloudMapServices retrieves all Cloud Map services matching the config filters.
+func listCloudMapServices(ctx context.Context, client CloudMapServicesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var serviceIds []*string
+
+	paginator := servicediscovery.NewListServicesPaginator(client, &servicediscovery.ListServicesInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(cms.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Filter services based on configured rules (name patterns, creation time, tags, etc.)
 		for _, service := range page.Services {
-			// Get all tags for the service for filtering purposes
-			tags, err := cms.getAllTags(service.Arn)
+			tags, err := getCloudMapServiceTags(ctx, client, service.Arn)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				logging.Debugf("Error getting tags for Cloud Map service %s: %s", aws.ToString(service.Id), err)
+				// Continue without tags rather than failing entirely
+				tags = nil
 			}
 
-			if configObj.CloudMapService.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: service.Name,
 				Time: service.CreateDate,
 				Tags: tags,
 			}) {
-				result = append(result, service.Id)
+				serviceIds = append(serviceIds, service.Id)
 			}
 		}
 	}
 
-	return result, nil
+	return serviceIds, nil
 }
 
-// deregisterAllInstances removes all service instances registered with the given service.
-// This is required before a service can be deleted.
-func (cms *CloudMapServices) deregisterAllInstances(serviceId *string) error {
-	// List all instances for this service
-	paginator := servicediscovery.NewListInstancesPaginator(cms.Client, &servicediscovery.ListInstancesInput{
+// deleteCloudMapService deletes a single Cloud Map service after deregistering all its instances.
+func deleteCloudMapService(ctx context.Context, client CloudMapServicesAPI, serviceId *string) error {
+	// Step 1: Deregister all instances
+	if err := deregisterCloudMapInstances(ctx, client, serviceId); err != nil {
+		return err
+	}
+
+	// Step 2: Wait for instances to be fully deregistered
+	if err := waitForCloudMapInstanceDeregistration(ctx, client, serviceId); err != nil {
+		return err
+	}
+
+	// Step 3: Delete the service
+	_, err := client.DeleteService(ctx, &servicediscovery.DeleteServiceInput{
+		Id: serviceId,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+// deregisterCloudMapInstances removes all instances from a Cloud Map service.
+func deregisterCloudMapInstances(ctx context.Context, client CloudMapServicesAPI, serviceId *string) error {
+	paginator := servicediscovery.NewListInstancesPaginator(client, &servicediscovery.ListInstancesInput{
 		ServiceId: serviceId,
 	})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(cms.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 
-		// Deregister each instance found
 		for _, instance := range page.Instances {
-			logging.Debugf("Deregistering instance %s from service %s", *instance.Id, *serviceId)
-
-			_, err := cms.Client.DeregisterInstance(cms.Context, &servicediscovery.DeregisterInstanceInput{
+			logging.Debugf("Deregistering instance %s from service %s", aws.ToString(instance.Id), aws.ToString(serviceId))
+			_, err := client.DeregisterInstance(ctx, &servicediscovery.DeregisterInstanceInput{
 				ServiceId:  serviceId,
 				InstanceId: instance.Id,
 			})
-
-			// Log but don't fail on individual instance deregistration errors
 			if err != nil {
-				logging.Debugf("Error deregistering instance %s: %s", *instance.Id, err)
+				// Log but continue - instance may already be deregistered
+				logging.Debugf("Error deregistering instance %s: %s", aws.ToString(instance.Id), err)
 			}
 		}
 	}
@@ -81,111 +122,61 @@ func (cms *CloudMapServices) deregisterAllInstances(serviceId *string) error {
 	return nil
 }
 
-// waitForInstanceDeregistration waits for all instances to be fully deregistered from a service.
-// Cloud Map requires all instances to be deregistered before a service can be deleted.
-// This function polls for up to 2.5 minutes (30 retries * 5 seconds) for instances to be cleared.
-func (cms *CloudMapServices) waitForInstanceDeregistration(serviceId *string) error {
-	maxRetries := 30
-	sleepBetweenRetries := 5 * time.Second
+// waitForCloudMapInstanceDeregistration waits for all instances to be deregistered from a service.
+func waitForCloudMapInstanceDeregistration(ctx context.Context, client CloudMapServicesAPI, serviceId *string) error {
+	const (
+		maxRetries        = 30
+		sleepBetweenPolls = 5 * time.Second
+	)
 
 	for i := 0; i < maxRetries; i++ {
-		// Check if any instances still exist for this service
-		paginator := servicediscovery.NewListInstancesPaginator(cms.Client, &servicediscovery.ListInstancesInput{
-			ServiceId: serviceId,
-		})
-
-		hasInstances := false
-		for paginator.HasMorePages() {
-			page, err := paginator.NextPage(cms.Context)
-			if err != nil {
-				return errors.WithStackTrace(err)
-			}
-
-			if len(page.Instances) > 0 {
-				hasInstances = true
-				break
-			}
+		hasInstances, err := serviceHasInstances(ctx, client, serviceId)
+		if err != nil {
+			return err
 		}
 
-		// If no instances remain, service is safe to delete
 		if !hasInstances {
 			return nil
 		}
 
-		logging.Debugf("Waiting for instances in service %s to be deregistered (attempt %d/%d)", *serviceId, i+1, maxRetries)
-		time.Sleep(sleepBetweenRetries)
+		logging.Debugf("Waiting for instances in service %s to be deregistered (attempt %d/%d)",
+			aws.ToString(serviceId), i+1, maxRetries)
+		time.Sleep(sleepBetweenPolls)
 	}
 
-	return errors.WithStackTrace(fmt.Errorf("timeout waiting for instances to be deregistered in service %s", *serviceId))
+	return errors.WithStackTrace(fmt.Errorf("timeout waiting for instances to be deregistered in service %s", aws.ToString(serviceId)))
 }
 
-// nukeAll deletes all specified Cloud Map services.
-// It ensures that all service instances are deregistered before attempting to delete each service.
-func (cms *CloudMapServices) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Cloud Map services to nuke in region %s", cms.Region)
-		return nil
-	}
+// serviceHasInstances checks if a Cloud Map service has any registered instances.
+func serviceHasInstances(ctx context.Context, client CloudMapServicesAPI, serviceId *string) (bool, error) {
+	paginator := servicediscovery.NewListInstancesPaginator(client, &servicediscovery.ListInstancesInput{
+		ServiceId: serviceId,
+	})
 
-	logging.Debugf("Deleting %d Cloud Map services in region %s", len(identifiers), cms.Region)
-
-	var deletedServices []*string
-	for _, id := range identifiers {
-		// First, deregister all instances in the service
-		err := cms.deregisterAllInstances(id)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("Error deregistering instances for service %s: %s", *id, err)
+			return false, errors.WithStackTrace(err)
 		}
-
-		// Wait for all instances to be fully deregistered
-		err = cms.waitForInstanceDeregistration(id)
-		if err != nil {
-			logging.Debugf("Error waiting for instances to be deregistered in service %s: %s", *id, err)
-		}
-
-		// Attempt to delete the service
-		input := &servicediscovery.DeleteServiceInput{
-			Id: id,
-		}
-
-		_, err = cms.Client.DeleteService(cms.Context, input)
-
-		// Record the deletion attempt for reporting
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Cloud Map Service",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("Error deleting Cloud Map service %s: %s", *id, err)
-		} else {
-			logging.Debugf("Successfully deleted Cloud Map service: %s", *id)
-			deletedServices = append(deletedServices, id)
+		if len(page.Instances) > 0 {
+			return true, nil
 		}
 	}
 
-	logging.Debugf("[OK] %d of %d Cloud Map service(s) deleted in %s", len(deletedServices), len(identifiers), cms.Region)
-
-	return nil
+	return false, nil
 }
 
-// getAllTags retrieves all tags for a given Cloud Map service.
-// Returns a map of tag keys to tag values.
-func (cms *CloudMapServices) getAllTags(serviceArn *string) (map[string]string, error) {
-	input := &servicediscovery.ListTagsForResourceInput{
+// getCloudMapServiceTags retrieves all tags for a Cloud Map service.
+func getCloudMapServiceTags(ctx context.Context, client CloudMapServicesAPI, serviceArn *string) (map[string]string, error) {
+	output, err := client.ListTagsForResource(ctx, &servicediscovery.ListTagsForResourceInput{
 		ResourceARN: serviceArn,
-	}
-
-	serviceTags, err := cms.Client.ListTagsForResource(cms.Context, input)
+	})
 	if err != nil {
-		logging.Debugf("Error getting the tags for Cloud Map service with ARN %s", aws.ToString(serviceArn))
 		return nil, errors.WithStackTrace(err)
 	}
 
 	tags := make(map[string]string)
-	for _, tag := range serviceTags.Tags {
+	for _, tag := range output.Tags {
 		if tag.Key != nil && tag.Value != nil {
 			tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
 		}

@@ -106,18 +106,18 @@ func TestStructuredErrors(t *testing.T) {
 func TestListResourceTypes(t *testing.T) {
 	allAWSResourceTypes := aws.ListResourceTypes()
 	assert.Greater(t, len(allAWSResourceTypes), 0)
-	assert.Contains(t, allAWSResourceTypes, (&resources.EC2Instances{}).ResourceName())
+	assert.Contains(t, allAWSResourceTypes, resources.NewEC2Instances().ResourceName())
 }
 
 func TestIsValidResourceType(t *testing.T) {
 	allAWSResourceTypes := aws.ListResourceTypes()
-	ec2ResourceName := (*&resources.EC2Instances{}).ResourceName()
+	ec2ResourceName := resources.NewEC2Instances().ResourceName()
 	assert.Equal(t, aws.IsValidResourceType(ec2ResourceName, allAWSResourceTypes), true)
 	assert.Equal(t, aws.IsValidResourceType("xyz", allAWSResourceTypes), false)
 }
 
 func TestIsNukeable(t *testing.T) {
-	ec2ResourceName := (&resources.EC2Instances{}).ResourceName()
+	ec2ResourceName := resources.NewEC2Instances().ResourceName()
 	amiResourceName := resources.NewAMIs().ResourceName()
 
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{ec2ResourceName}), true)

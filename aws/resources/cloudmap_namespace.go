@@ -2,177 +2,111 @@ package resources
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/servicediscovery"
-	"github.com/aws/aws-sdk-go-v2/service/servicediscovery/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// getAll retrieves all Cloud Map namespaces in the current region that match the configured filters.
-// It uses pagination to handle large numbers of namespaces.
-func (cns *CloudMapNamespaces) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var result []*string
+// CloudMapNamespacesAPI defines the interface for AWS Cloud Map operations.
+type CloudMapNamespacesAPI interface {
+	ListNamespaces(ctx context.Context, params *servicediscovery.ListNamespacesInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListNamespacesOutput, error)
+	DeleteNamespace(ctx context.Context, params *servicediscovery.DeleteNamespaceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.DeleteNamespaceOutput, error)
+	GetNamespace(ctx context.Context, params *servicediscovery.GetNamespaceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.GetNamespaceOutput, error)
+	ListTagsForResource(ctx context.Context, params *servicediscovery.ListTagsForResourceInput, optFns ...func(*servicediscovery.Options)) (*servicediscovery.ListTagsForResourceOutput, error)
+}
 
-	// Create a paginator to iterate through all namespaces
-	paginator := servicediscovery.NewListNamespacesPaginator(cns.Client, &servicediscovery.ListNamespacesInput{})
+// NewCloudMapNamespaces creates a new CloudMapNamespaces resource using the generic resource pattern.
+func NewCloudMapNamespaces() AwsResource {
+	return NewAwsResource(&resource.Resource[CloudMapNamespacesAPI]{
+		ResourceTypeName: "cloudmap-namespace",
+		BatchSize:        50,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudMapNamespacesAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = servicediscovery.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.CloudMapNamespace
+		},
+		Lister: listCloudMapNamespaces,
+		Nuker:  resource.SequentialDeleter(deleteCloudMapNamespace),
+	})
+}
 
+// listCloudMapNamespaces retrieves all Cloud Map namespaces that match the config filters.
+func listCloudMapNamespaces(ctx context.Context, client CloudMapNamespacesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var namespaceIds []*string
+
+	paginator := servicediscovery.NewListNamespacesPaginator(client, &servicediscovery.ListNamespacesInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(cns.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
-		// Filter namespaces based on configured rules (name patterns, creation time, tags, etc.)
 		for _, namespace := range page.Namespaces {
-			// Get all tags for the namespace for filtering purposes
-			tags, err := cns.getAllTags(namespace.Arn)
+			tags, err := getNamespaceTags(ctx, client, namespace.Arn)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 
-			if configObj.CloudMapNamespace.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: namespace.Name,
 				Time: namespace.CreateDate,
 				Tags: tags,
 			}) {
-				result = append(result, namespace.Id)
+				namespaceIds = append(namespaceIds, namespace.Id)
 			}
 		}
 	}
 
-	return result, nil
+	return namespaceIds, nil
 }
 
-// waitForServicesToDelete waits for all services within a namespace to be deleted.
-// Cloud Map requires all services to be removed before a namespace can be deleted.
-// This function polls for up to 5 minutes (30 retries * 10 seconds) for services to be cleared.
-func (cns *CloudMapNamespaces) waitForServicesToDelete(namespaceId *string) error {
-	maxRetries := 30
-	sleepBetweenRetries := 10 * time.Second
-
-	for i := 0; i < maxRetries; i++ {
-		// List all services that belong to this namespace
-		paginator := servicediscovery.NewListServicesPaginator(cns.Client, &servicediscovery.ListServicesInput{
-			Filters: []types.ServiceFilter{
-				{
-					Name:      types.ServiceFilterNameNamespaceId,
-					Values:    []string{*namespaceId},
-					Condition: types.FilterConditionEq,
-				},
-			},
-		})
-
-		// Check if any services still exist in the namespace
-		hasServices := false
-		for paginator.HasMorePages() {
-			page, err := paginator.NextPage(cns.Context)
-			if err != nil {
-				return errors.WithStackTrace(err)
-			}
-
-			if len(page.Services) > 0 {
-				hasServices = true
-				break
-			}
-		}
-
-		// If no services remain, namespace is safe to delete
-		if !hasServices {
-			return nil
-		}
-
-		logging.Debugf("Waiting for services in namespace %s to be deleted (attempt %d/%d)", *namespaceId, i+1, maxRetries)
-		time.Sleep(sleepBetweenRetries)
+// deleteCloudMapNamespace deletes a single Cloud Map namespace.
+// Note: Services must be deleted before namespaces (handled by resource ordering in resource_registry.go).
+func deleteCloudMapNamespace(ctx context.Context, client CloudMapNamespacesAPI, id *string) error {
+	// Log Route53 hosted zone info if present (will be auto-cleaned by AWS)
+	if err := logHostedZoneInfo(ctx, client, id); err != nil {
+		logging.Debugf("Error getting namespace %s: %s", aws.ToString(id), err)
 	}
 
-	return errors.WithStackTrace(fmt.Errorf("timeout waiting for services to be deleted in namespace %s", *namespaceId))
+	_, err := client.DeleteNamespace(ctx, &servicediscovery.DeleteNamespaceInput{Id: id})
+	return err
 }
 
-// nukeAll deletes all specified Cloud Map namespaces.
-// It ensures that services within each namespace are deleted first before attempting to delete the namespace.
-func (cns *CloudMapNamespaces) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Cloud Map namespaces to nuke in region %s", cns.Region)
-		return nil
+// logHostedZoneInfo logs information about Route53 hosted zones that will be auto-cleaned.
+func logHostedZoneInfo(ctx context.Context, client CloudMapNamespacesAPI, id *string) error {
+	resp, err := client.GetNamespace(ctx, &servicediscovery.GetNamespaceInput{Id: id})
+	if err != nil {
+		return err
 	}
 
-	logging.Debugf("Deleting %d Cloud Map namespaces in region %s", len(identifiers), cns.Region)
-
-	var deletedNamespaces []*string
-	for _, id := range identifiers {
-		// First, wait for all services in the namespace to be deleted
-		// This is required because Cloud Map won't allow namespace deletion with active services
-		err := cns.waitForServicesToDelete(id)
-		if err != nil {
-			logging.Debugf("Error waiting for services to be deleted in namespace %s: %s", *id, err)
-		}
-
-		// Get namespace details to check for associated Route53 hosted zones
-		getResp, err := cns.Client.GetNamespace(cns.Context, &servicediscovery.GetNamespaceInput{
-			Id: id,
-		})
-		if err != nil {
-			logging.Debugf("Error getting namespace %s: %s", *id, err)
-			continue
-		}
-
-		// Log if namespace has DNS properties (Route53 hosted zone will be auto-cleaned)
-		if getResp.Namespace.Properties != nil {
-			if getResp.Namespace.Properties.DnsProperties != nil && getResp.Namespace.Properties.DnsProperties.HostedZoneId != nil {
-				logging.Debugf("Namespace %s has associated Route53 hosted zone %s - it will be cleaned automatically",
-					*id, *getResp.Namespace.Properties.DnsProperties.HostedZoneId)
-			}
-		}
-
-		// Attempt to delete the namespace
-		input := &servicediscovery.DeleteNamespaceInput{
-			Id: id,
-		}
-
-		_, err = cns.Client.DeleteNamespace(cns.Context, input)
-
-		// Record the deletion attempt for reporting
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Cloud Map Namespace",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("Error deleting Cloud Map namespace %s: %s", *id, err)
-		} else {
-			logging.Debugf("Successfully deleted Cloud Map namespace: %s", *id)
-			deletedNamespaces = append(deletedNamespaces, id)
-		}
+	if resp.Namespace.Properties != nil &&
+		resp.Namespace.Properties.DnsProperties != nil &&
+		resp.Namespace.Properties.DnsProperties.HostedZoneId != nil {
+		logging.Debugf("Namespace %s has associated Route53 hosted zone %s - it will be cleaned automatically",
+			aws.ToString(id), aws.ToString(resp.Namespace.Properties.DnsProperties.HostedZoneId))
 	}
-
-	logging.Debugf("[OK] %d of %d Cloud Map namespace(s) deleted in %s", len(deletedNamespaces), len(identifiers), cns.Region)
 
 	return nil
 }
 
-// getAllTags retrieves all tags for a given Cloud Map namespace.
-// Returns a map of tag keys to tag values.
-func (cns *CloudMapNamespaces) getAllTags(namespaceArn *string) (map[string]string, error) {
-	input := &servicediscovery.ListTagsForResourceInput{
-		ResourceARN: namespaceArn,
-	}
-
-	namespaceTags, err := cns.Client.ListTagsForResource(cns.Context, input)
+// getNamespaceTags retrieves all tags for a Cloud Map namespace.
+func getNamespaceTags(ctx context.Context, client CloudMapNamespacesAPI, arn *string) (map[string]string, error) {
+	resp, err := client.ListTagsForResource(ctx, &servicediscovery.ListTagsForResourceInput{
+		ResourceARN: arn,
+	})
 	if err != nil {
-		logging.Debugf("Error getting the tags for Cloud Map namespace with ARN %s", aws.ToString(namespaceArn))
+		logging.Debugf("Error getting tags for Cloud Map namespace with ARN %s", aws.ToString(arn))
 		return nil, errors.WithStackTrace(err)
 	}
 
 	tags := make(map[string]string)
-	for _, tag := range namespaceTags.Tags {
+	for _, tag := range resp.Tags {
 		if tag.Key != nil && tag.Value != nil {
 			tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
 		}

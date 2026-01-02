@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/opensearch/types"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
@@ -39,107 +40,120 @@ func (m mockedOpenSearch) ListTags(ctx context.Context, params *opensearch.ListT
 	return &m.ListTagsOutput, nil
 }
 
-// Test we can create an OpenSearch Domain, tag it, and then find the tag
 func TestOpenSearch_GetAll(t *testing.T) {
-
 	t.Parallel()
 
-	// Set excludeFirstSeenTag to false for testing
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+	now := time.Now()
 
 	testName1 := "test-domain1"
 	testName2 := "test-domain2"
-	now := time.Now()
-	osd := OpenSearchDomains{
-		Client: mockedOpenSearch{
-			ListDomainNamesOutput: opensearch.ListDomainNamesOutput{
-				DomainNames: []types.DomainInfo{
-					{DomainName: aws.String(testName1)},
-					{DomainName: aws.String(testName2)},
-				},
-			},
 
-			ListTagsOutput: opensearch.ListTagsOutput{
-				TagList: []types.Tag{
-					{
-						Key:   aws.String(firstSeenTagKey),
-						Value: aws.String(util.FormatTimestamp(now)),
-					},
-					{
-						Key:   aws.String(firstSeenTagKey),
-						Value: aws.String(util.FormatTimestamp(now.Add(1))),
-					},
-				},
+	mockClient := mockedOpenSearch{
+		ListDomainNamesOutput: opensearch.ListDomainNamesOutput{
+			DomainNames: []types.DomainInfo{
+				{DomainName: aws.String(testName1)},
+				{DomainName: aws.String(testName2)},
 			},
-
-			DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
-				DomainStatusList: []types.DomainStatus{
-					{
-						DomainName: aws.String(testName1),
-						Created:    aws.Bool(true),
-						Deleted:    aws.Bool(false),
-					},
-					{
-						DomainName: aws.String(testName2),
-						Created:    aws.Bool(true),
-						Deleted:    aws.Bool(false),
-					},
-				},
+		},
+		ListTagsOutput: opensearch.ListTagsOutput{
+			TagList: []types.Tag{{
+				Key:   aws.String(firstSeenTagKey),
+				Value: aws.String(util.FormatTimestamp(now)),
+			}},
+		},
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
+			DomainStatusList: []types.DomainStatus{
+				{DomainName: aws.String(testName1), Created: aws.Bool(true), Deleted: aws.Bool(false)},
+				{DomainName: aws.String(testName2), Created: aws.Bool(true), Deleted: aws.Bool(false)},
 			},
 		},
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{testName1, testName2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
 			},
 			expected: []string{testName2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
+				},
+			},
 			expected: []string{},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := osd.getAll(tc.ctx, config.Config{
-				OpenSearchDomain: tc.configObj,
-			})
+			names, err := listOpenSearchDomains(ctx, mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestOpenSearch_NukeAll(t *testing.T) {
-
+func TestOpenSearch_GetAll_FiltersDeletedDomains(t *testing.T) {
 	t.Parallel()
 
-	osd := OpenSearchDomains{
-		Client: mockedOpenSearch{
-			DeleteDomainOutput:    opensearch.DeleteDomainOutput{},
-			DescribeDomainsOutput: opensearch.DescribeDomainsOutput{},
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, true)
+
+	mockClient := mockedOpenSearch{
+		ListDomainNamesOutput: opensearch.ListDomainNamesOutput{
+			DomainNames: []types.DomainInfo{
+				{DomainName: aws.String("active-domain")},
+				{DomainName: aws.String("deleted-domain")},
+				{DomainName: aws.String("not-created-domain")},
+			},
+		},
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
+			DomainStatusList: []types.DomainStatus{
+				{DomainName: aws.String("active-domain"), Created: aws.Bool(true), Deleted: aws.Bool(false)},
+				{DomainName: aws.String("deleted-domain"), Created: aws.Bool(true), Deleted: aws.Bool(true)},
+				{DomainName: aws.String("not-created-domain"), Created: aws.Bool(false), Deleted: aws.Bool(false)},
+			},
 		},
 	}
 
-	err := osd.nukeAll([]*string{aws.String("test")})
+	names, err := listOpenSearchDomains(ctx, mockClient, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"active-domain"}, aws.ToStringSlice(names))
+}
+
+func TestOpenSearch_Nuke(t *testing.T) {
+	t.Parallel()
+
+	mockClient := mockedOpenSearch{
+		DeleteDomainOutput:    opensearch.DeleteDomainOutput{},
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{},
+	}
+
+	err := deleteOpenSearchDomain(context.Background(), mockClient, aws.String("test-domain"))
+	require.NoError(t, err)
+}
+
+func TestOpenSearch_WaitForDeleted(t *testing.T) {
+	t.Parallel()
+
+	// Mock returns empty list, meaning domains are deleted
+	mockClient := mockedOpenSearch{
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
+			DomainStatusList: []types.DomainStatus{},
+		},
+	}
+
+	err := waitForOpenSearchDomainsDeleted(context.Background(), mockClient, []string{"test-domain"})
 	require.NoError(t, err)
 }

@@ -10,11 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedLoadBalancers struct {
-	LoadBalancersAPI
 	DescribeLoadBalancersOutput elasticloadbalancing.DescribeLoadBalancersOutput
 	DeleteLoadBalancerOutput    elasticloadbalancing.DeleteLoadBalancerOutput
 }
@@ -33,18 +33,16 @@ func TestElb_GetAll(t *testing.T) {
 	testName1 := "test-name-1"
 	testName2 := "test-name-2"
 	now := time.Now()
-	balancer := LoadBalancers{
-		Client: mockedLoadBalancers{
-			DescribeLoadBalancersOutput: elasticloadbalancing.DescribeLoadBalancersOutput{
-				LoadBalancerDescriptions: []types.LoadBalancerDescription{
-					{
-						LoadBalancerName: aws.String(testName1),
-						CreatedTime:      aws.Time(now),
-					},
-					{
-						LoadBalancerName: aws.String(testName2),
-						CreatedTime:      aws.Time(now.Add(1)),
-					},
+	mock := mockedLoadBalancers{
+		DescribeLoadBalancersOutput: elasticloadbalancing.DescribeLoadBalancersOutput{
+			LoadBalancerDescriptions: []types.LoadBalancerDescription{
+				{
+					LoadBalancerName: aws.String(testName1),
+					CreatedTime:      aws.Time(now),
+				},
+				{
+					LoadBalancerName: aws.String(testName2),
+					CreatedTime:      aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -77,9 +75,7 @@ func TestElb_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := balancer.getAll(context.Background(), config.Config{
-				ELBv1: tc.configObj,
-			})
+			names, err := listLoadBalancers(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -89,12 +85,10 @@ func TestElb_GetAll(t *testing.T) {
 func TestElb_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	balancer := LoadBalancers{
-		Client: mockedLoadBalancers{
-			DeleteLoadBalancerOutput: elasticloadbalancing.DeleteLoadBalancerOutput{},
-		},
+	mock := mockedLoadBalancers{
+		DeleteLoadBalancerOutput: elasticloadbalancing.DeleteLoadBalancerOutput{},
 	}
 
-	err := balancer.nukeAll([]*string{aws.String("test-arn-1"), aws.String("test-arn-2")})
+	err := deleteLoadBalancer(context.Background(), mock, aws.String("test-arn-1"))
 	require.NoError(t, err)
 }

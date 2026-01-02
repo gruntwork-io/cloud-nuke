@@ -10,83 +10,82 @@ import (
 	goerror "github.com/go-errors/errors"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of TransitGatewayVpcAttachment IDs
-func (tgw *TransitGatewaysVpcAttachment) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
-	var identifiers []*string
-	params := &ec2.DescribeTransitGatewayVpcAttachmentsInput{}
+// TransitGatewaysVpcAttachmentAPI defines the interface for TransitGateway VPC Attachment operations.
+type TransitGatewaysVpcAttachmentAPI interface {
+	DeleteTransitGatewayVpcAttachment(ctx context.Context, params *ec2.DeleteTransitGatewayVpcAttachmentInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTransitGatewayVpcAttachmentOutput, error)
+	DescribeTransitGatewayVpcAttachments(ctx context.Context, params *ec2.DescribeTransitGatewayVpcAttachmentsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeTransitGatewayVpcAttachmentsOutput, error)
+}
 
-	hasMorePages := true
-	for hasMorePages {
-		result, err := tgw.Client.DescribeTransitGatewayVpcAttachments(ctx, params)
+// NewTransitGatewaysVpcAttachment creates a new TransitGatewaysVpcAttachment resource using the generic resource pattern.
+func NewTransitGatewaysVpcAttachment() AwsResource {
+	return NewAwsResource(&resource.Resource[TransitGatewaysVpcAttachmentAPI]{
+		ResourceTypeName: "transit-gateway-attachment",
+		BatchSize:        maxBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[TransitGatewaysVpcAttachmentAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.TransitGatewaysVpcAttachment
+		},
+		Lister: listTransitGatewaysVpcAttachments,
+		Nuker:  resource.SequentialDeleteThenWaitAll(deleteTransitGatewayVpcAttachment, waitForTransitGatewayAttachmentsToBeDeleted),
+	})
+}
+
+// listTransitGatewaysVpcAttachments retrieves all Transit Gateway VPC Attachments that match the config filters.
+func listTransitGatewaysVpcAttachments(ctx context.Context, client TransitGatewaysVpcAttachmentAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
+
+	paginator := ec2.NewDescribeTransitGatewayVpcAttachmentsPaginator(client, &ec2.DescribeTransitGatewayVpcAttachmentsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[Transit Gateway] Failed to list transit gateway VPC attachments: %s", err)
 			return nil, errors.WithStackTrace(err)
 		}
 
-		for _, tgwVpcAttachment := range result.TransitGatewayVpcAttachments {
-			if configObj.TransitGatewaysVpcAttachment.ShouldInclude(config.ResourceValue{
-				Time: tgwVpcAttachment.CreationTime,
-			}) && tgwVpcAttachment.State != "deleted" && tgwVpcAttachment.State != "deleting" {
-				identifiers = append(identifiers, tgwVpcAttachment.TransitGatewayAttachmentId)
+		for _, attachment := range page.TransitGatewayVpcAttachments {
+			// Skip deleted or deleting attachments
+			if attachment.State == types.TransitGatewayAttachmentStateDeleted ||
+				attachment.State == types.TransitGatewayAttachmentStateDeleting {
+				continue
 			}
-		}
 
-		params.NextToken = result.NextToken
-		hasMorePages = params.NextToken != nil
+			if !cfg.ShouldInclude(config.ResourceValue{Time: attachment.CreationTime}) {
+				continue
+			}
+
+			identifiers = append(identifiers, attachment.TransitGatewayAttachmentId)
+		}
 	}
 
 	return identifiers, nil
 }
 
-// Delete all TransitGatewayVpcAttachments
-func (tgw *TransitGatewaysVpcAttachment) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No Transit Gateway Vpc Attachments to nuke in region %s", tgw.Region)
-		return nil
+// deleteTransitGatewayVpcAttachment deletes a single Transit Gateway VPC Attachment.
+func deleteTransitGatewayVpcAttachment(ctx context.Context, client TransitGatewaysVpcAttachmentAPI, id *string) error {
+	param := &ec2.DeleteTransitGatewayVpcAttachmentInput{
+		TransitGatewayAttachmentId: id,
 	}
 
-	logging.Debugf("Deleting all Transit Gateway Vpc Attachments in region %s", tgw.Region)
-	var deletedIds []*string
-
-	for _, id := range ids {
-		param := &ec2.DeleteTransitGatewayVpcAttachmentInput{
-			TransitGatewayAttachmentId: id,
-		}
-
-		_, err := tgw.Client.DeleteTransitGatewayVpcAttachment(tgw.Context, param)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: tgw.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Transit Gateway Vpc Attachment: %s", *id)
-		}
+	_, err := client.DeleteTransitGatewayVpcAttachment(ctx, param)
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
-
-	if waiterr := waitForTransitGatewayAttachmentToBeDeleted(*tgw); waiterr != nil {
-		return errors.WithStackTrace(waiterr)
-	}
-	logging.Debugf("[OK] %d Transit Gateway Vpc Attachment(s) deleted in %s", len(deletedIds), tgw.Region)
 	return nil
 }
 
-func waitForTransitGatewayAttachmentToBeDeleted(tgw TransitGatewaysVpcAttachment) error {
+// waitForTransitGatewayAttachmentsToBeDeleted waits for all Transit Gateway attachments to be deleted.
+func waitForTransitGatewayAttachmentsToBeDeleted(ctx context.Context, client TransitGatewaysVpcAttachmentAPI, ids []string) error {
 	for i := 0; i < 30; i++ {
-		gateways, err := tgw.Client.DescribeTransitGatewayVpcAttachments(
-			tgw.Context, &ec2.DescribeTransitGatewayVpcAttachmentsInput{
-				TransitGatewayAttachmentIds: tgw.Ids,
+		gateways, err := client.DescribeTransitGatewayVpcAttachments(
+			ctx, &ec2.DescribeTransitGatewayVpcAttachmentsInput{
+				TransitGatewayAttachmentIds: ids,
 				Filters: []types.Filter{
 					{
 						Name:   aws.String("state"),

@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"testing"
 
@@ -32,55 +31,49 @@ func TestListDataSyncTasks(t *testing.T) {
 
 	testName1 := "test-task-1"
 	testName2 := "test-task-2"
-	testArn1 := fmt.Sprintf("arn::%s", testName1)
-	testArn2 := fmt.Sprintf("arn::%s", testName2)
+	testArn1 := "arn:aws:datasync:us-east-1:123456789012:task/task-1"
+	testArn2 := "arn:aws:datasync:us-east-1:123456789012:task/task-2"
 
 	mock := &mockDataSyncTaskClient{
 		ListTasksOutput: datasync.ListTasksOutput{
 			Tasks: []types.TaskListEntry{
-				{Name: &testName1, TaskArn: aws.String(testArn1)},
-				{Name: &testName2, TaskArn: aws.String(testArn2)},
+				{Name: aws.String(testName1), TaskArn: aws.String(testArn1)},
+				{Name: aws.String(testName2), TaskArn: aws.String(testArn2)},
 			},
 		},
 	}
 
-	arns, err := listDataSyncTasks(context.Background(), mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.ElementsMatch(t, []string{testArn1, testArn2}, aws.ToStringSlice(arns))
-}
-
-func TestListDataSyncTasks_WithFilter(t *testing.T) {
-	t.Parallel()
-
-	testName1 := "test-task-1"
-	testName2 := "skip-this"
-	testArn1 := fmt.Sprintf("arn::%s", testName1)
-	testArn2 := fmt.Sprintf("arn::%s", testName2)
-
-	mock := &mockDataSyncTaskClient{
-		ListTasksOutput: datasync.ListTasksOutput{
-			Tasks: []types.TaskListEntry{
-				{Name: &testName1, TaskArn: aws.String(testArn1)},
-				{Name: &testName2, TaskArn: aws.String(testArn2)},
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testArn1, testArn2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("task-2")}},
+				},
 			},
+			expected: []string{testArn1},
 		},
 	}
 
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
-		},
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			arns, err := listDataSyncTasks(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(arns))
+		})
 	}
-
-	arns, err := listDataSyncTasks(context.Background(), mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Equal(t, []string{testArn1}, aws.ToStringSlice(arns))
 }
 
 func TestDeleteDataSyncTask(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockDataSyncTaskClient{}
-	err := deleteDataSyncTask(context.Background(), mock, aws.String("arn::test-task"))
+	err := deleteDataSyncTask(context.Background(), mock, aws.String("arn:aws:datasync:us-east-1:123456789012:task/task-1"))
 	require.NoError(t, err)
 }

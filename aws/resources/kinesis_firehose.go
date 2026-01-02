@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -20,19 +19,13 @@ type KinesisFirehoseAPI interface {
 func NewKinesisFirehose() AwsResource {
 	return NewAwsResource(&resource.Resource[KinesisFirehoseAPI]{
 		ResourceTypeName: "kinesis-firehose",
-		// Tentative batch size to ensure AWS doesn't throttle. Note that Kinesis Firehose does not support bulk delete,
-		// so we will be deleting this many in parallel using go routines. We pick 35 here, which is half of what the
-		// AWS web console will do. We pick a conservative number here to avoid hitting AWS API rate limits.
+		// Kinesis Firehose does not support bulk delete, so we delete in parallel using goroutines.
+		// Using 35 (half of what the AWS console does) to avoid rate limiting.
 		BatchSize: 35,
-		InitClient: func(r *resource.Resource[KinesisFirehoseAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for Firehose client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = firehose.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[KinesisFirehoseAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = firehose.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.KinesisFirehose
 		},

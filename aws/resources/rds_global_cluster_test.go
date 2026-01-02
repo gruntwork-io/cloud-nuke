@@ -3,78 +3,91 @@ package resources
 import (
 	"context"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/stretchr/testify/require"
 )
 
-type mockedDBGlobalClusters struct {
-	DBGlobalClustersAPI
+type mockDBGlobalClustersClient struct {
 	DescribeGlobalClustersOutput rds.DescribeGlobalClustersOutput
 	DescribeGlobalClustersError  error
 	DeleteGlobalClusterOutput    rds.DeleteGlobalClusterOutput
 }
 
-func (m mockedDBGlobalClusters) DeleteGlobalCluster(ctx context.Context, params *rds.DeleteGlobalClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteGlobalClusterOutput, error) {
-	return &m.DeleteGlobalClusterOutput, nil
-}
-
-func (m mockedDBGlobalClusters) DescribeGlobalClusters(ctx context.Context, input *rds.DescribeGlobalClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeGlobalClustersOutput, error) {
+func (m *mockDBGlobalClustersClient) DescribeGlobalClusters(ctx context.Context, params *rds.DescribeGlobalClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeGlobalClustersOutput, error) {
 	return &m.DescribeGlobalClustersOutput, m.DescribeGlobalClustersError
 }
 
-func TestRDSGlobalClusterGetAll(t *testing.T) {
-	t.Parallel()
-
-	testName := "test-db-global-cluster"
-	dbCluster := DBGlobalClusters{
-		Client: mockedDBGlobalClusters{
-			DescribeGlobalClustersOutput: rds.DescribeGlobalClustersOutput{
-				GlobalClusters: []types.GlobalCluster{
-					{
-						GlobalClusterIdentifier: &testName,
-					},
-				},
-			},
-		},
-	}
-
-	// Testing empty config
-	clusters, err := dbCluster.getAll(context.Background(), config.Config{DBGlobalClusters: config.ResourceType{}})
-	assert.NoError(t, err)
-	assert.Contains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
-
-	// Testing db cluster exclusion
-	clusters, err = dbCluster.getAll(context.Background(), config.Config{
-		DBGlobalClusters: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				NamesRegExp: []config.Expression{{
-					RE: *regexp.MustCompile(testName),
-				}},
-			},
-		},
-	})
-	assert.NoError(t, err)
-	assert.NotContains(t, aws.ToStringSlice(clusters), strings.ToLower(testName))
+func (m *mockDBGlobalClustersClient) DeleteGlobalCluster(ctx context.Context, params *rds.DeleteGlobalClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteGlobalClusterOutput, error) {
+	return &m.DeleteGlobalClusterOutput, nil
 }
 
-func TestRDSGlobalClusterNukeAll(t *testing.T) {
+func TestListDBGlobalClusters(t *testing.T) {
 	t.Parallel()
 
-	testName := "test-db-global-cluster"
-	dbCluster := DBGlobalClusters{
-		Client: mockedDBGlobalClusters{
-			DescribeGlobalClustersOutput: rds.DescribeGlobalClustersOutput{},
-			DescribeGlobalClustersError:  &types.GlobalClusterNotFoundFault{},
-			DeleteGlobalClusterOutput:    rds.DeleteGlobalClusterOutput{},
+	testName1 := "test-global-cluster1"
+	testName2 := "test-global-cluster2"
+
+	mock := &mockDBGlobalClustersClient{
+		DescribeGlobalClustersOutput: rds.DescribeGlobalClustersOutput{
+			GlobalClusters: []types.GlobalCluster{
+				{GlobalClusterIdentifier: aws.String(testName1)},
+				{GlobalClusterIdentifier: aws.String(testName2)},
+			},
 		},
 	}
 
-	err := dbCluster.nukeAll([]*string{aws.String(testName)})
-	assert.NoError(t, err)
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
+			},
+			expected: []string{testName2},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := listDBGlobalClusters(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
+	}
+}
+
+func TestDeleteDBGlobalCluster(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockDBGlobalClustersClient{
+		DeleteGlobalClusterOutput: rds.DeleteGlobalClusterOutput{},
+	}
+
+	err := deleteDBGlobalCluster(context.Background(), mock, aws.String("test"))
+	require.NoError(t, err)
+}
+
+func TestWaitForDBGlobalClustersDeleted(t *testing.T) {
+	t.Parallel()
+
+	// Mock returns NotFound error immediately - cluster already deleted
+	mock := &mockDBGlobalClustersClient{
+		DescribeGlobalClustersError: &types.GlobalClusterNotFoundFault{},
+	}
+
+	err := waitForDBGlobalClustersDeleted(context.Background(), mock, []string{"test"})
+	require.NoError(t, err)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,53 +46,62 @@ func (m mockedEC2Instances) ReleaseAddress(ctx context.Context, params *ec2.Rele
 	return &m.ReleaseAddressOutput, nil
 }
 
-func TestEc2Instances_GetAll(t *testing.T) {
+func TestEC2Instances_ResourceName(t *testing.T) {
+	r := NewEC2Instances()
+	require.Equal(t, "ec2", r.ResourceName())
+}
+
+func TestEC2Instances_MaxBatchSize(t *testing.T) {
+	r := NewEC2Instances()
+	require.Equal(t, 49, r.MaxBatchSize())
+}
+
+func TestListEC2Instances(t *testing.T) {
 	t.Parallel()
 	testId1 := "testId1"
 	testId2 := "testId2"
 	testName1 := "testName1"
 	testName2 := "testName2"
 	now := time.Now()
-	ei := EC2Instances{
-		Client: mockedEC2Instances{
-			DescribeInstancesOutput: ec2.DescribeInstancesOutput{
-				Reservations: []types.Reservation{
-					{
-						Instances: []types.Instance{
-							{
-								InstanceId: aws.String(testId1),
-								Tags: []types.Tag{
-									{
-										Key:   aws.String("Name"),
-										Value: aws.String(testName1),
-									},
+
+	mock := mockedEC2Instances{
+		DescribeInstancesOutput: ec2.DescribeInstancesOutput{
+			Reservations: []types.Reservation{
+				{
+					Instances: []types.Instance{
+						{
+							InstanceId: aws.String(testId1),
+							Tags: []types.Tag{
+								{
+									Key:   aws.String("Name"),
+									Value: aws.String(testName1),
 								},
-								LaunchTime: aws.Time(now),
 							},
-							{
-								InstanceId: aws.String(testId2),
-								Tags: []types.Tag{
-									{
-										Key:   aws.String("Name"),
-										Value: aws.String(testName2),
-									},
+							LaunchTime: aws.Time(now),
+						},
+						{
+							InstanceId: aws.String(testId2),
+							Tags: []types.Tag{
+								{
+									Key:   aws.String("Name"),
+									Value: aws.String(testName2),
 								},
-								LaunchTime: aws.Time(now.Add(1)),
 							},
+							LaunchTime: aws.Time(now.Add(1)),
 						},
 					},
 				},
 			},
-			DescribeInstanceAttributeOutput: map[string]ec2.DescribeInstanceAttributeOutput{
-				testId1: {
-					DisableApiTermination: &types.AttributeBooleanValue{
-						Value: aws.Bool(false),
-					},
+		},
+		DescribeInstanceAttributeOutput: map[string]ec2.DescribeInstanceAttributeOutput{
+			testId1: {
+				DisableApiTermination: &types.AttributeBooleanValue{
+					Value: aws.Bool(false),
 				},
-				testId2: {
-					DisableApiTermination: &types.AttributeBooleanValue{
-						Value: aws.Bool(false),
-					},
+			},
+			testId2: {
+				DisableApiTermination: &types.AttributeBooleanValue{
+					Value: aws.Bool(false),
 				},
 			},
 		},
@@ -124,68 +134,24 @@ func TestEc2Instances_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ei.getAll(context.Background(), config.Config{
-				EC2: tc.configObj,
-			})
+			names, err := listEC2Instances(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestEc2Instances_NukeAll(t *testing.T) {
+func TestReleaseInstanceEIPs(t *testing.T) {
 	t.Parallel()
-	ei := EC2Instances{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-			Timeout: DefaultWaitTimeout,
-		},
-		Client: mockedEC2Instances{
-			DescribeInstancesOutput: ec2.DescribeInstancesOutput{
-				Reservations: []types.Reservation{
-					{
-						Instances: []types.Instance{
-							{
-								InstanceId: aws.String("testId1"),
-								State: &types.InstanceState{
-									Name: types.InstanceStateNameTerminated,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
 
-	err := ei.nukeAll([]*string{aws.String("testId1")})
-	require.NoError(t, err)
-}
-
-func TestEc2InstancesWithEIP_NukeAll(t *testing.T) {
-	t.Parallel()
-	ei := EC2Instances{
-		BaseAwsResource: BaseAwsResource{
-			Context: context.Background(),
-			Timeout: DefaultWaitTimeout,
+	tests := map[string]struct {
+		describeAddressesOutput ec2.DescribeAddressesOutput
+	}{
+		"noEIPs": {
+			describeAddressesOutput: ec2.DescribeAddressesOutput{},
 		},
-		Client: mockedEC2Instances{
-			DescribeInstancesOutput: ec2.DescribeInstancesOutput{
-				Reservations: []types.Reservation{
-					{
-						Instances: []types.Instance{
-							{
-								InstanceId: aws.String("testId1"),
-								State: &types.InstanceState{
-									Name: types.InstanceStateNameTerminated,
-								},
-							},
-						},
-					},
-				},
-			},
-			TerminateInstancesOutput: ec2.TerminateInstancesOutput{},
-			DescribeAddressesOutput: ec2.DescribeAddressesOutput{
+		"withEIP": {
+			describeAddressesOutput: ec2.DescribeAddressesOutput{
 				Addresses: []types.Address{
 					{
 						AllocationId: aws.String("alloc-test-id1"),
@@ -196,6 +162,24 @@ func TestEc2InstancesWithEIP_NukeAll(t *testing.T) {
 		},
 	}
 
-	err := ei.nukeAll([]*string{aws.String("testId1")})
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mock := mockedEC2Instances{
+				DescribeAddressesOutput: tc.describeAddressesOutput,
+			}
+			err := releaseInstanceEIPs(context.Background(), mock, aws.String("testId1"))
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestTerminateEC2Instance(t *testing.T) {
+	t.Parallel()
+
+	mock := mockedEC2Instances{
+		TerminateInstancesOutput: ec2.TerminateInstancesOutput{},
+	}
+
+	err := terminateEC2Instance(context.Background(), mock, aws.String("testId1"))
 	require.NoError(t, err)
 }

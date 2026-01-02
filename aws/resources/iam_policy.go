@@ -2,25 +2,58 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
-// Returns the ARN of all customer managed policies
-func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// IAMPoliciesAPI defines the interface for IAM policy operations.
+type IAMPoliciesAPI interface {
+	ListEntitiesForPolicy(ctx context.Context, params *iam.ListEntitiesForPolicyInput, optFns ...func(*iam.Options)) (*iam.ListEntitiesForPolicyOutput, error)
+	ListPolicies(ctx context.Context, params *iam.ListPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListPoliciesOutput, error)
+	ListPolicyTags(ctx context.Context, params *iam.ListPolicyTagsInput, optFns ...func(*iam.Options)) (*iam.ListPolicyTagsOutput, error)
+	ListPolicyVersions(ctx context.Context, params *iam.ListPolicyVersionsInput, optFns ...func(*iam.Options)) (*iam.ListPolicyVersionsOutput, error)
+	DeletePolicy(ctx context.Context, params *iam.DeletePolicyInput, optFns ...func(*iam.Options)) (*iam.DeletePolicyOutput, error)
+	DeletePolicyVersion(ctx context.Context, params *iam.DeletePolicyVersionInput, optFns ...func(*iam.Options)) (*iam.DeletePolicyVersionOutput, error)
+	DetachGroupPolicy(ctx context.Context, params *iam.DetachGroupPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachGroupPolicyOutput, error)
+	DetachUserPolicy(ctx context.Context, params *iam.DetachUserPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachUserPolicyOutput, error)
+	DetachRolePolicy(ctx context.Context, params *iam.DetachRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DetachRolePolicyOutput, error)
+	DeleteUserPermissionsBoundary(ctx context.Context, params *iam.DeleteUserPermissionsBoundaryInput, optFns ...func(*iam.Options)) (*iam.DeleteUserPermissionsBoundaryOutput, error)
+	DeleteRolePermissionsBoundary(ctx context.Context, params *iam.DeleteRolePermissionsBoundaryInput, optFns ...func(*iam.Options)) (*iam.DeleteRolePermissionsBoundaryOutput, error)
+}
+
+// NewIAMPolicies creates a new IAM Policies resource using the generic resource pattern.
+func NewIAMPolicies() AwsResource {
+	return NewAwsResource(&resource.Resource[IAMPoliciesAPI]{
+		ResourceTypeName: "iam-policy",
+		BatchSize:        20,
+		IsGlobal:         true,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMPoliciesAPI], cfg aws.Config) {
+			r.Scope.Region = "global"
+			r.Client = iam.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.IAMPolicies
+		},
+		Lister: listIAMPolicies,
+		// IAM policy deletion requires multiple cleanup steps per policy
+		Nuker: resource.SequentialDeleter(deleteIAMPolicy),
+	})
+}
+
+// listIAMPolicies retrieves all customer-managed IAM policies that match the config filters.
+func listIAMPolicies(ctx context.Context, client IAMPoliciesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allIamPolicies []*string
-	paginator := iam.NewListPoliciesPaginator(ip.Client, &iam.ListPoliciesInput{Scope: types.PolicyScopeTypeLocal})
+
+	paginator := iam.NewListPoliciesPaginator(client, &iam.ListPoliciesInput{Scope: types.PolicyScopeTypeLocal})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -29,13 +62,13 @@ func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*st
 			// Always fetch tags to support tag-based filtering, including the default cloud-nuke-excluded tag.
 			// This ensures that policies with the exclusion tag are properly filtered out even when no explicit
 			// tag filters are configured in the config file.
-			tagsOut, err := ip.Client.ListPolicyTags(c, &iam.ListPolicyTagsInput{PolicyArn: policy.Arn})
+			tagsOut, err := client.ListPolicyTags(ctx, &iam.ListPolicyTagsInput{PolicyArn: policy.Arn})
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 			tags := tagsOut.Tags
 
-			if configObj.IAMPolicies.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: policy.PolicyName,
 				Time: policy.CreateDate,
 				Tags: util.ConvertIAMTagsToMap(tags),
@@ -48,114 +81,97 @@ func (ip *IAMPolicies) getAll(c context.Context, configObj config.Config) ([]*st
 	return allIamPolicies, nil
 }
 
-// Delete all iam customer managed policies. Caller is responsible for pagination (no more than 100/request)
-func (ip *IAMPolicies) nukeAll(policyArns []*string) error {
-	if len(policyArns) == 0 {
-		logging.Debug("No IAM Policies to nuke")
+// deleteIAMPolicy deletes a single IAM policy after performing all necessary cleanup:
+// 1. Detach permissions boundaries from users/roles
+// 2. Detach policy from entities (users/roles/groups)
+// 3. Delete non-default policy versions
+// 4. Delete the policy itself
+func deleteIAMPolicy(ctx context.Context, client IAMPoliciesAPI, policyArn *string) error {
+	// Remove the policy as a permissions boundary from any users or roles.
+	// This must be done before detaching regular policy attachments, as AWS
+	// prevents deletion of policies that are still used as permissions boundaries.
+	if err := detachPermissionsBoundaryEntities(ctx, client, policyArn); err != nil {
+		return err
 	}
 
-	// Probably not required since pagination is handled by the caller
-	if len(policyArns) > 100 {
-		logging.Errorf("Nuking too many IAM Policies at once (100): Halting to avoid rate limits")
-		return TooManyIamPolicyErr{}
+	// Detach any entities the policy is attached to as a permissions policy
+	if err := detachPolicyEntities(ctx, client, policyArn); err != nil {
+		return err
 	}
 
-	// No Bulk Delete exists, do it with goroutines
-	logging.Debug("Deleting all IAM Policies")
-	wg := new(sync.WaitGroup)
-	wg.Add(len(policyArns))
-	errChans := make([]chan error, len(policyArns))
-	for i, arn := range policyArns {
-		errChans[i] = make(chan error, 1)
-		go ip.deleteIamPolicyAsync(wg, errChans[i], arn)
+	// Delete old policy versions (non-default versions)
+	if err := deleteOldPolicyVersions(ctx, client, policyArn); err != nil {
+		return err
 	}
-	wg.Wait()
 
-	// Collapse the errors down to one
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Errorf("[Failed] %s", err)
+	// Delete the policy itself
+	_, err := client.DeletePolicy(ctx, &iam.DeletePolicyInput{PolicyArn: policyArn})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	logging.Debugf("[OK] IAM Policy %s was deleted in global", aws.ToString(policyArn))
+	return nil
+}
+
+// detachPermissionsBoundaryEntities removes the policy as a permissions boundary from any users or roles.
+func detachPermissionsBoundaryEntities(ctx context.Context, client IAMPoliciesAPI, policyArn *string) error {
+	var allBoundaryRoles []*string
+	var allBoundaryUsers []*string
+
+	// List entities where this policy is used as a permissions boundary
+	paginator := iam.NewListEntitiesForPolicyPaginator(client, &iam.ListEntitiesForPolicyInput{
+		PolicyArn:         policyArn,
+		PolicyUsageFilter: types.PolicyUsageTypePermissionsBoundary,
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, role := range page.PolicyRoles {
+			allBoundaryRoles = append(allBoundaryRoles, role.RoleName)
+		}
+		for _, user := range page.PolicyUsers {
+			allBoundaryUsers = append(allBoundaryUsers, user.UserName)
 		}
 	}
-	finalErr := allErrs.ErrorOrNil()
-	if finalErr != nil {
-		return errors.WithStackTrace(finalErr)
+
+	// Remove permissions boundary from users
+	for _, userName := range allBoundaryUsers {
+		_, err := client.DeleteUserPermissionsBoundary(ctx, &iam.DeleteUserPermissionsBoundaryInput{
+			UserName: userName,
+		})
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+		logging.Debugf("Removed permissions boundary from user %s", aws.ToString(userName))
+	}
+
+	// Remove permissions boundary from roles
+	for _, roleName := range allBoundaryRoles {
+		_, err := client.DeleteRolePermissionsBoundary(ctx, &iam.DeleteRolePermissionsBoundaryInput{
+			RoleName: roleName,
+		})
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+		logging.Debugf("Removed permissions boundary from role %s", aws.ToString(roleName))
 	}
 
 	return nil
 }
 
-// Removes an IAM Policy from AWS, designed to run as a goroutine
-func (ip *IAMPolicies) deleteIamPolicyAsync(wg *sync.WaitGroup, errChan chan error, policyArn *string) {
-	defer wg.Done()
-	var multierr *multierror.Error
-
-	// Remove the policy as a permissions boundary from any users or roles.
-	// This must be done before detaching regular policy attachments, as AWS
-	// prevents deletion of policies that are still used as permissions boundaries.
-	err := ip.detachPermissionsBoundaryEntities(policyArn)
-	if err != nil {
-		multierr = multierror.Append(multierr, err)
-	}
-
-	// Detach any entities the policy is attached to as a permissions policy
-	err = ip.detachPolicyEntities(policyArn)
-	if err != nil {
-		multierr = multierror.Append(multierr, err)
-	}
-
-	// Get Old Policy Versions
-	var versionsToRemove []*string
-	paginator := iam.NewListPolicyVersionsPaginator(ip.Client, &iam.ListPolicyVersionsInput{PolicyArn: policyArn})
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(context.Background())
-		if err != nil {
-			multierr = multierror.Append(multierr, err)
-			break
-		}
-
-		for _, policyVersion := range page.Versions {
-			if !policyVersion.IsDefaultVersion {
-				versionsToRemove = append(versionsToRemove, policyVersion.VersionId)
-			}
-		}
-	}
-
-	// Delete old policy versions
-	for _, versionId := range versionsToRemove {
-		_, err = ip.Client.DeletePolicyVersion(ip.Context, &iam.DeletePolicyVersionInput{VersionId: versionId, PolicyArn: policyArn})
-		if err != nil {
-			multierr = multierror.Append(multierr, err)
-		}
-	}
-	// Delete the policy
-	_, err = ip.Client.DeletePolicy(ip.Context, &iam.DeletePolicyInput{PolicyArn: policyArn})
-	if err != nil {
-		multierr = multierror.Append(multierr, err)
-	} else {
-		logging.Debugf("[OK] IAM Policy %s was deleted in global", aws.ToString(policyArn))
-	}
-
-	e := report.Entry{
-		Identifier:   aws.ToString(policyArn),
-		ResourceType: "IAM Policy",
-		Error:        multierr.ErrorOrNil(),
-	}
-	report.Record(e)
-
-	errChan <- multierr.ErrorOrNil()
-}
-
-func (ip *IAMPolicies) detachPolicyEntities(policyArn *string) error {
+// detachPolicyEntities detaches the policy from all users, roles, and groups.
+func detachPolicyEntities(ctx context.Context, client IAMPoliciesAPI, policyArn *string) error {
 	var allPolicyGroups []*string
 	var allPolicyRoles []*string
 	var allPolicyUsers []*string
 
-	paginator := iam.NewListEntitiesForPolicyPaginator(ip.Client, &iam.ListEntitiesForPolicyInput{PolicyArn: policyArn})
+	paginator := iam.NewListEntitiesForPolicyPaginator(client, &iam.ListEntitiesForPolicyInput{PolicyArn: policyArn})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ip.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
@@ -173,33 +189,32 @@ func (ip *IAMPolicies) detachPolicyEntities(policyArn *string) error {
 
 	// Detach policy from any users
 	for _, userName := range allPolicyUsers {
-		detachUserInput := &iam.DetachUserPolicyInput{
+		_, err := client.DetachUserPolicy(ctx, &iam.DetachUserPolicyInput{
 			UserName:  userName,
 			PolicyArn: policyArn,
-		}
-		_, err := ip.Client.DetachUserPolicy(ip.Context, detachUserInput)
+		})
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 	}
+
 	// Detach policy from any groups
 	for _, groupName := range allPolicyGroups {
-		detachGroupInput := &iam.DetachGroupPolicyInput{
+		_, err := client.DetachGroupPolicy(ctx, &iam.DetachGroupPolicyInput{
 			GroupName: groupName,
 			PolicyArn: policyArn,
-		}
-		_, err := ip.Client.DetachGroupPolicy(ip.Context, detachGroupInput)
+		})
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 	}
+
 	// Detach policy from any roles
 	for _, roleName := range allPolicyRoles {
-		detachRoleInput := &iam.DetachRolePolicyInput{
+		_, err := client.DetachRolePolicy(ctx, &iam.DetachRolePolicyInput{
 			RoleName:  roleName,
 			PolicyArn: policyArn,
-		}
-		_, err := ip.Client.DetachRolePolicy(ip.Context, detachRoleInput)
+		})
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
@@ -208,58 +223,34 @@ func (ip *IAMPolicies) detachPolicyEntities(policyArn *string) error {
 	return nil
 }
 
-// detachPermissionsBoundaryEntities removes the policy as a permissions boundary from any users or roles
-func (ip *IAMPolicies) detachPermissionsBoundaryEntities(policyArn *string) error {
-	var allBoundaryRoles []*string
-	var allBoundaryUsers []*string
+// deleteOldPolicyVersions deletes all non-default versions of the policy.
+func deleteOldPolicyVersions(ctx context.Context, client IAMPoliciesAPI, policyArn *string) error {
+	var versionsToRemove []*string
 
-	// List entities where this policy is used as a permissions boundary
-	paginator := iam.NewListEntitiesForPolicyPaginator(ip.Client, &iam.ListEntitiesForPolicyInput{
-		PolicyArn:         policyArn,
-		PolicyUsageFilter: types.PolicyUsageTypePermissionsBoundary,
-	})
+	paginator := iam.NewListPolicyVersionsPaginator(client, &iam.ListPolicyVersionsInput{PolicyArn: policyArn})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ip.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 
-		for _, role := range page.PolicyRoles {
-			allBoundaryRoles = append(allBoundaryRoles, role.RoleName)
-		}
-		for _, user := range page.PolicyUsers {
-			allBoundaryUsers = append(allBoundaryUsers, user.UserName)
+		for _, policyVersion := range page.Versions {
+			if !policyVersion.IsDefaultVersion {
+				versionsToRemove = append(versionsToRemove, policyVersion.VersionId)
+			}
 		}
 	}
 
-	// Remove permissions boundary from users
-	for _, userName := range allBoundaryUsers {
-		_, err := ip.Client.DeleteUserPermissionsBoundary(ip.Context, &iam.DeleteUserPermissionsBoundaryInput{
-			UserName: userName,
+	// Delete old policy versions
+	for _, versionId := range versionsToRemove {
+		_, err := client.DeletePolicyVersion(ctx, &iam.DeletePolicyVersionInput{
+			VersionId: versionId,
+			PolicyArn: policyArn,
 		})
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Removed permissions boundary from user %s", aws.ToString(userName))
-	}
-
-	// Remove permissions boundary from roles
-	for _, roleName := range allBoundaryRoles {
-		_, err := ip.Client.DeleteRolePermissionsBoundary(ip.Context, &iam.DeleteRolePermissionsBoundaryInput{
-			RoleName: roleName,
-		})
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
-		logging.Debugf("Removed permissions boundary from role %s", aws.ToString(roleName))
 	}
 
 	return nil
-}
-
-// TooManyIamPolicyErr Custom Errors
-type TooManyIamPolicyErr struct{}
-
-func (err TooManyIamPolicyErr) Error() string {
-	return "Too many IAM Groups requested at once"
 }

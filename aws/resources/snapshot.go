@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SnapshotsAPI defines the interface for EBS Snapshot operations.
@@ -50,23 +51,26 @@ func listSnapshots(ctx context.Context, client SnapshotsAPI, scope resource.Scop
 	// We only want to list EBS Snapshots with a status of "completed" or "error"
 	// since those are the only statuses eligible for deletion.
 	statusFilter := types.Filter{Name: aws.String("status"), Values: []string{"completed", "error"}}
-	params := &ec2.DescribeSnapshotsInput{
-		OwnerIds: []string{"self"},
-		Filters:  []types.Filter{statusFilter},
-	}
-
-	output, err := client.DescribeSnapshots(ctx, params)
-	if err != nil {
-		return nil, err
-	}
 
 	var snapshotIds []*string
-	for _, snapshot := range output.Snapshots {
-		if cfg.ShouldInclude(config.ResourceValue{
-			Time: snapshot.StartTime,
-			Tags: util.ConvertTypesTagsToMap(snapshot.Tags),
-		}) && !snapshotHasAWSBackupTag(snapshot.Tags) {
-			snapshotIds = append(snapshotIds, snapshot.SnapshotId)
+	paginator := ec2.NewDescribeSnapshotsPaginator(client, &ec2.DescribeSnapshotsInput{
+		OwnerIds: []string{"self"},
+		Filters:  []types.Filter{statusFilter},
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, snapshot := range page.Snapshots {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Time: snapshot.StartTime,
+				Tags: util.ConvertTypesTagsToMap(snapshot.Tags),
+			}) && !snapshotHasAWSBackupTag(snapshot.Tags) {
+				snapshotIds = append(snapshotIds, snapshot.SnapshotId)
+			}
 		}
 	}
 

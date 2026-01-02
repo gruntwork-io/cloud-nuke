@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
@@ -11,6 +10,12 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+)
+
+const (
+	// permanentDeletionDays is the number of days before a CA is permanently deleted.
+	// AWS allows 7-30 days; we use the minimum since cloud-nuke targets non-production resources.
+	permanentDeletionDays = 7
 )
 
 // ACMPCAAPI defines the interface for ACM PCA operations.
@@ -61,18 +66,15 @@ func listACMPCA(ctx context.Context, client ACMPCAAPI, scope resource.Scope, cfg
 
 // shouldIncludeACMPCA determines if an ACM PCA should be included based on config filters.
 func shouldIncludeACMPCA(ca types.CertificateAuthority, cfg config.ResourceType) bool {
-	statusSafe := ca.Status
-	if statusSafe == types.CertificateAuthorityStatusDeleted {
+	if ca.Status == types.CertificateAuthorityStatusDeleted {
 		return false
 	}
 
-	// reference time for excludeAfter is lastStateChangeAt time,
-	// unless it was never changed and createAt time is used.
-	var referenceTime time.Time
+	// Use LastStateChangeAt as the reference time for time-based filters.
+	// Fall back to CreatedAt if the CA state was never changed.
+	referenceTime := aws.ToTime(ca.LastStateChangeAt)
 	if ca.LastStateChangeAt == nil {
 		referenceTime = aws.ToTime(ca.CreatedAt)
-	} else {
-		referenceTime = aws.ToTime(ca.LastStateChangeAt)
 	}
 
 	return cfg.ShouldInclude(config.ResourceValue{Time: &referenceTime})
@@ -81,52 +83,59 @@ func shouldIncludeACMPCA(ca types.CertificateAuthority, cfg config.ResourceType)
 // deleteACMPCA deletes a single ACM PCA certificate authority.
 // This function handles the multi-step deletion process:
 // 1. Describe the CA to get its current status
-// 2. Disable the CA if it's not already in a deletable state
-// 3. Delete the CA with a 7-day waiting period
+// 2. Disable the CA if it's in ACTIVE state (AWS requires this before deletion)
+// 3. Delete the CA with a 7-day restoration period
 func deleteACMPCA(ctx context.Context, client ACMPCAAPI, arn *string) error {
-	logging.Debugf("Fetching details of CA to be deleted for ACMPCA %s", aws.ToString(arn))
-	details, err := client.DescribeCertificateAuthority(
-		ctx,
-		&acmpca.DescribeCertificateAuthorityInput{CertificateAuthorityArn: arn})
+	arnStr := aws.ToString(arn)
+
+	logging.Debugf("Fetching CA details for ACMPCA %s", arnStr)
+	details, err := client.DescribeCertificateAuthority(ctx, &acmpca.DescribeCertificateAuthorityInput{
+		CertificateAuthorityArn: arn,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to describe ACMPCA %s: %w", aws.ToString(arn), err)
+		return fmt.Errorf("failed to describe ACMPCA %s: %w", arnStr, err)
 	}
 	if details.CertificateAuthority == nil {
-		return fmt.Errorf("could not find CA %s", aws.ToString(arn))
+		return fmt.Errorf("CA not found: %s", arnStr)
 	}
 	if details.CertificateAuthority.Status == "" {
-		return fmt.Errorf("could not fetch status for CA %s", aws.ToString(arn))
+		return fmt.Errorf("CA status unavailable: %s", arnStr)
 	}
 
-	// find out whether we have to disable the CA first, prior to deletion.
-	statusSafe := details.CertificateAuthority.Status
-	shouldUpdateStatus := statusSafe != types.CertificateAuthorityStatusCreating &&
-		statusSafe != types.CertificateAuthorityStatusPendingCertificate &&
-		statusSafe != types.CertificateAuthorityStatusDisabled &&
-		statusSafe != types.CertificateAuthorityStatusDeleted
-
-	if shouldUpdateStatus {
-		logging.Debugf("Setting status to 'DISABLED' for ACMPCA %s", aws.ToString(arn))
+	// AWS requires ACTIVE CAs to be disabled before deletion.
+	// CAs in CREATING, PENDING_CERTIFICATE, DISABLED, or DELETED states can be deleted directly.
+	if needsDisableBeforeDelete(details.CertificateAuthority.Status) {
+		logging.Debugf("Disabling ACMPCA %s before deletion", arnStr)
 		if _, err = client.UpdateCertificateAuthority(ctx, &acmpca.UpdateCertificateAuthorityInput{
 			CertificateAuthorityArn: arn,
 			Status:                  types.CertificateAuthorityStatusDisabled,
 		}); err != nil {
-			return fmt.Errorf("failed to disable ACMPCA %s: %w", aws.ToString(arn), err)
+			return fmt.Errorf("failed to disable ACMPCA %s: %w", arnStr, err)
 		}
-		logging.Debugf("Did set status to 'DISABLED' for ACMPCA: %s", aws.ToString(arn))
 	}
 
 	_, err = client.DeleteCertificateAuthority(ctx, &acmpca.DeleteCertificateAuthorityInput{
-		CertificateAuthorityArn: arn,
-		// the range is 7 to 30 days.
-		// since cloud-nuke should not be used in production,
-		// we assume that the minimum (7 days) is fine.
-		PermanentDeletionTimeInDays: aws.Int32(7),
+		CertificateAuthorityArn:     arn,
+		PermanentDeletionTimeInDays: aws.Int32(permanentDeletionDays),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to delete ACMPCA %s: %w", aws.ToString(arn), err)
+		return fmt.Errorf("failed to delete ACMPCA %s: %w", arnStr, err)
 	}
 
-	logging.Debugf("Deleted ACMPCA: %s successfully", aws.ToString(arn))
+	logging.Debugf("Deleted ACMPCA: %s", arnStr)
 	return nil
+}
+
+// needsDisableBeforeDelete returns true if the CA must be disabled before deletion.
+func needsDisableBeforeDelete(status types.CertificateAuthorityStatus) bool {
+	switch status {
+	case types.CertificateAuthorityStatusCreating,
+		types.CertificateAuthorityStatusPendingCertificate,
+		types.CertificateAuthorityStatusDisabled,
+		types.CertificateAuthorityStatusDeleted:
+		return false
+	default:
+		// ACTIVE, EXPIRED, FAILED states require disable first
+		return true
+	}
 }

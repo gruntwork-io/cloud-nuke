@@ -2,40 +2,45 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeIpamScopeID(ipam *types.IpamScope, firstSeenTime *time.Time, configObj config.Config) bool {
-	var ipamScopeName string
-	// get the tags as map
-	tagMap := util.ConvertTypesTagsToMap(ipam.Tags)
-	if name, ok := tagMap["Name"]; ok {
-		ipamScopeName = name
-	}
+// EC2IPAMScopeAPI defines the interface for EC2 IPAM Scope operations.
+type EC2IPAMScopeAPI interface {
+	DescribeIpamScopes(ctx context.Context, params *ec2.DescribeIpamScopesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamScopesOutput, error)
+	DeleteIpamScope(ctx context.Context, params *ec2.DeleteIpamScopeInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamScopeOutput, error)
+}
 
-	return configObj.EC2IPAMScope.ShouldInclude(config.ResourceValue{
-		Name: &ipamScopeName,
-		Time: firstSeenTime,
-		Tags: tagMap,
+// NewEC2IPAMScope creates a new EC2 IPAM Scope resource using the generic resource pattern.
+func NewEC2IPAMScope() AwsResource {
+	return NewAwsResource(&resource.Resource[EC2IPAMScopeAPI]{
+		ResourceTypeName: "ipam-scope",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMScopeAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2IPAMScope
+		},
+		Lister:             listEC2IPAMScopes,
+		Nuker:              resource.SimpleBatchDeleter(deleteEC2IPAMScope),
+		PermissionVerifier: verifyEC2IPAMScopePermission,
 	})
 }
 
-// Returns a formatted string of IPAM URLs
-func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// listEC2IPAMScopes retrieves all non-default IPAM scopes that match the config filters.
+func listEC2IPAMScopes(ctx context.Context, client EC2IPAMScopeAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var result []*string
-	var firstSeenTime *time.Time
-	var err error
 
-	params := &ec2.DescribeIpamScopesInput{
+	paginator := ec2.NewDescribeIpamScopesPaginator(client, &ec2.DescribeIpamScopesInput{
 		MaxResults: aws.Int32(10),
 		Filters: []types.Filter{
 			{
@@ -43,78 +48,53 @@ func (ec2Scope *EC2IpamScopes) getAll(c context.Context, configObj config.Config
 				Values: []string{"false"},
 			},
 		},
-	}
+	})
 
-	scopesPaginator := ec2.NewDescribeIpamScopesPaginator(ec2Scope.Client, params)
-	for scopesPaginator.HasMorePages() {
-		page, errPaginator := scopesPaginator.NextPage(c)
-		if errPaginator != nil {
-			return nil, errors.WithStackTrace(errPaginator)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
 		}
 
-		for _, scope := range page.IpamScopes {
-			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Scope.Client, scope.IpamScopeId, util.ConvertTypesTagsToMap(scope.Tags))
+		for _, ipamScope := range page.IpamScopes {
+			tagMap := util.ConvertTypesTagsToMap(ipamScope.Tags)
+			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, ipamScope.IpamScopeId, tagMap)
 			if err != nil {
-				logging.Error("unable to retrieve firstseen tag")
+				logging.Errorf("Unable to retrieve first seen tag for IPAM Scope %s: %v", aws.ToString(ipamScope.IpamScopeId), err)
 				continue
 			}
 
-			// Check for include this ipam
-			if shouldIncludeIpamScopeID(&scope, firstSeenTime, configObj) {
-				result = append(result, scope.IpamScopeId)
+			var scopeName string
+			if name, ok := tagMap["Name"]; ok {
+				scopeName = name
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: &scopeName,
+				Time: firstSeenTime,
+				Tags: tagMap,
+			}) {
+				result = append(result, ipamScope.IpamScopeId)
 			}
 		}
 	}
-
-	// checking the nukable permissions
-	ec2Scope.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Scope.Client.DeleteIpamScope(ec2Scope.Context, &ec2.DeleteIpamScopeInput{
-			IpamScopeId: id,
-			DryRun:      aws.Bool(true),
-		})
-		return err
-	})
 
 	return result, nil
 }
 
-// Deletes all IPAMs
-func (scope *EC2IpamScopes) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No IPAM Scopes ID's to nuke in region %s", scope.Region)
-		return nil
-	}
+// verifyEC2IPAMScopePermission performs a dry-run delete to check permissions.
+func verifyEC2IPAMScopePermission(ctx context.Context, client EC2IPAMScopeAPI, id *string) error {
+	_, err := client.DeleteIpamScope(ctx, &ec2.DeleteIpamScopeInput{
+		IpamScopeId: id,
+		DryRun:      aws.Bool(true),
+	})
+	return err
+}
 
-	logging.Debugf("Deleting all IPAM Scopes in region %s", scope.Region)
-	var deletedList []*string
-
-	for _, id := range ids {
-		if nukable, reason := scope.IsNukable(aws.ToString(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
-			continue
-		}
-
-		_, err := scope.Client.DeleteIpamScope(scope.Context, &ec2.DeleteIpamScopeInput{
-			IpamScopeId: id,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "IPAM Scopes",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedList = append(deletedList, id)
-			logging.Debugf("Deleted IPAM Scope: %s", *id)
-		}
-	}
-
-	logging.Debugf("[OK] %d IPAM Scope(s) deleted in %s", len(deletedList), scope.Region)
-
-	return nil
+// deleteEC2IPAMScope deletes a single IPAM Scope.
+func deleteEC2IPAMScope(ctx context.Context, client EC2IPAMScopeAPI, id *string) error {
+	_, err := client.DeleteIpamScope(ctx, &ec2.DeleteIpamScopeInput{
+		IpamScopeId: id,
+	})
+	return err
 }

@@ -38,7 +38,23 @@ func NewACM() AwsResource {
 // listACMCertificates retrieves all ACM certificates that match the config filters.
 func listACMCertificates(ctx context.Context, client ACMAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var acmArns []*string
-	paginator := acm.NewListCertificatesPaginator(client, &acm.ListCertificatesInput{})
+
+	// By default, ListCertificates only returns RSA_1024 and RSA_2048 certificates.
+	// Explicitly include all key types to ensure we find all certificates.
+	input := &acm.ListCertificatesInput{
+		Includes: &types.Filters{
+			KeyTypes: []types.KeyAlgorithm{
+				types.KeyAlgorithmRsa1024,
+				types.KeyAlgorithmRsa2048,
+				types.KeyAlgorithmRsa3072,
+				types.KeyAlgorithmRsa4096,
+				types.KeyAlgorithmEcPrime256v1,
+				types.KeyAlgorithmEcSecp384r1,
+				types.KeyAlgorithmEcSecp521r1,
+			},
+		},
+	}
+	paginator := acm.NewListCertificatesPaginator(client, input)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
@@ -47,12 +63,8 @@ func listACMCertificates(ctx context.Context, client ACMAPI, scope resource.Scop
 		}
 
 		for _, cert := range page.CertificateSummaryList {
-			logging.Debugf("Found ACM %s with domain name %s", *cert.CertificateArn, *cert.DomainName)
 			if shouldIncludeACMCertificate(cert, cfg) {
-				logging.Debugf("Including ACM %s", *cert.CertificateArn)
 				acmArns = append(acmArns, cert.CertificateArn)
-			} else {
-				logging.Debugf("Skipping ACM %s", *cert.CertificateArn)
 			}
 		}
 	}
@@ -62,18 +74,15 @@ func listACMCertificates(ctx context.Context, client ACMAPI, scope resource.Scop
 
 // shouldIncludeACMCertificate determines if an ACM certificate should be included based on config filters.
 func shouldIncludeACMCertificate(cert types.CertificateSummary, cfg config.ResourceType) bool {
-	if cert.InUse != nil && *cert.InUse {
-		logging.Debugf("ACM %s is in use", *cert.CertificateArn)
+	if aws.ToBool(cert.InUse) {
+		logging.Debugf("ACM %s is in use, skipping", aws.ToString(cert.CertificateArn))
 		return false
 	}
 
-	shouldInclude := cfg.ShouldInclude(config.ResourceValue{
+	return cfg.ShouldInclude(config.ResourceValue{
 		Name: cert.DomainName,
 		Time: cert.CreatedAt,
 	})
-	logging.Debugf("shouldInclude result for ACM: %s w/ domain name: %s, time: %s, and config: %+v",
-		aws.ToString(cert.CertificateArn), aws.ToString(cert.DomainName), cert.CreatedAt, cfg)
-	return shouldInclude
 }
 
 // deleteACMCertificate deletes a single ACM certificate.

@@ -8,19 +8,84 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (balancer *LoadBalancers) waitUntilElbDeleted(input *elasticloadbalancing.DescribeLoadBalancersInput) error {
-	for i := 0; i < 30; i++ {
-		output, err := balancer.Client.DescribeLoadBalancers(balancer.Context, input)
+// LoadBalancersPaginatorAPI defines the interface for paginator operations.
+type LoadBalancersPaginatorAPI interface {
+	LoadBalancersAPI
+	elasticloadbalancing.DescribeLoadBalancersAPIClient
+}
+
+// LoadBalancersAPI defines the interface for ELB operations.
+type LoadBalancersAPI interface {
+	DescribeLoadBalancers(ctx context.Context, params *elasticloadbalancing.DescribeLoadBalancersInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DescribeLoadBalancersOutput, error)
+	DeleteLoadBalancer(ctx context.Context, params *elasticloadbalancing.DeleteLoadBalancerInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DeleteLoadBalancerOutput, error)
+}
+
+// NewLoadBalancers creates a new LoadBalancers resource using the generic resource pattern.
+func NewLoadBalancers() AwsResource {
+	return NewAwsResource(&resource.Resource[LoadBalancersAPI]{
+		ResourceTypeName: "elb",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[LoadBalancersAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = elasticloadbalancing.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ELBv1
+		},
+		Lister: listLoadBalancers,
+		Nuker:  resource.SequentialDeleter(deleteLoadBalancer),
+	})
+}
+
+// listLoadBalancers retrieves all Classic ELB load balancers that match the config filters.
+func listLoadBalancers(ctx context.Context, client LoadBalancersAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	paginator := elasticloadbalancing.NewDescribeLoadBalancersPaginator(client.(LoadBalancersPaginatorAPI), &elasticloadbalancing.DescribeLoadBalancersInput{})
+
+	var names []*string
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return err
+			return nil, errors.WithStackTrace(err)
 		}
 
-		if len(output.LoadBalancerDescriptions) == 0 {
-			return nil
+		for _, balancer := range page.LoadBalancerDescriptions {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: balancer.LoadBalancerName,
+				Time: balancer.CreatedTime,
+			}) {
+				names = append(names, balancer.LoadBalancerName)
+			}
+		}
+	}
+
+	return names, nil
+}
+
+// deleteLoadBalancer deletes a single Classic ELB load balancer.
+func deleteLoadBalancer(ctx context.Context, client LoadBalancersAPI, name *string) error {
+	_, err := client.DeleteLoadBalancer(ctx, &elasticloadbalancing.DeleteLoadBalancerInput{
+		LoadBalancerName: name,
+	})
+	if err != nil {
+		return err
+	}
+
+	return waitUntilElbDeleted(ctx, client, name)
+}
+
+// waitUntilElbDeleted waits until the ELB is deleted.
+func waitUntilElbDeleted(ctx context.Context, client LoadBalancersAPI, name *string) error {
+	for i := 0; i < 30; i++ {
+		output, err := client.DescribeLoadBalancers(ctx, &elasticloadbalancing.DescribeLoadBalancersInput{
+			LoadBalancerNames: []string{aws.ToString(name)},
+		})
+		// Any error from DescribeLoadBalancers (including AccessPointNotFound) means the ELB is deleted
+		if err != nil || len(output.LoadBalancerDescriptions) == 0 {
+			return nil //nolint:nilerr // Error here (e.g., AccessPointNotFound) indicates successful deletion
 		}
 
 		time.Sleep(1 * time.Second)
@@ -30,69 +95,9 @@ func (balancer *LoadBalancers) waitUntilElbDeleted(input *elasticloadbalancing.D
 	return ElbDeleteError{}
 }
 
-// Returns a formatted string of ELB names
-func (balancer *LoadBalancers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := balancer.Client.DescribeLoadBalancers(balancer.Context, &elasticloadbalancing.DescribeLoadBalancersInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+// ElbDeleteError represents an error when deleting ELB.
+type ElbDeleteError struct{}
 
-	var names []*string
-	for _, balancer := range result.LoadBalancerDescriptions {
-		if configObj.ELBv1.ShouldInclude(config.ResourceValue{
-			Name: balancer.LoadBalancerName,
-			Time: balancer.CreatedTime,
-		}) {
-			names = append(names, balancer.LoadBalancerName)
-		}
-	}
-
-	return names, nil
-}
-
-// Deletes all Elastic Load Balancers
-func (balancer *LoadBalancers) nukeAll(names []*string) error {
-	if len(names) == 0 {
-		logging.Debugf("No Elastic Load Balancers to nuke in region %s", balancer.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Elastic Load Balancers in region %s", balancer.Region)
-	var deletedNames []*string
-
-	for _, name := range names {
-		params := &elasticloadbalancing.DeleteLoadBalancerInput{
-			LoadBalancerName: name,
-		}
-
-		_, err := balancer.Client.DeleteLoadBalancer(balancer.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(name),
-			ResourceType: "Load Balancer (v1)",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted ELB: %s", *name)
-		}
-	}
-
-	if len(deletedNames) > 0 {
-		err := balancer.waitUntilElbDeleted(&elasticloadbalancing.DescribeLoadBalancersInput{
-			LoadBalancerNames: aws.ToStringSlice(deletedNames),
-		})
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-	}
-
-	logging.Debugf("[OK] %d Elastic Load Balancer(s) deleted in %s", len(deletedNames), balancer.Region)
-	return nil
+func (e ElbDeleteError) Error() string {
+	return "ELB was not deleted"
 }

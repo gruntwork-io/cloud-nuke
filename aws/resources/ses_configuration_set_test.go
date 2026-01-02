@@ -10,37 +10,26 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockSesConfigurationSetClient struct {
-	ListConfigurationSetsOutput  ses.ListConfigurationSetsOutput
-	DeleteConfigurationSetOutput ses.DeleteConfigurationSetOutput
+type mockedSesConfigurationSet struct {
+	SesConfigurationSetAPI
+	ListConfigurationSetsOutput ses.ListConfigurationSetsOutput
 }
 
-func (m *mockSesConfigurationSetClient) ListConfigurationSets(ctx context.Context, params *ses.ListConfigurationSetsInput, optFns ...func(*ses.Options)) (*ses.ListConfigurationSetsOutput, error) {
+func (m mockedSesConfigurationSet) ListConfigurationSets(ctx context.Context, params *ses.ListConfigurationSetsInput, optFns ...func(*ses.Options)) (*ses.ListConfigurationSetsOutput, error) {
 	return &m.ListConfigurationSetsOutput, nil
 }
 
-func (m *mockSesConfigurationSetClient) DeleteConfigurationSet(ctx context.Context, params *ses.DeleteConfigurationSetInput, optFns ...func(*ses.Options)) (*ses.DeleteConfigurationSetOutput, error) {
-	return &m.DeleteConfigurationSetOutput, nil
+func (m mockedSesConfigurationSet) DeleteConfigurationSet(ctx context.Context, params *ses.DeleteConfigurationSetInput, optFns ...func(*ses.Options)) (*ses.DeleteConfigurationSetOutput, error) {
+	return &ses.DeleteConfigurationSetOutput{}, nil
 }
 
-func TestSesConfigurationSet_ResourceName(t *testing.T) {
-	r := NewSesConfigurationSet()
-	assert.Equal(t, "ses-configuration-set", r.ResourceName())
-}
-
-func TestSesConfigurationSet_MaxBatchSize(t *testing.T) {
-	r := NewSesConfigurationSet()
-	assert.Equal(t, 49, r.MaxBatchSize())
-}
-
-func TestListSesConfigurationSets(t *testing.T) {
+func TestSesConfigurationSet_GetAll(t *testing.T) {
 	t.Parallel()
 
-	mock := &mockSesConfigurationSetClient{
+	mock := mockedSesConfigurationSet{
 		ListConfigurationSetsOutput: ses.ListConfigurationSetsOutput{
 			ConfigurationSets: []types.ConfigurationSet{
 				{Name: aws.String("config-set-1")},
@@ -49,38 +38,49 @@ func TestListSesConfigurationSets(t *testing.T) {
 		},
 	}
 
-	names, err := listSesConfigurationSets(context.Background(), mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"config-set-1", "config-set-2"}, aws.ToStringSlice(names))
-}
-
-func TestListSesConfigurationSets_WithFilter(t *testing.T) {
-	t.Parallel()
-
-	mock := &mockSesConfigurationSetClient{
-		ListConfigurationSetsOutput: ses.ListConfigurationSetsOutput{
-			ConfigurationSets: []types.ConfigurationSet{
-				{Name: aws.String("config-set-1")},
-				{Name: aws.String("skip-this")},
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{"config-set-1", "config-set-2"},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile("config-set-1"),
+					}},
+				},
 			},
+			expected: []string{"config-set-2"},
+		},
+		"nameInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile("config-set-1"),
+					}},
+				},
+			},
+			expected: []string{"config-set-1"},
 		},
 	}
 
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
-		},
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := listSesConfigurationSets(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
 	}
-
-	names, err := listSesConfigurationSets(context.Background(), mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Equal(t, []string{"config-set-1"}, aws.ToStringSlice(names))
 }
 
-func TestDeleteSesConfigurationSet(t *testing.T) {
+func TestSesConfigurationSet_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	mock := &mockSesConfigurationSetClient{}
+	mock := mockedSesConfigurationSet{}
 	err := deleteSesConfigurationSet(context.Background(), mock, aws.String("test-config-set"))
 	require.NoError(t, err)
 }

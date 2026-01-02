@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
@@ -11,13 +12,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockDynamoDBClient struct {
 	ListTablesOutput    dynamodb.ListTablesOutput
 	DescribeTableOutput map[string]dynamodb.DescribeTableOutput
+	UpdateTableOutput   dynamodb.UpdateTableOutput
+	UpdateTableError    error
 	DeleteTableOutput   dynamodb.DeleteTableOutput
+	DeleteTableError    error
 }
 
 func (m *mockDynamoDBClient) ListTables(ctx context.Context, params *dynamodb.ListTablesInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTablesOutput, error) {
@@ -29,8 +34,24 @@ func (m *mockDynamoDBClient) DescribeTable(ctx context.Context, params *dynamodb
 	return &output, nil
 }
 
+func (m *mockDynamoDBClient) UpdateTable(ctx context.Context, params *dynamodb.UpdateTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateTableOutput, error) {
+	return &m.UpdateTableOutput, m.UpdateTableError
+}
+
 func (m *mockDynamoDBClient) DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error) {
-	return &m.DeleteTableOutput, nil
+	return &m.DeleteTableOutput, m.DeleteTableError
+}
+
+func TestDynamoDB_ResourceName(t *testing.T) {
+	t.Parallel()
+	r := NewDynamoDB()
+	assert.Equal(t, "dynamodb", r.ResourceName())
+}
+
+func TestDynamoDB_MaxBatchSize(t *testing.T) {
+	t.Parallel()
+	r := NewDynamoDB()
+	assert.Equal(t, 49, r.MaxBatchSize())
 }
 
 func TestListDynamoDBTables(t *testing.T) {
@@ -54,21 +75,24 @@ func TestListDynamoDBTables(t *testing.T) {
 			testName2: {
 				Table: &types.TableDescription{
 					TableName:        aws.String(testName2),
-					CreationDateTime: aws.Time(now.Add(1)),
+					CreationDateTime: aws.Time(now.Add(1 * time.Hour)),
 				},
 			},
 		},
 	}
 
-	tests := map[string]struct {
+	tests := []struct {
+		name      string
 		configObj config.ResourceType
 		expected  []string
 	}{
-		"emptyFilter": {
+		{
+			name:      "returns all tables when no filter",
 			configObj: config.ResourceType{},
 			expected:  []string{testName1, testName2},
 		},
-		"nameExclusionFilter": {
+		{
+			name: "filters by name exclusion",
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
@@ -76,10 +100,20 @@ func TestListDynamoDBTables(t *testing.T) {
 			},
 			expected: []string{testName2},
 		},
+		{
+			name: "filters by time exclusion",
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testName1},
+		},
 	}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			names, err := listDynamoDBTables(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
@@ -90,7 +124,46 @@ func TestListDynamoDBTables(t *testing.T) {
 func TestDeleteDynamoDBTable(t *testing.T) {
 	t.Parallel()
 
-	mock := &mockDynamoDBClient{}
-	err := deleteDynamoDBTable(context.Background(), mock, aws.String("test-table"))
-	require.NoError(t, err)
+	tests := []struct {
+		name        string
+		mock        *mockDynamoDBClient
+		expectError bool
+	}{
+		{
+			name: "successfully deletes table",
+			mock: &mockDynamoDBClient{
+				UpdateTableOutput: dynamodb.UpdateTableOutput{},
+				DeleteTableOutput: dynamodb.DeleteTableOutput{},
+			},
+			expectError: false,
+		},
+		{
+			name: "continues on update error but returns delete error",
+			mock: &mockDynamoDBClient{
+				UpdateTableError:  errors.New("update failed"),
+				DeleteTableOutput: dynamodb.DeleteTableOutput{},
+			},
+			expectError: false,
+		},
+		{
+			name: "returns error when delete fails",
+			mock: &mockDynamoDBClient{
+				UpdateTableOutput: dynamodb.UpdateTableOutput{},
+				DeleteTableError:  errors.New("delete failed"),
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := deleteDynamoDBTable(context.Background(), tc.mock, aws.String("test-table"))
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

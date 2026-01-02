@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,32 +9,59 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeEc2Subnet(subnet types.Subnet, firstSeenTime *time.Time, configObj config.Config) bool {
-	var subnetName string
-	tagMap := util.ConvertTypesTagsToMap(subnet.Tags)
-	if name, ok := tagMap["Name"]; ok {
-		subnetName = name
-	}
-
-	return configObj.EC2Subnet.ShouldInclude(config.ResourceValue{
-		Name: &subnetName,
-		Time: firstSeenTime,
-		Tags: tagMap,
-	})
+// EC2SubnetAPI defines the interface for EC2 Subnet operations.
+type EC2SubnetAPI interface {
+	DeleteSubnet(ctx context.Context, params *ec2.DeleteSubnetInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSubnetOutput, error)
+	DescribeSubnets(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
 }
 
-// Returns a formatted string of EC2 subnets
-func (ec2subnet *EC2Subnet) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result := []*string{}
+// ec2SubnetResource holds extra state needed for EC2 Subnet operations.
+type ec2SubnetResource struct {
+	*resource.Resource[EC2SubnetAPI]
+	defaultOnly bool
+}
 
-	// Configure filters
+// NewEC2Subnet creates a new EC2 Subnet resource using the generic resource pattern.
+func NewEC2Subnet() AwsResource {
+	r := &ec2SubnetResource{
+		Resource: &resource.Resource[EC2SubnetAPI]{
+			ResourceTypeName: "ec2-subnet",
+			BatchSize:        49,
+		},
+	}
+
+	r.InitClient = WrapAwsInitClient(func(res *resource.Resource[EC2SubnetAPI], cfg aws.Config) {
+		res.Scope.Region = cfg.Region
+		res.Client = ec2.NewFromConfig(cfg)
+	})
+
+	r.ConfigGetter = func(c config.Config) config.ResourceType {
+		// Store the DefaultOnly flag for use in the lister
+		r.defaultOnly = c.EC2Subnet.DefaultOnly
+		return c.EC2Subnet.ResourceType
+	}
+
+	r.Lister = func(ctx context.Context, client EC2SubnetAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+		return listEC2Subnets(ctx, client, scope, cfg, r.defaultOnly)
+	}
+
+	r.Nuker = resource.SimpleBatchDeleter(deleteSubnet)
+	r.PermissionVerifier = verifyEC2SubnetPermission
+
+	return &AwsResourceAdapter[EC2SubnetAPI]{Resource: r.Resource}
+}
+
+// listEC2Subnets retrieves all EC2 Subnets that match the config filters.
+func listEC2Subnets(ctx context.Context, client EC2SubnetAPI, scope resource.Scope, cfg config.ResourceType, defaultOnly bool) ([]*string, error) {
+	var subnetIds []*string
+
+	// Configure filters for default subnets if requested
 	var filters []types.Filter
-	if configObj.EC2Subnet.DefaultOnly {
+	if defaultOnly {
 		logging.Debugf("[default only] Retrieving the default subnets")
 		filters = append(filters, types.Filter{
 			Name:   aws.String("default-for-az"),
@@ -43,102 +69,65 @@ func (ec2subnet *EC2Subnet) getAll(c context.Context, configObj config.Config) (
 		})
 	}
 
-	// Create paginator
-	paginator := ec2.NewDescribeSubnetsPaginator(ec2subnet.Client, &ec2.DescribeSubnetsInput{
+	paginator := ec2.NewDescribeSubnetsPaginator(client, &ec2.DescribeSubnetsInput{
 		Filters: filters,
 	})
 
-	// Iterate through pages
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
-		// Process subnets in the current page
 		for _, subnet := range page.Subnets {
-			firstSeenTime, err := util.GetOrCreateFirstSeen(c, ec2subnet.Client, subnet.SubnetId, util.ConvertTypesTagsToMap(subnet.Tags))
-			if err != nil {
-				logging.Error("unable to retrieve first seen tag")
-				continue
-			}
+			tagMap := util.ConvertTypesTagsToMap(subnet.Tags)
 
-			if shouldIncludeEc2Subnet(subnet, firstSeenTime, configObj) {
-				result = append(result, subnet.SubnetId)
+			// Get first seen time from tags
+			firstSeenTime := getEC2SubnetFirstSeenTime(tagMap)
+
+			if shouldIncludeEC2Subnet(subnet, firstSeenTime, cfg) {
+				subnetIds = append(subnetIds, subnet.SubnetId)
 			}
 		}
 	}
 
-	// Check if resources are nukable
-	ec2subnet.VerifyNukablePermissions(result, func(id *string) error {
-		params := &ec2.DeleteSubnetInput{
-			SubnetId: id,
-			DryRun:   aws.Bool(true), // Check permissions without making the actual request
-		}
-		_, err := ec2subnet.Client.DeleteSubnet(c, params)
-		return err
-	})
-
-	return result, nil
+	return subnetIds, nil
 }
 
-// Deletes all Subnets
-func (ec2subnet *EC2Subnet) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No Subnets to nuke in region %s", ec2subnet.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all Subnets in region %s", ec2subnet.Region)
-	var deletedAddresses []*string
-
-	for _, id := range ids {
-		// check the id has the permission to nuke, if not. continue the execution
-		if nukable, reason := ec2subnet.IsNukable(*id); !nukable {
-			// not adding the report on final result hence not adding a record entry here
-			// NOTE: We can skip the error checking and return it here, since it is already being checked while
-			// displaying the identifiers. Here, `err` refers to the error indicating whether the identifier is eligible for nuke or not,
-			// and it is not a programming error.
-			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
-			continue
-		}
-
-		err := nukeSubnet(ec2subnet.Client, id)
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Subnet",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedAddresses = append(deletedAddresses, id)
-			logging.Debugf("Deleted Subnet: %s", *id)
+// getEC2SubnetFirstSeenTime extracts the first seen time from tag map.
+func getEC2SubnetFirstSeenTime(tagMap map[string]string) *time.Time {
+	if firstSeenStr, ok := tagMap[util.FirstSeenTagKey]; ok {
+		if t, err := util.ParseTimestamp(aws.String(firstSeenStr)); err == nil {
+			return t
 		}
 	}
-
-	logging.Debugf("[OK] %d EC2 Subnet(s) deleted in %s", len(deletedAddresses), ec2subnet.Region)
-
 	return nil
 }
 
-func nukeSubnet(client EC2SubnetAPI, id *string) error {
-	logging.Debug(fmt.Sprintf("Deleting subnet %s",
-		aws.ToString(id)))
+// shouldIncludeEC2Subnet determines if a subnet should be included based on config filters.
+func shouldIncludeEC2Subnet(subnet types.Subnet, firstSeenTime *time.Time, cfg config.ResourceType) bool {
+	tagMap := util.ConvertTypesTagsToMap(subnet.Tags)
+	return cfg.ShouldInclude(config.ResourceValue{
+		Name: util.GetEC2ResourceNameTagValue(subnet.Tags),
+		Time: firstSeenTime,
+		Tags: tagMap,
+	})
+}
 
-	_, err := client.DeleteSubnet(context.Background(), &ec2.DeleteSubnetInput{
+// verifyEC2SubnetPermission performs a dry-run delete to check permissions.
+func verifyEC2SubnetPermission(ctx context.Context, client EC2SubnetAPI, id *string) error {
+	_, err := client.DeleteSubnet(ctx, &ec2.DeleteSubnetInput{
+		SubnetId: id,
+		DryRun:   aws.Bool(true),
+	})
+	return err
+}
+
+// deleteSubnet deletes a single EC2 Subnet.
+func deleteSubnet(ctx context.Context, client EC2SubnetAPI, id *string) error {
+	logging.Debugf("Deleting subnet %s", aws.ToString(id))
+	_, err := client.DeleteSubnet(ctx, &ec2.DeleteSubnetInput{
 		SubnetId: id,
 	})
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to delete subnet %s",
-			aws.ToString(id)))
-		return errors.WithStackTrace(err)
-	}
-
-	logging.Debug(fmt.Sprintf("Successfully deleted subnet %s",
-		aws.ToString(id)))
-	return nil
+	return err
 }

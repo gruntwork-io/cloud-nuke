@@ -58,6 +58,8 @@ type Config struct {
 	EC2DHCPOption                   ResourceType                  `yaml:"EC2DhcpOption"`
 	EC2KeyPairs                     ResourceType                  `yaml:"EC2KeyPairs"`
 	EC2IPAM                         ResourceType                  `yaml:"EC2IPAM"`
+	EC2IPAMByoasn                   ResourceType                  `yaml:"EC2IPAMByoasn"`
+	EC2IPAMCustomAllocation         ResourceType                  `yaml:"EC2IPAMCustomAllocation"`
 	EC2IPAMPool                     ResourceType                  `yaml:"EC2IPAMPool"`
 	EC2IPAMResourceDiscovery        ResourceType                  `yaml:"EC2IPAMResourceDiscovery"`
 	EC2IPAMScope                    ResourceType                  `yaml:"EC2IPAMScope"`

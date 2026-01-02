@@ -10,175 +10,172 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedSesReceiptRule struct {
-	SESEmailReceivingAPI
-	DeleteReceiptRuleSetOutput         ses.DeleteReceiptRuleSetOutput
-	ListReceiptRuleSetsOutput          ses.ListReceiptRuleSetsOutput
+// Mock for SES Receipt Rule Set API
+type mockSESReceiptRuleSetAPI struct {
+	SESReceiptRuleSetAPI
 	DescribeActiveReceiptRuleSetOutput ses.DescribeActiveReceiptRuleSetOutput
+	ListReceiptRuleSetsOutput          ses.ListReceiptRuleSetsOutput
+	DeleteReceiptRuleSetOutput         ses.DeleteReceiptRuleSetOutput
 }
 
-func (m mockedSesReceiptRule) ListReceiptRuleSets(ctx context.Context, params *ses.ListReceiptRuleSetsInput, optFns ...func(*ses.Options)) (*ses.ListReceiptRuleSetsOutput, error) {
-	return &m.ListReceiptRuleSetsOutput, nil
-}
-
-func (m mockedSesReceiptRule) DeleteReceiptRuleSet(ctx context.Context, params *ses.DeleteReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptRuleSetOutput, error) {
-	return &m.DeleteReceiptRuleSetOutput, nil
-}
-
-func (m mockedSesReceiptRule) DescribeActiveReceiptRuleSet(ctx context.Context, params *ses.DescribeActiveReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DescribeActiveReceiptRuleSetOutput, error) {
+func (m mockSESReceiptRuleSetAPI) DescribeActiveReceiptRuleSet(ctx context.Context, params *ses.DescribeActiveReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DescribeActiveReceiptRuleSetOutput, error) {
 	return &m.DescribeActiveReceiptRuleSetOutput, nil
 }
 
-func TestSesReceiptRule_GetAll(t *testing.T) {
+func (m mockSESReceiptRuleSetAPI) ListReceiptRuleSets(ctx context.Context, params *ses.ListReceiptRuleSetsInput, optFns ...func(*ses.Options)) (*ses.ListReceiptRuleSetsOutput, error) {
+	return &m.ListReceiptRuleSetsOutput, nil
+}
 
-	id1 := "test-id-1"
-	id2 := "test-id-2"
-	metadata1 := types.ReceiptRuleSetMetadata{
-		CreatedTimestamp: aws.Time(time.Now()),
-		Name:             aws.String(id1),
-	}
-	metadata2 := types.ReceiptRuleSetMetadata{
-		CreatedTimestamp: aws.Time(time.Now().AddDate(-1, 0, 0)),
-		Name:             aws.String(id2),
-	}
+func (m mockSESReceiptRuleSetAPI) DeleteReceiptRuleSet(ctx context.Context, params *ses.DeleteReceiptRuleSetInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptRuleSetOutput, error) {
+	return &m.DeleteReceiptRuleSetOutput, nil
+}
+
+func TestListSesReceiptRuleSets(t *testing.T) {
 	t.Parallel()
 
-	sesRule := SesReceiptRule{
-		Region: "us-east-1",
-		Client: mockedSesReceiptRule{
-			ListReceiptRuleSetsOutput: ses.ListReceiptRuleSetsOutput{
-				RuleSets: []types.ReceiptRuleSetMetadata{
-					metadata1,
-					metadata2,
-				},
-			},
-		},
-	}
+	now := time.Now()
+	id1, id2 := "test-ruleset-1", "test-ruleset-2"
 
 	tests := map[string]struct {
+		region    string
+		ruleSets  []types.ReceiptRuleSetMetadata
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
+			region: "us-east-1",
+			ruleSets: []types.ReceiptRuleSetMetadata{
+				{Name: aws.String(id1), CreatedTimestamp: aws.Time(now)},
+				{Name: aws.String(id2), CreatedTimestamp: aws.Time(now.AddDate(-1, 0, 0))},
+			},
 			configObj: config.ResourceType{},
 			expected:  []string{id1, id2},
 		},
 		"nameExclusionFilter": {
+			region: "us-east-1",
+			ruleSets: []types.ReceiptRuleSetMetadata{
+				{Name: aws.String(id1), CreatedTimestamp: aws.Time(now)},
+				{Name: aws.String(id2), CreatedTimestamp: aws.Time(now.AddDate(-1, 0, 0))},
+			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(id2),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(id2)}},
+				},
 			},
 			expected: []string{id1},
 		},
 		"timeAfterExclusionFilter": {
+			region: "us-east-1",
+			ruleSets: []types.ReceiptRuleSetMetadata{
+				{Name: aws.String(id1), CreatedTimestamp: aws.Time(now)},
+				{Name: aws.String(id2), CreatedTimestamp: aws.Time(now.AddDate(-1, 0, 0))},
+			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(time.Now().Add(-1 * time.Hour)),
-				}},
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				},
+			},
 			expected: []string{id2},
 		},
+		"unsupportedRegion": {
+			region:    "us-west-1",
+			ruleSets:  []types.ReceiptRuleSetMetadata{{Name: aws.String(id1)}},
+			configObj: config.ResourceType{},
+			expected:  []string{},
+		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := sesRule.getAll(context.Background(), config.Config{
-				SESReceiptRuleSet: tc.configObj,
-			})
+			client := mockSESReceiptRuleSetAPI{
+				ListReceiptRuleSetsOutput: ses.ListReceiptRuleSetsOutput{RuleSets: tc.ruleSets},
+			}
+			scope := resource.Scope{Region: tc.region}
+
+			names, err := listSesReceiptRuleSets(context.Background(), client, scope, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestSesReceiptRule_NukeAll(t *testing.T) {
+func TestDeleteSesReceiptRuleSet(t *testing.T) {
 	t.Parallel()
 
-	sesRule := SesReceiptRule{
-		Client: mockedSesReceiptRule{},
-	}
-
-	err := sesRule.nukeAll([]*string{aws.String("test")})
+	client := mockSESReceiptRuleSetAPI{}
+	err := deleteSesReceiptRuleSet(context.Background(), client, aws.String("test-ruleset"))
 	require.NoError(t, err)
 }
 
-// //////////////receipt Ip filters///////////////////////////
-
-type mockedSesReceiptFilter struct {
-	SESEmailReceivingAPI
-	DeleteReceiptFilterOutput ses.DeleteReceiptFilterOutput
+// Mock for SES Receipt Filter API
+type mockSESReceiptFilterAPI struct {
+	SESReceiptFilterAPI
 	ListReceiptFiltersOutput  ses.ListReceiptFiltersOutput
+	DeleteReceiptFilterOutput ses.DeleteReceiptFilterOutput
 }
 
-func (m mockedSesReceiptFilter) ListReceiptFilters(ctx context.Context, params *ses.ListReceiptFiltersInput, optFns ...func(*ses.Options)) (*ses.ListReceiptFiltersOutput, error) {
+func (m mockSESReceiptFilterAPI) ListReceiptFilters(ctx context.Context, params *ses.ListReceiptFiltersInput, optFns ...func(*ses.Options)) (*ses.ListReceiptFiltersOutput, error) {
 	return &m.ListReceiptFiltersOutput, nil
 }
 
-func (m mockedSesReceiptFilter) DeleteReceiptFilter(ctx context.Context, params *ses.DeleteReceiptFilterInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptFilterOutput, error) {
+func (m mockSESReceiptFilterAPI) DeleteReceiptFilter(ctx context.Context, params *ses.DeleteReceiptFilterInput, optFns ...func(*ses.Options)) (*ses.DeleteReceiptFilterOutput, error) {
 	return &m.DeleteReceiptFilterOutput, nil
 }
 
-func TestSesReceiptFilter_GetAll(t *testing.T) {
-
-	id1 := "test-id-1"
-	id2 := "test-id-2"
-	metadata1 := types.ReceiptFilter{
-		Name: aws.String(id1),
-	}
-	metadata2 := types.ReceiptFilter{
-		Name: aws.String(id2),
-	}
+func TestListSesReceiptFilters(t *testing.T) {
 	t.Parallel()
 
-	sesRule := SesReceiptFilter{
-		Region: "us-east-1",
-		Client: mockedSesReceiptFilter{
-			ListReceiptFiltersOutput: ses.ListReceiptFiltersOutput{
-				Filters: []types.ReceiptFilter{
-					metadata1, metadata2,
-				},
-			},
-		},
-	}
+	id1, id2 := "test-filter-1", "test-filter-2"
 
 	tests := map[string]struct {
+		filters   []types.ReceiptFilter
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
+			filters: []types.ReceiptFilter{
+				{Name: aws.String(id1)},
+				{Name: aws.String(id2)},
+			},
 			configObj: config.ResourceType{},
 			expected:  []string{id1, id2},
 		},
 		"nameExclusionFilter": {
+			filters: []types.ReceiptFilter{
+				{Name: aws.String(id1)},
+				{Name: aws.String(id2)},
+			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(id2),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(id2)}},
+				},
 			},
 			expected: []string{id1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := sesRule.getAll(context.Background(), config.Config{
-				SESReceiptFilter: tc.configObj,
-			})
+			client := mockSESReceiptFilterAPI{
+				ListReceiptFiltersOutput: ses.ListReceiptFiltersOutput{Filters: tc.filters},
+			}
+			scope := resource.Scope{Region: "us-east-1"}
+
+			names, err := listSesReceiptFilters(context.Background(), client, scope, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
-func TestSesReceiptFilter_NukeAll(t *testing.T) {
+
+func TestDeleteSesReceiptFilter(t *testing.T) {
 	t.Parallel()
 
-	sesRule := SesReceiptFilter{
-		Client: mockedSesReceiptFilter{},
-	}
-
-	err := sesRule.nukeAll([]*string{aws.String("test")})
+	client := mockSESReceiptFilterAPI{}
+	err := deleteSesReceiptFilter(context.Background(), client, aws.String("test-filter"))
 	require.NoError(t, err)
 }

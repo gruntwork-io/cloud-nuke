@@ -13,221 +13,249 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockedKmsCustomerKeys struct {
-	KmsCustomerKeysAPI
+type mockKmsClient struct {
 	ListKeysOutput            kms.ListKeysOutput
 	ListAliasesOutput         kms.ListAliasesOutput
 	DescribeKeyOutput         map[string]kms.DescribeKeyOutput
-	DeleteAliasOutput         kms.DeleteAliasOutput
 	ScheduleKeyDeletionOutput kms.ScheduleKeyDeletionOutput
 }
 
-func (m mockedKmsCustomerKeys) ListKeys(ctx context.Context, params *kms.ListKeysInput, optFns ...func(*kms.Options)) (*kms.ListKeysOutput, error) {
+func (m *mockKmsClient) ListKeys(ctx context.Context, params *kms.ListKeysInput, optFns ...func(*kms.Options)) (*kms.ListKeysOutput, error) {
 	return &m.ListKeysOutput, nil
 }
 
-func (m mockedKmsCustomerKeys) ListAliases(ctx context.Context, params *kms.ListAliasesInput, optFns ...func(*kms.Options)) (*kms.ListAliasesOutput, error) {
+func (m *mockKmsClient) ListAliases(ctx context.Context, params *kms.ListAliasesInput, optFns ...func(*kms.Options)) (*kms.ListAliasesOutput, error) {
 	return &m.ListAliasesOutput, nil
 }
 
-func (m mockedKmsCustomerKeys) DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error) {
-	id := params.KeyId
-	output := m.DescribeKeyOutput[*id]
+func (m *mockKmsClient) DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error) {
+	output := m.DescribeKeyOutput[*params.KeyId]
 	return &output, nil
 }
 
-func (m mockedKmsCustomerKeys) DeleteAlias(ctx context.Context, params *kms.DeleteAliasInput, optFns ...func(*kms.Options)) (*kms.DeleteAliasOutput, error) {
-	return &m.DeleteAliasOutput, nil
-}
-
-func (m mockedKmsCustomerKeys) ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error) {
+func (m *mockKmsClient) ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error) {
 	return &m.ScheduleKeyDeletionOutput, nil
 }
 
-func TestKMS_GetAll(t *testing.T) {
+func TestListKmsCustomerKeys(t *testing.T) {
 	t.Parallel()
 
-	key1 := "key1"
-	key2 := "key2"
-	alias1 := "alias/key1"
-	alias2 := "alias/key2"
 	now := time.Now()
-	kck := KmsCustomerKeys{
-		Client: mockedKmsCustomerKeys{
-			ListKeysOutput: kms.ListKeysOutput{
-				Keys: []types.KeyListEntry{
-					{
-						KeyId: aws.String(key1),
-					},
-					{
-						KeyId: aws.String(key2),
-					},
-				},
+	key1, key2 := "key1", "key2"
+	alias1, alias2 := "alias/key1", "alias/key2"
+
+	mock := &mockKmsClient{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(key1)},
+				{KeyId: aws.String(key2)},
 			},
-			ListAliasesOutput: kms.ListAliasesOutput{
-				Aliases: []types.AliasListEntry{
-					{
-						AliasName:   aws.String(alias1),
-						TargetKeyId: aws.String(key1),
-					},
-					{
-						AliasName:   aws.String(alias2),
-						TargetKeyId: aws.String(key2),
-					},
-				},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{AliasName: aws.String(alias1), TargetKeyId: aws.String(key1)},
+				{AliasName: aws.String(alias2), TargetKeyId: aws.String(key2)},
 			},
-			DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
-				key1: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key1),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now),
-					},
-				},
-				key2: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key2),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now.Add(1)),
-					},
-				},
-			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			key1: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(key1),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+			key2: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(key2),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now.Add(time.Hour)),
+			}},
 		},
 	}
 
 	tests := map[string]struct {
-		configObj config.KMSCustomerKeyResourceType
+		configObj config.ResourceType
 		expected  []string
 	}{
-		"emptyFilter": {
-			configObj: config.KMSCustomerKeyResourceType{},
+		"noFilter": {
+			configObj: config.ResourceType{},
 			expected:  []string{key1, key2},
 		},
 		"nameExclusionFilter": {
-			configObj: config.KMSCustomerKeyResourceType{
-				ResourceType: config.ResourceType{
-					ExcludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{{
-							RE: *regexp.MustCompile(alias1),
-						}}},
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(alias1)}},
 				},
 			},
 			expected: []string{key2},
 		},
 		"nameInclusionFilter": {
-			configObj: config.KMSCustomerKeyResourceType{
-				ResourceType: config.ResourceType{
-					IncludeRule: config.FilterRule{
-						NamesRegExp: []config.Expression{{
-							RE: *regexp.MustCompile(".*key1"),
-						}}},
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(".*key1")}},
 				},
 			},
 			expected: []string{key1},
 		},
 		"timeAfterExclusionFilter": {
-			configObj: config.KMSCustomerKeyResourceType{
-				ResourceType: config.ResourceType{
-					ExcludeRule: config.FilterRule{
-						TimeAfter: aws.Time(now),
-					}},
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
 			},
 			expected: []string{key1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := kck.getAll(context.Background(), config.Config{
-				KMSCustomerKeys: tc.configObj,
-			})
+			names, err := listKmsCustomerKeys(context.Background(), mock, tc.configObj, false)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestKMS_GetAll_IncludeUnaliased(t *testing.T) {
+func TestListKmsCustomerKeys_IncludeUnaliasedKeys(t *testing.T) {
 	t.Parallel()
 
-	key1 := "key-with-alias"
-	key2 := "key-without-alias"
-	alias1 := "alias/my-key"
 	now := time.Now()
-	kck := KmsCustomerKeys{
-		Client: mockedKmsCustomerKeys{
-			ListKeysOutput: kms.ListKeysOutput{
-				Keys: []types.KeyListEntry{
-					{KeyId: aws.String(key1)},
-					{KeyId: aws.String(key2)},
-				},
+	keyWithAlias, keyWithoutAlias := "key-with-alias", "key-without-alias"
+
+	mock := &mockKmsClient{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(keyWithAlias)},
+				{KeyId: aws.String(keyWithoutAlias)},
 			},
-			ListAliasesOutput: kms.ListAliasesOutput{
-				Aliases: []types.AliasListEntry{
-					{
-						AliasName:   aws.String(alias1),
-						TargetKeyId: aws.String(key1),
-					},
-					// key2 has no alias
-				},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{AliasName: aws.String("alias/my-key"), TargetKeyId: aws.String(keyWithAlias)},
+				// keyWithoutAlias has no alias
 			},
-			DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
-				key1: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key1),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now),
-					},
-				},
-				key2: {
-					KeyMetadata: &types.KeyMetadata{
-						KeyId:        aws.String(key2),
-						KeyManager:   types.KeyManagerTypeCustomer,
-						CreationDate: aws.Time(now),
-					},
-				},
-			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			keyWithAlias: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(keyWithAlias),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+			keyWithoutAlias: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(keyWithoutAlias),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
 		},
 	}
 
 	tests := map[string]struct {
-		configObj config.KMSCustomerKeyResourceType
-		expected  []string
+		includeUnaliased bool
+		expected         []string
 	}{
 		"excludeUnaliasedByDefault": {
-			configObj: config.KMSCustomerKeyResourceType{
-				IncludeUnaliasedKeys: false,
-			},
-			expected: []string{key1}, // only key with alias
+			includeUnaliased: false,
+			expected:         []string{keyWithAlias},
 		},
 		"includeUnaliasedWhenConfigured": {
-			configObj: config.KMSCustomerKeyResourceType{
-				IncludeUnaliasedKeys: true,
-			},
-			expected: []string{key1, key2}, // both keys
+			includeUnaliased: true,
+			expected:         []string{keyWithAlias, keyWithoutAlias},
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := kck.getAll(context.Background(), config.Config{
-				KMSCustomerKeys: tc.configObj,
-			})
+			names, err := listKmsCustomerKeys(context.Background(), mock, config.ResourceType{}, tc.includeUnaliased)
 			require.NoError(t, err)
 			require.ElementsMatch(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestKMS_NukeAll(t *testing.T) {
+func TestListKmsCustomerKeys_FiltersAwsManagedKeys(t *testing.T) {
 	t.Parallel()
 
-	kck := KmsCustomerKeys{
-		Client: mockedKmsCustomerKeys{
-			DeleteAliasOutput:         kms.DeleteAliasOutput{},
-			ScheduleKeyDeletionOutput: kms.ScheduleKeyDeletionOutput{},
+	now := time.Now()
+	customerKey, awsKey := "customer-key", "aws-managed-key"
+
+	mock := &mockKmsClient{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(customerKey)},
+				{KeyId: aws.String(awsKey)},
+			},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{AliasName: aws.String("alias/customer"), TargetKeyId: aws.String(customerKey)},
+				{AliasName: aws.String("alias/aws/s3"), TargetKeyId: aws.String(awsKey)},
+			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			customerKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(customerKey),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+			awsKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(awsKey),
+				KeyManager:   types.KeyManagerTypeAws, // AWS-managed key
+				CreationDate: aws.Time(now),
+			}},
 		},
 	}
 
-	err := kck.nukeAll([]*string{aws.String("key1"), aws.String("key2")})
+	names, err := listKmsCustomerKeys(context.Background(), mock, config.ResourceType{}, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{customerKey}, aws.ToStringSlice(names))
+}
+
+func TestListKmsCustomerKeys_SkipsPendingDeletion(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	activeKey, pendingKey := "active-key", "pending-deletion-key"
+	deletionDate := now.Add(7 * 24 * time.Hour)
+
+	mock := &mockKmsClient{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(activeKey)},
+				{KeyId: aws.String(pendingKey)},
+			},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{AliasName: aws.String("alias/active"), TargetKeyId: aws.String(activeKey)},
+				{AliasName: aws.String("alias/pending"), TargetKeyId: aws.String(pendingKey)},
+			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			activeKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(activeKey),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+			pendingKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:                       aws.String(pendingKey),
+				KeyManager:                  types.KeyManagerTypeCustomer,
+				CreationDate:                aws.Time(now),
+				DeletionDate:                &deletionDate,
+				PendingDeletionWindowInDays: aws.Int32(7),
+			}},
+		},
+	}
+
+	names, err := listKmsCustomerKeys(context.Background(), mock, config.ResourceType{}, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{activeKey}, aws.ToStringSlice(names))
+}
+
+func TestDeleteKmsCustomerKey(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockKmsClient{
+		ScheduleKeyDeletionOutput: kms.ScheduleKeyDeletionOutput{},
+	}
+
+	err := deleteKmsCustomerKey(context.Background(), mock, aws.String("test-key"))
 	require.NoError(t, err)
 }

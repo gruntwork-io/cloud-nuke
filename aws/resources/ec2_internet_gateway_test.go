@@ -10,12 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedInternetGateway struct {
-	BaseAwsResource
 	InternetGatewayAPI
 	DescribeInternetGatewaysOutput ec2.DescribeInternetGatewaysOutput
 	DetachInternetGatewayOutput    ec2.DetachInternetGatewayOutput
@@ -34,49 +34,33 @@ func (m mockedInternetGateway) DeleteInternetGateway(ctx context.Context, params
 	return &m.DeleteInternetGatewayOutput, nil
 }
 
-func TestEc2InternetGateway_GetAll(t *testing.T) {
+func (m mockedInternetGateway) CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
+	return &ec2.CreateTagsOutput{}, nil
+}
 
+func TestInternetGateway_GetAll(t *testing.T) {
 	t.Parallel()
-
-	// Set excludeFirstSeenTag to false for testing
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 
-	var (
-		now      = time.Now()
-		gateway1 = "igw-0b44cfa6103932e1d001"
-		gateway2 = "igw-0b44cfa6103932e1d002"
+	now := time.Now()
+	gateway1, gateway2 := "igw-001", "igw-002"
+	testName1, testName2 := "cloud-nuke-igw-001", "cloud-nuke-igw-002"
 
-		testName1 = "cloud-nuke-igw-001"
-		testName2 = "cloud-nuke-igw-002"
-	)
-
-	igw := InternetGateway{
-		Client: mockedInternetGateway{
-			DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
-				InternetGateways: []types.InternetGateway{
-					{
-						InternetGatewayId: aws.String(gateway1),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
-							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now.Add(1))),
-							},
-						},
+	mockClient := mockedInternetGateway{
+		DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
+			InternetGateways: []types.InternetGateway{
+				{
+					InternetGatewayId: aws.String(gateway1),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String(testName1)},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now.Add(1)))},
 					},
-					{
-						InternetGatewayId: aws.String(gateway2),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
-							}, {
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now.Add(1))),
-							},
-						},
+				},
+				{
+					InternetGatewayId: aws.String(gateway2),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String(testName2)},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now.Add(1)))},
 					},
 				},
 			},
@@ -84,91 +68,68 @@ func TestEc2InternetGateway_GetAll(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		ctx       context.Context
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			ctx:       ctx,
 			configObj: config.ResourceType{},
 			expected:  []string{gateway1, gateway2},
 		},
 		"nameExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
 			},
 			expected: []string{gateway2},
 		},
 		"timeAfterExclusionFilter": {
-			ctx: ctx,
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
+				},
+			},
 			expected: []string{},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := igw.getAll(tc.ctx, config.Config{
-				InternetGateway: tc.configObj,
-			})
+			names, err := listInternetGateways(ctx, mockClient, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
-func TestEc2InternetGateway_NukeAll(t *testing.T) {
-
+func TestInternetGateway_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	var (
-		gateway1 = "igw-0b44cfa6103932e1d001"
-		gateway2 = "igw-0b44cfa6103932e1d002"
-	)
+	gateway1, gateway2 := "igw-001", "igw-002"
+	vpcID := "vpc-test"
 
-	igw := InternetGateway{
-		BaseAwsResource: BaseAwsResource{
-			Nukables: map[string]error{
-				gateway1: nil,
-			},
-		},
-		Client: mockedInternetGateway{
-			DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
-				InternetGateways: []types.InternetGateway{
-					{
-						InternetGatewayId: aws.String(gateway1),
-						Attachments: []types.InternetGatewayAttachment{
-							{
-								State: "testing-state",
-								VpcId: aws.String("test-gateway-vpc"),
-							},
-						},
-					},
-					{
-						InternetGatewayId: aws.String(gateway2),
-						Attachments: []types.InternetGatewayAttachment{
-							{
-								State: "testing-state",
-								VpcId: aws.String("test-gateway-vpc"),
-							},
-						},
+	// Mock client returns VPC attachment for each gateway when described
+	mockClient := mockedInternetGateway{
+		DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
+			InternetGateways: []types.InternetGateway{
+				{
+					InternetGatewayId: aws.String(gateway1),
+					Attachments: []types.InternetGatewayAttachment{
+						{VpcId: aws.String(vpcID), State: types.AttachmentStatusAttached},
 					},
 				},
 			},
-			DeleteInternetGatewayOutput: ec2.DeleteInternetGatewayOutput{},
 		},
+		DetachInternetGatewayOutput: ec2.DetachInternetGatewayOutput{},
+		DeleteInternetGatewayOutput: ec2.DeleteInternetGatewayOutput{},
 	}
 
-	err := igw.nukeAll([]*string{
-		aws.String(gateway1),
-		aws.String(gateway2),
-	})
-	require.NoError(t, err)
+	nuker := resource.MultiStepDeleter(detachInternetGateway, deleteInternetGateway)
+	results := nuker(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "internet-gateway", []*string{aws.String(gateway1), aws.String(gateway2)})
+
+	require.Len(t, results, 2)
+	require.Equal(t, gateway1, results[0].Identifier)
+	require.NoError(t, results[0].Error)
+	require.Equal(t, gateway2, results[1].Identifier)
+	require.NoError(t, results[1].Error)
 }

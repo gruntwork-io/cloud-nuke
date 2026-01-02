@@ -8,79 +8,80 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3control"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (ap *S3ObjectLambdaAccessPoint) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	accountID, ok := c.Value(util.AccountIdKey).(string)
+// S3ObjectLambdaAccessPointAPI defines the interface for S3 Object Lambda Access Point operations.
+type S3ObjectLambdaAccessPointAPI interface {
+	ListAccessPointsForObjectLambda(ctx context.Context, params *s3control.ListAccessPointsForObjectLambdaInput, optFns ...func(*s3control.Options)) (*s3control.ListAccessPointsForObjectLambdaOutput, error)
+	DeleteAccessPointForObjectLambda(ctx context.Context, params *s3control.DeleteAccessPointForObjectLambdaInput, optFns ...func(*s3control.Options)) (*s3control.DeleteAccessPointForObjectLambdaOutput, error)
+}
+
+// NewS3ObjectLambdaAccessPoints creates a new S3 Object Lambda Access Point resource.
+func NewS3ObjectLambdaAccessPoints() AwsResource {
+	return NewAwsResource(&resource.Resource[S3ObjectLambdaAccessPointAPI]{
+		ResourceTypeName: "s3-olap",
+		BatchSize:        5,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ObjectLambdaAccessPointAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = s3control.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.S3ObjectLambdaAccessPoint
+		},
+		Lister: listS3ObjectLambdaAccessPoints,
+		Nuker:  nukeS3ObjectLambdaAccessPoints,
+	})
+}
+
+// listS3ObjectLambdaAccessPoints retrieves all Object Lambda Access Points that match the config filters.
+func listS3ObjectLambdaAccessPoints(ctx context.Context, client S3ObjectLambdaAccessPointAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	accountID, ok := ctx.Value(util.AccountIdKey).(string)
 	if !ok {
 		logging.Errorf("unable to read the account-id from context")
 		return nil, errors.WithStackTrace(fmt.Errorf("unable to lookup the account id"))
 	}
 
-	// set the account id in object as this is mandatory to nuke an access point
-	ap.AccountID = aws.String(accountID)
-
-	var accessPoints []*string
-	paginator := s3control.NewListAccessPointsForObjectLambdaPaginator(ap.Client, &s3control.ListAccessPointsForObjectLambdaInput{
-		AccountId: ap.AccountID,
+	var identifiers []*string
+	paginator := s3control.NewListAccessPointsForObjectLambdaPaginator(client, &s3control.ListAccessPointsForObjectLambdaInput{
+		AccountId: aws.String(accountID),
 	})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ap.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, accessPoint := range page.ObjectLambdaAccessPointList {
-			if configObj.S3ObjectLambdaAccessPoint.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: accessPoint.Name,
 			}) {
-				accessPoints = append(accessPoints, accessPoint.Name)
+				identifiers = append(identifiers, accessPoint.Name)
 			}
 		}
 	}
 
-	return accessPoints, nil
+	return identifiers, nil
 }
 
-func (ap *S3ObjectLambdaAccessPoint) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Object lambda access point(s) to nuke in region %s", ap.Region)
-		return nil
+// nukeS3ObjectLambdaAccessPoints deletes Object Lambda Access Points.
+func nukeS3ObjectLambdaAccessPoints(ctx context.Context, client S3ObjectLambdaAccessPointAPI, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
+	accountID, ok := ctx.Value(util.AccountIdKey).(string)
+	if !ok {
+		logging.Errorf("unable to read the account-id from context")
+		return []resource.NukeResult{{Error: fmt.Errorf("unable to lookup the account id")}}
 	}
 
-	logging.Debugf("Deleting all Object lambda access points in region %s", ap.Region)
-	var deleted []*string
-
-	for _, id := range identifiers {
-
-		_, err := ap.Client.DeleteAccessPointForObjectLambda(
-			ap.Context,
-			&s3control.DeleteAccessPointForObjectLambdaInput{
-				AccountId: ap.AccountID,
-				Name:      id,
-			})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "S3 Object Lambda Access point",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deleted = append(deleted, id)
-			logging.Debugf("Deleted S3 object lambda access point: %s", aws.ToString(id))
-		}
+	deleteFn := func(ctx context.Context, client S3ObjectLambdaAccessPointAPI, name *string) error {
+		_, err := client.DeleteAccessPointForObjectLambda(ctx, &s3control.DeleteAccessPointForObjectLambdaInput{
+			AccountId: aws.String(accountID),
+			Name:      name,
+		})
+		return err
 	}
 
-	logging.Debugf("[OK] %d S3 Object lambda access point(s) deleted in %s", len(deleted), ap.Region)
-
-	return nil
+	return resource.SimpleBatchDeleter(deleteFn)(ctx, client, scope, resourceType, identifiers)
 }

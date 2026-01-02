@@ -6,75 +6,65 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-// Returns a formatted string of IPAM Byoasns
-func (byoasn *EC2IPAMByoasn) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var result []*string
-	params := &ec2.DescribeIpamByoasnInput{
-		MaxResults: &MaxResultCount,
-	}
+// EC2IPAMByoasnAPI defines the interface for EC2 IPAM BYOASN operations.
+type EC2IPAMByoasnAPI interface {
+	DescribeIpamByoasn(ctx context.Context, params *ec2.DescribeIpamByoasnInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamByoasnOutput, error)
+	DisassociateIpamByoasn(ctx context.Context, params *ec2.DisassociateIpamByoasnInput, optFns ...func(*ec2.Options)) (*ec2.DisassociateIpamByoasnOutput, error)
+}
 
-	output, err := byoasn.Client.DescribeIpamByoasn(byoasn.Context, params)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
-
-	for _, out := range output.Byoasns {
-		result = append(result, out.Asn)
-	}
-
-	// checking the nukable permissions
-	byoasn.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := byoasn.Client.DisassociateIpamByoasn(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
-			Asn:    id,
-			DryRun: aws.Bool(true),
-		})
-		return err
+// NewEC2IPAMByoasn creates a new EC2 IPAM BYOASN resource using the generic resource pattern.
+func NewEC2IPAMByoasn() AwsResource {
+	return NewAwsResource(&resource.Resource[EC2IPAMByoasnAPI]{
+		ResourceTypeName: "ipam-byoasn",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMByoasnAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2IPAMByoasn
+		},
+		Lister:             listEC2IPAMByoasns,
+		Nuker:              resource.SimpleBatchDeleter(deleteEC2IPAMByoasn),
+		PermissionVerifier: verifyEC2IPAMByoasnPermission,
 	})
+}
+
+// listEC2IPAMByoasns retrieves all IPAM BYOASNs.
+// Note: DescribeIpamByoasn does not support pagination.
+func listEC2IPAMByoasns(ctx context.Context, client EC2IPAMByoasnAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var result []*string
+
+	output, err := client.DescribeIpamByoasn(ctx, &ec2.DescribeIpamByoasnInput{
+		MaxResults: aws.Int32(10),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, byoasn := range output.Byoasns {
+		result = append(result, byoasn.Asn)
+	}
+
 	return result, nil
 }
 
-// Deletes all IPAMs Byoasns
-func (byoasn *EC2IPAMByoasn) nukeAll(asns []*string) error {
-	if len(asns) == 0 {
-		logging.Debugf("No IPAM Byoasn to nuke in region %s", byoasn.Region)
-		return nil
-	}
+// verifyEC2IPAMByoasnPermission performs a dry-run disassociate to check permissions.
+func verifyEC2IPAMByoasnPermission(ctx context.Context, client EC2IPAMByoasnAPI, id *string) error {
+	_, err := client.DisassociateIpamByoasn(ctx, &ec2.DisassociateIpamByoasnInput{
+		Asn:    id,
+		DryRun: aws.Bool(true),
+	})
+	return err
+}
 
-	logging.Debugf("Deleting all IPAM Byoasn in region %s", byoasn.Region)
-	var list []*string
-
-	for _, id := range asns {
-		if nukable, reason := byoasn.IsNukable(aws.ToString(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
-			continue
-		}
-
-		_, err := byoasn.Client.DisassociateIpamByoasn(byoasn.Context, &ec2.DisassociateIpamByoasnInput{
-			Asn: id,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "IPAM Byoasn",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			list = append(list, id)
-			logging.Debugf("Deleted IPAM Pool: %s", *id)
-		}
-	}
-
-	logging.Debugf("[OK] %d IPAM Pool(s) deleted in %s", len(list), byoasn.Region)
-
-	return nil
+// deleteEC2IPAMByoasn disassociates a single IPAM BYOASN.
+func deleteEC2IPAMByoasn(ctx context.Context, client EC2IPAMByoasnAPI, id *string) error {
+	_, err := client.DisassociateIpamByoasn(ctx, &ec2.DisassociateIpamByoasnInput{
+		Asn: id,
+	})
+	return err
 }

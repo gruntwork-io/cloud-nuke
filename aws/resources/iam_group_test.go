@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,18 +63,16 @@ func TestIamGroups_GetAll(t *testing.T) {
 	testName1 := "group1"
 	testName2 := "group2"
 	now := time.Now()
-	ig := IAMGroups{
-		Client: mockedIAMGroups{
-			ListGroupsOutput: iam.ListGroupsOutput{
-				Groups: []types.Group{
-					{
-						GroupName:  aws.String(testName1),
-						CreateDate: aws.Time(now),
-					},
-					{
-						GroupName:  aws.String(testName2),
-						CreateDate: aws.Time(now.Add(1)),
-					},
+	client := mockedIAMGroups{
+		ListGroupsOutput: iam.ListGroupsOutput{
+			Groups: []types.Group{
+				{
+					GroupName:  aws.String(testName1),
+					CreateDate: aws.Time(now),
+				},
+				{
+					GroupName:  aws.String(testName2),
+					CreateDate: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -106,45 +105,89 @@ func TestIamGroups_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ig.getAll(context.Background(), config.Config{
-				IAMGroups: tc.configObj,
-			})
+			names, err := listIAMGroups(context.Background(), client, resource.Scope{Region: "global"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestIamGroups_NukeAll(t *testing.T) {
+func TestIamGroups_DeleteIAMGroup(t *testing.T) {
 	t.Parallel()
-	ig := IAMGroups{
-		Client: mockedIAMGroups{
-			GetGroupOutput: iam.GetGroupOutput{
-				Users: []types.User{
-					{
-						UserName: aws.String("user1"),
-					},
+	client := mockedIAMGroups{
+		GetGroupOutput: iam.GetGroupOutput{
+			Users: []types.User{
+				{
+					UserName: aws.String("user1"),
 				},
 			},
-			RemoveUserFromGroupOutput: iam.RemoveUserFromGroupOutput{},
-			ListAttachedGroupPoliciesOutput: iam.ListAttachedGroupPoliciesOutput{
-				AttachedPolicies: []types.AttachedPolicy{
-					{
-						PolicyName: aws.String("policy1"),
-					},
-				},
-			},
-			DetachGroupPolicyOutput: iam.DetachGroupPolicyOutput{},
-			ListGroupPoliciesOutput: iam.ListGroupPoliciesOutput{
-				PolicyNames: []string{
-					"policy2",
-				},
-			},
-			DeleteGroupPolicyOutput: iam.DeleteGroupPolicyOutput{},
-			DeleteGroupOutput:       iam.DeleteGroupOutput{},
 		},
+		RemoveUserFromGroupOutput: iam.RemoveUserFromGroupOutput{},
+		ListAttachedGroupPoliciesOutput: iam.ListAttachedGroupPoliciesOutput{
+			AttachedPolicies: []types.AttachedPolicy{
+				{
+					PolicyName: aws.String("policy1"),
+					PolicyArn:  aws.String("arn:aws:iam::123456789012:policy/policy1"),
+				},
+			},
+		},
+		DetachGroupPolicyOutput: iam.DetachGroupPolicyOutput{},
+		ListGroupPoliciesOutput: iam.ListGroupPoliciesOutput{
+			PolicyNames: []string{
+				"inline-policy1",
+			},
+		},
+		DeleteGroupPolicyOutput: iam.DeleteGroupPolicyOutput{},
+		DeleteGroupOutput:       iam.DeleteGroupOutput{},
 	}
 
-	err := ig.nukeAll([]*string{aws.String("group1")})
+	err := deleteIAMGroup(context.Background(), client, aws.String("group1"))
+	require.NoError(t, err)
+}
+
+func TestIamGroups_RemoveUsersFromGroup(t *testing.T) {
+	t.Parallel()
+	client := mockedIAMGroups{
+		GetGroupOutput: iam.GetGroupOutput{
+			Users: []types.User{
+				{UserName: aws.String("user1")},
+				{UserName: aws.String("user2")},
+			},
+		},
+		RemoveUserFromGroupOutput: iam.RemoveUserFromGroupOutput{},
+	}
+
+	err := removeUsersFromGroup(context.Background(), client, aws.String("test-group"))
+	require.NoError(t, err)
+}
+
+func TestIamGroups_DetachGroupPolicies(t *testing.T) {
+	t.Parallel()
+	client := mockedIAMGroups{
+		ListAttachedGroupPoliciesOutput: iam.ListAttachedGroupPoliciesOutput{
+			AttachedPolicies: []types.AttachedPolicy{
+				{
+					PolicyName: aws.String("policy1"),
+					PolicyArn:  aws.String("arn:aws:iam::123456789012:policy/policy1"),
+				},
+			},
+		},
+		DetachGroupPolicyOutput: iam.DetachGroupPolicyOutput{},
+	}
+
+	err := detachGroupPolicies(context.Background(), client, aws.String("test-group"))
+	require.NoError(t, err)
+}
+
+func TestIamGroups_DeleteGroupInlinePolicies(t *testing.T) {
+	t.Parallel()
+	client := mockedIAMGroups{
+		ListGroupPoliciesOutput: iam.ListGroupPoliciesOutput{
+			PolicyNames: []string{"inline-policy1", "inline-policy2"},
+		},
+		DeleteGroupPolicyOutput: iam.DeleteGroupPolicyOutput{},
+	}
+
+	err := deleteGroupInlinePolicies(context.Background(), client, aws.String("test-group"))
 	require.NoError(t, err)
 }

@@ -9,12 +9,36 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (h *EC2DedicatedHosts) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// EC2DedicatedHostsAPI defines the interface for EC2 Dedicated Hosts operations.
+type EC2DedicatedHostsAPI interface {
+	DescribeHosts(ctx context.Context, params *ec2.DescribeHostsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeHostsOutput, error)
+	ReleaseHosts(ctx context.Context, params *ec2.ReleaseHostsInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseHostsOutput, error)
+}
+
+// NewEC2DedicatedHosts creates a new EC2DedicatedHosts resource using the generic resource pattern.
+func NewEC2DedicatedHosts() AwsResource {
+	return NewAwsResource(&resource.Resource[EC2DedicatedHostsAPI]{
+		ResourceTypeName: "ec2-dedicated-hosts",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2DedicatedHostsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2DedicatedHosts
+		},
+		Lister: listEC2DedicatedHosts,
+		Nuker:  resource.BulkResultDeleter(releaseEC2DedicatedHosts),
+	})
+}
+
+// listEC2DedicatedHosts retrieves all EC2 dedicated hosts that match the config filters.
+func listEC2DedicatedHosts(ctx context.Context, client EC2DedicatedHostsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var hostIds []*string
 	describeHostsInput := &ec2.DescribeHostsInput{
 		Filter: []types.Filter{
@@ -29,15 +53,15 @@ func (h *EC2DedicatedHosts) getAll(c context.Context, configObj config.Config) (
 		},
 	}
 
-	paginator := ec2.NewDescribeHostsPaginator(h.Client, describeHostsInput)
+	paginator := ec2.NewDescribeHostsPaginator(client, describeHostsInput)
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, host := range page.Hosts {
-			if shouldIncludeHostId(&host, configObj) {
+			if shouldIncludeHostId(&host, cfg) {
 				hostIds = append(hostIds, host.HostId)
 			}
 		}
@@ -46,7 +70,8 @@ func (h *EC2DedicatedHosts) getAll(c context.Context, configObj config.Config) (
 	return hostIds, nil
 }
 
-func shouldIncludeHostId(host *types.Host, configObj config.Config) bool {
+// shouldIncludeHostId determines if an EC2 dedicated host should be included for deletion.
+func shouldIncludeHostId(host *types.Host, cfg config.ResourceType) bool {
 	if host == nil {
 		return false
 	}
@@ -61,48 +86,35 @@ func shouldIncludeHostId(host *types.Host, configObj config.Config) bool {
 	// Ignore this error and pass empty string to config.ShouldInclude
 	hostNameTagValue := util.GetEC2ResourceNameTagValue(host.Tags)
 
-	return configObj.EC2DedicatedHosts.ShouldInclude(config.ResourceValue{
+	return cfg.ShouldInclude(config.ResourceValue{
 		Name: hostNameTagValue,
 		Time: host.AllocationTime,
 	})
 }
 
-func (h *EC2DedicatedHosts) nukeAll(hostIds []*string) error {
-	if len(hostIds) == 0 {
-		logging.Debugf("No EC2 dedicated hosts to nuke in region %s", h.Region)
-		return nil
-	}
-
-	logging.Debugf("Releasing all EC2 dedicated host allocations in region %s", h.Region)
-
-	input := &ec2.ReleaseHostsInput{HostIds: aws.ToStringSlice(hostIds)}
-
-	releaseResult, err := h.Client.ReleaseHosts(h.Context, input)
-
+// releaseEC2DedicatedHosts releases EC2 dedicated hosts and returns per-item results.
+func releaseEC2DedicatedHosts(ctx context.Context, client EC2DedicatedHostsAPI, hostIds []string) []resource.NukeResult {
+	input := &ec2.ReleaseHostsInput{HostIds: hostIds}
+	releaseResult, err := client.ReleaseHosts(ctx, input)
 	if err != nil {
-		logging.Debugf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
-
-	// Report successes and failures from release host request
-	for _, hostSuccess := range releaseResult.Successful {
-		logging.Debugf("[OK] Dedicated host %s was released in %s", hostSuccess, h.Region)
-		e := report.Entry{
-			Identifier:   hostSuccess,
-			ResourceType: "EC2 Dedicated Host",
+		releaseErr := errors.WithStackTrace(err)
+		results := make([]resource.NukeResult, len(hostIds))
+		for i, id := range hostIds {
+			results[i] = resource.NukeResult{Identifier: id, Error: releaseErr}
 		}
-		report.Record(e)
+		return results
 	}
 
-	for _, hostFailed := range releaseResult.Unsuccessful {
-		logging.Debugf("[ERROR] Unable to release dedicated host %s in %s: %s", aws.ToString(hostFailed.ResourceId), h.Region, aws.ToString(hostFailed.Error.Message))
-		e := report.Entry{
-			Identifier:   aws.ToString(hostFailed.ResourceId),
-			ResourceType: "EC2 Dedicated Host",
-			Error:        fmt.Errorf("%s", *hostFailed.Error.Message),
-		}
-		report.Record(e)
+	var results []resource.NukeResult
+	for _, id := range releaseResult.Successful {
+		results = append(results, resource.NukeResult{Identifier: id, Error: nil})
+	}
+	for _, item := range releaseResult.Unsuccessful {
+		results = append(results, resource.NukeResult{
+			Identifier: aws.ToString(item.ResourceId),
+			Error:      fmt.Errorf("%s", aws.ToString(item.Error.Message)),
+		})
 	}
 
-	return nil
+	return results
 }

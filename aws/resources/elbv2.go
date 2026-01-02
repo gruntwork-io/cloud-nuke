@@ -2,79 +2,80 @@ package resources
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of ELBv2 ARNs
-func (balancer *LoadBalancersV2) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := balancer.Client.DescribeLoadBalancers(balancer.Context, &elasticloadbalancingv2.DescribeLoadBalancersInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+// LoadBalancersV2PaginatorAPI defines the interface for paginator operations.
+type LoadBalancersV2PaginatorAPI interface {
+	LoadBalancersV2API
+	elasticloadbalancingv2.DescribeLoadBalancersAPIClient
+}
+
+// LoadBalancersV2API defines the interface for ELBv2 operations.
+type LoadBalancersV2API interface {
+	DescribeLoadBalancers(ctx context.Context, params *elasticloadbalancingv2.DescribeLoadBalancersInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeLoadBalancersOutput, error)
+	DeleteLoadBalancer(ctx context.Context, params *elasticloadbalancingv2.DeleteLoadBalancerInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DeleteLoadBalancerOutput, error)
+}
+
+// NewLoadBalancersV2 creates a new LoadBalancersV2 resource using the generic resource pattern.
+func NewLoadBalancersV2() AwsResource {
+	return NewAwsResource(&resource.Resource[LoadBalancersV2API]{
+		ResourceTypeName: "elbv2",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[LoadBalancersV2API], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = elasticloadbalancingv2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ELBv2
+		},
+		Lister: listLoadBalancersV2,
+		Nuker:  resource.SequentialDeleter(resource.DeleteThenWait(deleteLoadBalancerV2, waitForLoadBalancerV2Deleted)),
+	})
+}
+
+// listLoadBalancersV2 retrieves all ELBv2 load balancers that match the config filters.
+func listLoadBalancersV2(ctx context.Context, client LoadBalancersV2API, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	paginator := elasticloadbalancingv2.NewDescribeLoadBalancersPaginator(client.(LoadBalancersV2PaginatorAPI), &elasticloadbalancingv2.DescribeLoadBalancersInput{})
 
 	var arns []*string
-	for _, balancer := range result.LoadBalancers {
-		if configObj.ELBv2.ShouldInclude(config.ResourceValue{
-			Name: balancer.LoadBalancerName,
-			Time: balancer.CreatedTime,
-		}) {
-			arns = append(arns, balancer.LoadBalancerArn)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, balancer := range page.LoadBalancers {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: balancer.LoadBalancerName,
+				Time: balancer.CreatedTime,
+			}) {
+				arns = append(arns, balancer.LoadBalancerArn)
+			}
 		}
 	}
 
 	return arns, nil
 }
 
-// Deletes all Elastic Load Balancers
-func (balancer *LoadBalancersV2) nukeAll(arns []*string) error {
-	if len(arns) == 0 {
-		logging.Debugf("No V2 Elastic Load Balancers to nuke in region %s", balancer.Region)
-		return nil
-	}
+// deleteLoadBalancerV2 deletes a single ELBv2 load balancer.
+func deleteLoadBalancerV2(ctx context.Context, client LoadBalancersV2API, arn *string) error {
+	_, err := client.DeleteLoadBalancer(ctx, &elasticloadbalancingv2.DeleteLoadBalancerInput{
+		LoadBalancerArn: arn,
+	})
+	return err
+}
 
-	logging.Debugf("Deleting all V2 Elastic Load Balancers in region %s", balancer.Region)
-	var deletedArns []*string
-
-	for _, arn := range arns {
-		params := &elasticloadbalancingv2.DeleteLoadBalancerInput{
-			LoadBalancerArn: arn,
-		}
-
-		_, err := balancer.Client.DeleteLoadBalancer(balancer.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(arn),
-			ResourceType: "Load Balancer (v2)",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedArns = append(deletedArns, arn)
-			logging.Debugf("Deleted ELBv2: %s", *arn)
-		}
-	}
-
-	if len(deletedArns) > 0 {
-		waiter := elasticloadbalancingv2.NewLoadBalancersDeletedWaiter(balancer.Client)
-		err := waiter.Wait(balancer.Context, &elasticloadbalancingv2.DescribeLoadBalancersInput{
-			LoadBalancerArns: aws.ToStringSlice(deletedArns),
-		}, balancer.Timeout)
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-	}
-
-	logging.Debugf("[OK] %d V2 Elastic Load Balancer(s) deleted in %s", len(deletedArns), balancer.Region)
-	return nil
+// waitForLoadBalancerV2Deleted waits for an ELBv2 load balancer to be deleted.
+func waitForLoadBalancerV2Deleted(ctx context.Context, client LoadBalancersV2API, arn *string) error {
+	waiter := elasticloadbalancingv2.NewLoadBalancersDeletedWaiter(client)
+	return waiter.Wait(ctx, &elasticloadbalancingv2.DescribeLoadBalancersInput{
+		LoadBalancerArns: []string{aws.ToString(arn)},
+	}, 5*time.Minute)
 }

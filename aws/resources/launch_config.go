@@ -6,8 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // LaunchConfigsAPI defines the interface for Launch Configuration operations.
@@ -21,15 +21,10 @@ func NewLaunchConfigs() AwsResource {
 	return NewAwsResource(&resource.Resource[LaunchConfigsAPI]{
 		ResourceTypeName: "lc",
 		BatchSize:        49,
-		InitClient: func(r *resource.Resource[LaunchConfigsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for AutoScaling client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = autoscaling.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[LaunchConfigsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = autoscaling.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.LaunchConfiguration
 		},
@@ -46,7 +41,7 @@ func listLaunchConfigs(ctx context.Context, client LaunchConfigsAPI, scope resou
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, lc := range page.LaunchConfigurations {
@@ -67,5 +62,5 @@ func deleteLaunchConfig(ctx context.Context, client LaunchConfigsAPI, name *stri
 	_, err := client.DeleteLaunchConfiguration(ctx, &autoscaling.DeleteLaunchConfigurationInput{
 		LaunchConfigurationName: name,
 	})
-	return err
+	return errors.WithStackTrace(err)
 }

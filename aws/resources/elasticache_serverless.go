@@ -7,47 +7,39 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (cache *ElasticCacheServerless) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("[ElasticCache Serverless] No cluster found in region %s", cache.Region)
-		return nil
-	}
-
-	logging.Debugf("[ElasticCache Serverless] Deleting all clusters in %s", cache.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		_, err := cache.Client.DeleteServerlessCache(cache.Context, &elasticache.DeleteServerlessCacheInput{
-			ServerlessCacheName: identifier,
-		})
-		if err != nil {
-			logging.Debugf("[ElasticCache Serverless] Error deleting cluster %s in region %s", *identifier, cache.Region)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[ElasticCache Serverless] Deleted cluster %s in region %s", *identifier, cache.Region)
-		}
-
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: cache.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d ElasticCache Serverless deleted in %s", len(deleted), cache.Region)
-	return nil
+// ElasticCacheServerlessAPI defines the interface for ElastiCache Serverless operations.
+type ElasticCacheServerlessAPI interface {
+	DeleteServerlessCache(ctx context.Context, params *elasticache.DeleteServerlessCacheInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteServerlessCacheOutput, error)
+	DescribeServerlessCaches(ctx context.Context, params *elasticache.DescribeServerlessCachesInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeServerlessCachesOutput, error)
 }
 
-func (cache *ElasticCacheServerless) getAll(ctx context.Context, cnfObj config.Config) ([]*string, error) {
+// NewElasticCacheServerless creates a new ElastiCache Serverless resource using the generic resource pattern.
+func NewElasticCacheServerless() AwsResource {
+	return NewAwsResource(&resource.Resource[ElasticCacheServerlessAPI]{
+		ResourceTypeName: "elasticcache-serverless",
+		// Tentative batch size to ensure AWS doesn't throttle
+		BatchSize: 49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticCacheServerlessAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = elasticache.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ElasticCacheServerless
+		},
+		Lister: listElasticCacheServerless,
+		Nuker:  resource.SimpleBatchDeleter(deleteElasticCacheServerless),
+	})
+}
+
+// listElasticCacheServerless retrieves all ElastiCache Serverless clusters that match the config filters.
+func listElasticCacheServerless(ctx context.Context, client ElasticCacheServerlessAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var output []*string
 
-	paginator := elasticache.NewDescribeServerlessCachesPaginator(cache.Client, &elasticache.DescribeServerlessCachesInput{})
+	paginator := elasticache.NewDescribeServerlessCachesPaginator(client, &elasticache.DescribeServerlessCachesInput{})
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
@@ -56,28 +48,17 @@ func (cache *ElasticCacheServerless) getAll(ctx context.Context, cnfObj config.C
 
 		for _, cluster := range page.ServerlessCaches {
 			if strings.ToLower(*cluster.Status) != "available" {
-				logging.Debugf(
-					"[ElasticCache Serverless] skiping cluster: %s, status: %s",
-					*cluster.ARN,
-					*cluster.Status,
-				)
-
 				continue
 			}
 
 			split := strings.Split(*cluster.ARN, ":")
 			if len(split) == 0 {
-				logging.Debugf(
-					"[ElasticCache Serverless] skiping cluster: %s",
-					*cluster.ARN,
-				)
-
 				continue
 			}
 
 			name := split[len(split)-1]
 
-			if cnfObj.ElasticCacheServerless.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(name),
 				Time: cluster.CreateTime,
 			}) {
@@ -87,4 +68,12 @@ func (cache *ElasticCacheServerless) getAll(ctx context.Context, cnfObj config.C
 	}
 
 	return output, nil
+}
+
+// deleteElasticCacheServerless deletes a single ElastiCache Serverless cluster.
+func deleteElasticCacheServerless(ctx context.Context, client ElasticCacheServerlessAPI, name *string) error {
+	_, err := client.DeleteServerlessCache(ctx, &elasticache.DeleteServerlessCacheInput{
+		ServerlessCacheName: name,
+	})
+	return err
 }

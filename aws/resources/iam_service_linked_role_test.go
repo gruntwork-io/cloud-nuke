@@ -10,11 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIAMServiceLinkedRoles struct {
-	IAMServiceLinkedRolesAPI
 	ListRolesOutput                          iam.ListRolesOutput
 	DeleteServiceLinkedRoleOutput            iam.DeleteServiceLinkedRoleOutput
 	GetServiceLinkedRoleDeletionStatusOutput iam.GetServiceLinkedRoleDeletionStatusOutput
@@ -32,25 +32,29 @@ func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatus(ctx cont
 	return &m.GetServiceLinkedRoleDeletionStatusOutput, nil
 }
 
-func TestIAMServiceLinkedRoles_GetAll(t *testing.T) {
+func TestIAMServiceLinkedRoles_List(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
 	testName1 := "test-role1"
 	testName2 := "test-role2"
-	islr := IAMServiceLinkedRoles{
-		Client: &mockedIAMServiceLinkedRoles{
-			ListRolesOutput: iam.ListRolesOutput{
-				Roles: []types.Role{
-					{
-						RoleName:   aws.String(testName1),
-						CreateDate: aws.Time(now),
-						Arn:        aws.String("aws-service-role"),
-					},
-					{
-						RoleName:   aws.String(testName2),
-						CreateDate: aws.Time(now.Add(1)),
-						Arn:        aws.String("aws-service-role"),
-					},
+	client := mockedIAMServiceLinkedRoles{
+		ListRolesOutput: iam.ListRolesOutput{
+			Roles: []types.Role{
+				{
+					RoleName:   aws.String(testName1),
+					CreateDate: aws.Time(now),
+					Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"),
+				},
+				{
+					RoleName:   aws.String(testName2),
+					CreateDate: aws.Time(now.Add(1)),
+					Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForEKS"),
+				},
+				{
+					// This role should be filtered out (not a service-linked role)
+					RoleName:   aws.String("regular-role"),
+					CreateDate: aws.Time(now),
+					Arn:        aws.String("arn:aws:iam::123456789012:role/regular-role"),
 				},
 			},
 		},
@@ -83,27 +87,24 @@ func TestIAMServiceLinkedRoles_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := islr.getAll(context.Background(), config.Config{
-				IAMServiceLinkedRoles: tc.configObj,
-			})
+			names, err := listIAMServiceLinkedRoles(context.Background(), client, resource.Scope{Region: "global"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
-func TestIAMServiceLinkedRoles_NukeAll(t *testing.T) {
+func TestIAMServiceLinkedRoles_Delete(t *testing.T) {
 	t.Parallel()
-	islr := IAMServiceLinkedRoles{
-		Client: &mockedIAMServiceLinkedRoles{
-			DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{},
-			GetServiceLinkedRoleDeletionStatusOutput: iam.GetServiceLinkedRoleDeletionStatusOutput{
-				Status: types.DeletionTaskStatusTypeSucceeded,
-			},
+	client := mockedIAMServiceLinkedRoles{
+		DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{
+			DeletionTaskId: aws.String("task/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling/test-task-id"),
+		},
+		GetServiceLinkedRoleDeletionStatusOutput: iam.GetServiceLinkedRoleDeletionStatusOutput{
+			Status: types.DeletionTaskStatusTypeSucceeded,
 		},
 	}
 
-	err := islr.nukeAll([]*string{aws.String("test-role1")})
+	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("test-role1"))
 	require.NoError(t, err)
 }

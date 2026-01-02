@@ -56,18 +56,20 @@ func TestListNatGateways(t *testing.T) {
 			},
 			expected: []string{"ngw-2"},
 		},
-		"skip deleted state": {
+		"skip deleted and deleting states": {
 			gateways: []types.NatGateway{
 				{NatGatewayId: aws.String("ngw-1"), CreateTime: aws.Time(now), State: types.NatGatewayStateDeleted},
-				{NatGatewayId: aws.String("ngw-2"), CreateTime: aws.Time(now), State: types.NatGatewayStateAvailable},
+				{NatGatewayId: aws.String("ngw-2"), CreateTime: aws.Time(now), State: types.NatGatewayStateDeleting},
+				{NatGatewayId: aws.String("ngw-3"), CreateTime: aws.Time(now), State: types.NatGatewayStateAvailable},
 			},
 			config:   config.ResourceType{},
-			expected: []string{"ngw-2"},
+			expected: []string{"ngw-3"},
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			mock := &mockNatGatewayClient{
 				DescribeNatGatewaysOutput: ec2.DescribeNatGatewaysOutput{
 					NatGateways: tc.gateways,

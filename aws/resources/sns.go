@@ -12,6 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SNSTopicAPI defines the interface for SNS Topic operations.
@@ -43,54 +44,62 @@ func NewSNSTopic() AwsResource {
 // SNS APIs do not return a creation date, so we tag resources with a first-seen time
 // when the topic first appears, then use that tag for time-based filtering.
 func listSNSTopics(ctx context.Context, client SNSTopicAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	var snsTopics []*string
-
 	excludeFirstSeenTag, err := util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStackTrace(err)
 	}
 
+	var topics []*string
 	paginator := sns.NewListTopicsPaginator(client, &sns.ListTopicsInput{})
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, topic := range page.Topics {
-			var firstSeenTime *time.Time
-
-			if !excludeFirstSeenTag {
-				firstSeenTime, err = getFirstSeenSNSTag(ctx, client, *topic.TopicArn)
-				if err != nil {
-					logging.Errorf("Unable to retrieve tags for SNS Topic: %s, with error: %s", *topic.TopicArn, err)
-					continue
-				}
-
-				if firstSeenTime == nil {
-					now := time.Now().UTC()
-					firstSeenTime = &now
-					if err := setFirstSeenSNSTag(ctx, client, *topic.TopicArn, now); err != nil {
-						logging.Errorf("Unable to apply first seen tag to SNS Topic: %s, with error: %s", *topic.TopicArn, err)
-						continue
-					}
-				}
+			firstSeenTime, err := getFirstSeenSNSTagOrSet(ctx, client, *topic.TopicArn, excludeFirstSeenTag)
+			if err != nil {
+				logging.Errorf("Unable to process first-seen tag for SNS Topic %s: %s", *topic.TopicArn, err)
+				continue
 			}
 
 			// Extract topic name from ARN (format: arn:aws:sns:us-east-1:123456789012:MyTopic)
-			nameIndex := strings.LastIndex(*topic.TopicArn, ":")
-			topicName := (*topic.TopicArn)[nameIndex+1:]
+			topicName := (*topic.TopicArn)[strings.LastIndex(*topic.TopicArn, ":")+1:]
 
 			if cfg.ShouldInclude(config.ResourceValue{
 				Time: firstSeenTime,
 				Name: &topicName,
 			}) {
-				snsTopics = append(snsTopics, topic.TopicArn)
+				topics = append(topics, topic.TopicArn)
 			}
 		}
 	}
 
-	return snsTopics, nil
+	return topics, nil
+}
+
+// getFirstSeenSNSTagOrSet retrieves the first-seen timestamp or sets it if not present.
+// If excludeFirstSeenTag is true, skips tag processing and returns nil.
+func getFirstSeenSNSTagOrSet(ctx context.Context, client SNSTopicAPI, topicArn string, excludeFirstSeenTag bool) (*time.Time, error) {
+	if excludeFirstSeenTag {
+		return nil, nil
+	}
+
+	firstSeenTime, err := getFirstSeenSNSTag(ctx, client, topicArn)
+	if err != nil {
+		return nil, err
+	}
+
+	if firstSeenTime == nil {
+		now := time.Now().UTC()
+		if err := setFirstSeenSNSTag(ctx, client, topicArn, now); err != nil {
+			return nil, err
+		}
+		return &now, nil
+	}
+
+	return firstSeenTime, nil
 }
 
 // getFirstSeenSNSTag retrieves the first-seen time tag for an SNS topic.
@@ -99,7 +108,7 @@ func getFirstSeenSNSTag(ctx context.Context, client SNSTopicAPI, topicArn string
 		ResourceArn: &topicArn,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStackTrace(err)
 	}
 
 	for _, tag := range response.Tags {
@@ -122,7 +131,10 @@ func setFirstSeenSNSTag(ctx context.Context, client SNSTopicAPI, topicArn string
 			},
 		},
 	})
-	return err
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+	return nil
 }
 
 // deleteSNSTopic deletes a single SNS topic.
@@ -130,5 +142,8 @@ func deleteSNSTopic(ctx context.Context, client SNSTopicAPI, topicArn *string) e
 	_, err := client.DeleteTopic(ctx, &sns.DeleteTopicInput{
 		TopicArn: topicArn,
 	})
-	return err
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+	return nil
 }

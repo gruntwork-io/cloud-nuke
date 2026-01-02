@@ -8,108 +8,104 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (r *Route53CidrCollection) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
-	var ids []*string
+// Route53CidrCollectionAPI defines the interface for Route53 CIDR Collection operations.
+type Route53CidrCollectionAPI interface {
+	ListCidrCollections(ctx context.Context, params *route53.ListCidrCollectionsInput, optFns ...func(*route53.Options)) (*route53.ListCidrCollectionsOutput, error)
+	ListCidrBlocks(ctx context.Context, params *route53.ListCidrBlocksInput, optFns ...func(*route53.Options)) (*route53.ListCidrBlocksOutput, error)
+	ChangeCidrCollection(ctx context.Context, params *route53.ChangeCidrCollectionInput, optFns ...func(*route53.Options)) (*route53.ChangeCidrCollectionOutput, error)
+	DeleteCidrCollection(ctx context.Context, params *route53.DeleteCidrCollectionInput, optFns ...func(*route53.Options)) (*route53.DeleteCidrCollectionOutput, error)
+}
 
-	result, err := r.Client.ListCidrCollections(r.Context, &route53.ListCidrCollectionsInput{})
-	if err != nil {
-		logging.Errorf("[Failed] unable to list cidr collection: %s", err)
-		return nil, err
-	}
+// NewRoute53CidrCollections creates a new Route53 CIDR Collection resource using the generic resource pattern.
+// Route53 is a global service.
+func NewRoute53CidrCollections() AwsResource {
+	return NewAwsResource(&resource.Resource[Route53CidrCollectionAPI]{
+		ResourceTypeName: "route53-cidr-collection",
+		BatchSize:        49,
+		IsGlobal:         true,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[Route53CidrCollectionAPI], cfg aws.Config) {
+			r.Scope.Region = "global"
+			r.Client = route53.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.Route53CIDRCollection
+		},
+		Lister: listRoute53CidrCollections,
+		Nuker:  resource.MultiStepDeleter(nukeCidrBlocks, deleteRoute53CidrCollection),
+	})
+}
 
-	for _, r := range result.CidrCollections {
-		if configObj.Route53CIDRCollection.ShouldInclude(config.ResourceValue{
-			Name: r.Name,
-		}) {
-			ids = append(ids, r.Id)
+// listRoute53CidrCollections retrieves all CIDR collections that match the config filters.
+func listRoute53CidrCollections(ctx context.Context, client Route53CidrCollectionAPI, _ resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
+
+	paginator := route53.NewListCidrCollectionsPaginator(client, &route53.ListCidrCollectionsInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, collection := range page.CidrCollections {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: collection.Name,
+			}) {
+				identifiers = append(identifiers, collection.Id)
+			}
 		}
 	}
 
-	return ids, nil
+	return identifiers, nil
 }
 
-func (r *Route53CidrCollection) nukeCidrLocations(id *string) (err error) {
-	// get attached cidr blocks
-	loc, err := r.Client.ListCidrBlocks(r.Context, &route53.ListCidrBlocksInput{
+// nukeCidrBlocks removes all CIDR blocks from a collection before it can be deleted.
+func nukeCidrBlocks(ctx context.Context, client Route53CidrCollectionAPI, id *string) error {
+	logging.Debugf("Removing CIDR blocks from collection %s", aws.ToString(id))
+
+	var allChanges []types.CidrCollectionChange
+
+	paginator := route53.NewListCidrBlocksPaginator(client, &route53.ListCidrBlocksInput{
 		CollectionId: id,
 	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, block := range page.CidrBlocks {
+			allChanges = append(allChanges, types.CidrCollectionChange{
+				CidrList:     []string{aws.ToString(block.CidrBlock)},
+				Action:       types.CidrCollectionChangeActionDeleteIfExists,
+				LocationName: block.LocationName,
+			})
+		}
+	}
+
+	if len(allChanges) == 0 {
+		return nil
+	}
+
+	_, err := client.ChangeCidrCollection(ctx, &route53.ChangeCidrCollectionInput{
+		Id:      id,
+		Changes: allChanges,
+	})
 	if err != nil {
-		logging.Errorf("[Failed] unable to list cidr blocks: %v", err)
 		return err
 	}
 
-	var changes []types.CidrCollectionChange
-	for _, block := range loc.CidrBlocks {
-		changes = append(changes, types.CidrCollectionChange{
-			CidrList:     []string{aws.ToString(block.CidrBlock)},
-			Action:       types.CidrCollectionChangeActionDeleteIfExists,
-			LocationName: block.LocationName,
-		})
-	}
-
-	if len(changes) > 0 {
-		_, err = r.Client.ChangeCidrCollection(r.Context, &route53.ChangeCidrCollectionInput{
-			Id:      id,
-			Changes: changes,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] unable to list cidr collections: %v", err)
-			return err
-		}
-	}
-
-	logging.Debugf("[Route53 CIDR location] Successfully nuked cidr location(s)")
+	logging.Debugf("Successfully removed CIDR blocks from collection %s", aws.ToString(id))
 	return nil
 }
 
-func (r *Route53CidrCollection) nukeAll(identifiers []*string) (err error) {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Route53 Cidr collection to nuke")
-		return nil
-	}
-	logging.Debugf("Deleting all Route53 Cidr collection")
-
-	var deletedIds []*string
-	for _, id := range identifiers {
-
-		err := func() error {
-
-			// remove the cidr blocks
-			if err := r.nukeCidrLocations(id); err != nil {
-				return err
-			}
-
-			// delete the cidr collection
-			if _, err = r.Client.DeleteCidrCollection(r.Context, &route53.DeleteCidrCollectionInput{
-				Id: id,
-			}); err != nil {
-				logging.Errorf("[Failed] unable to nuke the cidr collection: %v ", err)
-				return err
-			}
-
-			return nil
-		}()
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Route53 cidr collection",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Errorf("[Failed] %s: %s", *id, err)
-		} else {
-			deletedIds = append(deletedIds, id)
-			logging.Debugf("Deleted Route53 cidr collection: %s", aws.ToString(id))
-		}
-	}
-
-	logging.Debugf("[OK] %d Route53 cidr collection(s) deleted", len(deletedIds))
-
-	return nil
+// deleteRoute53CidrCollection deletes a single CIDR collection.
+func deleteRoute53CidrCollection(ctx context.Context, client Route53CidrCollectionAPI, id *string) error {
+	_, err := client.DeleteCidrCollection(ctx, &route53.DeleteCidrCollectionInput{
+		Id: id,
+	})
+	return err
 }

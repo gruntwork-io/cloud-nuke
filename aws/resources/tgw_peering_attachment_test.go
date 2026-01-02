@@ -30,8 +30,8 @@ func TestListTransitGatewayPeeringAttachments(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	attachment1 := "attachement1"
-	attachment2 := "attachement2"
+	attachment1 := "attachment-1"
+	attachment2 := "attachment-2"
 
 	mock := &mockTransitGatewayPeeringAttachmentClient{
 		DescribeTransitGatewayPeeringAttachmentsOutput: ec2.DescribeTransitGatewayPeeringAttachmentsOutput{

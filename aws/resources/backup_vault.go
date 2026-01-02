@@ -62,38 +62,43 @@ func listBackupVaults(ctx context.Context, client BackupVaultAPI, scope resource
 
 // nukeRecoveryPoints deletes all recovery points in a backup vault.
 func nukeRecoveryPoints(ctx context.Context, client BackupVaultAPI, name *string) error {
-	logging.Debugf("Nuking the recovery points of backup vault %s", aws.ToString(name))
+	vaultName := aws.ToString(name)
+	logging.Debugf("Nuking the recovery points of backup vault %s", vaultName)
 
-	output, err := client.ListRecoveryPointsByBackupVault(ctx, &backup.ListRecoveryPointsByBackupVaultInput{
+	// Use pagination to handle large numbers of recovery points
+	paginator := backup.NewListRecoveryPointsByBackupVaultPaginator(client, &backup.ListRecoveryPointsByBackupVaultInput{
 		BackupVaultName: name,
 	})
-	if err != nil {
-		logging.Debugf("[Failed] listing the recovery points of backup vault %s: %v", aws.ToString(name), err)
-		return err
-	}
 
-	for _, recoveryPoint := range output.RecoveryPoints {
-		logging.Debugf("Deleting recovery point %s from backup vault %s", aws.ToString(recoveryPoint.RecoveryPointArn), aws.ToString(name))
-		_, err = client.DeleteRecoveryPoint(ctx, &backup.DeleteRecoveryPointInput{
-			BackupVaultName:  name,
-			RecoveryPointArn: recoveryPoint.RecoveryPointArn,
-		})
-
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[Failed] nuking the backup vault %s: %v", aws.ToString(name), err)
+			logging.Debugf("[Failed] listing recovery points of backup vault %s: %v", vaultName, err)
 			return err
+		}
+
+		for _, recoveryPoint := range page.RecoveryPoints {
+			arn := aws.ToString(recoveryPoint.RecoveryPointArn)
+			logging.Debugf("Deleting recovery point %s from backup vault %s", arn, vaultName)
+
+			_, err = client.DeleteRecoveryPoint(ctx, &backup.DeleteRecoveryPointInput{
+				BackupVaultName:  name,
+				RecoveryPointArn: recoveryPoint.RecoveryPointArn,
+			})
+			if err != nil {
+				logging.Debugf("[Failed] deleting recovery point %s: %v", arn, err)
+				return err
+			}
 		}
 	}
 
-	// wait until all the recovery points nuked successfully
-	err = waitUntilRecoveryPointsDeleted(ctx, client, name)
-	if err != nil {
-		logging.Debugf("[Failed] waiting deletion of recovery points for backup vault %s: %v", aws.ToString(name), err)
+	// Wait until all recovery points are deleted
+	if err := waitUntilRecoveryPointsDeleted(ctx, client, name); err != nil {
+		logging.Debugf("[Failed] waiting for recovery points deletion in backup vault %s: %v", vaultName, err)
 		return err
 	}
 
-	logging.Debugf("[Ok] successfully nuked recovery points of backup vault %s", aws.ToString(name))
-
+	logging.Debugf("[Ok] successfully nuked recovery points of backup vault %s", vaultName)
 	return nil
 }
 
@@ -110,18 +115,20 @@ func waitUntilRecoveryPointsDeleted(ctx context.Context, client BackupVaultAPI, 
 		case <-timeoutCtx.Done():
 			return fmt.Errorf("recovery point deletion check timed out after 1 minute")
 		case <-ticker.C:
+			// Check if any recovery points still exist (only need first page with MaxResults=1)
 			output, err := client.ListRecoveryPointsByBackupVault(ctx, &backup.ListRecoveryPointsByBackupVaultInput{
 				BackupVaultName: name,
+				MaxResults:      aws.Int32(1),
 			})
 			if err != nil {
-				logging.Debugf("recovery point(s) existance checking error : %v", err)
+				logging.Debugf("recovery point existence check error: %v", err)
 				return err
 			}
 
 			if len(output.RecoveryPoints) == 0 {
 				return nil
 			}
-			logging.Debugf("%v Recovery point(s) still exists, waiting...", len(output.RecoveryPoints))
+			logging.Debugf("recovery point(s) still exist, waiting...")
 		}
 	}
 }

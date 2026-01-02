@@ -2,40 +2,45 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeIpamPoolID(ipam *types.IpamPool, firstSeenTime *time.Time, configObj config.Config) bool {
-	var ipamPoolName string
-	// get the tags as map
-	tagMap := util.ConvertTypesTagsToMap(ipam.Tags)
-	if name, ok := tagMap["Name"]; ok {
-		ipamPoolName = name
-	}
+// EC2IPAMPoolAPI defines the interface for EC2 IPAM Pool operations.
+type EC2IPAMPoolAPI interface {
+	DescribeIpamPools(ctx context.Context, params *ec2.DescribeIpamPoolsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeIpamPoolsOutput, error)
+	DeleteIpamPool(ctx context.Context, params *ec2.DeleteIpamPoolInput, optFns ...func(*ec2.Options)) (*ec2.DeleteIpamPoolOutput, error)
+}
 
-	return configObj.EC2IPAMPool.ShouldInclude(config.ResourceValue{
-		Name: &ipamPoolName,
-		Time: firstSeenTime,
-		Tags: tagMap,
+// NewEC2IPAMPool creates a new EC2 IPAM Pool resource using the generic resource pattern.
+func NewEC2IPAMPool() AwsResource {
+	return NewAwsResource(&resource.Resource[EC2IPAMPoolAPI]{
+		ResourceTypeName: "ipam-pool",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMPoolAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EC2IPAMPool
+		},
+		Lister:             listEC2IPAMPools,
+		Nuker:              resource.SimpleBatchDeleter(deleteEC2IPAMPool),
+		PermissionVerifier: verifyEC2IPAMPoolPermission,
 	})
 }
 
-// Returns a formatted string of IPAM URLs
-func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// listEC2IPAMPools retrieves all IPAM pools in "create-complete" state that match the config filters.
+func listEC2IPAMPools(ctx context.Context, client EC2IPAMPoolAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var result []*string
-	var firstSeenTime *time.Time
-	var err error
 
-	params := &ec2.DescribeIpamPoolsInput{
+	paginator := ec2.NewDescribeIpamPoolsPaginator(client, &ec2.DescribeIpamPoolsInput{
 		MaxResults: aws.Int32(10),
 		Filters: []types.Filter{
 			{
@@ -43,77 +48,53 @@ func (ec2Pool *EC2IPAMPool) getAll(c context.Context, configObj config.Config) (
 				Values: []string{"create-complete"},
 			},
 		},
-	}
+	})
 
-	poolsPaginator := ec2.NewDescribeIpamPoolsPaginator(ec2Pool.Client, params)
-	for poolsPaginator.HasMorePages() {
-		page, errPaginator := poolsPaginator.NextPage(c)
-		if errPaginator != nil {
-			return nil, errors.WithStackTrace(errPaginator)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
 		}
 
 		for _, pool := range page.IpamPools {
-			firstSeenTime, err = util.GetOrCreateFirstSeen(c, ec2Pool.Client, pool.IpamPoolId, util.ConvertTypesTagsToMap(pool.Tags))
+			tagMap := util.ConvertTypesTagsToMap(pool.Tags)
+			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, pool.IpamPoolId, tagMap)
 			if err != nil {
-				logging.Error("unable to retrieve first seen tag")
+				logging.Errorf("Unable to retrieve first seen tag for IPAM Pool %s: %v", aws.ToString(pool.IpamPoolId), err)
 				continue
 			}
-			if shouldIncludeIpamPoolID(&pool, firstSeenTime, configObj) {
+
+			var poolName string
+			if name, ok := tagMap["Name"]; ok {
+				poolName = name
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: &poolName,
+				Time: firstSeenTime,
+				Tags: tagMap,
+			}) {
 				result = append(result, pool.IpamPoolId)
 			}
 		}
 	}
 
-	// checking the nukable permissions
-	ec2Pool.VerifyNukablePermissions(result, func(id *string) error {
-		_, err := ec2Pool.Client.DeleteIpamPool(ec2Pool.Context, &ec2.DeleteIpamPoolInput{
-			IpamPoolId: id,
-			DryRun:     aws.Bool(true),
-		})
-		return err
-	})
-
 	return result, nil
 }
 
-// Deletes all IPAMs
-func (pool *EC2IPAMPool) nukeAll(ids []*string) error {
-	if len(ids) == 0 {
-		logging.Debugf("No IPAM ids to nuke in region %s", pool.Region)
-		return nil
-	}
+// verifyEC2IPAMPoolPermission performs a dry-run delete to check permissions.
+func verifyEC2IPAMPoolPermission(ctx context.Context, client EC2IPAMPoolAPI, id *string) error {
+	_, err := client.DeleteIpamPool(ctx, &ec2.DeleteIpamPoolInput{
+		IpamPoolId: id,
+		DryRun:     aws.Bool(true),
+	})
+	return err
+}
 
-	logging.Debugf("Deleting all IPAM ids in region %s", pool.Region)
-	var deletedAddresses []*string
-
-	for _, id := range ids {
-
-		if nukable, reason := pool.IsNukable(aws.ToString(id)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(id), reason)
-			continue
-		}
-
-		_, err := pool.Client.DeleteIpamPool(pool.Context, &ec2.DeleteIpamPoolInput{
-			IpamPoolId: id,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "IPAM Pool",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedAddresses = append(deletedAddresses, id)
-			logging.Debugf("Deleted IPAM Pool: %s", *id)
-		}
-	}
-
-	logging.Debugf("[OK] %d IPAM Pool(s) deleted in %s", len(deletedAddresses), pool.Region)
-
-	return nil
+// deleteEC2IPAMPool deletes a single IPAM Pool.
+func deleteEC2IPAMPool(ctx context.Context, client EC2IPAMPoolAPI, id *string) error {
+	_, err := client.DeleteIpamPool(ctx, &ec2.DeleteIpamPoolInput{
+		IpamPoolId: id,
+	})
+	return err
 }

@@ -2,228 +2,182 @@ package resources
 
 import (
 	"context"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (kck *KmsCustomerKeys) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	// Collect all keys in the account
-	var keys []string
-	listKeysPaginator := kms.NewListKeysPaginator(kck.Client, &kms.ListKeysInput{})
-	for listKeysPaginator.HasMorePages() {
-		page, err := listKeysPaginator.NextPage(c)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
+// kmsRemovalWindow is the number of days before a scheduled key is permanently deleted.
+// https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html
+// Must be between 7 and 30 days, inclusive.
+const kmsRemovalWindow = 7
 
-		for _, key := range page.Keys {
-			keys = append(keys, *key.KeyId)
-		}
+// KmsCustomerKeysAPI defines the interface for KMS operations.
+type KmsCustomerKeysAPI interface {
+	ListKeys(ctx context.Context, params *kms.ListKeysInput, optFns ...func(*kms.Options)) (*kms.ListKeysOutput, error)
+	ListAliases(ctx context.Context, params *kms.ListAliasesInput, optFns ...func(*kms.Options)) (*kms.ListAliasesOutput, error)
+	DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error)
+	ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error)
+}
+
+// kmsCustomerKeysResource holds additional config that the lister needs
+type kmsCustomerKeysResource struct {
+	includeUnaliasedKeys bool
+}
+
+// NewKmsCustomerKeys creates a new KMS Customer Keys resource using the generic resource pattern.
+func NewKmsCustomerKeys() AwsResource {
+	kmsResource := &kmsCustomerKeysResource{}
+
+	return NewAwsResource(&resource.Resource[KmsCustomerKeysAPI]{
+		ResourceTypeName: "kmscustomerkeys",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[KmsCustomerKeysAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = kms.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			// Capture the IncludeUnaliasedKeys setting for use in the lister
+			kmsResource.includeUnaliasedKeys = c.KMSCustomerKeys.IncludeUnaliasedKeys
+			return c.KMSCustomerKeys.ResourceType
+		},
+		Lister: func(ctx context.Context, client KmsCustomerKeysAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+			return listKmsCustomerKeys(ctx, client, cfg, kmsResource.includeUnaliasedKeys)
+		},
+		Nuker: resource.SimpleBatchDeleter(deleteKmsCustomerKey),
+	})
+}
+
+// listKmsCustomerKeys retrieves all KMS customer keys that match the config filters.
+func listKmsCustomerKeys(ctx context.Context, client KmsCustomerKeysAPI, cfg config.ResourceType, includeUnaliasedKeys bool) ([]*string, error) {
+	// Collect all keys using pagination
+	keys, err := getAllKeys(ctx, client)
+	if err != nil {
+		return nil, err
 	}
 
-	// Collect key to alias mapping
-	keyAliases := map[string][]string{}
-	listAliasesPaginator := kms.NewListAliasesPaginator(kck.Client, &kms.ListAliasesInput{})
-	for listAliasesPaginator.HasMorePages() {
-		page, err := listAliasesPaginator.NextPage(c)
-		if err != nil {
-			return nil, errors.WithStackTrace(err)
-		}
-
-		for _, alias := range page.Aliases {
-			key := alias.TargetKeyId
-			if key == nil {
-				continue
-			}
-
-			list, found := keyAliases[*key]
-			if !found {
-				list = make([]string, 0)
-			}
-
-			list = append(list, *alias.AliasName)
-			keyAliases[*key] = list
-		}
+	// Build key to aliases mapping using pagination
+	keyAliases, err := getKeyAliasesMap(ctx, client)
+	if err != nil {
+		return nil, err
 	}
 
-	// checking in parallel if keys can be considered for removal
-	var wg sync.WaitGroup
-	wg.Add(len(keys))
-	resultsChan := make([]chan *KmsCheckIncludeResult, len(keys))
-	id := 0
-
+	// Filter keys based on configuration
+	var result []*string
 	for _, keyId := range keys {
-		resultsChan[id] = make(chan *KmsCheckIncludeResult, 1)
-
-		// If the keyId isn't found in the map, this returns an empty array
-		aliasesForKey := keyAliases[keyId]
-
-		go kck.shouldInclude(&wg, resultsChan[id], keyId, aliasesForKey, configObj)
-		id++
-	}
-	wg.Wait()
-
-	var kmsIds []*string
-	aliases := map[string][]string{}
-
-	for _, channel := range resultsChan {
-		result := <-channel
-		if result.Error != nil {
-			logging.Debugf("Can't read KMS key %s", result.Error)
-
+		shouldInclude, err := shouldIncludeKey(ctx, client, keyId, keyAliases[keyId], cfg, includeUnaliasedKeys)
+		if err != nil {
+			logging.Debugf("Error checking KMS key %s: %v", keyId, err)
 			continue
 		}
-		if result.KeyId != "" {
-			aliases[result.KeyId] = keyAliases[result.KeyId]
-			kmsIds = append(kmsIds, &result.KeyId)
+		if shouldInclude {
+			id := keyId // Create a copy for the pointer
+			result = append(result, &id)
 		}
 	}
 
-	kck.KeyAliases = aliases
-	return kmsIds, nil
+	return result, nil
 }
 
-// KmsCheckIncludeResult - structure used results of evaluation: not null KeyId - key should be included
-type KmsCheckIncludeResult struct {
-	KeyId string
-	Error error
-}
+// getAllKeys retrieves all KMS key IDs using pagination.
+func getAllKeys(ctx context.Context, client KmsCustomerKeysAPI) ([]string, error) {
+	var keys []string
+	paginator := kms.NewListKeysPaginator(client, &kms.ListKeysInput{})
 
-func (kck *KmsCustomerKeys) shouldInclude(
-	wg *sync.WaitGroup,
-	resultsChan chan *KmsCheckIncludeResult,
-	key string,
-	aliases []string,
-	configObj config.Config) {
-	defer wg.Done()
-
-	includedByName := false
-	// verify if key aliases matches configurations
-	for _, alias := range aliases {
-		if config.ShouldInclude(&alias, configObj.KMSCustomerKeys.IncludeRule.NamesRegExp,
-			configObj.KMSCustomerKeys.ExcludeRule.NamesRegExp) {
-			includedByName = true
-		}
-	}
-
-	// Only delete keys without aliases if the user explicitly says so
-	if len(aliases) == 0 {
-		if !configObj.KMSCustomerKeys.IncludeUnaliasedKeys {
-			resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
-			return
-		} else {
-			// Set this to true so keys w/o aliases don't bail out
-			// On the !includedByName check
-			includedByName = true
-		}
-	}
-
-	if !includedByName {
-		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
-		return
-	}
-	// additional request to describe key and get information about creation date, removal status
-	details, err := kck.Client.DescribeKey(kck.Context, &kms.DescribeKeyInput{KeyId: &key})
-	if err != nil {
-		resultsChan <- &KmsCheckIncludeResult{Error: err}
-		return
-	}
-	metadata := details.KeyMetadata
-	// evaluate only user keys
-	if metadata.KeyManager != types.KeyManagerTypeCustomer {
-		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
-		return
-	}
-	// skip keys already scheduled for removal
-	if metadata.DeletionDate != nil {
-		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
-		return
-	}
-	if metadata.PendingDeletionWindowInDays != nil {
-		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
-		return
-	}
-	// Check time-based filtering (name filtering was already done above)
-	referenceTime := metadata.CreationDate
-	if !configObj.KMSCustomerKeys.ShouldIncludeBasedOnTime(*referenceTime) {
-		resultsChan <- &KmsCheckIncludeResult{KeyId: ""}
-		return
-	}
-	// put key in channel to be considered for removal
-	resultsChan <- &KmsCheckIncludeResult{KeyId: key}
-}
-
-func (kck *KmsCustomerKeys) nukeAll(keyIds []*string) error {
-	if len(keyIds) == 0 {
-		logging.Debugf("No Customer Keys to nuke in region %s", kck.Region)
-		return nil
-	}
-
-	// usage of go routines for parallel keys removal
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/kms/#KMS.ScheduleKeyDeletion
-	logging.Debugf("Deleting Keys secrets in region %s", kck.Region)
-	wg := new(sync.WaitGroup)
-	wg.Add(len(keyIds))
-	errChans := make([]chan error, len(keyIds))
-	for i, secretID := range keyIds {
-		errChans[i] = make(chan error, 1)
-		go kck.requestKeyDeletion(wg, errChans[i], secretID)
-	}
-	wg.Wait()
-
-	wgAlias := new(sync.WaitGroup)
-	wgAlias.Add(len(kck.KeyAliases))
-	for _, aliases := range kck.KeyAliases {
-		go kck.deleteAliases(wgAlias, aliases)
-	}
-	wgAlias.Wait()
-
-	// collect errors from each channel
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Debugf("[Failed] %s", err)
-		}
-	}
-	return errors.WithStackTrace(allErrs.ErrorOrNil())
-}
-
-func (kck *KmsCustomerKeys) deleteAliases(wg *sync.WaitGroup, aliases []string) {
-	defer wg.Done()
-
-	for _, aliasName := range aliases {
-		input := &kms.DeleteAliasInput{AliasName: &aliasName}
-		_, err := kck.Client.DeleteAlias(kck.Context, input)
-
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] Failed deleting alias: %s", aliasName)
-		} else {
-			logging.Debugf("Deleted alias %s", aliasName)
+			return nil, err
+		}
+		for _, key := range page.Keys {
+			if key.KeyId != nil {
+				keys = append(keys, *key.KeyId)
+			}
 		}
 	}
+
+	return keys, nil
 }
 
-func (kck *KmsCustomerKeys) requestKeyDeletion(wg *sync.WaitGroup, errChan chan error, key *string) {
-	defer wg.Done()
-	input := &kms.ScheduleKeyDeletionInput{KeyId: key, PendingWindowInDays: aws.Int32(int32(kmsRemovalWindow))}
-	_, err := kck.Client.ScheduleKeyDeletion(kck.Context, input)
+// getKeyAliasesMap builds a mapping from key ID to its aliases using pagination.
+func getKeyAliasesMap(ctx context.Context, client KmsCustomerKeysAPI) (map[string][]string, error) {
+	keyAliases := make(map[string][]string)
+	paginator := kms.NewListAliasesPaginator(client, &kms.ListAliasesInput{})
 
-	// Record status of this resource
-	e := report.Entry{
-		Identifier:   aws.ToString(key),
-		ResourceType: "Key Management Service (KMS) Key",
-		Error:        err,
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, alias := range page.Aliases {
+			if alias.TargetKeyId == nil || alias.AliasName == nil {
+				continue
+			}
+			keyAliases[*alias.TargetKeyId] = append(keyAliases[*alias.TargetKeyId], *alias.AliasName)
+		}
 	}
-	report.Record(e)
 
-	errChan <- err
+	return keyAliases, nil
+}
+
+// shouldIncludeKey determines if a key should be included for deletion.
+func shouldIncludeKey(ctx context.Context, client KmsCustomerKeysAPI, keyId string, aliases []string, cfg config.ResourceType, includeUnaliasedKeys bool) (bool, error) {
+	// Skip keys without aliases unless explicitly configured to include them
+	if len(aliases) == 0 && !includeUnaliasedKeys {
+		return false, nil
+	}
+
+	// Check if any alias matches the name filter
+	matchedByName := len(aliases) == 0 && includeUnaliasedKeys // Unaliased keys pass if configured
+	for _, alias := range aliases {
+		if config.ShouldInclude(&alias, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) {
+			matchedByName = true
+			break
+		}
+	}
+	if !matchedByName {
+		return false, nil
+	}
+
+	// Get key metadata to check additional filters
+	details, err := client.DescribeKey(ctx, &kms.DescribeKeyInput{KeyId: &keyId})
+	if err != nil {
+		return false, err
+	}
+
+	metadata := details.KeyMetadata
+	if metadata == nil {
+		return false, nil
+	}
+
+	// Only include customer-managed keys (not AWS-managed)
+	if metadata.KeyManager != types.KeyManagerTypeCustomer {
+		return false, nil
+	}
+
+	// Skip keys already scheduled for deletion
+	if metadata.DeletionDate != nil || metadata.PendingDeletionWindowInDays != nil {
+		return false, nil
+	}
+
+	// Check time-based filtering
+	if metadata.CreationDate != nil && !cfg.ShouldIncludeBasedOnTime(*metadata.CreationDate) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// deleteKmsCustomerKey schedules a single KMS customer key for deletion.
+// AWS automatically deletes all aliases associated with a key when the key is deleted.
+func deleteKmsCustomerKey(ctx context.Context, client KmsCustomerKeysAPI, keyId *string) error {
+	_, err := client.ScheduleKeyDeletion(ctx, &kms.ScheduleKeyDeletionInput{
+		KeyId:               keyId,
+		PendingWindowInDays: aws.Int32(kmsRemovalWindow),
+	})
+	return err
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -20,16 +19,11 @@ type KinesisStreamsAPI interface {
 func NewKinesisStreams() AwsResource {
 	return NewAwsResource(&resource.Resource[KinesisStreamsAPI]{
 		ResourceTypeName: "kinesis-stream",
-		BatchSize:        35, // Conservative batch size to avoid hitting AWS API rate limits
-		InitClient: func(r *resource.Resource[KinesisStreamsAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for Kinesis client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = kinesis.NewFromConfig(awsCfg)
-		},
+		BatchSize:        35,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[KinesisStreamsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = kinesis.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.KinesisStream
 		},
@@ -62,9 +56,11 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 }
 
 // deleteKinesisStream deletes a single Kinesis stream.
+// EnforceConsumerDeletion is set to true to delete streams even if they have registered consumers.
 func deleteKinesisStream(ctx context.Context, client KinesisStreamsAPI, streamName *string) error {
 	_, err := client.DeleteStream(ctx, &kinesis.DeleteStreamInput{
-		StreamName: streamName,
+		StreamName:              streamName,
+		EnforceConsumerDeletion: aws.Bool(true),
 	})
 	return err
 }

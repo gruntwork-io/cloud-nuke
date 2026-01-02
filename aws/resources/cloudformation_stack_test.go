@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,44 +42,40 @@ func TestCloudFormationStackGetAll(t *testing.T) {
 	testName1 := "test-stack-1"
 	testName2 := "test-stack-2"
 	now := time.Now()
-	cfs := CloudFormationStacks{
-		Client: mockedCloudFormationStacks{
-			ListStacksOutput: cloudformation.ListStacksOutput{
-				StackSummaries: []types.StackSummary{
+
+	mockClient := mockedCloudFormationStacks{
+		ListStacksOutput: cloudformation.ListStacksOutput{
+			StackSummaries: []types.StackSummary{
+				{
+					StackName:    aws.String(testName1),
+					CreationTime: aws.Time(now),
+					StackStatus:  types.StackStatusCreateComplete,
+				},
+				{
+					StackName:    aws.String(testName2),
+					CreationTime: aws.Time(now.Add(1)),
+					StackStatus:  types.StackStatusUpdateComplete,
+				},
+			},
+		},
+		DescribeStacksOutputs: map[string]cloudformation.DescribeStacksOutput{
+			testName1: {
+				Stacks: []types.Stack{
 					{
 						StackName:    aws.String(testName1),
 						CreationTime: aws.Time(now),
-						StackStatus:  types.StackStatusCreateComplete,
-					},
-					{
-						StackName:    aws.String(testName2),
-						CreationTime: aws.Time(now.Add(1)),
-						StackStatus:  types.StackStatusUpdateComplete,
+						Tags: []types.Tag{
+							{Key: aws.String("Environment"), Value: aws.String("test")},
+						},
 					},
 				},
 			},
-			DescribeStacksOutputs: map[string]cloudformation.DescribeStacksOutput{
-				testName1: {
-					Stacks: []types.Stack{
-						{
-							StackName:    aws.String(testName1),
-							CreationTime: aws.Time(now),
-							Tags: []types.Tag{
-								{
-									Key:   aws.String("Environment"),
-									Value: aws.String("test"),
-								},
-							},
-						},
-					},
-				},
-				testName2: {
-					Stacks: []types.Stack{
-						{
-							StackName:    aws.String(testName2),
-							CreationTime: aws.Time(now.Add(1)),
-							Tags:         []types.Tag{},
-						},
+			testName2: {
+				Stacks: []types.Stack{
+					{
+						StackName:    aws.String(testName2),
+						CreationTime: aws.Time(now.Add(1)),
+						Tags:         []types.Tag{},
 					},
 				},
 			},
@@ -98,7 +95,8 @@ func TestCloudFormationStackGetAll(t *testing.T) {
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{
 						RE: *regexp.MustCompile(testName1),
-					}}},
+					}},
+				},
 			},
 			expected: []string{testName2},
 		},
@@ -116,24 +114,29 @@ func TestCloudFormationStackGetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := cfs.getAll(context.Background(), config.Config{
-				CloudFormationStack: tc.configObj,
-			})
+			names, err := listCloudFormationStacks(
+				context.Background(),
+				mockClient,
+				resource.Scope{Region: "us-east-1"},
+				tc.configObj,
+			)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestCloudFormationStackNukeAll(t *testing.T) {
+func TestCloudFormationStackNuke(t *testing.T) {
 	t.Parallel()
 
-	cfs := CloudFormationStacks{
-		Client: mockedCloudFormationStacks{
-			DeleteStackOutput: cloudformation.DeleteStackOutput{},
-		},
+	mockClient := mockedCloudFormationStacks{
+		DeleteStackOutput: cloudformation.DeleteStackOutput{},
 	}
 
-	err := cfs.nukeAll([]*string{aws.String("test-stack")})
+	err := deleteCloudFormationStack(
+		context.Background(),
+		mockClient,
+		aws.String("test-stack"),
+	)
 	require.NoError(t, err)
 }

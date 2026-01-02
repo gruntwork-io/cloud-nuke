@@ -8,19 +8,42 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (pg *RdsParameterGroup) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// RdsParameterGroupAPI defines the interface for RDS Parameter Group operations.
+type RdsParameterGroupAPI interface {
+	DeleteDBParameterGroup(ctx context.Context, params *rds.DeleteDBParameterGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBParameterGroupOutput, error)
+	DescribeDBParameterGroups(ctx context.Context, params *rds.DescribeDBParameterGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBParameterGroupsOutput, error)
+}
+
+// NewRdsParameterGroup creates a new RDS Parameter Group resource using the generic resource pattern.
+func NewRdsParameterGroup() AwsResource {
+	return NewAwsResource(&resource.Resource[RdsParameterGroupAPI]{
+		ResourceTypeName: "rds-parameter-group",
+		BatchSize:        49,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsParameterGroupAPI], cfg aws.Config) {
+			r.Client = rds.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.RdsParameterGroup
+		},
+		Lister: listRdsParameterGroups,
+		Nuker:  resource.SimpleBatchDeleter(deleteRdsParameterGroup),
+	})
+}
+
+// listRdsParameterGroups retrieves all RDS parameter groups that match the config filters.
+func listRdsParameterGroups(ctx context.Context, client RdsParameterGroupAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var names []*string
 
 	// Initialize the paginator
-	paginator := rds.NewDescribeDBParameterGroupsPaginator(pg.Client, &rds.DescribeDBParameterGroupsInput{})
+	paginator := rds.NewDescribeDBParameterGroupsPaginator(client, &rds.DescribeDBParameterGroupsInput{})
 
 	// Iterate through the pages
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -34,7 +57,7 @@ func (pg *RdsParameterGroup) getAll(c context.Context, configObj config.Config) 
 				continue
 			}
 
-			if configObj.RdsParameterGroup.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: parameterGroup.DBParameterGroupName,
 			}) {
 				names = append(names, parameterGroup.DBParameterGroupName)
@@ -45,39 +68,10 @@ func (pg *RdsParameterGroup) getAll(c context.Context, configObj config.Config) 
 	return names, nil
 }
 
-func (pg *RdsParameterGroup) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No DB parameter groups in region %s", pg.Region)
-		return nil
-	}
-
-	logging.Debugf("Deleting all DB parameter groups in region %s", pg.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		logging.Debugf("[RDS Parameter Group] Deleting %s in region %s", *identifier, pg.Region)
-
-		_, err := pg.Client.DeleteDBParameterGroup(
-			pg.Context,
-			&rds.DeleteDBParameterGroupInput{
-				DBParameterGroupName: identifier,
-			})
-		if err != nil {
-			logging.Errorf("[RDS Parameter Group] Error deleting RDS Parameter Group %s: %s", *identifier, err)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf("[RDS Parameter Group] Deleted RDS Parameter Group %s", *identifier)
-		}
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: pg.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d RDS DB parameter group(s) nuked in %s", len(deleted), pg.Region)
-	return nil
+// deleteRdsParameterGroup deletes a single RDS parameter group.
+func deleteRdsParameterGroup(ctx context.Context, client RdsParameterGroupAPI, identifier *string) error {
+	_, err := client.DeleteDBParameterGroup(ctx, &rds.DeleteDBParameterGroupInput{
+		DBParameterGroupName: identifier,
+	})
+	return err
 }

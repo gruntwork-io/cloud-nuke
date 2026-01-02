@@ -11,47 +11,42 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshift/types"
 	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedRedshift struct {
-	RedshiftClustersAPI
-
-	DeleteClusterOutput    redshift.DeleteClusterOutput
+type mockedRedshiftClient struct {
 	DescribeClustersOutput redshift.DescribeClustersOutput
-	DescribeClusterError   error
+	DescribeClustersError  error
+	DeleteClusterOutput    redshift.DeleteClusterOutput
+	DeleteClusterError     error
 }
 
-func (m mockedRedshift) DescribeClusters(ctx context.Context, input *redshift.DescribeClustersInput, opts ...func(*redshift.Options)) (*redshift.DescribeClustersOutput, error) {
-	return &m.DescribeClustersOutput, m.DescribeClusterError
+func (m *mockedRedshiftClient) DescribeClusters(ctx context.Context, input *redshift.DescribeClustersInput, opts ...func(*redshift.Options)) (*redshift.DescribeClustersOutput, error) {
+	return &m.DescribeClustersOutput, m.DescribeClustersError
 }
 
-func (m mockedRedshift) DeleteCluster(ctx context.Context, input *redshift.DeleteClusterInput, opts ...func(*redshift.Options)) (*redshift.DeleteClusterOutput, error) {
-	return &m.DeleteClusterOutput, nil
+func (m *mockedRedshiftClient) DeleteCluster(ctx context.Context, input *redshift.DeleteClusterInput, opts ...func(*redshift.Options)) (*redshift.DeleteClusterOutput, error) {
+	return &m.DeleteClusterOutput, m.DeleteClusterError
 }
 
-func (m mockedRedshift) WaitForOutput(ctx context.Context, params *redshift.DescribeClustersInput, maxWaitDur time.Duration, optFns ...func(*redshift.Options)) (*redshift.DescribeClustersOutput, error) {
-	return nil, nil
-}
-func TestRedshiftCluster_GetAll(t *testing.T) {
-
+func TestListRedshiftClusters(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	testName1 := "test-cluster1"
-	testName2 := "test-cluster2"
-	rc := RedshiftClusters{
-		Client: mockedRedshift{
-			DescribeClustersOutput: redshift.DescribeClustersOutput{
-				Clusters: []types.Cluster{
-					{
-						ClusterIdentifier: aws.String(testName1),
-						ClusterCreateTime: aws.Time(now),
-					},
-					{
-						ClusterIdentifier: aws.String(testName2),
-						ClusterCreateTime: aws.Time(now.Add(1)),
-					},
+	testName1 := "test-cluster-1"
+	testName2 := "test-cluster-2"
+
+	mock := &mockedRedshiftClient{
+		DescribeClustersOutput: redshift.DescribeClustersOutput{
+			Clusters: []types.Cluster{
+				{
+					ClusterIdentifier: aws.String(testName1),
+					ClusterCreateTime: aws.Time(now),
+				},
+				{
+					ClusterIdentifier: aws.String(testName2),
+					ClusterCreateTime: aws.Time(now.Add(1 * time.Hour)),
 				},
 			},
 		},
@@ -68,46 +63,49 @@ func TestRedshiftCluster_GetAll(t *testing.T) {
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
 			},
 			expected: []string{testName2},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
-				}},
-			expected: []string{},
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testName1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := rc.getAll(context.Background(), config.Config{
-				Redshift: tc.configObj,
-			})
+			names, err := listRedshiftClusters(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestRedshiftCluster_NukeAll(t *testing.T) {
-
+func TestDeleteRedshiftCluster(t *testing.T) {
 	t.Parallel()
 
-	rc := RedshiftClusters{
-		Client: mockedRedshift{
-			DeleteClusterOutput: redshift.DeleteClusterOutput{},
-			DescribeClusterError: &smithy.GenericAPIError{
-				Code: "ClusterNotFound",
-			},
+	mock := &mockedRedshiftClient{}
+	err := deleteRedshiftCluster(context.Background(), mock, aws.String("test-cluster"))
+	require.NoError(t, err)
+}
+
+func TestWaitForRedshiftClusterDeleted(t *testing.T) {
+	t.Parallel()
+
+	// The waiter expects a ClusterNotFound error to indicate successful deletion.
+	// When DescribeClusters returns this error, the waiter considers the cluster deleted.
+	mock := &mockedRedshiftClient{
+		DescribeClustersError: &smithy.GenericAPIError{
+			Code: "ClusterNotFound",
 		},
 	}
-	rc.Context = context.Background()
-	rc.Timeout = DefaultWaitTimeout
 
-	err := rc.nukeAll([]*string{aws.String("test")})
+	err := waitForRedshiftClusterDeleted(context.Background(), mock, aws.String("test-cluster"))
 	require.NoError(t, err)
 }

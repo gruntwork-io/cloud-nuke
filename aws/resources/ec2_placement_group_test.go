@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,24 +33,21 @@ func (m *mockEC2PlacementGroupsClient) CreateTags(ctx context.Context, params *e
 	return &m.CreateTagsOutput, nil
 }
 
-func TestEC2PlacementGroups_ResourceName(t *testing.T) {
-	r := NewEC2PlacementGroups()
-	assert.Equal(t, "ec2-placement-groups", r.ResourceName())
-}
-
-func TestEC2PlacementGroups_MaxBatchSize(t *testing.T) {
-	r := NewEC2PlacementGroups()
-	assert.Equal(t, 200, r.MaxBatchSize())
-}
-
 func TestListEC2PlacementGroups(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-	mock := &mockEC2PlacementGroupsClient{
-		DescribePlacementGroupsOutput: ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []types.PlacementGroup{
+
+	tests := []struct {
+		name            string
+		placementGroups []types.PlacementGroup
+		cfg             config.ResourceType
+		expected        []string
+	}{
+		{
+			name: "lists all placement groups",
+			placementGroups: []types.PlacementGroup{
 				{
 					GroupName: aws.String("pg1"),
 					GroupId:   aws.String("pg-123"),
@@ -63,22 +59,12 @@ func TestListEC2PlacementGroups(t *testing.T) {
 					Tags:      []types.Tag{{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))}},
 				},
 			},
+			cfg:      config.ResourceType{},
+			expected: []string{"pg1", "pg2"},
 		},
-	}
-
-	names, err := listEC2PlacementGroups(ctx, mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"pg1", "pg2"}, aws.ToStringSlice(names))
-}
-
-func TestListEC2PlacementGroups_WithFilter(t *testing.T) {
-	t.Parallel()
-
-	now := time.Now()
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-	mock := &mockEC2PlacementGroupsClient{
-		DescribePlacementGroupsOutput: ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []types.PlacementGroup{
+		{
+			name: "filters by exclude rule",
+			placementGroups: []types.PlacementGroup{
 				{
 					GroupName: aws.String("pg1"),
 					GroupId:   aws.String("pg-123"),
@@ -90,18 +76,34 @@ func TestListEC2PlacementGroups_WithFilter(t *testing.T) {
 					Tags:      []types.Tag{{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))}},
 				},
 			},
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+				},
+			},
+			expected: []string{"pg1"},
+		},
+		{
+			name:            "returns empty for no placement groups",
+			placementGroups: []types.PlacementGroup{},
+			cfg:             config.ResourceType{},
+			expected:        []string{},
 		},
 	}
 
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
-		},
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockEC2PlacementGroupsClient{
+				DescribePlacementGroupsOutput: ec2.DescribePlacementGroupsOutput{
+					PlacementGroups: tc.placementGroups,
+				},
+			}
 
-	names, err := listEC2PlacementGroups(ctx, mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Equal(t, []string{"pg1"}, aws.ToStringSlice(names))
+			names, err := listEC2PlacementGroups(ctx, mock, resource.Scope{}, tc.cfg)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
+	}
 }
 
 func TestDeleteEC2PlacementGroup(t *testing.T) {

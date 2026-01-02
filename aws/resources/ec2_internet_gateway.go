@@ -10,153 +10,164 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	r "github.com/gruntwork-io/cloud-nuke/report" // Alias the package as 'r'
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeGateway(ig types.InternetGateway, firstSeenTime *time.Time, configObj config.Config) bool {
-	var internetGateway string
-	// get the tags as map
-	tagMap := util.ConvertTypesTagsToMap(ig.Tags)
-	if name, ok := tagMap["Name"]; ok {
-		internetGateway = name
+// InternetGatewayAPI defines the interface for Internet Gateway operations.
+type InternetGatewayAPI interface {
+	DescribeInternetGateways(ctx context.Context, params *ec2.DescribeInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInternetGatewaysOutput, error)
+	DeleteInternetGateway(ctx context.Context, params *ec2.DeleteInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteInternetGatewayOutput, error)
+	DetachInternetGateway(ctx context.Context, params *ec2.DetachInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachInternetGatewayOutput, error)
+	CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
+}
+
+// NewInternetGateway creates a new InternetGateway resource using the generic resource pattern.
+func NewInternetGateway() AwsResource {
+	return NewAwsResource(&resource.Resource[InternetGatewayAPI]{
+		ResourceTypeName: "internet-gateway",
+		BatchSize:        50,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[InternetGatewayAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.InternetGateway
+		},
+		Lister: listInternetGateways,
+		Nuker:  resource.MultiStepDeleter(detachInternetGateway, deleteInternetGateway),
+		PermissionVerifier: func(ctx context.Context, client InternetGatewayAPI, id *string) error {
+			_, err := client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
+				InternetGatewayId: id,
+				DryRun:            aws.Bool(true),
+			})
+			return err
+		},
+	})
+}
+
+// listInternetGateways retrieves all Internet Gateways that match the config filters.
+func listInternetGateways(ctx context.Context, client InternetGatewayAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
+
+	paginator := ec2.NewDescribeInternetGatewaysPaginator(client, &ec2.DescribeInternetGatewaysInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[Internet Gateway] Failed to list internet gateways: %s", err)
+			return nil, err
+		}
+
+		for _, ig := range page.InternetGateways {
+			tagMap := util.ConvertTypesTagsToMap(ig.Tags)
+			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, ig.InternetGatewayId, tagMap)
+			if err != nil {
+				logging.Errorf("[Internet Gateway] Unable to retrieve first seen tag for %s: %s", aws.ToString(ig.InternetGatewayId), err)
+				return nil, err
+			}
+
+			if shouldIncludeInternetGateway(ig, firstSeenTime, cfg) {
+				identifiers = append(identifiers, ig.InternetGatewayId)
+			}
+		}
 	}
 
-	return configObj.InternetGateway.ShouldInclude(config.ResourceValue{
-		Name: &internetGateway,
+	return identifiers, nil
+}
+
+// shouldIncludeInternetGateway determines if an internet gateway should be included based on config filters.
+func shouldIncludeInternetGateway(ig types.InternetGateway, firstSeenTime *time.Time, cfg config.ResourceType) bool {
+	tagMap := util.ConvertTypesTagsToMap(ig.Tags)
+	var name string
+	if n, ok := tagMap["Name"]; ok {
+		name = n
+	}
+
+	return cfg.ShouldInclude(config.ResourceValue{
+		Name: &name,
 		Tags: tagMap,
 		Time: firstSeenTime,
 	})
 }
 
-func (igw *InternetGateway) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var identifiers []*string
-	var firstSeenTime *time.Time
-	var err error
+// detachInternetGateway detaches an internet gateway from its VPC.
+func detachInternetGateway(ctx context.Context, client InternetGatewayAPI, id *string) error {
+	igID := aws.ToString(id)
+	logging.Debugf("[Internet Gateway] Looking up VPC attachment for: %s", igID)
 
-	input := &ec2.DescribeInternetGatewaysInput{}
-	resp, err := igw.Client.DescribeInternetGateways(igw.Context, input)
-	if err != nil {
-		logging.Debugf("[Internet Gateway] Failed to list internet gateways: %s", err)
-		return nil, err
-	}
-	for _, ig := range resp.InternetGateways {
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, igw.Client, ig.InternetGatewayId, util.ConvertTypesTagsToMap(ig.Tags))
-		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
-		}
-
-		if shouldIncludeGateway(ig, firstSeenTime, configObj) {
-			identifiers = append(identifiers, ig.InternetGatewayId)
-
-			// get vpc id for this igw and update the map
-			if len(ig.Attachments) > 0 {
-				igw.GatewayVPCMap[aws.ToString(ig.InternetGatewayId)] = aws.ToString(ig.Attachments[0].VpcId)
-			}
-		}
-	}
-
-	// Check and verify the list of allowed nuke actions
-	igw.VerifyNukablePermissions(identifiers, func(id *string) error {
-		params := &ec2.DeleteInternetGatewayInput{
-			InternetGatewayId: id,
-			DryRun:            aws.Bool(true),
-		}
-		_, err := igw.Client.DeleteInternetGateway(igw.Context, params)
-		return err
+	// Query AWS to get the current VPC attachment
+	resp, err := client.DescribeInternetGateways(ctx, &ec2.DescribeInternetGatewaysInput{
+		InternetGatewayIds: []string{igID},
 	})
+	if err != nil {
+		return fmt.Errorf("failed to describe internet gateway %s: %w", igID, err)
+	}
 
-	return identifiers, nil
-}
-
-func (igw *InternetGateway) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No internet gateway identifiers to nuke in region %s", igw.Region)
+	if len(resp.InternetGateways) == 0 {
+		logging.Debugf("[Internet Gateway] Not found: %s", igID)
 		return nil
 	}
 
-	logging.Debugf("Deleting all internet gateways in region %s", igw.Region)
-	var deletedGateways []*string
-
-	for _, id := range identifiers {
-		if nukable, reason := igw.IsNukable(*id); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", *id, reason)
-			continue
-		}
-
-		err := igw.nuke(id)
-		// Record status of this resource
-		e := r.Entry{ // Use the 'r' alias to refer to the package
-			Identifier:   aws.ToString(id),
-			ResourceType: "Internet Gateway",
-			Error:        err,
-		}
-		r.Record(e)
-
-		if err == nil {
-			deletedGateways = append(deletedGateways, id)
-		}
+	ig := resp.InternetGateways[0]
+	if len(ig.Attachments) == 0 {
+		logging.Debugf("[Internet Gateway] No VPC attachment found for %s, skipping detach", igID)
+		return nil
 	}
 
-	logging.Debugf("[OK] %d internet gateway(s) deleted in %s", len(deletedGateways), igw.Region)
+	vpcID := aws.ToString(ig.Attachments[0].VpcId)
+	logging.Debugf("[Internet Gateway] Detaching %s from VPC %s", igID, vpcID)
 
-	return nil
-}
-
-func (igw *InternetGateway) nuke(id *string) error {
-	// get the vpc id for current igw
-	vpcID, ok := igw.GatewayVPCMap[aws.ToString(id)]
-	if !ok {
-		logging.Debug(fmt.Sprintf("Failed to read the vpc Id for %s",
-			aws.ToString(id)))
-		return fmt.Errorf("Failed to retrieve the VPC ID for %s, which is mandatory for the internet gateway nuke operation.",
-			aws.ToString(id))
-	}
-
-	err := nukeInternetGateway(igw.Client, id, vpcID)
+	_, err = client.DetachInternetGateway(ctx, &ec2.DetachInternetGatewayInput{
+		InternetGatewayId: id,
+		VpcId:             aws.String(vpcID),
+	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return fmt.Errorf("failed to detach internet gateway %s from VPC %s: %w", igID, vpcID, err)
 	}
 
+	logging.Debugf("[Internet Gateway] Successfully detached %s from VPC %s", igID, vpcID)
 	return nil
 }
 
+// deleteInternetGateway deletes an internet gateway.
+func deleteInternetGateway(ctx context.Context, client InternetGatewayAPI, id *string) error {
+	logging.Debugf("Deleting Internet Gateway %s", aws.ToString(id))
+	_, err := client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
+		InternetGatewayId: id,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete internet gateway %s: %w", aws.ToString(id), err)
+	}
+
+	logging.Debugf("Successfully deleted Internet Gateway %s", aws.ToString(id))
+	return nil
+}
+
+// nukeInternetGateway detaches and deletes an internet gateway with an explicit VPC ID.
+// This function is exported for use by ec2_vpc.go when cleaning up VPC resources.
 func nukeInternetGateway(client InternetGatewayAPI, gatewayId *string, vpcID string) error {
-	var err error
-	logging.Debug(fmt.Sprintf("Detaching Internet Gateway %s",
-		aws.ToString(gatewayId)))
-	_, err = client.DetachInternetGateway(context.Background(),
-		&ec2.DetachInternetGatewayInput{
-			InternetGatewayId: gatewayId,
-			VpcId:             aws.String(vpcID),
-		},
-	)
-	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to detach internet gateway %s",
-			aws.ToString(gatewayId)))
-		return errors.WithStackTrace(err)
-	}
-	logging.Debug(fmt.Sprintf("Successfully detached internet gateway %s",
-		aws.ToString(gatewayId)))
+	ctx := context.Background()
 
-	// nuking the internet gateway
-	logging.Debug(fmt.Sprintf("Deleting internet gateway %s",
-		aws.ToString(gatewayId)))
-	_, err = client.DeleteInternetGateway(context.Background(),
-		&ec2.DeleteInternetGatewayInput{
-			InternetGatewayId: gatewayId,
-		},
-	)
+	logging.Debugf("Detaching Internet Gateway %s from VPC %s", aws.ToString(gatewayId), vpcID)
+	_, err := client.DetachInternetGateway(ctx, &ec2.DetachInternetGatewayInput{
+		InternetGatewayId: gatewayId,
+		VpcId:             aws.String(vpcID),
+	})
 	if err != nil {
-		logging.Debug(fmt.Sprintf("Failed to delete internet gateway %s",
-			aws.ToString(gatewayId)))
-		return errors.WithStackTrace(err)
+		logging.Debugf("Failed to detach internet gateway %s: %s", aws.ToString(gatewayId), err)
+		return err
 	}
-	logging.Debug(fmt.Sprintf("Successfully deleted internet gateway %s",
-		aws.ToString(gatewayId)))
+	logging.Debugf("Successfully detached internet gateway %s", aws.ToString(gatewayId))
+
+	logging.Debugf("Deleting internet gateway %s", aws.ToString(gatewayId))
+	_, err = client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
+		InternetGatewayId: gatewayId,
+	})
+	if err != nil {
+		logging.Debugf("Failed to delete internet gateway %s: %s", aws.ToString(gatewayId), err)
+		return err
+	}
+	logging.Debugf("Successfully deleted internet gateway %s", aws.ToString(gatewayId))
 
 	return nil
-
 }
