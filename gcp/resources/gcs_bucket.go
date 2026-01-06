@@ -18,21 +18,15 @@ import (
 func NewGCSBuckets() GcpResource {
 	return NewGcpResource(&resource.Resource[*storage.Client]{
 		ResourceTypeName: "gcs-bucket",
-		BatchSize:        50,
-		InitClient: func(r *resource.Resource[*storage.Client], cfg any) {
-			projectID, ok := cfg.(string)
-			if !ok {
-				logging.Debugf("Invalid config type for GCS client: expected string")
-				return
-			}
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapGcpInitClient(func(r *resource.Resource[*storage.Client], projectID string) {
 			r.Scope.ProjectID = projectID
 			client, err := storage.NewClient(context.Background())
 			if err != nil {
-				logging.Debugf("Failed to create GCS client: %v", err)
-				return
+				panic(fmt.Sprintf("failed to create GCS client: %v", err))
 			}
 			r.Client = client
-		},
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.GCSBucket
 		},
