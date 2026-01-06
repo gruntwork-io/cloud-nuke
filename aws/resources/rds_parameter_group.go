@@ -24,6 +24,7 @@ func NewRdsParameterGroup() AwsResource {
 		ResourceTypeName: "rds-parameter-group",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsParameterGroupAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {

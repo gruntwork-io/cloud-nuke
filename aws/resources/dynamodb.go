@@ -26,6 +26,7 @@ func NewDynamoDB() AwsResource {
 		ResourceTypeName: "dynamodb",
 		BatchSize:        DefaultBatchSize, // Tentative batch size to ensure AWS doesn't throttle
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DynamoDBAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
 			r.Client = dynamodb.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {

@@ -26,6 +26,7 @@ func NewDBInstances() AwsResource {
 		ResourceTypeName: "rds",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBInstancesAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {

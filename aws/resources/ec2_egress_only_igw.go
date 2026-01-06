@@ -22,6 +22,7 @@ func NewEgressOnlyInternetGateway() AwsResource {
 		ResourceTypeName: "egress-only-internet-gateway",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EgressOnlyIGAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
