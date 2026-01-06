@@ -22,6 +22,7 @@ func NewApiGateway() AwsResource {
 		ResourceTypeName: "apigateway",
 		BatchSize:        10,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ApiGatewayAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
 			r.Client = apigateway.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {

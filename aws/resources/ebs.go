@@ -25,6 +25,7 @@ func NewEBSVolumes() AwsResource {
 		ResourceTypeName: "ebs",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EBSVolumesAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {

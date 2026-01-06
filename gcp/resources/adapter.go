@@ -2,12 +2,33 @@ package resources
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
+const (
+	DefaultWaitTimeout = 5 * time.Minute
+	DefaultBatchSize   = 50
+)
+
+// GcpInitClientFunc is the type-safe client initialization function signature.
+type GcpInitClientFunc[C any] func(r *resource.Resource[C], projectID string)
+
+// WrapGcpInitClient converts a GcpInitClientFunc to the generic InitClient signature.
+// Panics on type assertion failure since that indicates a programming error.
+func WrapGcpInitClient[C any](fn GcpInitClientFunc[C]) func(r *resource.Resource[C], cfg any) {
+	return func(r *resource.Resource[C], cfg any) {
+		projectID, ok := cfg.(string)
+		if !ok {
+			panic(fmt.Sprintf("WrapGcpInitClient: expected string projectID, got %T", cfg))
+		}
+		fn(r, projectID)
+	}
+}
+
 // GcpResourceAdapter wraps a generic Resource to satisfy the GcpResource interface.
-// It provides type-safe Init(string) for GCP's project ID initialization.
 type GcpResourceAdapter[C any] struct {
 	*resource.Resource[C]
 }
@@ -27,5 +48,4 @@ func (g *GcpResourceAdapter[C]) Nuke(ctx context.Context, identifiers []string) 
 	return g.Resource.Nuke(ctx, identifiers)
 }
 
-// Compile-time interface satisfaction check
 var _ GcpResource = (*GcpResourceAdapter[any])(nil)
