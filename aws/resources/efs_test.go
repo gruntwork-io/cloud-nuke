@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/aws/aws-sdk-go-v2/service/efs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,6 +21,9 @@ type mockedElasticFileSystem struct {
 	DescribeAccessPointsOutput efs.DescribeAccessPointsOutput
 	DescribeMountTargetsOutput efs.DescribeMountTargetsOutput
 	DescribeFileSystemsOutput  efs.DescribeFileSystemsOutput
+
+	// Track calls to DescribeMountTargets to simulate deletion
+	describeMountTargetsCalls int
 }
 
 func (m mockedElasticFileSystem) DeleteAccessPoint(ctx context.Context, params *efs.DeleteAccessPointInput, optFns ...func(*efs.Options)) (*efs.DeleteAccessPointOutput, error) {
@@ -38,8 +42,14 @@ func (m mockedElasticFileSystem) DescribeAccessPoints(ctx context.Context, param
 	return &m.DescribeAccessPointsOutput, nil
 }
 
-func (m mockedElasticFileSystem) DescribeMountTargets(ctx context.Context, params *efs.DescribeMountTargetsInput, optFns ...func(*efs.Options)) (*efs.DescribeMountTargetsOutput, error) {
-	return &m.DescribeMountTargetsOutput, nil
+func (m *mockedElasticFileSystem) DescribeMountTargets(ctx context.Context, params *efs.DescribeMountTargetsInput, optFns ...func(*efs.Options)) (*efs.DescribeMountTargetsOutput, error) {
+	m.describeMountTargetsCalls++
+	// First call returns mount targets (used during enumeration and first waiter check)
+	// Subsequent calls return empty list (simulating mount targets being deleted)
+	if m.describeMountTargetsCalls <= 1 {
+		return &m.DescribeMountTargetsOutput, nil
+	}
+	return &efs.DescribeMountTargetsOutput{MountTargets: []types.MountTargetDescription{}}, nil
 }
 
 func (m mockedElasticFileSystem) DescribeFileSystems(ctx context.Context, params *efs.DescribeFileSystemsInput, optFns ...func(*efs.Options)) (*efs.DescribeFileSystemsOutput, error) {
@@ -53,20 +63,18 @@ func TestEFS_GetAll(t *testing.T) {
 	testId2 := "testId2"
 	testName2 := "test-efs2"
 	now := time.Now()
-	ef := ElasticFileSystem{
-		Client: mockedElasticFileSystem{
-			DescribeFileSystemsOutput: efs.DescribeFileSystemsOutput{
-				FileSystems: []types.FileSystemDescription{
-					{
-						FileSystemId: aws.String(testId1),
-						Name:         aws.String(testName1),
-						CreationTime: aws.Time(now),
-					},
-					{
-						FileSystemId: aws.String(testId2),
-						Name:         aws.String(testName2),
-						CreationTime: aws.Time(now.Add(1)),
-					},
+	client := &mockedElasticFileSystem{
+		DescribeFileSystemsOutput: efs.DescribeFileSystemsOutput{
+			FileSystems: []types.FileSystemDescription{
+				{
+					FileSystemId: aws.String(testId1),
+					Name:         aws.String(testName1),
+					CreationTime: aws.Time(now),
+				},
+				{
+					FileSystemId: aws.String(testId2),
+					Name:         aws.String(testName2),
+					CreationTime: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -99,39 +107,45 @@ func TestEFS_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ef.getAll(context.Background(), config.Config{
-				ElasticFileSystem: tc.configObj,
-			})
+			names, err := listElasticFileSystems(context.Background(), client, resource.Scope{Region: "us-east-1"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestEFS_NukeAll(t *testing.T) {
+func TestEFS_DeleteAccessPoints(t *testing.T) {
 	t.Parallel()
-	ef := ElasticFileSystem{
-		Client: mockedElasticFileSystem{
-			DescribeAccessPointsOutput: efs.DescribeAccessPointsOutput{
-				AccessPoints: []types.AccessPointDescription{
-					{
-						AccessPointId: aws.String("fsap-1234567890abcdef0"),
-					},
-				},
+	client := &mockedElasticFileSystem{
+		DescribeAccessPointsOutput: efs.DescribeAccessPointsOutput{
+			AccessPoints: []types.AccessPointDescription{
+				{AccessPointId: aws.String("fsap-1234567890abcdef0")},
 			},
-			DescribeMountTargetsOutput: efs.DescribeMountTargetsOutput{
-				MountTargets: []types.MountTargetDescription{
-					{
-						MountTargetId: aws.String("fsmt-1234567890abcdef0"),
-					},
-				},
-			},
-			DeleteAccessPointOutput: efs.DeleteAccessPointOutput{},
-			DeleteMountTargetOutput: efs.DeleteMountTargetOutput{},
-			DeleteFileSystemOutput:  efs.DeleteFileSystemOutput{},
 		},
 	}
 
-	err := ef.nukeAll([]*string{aws.String("fs-1234567890abcdef0")})
+	err := deleteEFSAccessPoints(context.Background(), client, aws.String("fs-test"))
+	require.NoError(t, err)
+}
+
+func TestEFS_DeleteMountTargets(t *testing.T) {
+	t.Parallel()
+	client := &mockedElasticFileSystem{
+		DescribeMountTargetsOutput: efs.DescribeMountTargetsOutput{
+			MountTargets: []types.MountTargetDescription{
+				{MountTargetId: aws.String("fsmt-1234567890abcdef0")},
+			},
+		},
+	}
+
+	err := deleteEFSMountTargets(context.Background(), client, aws.String("fs-test"))
+	require.NoError(t, err)
+}
+
+func TestEFS_DeleteFileSystem(t *testing.T) {
+	t.Parallel()
+	client := &mockedElasticFileSystem{}
+
+	err := deleteEFSFileSystem(context.Background(), client, aws.String("fs-test"))
 	require.NoError(t, err)
 }

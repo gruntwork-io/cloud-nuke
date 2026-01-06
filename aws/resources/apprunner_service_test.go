@@ -31,24 +31,24 @@ func TestListAppRunnerServices(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
+	mock := &mockAppRunnerServiceClient{
+		ListServicesOutput: apprunner.ListServicesOutput{
+			ServiceSummaryList: []types.ServiceSummary{
+				{ServiceName: aws.String("svc1"), ServiceArn: aws.String("arn::svc1"), CreatedAt: aws.Time(now)},
+				{ServiceName: aws.String("svc2"), ServiceArn: aws.String("arn::svc2"), CreatedAt: aws.Time(now.Add(1 * time.Hour))},
+			},
+		},
+	}
+
 	tests := map[string]struct {
-		services  []types.ServiceSummary
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
-			services: []types.ServiceSummary{
-				{ServiceName: aws.String("svc1"), ServiceArn: aws.String("arn::svc1"), CreatedAt: aws.Time(now)},
-				{ServiceName: aws.String("svc2"), ServiceArn: aws.String("arn::svc2"), CreatedAt: aws.Time(now)},
-			},
 			configObj: config.ResourceType{},
 			expected:  []string{"arn::svc1", "arn::svc2"},
 		},
 		"nameExclusionFilter": {
-			services: []types.ServiceSummary{
-				{ServiceName: aws.String("svc1"), ServiceArn: aws.String("arn::svc1"), CreatedAt: aws.Time(now)},
-				{ServiceName: aws.String("svc2"), ServiceArn: aws.String("arn::svc2"), CreatedAt: aws.Time(now)},
-			},
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("svc1")}},
@@ -56,11 +56,18 @@ func TestListAppRunnerServices(t *testing.T) {
 			},
 			expected: []string{"arn::svc2"},
 		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{"arn::svc1"},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mock := &mockAppRunnerServiceClient{ListServicesOutput: apprunner.ListServicesOutput{ServiceSummaryList: tc.services}}
 			arns, err := listAppRunnerServices(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(arns))

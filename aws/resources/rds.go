@@ -2,106 +2,109 @@ package resources
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (di *DBInstances) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
-	result, err := di.Client.DescribeDBInstances(ctx, &rds.DescribeDBInstancesInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+// DBInstancesAPI defines the interface for RDS DB Instance operations.
+type DBInstancesAPI interface {
+	DescribeDBInstances(ctx context.Context, params *rds.DescribeDBInstancesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBInstancesOutput, error)
+	ModifyDBInstance(ctx context.Context, params *rds.ModifyDBInstanceInput, optFns ...func(*rds.Options)) (*rds.ModifyDBInstanceOutput, error)
+	DeleteDBInstance(ctx context.Context, params *rds.DeleteDBInstanceInput, optFns ...func(*rds.Options)) (*rds.DeleteDBInstanceOutput, error)
+}
 
+// NewDBInstances creates a new DBInstances resource using the generic resource pattern.
+func NewDBInstances() AwsResource {
+	return NewAwsResource(&resource.Resource[DBInstancesAPI]{
+		ResourceTypeName: "rds",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBInstancesAPI], cfg aws.Config) {
+			r.Client = rds.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.DBInstances.ResourceType
+		},
+		Lister: listDBInstances,
+		Nuker:  resource.SequentialDeleteThenWaitAll(deleteDBInstance, waitForDBInstancesDeleted),
+	})
+}
+
+// listDBInstances retrieves all RDS DB instances that match the config filters.
+func listDBInstances(ctx context.Context, client DBInstancesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var names []*string
 
-	for _, database := range result.DBInstances {
-		if configObj.DBInstances.ShouldInclude(config.ResourceValue{
-			Time: database.InstanceCreateTime,
-			Name: database.DBInstanceIdentifier,
-			Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
-		}) {
-			names = append(names, database.DBInstanceIdentifier)
+	paginator := rds.NewDescribeDBInstancesPaginator(client, &rds.DescribeDBInstancesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, db := range page.DBInstances {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Time: db.InstanceCreateTime,
+				Name: db.DBInstanceIdentifier,
+				Tags: util.ConvertRDSTypeTagsToMap(db.TagList),
+			}) {
+				names = append(names, db.DBInstanceIdentifier)
+			}
 		}
 	}
 
 	return names, nil
 }
 
-func (di *DBInstances) nukeAll(names []*string) error {
-	if len(names) == 0 {
-		logging.Debugf("No RDS DB Instance to nuke in region %s", di.Region)
-		return nil
+// deleteDBInstance deletes a single RDS DB instance.
+// For standalone instances, it first disables deletion protection.
+// For cluster members, deletion protection is managed at the cluster level.
+func deleteDBInstance(ctx context.Context, client DBInstancesAPI, name *string) error {
+	resp, err := client.DescribeDBInstances(ctx, &rds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: name,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("Deleting all RDS Instances in region %s", di.Region)
-	deletedNames := []*string{}
+	if len(resp.DBInstances) == 0 {
+		return nil // Instance doesn't exist
+	}
 
-	for _, name := range names {
-		// Check if instance is part of a cluster before trying to disable deletion protection
-		describeResp, err := di.Client.DescribeDBInstances(di.Context, &rds.DescribeDBInstancesInput{
+	instance := resp.DBInstances[0]
+	isStandalone := instance.DBClusterIdentifier == nil
+
+	if isStandalone {
+		if _, err := client.ModifyDBInstance(ctx, &rds.ModifyDBInstanceInput{
 			DBInstanceIdentifier: name,
-		})
-		if err != nil {
-			logging.Warnf("[Failed] to describe instance %s: %s", *name, err)
-			continue
-		}
-		// Only disable deletion protection if instance is not part of a cluster
-		if len(describeResp.DBInstances) > 0 && describeResp.DBInstances[0].DBClusterIdentifier == nil {
-			_, modifyErr := di.Client.ModifyDBInstance(context.TODO(), &rds.ModifyDBInstanceInput{
-				DBInstanceIdentifier: name,
-				DeletionProtection:   aws.Bool(false),
-				ApplyImmediately:     aws.Bool(true),
-			})
-			if modifyErr != nil {
-				logging.Warnf("[Failed] to disable deletion protection for %s: %s", *name, modifyErr)
-			}
-		} else {
-			logging.Debugf("Skipping deletion protection modification for cluster member instance %s", *name)
-		}
-
-		params := &rds.DeleteDBInstanceInput{
-			DBInstanceIdentifier: name,
-			SkipFinalSnapshot:    aws.Bool(true),
-		}
-
-		_, err = di.Client.DeleteDBInstance(di.Context, params)
-
-		if err != nil {
-			logging.Errorf("[Failed] %s: %s", *name, err)
-		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Instance: %s", aws.ToString(name))
+			DeletionProtection:   aws.Bool(false),
+			ApplyImmediately:     aws.Bool(true),
+		}); err != nil {
+			logging.Warnf("[Failed] to disable deletion protection for %s: %s", aws.ToString(name), err)
 		}
 	}
 
-	if len(deletedNames) > 0 {
-		for _, name := range deletedNames {
-			waiter := rds.NewDBInstanceDeletedWaiter(di.Client)
-			err := waiter.Wait(di.Context, &rds.DescribeDBInstancesInput{
-				DBInstanceIdentifier: name,
-			}, di.Timeout)
+	_, err = client.DeleteDBInstance(ctx, &rds.DeleteDBInstanceInput{
+		DBInstanceIdentifier: name,
+		SkipFinalSnapshot:    aws.Bool(true),
+	})
+	return errors.WithStackTrace(err)
+}
 
-			// Record status of this resource
-			e := report.Entry{
-				Identifier:   aws.ToString(name),
-				ResourceType: "RDS Instance",
-				Error:        err,
-			}
-			report.Record(e)
-
-			if err != nil {
-				logging.Errorf("[Failed] %s", err)
-				return errors.WithStackTrace(err)
-			}
+// waitForDBInstancesDeleted waits for all specified RDS DB instances to be deleted.
+func waitForDBInstancesDeleted(ctx context.Context, client DBInstancesAPI, ids []string) error {
+	waiter := rds.NewDBInstanceDeletedWaiter(client)
+	for _, id := range ids {
+		if err := waiter.Wait(ctx, &rds.DescribeDBInstancesInput{
+			DBInstanceIdentifier: aws.String(id),
+		}, 10*time.Minute); err != nil {
+			return err
 		}
 	}
-
-	logging.Debugf("[OK] %d RDS DB Instance(s) deleted in %s", len(deletedNames), di.Region)
 	return nil
 }

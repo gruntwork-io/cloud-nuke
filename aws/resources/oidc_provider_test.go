@@ -10,59 +10,56 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedOIDCProvider struct {
 	OIDCProvidersAPI
-	ListOpenIDConnectProvidersOutput  iam.ListOpenIDConnectProvidersOutput
-	GetOpenIDConnectProviderOutput    map[string]iam.GetOpenIDConnectProviderOutput
-	DeleteOpenIDConnectProviderOutput iam.DeleteOpenIDConnectProviderOutput
-}
-
-func (m mockedOIDCProvider) DeleteOpenIDConnectProvider(ctx context.Context, params *iam.DeleteOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.DeleteOpenIDConnectProviderOutput, error) {
-	return &m.DeleteOpenIDConnectProviderOutput, nil
+	ListOutput  iam.ListOpenIDConnectProvidersOutput
+	GetOutputs  map[string]iam.GetOpenIDConnectProviderOutput
+	DeleteError error
 }
 
 func (m mockedOIDCProvider) ListOpenIDConnectProviders(ctx context.Context, params *iam.ListOpenIDConnectProvidersInput, optFns ...func(*iam.Options)) (*iam.ListOpenIDConnectProvidersOutput, error) {
-	return &m.ListOpenIDConnectProvidersOutput, nil
+	return &m.ListOutput, nil
 }
 
 func (m mockedOIDCProvider) GetOpenIDConnectProvider(ctx context.Context, params *iam.GetOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.GetOpenIDConnectProviderOutput, error) {
-	arn := params.OpenIDConnectProviderArn
-	resp := m.GetOpenIDConnectProviderOutput[*arn]
-
+	resp := m.GetOutputs[aws.ToString(params.OpenIDConnectProviderArn)]
 	return &resp, nil
 }
 
-func TestOIDCProvider_GetAll(t *testing.T) {
+func (m mockedOIDCProvider) DeleteOpenIDConnectProvider(ctx context.Context, params *iam.DeleteOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.DeleteOpenIDConnectProviderOutput, error) {
+	return &iam.DeleteOpenIDConnectProviderOutput{}, m.DeleteError
+}
 
+func TestOIDCProvider_List(t *testing.T) {
 	t.Parallel()
 
-	testArn1 := "test-arn1"
-	testArn2 := "test-arn2"
-	testUrl1 := "https://test1.com"
-	testUrl2 := "https://test2.com"
 	now := time.Now()
-	oidcp := OIDCProviders{
-		Client: mockedOIDCProvider{
-			ListOpenIDConnectProvidersOutput: iam.ListOpenIDConnectProvidersOutput{
-				OpenIDConnectProviderList: []types.OpenIDConnectProviderListEntry{
-					{Arn: aws.String(testArn1)},
-					{Arn: aws.String(testArn2)},
-				},
+	testArn1 := "arn:aws:iam::123456789012:oidc-provider/test1.example.com"
+	testArn2 := "arn:aws:iam::123456789012:oidc-provider/test2.example.com"
+	testUrl1 := "https://test1.example.com"
+	testUrl2 := "https://test2.example.com"
+
+	client := mockedOIDCProvider{
+		ListOutput: iam.ListOpenIDConnectProvidersOutput{
+			OpenIDConnectProviderList: []types.OpenIDConnectProviderListEntry{
+				{Arn: aws.String(testArn1)},
+				{Arn: aws.String(testArn2)},
 			},
-			GetOpenIDConnectProviderOutput: map[string]iam.GetOpenIDConnectProviderOutput{
-				testArn1: {
-					Url:        aws.String(testUrl1),
-					CreateDate: aws.Time(now),
-					Tags:       []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}},
-				},
-				testArn2: {
-					Url:        aws.String(testUrl2),
-					CreateDate: aws.Time(now.Add(1)),
-					Tags:       []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}},
-				},
+		},
+		GetOutputs: map[string]iam.GetOpenIDConnectProviderOutput{
+			testArn1: {
+				Url:        aws.String(testUrl1),
+				CreateDate: aws.Time(now),
+				Tags:       []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+			},
+			testArn2: {
+				Url:        aws.String(testUrl2),
+				CreateDate: aws.Time(now.Add(time.Hour)),
+				Tags:       []types.Tag{{Key: aws.String("env"), Value: aws.String("dev")}},
 			},
 		},
 	}
@@ -71,63 +68,51 @@ func TestOIDCProvider_GetAll(t *testing.T) {
 		configObj config.ResourceType
 		expected  []string
 	}{
-		"emptyFilter": {
+		"no filter": {
 			configObj: config.ResourceType{},
 			expected:  []string{testArn1, testArn2},
 		},
-		"nameExclusionFilter": {
+		"name exclusion": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testUrl1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("test1")}},
+				},
 			},
 			expected: []string{testArn2},
 		},
-		"timeAfterExclusionFilter": {
+		"time filter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
-				}},
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
 			expected: []string{testArn1},
 		},
-		"tagExclusionFilter": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
-				}},
-			expected: []string{testArn2},
-		},
-		"tagInclusionFilter": {
+		"tag filter": {
 			configObj: config.ResourceType{
 				IncludeRule: config.FilterRule{
-					Tags: map[string]config.Expression{"foo": config.Expression{RE: *regexp.MustCompile("bar")}},
-				}},
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("prod")},
+					},
+				},
+			},
 			expected: []string{testArn1},
 		},
 	}
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := oidcp.getAll(context.Background(), config.Config{
-				OIDCProvider: tc.configObj,
-			})
+			result, err := listOIDCProviders(context.Background(), client, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+			require.Equal(t, tc.expected, aws.ToStringSlice(result))
 		})
 	}
-
 }
 
-func TestOIDCProvider_NukeAll(t *testing.T) {
-
+func TestOIDCProvider_Delete(t *testing.T) {
 	t.Parallel()
 
-	oidcp := OIDCProviders{
-		Client: mockedOIDCProvider{
-			DeleteOpenIDConnectProviderOutput: iam.DeleteOpenIDConnectProviderOutput{},
-		},
-	}
-
-	err := oidcp.nukeAll([]*string{aws.String("test")})
+	client := mockedOIDCProvider{}
+	err := deleteOIDCProvider(context.Background(), client, aws.String("test-arn"))
 	require.NoError(t, err)
 }

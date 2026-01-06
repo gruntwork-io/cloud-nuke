@@ -6,70 +6,60 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (g *RedshiftSnapshotCopyGrants) getAll(ctx context.Context, configObj config.Config) ([]*string, error) {
-	var grantNames []*string
-	var marker *string
-
-	for {
-		output, err := g.Client.DescribeSnapshotCopyGrants(ctx, &redshift.DescribeSnapshotCopyGrantsInput{
-			Marker: marker,
-		})
-		if err != nil {
-			logging.Debugf("[Redshift Snapshot Copy Grant] Failed to list grants: %s", err)
-			return nil, errors.WithStackTrace(err)
-		}
-
-		for _, grant := range output.SnapshotCopyGrants {
-			if configObj.RedshiftSnapshotCopyGrant.ShouldInclude(config.ResourceValue{
-				Name: grant.SnapshotCopyGrantName,
-			}) {
-				grantNames = append(grantNames, grant.SnapshotCopyGrantName)
-			}
-		}
-
-		if output.Marker == nil {
-			break
-		}
-		marker = output.Marker
-	}
-
-	return grantNames, nil
+// RedshiftSnapshotCopyGrantsAPI defines the interface for Redshift Snapshot Copy Grant operations.
+type RedshiftSnapshotCopyGrantsAPI interface {
+	DescribeSnapshotCopyGrants(ctx context.Context, params *redshift.DescribeSnapshotCopyGrantsInput, optFns ...func(*redshift.Options)) (*redshift.DescribeSnapshotCopyGrantsOutput, error)
+	DeleteSnapshotCopyGrant(ctx context.Context, params *redshift.DeleteSnapshotCopyGrantInput, optFns ...func(*redshift.Options)) (*redshift.DeleteSnapshotCopyGrantOutput, error)
 }
 
-func (g *RedshiftSnapshotCopyGrants) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Redshift Snapshot Copy Grants to nuke in region %s", g.Region)
-		return nil
-	}
+// NewRedshiftSnapshotCopyGrants creates a new Redshift Snapshot Copy Grants resource.
+func NewRedshiftSnapshotCopyGrants() AwsResource {
+	return NewAwsResource(&resource.Resource[RedshiftSnapshotCopyGrantsAPI]{
+		ResourceTypeName: "redshift-snapshot-copy-grant",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[RedshiftSnapshotCopyGrantsAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = redshift.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.RedshiftSnapshotCopyGrant
+		},
+		Lister: listRedshiftSnapshotCopyGrants,
+		Nuker:  resource.SimpleBatchDeleter(deleteRedshiftSnapshotCopyGrant),
+	})
+}
 
-	logging.Debugf("Deleting all Redshift Snapshot Copy Grants in region %s", g.Region)
+// listRedshiftSnapshotCopyGrants retrieves all Redshift Snapshot Copy Grants that match the config filters.
+func listRedshiftSnapshotCopyGrants(ctx context.Context, client RedshiftSnapshotCopyGrantsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
 
-	deletedCount := 0
-	for _, name := range identifiers {
-		_, err := g.Client.DeleteSnapshotCopyGrant(g.Context, &redshift.DeleteSnapshotCopyGrantInput{
-			SnapshotCopyGrantName: name,
-		})
+	paginator := redshift.NewDescribeSnapshotCopyGrantsPaginator(client, &redshift.DescribeSnapshotCopyGrantsInput{})
 
-		e := report.Entry{
-			Identifier:   aws.ToString(name),
-			ResourceType: "Redshift Snapshot Copy Grant",
-			Error:        err,
-		}
-		report.Record(e)
-
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] %s: %s", aws.ToString(name), err)
-		} else {
-			deletedCount++
-			logging.Debugf("Deleted Redshift Snapshot Copy Grant: %s", aws.ToString(name))
+			return nil, err
+		}
+
+		for _, grant := range page.SnapshotCopyGrants {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: grant.SnapshotCopyGrantName,
+			}) {
+				identifiers = append(identifiers, grant.SnapshotCopyGrantName)
+			}
 		}
 	}
 
-	logging.Debugf("[OK] %d Redshift Snapshot Copy Grant(s) deleted in %s", deletedCount, g.Region)
-	return nil
+	return identifiers, nil
+}
+
+// deleteRedshiftSnapshotCopyGrant deletes a single Redshift Snapshot Copy Grant.
+func deleteRedshiftSnapshotCopyGrant(ctx context.Context, client RedshiftSnapshotCopyGrantsAPI, id *string) error {
+	_, err := client.DeleteSnapshotCopyGrant(ctx, &redshift.DeleteSnapshotCopyGrantInput{
+		SnapshotCopyGrantName: id,
+	})
+	return err
 }

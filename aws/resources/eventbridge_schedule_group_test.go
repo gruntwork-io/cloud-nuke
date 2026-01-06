@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +37,7 @@ func Test_EventBridgeScheduleGroup_GetAll(t *testing.T) {
 	group1 := "test-group-1"
 	group2 := "test-group-2"
 
-	service := EventBridgeScheduleGroup{Client: mockedEventBridgeScheduleGroupService{
+	client := mockedEventBridgeScheduleGroupService{
 		ListScheduleGroupsOutput: scheduler.ListScheduleGroupsOutput{
 			ScheduleGroups: []types.ScheduleGroupSummary{
 				{
@@ -51,7 +52,7 @@ func Test_EventBridgeScheduleGroup_GetAll(t *testing.T) {
 				},
 			},
 		},
-	}}
+	}
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -81,12 +82,14 @@ func Test_EventBridgeScheduleGroup_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			buses, err := service.getAll(
+			groups, err := listEventBridgeScheduleGroups(
 				context.Background(),
-				config.Config{EventBridgeScheduleGroup: tc.configObj},
+				client,
+				resource.Scope{Region: "us-east-1"},
+				tc.configObj,
 			)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(buses))
+			require.Equal(t, tc.expected, aws.ToStringSlice(groups))
 		})
 	}
 }
@@ -95,10 +98,10 @@ func Test_EventBridgeScheduleGroup_NukeAll(t *testing.T) {
 	t.Parallel()
 
 	groupName := "test-group"
-	service := EventBridgeScheduleGroup{Client: mockedEventBridgeScheduleGroupService{
+	client := mockedEventBridgeScheduleGroupService{
 		DeleteScheduleGroupOutput: scheduler.DeleteScheduleGroupOutput{},
-	}}
+	}
 
-	err := service.nukeAll([]*string{&groupName})
+	err := deleteEventBridgeScheduleGroup(context.Background(), client, &groupName)
 	assert.NoError(t, err)
 }

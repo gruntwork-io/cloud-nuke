@@ -8,77 +8,80 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3control"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (ap *S3AccessPoint) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	accountID, ok := c.Value(util.AccountIdKey).(string)
+// S3ControlAccessPointAPI defines the interface for S3 Control Access Point operations.
+type S3ControlAccessPointAPI interface {
+	ListAccessPoints(ctx context.Context, params *s3control.ListAccessPointsInput, optFns ...func(*s3control.Options)) (*s3control.ListAccessPointsOutput, error)
+	DeleteAccessPoint(ctx context.Context, params *s3control.DeleteAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.DeleteAccessPointOutput, error)
+}
+
+// NewS3AccessPoints creates a new S3 Access Point resource using the generic resource pattern.
+func NewS3AccessPoints() AwsResource {
+	return NewAwsResource(&resource.Resource[S3ControlAccessPointAPI]{
+		ResourceTypeName: "s3-ap",
+		BatchSize:        5,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ControlAccessPointAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = s3control.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.S3AccessPoint
+		},
+		Lister: listS3AccessPoints,
+		Nuker:  nukeS3AccessPoints,
+	})
+}
+
+// listS3AccessPoints retrieves all S3 Access Points that match the config filters.
+func listS3AccessPoints(ctx context.Context, client S3ControlAccessPointAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	accountID, ok := ctx.Value(util.AccountIdKey).(string)
 	if !ok {
 		logging.Errorf("unable to read the account-id from context")
 		return nil, errors.WithStackTrace(fmt.Errorf("unable to lookup the account id"))
 	}
 
-	// set the account id in object as this is mandatory to nuke an access point
-	ap.AccountID = aws.String(accountID)
-
-	var accessPoints []*string
-	paginator := s3control.NewListAccessPointsPaginator(ap.Client, &s3control.ListAccessPointsInput{
-		AccountId: ap.AccountID,
+	var identifiers []*string
+	paginator := s3control.NewListAccessPointsPaginator(client, &s3control.ListAccessPointsInput{
+		AccountId: aws.String(accountID),
 	})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ap.Context)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, accessPoint := range page.AccessPointList {
-			if configObj.S3AccessPoint.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: accessPoint.Name,
 			}) {
-				accessPoints = append(accessPoints, accessPoint.Name)
+				identifiers = append(identifiers, accessPoint.Name)
 			}
 		}
 	}
 
-	return accessPoints, nil
+	return identifiers, nil
 }
 
-func (ap *S3AccessPoint) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Access point(s) to nuke in region %s", ap.Region)
-		return nil
+// nukeS3AccessPoints deletes S3 Access Points.
+func nukeS3AccessPoints(ctx context.Context, client S3ControlAccessPointAPI, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
+	accountID, ok := ctx.Value(util.AccountIdKey).(string)
+	if !ok {
+		logging.Errorf("unable to read the account-id from context")
+		return []resource.NukeResult{{Error: fmt.Errorf("unable to lookup the account id")}}
 	}
 
-	logging.Debugf("Deleting all Access points in region %s", ap.Region)
-	var deleted []*string
-
-	for _, id := range identifiers {
-
-		_, err := ap.Client.DeleteAccessPoint(ap.Context, &s3control.DeleteAccessPointInput{
-			AccountId: ap.AccountID,
-			Name:      id,
+	deleteFn := func(ctx context.Context, client S3ControlAccessPointAPI, name *string) error {
+		_, err := client.DeleteAccessPoint(ctx, &s3control.DeleteAccessPointInput{
+			AccountId: aws.String(accountID),
+			Name:      name,
 		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "S3 Access point",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deleted = append(deleted, id)
-			logging.Debugf("Deleted S3 access point: %s", aws.ToString(id))
-		}
+		return err
 	}
 
-	logging.Debugf("[OK] %d S3 Access point(s) deleted in %s", len(deleted), ap.Region)
-
-	return nil
+	return resource.SimpleBatchDeleter(deleteFn)(ctx, client, scope, resourceType, identifiers)
 }

@@ -9,123 +9,117 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (network *VPCLatticeService) getAll(_ context.Context, configObj config.Config) ([]*string, error) {
-	output, err := network.Client.ListServices(network.Context, nil)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+// VPCLatticeServiceAPI defines the interface for VPC Lattice Service operations.
+type VPCLatticeServiceAPI interface {
+	ListServices(ctx context.Context, params *vpclattice.ListServicesInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServicesOutput, error)
+	DeleteService(ctx context.Context, params *vpclattice.DeleteServiceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceOutput, error)
+	ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error)
+	DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error)
+}
 
-	var ids []*string
-	for _, item := range output.Items {
+// NewVPCLatticeService creates a new VPC Lattice Service resource using the generic resource pattern.
+func NewVPCLatticeService() AwsResource {
+	return NewAwsResource(&resource.Resource[VPCLatticeServiceAPI]{
+		ResourceTypeName: "vpc-lattice-service",
+		BatchSize:        10,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[VPCLatticeServiceAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = vpclattice.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.VPCLatticeService
+		},
+		Lister: listVPCLatticeServices,
+		// VPC Lattice Service deletion requires: delete associations → wait → delete service
+		Nuker: resource.MultiStepDeleter(
+			deleteVPCLatticeServiceAssociations,
+			waitForVPCLatticeServiceAssociationsDeleted,
+			deleteVPCLatticeService,
+		),
+	})
+}
 
-		if configObj.VPCLatticeService.ShouldInclude(config.ResourceValue{
-			Name: item.Name,
-			Time: item.CreatedAt,
-		}) {
-			ids = append(ids, item.Arn)
+// listVPCLatticeServices retrieves all VPC Lattice Services that match the config filters.
+func listVPCLatticeServices(ctx context.Context, client VPCLatticeServiceAPI, _ resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var allServices []*string
+
+	paginator := vpclattice.NewListServicesPaginator(client, &vpclattice.ListServicesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, service := range page.Items {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: service.Name,
+				Time: service.CreatedAt,
+			}) {
+				allServices = append(allServices, service.Arn)
+			}
 		}
 	}
 
-	return ids, nil
+	return allServices, nil
 }
 
-func (network *VPCLatticeService) nukeServiceAssociations(id *string) error {
-	// list service associations
-	associations, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
-		ServiceIdentifier: id,
+// deleteVPCLatticeServiceAssociations deletes all service network associations for the given service.
+// VPC Lattice Service cannot be deleted while associations exist.
+func deleteVPCLatticeServiceAssociations(ctx context.Context, client VPCLatticeServiceAPI, serviceID *string) error {
+	paginator := vpclattice.NewListServiceNetworkServiceAssociationsPaginator(client, &vpclattice.ListServiceNetworkServiceAssociationsInput{
+		ServiceIdentifier: serviceID,
 	})
 
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	for _, item := range associations.Items {
-		// list service associations
-		_, err := network.Client.DeleteServiceNetworkServiceAssociation(network.Context, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
-			ServiceNetworkServiceAssociationIdentifier: item.Id,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
-	}
-	return nil
-}
 
-func (network *VPCLatticeService) nukeService(id *string) error {
-	_, err := network.Client.DeleteService(network.Context, &vpclattice.DeleteServiceInput{
-		ServiceIdentifier: id,
-	})
-	return err
-}
-
-func (network *VPCLatticeService) nuke(id *string) error {
-	if err := network.nukeServiceAssociations(id); err != nil {
-		return err
-	}
-
-	if err := network.waitUntilAllServiceAssociationDeleted(id); err != nil {
-		return err
-	}
-	if err := network.nukeService(id); err != nil {
-		return err
+		for _, assoc := range page.Items {
+			logging.Debugf("Deleting service network association %s for VPC Lattice Service %s",
+				aws.ToString(assoc.Id), aws.ToString(serviceID))
+			if _, err := client.DeleteServiceNetworkServiceAssociation(ctx, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
+				ServiceNetworkServiceAssociationIdentifier: assoc.Id,
+			}); err != nil {
+				return errors.WithStackTrace(err)
+			}
+		}
 	}
 
 	return nil
 }
-func (network *VPCLatticeService) waitUntilAllServiceAssociationDeleted(id *string) error {
+
+// waitForVPCLatticeServiceAssociationsDeleted polls until all associations for the given service are deleted.
+// Times out after 100 seconds.
+func waitForVPCLatticeServiceAssociationsDeleted(ctx context.Context, client VPCLatticeServiceAPI, serviceID *string) error {
 	for i := 0; i < 10; i++ {
-		output, err := network.Client.ListServiceNetworkServiceAssociations(network.Context, &vpclattice.ListServiceNetworkServiceAssociationsInput{
-			ServiceIdentifier: id,
+		output, err := client.ListServiceNetworkServiceAssociations(ctx, &vpclattice.ListServiceNetworkServiceAssociationsInput{
+			ServiceIdentifier: serviceID,
 		})
-
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
 		if len(output.Items) == 0 {
 			return nil
 		}
-		logging.Info("Waiting for service associations to be deleted...")
+		logging.Debugf("Waiting for service associations to be deleted for VPC Lattice Service %s...", aws.ToString(serviceID))
 		time.Sleep(10 * time.Second)
 	}
-
-	return fmt.Errorf("timed out waiting for service associations to be successfully deleted")
-
+	return fmt.Errorf("timed out waiting for service associations to be deleted for VPC Lattice Service %s", aws.ToString(serviceID))
 }
 
-func (network *VPCLatticeService) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No %s to nuke in region %s", network.ResourceServiceName(), network.Region)
-		return nil
-
+// deleteVPCLatticeService deletes the VPC Lattice Service.
+func deleteVPCLatticeService(ctx context.Context, client VPCLatticeServiceAPI, serviceID *string) error {
+	_, err := client.DeleteService(ctx, &vpclattice.DeleteServiceInput{
+		ServiceIdentifier: serviceID,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
 	}
-
-	logging.Debugf("Deleting all %s in region %s", network.ResourceServiceName(), network.Region)
-
-	deletedCount := 0
-	for _, id := range identifiers {
-
-		err := network.nuke(id)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: network.ResourceServiceName(),
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedCount++
-			logging.Debugf("Deleted %s: %s", network.ResourceServiceName(), aws.ToString(id))
-		}
-	}
-
-	logging.Debugf("[OK] %d %s(s) terminated in %s", deletedCount, network.ResourceServiceName(), network.Region)
 	return nil
 }

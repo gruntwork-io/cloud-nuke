@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SESIdentityAPI defines the interface for SES Identity operations.
@@ -19,7 +20,7 @@ type SESIdentityAPI interface {
 func NewSesIdentities() AwsResource {
 	return NewAwsResource(&resource.Resource[SESIdentityAPI]{
 		ResourceTypeName: "ses-identity",
-		BatchSize:        maxBatchSize,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESIdentityAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ses.NewFromConfig(cfg)
@@ -33,16 +34,20 @@ func NewSesIdentities() AwsResource {
 }
 
 // listSesIdentities retrieves all SES Identities that match the config filters.
-func listSesIdentities(ctx context.Context, client SESIdentityAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	result, err := client.ListIdentities(ctx, &ses.ListIdentitiesInput{})
-	if err != nil {
-		return nil, err
-	}
-
+func listSesIdentities(ctx context.Context, client SESIdentityAPI, _ resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var ids []*string
-	for _, id := range result.Identities {
-		if cfg.ShouldInclude(config.ResourceValue{Name: aws.String(id)}) {
-			ids = append(ids, aws.String(id))
+	paginator := ses.NewListIdentitiesPaginator(client, &ses.ListIdentitiesInput{})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, id := range page.Identities {
+			if cfg.ShouldInclude(config.ResourceValue{Name: aws.String(id)}) {
+				ids = append(ids, aws.String(id))
+			}
 		}
 	}
 
@@ -54,5 +59,5 @@ func deleteSesIdentity(ctx context.Context, client SESIdentityAPI, id *string) e
 	_, err := client.DeleteIdentity(ctx, &ses.DeleteIdentityInput{
 		Identity: id,
 	})
-	return err
+	return errors.WithStackTrace(err)
 }

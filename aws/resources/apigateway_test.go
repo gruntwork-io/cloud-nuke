@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
@@ -9,206 +10,116 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/apigateway"
 	"github.com/aws/aws-sdk-go-v2/service/apigateway/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedApiGateway struct {
-	ApiGatewayServiceAPI
-	GetRestApisOutput             apigateway.GetRestApisOutput
-	GetStagesOutput               apigateway.GetStagesOutput
-	DeleteClientCertificateOutput apigateway.DeleteClientCertificateOutput
-	DeleteRestApiOutput           apigateway.DeleteRestApiOutput
-
-	GetDomainNamesOutput        apigateway.GetDomainNamesOutput
-	GetBasePathMappingsOutput   apigateway.GetBasePathMappingsOutput
-	DeleteBasePathMappingOutput apigateway.DeleteBasePathMappingOutput
+	ApiGatewayAPI
+	GetRestApisOutput   apigateway.GetRestApisOutput
+	DeleteRestApiOutput apigateway.DeleteRestApiOutput
 }
 
 func (m mockedApiGateway) GetRestApis(ctx context.Context, params *apigateway.GetRestApisInput, optFns ...func(*apigateway.Options)) (*apigateway.GetRestApisOutput, error) {
 	return &m.GetRestApisOutput, nil
-}
-func (m mockedApiGateway) GetStages(ctx context.Context, params *apigateway.GetStagesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetStagesOutput, error) {
-	return &m.GetStagesOutput, nil
-}
-
-func (m mockedApiGateway) DeleteClientCertificate(ctx context.Context, params *apigateway.DeleteClientCertificateInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteClientCertificateOutput, error) {
-	return &m.DeleteClientCertificateOutput, nil
 }
 
 func (m mockedApiGateway) DeleteRestApi(ctx context.Context, params *apigateway.DeleteRestApiInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteRestApiOutput, error) {
 	return &m.DeleteRestApiOutput, nil
 }
 
-func (m mockedApiGateway) GetDomainNames(ctx context.Context, params *apigateway.GetDomainNamesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetDomainNamesOutput, error) {
-	return &m.GetDomainNamesOutput, nil
-}
-
-func (m mockedApiGateway) GetBasePathMappings(ctx context.Context, params *apigateway.GetBasePathMappingsInput, optFns ...func(*apigateway.Options)) (*apigateway.GetBasePathMappingsOutput, error) {
-	return &m.GetBasePathMappingsOutput, nil
-}
-
-func (m mockedApiGateway) DeleteBasePathMapping(ctx context.Context, params *apigateway.DeleteBasePathMappingInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteBasePathMappingOutput, error) {
-	return &m.DeleteBasePathMappingOutput, nil
-}
-func TestAPIGatewayGetAllAndNukeAll(t *testing.T) {
+func TestAPIGateway_GetAll(t *testing.T) {
 	t.Parallel()
 
-	testApiID := "aws-nuke-test-" + util.UniqueID()
-	apiGateway := ApiGateway{
-		Client: mockedApiGateway{
-			ApiGatewayServiceAPI: nil,
-			GetRestApisOutput: apigateway.GetRestApisOutput{
-				Items: []types.RestApi{
-					{Id: aws.String(testApiID)},
-				},
-			},
-			DeleteRestApiOutput: apigateway.DeleteRestApiOutput{},
-		},
-	}
-
-	apis, err := apiGateway.getAll(context.Background(), config.Config{})
-	require.NoError(t, err)
-	require.Contains(t, aws.ToStringSlice(apis), testApiID)
-
-	err = apiGateway.nukeAll([]*string{aws.String(testApiID)})
-	require.NoError(t, err)
-}
-
-func TestAPIGatewayGetAllTimeFilter(t *testing.T) {
-	t.Parallel()
-
-	testApiID := "aws-nuke-test-" + util.UniqueID()
+	testApiID1 := "api-1"
+	testApiID2 := "api-2"
+	testApiName1 := "test-api-1"
+	testApiName2 := "test-api-2"
 	now := time.Now()
-	apiGateway := ApiGateway{
-		Client: mockedApiGateway{
-			GetRestApisOutput: apigateway.GetRestApisOutput{
-				Items: []types.RestApi{{
-					Id:          aws.String(testApiID),
+
+	mock := mockedApiGateway{
+		GetRestApisOutput: apigateway.GetRestApisOutput{
+			Items: []types.RestApi{
+				{
+					Id:          aws.String(testApiID1),
+					Name:        aws.String(testApiName1),
 					CreatedDate: aws.Time(now),
-				}},
+					Tags:        map[string]string{"env": "dev"},
+				},
+				{
+					Id:          aws.String(testApiID2),
+					Name:        aws.String(testApiName2),
+					CreatedDate: aws.Time(now.Add(1 * time.Hour)),
+					Tags:        map[string]string{"env": "prod"},
+				},
 			},
 		},
 	}
 
-	// test API is not excluded from the filter
-	IDs, err := apiGateway.getAll(context.Background(), config.Config{
-		APIGateway: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				TimeAfter: aws.Time(now.Add(1)),
-			},
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testApiID1, testApiID2},
 		},
-	})
-	require.NoError(t, err)
-	assert.Contains(t, aws.ToStringSlice(IDs), testApiID)
-
-	// test API being excluded from the filter
-	apiGwIdsOlder, err := apiGateway.getAll(context.Background(), config.Config{
-		APIGateway: config.ResourceType{
-			ExcludeRule: config.FilterRule{
-				TimeAfter: aws.Time(now.Add(-1)),
-			},
-		},
-	})
-	require.NoError(t, err)
-	assert.NotContains(t, aws.ToStringSlice(apiGwIdsOlder), testApiID)
-}
-
-func TestNukeAPIGatewayMoreThanOne(t *testing.T) {
-	t.Parallel()
-
-	testApiID1 := "aws-nuke-test-" + util.UniqueID()
-	testApiID2 := "aws-nuke-test-" + util.UniqueID()
-	apiGateway := ApiGateway{
-		Client: mockedApiGateway{
-			GetRestApisOutput: apigateway.GetRestApisOutput{
-				Items: []types.RestApi{
-					{Id: aws.String(testApiID1)},
-					{Id: aws.String(testApiID2)},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{
+						RE: *regexp.MustCompile("test-api-1"),
+					}},
 				},
 			},
-			DeleteRestApiOutput: apigateway.DeleteRestApiOutput{},
+			expected: []string{testApiID2},
 		},
-	}
-
-	apis, err := apiGateway.getAll(context.Background(), config.Config{})
-	require.NoError(t, err)
-	require.Contains(t, aws.ToStringSlice(apis), testApiID1)
-	require.Contains(t, aws.ToStringSlice(apis), testApiID2)
-
-	err = apiGateway.nukeAll([]*string{aws.String(testApiID1), aws.String(testApiID2)})
-	require.NoError(t, err)
-}
-
-func TestNukeAPIGatewayWithCertificates(t *testing.T) {
-	t.Parallel()
-
-	testApiID1 := "aws-nuke-test-" + util.UniqueID()
-	testApiID2 := "aws-nuke-test-" + util.UniqueID()
-
-	clientCertID := "aws-client-cert" + util.UniqueID()
-	apiGateway := ApiGateway{
-		Client: mockedApiGateway{
-			GetRestApisOutput: apigateway.GetRestApisOutput{
-				Items: []types.RestApi{
-					{Id: aws.String(testApiID1)},
-					{Id: aws.String(testApiID2)},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
 				},
 			},
-			GetStagesOutput: apigateway.GetStagesOutput{
-				Item: []types.Stage{
-					{
-						ClientCertificateId: aws.String(clientCertID),
+			expected: []string{testApiID1},
+		},
+		"tagExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("prod")},
 					},
 				},
 			},
-			DeleteClientCertificateOutput: apigateway.DeleteClientCertificateOutput{},
-			DeleteRestApiOutput:           apigateway.DeleteRestApiOutput{},
+			expected: []string{testApiID1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("prod")},
+					},
+				},
+			},
+			expected: []string{testApiID2},
 		},
 	}
 
-	apis, err := apiGateway.getAll(context.Background(), config.Config{})
-	require.NoError(t, err)
-	require.Contains(t, aws.ToStringSlice(apis), testApiID1)
-	require.Contains(t, aws.ToStringSlice(apis), testApiID2)
-
-	err = apiGateway.nukeAll([]*string{aws.String(testApiID1), aws.String(testApiID2)})
-	require.NoError(t, err)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			apis, err := listApiGateways(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(apis))
+		})
+	}
 }
 
-func TestDeleteAssociatedApiMappings(t *testing.T) {
+func TestAPIGateway_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	apiIDToDelete := "test-api-id"
-	basePath := "test"
-	domainName := "test.example.com"
-
-	mockClient := &mockedApiGateway{
-		GetDomainNamesOutput: apigateway.GetDomainNamesOutput{
-			Items: []types.DomainName{
-				{DomainName: aws.String(domainName)},
-			},
-		},
-		GetBasePathMappingsOutput: apigateway.GetBasePathMappingsOutput{
-			Items: []types.BasePathMapping{
-				{
-					BasePath:  aws.String(basePath),
-					RestApiId: aws.String(apiIDToDelete),
-					Stage:     aws.String("prod"),
-				},
-				{
-					BasePath:  aws.String("unrelated"),
-					RestApiId: aws.String("some-other-api"),
-				},
-			},
-		},
+	mock := mockedApiGateway{
+		DeleteRestApiOutput: apigateway.DeleteRestApiOutput{},
 	}
 
-	apiGateway := ApiGateway{
-		Client: mockClient,
-	}
-
-	err := apiGateway.deleteAssociatedApiMappings(context.Background(), []*string{aws.String(apiIDToDelete)})
+	err := deleteApiGateway(context.Background(), mock, aws.String("api-1"))
 	require.NoError(t, err)
 }

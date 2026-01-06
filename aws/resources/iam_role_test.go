@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,29 +68,28 @@ func (m mockedIAMRoles) RemoveRoleFromInstanceProfile(ctx context.Context, param
 	return &m.RemoveRoleFromInstanceProfileOutput, nil
 }
 
-func TestIAMRoles_GetAll(t *testing.T) {
+func TestIAMRoles_ListIAMRoles(t *testing.T) {
 	t.Parallel()
 	testName1 := "test-role1"
 	testName2 := "test-role2"
 	now := time.Now()
-	ir := IAMRoles{
-		Client: mockedIAMRoles{
-			ListRolesOutput: iam.ListRolesOutput{
-				Roles: []types.Role{
-					{
-						RoleName:   aws.String(testName1),
-						CreateDate: aws.Time(now),
-					},
-					{
-						RoleName:   aws.String(testName2),
-						CreateDate: aws.Time(now.Add(1)),
-					},
+
+	mockClient := mockedIAMRoles{
+		ListRolesOutput: iam.ListRolesOutput{
+			Roles: []types.Role{
+				{
+					RoleName:   aws.String(testName1),
+					CreateDate: aws.Time(now),
+				},
+				{
+					RoleName:   aws.String(testName2),
+					CreateDate: aws.Time(now.Add(1)),
 				},
 			},
-			ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
-				testName1: {Tags: []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
-				testName2: {Tags: []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}}},
-			},
+		},
+		ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
+			testName1: {Tags: []types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
+			testName2: {Tags: []types.Tag{{Key: aws.String("faz"), Value: aws.String("baz")}}},
 		},
 	}
 
@@ -134,92 +134,83 @@ func TestIAMRoles_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ir.getAll(context.Background(), config.Config{
-				IAMRoles: tc.configObj,
-			})
+			names, err := listIAMRoles(context.Background(), mockClient, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
-func TestIAMRoles_GetAll_DefaultExclusionTag(t *testing.T) {
+func TestIAMRoles_ListIAMRoles_DefaultExclusionTag(t *testing.T) {
 	t.Parallel()
 	testName1 := "test-role-excluded"
 	testName2 := "test-role-included"
 	now := time.Now()
-	ir := IAMRoles{
-		Client: mockedIAMRoles{
-			ListRolesOutput: iam.ListRolesOutput{
-				Roles: []types.Role{
-					{
-						RoleName:   aws.String(testName1),
-						CreateDate: aws.Time(now),
-					},
-					{
-						RoleName:   aws.String(testName2),
-						CreateDate: aws.Time(now),
-					},
+
+	mockClient := mockedIAMRoles{
+		ListRolesOutput: iam.ListRolesOutput{
+			Roles: []types.Role{
+				{
+					RoleName:   aws.String(testName1),
+					CreateDate: aws.Time(now),
+				},
+				{
+					RoleName:   aws.String(testName2),
+					CreateDate: aws.Time(now),
 				},
 			},
-			ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
-				testName1: {Tags: []types.Tag{{Key: aws.String("cloud-nuke-excluded"), Value: aws.String("true")}}},
-				testName2: {Tags: []types.Tag{{Key: aws.String("some-other-tag"), Value: aws.String("value")}}},
-			},
+		},
+		ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
+			testName1: {Tags: []types.Tag{{Key: aws.String("cloud-nuke-excluded"), Value: aws.String("true")}}},
+			testName2: {Tags: []types.Tag{{Key: aws.String("some-other-tag"), Value: aws.String("value")}}},
 		},
 	}
 
 	// Test that the default cloud-nuke-excluded tag works without explicit tag filters configured
-	names, err := ir.getAll(context.Background(), config.Config{
-		IAMRoles: config.ResourceType{},
-	})
+	names, err := listIAMRoles(context.Background(), mockClient, resource.Scope{}, config.ResourceType{})
 
 	require.NoError(t, err)
 	// testName1 should be excluded due to cloud-nuke-excluded tag, only testName2 should be returned
 	require.Equal(t, []string{testName2}, aws.ToStringSlice(names))
 }
 
-func TestIAMRoles_NukeAll(t *testing.T) {
+func TestIAMRoles_DeleteIAMRole(t *testing.T) {
 	t.Parallel()
-	ir := IAMRoles{
-		Client: mockedIAMRoles{
-			ListInstanceProfilesForRoleOutput: iam.ListInstanceProfilesForRoleOutput{
-				InstanceProfiles: []types.InstanceProfile{
-					{
-						InstanceProfileName: aws.String("test-instance-profile"),
-					},
+	mockClient := mockedIAMRoles{
+		ListInstanceProfilesForRoleOutput: iam.ListInstanceProfilesForRoleOutput{
+			InstanceProfiles: []types.InstanceProfile{
+				{
+					InstanceProfileName: aws.String("test-instance-profile"),
 				},
 			},
-			RemoveRoleFromInstanceProfileOutput: iam.RemoveRoleFromInstanceProfileOutput{},
-			DeleteInstanceProfileOutput:         iam.DeleteInstanceProfileOutput{},
-			ListRolePoliciesOutput: iam.ListRolePoliciesOutput{
-				PolicyNames: []string{
-					"test-policy",
-				},
-			},
-			DeleteRolePolicyOutput: iam.DeleteRolePolicyOutput{},
-			ListAttachedRolePoliciesOutput: iam.ListAttachedRolePoliciesOutput{
-				AttachedPolicies: []types.AttachedPolicy{
-					{
-						PolicyArn: aws.String("test-policy-arn"),
-					},
-				},
-			},
-			DetachRolePolicyOutput: iam.DetachRolePolicyOutput{},
-			DeleteRoleOutput:       iam.DeleteRoleOutput{},
 		},
+		RemoveRoleFromInstanceProfileOutput: iam.RemoveRoleFromInstanceProfileOutput{},
+		DeleteInstanceProfileOutput:         iam.DeleteInstanceProfileOutput{},
+		ListRolePoliciesOutput: iam.ListRolePoliciesOutput{
+			PolicyNames: []string{
+				"test-policy",
+			},
+		},
+		DeleteRolePolicyOutput: iam.DeleteRolePolicyOutput{},
+		ListAttachedRolePoliciesOutput: iam.ListAttachedRolePoliciesOutput{
+			AttachedPolicies: []types.AttachedPolicy{
+				{
+					PolicyArn: aws.String("test-policy-arn"),
+				},
+			},
+		},
+		DetachRolePolicyOutput: iam.DetachRolePolicyOutput{},
+		DeleteRoleOutput:       iam.DeleteRoleOutput{},
 	}
 
-	err := ir.nukeAll([]*string{aws.String("test-role")})
+	err := deleteIAMRole(context.Background(), mockClient, aws.String("test-role"))
 	require.NoError(t, err)
 }
 
-func TestIAMRoles_ServiceLinkedRoles(t *testing.T) {
+func TestIAMRoles_ShouldIncludeIAMRole(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
-	ir := IAMRoles{}
-	configObj := config.Config{IAMRoles: config.ResourceType{}}
+	cfg := config.ResourceType{}
 
 	tests := []struct {
 		name     string
@@ -293,53 +284,50 @@ func TestIAMRoles_ServiceLinkedRoles(t *testing.T) {
 			if tt.role.RoleName != nil || tt.role.Arn != nil {
 				rolePtr = &tt.role
 			}
-			result := ir.shouldInclude(rolePtr, configObj, []types.Tag{})
+			result := shouldIncludeIAMRole(rolePtr, cfg, []types.Tag{})
 			require.Equal(t, tt.expected, result)
 		})
 	}
 }
 
-func TestIAMRoles_GetAll_ServiceLinkedRolesFiltered(t *testing.T) {
+func TestIAMRoles_ListIAMRoles_ServiceLinkedRolesFiltered(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
-	ir := IAMRoles{
-		Client: mockedIAMRoles{
-			ListRolesOutput: iam.ListRolesOutput{
-				Roles: []types.Role{
-					{
-						RoleName:   aws.String("MyCustomRole"),
-						Arn:        aws.String("arn:aws:iam::123456789012:role/MyCustomRole"),
-						CreateDate: aws.Time(now),
-					},
-					{
-						RoleName:   aws.String("AWSServiceRoleForTrustedAdvisor"),
-						Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/trustedadvisor.amazonaws.com/AWSServiceRoleForTrustedAdvisor"),
-						CreateDate: aws.Time(now),
-					},
-					{
-						RoleName:   aws.String("AWSServiceRoleForSupport"),
-						Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/support.amazonaws.com/AWSServiceRoleForSupport"),
-						CreateDate: aws.Time(now),
-					},
-					{
-						RoleName:   aws.String("AnotherCustomRole"),
-						Arn:        aws.String("arn:aws:iam::123456789012:role/AnotherCustomRole"),
-						CreateDate: aws.Time(now),
-					},
+
+	mockClient := mockedIAMRoles{
+		ListRolesOutput: iam.ListRolesOutput{
+			Roles: []types.Role{
+				{
+					RoleName:   aws.String("MyCustomRole"),
+					Arn:        aws.String("arn:aws:iam::123456789012:role/MyCustomRole"),
+					CreateDate: aws.Time(now),
+				},
+				{
+					RoleName:   aws.String("AWSServiceRoleForTrustedAdvisor"),
+					Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/trustedadvisor.amazonaws.com/AWSServiceRoleForTrustedAdvisor"),
+					CreateDate: aws.Time(now),
+				},
+				{
+					RoleName:   aws.String("AWSServiceRoleForSupport"),
+					Arn:        aws.String("arn:aws:iam::123456789012:role/aws-service-role/support.amazonaws.com/AWSServiceRoleForSupport"),
+					CreateDate: aws.Time(now),
+				},
+				{
+					RoleName:   aws.String("AnotherCustomRole"),
+					Arn:        aws.String("arn:aws:iam::123456789012:role/AnotherCustomRole"),
+					CreateDate: aws.Time(now),
 				},
 			},
-			ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
-				"MyCustomRole":                    {Tags: []types.Tag{}},
-				"AWSServiceRoleForTrustedAdvisor": {Tags: []types.Tag{}},
-				"AWSServiceRoleForSupport":        {Tags: []types.Tag{}},
-				"AnotherCustomRole":               {Tags: []types.Tag{}},
-			},
+		},
+		ListRoleTagsOutputByName: map[string]*iam.ListRoleTagsOutput{
+			"MyCustomRole":                    {Tags: []types.Tag{}},
+			"AWSServiceRoleForTrustedAdvisor": {Tags: []types.Tag{}},
+			"AWSServiceRoleForSupport":        {Tags: []types.Tag{}},
+			"AnotherCustomRole":               {Tags: []types.Tag{}},
 		},
 	}
 
-	roles, err := ir.getAll(context.Background(), config.Config{
-		IAMRoles: config.ResourceType{},
-	})
+	roles, err := listIAMRoles(context.Background(), mockClient, resource.Scope{}, config.ResourceType{})
 
 	require.NoError(t, err)
 	// Should only return custom roles, not service-linked roles

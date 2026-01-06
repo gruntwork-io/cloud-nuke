@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockSqsQueueClient implements SqsQueueAPI for testing.
 type mockSqsQueueClient struct {
 	ListQueuesOutput         sqs.ListQueuesOutput
 	GetQueueAttributesOutput map[string]sqs.GetQueueAttributesOutput
@@ -34,7 +35,7 @@ func (m *mockSqsQueueClient) DeleteQueue(ctx context.Context, params *sqs.Delete
 	return &m.DeleteQueueOutput, nil
 }
 
-func TestListSqsQueues(t *testing.T) {
+func TestSqsQueue_GetAll(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -47,41 +48,52 @@ func TestListSqsQueues(t *testing.T) {
 		},
 		GetQueueAttributesOutput: map[string]sqs.GetQueueAttributesOutput{
 			queue1: {Attributes: map[string]string{"CreatedTimestamp": strconv.FormatInt(now.Unix(), 10)}},
-			queue2: {Attributes: map[string]string{"CreatedTimestamp": strconv.FormatInt(now.Unix(), 10)}},
+			queue2: {Attributes: map[string]string{"CreatedTimestamp": strconv.FormatInt(now.Add(1*time.Hour).Unix(), 10)}},
 		},
 	}
 
 	tests := map[string]struct {
-		cfg      config.ResourceType
-		expected []string
+		configObj config.ResourceType
+		expected  []string
 	}{
-		"no filter": {
-			cfg:      config.ResourceType{},
-			expected: []string{queue1, queue2},
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{queue1, queue2},
 		},
-		"name exclusion filter": {
-			cfg: config.ResourceType{
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("MyQueue1")}},
 				},
 			},
 			expected: []string{queue2},
 		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{queue1},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			urls, err := listSqsQueues(context.Background(), mock, resource.Scope{}, tc.cfg)
+			urls, err := listSqsQueues(context.Background(), mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(urls))
 		})
 	}
 }
 
-func TestDeleteSqsQueue(t *testing.T) {
+func TestSqsQueue_NukeAll(t *testing.T) {
 	t.Parallel()
 
-	mock := &mockSqsQueueClient{}
+	mock := &mockSqsQueueClient{
+		DeleteQueueOutput: sqs.DeleteQueueOutput{},
+	}
+
 	err := deleteSqsQueue(context.Background(), mock, aws.String("https://sqs.us-east-1.amazonaws.com/123456789012/TestQueue"))
 	require.NoError(t, err)
 }

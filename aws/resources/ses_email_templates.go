@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -20,16 +19,11 @@ type SesEmailTemplatesAPI interface {
 func NewSesEmailTemplates() AwsResource {
 	return NewAwsResource(&resource.Resource[SesEmailTemplatesAPI]{
 		ResourceTypeName: "ses-email-template",
-		BatchSize:        maxBatchSize,
-		InitClient: func(r *resource.Resource[SesEmailTemplatesAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for SES client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = ses.NewFromConfig(awsCfg)
-		},
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[SesEmailTemplatesAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = ses.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.SESEmailTemplates
 		},

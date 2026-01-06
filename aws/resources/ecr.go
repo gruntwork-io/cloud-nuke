@@ -19,7 +19,7 @@ type ECRAPI interface {
 func NewECR() AwsResource {
 	return NewAwsResource(&resource.Resource[ECRAPI]{
 		ResourceTypeName: "ecr",
-		BatchSize:        50,
+		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ECRAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ecr.NewFromConfig(cfg)

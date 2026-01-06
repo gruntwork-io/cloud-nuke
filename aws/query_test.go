@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -12,8 +13,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// hasAWSCredentialsForQuery checks if AWS credentials are available via environment variables.
+// This is a fast check that doesn't require calling AWS APIs.
+func hasAWSCredentialsForQuery() bool {
+	// Check for standard AWS credential environment variables
+	if os.Getenv("AWS_ACCESS_KEY_ID") != "" && os.Getenv("AWS_SECRET_ACCESS_KEY") != "" {
+		return true
+	}
+	// Check for AWS profile
+	if os.Getenv("AWS_PROFILE") != "" {
+		return true
+	}
+	// Check for web identity token (used in EKS/CI)
+	if os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE") != "" {
+		return true
+	}
+	return false
+}
+
 func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
+
+	// Skip if AWS credentials are not available (fast check via env vars)
+	// NewQuery validates regions against AWS, which requires credentials
+	if !hasAWSCredentialsForQuery() {
+		t.Skip("Skipping test: AWS credentials not available")
+	}
+
 	type TestCase struct {
 		Name                 string
 		Regions              []string

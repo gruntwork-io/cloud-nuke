@@ -2,128 +2,96 @@ package resources
 
 import (
 	"context"
-	goerr "errors"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-// Returns a formatted string of EBS volume ids
-func (ev *EBSVolumes) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	// Available statuses: (creating | available | in-use | deleting | deleted | error).
-	// Since the output of this function is used to delete the returned volumes
-	// We want to only list EBS volumes with a status of "available" or "creating"
-	// Since those are the only statuses that are eligible for deletion
-	statusFilter := types.Filter{Name: aws.String("status"), Values: []string{"available", "creating", "error"}}
-	result, err := ev.Client.DescribeVolumes(ev.Context, &ec2.DescribeVolumesInput{
+// EBSVolumesAPI defines the interface for EBS Volume operations.
+type EBSVolumesAPI interface {
+	DescribeVolumes(ctx context.Context, params *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVolumesOutput, error)
+	DeleteVolume(ctx context.Context, params *ec2.DeleteVolumeInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVolumeOutput, error)
+}
+
+// NewEBSVolumes creates a new EBS Volumes resource using the generic resource pattern.
+func NewEBSVolumes() AwsResource {
+	return NewAwsResource(&resource.Resource[EBSVolumesAPI]{
+		ResourceTypeName: "ebs",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EBSVolumesAPI], cfg aws.Config) {
+			r.Client = ec2.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EBSVolume
+		},
+		Lister:             listEBSVolumes,
+		Nuker:              resource.SequentialDeleteThenWaitAll(deleteEBSVolume, waitForEBSVolumesDeleted),
+		PermissionVerifier: verifyEBSVolumePermission,
+	})
+}
+
+// listEBSVolumes retrieves all EBS volumes that match the config filters.
+// Only lists volumes in deletable states: available, creating, or error.
+func listEBSVolumes(ctx context.Context, client EBSVolumesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var volumeIds []*string
+
+	// Only list volumes eligible for deletion (not in-use or deleting)
+	statusFilter := types.Filter{
+		Name:   aws.String("status"),
+		Values: []string{"available", "creating", "error"},
+	}
+
+	paginator := ec2.NewDescribeVolumesPaginator(client, &ec2.DescribeVolumesInput{
 		Filters: []types.Filter{statusFilter},
 	})
 
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
 
-	var volumeIds []*string
-	for _, volume := range result.Volumes {
-		if shouldIncludeEBSVolume(volume, configObj) {
-			volumeIds = append(volumeIds, volume.VolumeId)
+		for _, volume := range page.Volumes {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: util.GetEC2ResourceNameTagValue(volume.Tags),
+				Time: volume.CreateTime,
+				Tags: util.ConvertTypesTagsToMap(volume.Tags),
+			}) {
+				volumeIds = append(volumeIds, volume.VolumeId)
+			}
 		}
 	}
-
-	// checking the nukable permissions
-	ev.VerifyNukablePermissions(volumeIds, func(id *string) error {
-		_, err := ev.Client.DeleteVolume(ev.Context, &ec2.DeleteVolumeInput{
-			VolumeId: id,
-			DryRun:   aws.Bool(true),
-		})
-		return err
-	})
 
 	return volumeIds, nil
 }
 
-func shouldIncludeEBSVolume(volume types.Volume, configObj config.Config) bool {
-	name := ""
-	for _, tag := range volume.Tags {
-		if aws.ToString(tag.Key) == "Name" {
-			name = aws.ToString(tag.Value)
-		}
-	}
-
-	return configObj.EBSVolume.ShouldInclude(config.ResourceValue{
-		Name: &name,
-		Time: volume.CreateTime,
-		Tags: util.ConvertTypesTagsToMap(volume.Tags),
+// verifyEBSVolumePermission performs a dry-run delete to check permissions.
+func verifyEBSVolumePermission(ctx context.Context, client EBSVolumesAPI, id *string) error {
+	_, err := client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
+		VolumeId: id,
+		DryRun:   aws.Bool(true),
 	})
+	return err
 }
 
-// Deletes all EBS Volumes
-func (ev *EBSVolumes) nukeAll(volumeIds []*string) error {
-	if len(volumeIds) == 0 {
-		logging.Debugf("No EBS volumes to nuke in region %s", ev.Region)
-		return nil
-	}
+// deleteEBSVolume deletes a single EBS volume.
+func deleteEBSVolume(ctx context.Context, client EBSVolumesAPI, volumeID *string) error {
+	_, err := client.DeleteVolume(ctx, &ec2.DeleteVolumeInput{
+		VolumeId: volumeID,
+	})
+	return err
+}
 
-	logging.Debugf("Deleting all EBS volumes in region %s", ev.Region)
-	var deletedVolumeIDs []*string
-
-	for _, volumeID := range volumeIds {
-
-		if nukable, reason := ev.IsNukable(aws.ToString(volumeID)); !nukable {
-			logging.Debugf("[Skipping] %s nuke because %v", aws.ToString(volumeID), reason)
-			continue
-		}
-
-		params := &ec2.DeleteVolumeInput{
-			VolumeId: volumeID,
-		}
-
-		_, err := ev.Client.DeleteVolume(ev.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(volumeID),
-			ResourceType: "EBS Volume",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			var apiErr smithy.APIError
-			if goerr.As(err, &apiErr) {
-				switch apiErr.ErrorCode() {
-				case "VolumeInUse":
-					logging.Debugf("EBS volume %s can't be deleted, it is still attached to an active resource", *volumeID)
-				case "InvalidVolume.NotFound":
-					logging.Debugf("EBS volume %s has already been deleted", *volumeID)
-				default:
-					logging.Debugf("[Failed] %s", err)
-				}
-			}
-		} else {
-			deletedVolumeIDs = append(deletedVolumeIDs, volumeID)
-			logging.Debugf("Deleted EBS Volume: %s", *volumeID)
-		}
-	}
-
-	if len(deletedVolumeIDs) > 0 {
-		waiter := ec2.NewVolumeDeletedWaiter(ev.Client)
-		err := waiter.Wait(ev.Context, &ec2.DescribeVolumesInput{
-			VolumeIds: aws.ToStringSlice(deletedVolumeIDs),
-		}, ev.Timeout)
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-	}
-
-	logging.Debugf("[OK] %d EBS volumes(s) terminated in %s", len(deletedVolumeIDs), ev.Region)
-	return nil
+// waitForEBSVolumesDeleted waits for all specified EBS volumes to be fully deleted.
+func waitForEBSVolumesDeleted(ctx context.Context, client EBSVolumesAPI, ids []string) error {
+	waiter := ec2.NewVolumeDeletedWaiter(client)
+	return waiter.Wait(ctx, &ec2.DescribeVolumesInput{
+		VolumeIds: ids,
+	}, 5*time.Minute)
 }

@@ -10,12 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedElasticCacheServerlessService struct {
-	ElasticCacheServerlessAPI
 	DeleteServerlessCacheOutput    elasticache.DeleteServerlessCacheOutput
 	DescribeServerlessCachesOutput elasticache.DescribeServerlessCachesOutput
 }
@@ -28,41 +27,25 @@ func (m mockedElasticCacheServerlessService) DescribeServerlessCaches(ctx contex
 	return &m.DescribeServerlessCachesOutput, nil
 }
 
-func Test_ElasticCacheServerless_NukeAll(t *testing.T) {
-	t.Parallel()
-
-	clusterName := "test-workspace-1"
-	service := ElasticCacheServerless{
-		Client: mockedElasticCacheServerlessService{
-			DeleteServerlessCacheOutput: elasticache.DeleteServerlessCacheOutput{},
-		},
-	}
-
-	err := service.nukeAll([]*string{&clusterName})
-	assert.NoError(t, err)
-}
-
-func Test_ElasticCacheServerless_GetAll(t *testing.T) {
+func TestElasticCacheServerless_GetAll(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	cluster1 := "test-workspace-1"
 	cluster2 := "test-workspace-2"
 
-	service := ElasticCacheServerless{
-		Client: mockedElasticCacheServerlessService{
-			DescribeServerlessCachesOutput: elasticache.DescribeServerlessCachesOutput{
-				ServerlessCaches: []types.ServerlessCache{
-					{
-						ARN:        aws.String("arn::region::" + cluster1),
-						CreateTime: &now,
-						Status:     aws.String("available"),
-					},
-					{
-						ARN:        aws.String("arn::region::" + cluster2),
-						CreateTime: aws.Time(now.Add(1 * time.Hour)),
-						Status:     aws.String("available"),
-					},
+	client := mockedElasticCacheServerlessService{
+		DescribeServerlessCachesOutput: elasticache.DescribeServerlessCachesOutput{
+			ServerlessCaches: []types.ServerlessCache{
+				{
+					ARN:        aws.String("arn::region::" + cluster1),
+					CreateTime: &now,
+					Status:     aws.String("available"),
+				},
+				{
+					ARN:        aws.String("arn::region::" + cluster2),
+					CreateTime: aws.Time(now.Add(1 * time.Hour)),
+					Status:     aws.String("available"),
 				},
 			},
 		},
@@ -96,12 +79,26 @@ func Test_ElasticCacheServerless_GetAll(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			workspaces, err := service.getAll(
+			names, err := listElasticCacheServerless(
 				context.Background(),
-				config.Config{ElasticCacheServerless: tc.configObj},
+				client,
+				resource.Scope{Region: "us-east-1"},
+				tc.configObj,
 			)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(workspaces))
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+func TestElasticCacheServerless_NukeAll(t *testing.T) {
+	t.Parallel()
+
+	clusterName := "test-workspace-1"
+	client := mockedElasticCacheServerlessService{
+		DeleteServerlessCacheOutput: elasticache.DeleteServerlessCacheOutput{},
+	}
+
+	err := deleteElasticCacheServerless(context.Background(), client, &clusterName)
+	require.NoError(t, err)
 }

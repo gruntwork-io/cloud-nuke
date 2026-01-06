@@ -5,79 +5,120 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (cfs *CloudFormationStacks) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := cfs.Client.ListStacks(c, &cloudformation.ListStacksInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+// CloudFormationStacksAPI defines the interface for CloudFormation stack operations.
+type CloudFormationStacksAPI interface {
+	ListStacks(ctx context.Context, params *cloudformation.ListStacksInput, optFns ...func(*cloudformation.Options)) (*cloudformation.ListStacksOutput, error)
+	DeleteStack(ctx context.Context, params *cloudformation.DeleteStackInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DeleteStackOutput, error)
+	DescribeStacks(ctx context.Context, params *cloudformation.DescribeStacksInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStacksOutput, error)
+}
 
+// activeStackStatuses defines the stack statuses we care about (excluding DELETE_COMPLETE, DELETE_IN_PROGRESS).
+// These are the statuses for stacks that exist and can potentially be deleted.
+var activeStackStatuses = []types.StackStatus{
+	types.StackStatusCreateInProgress,
+	types.StackStatusCreateFailed,
+	types.StackStatusCreateComplete,
+	types.StackStatusRollbackInProgress,
+	types.StackStatusRollbackFailed,
+	types.StackStatusRollbackComplete,
+	types.StackStatusDeleteFailed,
+	types.StackStatusUpdateInProgress,
+	types.StackStatusUpdateCompleteCleanupInProgress,
+	types.StackStatusUpdateComplete,
+	types.StackStatusUpdateFailed,
+	types.StackStatusUpdateRollbackInProgress,
+	types.StackStatusUpdateRollbackFailed,
+	types.StackStatusUpdateRollbackCompleteCleanupInProgress,
+	types.StackStatusUpdateRollbackComplete,
+	types.StackStatusReviewInProgress,
+	types.StackStatusImportInProgress,
+	types.StackStatusImportComplete,
+	types.StackStatusImportRollbackInProgress,
+	types.StackStatusImportRollbackFailed,
+	types.StackStatusImportRollbackComplete,
+}
+
+// NewCloudFormationStacks creates a new CloudFormationStacks resource using the generic resource pattern.
+func NewCloudFormationStacks() AwsResource {
+	return NewAwsResource(&resource.Resource[CloudFormationStacksAPI]{
+		ResourceTypeName: "cloudformation-stack",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudFormationStacksAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = cloudformation.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.CloudFormationStack
+		},
+		Lister: listCloudFormationStacks,
+		Nuker:  resource.SimpleBatchDeleter(deleteCloudFormationStack),
+	})
+}
+
+// listCloudFormationStacks retrieves all CloudFormation stacks that match the config filters.
+func listCloudFormationStacks(ctx context.Context, client CloudFormationStacksAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var stackNames []*string
-	for _, stack := range result.StackSummaries {
-		// Get detailed stack information including tags
-		stackDetails, err := cfs.Client.DescribeStacks(c, &cloudformation.DescribeStacksInput{
-			StackName: stack.StackName,
-		})
+
+	paginator := cloudformation.NewListStacksPaginator(client, &cloudformation.ListStacksInput{
+		StackStatusFilter: activeStackStatuses,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("Failed to describe stack %s: %v", *stack.StackName, err)
-			continue
+			return nil, errors.WithStackTrace(err)
 		}
 
-		if len(stackDetails.Stacks) == 0 {
-			continue
-		}
-
-		stackDetail := stackDetails.Stacks[0]
-		tags := util.ConvertCloudFormationTagsToMap(stackDetail.Tags)
-
-		if configObj.CloudFormationStack.ShouldInclude(config.ResourceValue{
-			Name: stack.StackName,
-			Time: stack.CreationTime,
-			Tags: tags,
-		}) {
-			stackNames = append(stackNames, stack.StackName)
+		for _, stack := range page.StackSummaries {
+			if shouldIncludeStack(ctx, client, &stack, cfg) {
+				stackNames = append(stackNames, stack.StackName)
+			}
 		}
 	}
 
 	return stackNames, nil
 }
 
-func (cfs *CloudFormationStacks) nukeAll(stackNames []*string) error {
-	if len(stackNames) == 0 {
-		logging.Debugf("No CloudFormation Stacks to nuke in region %s", cfs.Region)
-		return nil
+// shouldIncludeStack determines if a CloudFormation stack should be included for deletion.
+func shouldIncludeStack(ctx context.Context, client CloudFormationStacksAPI, stack *types.StackSummary, cfg config.ResourceType) bool {
+	if stack == nil {
+		return false
 	}
 
-	logging.Debugf("Deleting all CloudFormation Stacks in region %s", cfs.Region)
-	var deletedStackNames []*string
-
-	for _, stackName := range stackNames {
-		_, err := cfs.Client.DeleteStack(cfs.Context, &cloudformation.DeleteStackInput{
-			StackName: stackName,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(stackName),
-			ResourceType: "CloudFormation Stack",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deletedStackNames = append(deletedStackNames, stackName)
-			logging.Debugf("Deleted CloudFormation Stack: %s", aws.ToString(stackName))
-		}
+	// Get detailed stack information including tags
+	stackDetails, err := client.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
+		StackName: stack.StackName,
+	})
+	if err != nil {
+		logging.Debugf("Failed to describe stack %s: %v", aws.ToString(stack.StackName), err)
+		return false
 	}
 
-	logging.Debugf("[OK] %d CloudFormation Stack(s) deleted in %s", len(deletedStackNames), cfs.Region)
-	return nil
+	if len(stackDetails.Stacks) == 0 {
+		return false
+	}
+
+	tags := util.ConvertCloudFormationTagsToMap(stackDetails.Stacks[0].Tags)
+
+	return cfg.ShouldInclude(config.ResourceValue{
+		Name: stack.StackName,
+		Time: stack.CreationTime,
+		Tags: tags,
+	})
+}
+
+// deleteCloudFormationStack deletes a single CloudFormation stack.
+func deleteCloudFormationStack(ctx context.Context, client CloudFormationStacksAPI, stackName *string) error {
+	_, err := client.DeleteStack(ctx, &cloudformation.DeleteStackInput{
+		StackName: stackName,
+	})
+	return err
 }

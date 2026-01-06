@@ -11,11 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedIAMInstanceProfiles struct {
-	IAMInstanceProfileAPI
+	IAMInstanceProfilesAPI
 
 	GetInstanceProfileOutput            iam.GetInstanceProfileOutput
 	ListInstanceProfilesOutput          iam.ListInstanceProfilesOutput
@@ -36,44 +37,41 @@ func (m mockedIAMInstanceProfiles) DeleteInstanceProfile(ctx context.Context, pa
 	return &m.DeleteInstanceProfileOutput, nil
 }
 
-func TestIAMInstance_GetAll(t *testing.T) {
+func TestIAMInstanceProfiles_ListIAMInstanceProfiles(t *testing.T) {
 	t.Parallel()
 	testName1 := "MyInstanceProfiles1"
 	testName2 := "MyInstanceProfiles2"
 	testArn1 := "arn:aws:iam::123456789012:instance-profile/MyInstanceProfiles1"
 	testArn2 := "arn:aws:iam::123456789012:instance-profile/MyInstanceProfiles2"
 	now := time.Now()
-	ip := IAMInstanceProfiles{
-		Client: mockedIAMInstanceProfiles{
-			ListInstanceProfilesOutput: iam.ListInstanceProfilesOutput{
-				InstanceProfiles: []types.InstanceProfile{
-					{
-						Arn:                 aws.String(testArn1),
-						InstanceProfileName: aws.String(testName1),
-						CreateDate:          aws.Time(now),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("somearn"),
-								Value: aws.String("some" + testArn1),
-							},
+
+	client := mockedIAMInstanceProfiles{
+		ListInstanceProfilesOutput: iam.ListInstanceProfilesOutput{
+			InstanceProfiles: []types.InstanceProfile{
+				{
+					Arn:                 aws.String(testArn1),
+					InstanceProfileName: aws.String(testName1),
+					CreateDate:          aws.Time(now),
+					Tags: []types.Tag{
+						{
+							Key:   aws.String("somearn"),
+							Value: aws.String("some" + testArn1),
 						},
 					},
-					{
-						Arn:                 aws.String(testArn2),
-						InstanceProfileName: aws.String(testName2),
-						CreateDate:          aws.Time(now.Add(1)),
-						Tags: []types.Tag{
-							{
-								Key:   aws.String("somearn"),
-								Value: aws.String("some" + testArn2),
-							},
+				},
+				{
+					Arn:                 aws.String(testArn2),
+					InstanceProfileName: aws.String(testName2),
+					CreateDate:          aws.Time(now.Add(1)),
+					Tags: []types.Tag{
+						{
+							Key:   aws.String("somearn"),
+							Value: aws.String("some" + testArn2),
 						},
 					},
 				},
 			},
 		},
-		BaseAwsResource:  BaseAwsResource{},
-		InstanceProfiles: []string{},
 	}
 
 	tests := map[string]struct {
@@ -113,38 +111,51 @@ func TestIAMInstance_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := ip.getAll(context.Background(), config.Config{
-				IAMInstanceProfiles: tc.configObj,
-			})
+			names, err := listIAMInstanceProfiles(context.Background(), client, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
 }
 
-func TestIAMInstanceProfiles_NukeAll(t *testing.T) {
+func TestIAMInstanceProfiles_DeleteIAMInstanceProfile(t *testing.T) {
 	t.Parallel()
 
-	ip := IAMInstanceProfiles{
-		Client: mockedIAMInstanceProfiles{
-			GetInstanceProfileOutput: iam.GetInstanceProfileOutput{
-				InstanceProfile: &types.InstanceProfile{
-					InstanceProfileName: aws.String("profile1"),
-					Roles: []types.Role{
-						{
-							RoleName: aws.String("role1"),
-						},
-						{
-							RoleName: aws.String("role2"),
-						},
+	client := mockedIAMInstanceProfiles{
+		GetInstanceProfileOutput: iam.GetInstanceProfileOutput{
+			InstanceProfile: &types.InstanceProfile{
+				InstanceProfileName: aws.String("profile1"),
+				Roles: []types.Role{
+					{
+						RoleName: aws.String("role1"),
+					},
+					{
+						RoleName: aws.String("role2"),
 					},
 				},
 			},
-			RemoveRoleFromInstanceProfileOutput: iam.RemoveRoleFromInstanceProfileOutput{},
-			DeleteInstanceProfileOutput:         iam.DeleteInstanceProfileOutput{},
 		},
+		RemoveRoleFromInstanceProfileOutput: iam.RemoveRoleFromInstanceProfileOutput{},
+		DeleteInstanceProfileOutput:         iam.DeleteInstanceProfileOutput{},
 	}
 
-	err := ip.nukeAll([]*string{aws.String("profile1")})
+	err := deleteIAMInstanceProfile(context.Background(), client, aws.String("profile1"))
+	require.NoError(t, err)
+}
+
+func TestIAMInstanceProfiles_DeleteIAMInstanceProfile_NoRoles(t *testing.T) {
+	t.Parallel()
+
+	client := mockedIAMInstanceProfiles{
+		GetInstanceProfileOutput: iam.GetInstanceProfileOutput{
+			InstanceProfile: &types.InstanceProfile{
+				InstanceProfileName: aws.String("profile-no-roles"),
+				Roles:               []types.Role{},
+			},
+		},
+		DeleteInstanceProfileOutput: iam.DeleteInstanceProfileOutput{},
+	}
+
+	err := deleteIAMInstanceProfile(context.Background(), client, aws.String("profile-no-roles"))
 	require.NoError(t, err)
 }

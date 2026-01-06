@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/datasync"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DataSyncLocationAPI defines the interface for DataSync Location operations.
@@ -32,7 +33,10 @@ func NewDataSyncLocation() AwsResource {
 	})
 }
 
-// listDataSyncLocations retrieves all DataSync locations.
+// listDataSyncLocations retrieves all DataSync locations that match the config filters.
+// Note: The ListLocations API returns only LocationArn and LocationUri. It does not include
+// Name, CreationTime, or Tags. We use LocationUri as the name for filtering purposes since
+// it contains descriptive information about the location (e.g., "s3://bucket-name/prefix").
 func listDataSyncLocations(ctx context.Context, client DataSyncLocationAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var identifiers []*string
 
@@ -43,11 +47,17 @@ func listDataSyncLocations(ctx context.Context, client DataSyncLocationAPI, scop
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, location := range page.Locations {
-			identifiers = append(identifiers, location.LocationArn)
+			// Use LocationUri as the name for filtering since LocationListEntry
+			// does not include a Name field or CreationTime.
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: location.LocationUri,
+			}) {
+				identifiers = append(identifiers, location.LocationArn)
+			}
 		}
 	}
 
@@ -59,5 +69,8 @@ func deleteDataSyncLocation(ctx context.Context, client DataSyncLocationAPI, loc
 	_, err := client.DeleteLocation(ctx, &datasync.DeleteLocationInput{
 		LocationArn: locationArn,
 	})
-	return err
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+	return nil
 }

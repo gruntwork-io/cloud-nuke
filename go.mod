@@ -64,13 +64,11 @@ require (
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/go-errors/errors v1.4.2
 	github.com/gruntwork-io/go-commons v0.17.0
-	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/pterm/pterm v0.12.45
 	github.com/sirupsen/logrus v1.8.3
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.10.3
-	golang.org/x/sync v0.18.0
 	google.golang.org/api v0.167.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -118,7 +116,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/urfave/cli v1.22.12 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.opencensus.io v0.24.0 // indirect
@@ -131,6 +128,7 @@ require (
 	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.31.0 // indirect

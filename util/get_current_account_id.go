@@ -8,9 +8,11 @@ import (
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-const (
-	AccountIdKey = "accountId"
-)
+// contextKey is an unexported type for context keys to avoid collisions.
+type contextKey string
+
+// AccountIdKey is the context key used to store the AWS account ID.
+var AccountIdKey = contextKey("accountId")
 
 func GetCurrentAccountId(config aws.Config) (string, error) {
 	stssvc := sts.NewFromConfig(config)

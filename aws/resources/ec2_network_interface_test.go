@@ -9,290 +9,368 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
-type mockedNetworkInterface struct {
-	BaseAwsResource
-	NetworkInterfaceAPI
-	DescribeNetworkInterfacesOutput ec2.DescribeNetworkInterfacesOutput
-	DescribeNetworkInterfacesPages  []ec2.DescribeNetworkInterfacesOutput
-	DeleteNetworkInterfaceOutput    ec2.DeleteNetworkInterfaceOutput
-	DescribeAddressesOutput         ec2.DescribeAddressesOutput
-	TerminateInstancesOutput        ec2.TerminateInstancesOutput
-	ReleaseAddressOutput            ec2.ReleaseAddressOutput
-	DescribeNetworkInterfacesError  error
-	pageIndex                       int
+type mockNetworkInterfaceClient struct {
+	DescribeOutput     ec2.DescribeNetworkInterfacesOutput
+	DeleteOutput       ec2.DeleteNetworkInterfaceOutput
+	DescribeAddrOutput ec2.DescribeAddressesOutput
+	TerminateOutput    ec2.TerminateInstancesOutput
+	ReleaseOutput      ec2.ReleaseAddressOutput
+	DescribeVpcsOutput ec2.DescribeVpcsOutput
+	DescribeError      error
+	DeleteError        error
+	DescribeAddrError  error
+	TerminateError     error
 }
 
-func (m *mockedNetworkInterface) DescribeNetworkInterfaces(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
-	if len(m.DescribeNetworkInterfacesPages) > 0 {
-		if m.pageIndex >= len(m.DescribeNetworkInterfacesPages) {
-			return &ec2.DescribeNetworkInterfacesOutput{}, nil
-		}
-		output := m.DescribeNetworkInterfacesPages[m.pageIndex]
-		m.pageIndex++
-		return &output, m.DescribeNetworkInterfacesError
-	}
-	return &m.DescribeNetworkInterfacesOutput, m.DescribeNetworkInterfacesError
+func (m *mockNetworkInterfaceClient) DescribeNetworkInterfaces(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
+	return &m.DescribeOutput, m.DescribeError
 }
 
-func (m mockedNetworkInterface) DeleteNetworkInterface(ctx context.Context, params *ec2.DeleteNetworkInterfaceInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkInterfaceOutput, error) {
-	return &m.DeleteNetworkInterfaceOutput, nil
+func (m *mockNetworkInterfaceClient) DeleteNetworkInterface(ctx context.Context, params *ec2.DeleteNetworkInterfaceInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkInterfaceOutput, error) {
+	return &m.DeleteOutput, m.DeleteError
 }
 
-func (m mockedNetworkInterface) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
-	return &m.DescribeAddressesOutput, nil
+func (m *mockNetworkInterfaceClient) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
+	return &m.DescribeAddrOutput, m.DescribeAddrError
 }
 
-func (m mockedNetworkInterface) ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error) {
-	return &m.ReleaseAddressOutput, nil
+func (m *mockNetworkInterfaceClient) ReleaseAddress(ctx context.Context, params *ec2.ReleaseAddressInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseAddressOutput, error) {
+	return &m.ReleaseOutput, nil
 }
 
-func (m mockedNetworkInterface) TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error) {
-	return &m.TerminateInstancesOutput, nil
+func (m *mockNetworkInterfaceClient) TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error) {
+	return &m.TerminateOutput, m.TerminateError
 }
 
-func (m mockedNetworkInterface) DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
+func (m *mockNetworkInterfaceClient) DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
 	return &ec2.DescribeInstancesOutput{}, nil
 }
 
-func TestNetworkInterface_GetAll(t *testing.T) {
-
-	// Set excludeFirstSeenTag to false for testing
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-
-	var (
-		now     = time.Now()
-		testId1 = "eni-09e36c45cbdbfb001"
-		testId2 = "eni-09e36c45cbdbfb002"
-
-		testName1 = "cloud-nuke-eni-001"
-		testName2 = "cloud-nuke-eni-002"
-	)
-
-	resourceObject := NetworkInterface{
-		Client: &mockedNetworkInterface{
-			DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
-				NetworkInterfaces: []types.NetworkInterface{
-					{
-						NetworkInterfaceId: aws.String(testId1),
-						InterfaceType:      NetworkInterfaceTypeInterface,
-						TagSet: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
-							},
-							{
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now)),
-							},
-						},
-					},
-					{
-						NetworkInterfaceId: aws.String(testId2),
-						InterfaceType:      NetworkInterfaceTypeInterface,
-						TagSet: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
-							},
-							{
-								Key:   aws.String(util.FirstSeenTagKey),
-								Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour))),
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	tests := map[string]struct {
-		ctx          context.Context
-		configObj    config.ResourceType
-		expected     []string
-		resourceObj  NetworkInterface
-		usePaginated bool
-	}{
-		"emptyFilter": {
-			ctx:         ctx,
-			configObj:   config.ResourceType{},
-			expected:    []string{testId1, testId2},
-			resourceObj: resourceObject,
-		},
-		"nameExclusionFilter": {
-			ctx: ctx,
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
-			},
-			expected:    []string{testId2},
-			resourceObj: resourceObject,
-		},
-		"nameInclusionFilter": {
-			ctx: ctx,
-			configObj: config.ResourceType{
-				IncludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
-			},
-			expected:    []string{testId1},
-			resourceObj: resourceObject,
-		},
-		"timeAfterExclusionFilter": {
-			ctx: ctx,
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now),
-				}},
-			expected:    []string{testId1},
-			resourceObj: resourceObject,
-		},
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			names, err := tc.resourceObj.getAll(tc.ctx, config.Config{
-				NetworkInterface: tc.configObj,
-			})
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, aws.ToStringSlice(names))
-		})
-	}
-
+func (m *mockNetworkInterfaceClient) CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
+	return &ec2.CreateTagsOutput{}, nil
 }
 
-func TestNetworkInterface_GetAll_Pagination(t *testing.T) {
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-	now := time.Now()
-
-	nextToken := "next-token"
-
-	client := &mockedNetworkInterface{
-		DescribeNetworkInterfacesPages: []ec2.DescribeNetworkInterfacesOutput{
-			{
-				NetworkInterfaces: []types.NetworkInterface{
-					{
-						NetworkInterfaceId: aws.String("eni-page1-001"),
-						InterfaceType:      NetworkInterfaceTypeInterface,
-						TagSet: []types.Tag{
-							{Key: aws.String("Name"), Value: aws.String("eni-page1")},
-							{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
-						},
-					},
-				},
-				NextToken: &nextToken,
-			},
-			{
-				NetworkInterfaces: []types.NetworkInterface{
-					{
-						NetworkInterfaceId: aws.String("eni-page2-001"),
-						InterfaceType:      NetworkInterfaceTypeInterface,
-						TagSet: []types.Tag{
-							{Key: aws.String("Name"), Value: aws.String("eni-page2")},
-							{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
-						},
-					},
-				},
-				NextToken: nil,
-			},
-		},
-	}
-
-	resourceObject := NetworkInterface{Client: client}
-	resourceObject.Context = ctx
-
-	identifiers, err := resourceObject.getAll(ctx, config.Config{
-		NetworkInterface: config.ResourceType{},
-	})
-
-	require.NoError(t, err)
-	require.Equal(t, []string{"eni-page1-001", "eni-page2-001"}, aws.ToStringSlice(identifiers))
+func (m *mockNetworkInterfaceClient) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
+	return &m.DescribeVpcsOutput, nil
 }
 
-func TestNetworkInterface_NukeAll(t *testing.T) {
-
+func TestListNetworkInterfaces(t *testing.T) {
 	t.Parallel()
 
-	var (
-		testId1 = "eni-09e36c45cbdbfb001"
-		testId2 = "eni-09e36c45cbdbfb002"
-
-		testName1 = "cloud-nuke-eni-001"
-		testName2 = "cloud-nuke-eni-002"
-	)
-
-	resourceObject := NetworkInterface{
-		BaseAwsResource: BaseAwsResource{
-			Nukables: map[string]error{
-				testId1: nil,
-				testId2: nil,
+	now := time.Now()
+	tests := []struct {
+		name     string
+		mock     *mockNetworkInterfaceClient
+		cfg      config.ResourceType
+		expected []string
+	}{
+		{
+			name: "lists all interfaces with no filter",
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{
+							NetworkInterfaceId: aws.String("eni-001"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("interface1")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+						{
+							NetworkInterfaceId: aws.String("eni-002"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("interface2")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+					},
+				},
 			},
+			cfg:      config.ResourceType{},
+			expected: []string{"eni-001", "eni-002"},
 		},
-		Client: &mockedNetworkInterface{
-			DeleteNetworkInterfaceOutput: ec2.DeleteNetworkInterfaceOutput{},
-			DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
-				NetworkInterfaces: []types.NetworkInterface{
-					{
-						NetworkInterfaceId: aws.String(testId1),
-						InterfaceType:      NetworkInterfaceTypeInterface,
-						TagSet: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName1),
+		{
+			name: "excludes by name regex",
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{
+							NetworkInterfaceId: aws.String("eni-001"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("keep-this")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 							},
 						},
-						Attachment: &types.NetworkInterfaceAttachment{
-							AttachmentId: aws.String("network-attachment-09e36c45cbdbfb001"),
-							InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb001"),
-						},
-					},
-					{
-						NetworkInterfaceId: aws.String(testId2),
-						InterfaceType:      NetworkInterfaceTypeInterface,
-						TagSet: []types.Tag{
-							{
-								Key:   aws.String("Name"),
-								Value: aws.String(testName2),
+						{
+							NetworkInterfaceId: aws.String("eni-002"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("skip-this")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 							},
-						},
-						Attachment: &types.NetworkInterfaceAttachment{
-							AttachmentId: aws.String("network-attachment-09e36c45cbdbfb002"),
-							InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb002"),
 						},
 					},
 				},
 			},
-			DescribeAddressesOutput: ec2.DescribeAddressesOutput{
-				Addresses: []types.Address{
-					{
-						AllocationId: aws.String("ec2-addr-alloc-09e36c45cbdbfb001"),
-						InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb001"),
-					},
-					{
-						AllocationId: aws.String("ec2-addr-alloc-09e36c45cbdbfb002"),
-						InstanceId:   aws.String("ec2-instance-09e36c45cbdbfb002"),
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+				},
+			},
+			expected: []string{"eni-001"},
+		},
+		{
+			name: "includes by name regex",
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{
+							NetworkInterfaceId: aws.String("eni-001"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("keep-this")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+						{
+							NetworkInterfaceId: aws.String("eni-002"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("skip-this")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
 					},
 				},
 			},
-			TerminateInstancesOutput: ec2.TerminateInstancesOutput{},
-			ReleaseAddressOutput:     ec2.ReleaseAddressOutput{},
-			DescribeNetworkInterfacesError: &smithy.GenericAPIError{
-				Code: "terminated",
+			cfg: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("keep-.*")}},
+				},
 			},
+			expected: []string{"eni-001"},
+		},
+		{
+			name: "skips non-interface types",
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{
+							NetworkInterfaceId: aws.String("eni-001"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("interface1")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+						{
+							NetworkInterfaceId: aws.String("eni-002"),
+							InterfaceType:      "lambda",
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("lambda-eni")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+					},
+				},
+			},
+			cfg:      config.ResourceType{},
+			expected: []string{"eni-001"},
+		},
+		{
+			name: "excludes by time after",
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{
+							NetworkInterfaceId: aws.String("eni-001"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("interface1")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+						{
+							NetworkInterfaceId: aws.String("eni-002"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String("Name"), Value: aws.String("interface2")},
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now.Add(1 * time.Hour)))},
+							},
+						},
+					},
+				},
+			},
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now),
+				},
+			},
+			expected: []string{"eni-001"},
 		},
 	}
-	resourceObject.Context = context.Background()
 
-	err := resourceObject.nukeAll([]*string{
-		aws.String(testId1),
-		aws.String(testId2),
-	})
-	require.NoError(t, err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+			ids, err := listNetworkInterfaces(ctx, tc.mock, resource.Scope{}, tc.cfg, false)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
+		})
+	}
+}
+
+func TestDeleteNetworkInterfaceByID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mock    *mockNetworkInterfaceClient
+		wantErr bool
+	}{
+		{
+			name:    "successful delete",
+			mock:    &mockNetworkInterfaceClient{},
+			wantErr: false,
+		},
+		{
+			name: "no attachment - successful delete",
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{
+							NetworkInterfaceId: aws.String("eni-test"),
+							// No Attachment field
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := deleteNetworkInterfaceByID(context.Background(), tc.mock, aws.String("eni-test"))
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDetachNetworkInterface(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		id      *string
+		mock    *mockNetworkInterfaceClient
+		wantErr bool
+	}{
+		{
+			name:    "nil id returns nil",
+			id:      nil,
+			mock:    &mockNetworkInterfaceClient{},
+			wantErr: false,
+		},
+		{
+			name:    "empty id returns nil",
+			id:      aws.String(""),
+			mock:    &mockNetworkInterfaceClient{},
+			wantErr: false,
+		},
+		{
+			name: "no attachment skips detachment",
+			id:   aws.String("eni-test"),
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{NetworkInterfaceId: aws.String("eni-test")},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := detachNetworkInterface(context.Background(), tc.mock, tc.id)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestReleaseNetworkInterfaceEIPs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		instanceID *string
+		mock       *mockNetworkInterfaceClient
+		wantErr    bool
+	}{
+		{
+			name:       "nil instance id returns nil",
+			instanceID: nil,
+			mock:       &mockNetworkInterfaceClient{},
+			wantErr:    false,
+		},
+		{
+			name:       "empty instance id returns nil",
+			instanceID: aws.String(""),
+			mock:       &mockNetworkInterfaceClient{},
+			wantErr:    false,
+		},
+		{
+			name:       "no addresses to release",
+			instanceID: aws.String("i-12345"),
+			mock: &mockNetworkInterfaceClient{
+				DescribeAddrOutput: ec2.DescribeAddressesOutput{
+					Addresses: []types.Address{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:       "releases addresses successfully",
+			instanceID: aws.String("i-12345"),
+			mock: &mockNetworkInterfaceClient{
+				DescribeAddrOutput: ec2.DescribeAddressesOutput{
+					Addresses: []types.Address{
+						{AllocationId: aws.String("eipalloc-001")},
+						{AllocationId: aws.String("eipalloc-002")},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := releaseNetworkInterfaceEIPs(context.Background(), tc.mock, tc.instanceID)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

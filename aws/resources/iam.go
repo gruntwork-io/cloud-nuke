@@ -6,46 +6,88 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/iam/types"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/hashicorp/go-multierror"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
 )
 
-// List all IAM users in the AWS account and returns a slice of the UserNames
-func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// IAMUsersAPI defines the interface for IAM user operations.
+type IAMUsersAPI interface {
+	ListAccessKeys(ctx context.Context, params *iam.ListAccessKeysInput, optFns ...func(*iam.Options)) (*iam.ListAccessKeysOutput, error)
+	ListGroupsForUser(ctx context.Context, params *iam.ListGroupsForUserInput, optFns ...func(*iam.Options)) (*iam.ListGroupsForUserOutput, error)
+	ListUserPolicies(ctx context.Context, params *iam.ListUserPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListUserPoliciesOutput, error)
+	ListUserTags(ctx context.Context, params *iam.ListUserTagsInput, optFns ...func(*iam.Options)) (*iam.ListUserTagsOutput, error)
+	ListMFADevices(ctx context.Context, params *iam.ListMFADevicesInput, optFns ...func(*iam.Options)) (*iam.ListMFADevicesOutput, error)
+	ListSSHPublicKeys(ctx context.Context, params *iam.ListSSHPublicKeysInput, optFns ...func(*iam.Options)) (*iam.ListSSHPublicKeysOutput, error)
+	ListServiceSpecificCredentials(ctx context.Context, params *iam.ListServiceSpecificCredentialsInput, optFns ...func(*iam.Options)) (*iam.ListServiceSpecificCredentialsOutput, error)
+	ListSigningCertificates(ctx context.Context, params *iam.ListSigningCertificatesInput, optFns ...func(*iam.Options)) (*iam.ListSigningCertificatesOutput, error)
+	ListUsers(ctx context.Context, params *iam.ListUsersInput, optFns ...func(*iam.Options)) (*iam.ListUsersOutput, error)
+	ListAttachedUserPolicies(ctx context.Context, params *iam.ListAttachedUserPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedUserPoliciesOutput, error)
+	DetachUserPolicy(ctx context.Context, params *iam.DetachUserPolicyInput, optFns ...func(*iam.Options)) (*iam.DetachUserPolicyOutput, error)
+	DeleteLoginProfile(ctx context.Context, params *iam.DeleteLoginProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteLoginProfileOutput, error)
+	DeleteUserPolicy(ctx context.Context, params *iam.DeleteUserPolicyInput, optFns ...func(*iam.Options)) (*iam.DeleteUserPolicyOutput, error)
+	DeleteAccessKey(ctx context.Context, params *iam.DeleteAccessKeyInput, optFns ...func(*iam.Options)) (*iam.DeleteAccessKeyOutput, error)
+	DeleteSigningCertificate(ctx context.Context, params *iam.DeleteSigningCertificateInput, optFns ...func(*iam.Options)) (*iam.DeleteSigningCertificateOutput, error)
+	DeleteSSHPublicKey(ctx context.Context, params *iam.DeleteSSHPublicKeyInput, optFns ...func(*iam.Options)) (*iam.DeleteSSHPublicKeyOutput, error)
+	DeleteServiceSpecificCredential(ctx context.Context, params *iam.DeleteServiceSpecificCredentialInput, optFns ...func(*iam.Options)) (*iam.DeleteServiceSpecificCredentialOutput, error)
+	DeactivateMFADevice(ctx context.Context, params *iam.DeactivateMFADeviceInput, optFns ...func(*iam.Options)) (*iam.DeactivateMFADeviceOutput, error)
+	DeleteVirtualMFADevice(ctx context.Context, params *iam.DeleteVirtualMFADeviceInput, optFns ...func(*iam.Options)) (*iam.DeleteVirtualMFADeviceOutput, error)
+	DeleteUser(ctx context.Context, params *iam.DeleteUserInput, optFns ...func(*iam.Options)) (*iam.DeleteUserOutput, error)
+	RemoveUserFromGroup(ctx context.Context, params *iam.RemoveUserFromGroupInput, optFns ...func(*iam.Options)) (*iam.RemoveUserFromGroupOutput, error)
+}
+
+// NewIAMUsers creates a new IAMUsers resource using the generic resource pattern.
+func NewIAMUsers() AwsResource {
+	return NewAwsResource(&resource.Resource[IAMUsersAPI]{
+		ResourceTypeName: "iam-user",
+		BatchSize:        DefaultBatchSize,
+		IsGlobal:         true,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMUsersAPI], cfg aws.Config) {
+			r.Scope.Region = "global"
+			r.Client = iam.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.IAMUsers
+		},
+		Lister: listIAMUsers,
+		// IAM deletion requires sequential steps per user - use SequentialDeleter
+		Nuker: resource.SequentialDeleter(deleteIAMUser),
+	})
+}
+
+// listIAMUsers retrieves all IAM users that match the config filters.
+func listIAMUsers(ctx context.Context, client IAMUsersAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var userNames []*string
 
 	input := &iam.ListUsersInput{}
-	paginator := iam.NewListUsersPaginator(iu.Client, input)
+	paginator := iam.NewListUsersPaginator(client, input)
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, user := range page.Users {
-			// Note :
+			// Note:
 			// IAM resource-listing operations return a subset of the available attributes for the resource.
 			// This operation does not return the following attributes, even though they are an attribute of the returned object:
 			//    PermissionsBoundary
 			//    Tags
-			// Referene : https://docs.aws.amazon.com/cli/latest/reference/iam/list-users.html
+			// Reference: https://docs.aws.amazon.com/cli/latest/reference/iam/list-users.html
 
 			var tags []types.Tag
 
-			tagsPaginator := iam.NewListUserTagsPaginator(iu.Client, &iam.ListUserTagsInput{
+			tagsPaginator := iam.NewListUserTagsPaginator(client, &iam.ListUserTagsInput{
 				UserName: user.UserName,
 			})
 			for tagsPaginator.HasMorePages() {
-				tagsPage, errListTags := tagsPaginator.NextPage(c)
+				tagsPage, errListTags := tagsPaginator.NextPage(ctx)
 				if errListTags != nil {
 					return nil, errors.WithStackTrace(errListTags)
 				}
@@ -53,7 +95,7 @@ func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*strin
 				tags = append(tags, tagsPage.Tags...)
 			}
 
-			if configObj.IAMUsers.ShouldInclude(config.ResourceValue{
+			if cfg.ShouldInclude(config.ResourceValue{
 				Name: user.UserName,
 				Time: user.CreateDate,
 				Tags: util.ConvertIAMTagsToMap(tags),
@@ -66,78 +108,155 @@ func (iu *IAMUsers) getAll(c context.Context, configObj config.Config) ([]*strin
 	return userNames, nil
 }
 
-func (iu *IAMUsers) detachUserPolicies(userName *string) error {
-	policiesOutput, err := iu.Client.ListAttachedUserPolicies(iu.Context, &iam.ListAttachedUserPoliciesInput{
+// deleteIAMUser deletes an IAM user and all associated resources.
+// This function performs all cleanup steps in order:
+// 1. Detach user policies
+// 2. Delete inline user policies
+// 3. Remove user from groups
+// 4. Delete login profile
+// 5. Delete access keys
+// 6. Delete signing certificates
+// 7. Delete SSH public keys
+// 8. Delete service-specific credentials
+// 9. Delete MFA devices
+// 10. Delete the user
+func deleteIAMUser(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	// Step 1: Detach user policies
+	if err := detachUserPolicies(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 2: Delete inline user policies
+	if err := deleteInlineUserPolicies(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 3: Remove user from groups
+	if err := removeUserFromGroups(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 4: Delete login profile
+	if err := deleteLoginProfile(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 5: Delete access keys
+	if err := deleteAccessKeys(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 6: Delete signing certificates
+	if err := deleteSigningCertificates(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 7: Delete SSH public keys
+	if err := deleteSSHPublicKeys(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 8: Delete service-specific credentials
+	if err := deleteServiceSpecificCredentials(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 9: Delete MFA devices
+	if err := deleteMFADevices(ctx, client, userName); err != nil {
+		return err
+	}
+
+	// Step 10: Delete the user
+	_, err := client.DeleteUser(ctx, &iam.DeleteUserInput{
 		UserName: userName,
 	})
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
-		arn := attachedPolicy.PolicyArn
-		_, err = iu.Client.DetachUserPolicy(iu.Context, &iam.DetachUserPolicyInput{
-			PolicyArn: arn,
-			UserName:  userName,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-		logging.Debugf("Detached Policy %s from User %s", aws.ToString(arn), aws.ToString(userName))
-	}
-
 	return nil
 }
 
-func (iu *IAMUsers) deleteInlineUserPolicies(userName *string) error {
-	policyOutput, err := iu.Client.ListUserPolicies(iu.Context, &iam.ListUserPoliciesInput{
+// detachUserPolicies detaches all managed policies from a user.
+func detachUserPolicies(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	paginator := iam.NewListAttachedUserPoliciesPaginator(client, &iam.ListAttachedUserPoliciesInput{
 		UserName: userName,
 	})
-	if err != nil {
-		logging.Errorf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
-
-	for _, policyName := range policyOutput.PolicyNames {
-		_, err := iu.Client.DeleteUserPolicy(iu.Context, &iam.DeleteUserPolicyInput{
-			PolicyName: aws.String(policyName),
-			UserName:   userName,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Deleted Inline Policy %s from User %s", policyName, aws.ToString(userName))
+
+		for _, attachedPolicy := range page.AttachedPolicies {
+			_, err = client.DetachUserPolicy(ctx, &iam.DetachUserPolicyInput{
+				PolicyArn: attachedPolicy.PolicyArn,
+				UserName:  userName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Detached Policy %s from User %s", aws.ToString(attachedPolicy.PolicyArn), aws.ToString(userName))
+		}
 	}
 
 	return nil
 }
 
-func (iu *IAMUsers) removeUserFromGroups(userName *string) error {
-	groupsOutput, err := iu.Client.ListGroupsForUser(iu.Context, &iam.ListGroupsForUserInput{
+// deleteInlineUserPolicies deletes all inline policies from a user.
+func deleteInlineUserPolicies(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	paginator := iam.NewListUserPoliciesPaginator(client, &iam.ListUserPoliciesInput{
 		UserName: userName,
 	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	for _, group := range groupsOutput.Groups {
-		_, err := iu.Client.RemoveUserFromGroup(iu.Context, &iam.RemoveUserFromGroupInput{
-			GroupName: group.GroupName,
-			UserName:  userName,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-		logging.Debugf("Removed user %s from group %s", aws.ToString(userName), aws.ToString(group.GroupName))
+
+		for _, policyName := range page.PolicyNames {
+			_, err := client.DeleteUserPolicy(ctx, &iam.DeleteUserPolicyInput{
+				PolicyName: aws.String(policyName),
+				UserName:   userName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Deleted Inline Policy %s from User %s", policyName, aws.ToString(userName))
+		}
 	}
 
 	return nil
 }
 
-func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
+// removeUserFromGroups removes a user from all groups.
+func removeUserFromGroups(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	paginator := iam.NewListGroupsForUserPaginator(client, &iam.ListGroupsForUserInput{
+		UserName: userName,
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, group := range page.Groups {
+			_, err := client.RemoveUserFromGroup(ctx, &iam.RemoveUserFromGroupInput{
+				GroupName: group.GroupName,
+				UserName:  userName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Removed user %s from group %s", aws.ToString(userName), aws.ToString(group.GroupName))
+		}
+	}
+
+	return nil
+}
+
+// deleteLoginProfile deletes the login profile for a user.
+func deleteLoginProfile(ctx context.Context, client IAMUsersAPI, userName *string) error {
 	return retry.DoWithRetry(
 		logging.Logger.WithTime(time.Now()),
 		"Delete Login Profile",
@@ -145,7 +264,7 @@ func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 		2*time.Second,
 		func() error {
 			// Delete Login Profile attached to the user
-			_, err := iu.Client.DeleteLoginProfile(iu.Context, &iam.DeleteLoginProfileInput{
+			_, err := client.DeleteLoginProfile(ctx, &iam.DeleteLoginProfileInput{
 				UserName: userName,
 			})
 			if err != nil {
@@ -156,7 +275,7 @@ func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 				switch {
 				case goerr.As(err, &errNoSuchEntityException):
 					// This is expected if the user doesn't have a Login Profile
-					// (automated users created via API calls withouth further
+					// (automated users created via API calls without further
 					// configuration)
 					return nil
 				case goerr.As(err, &errEntityTemporarilyUnmodifiableException):
@@ -173,91 +292,92 @@ func (iu *IAMUsers) deleteLoginProfile(userName *string) error {
 		})
 }
 
-func (iu *IAMUsers) deleteAccessKeys(userName *string) error {
-	output, err := iu.Client.ListAccessKeys(iu.Context, &iam.ListAccessKeysInput{
+// deleteAccessKeys deletes all access keys for a user.
+func deleteAccessKeys(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	paginator := iam.NewListAccessKeysPaginator(client, &iam.ListAccessKeysInput{
 		UserName: userName,
 	})
-	if err != nil {
-		logging.Debugf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
-
-	for _, md := range output.AccessKeyMetadata {
-		accessKeyId := md.AccessKeyId
-		_, err := iu.Client.DeleteAccessKey(iu.Context, &iam.DeleteAccessKeyInput{
-			AccessKeyId: accessKeyId,
-			UserName:    userName,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deleted Access Key %s from user %s", aws.ToString(accessKeyId), aws.ToString(userName))
+		for _, md := range page.AccessKeyMetadata {
+			_, err := client.DeleteAccessKey(ctx, &iam.DeleteAccessKeyInput{
+				AccessKeyId: md.AccessKeyId,
+				UserName:    userName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Deleted Access Key %s from user %s", aws.ToString(md.AccessKeyId), aws.ToString(userName))
+		}
 	}
 
 	return nil
 }
 
-func (iu *IAMUsers) deleteSigningCertificate(userName *string) error {
-	output, err := iu.Client.ListSigningCertificates(iu.Context, &iam.ListSigningCertificatesInput{
+// deleteSigningCertificates deletes all signing certificates for a user.
+func deleteSigningCertificates(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	paginator := iam.NewListSigningCertificatesPaginator(client, &iam.ListSigningCertificatesInput{
 		UserName: userName,
 	})
-	if err != nil {
-		logging.Errorf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
-
-	for _, cert := range output.Certificates {
-		certificateId := cert.CertificateId
-		_, err := iu.Client.DeleteSigningCertificate(iu.Context, &iam.DeleteSigningCertificateInput{
-			CertificateId: certificateId,
-			UserName:      userName,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deleted Signing Certificate ID %s from user %s", aws.ToString(certificateId), aws.ToString(userName))
+		for _, cert := range page.Certificates {
+			_, err := client.DeleteSigningCertificate(ctx, &iam.DeleteSigningCertificateInput{
+				CertificateId: cert.CertificateId,
+				UserName:      userName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Deleted Signing Certificate ID %s from user %s", aws.ToString(cert.CertificateId), aws.ToString(userName))
+		}
 	}
 
 	return nil
 }
 
-func (iu *IAMUsers) deleteSSHPublicKeys(userName *string) error {
-	output, err := iu.Client.ListSSHPublicKeys(iu.Context, &iam.ListSSHPublicKeysInput{
+// deleteSSHPublicKeys deletes all SSH public keys for a user.
+func deleteSSHPublicKeys(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	paginator := iam.NewListSSHPublicKeysPaginator(client, &iam.ListSSHPublicKeysInput{
 		UserName: userName,
 	})
-	if err != nil {
-		logging.Errorf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
-
-	for _, key := range output.SSHPublicKeys {
-		keyId := key.SSHPublicKeyId
-		_, err := iu.Client.DeleteSSHPublicKey(iu.Context, &iam.DeleteSSHPublicKeyInput{
-			SSHPublicKeyId: keyId,
-			UserName:       userName,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
 
-		logging.Debugf("Deleted SSH Public Key with ID %s from user %s", aws.ToString(keyId), aws.ToString(userName))
+		for _, key := range page.SSHPublicKeys {
+			_, err := client.DeleteSSHPublicKey(ctx, &iam.DeleteSSHPublicKeyInput{
+				SSHPublicKeyId: key.SSHPublicKeyId,
+				UserName:       userName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Deleted SSH Public Key with ID %s from user %s", aws.ToString(key.SSHPublicKeyId), aws.ToString(userName))
+		}
 	}
 
 	return nil
 }
 
-func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
+// deleteServiceSpecificCredentials deletes all service-specific credentials for a user.
+func deleteServiceSpecificCredentials(ctx context.Context, client IAMUsersAPI, userName *string) error {
 	services := []string{
 		"cassandra.amazonaws.com",
 		"codecommit.amazonaws.com",
 	}
 	for _, service := range services {
-		output, err := iu.Client.ListServiceSpecificCredentials(iu.Context, &iam.ListServiceSpecificCredentialsInput{
+		output, err := client.ListServiceSpecificCredentials(ctx, &iam.ListServiceSpecificCredentialsInput{
 			ServiceName: aws.String(service),
 			UserName:    userName,
 		})
@@ -269,7 +389,7 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 		for _, metadata := range output.ServiceSpecificCredentials {
 			serviceSpecificCredentialId := metadata.ServiceSpecificCredentialId
 
-			_, err := iu.Client.DeleteServiceSpecificCredential(iu.Context, &iam.DeleteServiceSpecificCredentialInput{
+			_, err := client.DeleteServiceSpecificCredential(ctx, &iam.DeleteServiceSpecificCredentialInput{
 				ServiceSpecificCredentialId: serviceSpecificCredentialId,
 				UserName:                    userName,
 			})
@@ -285,119 +405,43 @@ func (iu *IAMUsers) deleteServiceSpecificCredentials(userName *string) error {
 	return nil
 }
 
-func (iu *IAMUsers) deleteMFADevices(userName *string) error {
-	output, err := iu.Client.ListMFADevices(iu.Context, &iam.ListMFADevicesInput{
+// deleteMFADevices deactivates and deletes all MFA devices for a user.
+func deleteMFADevices(ctx context.Context, client IAMUsersAPI, userName *string) error {
+	// Collect all MFA devices first (need to deactivate before delete)
+	var devices []types.MFADevice
+	paginator := iam.NewListMFADevicesPaginator(client, &iam.ListMFADevicesInput{
 		UserName: userName,
 	})
-	if err != nil {
-		logging.Errorf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+		devices = append(devices, page.MFADevices...)
 	}
 
-	// First we need to deactivate the devices
-	for _, device := range output.MFADevices {
-		serialNumber := device.SerialNumber
-
-		_, err := iu.Client.DeactivateMFADevice(iu.Context, &iam.DeactivateMFADeviceInput{
-			SerialNumber: serialNumber,
+	// Deactivate all devices first
+	for _, device := range devices {
+		_, err := client.DeactivateMFADevice(ctx, &iam.DeactivateMFADeviceInput{
+			SerialNumber: device.SerialNumber,
 			UserName:     userName,
 		})
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-
-		logging.Debugf("Deactivated Virtual MFA Device with ID %s from user %s", aws.ToString(serialNumber), aws.ToString(userName))
+		logging.Debugf("Deactivated MFA Device %s from user %s", aws.ToString(device.SerialNumber), aws.ToString(userName))
 	}
 
-	// After their deactivation we can delete them
-	for _, device := range output.MFADevices {
-		serialNumber := device.SerialNumber
-
-		_, err := iu.Client.DeleteVirtualMFADevice(iu.Context, &iam.DeleteVirtualMFADeviceInput{
-			SerialNumber: serialNumber,
+	// Then delete them
+	for _, device := range devices {
+		_, err := client.DeleteVirtualMFADevice(ctx, &iam.DeleteVirtualMFADeviceInput{
+			SerialNumber: device.SerialNumber,
 		})
 		if err != nil {
-			logging.Errorf("[Failed] %s", err)
 			return errors.WithStackTrace(err)
 		}
-
-		logging.Debugf("Deleted Virtual MFA Device with ID %s from user %s", aws.ToString(serialNumber), aws.ToString(userName))
+		logging.Debugf("Deleted MFA Device %s from user %s", aws.ToString(device.SerialNumber), aws.ToString(userName))
 	}
 
 	return nil
-}
-
-func (iu *IAMUsers) deleteUser(userName *string) error {
-	_, err := iu.Client.DeleteUser(iu.Context, &iam.DeleteUserInput{
-		UserName: userName,
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-// Nuke a single user
-func (iu *IAMUsers) nukeUser(userName *string) error {
-	// Functions used to really nuke an IAM User as a user can have many attached
-	// items we need delete/detach them before actually deleting it.
-	// NOTE: The actual user deletion should always be the last one. This way we
-	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(userName *string) error{
-		iu.detachUserPolicies, // TODO: Add CLI option to delete the Policy as policies exist independently of the user
-		iu.deleteInlineUserPolicies,
-		iu.removeUserFromGroups, // TODO: Add CLI option to delete groups as groups exist independently of the user
-		iu.deleteLoginProfile,
-		iu.deleteAccessKeys,
-		iu.deleteSigningCertificate,
-		iu.deleteSSHPublicKeys,
-		iu.deleteServiceSpecificCredentials,
-		iu.deleteMFADevices,
-		iu.deleteUser,
-	}
-
-	for _, fn := range functions {
-		if err := fn(userName); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Delete all IAM Users
-func (iu *IAMUsers) nukeAll(userNames []*string) error {
-	if len(userNames) == 0 {
-		logging.Info("No IAM Users to nuke")
-		return nil
-	}
-
-	logging.Info("Deleting all IAM Users")
-
-	deletedUsers := 0
-	multiErr := new(multierror.Error)
-
-	for _, userName := range userNames {
-		err := iu.nukeUser(userName)
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(userName),
-			ResourceType: "IAM User",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-			multierror.Append(multiErr, err)
-		} else {
-			deletedUsers++
-			logging.Debugf("Deleted IAM User: %s", *userName)
-		}
-	}
-
-	logging.Debugf("[OK] %d IAM User(s) terminated", deletedUsers)
-	return multiErr.ErrorOrNil()
 }

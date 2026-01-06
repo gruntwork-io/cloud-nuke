@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
@@ -122,23 +123,21 @@ func (m mockedIAMUsers) RemoveUserFromGroup(ctx context.Context, params *iam.Rem
 	return &m.RemoveUserFromGroupOutput, nil
 }
 
-func TestIAMUsers_GetAll(t *testing.T) {
+func TestIAMUsers_ListIAMUsers(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
 	testName1 := "test-user1"
 	testName2 := "test-user2"
-	iu := IAMUsers{
-		Client: mockedIAMUsers{
-			ListUsersOutput: iam.ListUsersOutput{
-				Users: []types.User{
-					{
-						UserName:   aws.String(testName1),
-						CreateDate: aws.Time(now),
-					},
-					{
-						UserName:   aws.String(testName2),
-						CreateDate: aws.Time(now.Add(1)),
-					},
+	client := mockedIAMUsers{
+		ListUsersOutput: iam.ListUsersOutput{
+			Users: []types.User{
+				{
+					UserName:   aws.String(testName1),
+					CreateDate: aws.Time(now),
+				},
+				{
+					UserName:   aws.String(testName2),
+					CreateDate: aws.Time(now.Add(1)),
 				},
 			},
 		},
@@ -171,88 +170,83 @@ func TestIAMUsers_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := iu.getAll(context.Background(), config.Config{
-				IAMUsers: tc.configObj,
-			})
+			names, err := listIAMUsers(context.Background(), client, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
-
 }
 
-func TestIAMUsers_NukeAll(t *testing.T) {
+func TestIAMUsers_DeleteIAMUser(t *testing.T) {
 	t.Parallel()
-	iu := IAMUsers{
-		Client: mockedIAMUsers{
-			ListAttachedUserPoliciesOutput: iam.ListAttachedUserPoliciesOutput{
-				AttachedPolicies: []types.AttachedPolicy{
-					{
-						PolicyName: aws.String("test-policy"),
-					},
+	client := mockedIAMUsers{
+		ListAttachedUserPoliciesOutput: iam.ListAttachedUserPoliciesOutput{
+			AttachedPolicies: []types.AttachedPolicy{
+				{
+					PolicyName: aws.String("test-policy"),
 				},
 			},
-			DetachUserPolicyOutput: iam.DetachUserPolicyOutput{},
-			ListUserPoliciesOutput: iam.ListUserPoliciesOutput{
-				PolicyNames: []string{
-					"test-policy",
-				},
-			},
-			DeleteUserPolicyOutput: iam.DeleteUserPolicyOutput{},
-			ListGroupsForUserOutput: iam.ListGroupsForUserOutput{
-				Groups: []types.Group{
-					{
-						GroupName: aws.String("test-group"),
-					},
-				},
-			},
-			RemoveUserFromGroupOutput: iam.RemoveUserFromGroupOutput{},
-			DeleteLoginProfileOutput:  iam.DeleteLoginProfileOutput{},
-			ListAccessKeysOutput: iam.ListAccessKeysOutput{
-				AccessKeyMetadata: []types.AccessKeyMetadata{
-					{
-						AccessKeyId: aws.String("test-key"),
-					},
-				},
-			},
-			DeleteAccessKeyOutput: iam.DeleteAccessKeyOutput{},
-			ListSigningCertificatesOutput: iam.ListSigningCertificatesOutput{
-				Certificates: []types.SigningCertificate{
-					{
-						CertificateId: aws.String("test-certificate"),
-					},
-				},
-			},
-			DeleteSigningCertificateOutput: iam.DeleteSigningCertificateOutput{},
-			ListSSHPublicKeysOutput: iam.ListSSHPublicKeysOutput{
-				SSHPublicKeys: []types.SSHPublicKeyMetadata{
-					{
-						SSHPublicKeyId: aws.String("test-ssh-key"),
-					},
-				},
-			},
-			DeleteSSHPublicKeyOutput: iam.DeleteSSHPublicKeyOutput{},
-			ListServiceSpecificCredentialsOutput: iam.ListServiceSpecificCredentialsOutput{
-				ServiceSpecificCredentials: []types.ServiceSpecificCredentialMetadata{
-					{
-						ServiceSpecificCredentialId: aws.String("test-service-credential"),
-					},
-				},
-			},
-			DeleteServiceSpecificCredentialOutput: iam.DeleteServiceSpecificCredentialOutput{},
-			ListMFADevicesOutput: iam.ListMFADevicesOutput{
-				MFADevices: []types.MFADevice{
-					{
-						SerialNumber: aws.String("test-mfa-device"),
-					},
-				},
-			},
-			DeactivateMFADeviceOutput:    iam.DeactivateMFADeviceOutput{},
-			DeleteVirtualMFADeviceOutput: iam.DeleteVirtualMFADeviceOutput{},
-			DeleteUserOutput:             iam.DeleteUserOutput{},
 		},
+		DetachUserPolicyOutput: iam.DetachUserPolicyOutput{},
+		ListUserPoliciesOutput: iam.ListUserPoliciesOutput{
+			PolicyNames: []string{
+				"test-policy",
+			},
+		},
+		DeleteUserPolicyOutput: iam.DeleteUserPolicyOutput{},
+		ListGroupsForUserOutput: iam.ListGroupsForUserOutput{
+			Groups: []types.Group{
+				{
+					GroupName: aws.String("test-group"),
+				},
+			},
+		},
+		RemoveUserFromGroupOutput: iam.RemoveUserFromGroupOutput{},
+		DeleteLoginProfileOutput:  iam.DeleteLoginProfileOutput{},
+		ListAccessKeysOutput: iam.ListAccessKeysOutput{
+			AccessKeyMetadata: []types.AccessKeyMetadata{
+				{
+					AccessKeyId: aws.String("test-key"),
+				},
+			},
+		},
+		DeleteAccessKeyOutput: iam.DeleteAccessKeyOutput{},
+		ListSigningCertificatesOutput: iam.ListSigningCertificatesOutput{
+			Certificates: []types.SigningCertificate{
+				{
+					CertificateId: aws.String("test-certificate"),
+				},
+			},
+		},
+		DeleteSigningCertificateOutput: iam.DeleteSigningCertificateOutput{},
+		ListSSHPublicKeysOutput: iam.ListSSHPublicKeysOutput{
+			SSHPublicKeys: []types.SSHPublicKeyMetadata{
+				{
+					SSHPublicKeyId: aws.String("test-ssh-key"),
+				},
+			},
+		},
+		DeleteSSHPublicKeyOutput: iam.DeleteSSHPublicKeyOutput{},
+		ListServiceSpecificCredentialsOutput: iam.ListServiceSpecificCredentialsOutput{
+			ServiceSpecificCredentials: []types.ServiceSpecificCredentialMetadata{
+				{
+					ServiceSpecificCredentialId: aws.String("test-service-credential"),
+				},
+			},
+		},
+		DeleteServiceSpecificCredentialOutput: iam.DeleteServiceSpecificCredentialOutput{},
+		ListMFADevicesOutput: iam.ListMFADevicesOutput{
+			MFADevices: []types.MFADevice{
+				{
+					SerialNumber: aws.String("test-mfa-device"),
+				},
+			},
+		},
+		DeactivateMFADeviceOutput:    iam.DeactivateMFADeviceOutput{},
+		DeleteVirtualMFADeviceOutput: iam.DeleteVirtualMFADeviceOutput{},
+		DeleteUserOutput:             iam.DeleteUserOutput{},
 	}
 
-	err := iu.nukeAll([]*string{aws.String("test-user")})
+	err := deleteIAMUser(context.Background(), client, aws.String("test-user"))
 	require.NoError(t, err)
 }

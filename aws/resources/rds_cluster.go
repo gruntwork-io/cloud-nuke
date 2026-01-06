@@ -2,119 +2,92 @@ package resources
 
 import (
 	"context"
-	goerr "errors"
 	"time"
-
-	"github.com/gruntwork-io/cloud-nuke/util"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
-	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func (instance *DBClusters) waitUntilRdsClusterDeleted(input *rds.DescribeDBClustersInput) error {
-	waitTimeout := instance.Timeout
-	const retryInterval = 10 * time.Second
-	maxRetries := int(waitTimeout / retryInterval)
-
-	for i := 0; i < maxRetries; i++ {
-		_, err := instance.Client.DescribeDBClusters(instance.Context, input)
-		if err != nil {
-			var notFoundErr *types.DBClusterNotFoundFault
-			if goerr.As(err, &notFoundErr) {
-				return nil
-			}
-
-			return err
-		}
-
-		time.Sleep(retryInterval)
-		logging.Debug("Waiting for RDS Cluster to be deleted")
-	}
-
-	return RdsDeleteError{name: *input.DBClusterIdentifier}
+// DBClustersAPI defines the interface for RDS DB Cluster operations.
+type DBClustersAPI interface {
+	DeleteDBCluster(ctx context.Context, params *rds.DeleteDBClusterInput, optFns ...func(*rds.Options)) (*rds.DeleteDBClusterOutput, error)
+	DescribeDBClusters(ctx context.Context, params *rds.DescribeDBClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeDBClustersOutput, error)
+	ModifyDBCluster(ctx context.Context, params *rds.ModifyDBClusterInput, optFns ...func(*rds.Options)) (*rds.ModifyDBClusterOutput, error)
 }
 
-func (instance *DBClusters) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	result, err := instance.Client.DescribeDBClusters(c, &rds.DescribeDBClustersInput{})
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+// NewDBClusters creates a new RDS DB Clusters resource using the generic resource pattern.
+func NewDBClusters() AwsResource {
+	return NewAwsResource(&resource.Resource[DBClustersAPI]{
+		ResourceTypeName: "rds-cluster",
+		BatchSize:        DefaultBatchSize,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBClustersAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = rds.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.DBClusters.ResourceType
+		},
+		Lister: listDBClusters,
+		Nuker:  resource.SequentialDeleteThenWaitAll(deleteDBCluster, waitForDBClustersDeleted),
+	})
+}
 
+// listDBClusters retrieves all RDS DB Clusters that match the config filters.
+func listDBClusters(ctx context.Context, client DBClustersAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var names []*string
-	for _, database := range result.DBClusters {
-		if configObj.DBClusters.ShouldInclude(config.ResourceValue{
-			Name: database.DBClusterIdentifier,
-			Time: database.ClusterCreateTime,
-			Tags: util.ConvertRDSTypeTagsToMap(database.TagList),
-		}) {
-			names = append(names, database.DBClusterIdentifier)
+	paginator := rds.NewDescribeDBClustersPaginator(client, &rds.DescribeDBClustersInput{})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
+		for _, cluster := range page.DBClusters {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: cluster.DBClusterIdentifier,
+				Time: cluster.ClusterCreateTime,
+				Tags: util.ConvertRDSTypeTagsToMap(cluster.TagList),
+			}) {
+				names = append(names, cluster.DBClusterIdentifier)
+			}
 		}
 	}
 
 	return names, nil
 }
 
-func (instance *DBClusters) nukeAll(names []*string) error {
-	if len(names) == 0 {
-		logging.Debugf("No RDS DB Cluster to nuke in region %s", instance.Region)
-		return nil
+// deleteDBCluster deletes a single RDS DB Cluster after disabling deletion protection.
+func deleteDBCluster(ctx context.Context, client DBClustersAPI, name *string) error {
+	if _, err := client.ModifyDBCluster(ctx, &rds.ModifyDBClusterInput{
+		DBClusterIdentifier: name,
+		DeletionProtection:  aws.Bool(false),
+		ApplyImmediately:    aws.Bool(true),
+	}); err != nil {
+		logging.Warnf("[Failed] to disable deletion protection for cluster %s: %s", aws.ToString(name), err)
 	}
 
-	logging.Debugf("Deleting all RDS Clusters in region %s", instance.Region)
-	deletedNames := []*string{}
+	_, err := client.DeleteDBCluster(ctx, &rds.DeleteDBClusterInput{
+		DBClusterIdentifier: name,
+		SkipFinalSnapshot:   aws.Bool(true),
+	})
+	return errors.WithStackTrace(err)
+}
 
-	for _, name := range names {
-		// Disable deletion protection before attempting to delete the cluster
-		_, err := instance.Client.ModifyDBCluster(instance.Context, &rds.ModifyDBClusterInput{
-			DBClusterIdentifier: name,
-			DeletionProtection:  aws.Bool(false),
-			ApplyImmediately:    aws.Bool(true),
-		})
-		if err != nil {
-			logging.Warnf("[Failed] to disable deletion protection for cluster %s: %s", *name, err)
-		}
-
-		params := &rds.DeleteDBClusterInput{
-			DBClusterIdentifier: name,
-			SkipFinalSnapshot:   aws.Bool(true),
-		}
-
-		_, err = instance.Client.DeleteDBCluster(instance.Context, params)
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(name),
-			ResourceType: "RDS Cluster",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s: %s", *name, err)
-		} else {
-			deletedNames = append(deletedNames, name)
-			logging.Debugf("Deleted RDS DB Cluster: %s", aws.ToString(name))
+// waitForDBClustersDeleted waits for all specified DB clusters to be deleted.
+func waitForDBClustersDeleted(ctx context.Context, client DBClustersAPI, ids []string) error {
+	waiter := rds.NewDBClusterDeletedWaiter(client)
+	for _, id := range ids {
+		if err := waiter.Wait(ctx, &rds.DescribeDBClustersInput{
+			DBClusterIdentifier: aws.String(id),
+		}, 5*time.Minute); err != nil {
+			return err
 		}
 	}
-
-	if len(deletedNames) > 0 {
-		for _, name := range deletedNames {
-
-			err := instance.waitUntilRdsClusterDeleted(&rds.DescribeDBClustersInput{
-				DBClusterIdentifier: name,
-			})
-			if err != nil {
-				logging.Errorf("[Failed] %s", err)
-				return errors.WithStackTrace(err)
-			}
-		}
-	}
-
-	logging.Debugf("[OK] %d RDS DB Cluster(s) nuked in %s", len(deletedNames), instance.Region)
 	return nil
 }

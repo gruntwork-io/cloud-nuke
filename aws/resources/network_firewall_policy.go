@@ -2,109 +2,111 @@ package resources
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	"github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
-func shouldIncludeNetworkFirewallPolicy(firewall *types.FirewallPolicyResponse, firstSeenTime *time.Time, configObj config.Config) bool {
-	// if the firewall policy has any attachments, then we can't remove that policy
-	if aws.ToInt32(firewall.NumberOfAssociations) > 0 {
-		logging.Debugf("[Skipping] the policy %s is still in use", aws.ToString(firewall.FirewallPolicyName))
-		return false
-	}
+// NetworkFirewallPolicyAPI defines the interface for Network Firewall Policy operations.
+type NetworkFirewallPolicyAPI interface {
+	ListFirewallPolicies(ctx context.Context, params *networkfirewall.ListFirewallPoliciesInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.ListFirewallPoliciesOutput, error)
+	DescribeFirewallPolicy(ctx context.Context, params *networkfirewall.DescribeFirewallPolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DescribeFirewallPolicyOutput, error)
+	DeleteFirewallPolicy(ctx context.Context, params *networkfirewall.DeleteFirewallPolicyInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.DeleteFirewallPolicyOutput, error)
+	TagResource(ctx context.Context, params *networkfirewall.TagResourceInput, optFns ...func(*networkfirewall.Options)) (*networkfirewall.TagResourceOutput, error)
+}
 
-	var identifierName string
-	tags := util.ConvertNetworkFirewallTagsToMap(firewall.Tags)
-
-	if v, ok := tags["Name"]; ok {
-		identifierName = v
-	}
-	return configObj.NetworkFirewallPolicy.ShouldInclude(config.ResourceValue{
-		Name: &identifierName,
-		Tags: tags,
-		Time: firstSeenTime,
+// NewNetworkFirewallPolicy creates a new NetworkFirewallPolicy resource using the generic resource pattern.
+func NewNetworkFirewallPolicy() AwsResource {
+	return NewAwsResource(&resource.Resource[NetworkFirewallPolicyAPI]{
+		ResourceTypeName: "network-firewall-policy",
+		BatchSize:        10,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[NetworkFirewallPolicyAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = networkfirewall.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.NetworkFirewallPolicy
+		},
+		Lister: listNetworkFirewallPolicies,
+		Nuker:  resource.SimpleBatchDeleter(deleteNetworkFirewallPolicy),
 	})
 }
 
-func (nfw *NetworkFirewallPolicy) getAll(c context.Context, configObj config.Config) ([]*string, error) {
-	var (
-		identifiers   []*string
-		firstSeenTime *time.Time
-		err           error
-	)
+// listNetworkFirewallPolicies retrieves all Network Firewall Policies that match the config filters.
+func listNetworkFirewallPolicies(ctx context.Context, client NetworkFirewallPolicyAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var identifiers []*string
 
-	metaOutput, err := nfw.Client.ListFirewallPolicies(nfw.Context, nil)
-	if err != nil {
-		return nil, errors.WithStackTrace(err)
-	}
+	paginator := networkfirewall.NewListFirewallPoliciesPaginator(client, &networkfirewall.ListFirewallPoliciesInput{})
 
-	for _, policy := range metaOutput.FirewallPolicies {
-
-		output, err := nfw.Client.DescribeFirewallPolicy(nfw.Context, &networkfirewall.DescribeFirewallPolicyInput{
-			FirewallPolicyArn: policy.Arn,
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Failed] to describe the firewall policy %s", aws.ToString(policy.Name))
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
-		if output.FirewallPolicyResponse == nil {
-			logging.Errorf("[Failed] no firewall policy information found for %s", aws.ToString(policy.Name))
-			continue
-		}
+		for _, policy := range page.FirewallPolicies {
+			output, err := client.DescribeFirewallPolicy(ctx, &networkfirewall.DescribeFirewallPolicyInput{
+				FirewallPolicyArn: policy.Arn,
+			})
+			if err != nil {
+				logging.Errorf("[Failed] to describe firewall policy %s: %v", aws.ToString(policy.Name), err)
+				continue
+			}
 
-		firstSeenTime, err = util.GetOrCreateFirstSeen(c, nfw.Client, policy.Arn, util.ConvertNetworkFirewallTagsToMap(output.FirewallPolicyResponse.Tags))
-		if err != nil {
-			logging.Error("Unable to retrieve tags")
-			return nil, errors.WithStackTrace(err)
-		}
+			if output.FirewallPolicyResponse == nil {
+				logging.Errorf("[Failed] no firewall policy information found for %s", aws.ToString(policy.Name))
+				continue
+			}
 
-		if shouldIncludeNetworkFirewallPolicy(output.FirewallPolicyResponse, firstSeenTime, configObj) {
-			identifiers = append(identifiers, policy.Name)
+			if shouldIncludeNetworkFirewallPolicy(ctx, client, policy.Arn, output.FirewallPolicyResponse, cfg) {
+				identifiers = append(identifiers, policy.Name)
+			}
 		}
 	}
 
 	return identifiers, nil
 }
 
-func (nfw *NetworkFirewallPolicy) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("No Network Firewall policy to nuke in region %s", nfw.Region)
-		return nil
+// shouldIncludeNetworkFirewallPolicy determines if a firewall policy should be included for deletion.
+func shouldIncludeNetworkFirewallPolicy(ctx context.Context, client NetworkFirewallPolicyAPI, arn *string, policy *types.FirewallPolicyResponse, cfg config.ResourceType) bool {
+	// Skip policies that are still in use
+	if aws.ToInt32(policy.NumberOfAssociations) > 0 {
+		logging.Debugf("[Skipping] policy %s is still in use", aws.ToString(policy.FirewallPolicyName))
+		return false
 	}
 
-	logging.Debugf("Deleting Network firewall policy in region %s", nfw.Region)
-	var deleted []*string
+	tags := util.ConvertNetworkFirewallTagsToMap(policy.Tags)
 
-	for _, id := range identifiers {
-		_, err := nfw.Client.DeleteFirewallPolicy(nfw.Context, &networkfirewall.DeleteFirewallPolicyInput{
-			FirewallPolicyName: id,
-		})
-
-		// Record status of this resource
-		e := report.Entry{
-			Identifier:   aws.ToString(id),
-			ResourceType: "Network Firewall policy",
-			Error:        err,
-		}
-		report.Record(e)
-
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-		} else {
-			deleted = append(deleted, id)
-		}
+	firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, arn, tags)
+	if err != nil {
+		logging.Errorf("Unable to retrieve first seen time for policy %s: %v", aws.ToString(policy.FirewallPolicyName), err)
+		return false
 	}
 
-	logging.Debugf("[OK] %d Network Policy(s) deleted in %s", len(deleted), nfw.Region)
+	return cfg.ShouldInclude(config.ResourceValue{
+		Name: getNetworkFirewallPolicyName(tags),
+		Tags: tags,
+		Time: firstSeenTime,
+	})
+}
 
+// getNetworkFirewallPolicyName returns the Name tag value if present, otherwise nil.
+func getNetworkFirewallPolicyName(tags map[string]string) *string {
+	if name, ok := tags["Name"]; ok {
+		return &name
+	}
 	return nil
+}
+
+// deleteNetworkFirewallPolicy deletes a single Network Firewall Policy.
+func deleteNetworkFirewallPolicy(ctx context.Context, client NetworkFirewallPolicyAPI, id *string) error {
+	_, err := client.DeleteFirewallPolicy(ctx, &networkfirewall.DeleteFirewallPolicyInput{
+		FirewallPolicyName: id,
+	})
+	return err
 }

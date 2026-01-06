@@ -77,6 +77,14 @@ func TestListLaunchTemplates(t *testing.T) {
 			},
 			expected: []string{"template1"},
 		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				},
+			},
+			expected: []string{},
+		},
 	}
 
 	for name, tc := range tests {

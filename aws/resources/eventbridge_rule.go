@@ -9,155 +9,64 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
-	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
-func (ebr *EventBridgeRule) getTargets(busName, rule string) ([]string, error) {
-	var identifiers []*string
-
-	params := &eventbridge.ListTargetsByRuleInput{
-		Rule:         aws.String(rule),
-		EventBusName: aws.String(busName),
-		NextToken:    nil,
-	}
-	hasMorePages := true
-
-	for hasMorePages {
-		targets, err := ebr.Client.ListTargetsByRule(ebr.Context, params)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, target := range targets.Targets {
-			identifiers = append(identifiers, target.Id)
-		}
-
-		params.NextToken = targets.NextToken
-		hasMorePages = params.NextToken != nil
-	}
-
-	return aws.ToStringSlice(identifiers), nil
+// EventBridgeRuleAPI defines the interface for EventBridge Rule operations.
+type EventBridgeRuleAPI interface {
+	ListRules(ctx context.Context, params *eventbridge.ListRulesInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRulesOutput, error)
+	DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
+	ListEventBuses(ctx context.Context, params *eventbridge.ListEventBusesInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListEventBusesOutput, error)
+	ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
+	RemoveTargets(ctx context.Context, params *eventbridge.RemoveTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.RemoveTargetsOutput, error)
 }
 
-func (ebr *EventBridgeRule) nukeAll(identifiers []*string) error {
-	if len(identifiers) == 0 {
-		logging.Debugf("[Event Bridge Rule] No Event Bridge Rule(s) found in region %s", ebr.Region)
-		return nil
-	}
-
-	logging.Debugf("[Event Bridge Rule] Deleting all Event Bridge Rule(s) in %s", ebr.Region)
-	var deleted []*string
-
-	for _, identifier := range identifiers {
-		payload := strings.Split(*identifier, "|")
-		if len(payload) != 2 {
-			logging.Debugf("[Event Bridge Rule] Invalid identifier %s", *identifier)
-			continue
-		}
-
-		ids, errGetTarget := ebr.getTargets(payload[0], payload[1])
-		if errGetTarget != nil {
-			logging.Debugf("[Event Bridge Rule] error when listing targets for rule %s, %s", payload[1], errGetTarget)
-			return errGetTarget
-		}
-
-		if len(ids) != 0 {
-			_, errRmTargets := ebr.Client.RemoveTargets(ebr.Context, &eventbridge.RemoveTargetsInput{
-				Ids:          ids,
-				EventBusName: aws.String(payload[0]),
-				Rule:         aws.String(payload[1]),
-				Force:        true,
-			})
-			if errRmTargets != nil {
-				logging.Debugf("[Event Bridge Rule] error when removing rule %s, targets %s", payload[1], errRmTargets)
-				return errRmTargets
-			}
-		}
-
-		_, err := ebr.Client.DeleteRule(ebr.Context, &eventbridge.DeleteRuleInput{
-			EventBusName: aws.String(payload[0]),
-			Name:         aws.String(payload[1]),
-			Force:        true,
-		})
-		if err != nil {
-			logging.Debugf(
-				"[Event Bridge Rule] Error deleting Rule %s in region %s, bus %s, err %s",
-				payload[1],
-				ebr.Region,
-				payload[0],
-				err,
-			)
-		} else {
-			deleted = append(deleted, identifier)
-			logging.Debugf(
-				"[Event Bridge Rule] Deleted Rule %s in region %s, bus %s",
-				payload[1],
-				ebr.Region,
-				payload[0],
-			)
-		}
-
-		e := report.Entry{
-			Identifier:   aws.ToString(identifier),
-			ResourceType: ebr.ResourceName(),
-			Error:        err,
-		}
-		report.Record(e)
-	}
-
-	logging.Debugf("[OK] %d Event Bridge Rule(s) deleted in %s", len(deleted), ebr.Region)
-	return nil
+// NewEventBridgeRule creates a new EventBridgeRule resource using the generic resource pattern.
+func NewEventBridgeRule() AwsResource {
+	return NewAwsResource(&resource.Resource[EventBridgeRuleAPI]{
+		ResourceTypeName: "event-bridge-rule",
+		BatchSize:        100,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EventBridgeRuleAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = eventbridge.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.EventBridgeRule
+		},
+		Lister: listEventBridgeRules,
+		Nuker:  resource.SequentialDeleter(deleteEventBridgeRule),
+	})
 }
 
-func (ebr *EventBridgeRule) getBusNames() ([]*string, error) {
-	var identifiers []*string
-
-	hasMorePages := true
-	params := &eventbridge.ListEventBusesInput{}
-
-	for hasMorePages {
-		buses, err := ebr.Client.ListEventBuses(ebr.Context, params)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, bus := range buses.EventBuses {
-			identifiers = append(identifiers, bus.Name)
-		}
-
-		params.NextToken = buses.NextToken
-		hasMorePages = params.NextToken != nil
+// listEventBridgeRules retrieves all EventBridge Rules that match the config filters.
+// Returns identifiers in "busName|ruleName" format.
+func listEventBridgeRules(ctx context.Context, client EventBridgeRuleAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	// First, get all event bus names
+	busNames, err := listEventBusNames(ctx, client)
+	if err != nil {
+		logging.Debugf("[Event Bridge Rule] Failed to list event buses: %s", err)
+		return nil, err
 	}
 
-	return identifiers, nil
-}
-
-func (ebr *EventBridgeRule) getAll(ctx context.Context, cnfObj config.Config) ([]*string, error) {
 	var identifiers []*string
-
-	eBusNames, errGetBus := ebr.getBusNames()
-	if errGetBus != nil {
-		logging.Debugf("[Event Bridge] Failed to list event buses: %s", errGetBus)
-		return nil, errors.WithStackTrace(errGetBus)
-	}
-
-	for _, bus := range eBusNames {
+	for _, busName := range busNames {
+		// Manual pagination for ListRules (no SDK paginator available)
 		hasMorePages := true
 		params := &eventbridge.ListRulesInput{
-			EventBusName: bus,
+			EventBusName: busName,
 		}
 
 		for hasMorePages {
-			rules, err := ebr.Client.ListRules(ctx, params)
+			rules, err := client.ListRules(ctx, params)
 			if err != nil {
-				logging.Debugf("[Event Bridge] Failed to list event rules: %s", err)
-				return nil, errors.WithStackTrace(err)
+				logging.Debugf("[Event Bridge Rule] Failed to list rules for bus %s: %s", aws.ToString(busName), err)
+				return nil, err
 			}
 
 			for _, rule := range rules.Rules {
-				id := aws.String(fmt.Sprintf("%s|%s", *bus, *rule.Name))
-				if cnfObj.EventBridgeRule.ShouldInclude(config.ResourceValue{
+				// Create composite identifier: "busName|ruleName"
+				id := aws.String(fmt.Sprintf("%s|%s", aws.ToString(busName), aws.ToString(rule.Name)))
+				if cfg.ShouldInclude(config.ResourceValue{
 					Name: id,
 				}) {
 					identifiers = append(identifiers, id)
@@ -170,4 +79,102 @@ func (ebr *EventBridgeRule) getAll(ctx context.Context, cnfObj config.Config) ([
 	}
 
 	return identifiers, nil
+}
+
+// listEventBusNames retrieves all event bus names (manual pagination - no SDK paginator available).
+func listEventBusNames(ctx context.Context, client EventBridgeRuleAPI) ([]*string, error) {
+	var busNames []*string
+
+	hasMorePages := true
+	params := &eventbridge.ListEventBusesInput{}
+
+	for hasMorePages {
+		buses, err := client.ListEventBuses(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, bus := range buses.EventBuses {
+			busNames = append(busNames, bus.Name)
+		}
+
+		params.NextToken = buses.NextToken
+		hasMorePages = params.NextToken != nil
+	}
+
+	return busNames, nil
+}
+
+// deleteEventBridgeRule deletes a single EventBridge Rule.
+// The identifier format is "busName|ruleName".
+// It first removes all targets from the rule, then deletes the rule.
+func deleteEventBridgeRule(ctx context.Context, client EventBridgeRuleAPI, identifier *string) error {
+	// Parse the composite identifier
+	parts := strings.Split(aws.ToString(identifier), "|")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid identifier format %q, expected 'busName|ruleName'", aws.ToString(identifier))
+	}
+	busName := parts[0]
+	ruleName := parts[1]
+
+	// Step 1: Get all targets for this rule
+	targetIds, err := listTargetsByRule(ctx, client, busName, ruleName)
+	if err != nil {
+		logging.Debugf("[Event Bridge Rule] Error listing targets for rule %s on bus %s: %s", ruleName, busName, err)
+		return err
+	}
+
+	// Step 2: Remove all targets if any exist
+	if len(targetIds) > 0 {
+		_, err := client.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{
+			Ids:          targetIds,
+			EventBusName: aws.String(busName),
+			Rule:         aws.String(ruleName),
+			Force:        true,
+		})
+		if err != nil {
+			logging.Debugf("[Event Bridge Rule] Error removing targets for rule %s on bus %s: %s", ruleName, busName, err)
+			return err
+		}
+	}
+
+	// Step 3: Delete the rule
+	_, err = client.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
+		EventBusName: aws.String(busName),
+		Name:         aws.String(ruleName),
+		Force:        true,
+	})
+	if err != nil {
+		return err
+	}
+
+	logging.Debugf("[Event Bridge Rule] Deleted rule %s on bus %s", ruleName, busName)
+	return nil
+}
+
+// listTargetsByRule retrieves all target IDs for a given rule (manual pagination).
+func listTargetsByRule(ctx context.Context, client EventBridgeRuleAPI, busName, ruleName string) ([]string, error) {
+	var targetIds []string
+
+	hasMorePages := true
+	params := &eventbridge.ListTargetsByRuleInput{
+		Rule:         aws.String(ruleName),
+		EventBusName: aws.String(busName),
+	}
+
+	for hasMorePages {
+		targets, err := client.ListTargetsByRule(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, target := range targets.Targets {
+			targetIds = append(targetIds, aws.ToString(target.Id))
+		}
+
+		params.NextToken = targets.NextToken
+		hasMorePages = params.NextToken != nil
+	}
+
+	return targetIds, nil
 }

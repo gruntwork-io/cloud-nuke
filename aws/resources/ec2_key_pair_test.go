@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,56 +27,59 @@ func (m *mockEC2KeyPairsClient) DeleteKeyPair(ctx context.Context, params *ec2.D
 	return &m.DeleteKeyPairOutput, nil
 }
 
-func TestEC2KeyPairs_ResourceName(t *testing.T) {
-	r := NewEC2KeyPairs()
-	assert.Equal(t, "ec2-keypairs", r.ResourceName())
-}
-
-func TestEC2KeyPairs_MaxBatchSize(t *testing.T) {
-	r := NewEC2KeyPairs()
-	assert.Equal(t, 200, r.MaxBatchSize())
-}
-
 func TestListEC2KeyPairs(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	mock := &mockEC2KeyPairsClient{
-		DescribeKeyPairsOutput: ec2.DescribeKeyPairsOutput{
-			KeyPairs: []types.KeyPairInfo{
+	tests := []struct {
+		name     string
+		keyPairs []types.KeyPairInfo
+		cfg      config.ResourceType
+		expected []string
+	}{
+		{
+			name: "lists all key pairs",
+			keyPairs: []types.KeyPairInfo{
 				{KeyPairId: aws.String("key-1"), KeyName: aws.String("keypair1"), CreateTime: aws.Time(now)},
 				{KeyPairId: aws.String("key-2"), KeyName: aws.String("keypair2"), CreateTime: aws.Time(now)},
 			},
+			cfg:      config.ResourceType{},
+			expected: []string{"key-1", "key-2"},
 		},
-	}
-
-	ids, err := listEC2KeyPairs(context.Background(), mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"key-1", "key-2"}, aws.ToStringSlice(ids))
-}
-
-func TestListEC2KeyPairs_WithFilter(t *testing.T) {
-	t.Parallel()
-
-	now := time.Now()
-	mock := &mockEC2KeyPairsClient{
-		DescribeKeyPairsOutput: ec2.DescribeKeyPairsOutput{
-			KeyPairs: []types.KeyPairInfo{
+		{
+			name: "filters by exclude rule",
+			keyPairs: []types.KeyPairInfo{
 				{KeyPairId: aws.String("key-1"), KeyName: aws.String("keypair1"), CreateTime: aws.Time(now)},
 				{KeyPairId: aws.String("key-2"), KeyName: aws.String("skip-this"), CreateTime: aws.Time(now)},
 			},
+			cfg: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+				},
+			},
+			expected: []string{"key-1"},
+		},
+		{
+			name:     "returns empty for no key pairs",
+			keyPairs: []types.KeyPairInfo{},
+			cfg:      config.ResourceType{},
+			expected: []string{},
 		},
 	}
 
-	cfg := config.ResourceType{
-		ExcludeRule: config.FilterRule{
-			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
-		},
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockEC2KeyPairsClient{
+				DescribeKeyPairsOutput: ec2.DescribeKeyPairsOutput{
+					KeyPairs: tc.keyPairs,
+				},
+			}
 
-	ids, err := listEC2KeyPairs(context.Background(), mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Equal(t, []string{"key-1"}, aws.ToStringSlice(ids))
+			ids, err := listEC2KeyPairs(context.Background(), mock, resource.Scope{}, tc.cfg)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
+		})
+	}
 }
 
 func TestDeleteEC2KeyPair(t *testing.T) {

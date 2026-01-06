@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EventBridgeScheduleAPI defines the interface for EventBridge Schedule operations.
@@ -23,15 +23,10 @@ func NewEventBridgeSchedule() AwsResource {
 	return NewAwsResource(&resource.Resource[EventBridgeScheduleAPI]{
 		ResourceTypeName: "event-bridge-schedule",
 		BatchSize:        100,
-		InitClient: func(r *resource.Resource[EventBridgeScheduleAPI], cfg any) {
-			awsCfg, ok := cfg.(aws.Config)
-			if !ok {
-				logging.Debugf("Invalid config type for Scheduler client: expected aws.Config")
-				return
-			}
-			r.Scope.Region = awsCfg.Region
-			r.Client = scheduler.NewFromConfig(awsCfg)
-		},
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[EventBridgeScheduleAPI], cfg aws.Config) {
+			r.Scope.Region = cfg.Region
+			r.Client = scheduler.NewFromConfig(cfg)
+		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.EventBridgeSchedule
 		},
@@ -48,8 +43,7 @@ func listEventBridgeSchedules(ctx context.Context, client EventBridgeScheduleAPI
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			logging.Errorf("[Event Bridge Schedule] Failed to list schedules: %s", err)
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, schedule := range page.Schedules {
@@ -70,7 +64,6 @@ func listEventBridgeSchedules(ctx context.Context, client EventBridgeScheduleAPI
 func deleteEventBridgeSchedule(ctx context.Context, client EventBridgeScheduleAPI, id *string) error {
 	payload := strings.Split(*id, "|")
 	if len(payload) != 2 {
-		logging.Errorf("[Event Bridge Schedule] Invalid identifier %s", *id)
 		return fmt.Errorf("invalid identifier format: %s", *id)
 	}
 

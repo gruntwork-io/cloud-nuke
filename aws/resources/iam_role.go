@@ -2,26 +2,57 @@ package resources
 
 import (
 	"context"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"strings"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/hashicorp/go-multierror"
 )
 
-// List all IAM Roles in the AWS account
-func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*string, error) {
+// IAMRolesAPI defines the interface for IAM role operations.
+type IAMRolesAPI interface {
+	ListAttachedRolePolicies(ctx context.Context, params *iam.ListAttachedRolePoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedRolePoliciesOutput, error)
+	ListInstanceProfilesForRole(ctx context.Context, params *iam.ListInstanceProfilesForRoleInput, optFns ...func(*iam.Options)) (*iam.ListInstanceProfilesForRoleOutput, error)
+	ListRolePolicies(ctx context.Context, params *iam.ListRolePoliciesInput, optFns ...func(*iam.Options)) (*iam.ListRolePoliciesOutput, error)
+	ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error)
+	ListRoleTags(ctx context.Context, params *iam.ListRoleTagsInput, optFns ...func(*iam.Options)) (*iam.ListRoleTagsOutput, error)
+	DeleteInstanceProfile(ctx context.Context, params *iam.DeleteInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error)
+	DetachRolePolicy(ctx context.Context, params *iam.DetachRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DetachRolePolicyOutput, error)
+	DeleteRolePolicy(ctx context.Context, params *iam.DeleteRolePolicyInput, optFns ...func(*iam.Options)) (*iam.DeleteRolePolicyOutput, error)
+	DeleteRole(ctx context.Context, params *iam.DeleteRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteRoleOutput, error)
+	RemoveRoleFromInstanceProfile(ctx context.Context, params *iam.RemoveRoleFromInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error)
+}
+
+// NewIAMRoles creates a new IAMRoles resource using the generic resource pattern.
+func NewIAMRoles() AwsResource {
+	return NewAwsResource(&resource.Resource[IAMRolesAPI]{
+		ResourceTypeName: "iam-role",
+		BatchSize:        20,
+		IsGlobal:         true,
+		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMRolesAPI], cfg aws.Config) {
+			r.Scope.Region = "global"
+			r.Client = iam.NewFromConfig(cfg)
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.IAMRoles
+		},
+		Lister: listIAMRoles,
+		Nuker:  resource.SequentialDeleter(deleteIAMRole),
+	})
+}
+
+// listIAMRoles retrieves all IAM roles that match the config filters.
+func listIAMRoles(ctx context.Context, client IAMRolesAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var allIAMRoles []*string
-	paginator := iam.NewListRolesPaginator(ir.Client, &iam.ListRolesInput{})
+
+	paginator := iam.NewListRolesPaginator(client, &iam.ListRolesInput{})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(c)
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, errors.WithStackTrace(err)
 		}
@@ -30,13 +61,13 @@ func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*strin
 			// Always fetch tags to support tag-based filtering, including the default cloud-nuke-excluded tag.
 			// This ensures that roles with the exclusion tag are properly filtered out even when no explicit
 			// tag filters are configured in the config file.
-			tagsOut, err := ir.Client.ListRoleTags(c, &iam.ListRoleTagsInput{RoleName: iamRole.RoleName})
+			tagsOut, err := client.ListRoleTags(ctx, &iam.ListRoleTagsInput{RoleName: iamRole.RoleName})
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}
 			tags := tagsOut.Tags
 
-			if ir.shouldInclude(&iamRole, configObj, tags) {
+			if shouldIncludeIAMRole(&iamRole, cfg, tags) {
 				allIAMRoles = append(allIAMRoles, iamRole.RoleName)
 			}
 		}
@@ -45,144 +76,8 @@ func (ir *IAMRoles) getAll(c context.Context, configObj config.Config) ([]*strin
 	return allIAMRoles, nil
 }
 
-func (ir *IAMRoles) deleteManagedRolePolicies(roleName *string) error {
-	policiesOutput, err := ir.Client.ListAttachedRolePolicies(ir.Context, &iam.ListAttachedRolePoliciesInput{
-		RoleName: roleName,
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	for _, attachedPolicy := range policiesOutput.AttachedPolicies {
-		arn := attachedPolicy.PolicyArn
-		_, err = ir.Client.DetachRolePolicy(ir.Context, &iam.DetachRolePolicyInput{
-			PolicyArn: arn,
-			RoleName:  roleName,
-		})
-		if err != nil {
-			logging.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-		logging.Debugf("Detached Policy %s from Role %s", aws.ToString(arn), aws.ToString(roleName))
-	}
-
-	return nil
-}
-
-func (ir *IAMRoles) deleteInlineRolePolicies(roleName *string) error {
-	policyOutput, err := ir.Client.ListRolePolicies(ir.Context, &iam.ListRolePoliciesInput{
-		RoleName: roleName,
-	})
-	if err != nil {
-		logging.Debugf("[Failed] %s", err)
-		return errors.WithStackTrace(err)
-	}
-
-	for _, policyName := range policyOutput.PolicyNames {
-		_, err := ir.Client.DeleteRolePolicy(ir.Context, &iam.DeleteRolePolicyInput{
-			PolicyName: aws.String(policyName),
-			RoleName:   roleName,
-		})
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		}
-		logging.Debugf("Deleted Inline Policy %s from Role %s", policyName, aws.ToString(roleName))
-	}
-
-	return nil
-}
-
-func (ir *IAMRoles) deleteInstanceProfilesFromRole(roleName *string) error {
-	profilesOutput, err := ir.Client.ListInstanceProfilesForRole(ir.Context, &iam.ListInstanceProfilesForRoleInput{
-		RoleName: roleName,
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	for _, profile := range profilesOutput.InstanceProfiles {
-
-		// Role needs to be removed from instance profile before it can be deleted
-		_, err := ir.Client.RemoveRoleFromInstanceProfile(ir.Context, &iam.RemoveRoleFromInstanceProfileInput{
-			InstanceProfileName: profile.InstanceProfileName,
-			RoleName:            roleName,
-		})
-		if err != nil {
-			logging.Debugf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
-		} else {
-			_, err := ir.Client.DeleteInstanceProfile(ir.Context, &iam.DeleteInstanceProfileInput{
-				InstanceProfileName: profile.InstanceProfileName,
-			})
-			if err != nil {
-				logging.Errorf("[Failed] %s", err)
-				return errors.WithStackTrace(err)
-			}
-		}
-		logging.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.ToString(profile.InstanceProfileName), aws.ToString(roleName))
-	}
-	return nil
-}
-
-func (ir *IAMRoles) deleteIamRole(roleName *string) error {
-	_, err := ir.Client.DeleteRole(ir.Context, &iam.DeleteRoleInput{
-		RoleName: roleName,
-	})
-	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	return nil
-}
-
-// Delete all IAM Roles
-func (ir *IAMRoles) nukeAll(roleNames []*string) error {
-	if len(roleNames) == 0 {
-		logging.Debug("No IAM Roles to nuke")
-		return nil
-	}
-
-	// NOTE: we don't need to do pagination here, because the pagination is handled by the caller to this function,
-	// based on IAMRoles.MaxBatchSize, however we add a guard here to warn users when the batching fails and has a
-	// chance of throttling AWS. Since we concurrently make one call for each identifier, we pick 100 for the limit here
-	// because many APIs in AWS have a limit of 100 requests per second.
-	if len(roleNames) > 100 {
-		logging.Debugf("Nuking too many IAM Roles at once (100): halting to avoid hitting AWS API rate limiting")
-		return TooManyIamRoleErr{}
-	}
-
-	// There is no bulk delete IAM Roles API, so we delete the batch of IAM roles concurrently using go routines
-	logging.Debugf("Deleting all IAM Roles")
-	wg := new(sync.WaitGroup)
-	wg.Add(len(roleNames))
-	errChans := make([]chan error, len(roleNames))
-	for i, roleName := range roleNames {
-		errChans[i] = make(chan error, 1)
-		go ir.deleteIamRoleAsync(wg, errChans[i], roleName)
-	}
-	wg.Wait()
-
-	// Collect all the errors from the async delete calls into a single error struct.
-	var allErrs *multierror.Error
-	for _, errChan := range errChans {
-		if err := <-errChan; err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			logging.Debugf("[Failed] %s", err)
-		}
-	}
-	finalErr := allErrs.ErrorOrNil()
-	if finalErr != nil {
-		return errors.WithStackTrace(finalErr)
-	}
-
-	for _, roleName := range roleNames {
-		logging.Debugf("[OK] IAM Role %s was deleted", aws.ToString(roleName))
-	}
-	return nil
-}
-
-func (ir *IAMRoles) shouldInclude(iamRole *types.Role, configObj config.Config, tags []types.Tag) bool {
+// shouldIncludeIAMRole determines if an IAM role should be included for deletion.
+func shouldIncludeIAMRole(iamRole *types.Role, cfg config.ResourceType, tags []types.Tag) bool {
 	if iamRole == nil {
 		return false
 	}
@@ -208,50 +103,128 @@ func (ir *IAMRoles) shouldInclude(iamRole *types.Role, configObj config.Config, 
 		return false
 	}
 
-	return configObj.IAMRoles.ShouldInclude(config.ResourceValue{
+	return cfg.ShouldInclude(config.ResourceValue{
 		Name: iamRole.RoleName,
 		Time: iamRole.CreateDate,
 		Tags: util.ConvertIAMTagsToMap(tags),
 	})
 }
 
-func (ir *IAMRoles) deleteIamRoleAsync(wg *sync.WaitGroup, errChan chan error, roleName *string) {
-	defer wg.Done()
-
-	var result *multierror.Error
-
-	// Functions used to really nuke an IAM Role as a role can have many attached
-	// items we need delete/detach them before actually deleting it.
-	// NOTE: The actual role deletion should always be the last one. This way we
-	// can guarantee that it will fail if we forgot to delete/detach an item.
-	functions := []func(roleName *string) error{
-		ir.deleteInstanceProfilesFromRole,
-		ir.deleteInlineRolePolicies,
-		ir.deleteManagedRolePolicies,
-		ir.deleteIamRole,
+// deleteIAMRole deletes a single IAM role and all its dependencies.
+// This function handles:
+// 1. Deleting instance profiles from the role
+// 2. Deleting inline policies
+// 3. Detaching managed policies
+// 4. Deleting the role itself
+func deleteIAMRole(ctx context.Context, client IAMRolesAPI, roleName *string) error {
+	// Delete instance profiles from role
+	if err := deleteInstanceProfilesFromRole(ctx, client, roleName); err != nil {
+		return err
 	}
 
-	for _, fn := range functions {
-		if err := fn(roleName); err != nil {
-			result = multierror.Append(result, err)
+	// Delete inline policies
+	if err := deleteInlineRolePolicies(ctx, client, roleName); err != nil {
+		return err
+	}
+
+	// Detach managed policies
+	if err := detachManagedRolePolicies(ctx, client, roleName); err != nil {
+		return err
+	}
+
+	// Delete the role
+	_, err := client.DeleteRole(ctx, &iam.DeleteRoleInput{
+		RoleName: roleName,
+	})
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	return nil
+}
+
+// deleteInstanceProfilesFromRole removes the role from all instance profiles and deletes them.
+func deleteInstanceProfilesFromRole(ctx context.Context, client IAMRolesAPI, roleName *string) error {
+	paginator := iam.NewListInstanceProfilesForRolePaginator(client, &iam.ListInstanceProfilesForRoleInput{
+		RoleName: roleName,
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, profile := range page.InstanceProfiles {
+			// Role needs to be removed from instance profile before it can be deleted
+			_, err := client.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+				InstanceProfileName: profile.InstanceProfileName,
+				RoleName:            roleName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+
+			_, err = client.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
+				InstanceProfileName: profile.InstanceProfileName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.ToString(profile.InstanceProfileName), aws.ToString(roleName))
 		}
 	}
 
-	// Record status of this resource
-	e := report.Entry{
-		Identifier:   aws.ToString(roleName),
-		ResourceType: "IAM Role",
-		Error:        result.ErrorOrNil(),
-	}
-	report.Record(e)
-
-	errChan <- result.ErrorOrNil()
+	return nil
 }
 
-// Custom errors
+// deleteInlineRolePolicies deletes all inline policies attached to the role.
+func deleteInlineRolePolicies(ctx context.Context, client IAMRolesAPI, roleName *string) error {
+	paginator := iam.NewListRolePoliciesPaginator(client, &iam.ListRolePoliciesInput{
+		RoleName: roleName,
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
 
-type TooManyIamRoleErr struct{}
+		for _, policyName := range page.PolicyNames {
+			_, err := client.DeleteRolePolicy(ctx, &iam.DeleteRolePolicyInput{
+				PolicyName: aws.String(policyName),
+				RoleName:   roleName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Deleted Inline Policy %s from Role %s", policyName, aws.ToString(roleName))
+		}
+	}
 
-func (err TooManyIamRoleErr) Error() string {
-	return "Too many IAM Roles requested at once"
+	return nil
+}
+
+// detachManagedRolePolicies detaches all managed policies from the role.
+func detachManagedRolePolicies(ctx context.Context, client IAMRolesAPI, roleName *string) error {
+	paginator := iam.NewListAttachedRolePoliciesPaginator(client, &iam.ListAttachedRolePoliciesInput{
+		RoleName: roleName,
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, attachedPolicy := range page.AttachedPolicies {
+			_, err = client.DetachRolePolicy(ctx, &iam.DetachRolePolicyInput{
+				PolicyArn: attachedPolicy.PolicyArn,
+				RoleName:  roleName,
+			})
+			if err != nil {
+				return errors.WithStackTrace(err)
+			}
+			logging.Debugf("Detached Policy %s from Role %s", aws.ToString(attachedPolicy.PolicyArn), aws.ToString(roleName))
+		}
+	}
+
+	return nil
 }
