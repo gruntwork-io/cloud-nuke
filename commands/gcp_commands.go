@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"context"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/gcp"
+	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -61,18 +63,13 @@ func gcpNuke(c *cli.Context) error {
 
 // gcpInspect is the command handler for non-destructive inspection of GCP resources.
 // It lists resources that would be deleted without actually deleting them.
-//
-// Note: The --resource-type and --exclude-resource-type flags are currently ignored for GCP.
-// GCP always inspects all resource types. This should be implemented in a future PR.
 func gcpInspect(c *cli.Context) error {
 	defer telemetry.TrackCommandLifecycle("gcp-inspect")()
 
-	// Handle the --list-resource-types flag
 	if c.Bool(FlagListResourceTypes) {
 		return handleListGcpResourceTypes()
 	}
 
-	// Parse and set log level
 	if err := parseLogLevel(c); err != nil {
 		return err
 	}
@@ -80,18 +77,40 @@ func gcpInspect(c *cli.Context) error {
 	projectID := c.String(FlagProjectID)
 	configObj := config.Config{}
 
-	// Apply time filters to config
 	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {
 		return err
 	}
 
-	// Get output preferences
 	outputFormat := c.String(FlagOutputFormat)
 	outputFile := c.String(FlagOutputFile)
 
-	// Retrieve and display resources without deleting them
-	_, err := handleGetGcpResourcesWithFormat(c, configObj, projectID, outputFormat, outputFile)
-	return err
+	queryParams := renderers.QueryParams{Regions: []string{"global"}}
+	rc, err := setupInspectReporting(c, outputFormat, outputFile, "inspect-gcp", queryParams)
+	if err != nil {
+		return err
+	}
+	defer rc.Cleanup()
+
+	if !ui.ShouldSuppressProgressOutput(outputFormat) {
+		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("GCP Resource Query Parameters")
+		pterm.Println("Project ID:", projectID)
+		pterm.Println()
+	}
+
+	_, err = gcp.GetAllResources(rc.Ctx, projectID, configObj, time.Time{}, time.Time{})
+	if err != nil {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Error inspecting resources",
+		}, map[string]interface{}{})
+		rc.Collector.Complete()
+		return errors.WithStackTrace(err)
+	}
+
+	if !ui.ShouldSuppressProgressOutput(outputFormat) {
+		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found GCP Resources")
+	}
+
+	return rc.Collector.Complete()
 }
 
 // Helper Functions
@@ -100,25 +119,34 @@ func gcpInspect(c *cli.Context) error {
 // gcpNukeHelper is the core logic for nuking GCP resources.
 // It retrieves resources, confirms deletion with the user, and executes the nuke operation.
 func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) error {
-	// Retrieve all matching resources
-	account, err := handleGetGcpResourcesWithFormat(c, configObj, projectID, outputFormat, outputFile)
+	rc, err := setupNukeReporting(c, outputFormat, outputFile, "gcp", []string{"global"})
+	if err != nil {
+		return err
+	}
+	defer rc.Cleanup()
+
+	account, err := handleGetGcpResourcesWithFormat(rc.Ctx, configObj, projectID, outputFormat, outputFile)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
 		}, map[string]interface{}{})
+		rc.Collector.Complete()
 		return errors.WithStackTrace(err)
 	}
 
-	// Confirm with user before proceeding (unless --force or --dry-run is set)
 	shouldProceed, err := confirmNuke(c, len(account.Resources) > 0)
 	if err != nil {
 		return err
 	}
 
-	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		gcp.NukeAllResources(account, configObj, nil)
-		ui.RenderRunReportWithFormat(outputFormat, outputFile)
+		progressBar, _ := pterm.DefaultProgressbar.WithTotal(account.TotalResourceCount()).Start()
+		gcp.NukeAllResources(rc.Ctx, account, configObj, progressBar)
+		progressBar.Stop()
+
+		if err := rc.Collector.Complete(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -126,7 +154,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, ou
 
 // handleGetGcpResourcesWithFormat retrieves all GCP resources matching the filters and renders them
 // in the specified output format. This is used for both inspect and nuke operations.
-func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) (
+func handleGetGcpResourcesWithFormat(ctx context.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) (
 	*gcp.GcpProjectResources, error) {
 	// Display query parameters (only for table format to avoid cluttering JSON output)
 	if !ui.ShouldSuppressProgressOutput(outputFormat) {
@@ -137,7 +165,7 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, pr
 
 	// Retrieve all resources matching the filters
 	// Note: GCP uses config-based time filtering instead of query-based like AWS
-	accountResources, err := gcp.GetAllResources(projectID, configObj, time.Time{}, time.Time{})
+	accountResources, err := gcp.GetAllResources(ctx, projectID, configObj, time.Time{}, time.Time{})
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",

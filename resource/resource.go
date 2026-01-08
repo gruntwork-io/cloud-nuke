@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
@@ -171,15 +171,20 @@ func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) error {
 	ptrIdentifiers := util.ToStringPtrSlice(identifiers)
 	results := r.Nuker(ctx, r.Client, r.Scope, r.ResourceTypeName, ptrIdentifiers)
 
+	// Get collector from context if present (new event-driven reporting)
+	collector := reporting.FromContext(ctx)
+
 	// Centralized reporting and error aggregation
 	var allErrs *multierror.Error
 	for _, result := range results {
-		// Report to the report package
-		report.Record(report.Entry{
-			Identifier:   result.Identifier,
-			ResourceType: r.ResourceTypeName,
-			Error:        result.Error,
-		})
+		// Report to collector if present in context
+		if collector != nil {
+			region := r.Scope.Region
+			if region == "" && r.Scope.ProjectID != "" {
+				region = "global"
+			}
+			collector.RecordDeleted(r.ResourceTypeName, region, result.Identifier, result.Error)
+		}
 
 		// Log the result
 		if result.Error != nil {

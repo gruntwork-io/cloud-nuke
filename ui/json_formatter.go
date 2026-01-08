@@ -44,6 +44,10 @@ func RenderGcpInspectAsJSON(project *gcp.GcpProjectResources, w io.Writer) error
 }
 
 // RenderNukeReportAsJSON renders nuke operation results as JSON
+//
+// Deprecated: Use the reporting package with Collector/Renderer pattern instead.
+// This function reads from the deprecated report package's global state.
+// See renderers.NukeJSONRenderer for the new approach.
 func RenderNukeReportAsJSON(w io.Writer) error {
 	records := report.GetRecords()
 	generalErrors := report.GetErrors()

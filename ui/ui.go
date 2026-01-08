@@ -20,11 +20,19 @@ import (
 // It will print a table showing resources were deleted, and what errors occurred
 // Note that certain functions don't support the report table, such as aws-inspect,
 // which prints its own findings out directly to os.Stdout
+//
+// Deprecated: Use the reporting package with Collector/Renderer pattern instead.
+// This function reads from the deprecated report package's global state.
+// See renderers.NukeCLIRenderer for the new approach.
 func RenderRunReport() {
 	RenderRunReportWithFormat("table", "")
 }
 
 // RenderRunReportWithFormat renders the run report in the specified format
+//
+// Deprecated: Use the reporting package with Collector/Renderer pattern instead.
+// This function reads from the deprecated report package's global state.
+// See renderers.NukeCLIRenderer and renderers.NukeJSONRenderer for the new approach.
 func RenderRunReportWithFormat(outputFormat string, outputFile string) {
 	writer, closer, err := GetOutputWriter(outputFile)
 	if err != nil {
@@ -52,6 +60,11 @@ func RenderRunReportWithFormat(outputFormat string, outputFile string) {
 	PrintRunReport(writer)
 }
 
+// PrintGeneralErrorReport prints a table of general errors that occurred during execution.
+//
+// Deprecated: Use the reporting package with Collector/Renderer pattern instead.
+// This function reads from the deprecated report package's global state.
+// See renderers.NukeCLIRenderer for the new approach.
 func PrintGeneralErrorReport(w io.Writer) {
 	// generalErrors is a map[string]GeneralError from the report package. This map contains
 	// an entry for every general error (that is, not a resource-specific erorr) that occurred
@@ -83,6 +96,11 @@ func PrintGeneralErrorReport(w io.Writer) {
 	}
 }
 
+// PrintRunReport prints a table showing which resources were deleted and any errors.
+//
+// Deprecated: Use the reporting package with Collector/Renderer pattern instead.
+// This function reads from the deprecated report package's global state.
+// See renderers.NukeCLIRenderer for the new approach.
 func PrintRunReport(w io.Writer) {
 	// Workaround an issue where the pterm progressbar might not be cleaned up correctly
 	w.Write([]byte("\r"))

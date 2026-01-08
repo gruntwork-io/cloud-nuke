@@ -14,7 +14,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
+	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/go-commons/collections"
 )
@@ -41,6 +41,10 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	}
 
 	c = context.WithValue(c, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
+
+	// Get collector from context if present (for event-driven reporting)
+	collector := reporting.FromContext(c)
+
 	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	for _, region := range query.Regions {
 		cloudNukeSession, errSession := NewSession(region)
@@ -57,51 +61,51 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 		awsResource := AwsResources{}
 		registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
 		for _, resource := range registeredResources {
-			if IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
+			resourceName := (*resource).ResourceName()
+			if !IsNukeable(resourceName, query.ResourceTypes) {
+				continue
+			}
 
-				// PrepareContext sets up the resource context for execution, utilizing the context 'c' and the resource individual configuration.
-				// This function should be called after configuring the timeout to ensure proper execution context.
-				resourceConfig := (*resource).GetAndSetResourceConfig(configObj)
-				err := (*resource).PrepareContext(c, resourceConfig)
-				if err != nil {
-					return nil, err
-				}
+			resourceConfig := (*resource).GetAndSetResourceConfig(configObj)
+			if err := (*resource).PrepareContext(c, resourceConfig); err != nil {
+				return nil, err
+			}
 
-				spinner.UpdateText(
-					fmt.Sprintf("Searching %s resources in %s", (*resource).ResourceName(), region))
-				start := time.Now()
-				identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
-				if err != nil {
-					logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
-
-					// Reporting resource-level failures encountered during the GetIdentifiers phase
-					// 	Note: This is useful to understand which resources are failing more often than others.
-					telemetry.TrackEvent(commonTelemetry.EventContext{
-						EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*resource).ResourceName()),
-					}, map[string]interface{}{
-						"region": region,
-					})
-
-					ge := report.GeneralError{
-						Error:        err,
-						Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),
-						ResourceType: (*resource).ResourceName(),
-					}
-					report.RecordError(ge)
-				}
-
+			spinner.UpdateText(fmt.Sprintf("Searching %s resources in %s", resourceName, region))
+			start := time.Now()
+			identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
+			if err != nil {
+				logging.Errorf("Unable to retrieve %s: %v", resourceName, err)
 				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: fmt.Sprintf("Done getting %s identifiers", (*resource).ResourceName()),
-				}, map[string]interface{}{
-					"recordCount": len(identifiers),
-					"actionTime":  time.Since(start).Seconds(),
-				})
-
-				// Only append if we have non-empty identifiers
-				if len(identifiers) > 0 {
-					pterm.Info.Println(fmt.Sprintf("Found %d %s resources in %s", len(identifiers), (*resource).ResourceName(), region))
-					awsResource.Resources = append(awsResource.Resources, resource)
+					EventName: fmt.Sprintf("error:GetIdentifiers:%s", resourceName),
+				}, map[string]interface{}{"region": region})
+				if collector != nil {
+					collector.RecordError(resourceName, fmt.Sprintf("Unable to retrieve %s", resourceName), err)
 				}
+			}
+
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: fmt.Sprintf("Done getting %s identifiers", resourceName),
+			}, map[string]interface{}{
+				"recordCount": len(identifiers),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+
+			// Report found resources to collector (for inspect operations)
+			if collector != nil {
+				for _, id := range identifiers {
+					nukable, reason := (*resource).IsNukable(id)
+					reasonStr := ""
+					if reason != nil {
+						reasonStr = reason.Error()
+					}
+					collector.RecordFound(resourceName, region, id, nukable, reasonStr)
+				}
+			}
+
+			if len(identifiers) > 0 {
+				pterm.Info.Println(fmt.Sprintf("Found %d %s resources in %s", len(identifiers), resourceName, region))
+				awsResource.Resources = append(awsResource.Resources, resource)
 			}
 		}
 
@@ -146,7 +150,7 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string, bar *pterm.ProgressbarPrinter) {
+func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources, region string, bar *pterm.ProgressbarPrinter) {
 	resourcesInRegion := account.Resources[region]
 
 	for _, awsResource := range resourcesInRegion.Resources {
@@ -160,7 +164,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, bar *
 			batch := batches[i]
 			bar.UpdateTitle(fmt.Sprintf("Nuking batch of %d %s resource(s) in %s",
 				len(batch), (*awsResource).ResourceName(), region))
-			if err := (*awsResource).Nuke(context.TODO(), batch); err != nil {
+			if err := (*awsResource).Nuke(ctx, batch); err != nil {
 				// TODO: Figure out actual error type
 				if strings.Contains(err.Error(), "RequestLimitExceeded") {
 					logging.Debug(
@@ -196,7 +200,8 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, bar *
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources(account *AwsAccountResources, regions []string) error {
+// The context should contain a reporting.Collector for event-driven reporting.
+func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions []string) error {
 	// Set the progressbar width to the total number of nukeable resources found
 	// across all regions
 	progressBar, err := pterm.DefaultProgressbar.WithTotal(account.TotalResourceCount()).Start()
@@ -218,7 +223,7 @@ func NukeAllResources(account *AwsAccountResources, regions []string) error {
 		// We intentionally do not handle an error returned from this method, because we collect individual errors
 		// on per-resource basis via the report package's Record method. In the run report displayed at the end of
 		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
-		nukeAllResourcesInRegion(account, region, progressBar)
+		nukeAllResourcesInRegion(ctx, account, region, progressBar)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Done Nuking Region",
 		}, map[string]interface{}{
