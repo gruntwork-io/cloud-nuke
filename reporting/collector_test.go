@@ -1,7 +1,6 @@
 package reporting
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -60,18 +59,6 @@ func TestCollector_FullFlow(t *testing.T) {
 
 	// Second complete should be no-op
 	assert.NoError(t, c.Complete())
-}
-
-func TestCollector_Context(t *testing.T) {
-	c := NewCollector()
-
-	// Add to context and retrieve
-	ctx := WithCollector(context.Background(), c)
-	assert.Same(t, c, FromContext(ctx))
-
-	// No collector in context
-	assert.Nil(t, FromContext(context.Background()))
-	assert.Nil(t, FromContext(nil))
 }
 
 func TestCollector_ConcurrentAccess(t *testing.T) {

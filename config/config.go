@@ -189,7 +189,6 @@ func (c *Config) addTimeOut(timeout *time.Duration, fieldName string) {
 	}
 }
 
-
 func (c *Config) addBoolFlag(flag bool, fieldName string) {
 	// Do nothing if the flag filter is false, by default it will be false
 	if flag == false {

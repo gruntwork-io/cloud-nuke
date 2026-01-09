@@ -44,7 +44,8 @@ func (g *GcpResourceAdapter[C]) Init(projectID string) {
 }
 
 // Nuke deletes the resources with the given identifiers.
-func (g *GcpResourceAdapter[C]) Nuke(ctx context.Context, identifiers []string) error {
+// Returns results for each identifier. Caller handles reporting.
+func (g *GcpResourceAdapter[C]) Nuke(ctx context.Context, identifiers []string) []resource.NukeResult {
 	return g.Resource.Nuke(ctx, identifiers)
 }
 

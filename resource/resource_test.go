@@ -85,9 +85,11 @@ func TestResource_Nuke(t *testing.T) {
 	}
 	r.Init(nil)
 
-	err := r.Nuke(context.Background(), []string{"id-1", "id-2"})
+	results := r.Nuke(context.Background(), []string{"id-1", "id-2"})
 
-	require.NoError(t, err)
+	require.Len(t, results, 2)
+	assert.NoError(t, results[0].Error)
+	assert.NoError(t, results[1].Error)
 	assert.Equal(t, []string{"id-1", "id-2"}, nuked)
 }
 
@@ -100,13 +102,13 @@ func TestResource_Nuke_EmptySkipsNuker(t *testing.T) {
 		},
 	}
 
-	err := r.Nuke(context.Background(), []string{})
+	results := r.Nuke(context.Background(), []string{})
 
-	require.NoError(t, err)
+	assert.Nil(t, results)
 	assert.False(t, nukerCalled)
 }
 
-func TestResource_Nuke_PropagatesError(t *testing.T) {
+func TestResource_Nuke_ReturnsErrors(t *testing.T) {
 	r := &Resource[*mockClient]{
 		ResourceTypeName: "test",
 		Nuker: func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) []NukeResult {
@@ -115,10 +117,11 @@ func TestResource_Nuke_PropagatesError(t *testing.T) {
 	}
 	r.Init(nil)
 
-	err := r.Nuke(context.Background(), []string{"id-1"})
+	results := r.Nuke(context.Background(), []string{"id-1"})
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "delete failed")
+	require.Len(t, results, 1)
+	require.Error(t, results[0].Error)
+	assert.Contains(t, results[0].Error.Error(), "delete failed")
 }
 
 func TestResource_PermissionVerification(t *testing.T) {

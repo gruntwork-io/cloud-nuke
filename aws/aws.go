@@ -20,7 +20,7 @@ import (
 )
 
 // GetAllResources - Lists all aws resources
-func GetAllResources(c context.Context, query *Query, configObj config.Config) (*AwsAccountResources, error) {
+func GetAllResources(c context.Context, query *Query, configObj config.Config, collector *reporting.Collector) (*AwsAccountResources, error) {
 	configObj.AddExcludeAfterTime(query.ExcludeAfter)
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
 	configObj.AddTimeout(query.Timeout)
@@ -41,9 +41,6 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 	}
 
 	c = context.WithValue(c, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
-
-	// Get collector from context if present (for event-driven reporting)
-	collector := reporting.FromContext(c)
 
 	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	for _, region := range query.Regions {
@@ -79,9 +76,7 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: fmt.Sprintf("error:GetIdentifiers:%s", resourceName),
 				}, map[string]interface{}{"region": region})
-				if collector != nil {
-					collector.RecordError(resourceName, fmt.Sprintf("Unable to retrieve %s", resourceName), err)
-				}
+				collector.RecordError(resourceName, fmt.Sprintf("Unable to retrieve %s", resourceName), err)
 			}
 
 			telemetry.TrackEvent(commonTelemetry.EventContext{
@@ -92,15 +87,13 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config) (
 			})
 
 			// Report found resources to collector (for inspect operations)
-			if collector != nil {
-				for _, id := range identifiers {
-					nukable, reason := (*resource).IsNukable(id)
-					reasonStr := ""
-					if reason != nil {
-						reasonStr = reason.Error()
-					}
-					collector.RecordFound(resourceName, region, id, nukable, reasonStr)
+			for _, id := range identifiers {
+				nukable, reason := (*resource).IsNukable(id)
+				reasonStr := ""
+				if reason != nil {
+					reasonStr = reason.Error()
 				}
+				collector.RecordFound(resourceName, region, id, nukable, reasonStr)
 			}
 
 			if len(identifiers) > 0 {
@@ -150,10 +143,11 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources, region string, bar *pterm.ProgressbarPrinter) {
+func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources, region string, bar *pterm.ProgressbarPrinter, collector *reporting.Collector) {
 	resourcesInRegion := account.Resources[region]
 
 	for _, awsResource := range resourcesInRegion.Resources {
+		resourceName := (*awsResource).ResourceName()
 		length := len((*awsResource).ResourceIdentifiers())
 
 		// Split api calls into batches
@@ -163,26 +157,30 @@ func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources,
 		for i := 0; i < len(batches); i++ {
 			batch := batches[i]
 			bar.UpdateTitle(fmt.Sprintf("Nuking batch of %d %s resource(s) in %s",
-				len(batch), (*awsResource).ResourceName(), region))
-			if err := (*awsResource).Nuke(ctx, batch); err != nil {
-				// TODO: Figure out actual error type
-				if strings.Contains(err.Error(), "RequestLimitExceeded") {
-					logging.Debug(
-						"Request limit reached. Waiting 1 minute before making new requests",
-					)
-					time.Sleep(1 * time.Minute)
-					continue
+				len(batch), resourceName, region))
+
+			results := (*awsResource).Nuke(ctx, batch)
+
+			// Report results via collector
+			hasErrors := false
+			for _, result := range results {
+				collector.RecordDeleted(resourceName, region, result.Identifier, result.Error)
+				if result.Error != nil {
+					hasErrors = true
+					// Check for rate limiting
+					if strings.Contains(result.Error.Error(), "RequestLimitExceeded") {
+						logging.Debug(
+							"Request limit reached. Waiting 1 minute before making new requests",
+						)
+						time.Sleep(1 * time.Minute)
+					}
 				}
+			}
 
-				// We're only interested in acting on Rate limit errors - no other error should prevent further processing
-				// of the current job.Since we handle each individual resource deletion error within its own resource-specific code,
-				// we can safely discard this error
-				_ = err
-
-				// Report to telemetry - aggregated metrics of failures per resources.
-				// 	Note: This is useful to understand which resources are failing more often than others.
+			// Report to telemetry on errors
+			if hasErrors {
 				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: fmt.Sprintf("error:Nuke:%s", (*awsResource).ResourceName()),
+					EventName: fmt.Sprintf("error:Nuke:%s", resourceName),
 				}, map[string]interface{}{
 					"region": region,
 				})
@@ -200,8 +198,7 @@ func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources,
 }
 
 // NukeAllResources - Nukes all aws resources
-// The context should contain a reporting.Collector for event-driven reporting.
-func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions []string) error {
+func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions []string, collector *reporting.Collector) error {
 	// Set the progressbar width to the total number of nukeable resources found
 	// across all regions
 	progressBar, err := pterm.DefaultProgressbar.WithTotal(account.TotalResourceCount()).Start()
@@ -221,9 +218,9 @@ func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions
 		})
 
 		// We intentionally do not handle an error returned from this method, because we collect individual errors
-		// on per-resource basis via the report package's Record method. In the run report displayed at the end of
+		// on per-resource basis via the collector. In the run report displayed at the end of
 		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
-		nukeAllResourcesInRegion(ctx, account, region, progressBar)
+		nukeAllResourcesInRegion(ctx, account, region, progressBar, collector)
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Done Nuking Region",
 		}, map[string]interface{}{

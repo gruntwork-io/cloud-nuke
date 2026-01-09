@@ -133,8 +133,8 @@ func (a *AwsResourceAdapter[C]) Init(cfg aws.Config) {
 }
 
 // Nuke deletes the resources with the given identifiers.
-// Delegates directly to the embedded Resource's Nuke method.
-func (a *AwsResourceAdapter[C]) Nuke(ctx context.Context, identifiers []string) error {
+// Returns results for each identifier. Caller handles reporting.
+func (a *AwsResourceAdapter[C]) Nuke(ctx context.Context, identifiers []string) []resource.NukeResult {
 	return a.Resource.Nuke(ctx, identifiers)
 }
 

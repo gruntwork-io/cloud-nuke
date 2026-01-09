@@ -6,6 +6,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/renderers"
+	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
@@ -113,18 +114,22 @@ func awsInspect(c *cli.Context) error {
 	outputFormat := c.String(FlagOutputFormat)
 	outputFile := c.String(FlagOutputFile)
 
-	queryParams := renderers.QueryParams{
-		Regions:              query.Regions,
-		ResourceTypes:        query.ResourceTypes,
-		ExcludeAfter:         query.ExcludeAfter,
-		IncludeAfter:         query.IncludeAfter,
-		ListUnaliasedKMSKeys: query.ListUnaliasedKMSKeys,
-	}
-	rc, err := setupInspectReporting(c, outputFormat, outputFile, "inspect-aws", queryParams)
+	rc, err := setupReporting(c, ReportingConfig{
+		OutputFormat: outputFormat,
+		OutputFile:   outputFile,
+		Command:      "inspect-aws",
+		Query: &renderers.QueryParams{
+			Regions:              query.Regions,
+			ResourceTypes:        query.ResourceTypes,
+			ExcludeAfter:         query.ExcludeAfter,
+			IncludeAfter:         query.IncludeAfter,
+			ListUnaliasedKMSKeys: query.ListUnaliasedKMSKeys,
+		},
+	})
 	if err != nil {
 		return err
 	}
-	defer rc.Cleanup()
+	defer func() { _ = rc.Cleanup() }()
 
 	if !ui.ShouldSuppressProgressOutput(outputFormat) {
 		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("AWS Resource Query Parameters")
@@ -134,12 +139,12 @@ func awsInspect(c *cli.Context) error {
 		pterm.Println()
 	}
 
-	_, err = aws.GetAllResources(rc.Ctx, query, config.Config{})
+	_, err = aws.GetAllResources(rc.Ctx, query, config.Config{}, rc.Collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
 		}, map[string]interface{}{})
-		rc.Collector.Complete()
+		_ = rc.Collector.Complete()
 		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
 	}
 
@@ -156,18 +161,23 @@ func awsInspect(c *cli.Context) error {
 // awsNukeHelper is the core logic for nuking AWS resources.
 // It retrieves resources, confirms deletion with the user, and executes the nuke operation.
 func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, outputFormat string, outputFile string) error {
-	rc, err := setupNukeReporting(c, outputFormat, outputFile, "aws", query.Regions)
+	rc, err := setupReporting(c, ReportingConfig{
+		OutputFormat: outputFormat,
+		OutputFile:   outputFile,
+		Command:      "aws",
+		Regions:      query.Regions,
+	})
 	if err != nil {
 		return err
 	}
-	defer rc.Cleanup()
+	defer func() { _ = rc.Cleanup() }()
 
-	account, err := handleGetResourcesWithFormatCtx(rc.Ctx, configObj, query, outputFormat, outputFile)
+	account, err := handleGetResourcesWithFormatCtx(rc.Ctx, configObj, query, outputFormat, outputFile, rc.Collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
 		}, map[string]interface{}{})
-		rc.Collector.Complete()
+		_ = rc.Collector.Complete()
 		return errors.WithStackTrace(err)
 	}
 
@@ -177,8 +187,8 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, ou
 	}
 
 	if shouldProceed {
-		if err := aws.NukeAllResources(rc.Ctx, account, query.Regions); err != nil {
-			rc.Collector.Complete()
+		if err := aws.NukeAllResources(rc.Ctx, account, query.Regions, rc.Collector); err != nil {
+			_ = rc.Collector.Complete()
 			return err
 		}
 		if err := rc.Collector.Complete(); err != nil {
@@ -231,9 +241,9 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 }
 
 // handleGetResourcesWithFormatCtx retrieves all AWS resources matching the query and renders them
-// in the specified output format. Accepts a context that may contain a reporting.Collector.
+// in the specified output format. Accepts an optional collector to capture errors.
 // This is used for nuke operations where we want to capture errors in the collector.
-func handleGetResourcesWithFormatCtx(ctx context.Context, configObj config.Config, query *aws.Query, outputFormat string, outputFile string) (
+func handleGetResourcesWithFormatCtx(ctx context.Context, configObj config.Config, query *aws.Query, outputFormat string, outputFile string, collector *reporting.Collector) (
 	*aws.AwsAccountResources, error) {
 	// Display query parameters (only for table format to avoid cluttering JSON output)
 	if !ui.ShouldSuppressProgressOutput(outputFormat) {
@@ -246,8 +256,7 @@ func handleGetResourcesWithFormatCtx(ctx context.Context, configObj config.Confi
 	}
 
 	// Retrieve all resources matching the query
-	// If ctx contains a collector, errors will be reported to it
-	accountResources, err := aws.GetAllResources(ctx, query, configObj)
+	accountResources, err := aws.GetAllResources(ctx, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",

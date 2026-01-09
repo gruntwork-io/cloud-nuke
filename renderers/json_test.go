@@ -10,16 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNukeJSONRenderer(t *testing.T) {
+func TestJSONRenderer_Nuke(t *testing.T) {
 	var buf bytes.Buffer
-	r := NewNukeJSONRenderer(&buf, "aws", []string{"us-east-1", "us-west-2"})
+	r := NewJSONRenderer(&buf, JSONRendererConfig{
+		Command: "aws",
+		Regions: []string{"us-east-1", "us-west-2"},
+	})
 
 	r.OnEvent(reporting.ResourceDeleted{ResourceType: "ec2", Identifier: "i-1", Success: true})
 	r.OnEvent(reporting.ResourceDeleted{ResourceType: "ec2", Identifier: "i-2", Success: false, Error: "denied"})
 	r.OnEvent(reporting.GeneralError{ResourceType: "s3", Description: "list failed", Error: "timeout"})
-	r.OnEvent(reporting.ResourceFound{}) // should be ignored
+	r.OnEvent(reporting.ResourceFound{}) // collected but not rendered for nuke
 
-	assert.Len(t, r.resources, 2)
+	assert.Len(t, r.deleted, 2)
 	assert.Len(t, r.errors, 1)
 
 	require.NoError(t, r.Render())
@@ -34,27 +37,20 @@ func TestNukeJSONRenderer(t *testing.T) {
 	assert.Equal(t, 1, output.Summary.Failed)
 }
 
-func TestNukeJSONRenderer_Empty(t *testing.T) {
-	var buf bytes.Buffer
-	r := NewNukeJSONRenderer(&buf, "aws", []string{"us-east-1"})
-
-	require.NoError(t, r.Render())
-
-	var output NukeOutput
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
-	assert.Equal(t, 0, output.Summary.Total)
-}
-
-func TestInspectJSONRenderer(t *testing.T) {
+func TestJSONRenderer_Inspect(t *testing.T) {
 	var buf bytes.Buffer
 	query := QueryParams{Regions: []string{"us-east-1"}, ResourceTypes: []string{"ec2"}}
-	r := NewInspectJSONRenderer(&buf, "inspect-aws", query)
+	r := NewJSONRenderer(&buf, JSONRendererConfig{
+		Command: "inspect-aws",
+		Query:   &query,
+	})
 
 	r.OnEvent(reporting.ResourceFound{ResourceType: "ec2", Region: "us-east-1", Identifier: "i-1", Nukable: true})
 	r.OnEvent(reporting.ResourceFound{ResourceType: "ec2", Region: "us-east-1", Identifier: "i-2", Nukable: false, Reason: "protected"})
-	r.OnEvent(reporting.ResourceDeleted{}) // should be ignored
+	// Note: With unified renderer, output type is determined by collected events
+	// Only ResourceFound events → InspectOutput
 
-	assert.Len(t, r.resources, 2)
+	assert.Len(t, r.found, 2)
 
 	require.NoError(t, r.Render())
 
@@ -67,9 +63,9 @@ func TestInspectJSONRenderer(t *testing.T) {
 	assert.Equal(t, 1, output.Summary.NonNukable)
 }
 
-func TestInspectJSONRenderer_Empty(t *testing.T) {
+func TestJSONRenderer_Empty(t *testing.T) {
 	var buf bytes.Buffer
-	r := NewInspectJSONRenderer(&buf, "inspect-aws", QueryParams{})
+	r := NewJSONRenderer(&buf, JSONRendererConfig{Command: "inspect-aws"})
 
 	require.NoError(t, r.Render())
 

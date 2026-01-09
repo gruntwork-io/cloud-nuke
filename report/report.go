@@ -6,11 +6,11 @@
 //   - Event-driven reporting via reporting.Collector
 //   - Multiple output formats via renderers (CLI, JSON)
 //   - Thread-safe event collection without global state
-//   - Context-based collector passing
+//   - Explicit parameter passing for collectors
 //
 // Migration: Replace report.Record() calls with collector.RecordDeleted() and
-// report.RecordError() with collector.RecordError(). Pass the collector via context
-// using reporting.WithCollector() and retrieve it with reporting.FromContext().
+// report.RecordError() with collector.RecordError(). Pass the collector explicitly
+// as a function parameter to the functions that need it.
 package report
 
 import (

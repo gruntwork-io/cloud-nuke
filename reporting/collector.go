@@ -1,7 +1,6 @@
 package reporting
 
 import (
-	"context"
 	"sync"
 )
 
@@ -29,13 +28,12 @@ func NewCollector() *Collector {
 	}
 }
 
-// AddRenderer adds a renderer to receive events
+// AddRenderer adds a renderer to receive events.
+// Must be called during setup before any concurrent operations.
 func (c *Collector) AddRenderer(r Renderer) {
 	if r == nil {
 		return
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.renderers = append(c.renderers, r)
 }
 
@@ -112,24 +110,5 @@ func (c *Collector) Complete() error {
 		}
 	}
 
-	return nil
-}
-
-// Context key for collector
-type collectorKey struct{}
-
-// WithCollector adds a collector to the context
-func WithCollector(ctx context.Context, c *Collector) context.Context {
-	return context.WithValue(ctx, collectorKey{}, c)
-}
-
-// FromContext retrieves the collector from context (nil if not present)
-func FromContext(ctx context.Context) *Collector {
-	if ctx == nil {
-		return nil
-	}
-	if c, ok := ctx.Value(collectorKey{}).(*Collector); ok {
-		return c
-	}
 	return nil
 }

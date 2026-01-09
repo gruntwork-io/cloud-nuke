@@ -1,60 +1,45 @@
 // Package reporting provides event-driven reporting for cloud-nuke operations.
 //
-// This package implements a Collector/Renderer pattern that replaces the deprecated
-// global-state based reporting in the report package. Key components:
-//
-//   - Event: Interface for all reportable events (ResourceFound, ResourceDeleted, GeneralError)
+// Key components:
+//   - Event: Interface for reportable events (ResourceFound, ResourceDeleted, GeneralError)
 //   - Collector: Thread-safe event collector that routes events to renderers
-//   - Renderer: Interface for output handlers (implemented in the renderers package)
+//   - Renderer: Interface for output handlers (implemented in renderers package)
 //
-// Usage:
-//
-//	collector := reporting.NewCollector()
-//	collector.AddRenderer(renderers.NewNukeCLIRenderer(os.Stdout))
-//	ctx := reporting.WithCollector(context.Background(), collector)
-//
-//	// Events are emitted during operations via:
-//	// - collector.RecordFound() for discovered resources
-//	// - collector.RecordDeleted() for deletion results
-//	// - collector.RecordError() for general errors
-//
-//	// Render final output:
-//	collector.Complete()
+// The collector is passed explicitly as a function parameter to functions that need it.
 package reporting
 
-// Event represents something that happened during a nuke/inspect operation.
-// Events are emitted in real-time and can be consumed by renderers.
+// Event is the interface for all reportable events.
 type Event interface {
 	EventType() string
 }
 
-// ResourceFound is emitted when a resource is discovered during inspection.
+// ResourceFound is emitted when a resource is discovered.
 type ResourceFound struct {
-	ResourceType string
-	Region       string
-	Identifier   string
-	Nukable      bool
-	Reason       string // why not nukable (empty if nukable)
+	ResourceType string `json:"resource_type"`
+	Region       string `json:"region"`
+	Identifier   string `json:"identifier"`
+	Nukable      bool   `json:"nukable"`
+	Reason       string `json:"nukable_reason,omitempty"` // empty if nukable
 }
 
 func (e ResourceFound) EventType() string { return "resource_found" }
 
-// ResourceDeleted is emitted when a deletion attempt completes.
+// ResourceDeleted is emitted after a deletion attempt.
 type ResourceDeleted struct {
-	ResourceType string
-	Region       string
-	Identifier   string
-	Success      bool
-	Error        string // empty if success
+	ResourceType string `json:"resource_type"`
+	Region       string `json:"region,omitempty"`
+	Identifier   string `json:"identifier"`
+	Success      bool   `json:"success"`
+	Error        string `json:"error,omitempty"` // empty if success
 }
 
 func (e ResourceDeleted) EventType() string { return "resource_deleted" }
 
 // GeneralError is emitted for errors not tied to a specific resource.
 type GeneralError struct {
-	ResourceType string // optional, may be empty
-	Description  string
-	Error        string
+	ResourceType string `json:"resource_type,omitempty"` // optional
+	Description  string `json:"description"`
+	Error        string `json:"error"`
 }
 
 func (e GeneralError) EventType() string { return "general_error" }

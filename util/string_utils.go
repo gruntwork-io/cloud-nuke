@@ -40,18 +40,18 @@ func Difference(a, b []*string) []*string {
 }
 
 // Truncate accepts a string and a max length. If the max length is less than the string's current length,
-// then only the first maxLen characters of the string are returned
+// then only the first maxLen characters of the string are returned, with "..." appended.
 func Truncate(s string, maxLen int) string {
 	if len(s) > maxLen {
-		return s[:maxLen]
+		return s[:maxLen] + "..."
 	}
 	return s
 }
 
-// RemoveNewlines will delete all the newlines in a given string, which is useful for making error messages
-// "sit" more nicely within their specified table cells in the terminal
+// RemoveNewlines will delete all the newlines (\n and \r) in a given string, which is useful for making
+// error messages "sit" more nicely within their specified table cells in the terminal
 func RemoveNewlines(s string) string {
-	return strings.ReplaceAll(s, "\n", "")
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\n", " "), "\r", " ")
 }
 
 // ToStringPtrSlice converts a slice of strings to a slice of string pointers.

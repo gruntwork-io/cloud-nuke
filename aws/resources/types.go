@@ -5,16 +5,18 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
 // AwsResource is an interface that represents a single AWS resource.
 // This interface is satisfied by AwsResourceAdapter[C] which wraps resource.Resource[C].
+// Resources are unaware of reporting - they return results and the orchestration layer handles reporting.
 type AwsResource interface {
 	Init(cfg aws.Config)
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int
-	Nuke(ctx context.Context, identifiers []string) error
+	Nuke(ctx context.Context, identifiers []string) []resource.NukeResult
 	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
 	IsNukable(string) (bool, error)
 	PrepareContext(context.Context, config.ResourceType) error
