@@ -42,7 +42,6 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 
 	c = context.WithValue(c, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
 
-	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	for _, region := range query.Regions {
 		cloudNukeSession, errSession := NewSession(region)
 		if errSession != nil {
@@ -68,7 +67,7 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 				return nil, err
 			}
 
-			spinner.UpdateText(fmt.Sprintf("Searching %s resources in %s", resourceName, region))
+			collector.UpdateScanProgress(resourceName, region)
 			start := time.Now()
 			identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
 			if err != nil {
@@ -97,7 +96,6 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 			}
 
 			if len(identifiers) > 0 {
-				pterm.Info.Println(fmt.Sprintf("Found %d %s resources in %s", len(identifiers), resourceName, region))
 				awsResource.Resources = append(awsResource.Resources, resource)
 			}
 		}
@@ -109,10 +107,6 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 
 	logging.Info("Done searching for resources")
 	logging.Infof("Found total of %d resources", account.TotalResourceCount())
-	err := spinner.Stop()
-	if err != nil {
-		return nil, err
-	}
 
 	return &account, nil
 }

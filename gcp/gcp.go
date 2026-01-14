@@ -25,13 +25,10 @@ func GetAllResources(ctx context.Context, projectID string, configObj config.Con
 	// Get all resource types to delete
 	resourceTypes := getAllResourceTypes()
 
-	// Create a progress bar
-	bar, _ := pterm.DefaultProgressbar.WithTotal(len(resourceTypes)).WithTitle("Retrieving GCP resources").Start()
-
 	// For each resource type
 	for _, resourceType := range resourceTypes {
-		// Update progress bar
-		bar.UpdateTitle(fmt.Sprintf("Retrieving GCP %s", resourceType.ResourceName()))
+		// Emit progress event for renderer
+		collector.UpdateScanProgress(resourceType.ResourceName(), "global")
 
 		// Initialize the resource
 		resourceType.Init(projectID)
@@ -57,13 +54,7 @@ func GetAllResources(ctx context.Context, projectID string, configObj config.Con
 		allResources.Resources["global"] = GcpResources{
 			Resources: append(allResources.Resources["global"].Resources, &resourceType),
 		}
-
-		// Increment progress bar
-		bar.Increment()
 	}
-
-	// Stop progress bar
-	bar.Stop()
 
 	return &allResources, nil
 }

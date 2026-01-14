@@ -17,29 +17,37 @@ const (
 
 // CLIRenderer outputs results to terminal.
 // Renders whatever events were collected.
+// Handles progress events in real-time (spinner) and result events at the end (tables).
 type CLIRenderer struct {
 	writer  io.Writer
+	spinner *pterm.SpinnerPrinter
 	found   []reporting.ResourceFound
 	deleted []reporting.ResourceDeleted
 	errors  []reporting.GeneralError
 }
 
-// NewCLIRenderer creates a CLI renderer
+// NewCLIRenderer creates a CLI renderer with an active spinner
 func NewCLIRenderer(writer io.Writer) *CLIRenderer {
 	if writer == nil {
 		writer = os.Stdout
 	}
+	spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start()
 	return &CLIRenderer{
 		writer:  writer,
+		spinner: spinner,
 		found:   make([]reporting.ResourceFound, 0),
 		deleted: make([]reporting.ResourceDeleted, 0),
 		errors:  make([]reporting.GeneralError, 0),
 	}
 }
 
-// OnEvent collects events for final output
+// OnEvent handles events - progress events update spinner, result events are collected
 func (r *CLIRenderer) OnEvent(event reporting.Event) {
 	switch e := event.(type) {
+	// Progress event - update spinner text
+	case reporting.ScanProgress:
+		r.spinner.UpdateText(fmt.Sprintf("Searching %s resources in %s", e.ResourceType, e.Region))
+	// Result events - collect for final render
 	case reporting.ResourceFound:
 		r.found = append(r.found, e)
 	case reporting.ResourceDeleted:
@@ -51,6 +59,9 @@ func (r *CLIRenderer) OnEvent(event reporting.Event) {
 
 // Render outputs all collected data
 func (r *CLIRenderer) Render() error {
+	// Stop the spinner
+	_ = r.spinner.Stop()
+
 	r.printErrors()
 	r.printFoundTable()
 	r.printDeletedTable()

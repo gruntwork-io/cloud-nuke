@@ -43,3 +43,15 @@ type GeneralError struct {
 }
 
 func (e GeneralError) EventType() string { return "general_error" }
+
+// Progress events - these are for live UI updates and are not included in final output.
+// Renderers that don't support live progress (like JSON) simply ignore these events.
+
+// ScanProgress is emitted during scanning to show current status.
+// CLI renderer uses this to show a spinner with current scan location.
+type ScanProgress struct {
+	ResourceType string
+	Region       string
+}
+
+func (e ScanProgress) EventType() string { return "scan_progress" }

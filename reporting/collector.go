@@ -78,6 +78,14 @@ func (c *Collector) RecordError(resourceType, description string, err error) {
 	})
 }
 
+// UpdateScanProgress emits a progress update during scanning
+func (c *Collector) UpdateScanProgress(resourceType, region string) {
+	c.emit(ScanProgress{
+		ResourceType: resourceType,
+		Region:       region,
+	})
+}
+
 // emit sends an event to all renderers
 func (c *Collector) emit(event Event) {
 	c.mu.Lock()
