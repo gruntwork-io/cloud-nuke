@@ -1,0 +1,298 @@
+# This is a config file specifically for Gruntwork sandbox accounts to only clean up S3 buckets that we know for sure
+# are used for testing.
+s3:
+  include:
+    names_regex:
+      - "^cloudfront-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cloudfront-example-failover-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cf-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^cf-example-failover-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^gwtest-[a-zA-Z0-9]{6}-config-test"
+      - "^s3-test-tg-.*"
+      - "^gruntwork-terratest-[a-zA-Z0-9]{6}$"
+      - ".*-terratest-aws-s3-example-[a-zA-Z0-9]{6}"
+      - "^gw-cis-aws-config-all-regions-[a-zA-Z0-9]{6}-.*"
+      - "^gw-service-catalog-test-[a-zA-Z0-9]{6}.*"
+      - "^gruntwork-service-catalog-test-nginx-[a-zA-Z0-9]{6}.*"
+      - "^gruntwork-test-[a-zA-Z0-9]{6}-config-test$"
+      - "^gruntwork-test-[a-zA-Z0-9]{6}-cloudtrail-test.*"
+      - "^gruntwork-[a-zA-Z0-9]{6}-cloudtrail-test.*"
+      - "^gruntwork-test-privs3bucket-[a-zA-Z0-9]{6}"
+      - "^gruntwork-terratest-[a-zA-Z0-9]{6}-logs"
+      - "^houston-static-[a-zA-Z0-9]{12}.*"
+      - "^.*cloud-nuke-test-.*"
+      - "^alb-alb-[a-zA-Z0-9]{6}-access-logs$"
+      - "^kafka-zk-standalone-[a-zA-Z0-9]{6}$"
+      - "^zookeeper-cluster-test-[a-zA-Z0-9]{6}$"
+      - "^terragrunt-test-bucket-[a-zA-Z0-9]{6}.*"
+      - "^[a-zA-Z0-9]{6}-service-test-s3-bucket"
+      - "^[a-zA-Z0-9]{6}-ecs-service-test-s3-bucket"
+      - "^test-service-[a-zA-Z0-9]{6}-test-s3-bucket"
+      - "^tst-openvpn-[a-zA-Z0-9]{6}"
+      - "^openvpn-test-[a-zA-Z0-9]{6}"
+      - "^vault-module-test-[a-zA-Z0-9]{6}"
+      - "^es-cluster-[a-zA-Z0-9]{6}-es-backup-bucket"
+      - "^gruntwork-(test-)?ecs-deploy-runner-outputs-[a-zA-Z0-9]{6}"
+      - "^test-bucket-.*"
+      - "^test-private-s3-bucket-.*"
+      - "^testlambdas3deploymentpackage-[a-zA-Z0-9]{6}-s3-deployment-package-test"
+      - "^testlambdas3-[a-zA-Z0-9]{6}-images-test"
+      - "^s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^redirect-s3-website-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
+      - "^terragrunt-test-bucket-.*"
+      - "^tg-issue.*"
+      - "^test-.*-tf-.*"
+      - "^test-s3-test-tg.*"
+
+SecretsManager:
+  include:
+    names_regex:
+      - "^test-name-[a-zA-Z0-9]{6}$"
+      - "^test-cloud-nuke-.*"
+      - ".*-lambda-docker-[a-zA-Z0-9]{6}$"
+      - "^test[a-zA-Z0-9]{6}-db-secret$"
+      - "^GruntworkSampleAppFrontendCA[a-zA-Z0-9]{6}$"
+      - "^GruntworkSampleAppBackendCA[a-zA-Z0-9]{6}$"
+      - "^RDSDBConfig[a-zA-Z0-9]{6}$"
+      - "ECRDeployRunnerTestSSHKey-[a-zA-Z0-9]{6}$"
+      - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
+
+NatGateway:
+  exclude:
+    names_regex:
+      # We have an active ECS Deploy Runner running in the sandbox environment for sales demos, and this NAT gateway is
+      # critical for that.
+      - "^ecs-deploy-runner-v2-nat-gateway-0$"
+
+OIDCProvider:
+  exclude:
+    names_regex:
+      # We have an active OIDC Provider used by github actions
+      - "^token.actions.githubusercontent.com$"
+
+EKSCluster:
+  exclude:
+    names_regex:
+      # This EKS cluster is a ghost cluster in our account in the ap-southeast-1 region that can not be deleted.
+      - "^cloud-nuke-TestListEksClusters-o8DrEi$"
+
+CloudWatchLogGroup:
+  # Use an allow list instead of block list because we haven't done the due diligence yet to figure out what log groups
+  # we need to keep. This is hard to do in the current scenario as we have thousands of log groups in the accounts.
+  include:
+    names_regex:
+      - "/aws/containerinsights/eks-cluster-[a-zA-Z0-9]{6}/.*"
+      - "/aws/containerinsights/eks-service-catalog-[a-zA-Z0-9]{6}/.*"
+      - "/aws/ecs/containerinsights/[a-zA-Z0-9]{6}-cluster/.*"
+      - "/aws/ecs/containerinsights/[a-zA-Z0-9]{6}-ecs-cluster/.*"
+      - "/aws/ecs/containerinsights/Test-cluster[a-zA-Z0-9]{6}/.*"
+      - "/aws/eks/eks-cluster-[a-zA-Z0-9]{6}.*"
+      - "/aws/eks/eks-service-catalog-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/Test.*"
+      - "/aws/lambda/[a-zA-Z0-9]{6}-ecs-deploy-runner.*"
+      - "/aws/lambda/ecs-deploy-runner-[a-zA-Z0-9]{6}-invoker$"
+      - "/aws/lambda/es-cluster-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/jenkins-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/jenkins[a-zA-Z0-9]{6}-0-backup$"
+      - "/aws/lambda/test-aurora-[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/[a-zA-Z0-9]{6}-handler$"
+      - "/aws/lambda/test[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/lambda-[a-zA-Z0-9]{6}$"
+      - "/aws/lambda/us-east-1\\.[a-zA-Z0-9]{6}cloudfront.*"
+      - "/aws/lambda/cleanup-expired-iam-certs-[a-zA-Z0-9]{6}$"
+      - "/aws/lambda/create-snapshot-example-(aurora|mysql)$"
+      - "/aws/lambda/HoustonExpress[a-zA-Z0-9]{6}.*"
+      - "/aws/lambda/lambda-docker-[a-zA-Z0-9]{6}$"
+      - "/aws/rds/cluster/test[a-zA-Z0-9]{6}.*"
+      - "/aws/rds/cluster/test-aurora-[a-zA-Z0-9]{6}.*"
+      - "eks-service-catalog-[a-zA-Z0-9]{6}$"
+      - "eks-cluster-[a-zA-Z0-9]{6}-container-logs$"
+      - "es-[a-zA-Z0-9]{6}-lg$"
+      - "TestCloudWatchLogAggregation.*"
+      - "API-Gateway-Execution-Logs_.*/example$"
+      - "asg-[a-zA-Z0-9]{6}$"
+      - "^[a-zA-Z0-9]{6}-service$"
+      - "^[a-zA-Z0-9]{6}-ecs-deploy-runner-[a-zA-Z0-9]{6}$"
+      - "ecs-deploy-runner-[a-zA-Z0-9]{6}$"
+      - "^[a-zA-Z0-9]{6}(stage|prod)-ec2-syslog$"
+      - "Ubuntu1804-[a-zA-Z0-9]{6}-logs$"
+      - "bastion-host-[a-zA-Z0-9]{6}$"
+      - "ec2-instance-[a-zA-Z0-9]{6}$"
+      - "jenkins-[a-zA-Z0-9]{6}$"
+      - "openvpn-server-[a-zA-Z0-9]{6}_log_group$"
+      - "vpc-test-[a-zA-Z0-9]{6}.*"
+      - "cloud-nuke-test-[a-zA-Z0-9]{6}"
+IAMUsers:
+  exclude:
+    names_regex:
+      # We want to make sure the main circle-ci-test user is never deleted
+      - "^circle-ci-test$"
+IAMGroups:
+  include:
+    names_regex:
+      - "^[a-zA-Z0-9]{6}-billing"
+      - "^[a-zA-Z0-9]{6}-developers"
+      - "^[a-zA-Z0-9]{6}-logs"
+      - "^[a-zA-Z0-9]{6}-read-only"
+      - "^[a-zA-Z0-9]{6}-iam-admin"
+      - "^[a-zA-Z0-9]{6}-ssh-grunt-sudo-users"
+      - "^[a-zA-Z0-9]{6}-ssh-grunt-users"
+      - "^[a-zA-Z0-9]{6}-support"
+      - "^[a-zA-Z0-9]{6}-full-access"
+      - "^[a-zA-Z0-9]{6}-use-existing-iam-roles"
+      - "^[a-zA-Z0-9]{6}-iam-user-self-mgmt"
+      - "^[a-zA-Z0-9]{6}-test-group-number-[0-9]"
+      - "^access-all-[a-zA-Z0-9]{6}"
+      - "^auto-deploy-[a-zA-Z0-9]{6}"
+      - "^cloud-nuke-test[a-zA-Z0-9]{6}"
+      - "^developers-[a-zA-Z0-9]{6}"
+      - "^full-access-[a-zA-Z0-9]{6}"
+      - "^group-cloud-nuke-test-full-user-[a-zA-Z0-9]{6}"
+      - "^iam-users-test-[0-9]-[a-zA-Z0-9]{6}"
+      - "^openvpn-server-[a-zA-Z0-9]{6}-Admins"
+      - "^openvpn-server-[a-zA-Z0-9]{6}-Users"
+      - "^read-only-[a-zA-Z0-9]{6}"
+      - "^test-group-[a-zA-Z0-9]{6}"
+      - "^test-group-[a-z]-[a-zA-Z0-9]{6}"
+      - "^test-iam-group-[a-zA-Z0-9]{6}"
+      - "^test-sudo-group-[a-z]-[a-zA-Z0-9]{6}"
+      - "^tst-openvpn-host-[a-zA-Z0-9]{6}-.*"
+IAMRoles:
+  exclude:
+    # Never delete the github oidc roles
+    names_regex:
+      - "^github$"
+      - "^github-read-only$"
+      - "^cloud-nuke-gha$"
+  include:
+    names_regex:
+      - "^cloud-nuke-Test*"
+      - "^cloud-nuke-test-[a-zA-Z0-9]{6}"
+      - "^cloud-nuke-test-[a-zA-Z0-9]{6}-role"
+      - "^[a-zA-Z0-9]{6}-config-test"
+      - "^[a-zA-Z0-9]{6}-cluster-instance"
+      - "^[a-zA-Z0-9]{6}-service-task-execution-role"
+      - "^[a-zA-Z0-9]{6}-service-task"
+      - "^agw-http-[a-zA-Z0-9]{6}-hello"
+      - "^agw-http-[a-zA-Z0-9]{6}-world"
+      - "^allow-replicate-to-test-private-s3-bucket-[a-zA-Z0-9]{6}-backup"
+      - "^asg-[a-zA-Z0-9]{6}"
+      - "^auto-deploy-from-other-accts-[a-zA-Z0-9]{6}"
+      - "^automation-test-role-[a-zA-Z0-9]{6}"
+      - "^config-test-[a-zA-Z0-9]{6}"
+      - "^bastion-host-[a-zA-Z0-9]{6}"
+      - "^ecs-deploy-runner-[a-zA-Z0-9]{6}-instance"
+      - "^ecs-cluster-[a-zA-Z0-9]{6}-cluster"
+      - "^ecs-cluster-[a-zA-Z0-9]{6}-role"
+      - "^eks-cluster-[a-zA-Z0-9]{6}-cluster"
+      - "^eks-cluster-[a-zA-Z0-9]{6}-role"
+      - "^eks-cluster-[a-zA-Z0-9]{6}-fargate-role"
+      - "^EKS-k8s-role-mapping-test-[a-zA-Z0-9]{6}"
+      - "^eks-service-catalog-[a-zA-Z0-9]{6}-asg"
+      - "^eks-service-catalog-[a-zA-Z0-9]{6}-cluster"
+      - "^eks-service-catalog-[a-zA-Z0-9]{6}-fargate-role"
+      - "^eks-service-catalog-[a-zA-Z0-9]{6}-mng"
+      - "^billing-from-other-accts-[a-zA-Z0-9]{6}"
+      - "^dev-from-other-accts-[a-zA-Z0-9]{6}"
+      - "^full-from-other-accts-[a-zA-Z0-9]{6}"
+      - "^logs-from-other-accts-[a-zA-Z0-9]{6}"
+      - "^lambda-docker-[a-zA-Z0-9]{6}"
+      - "^ecs-deploy-runner-[a-zA-Z0-9]{6}-ami-builder"
+      - "^ecs-deploy-runner-[a-zA-Z0-9]{6}-docker-image-builder"
+      - "^ecs-deploy-runner-[a-zA-Z0-9]{6}-invoker"
+      - "^ecs-deploy-runner-[a-zA-Z0-9]{6}-task-execution-role"
+      - "^ecs-deploy-runner-[a-zA-Z0-9]{6}-terraform-planner"
+      - "^ecs-deploy-runner-[a-zA-Z0-9]{6}-terraform-applier"
+      - "^msk-cluster-[a-zA-Z0-9]{6}-bastion"
+      - "^nginx-[a-zA-Z0-9]{6}-task"
+      - "^nginx-[a-zA-Z0-9]{6}-task-execution-role"
+      - "^ssh-grunt-iam-example-[a-zA-Z0-9]{6}"
+      - "^test-aurora-[a-zA-Z0-9]{6}-create-snapshot"
+      - "^test-aurora-[a-zA-Z0-9]{6}-delete-snapshot"
+      - "^test-aurora-[a-zA-Z0-9]{6}-share-snapshot"
+      - "^test-role-[a-zA-Z0-9]{6}"
+      - "^TestLambdaBuild-[a-zA-Z0-9]{6}"
+      - "^TestLambdaDLQ-[a-zA-Z0-9]{6}"
+      - "^TestLambdaKeepWarm1-[a-zA-Z0-9]{6}"
+      - "^TestLambdaKeepWarm5-[a-zA-Z0-9]{6}"
+      - "^TestLambdaS3-[a-zA-Z0-9]{6}"
+IAMPolicies:
+  include:
+    names_regex:
+      - "^[a-zA-Z0-9]{6}-service-s3-test-bucket-access"
+      - "^[a-zA-Z0-9]{6}-service-test-task-execution-policy"
+      - "^[a-zA-Z0-9]{6}-service-task-execution-policy"
+      - "^[a-zA-Z0-9]{6}-iam-admin"
+      - "^[a-zA-Z0-9]{6}-iam-user-self-mgmt"
+      - "^[a-zA-Z0-9]{6}-ecs-service-s3-test-bucket-access"
+      - "^[a-zA-Z0-9]{6}-ecs-service-task-execution-policy"
+      - "^cloud-nuke-test[a-zA-Z0-9]{6}"
+      - "^custom-iam-policy-[a-zA-Z0-9]{6}"
+      - "^allow-replicate-to-test-private-s3-bucket-[a-zA-Z0-9]{6}-backup\\d+"
+      - "^api-gateway-allow-cloudwatch\\d+"
+      - "^attach-ebs-volumes\\d+"
+      - "^attach-enis\\d+"
+      - "^auto-deploy-access\\d+"
+      - "^attach-config-sns\\d+"
+      - "^aws-config-sns\\d+"
+      - "^billing-access\\d+"
+      - "^cloudwatch-log-aggregation\\d+"
+      - "^ConfigDeliveryPolicy\\d+"
+      - "^custom-cloudwatch-metrics\\d+"
+      - "^dev-access\\d+"
+      - "^eks-service-catalog-[a-zA-Z0-9]{6}-cloudwatch-log-aggregation"
+      - "^eks-service-catalog-[a-zA-Z0-9]{6}-k8s-cluster-autoscaler"
+      - "^eks-service-catalog-[a-zA-Z0-9]{6}-k8s-external-dns"
+KMSCustomerKeys:
+  include:
+    names_regex:
+      - "^cloud-nuke-test-.*$"
+VPC:
+  exclude:
+    names_regex:
+      - "^mgmt"
+ECSCluster:
+  exclude:
+    names_regex:
+      - "^ecs-deploy-runner"
+LambdaFunction:
+  exclude:
+    names_regex:
+      - "^ecs-deploy-runner-invoker"
+
+ACM:
+  exclude:
+    names_regex:
+      - ".*gruntwork.in"
+      - ".*gruntwork-dev.io"
+
+DBSubnetGroups:
+  exclude:
+    names_regex:
+      - "gruntwork-test-db-subnet-group"
+
+RdsParameterGroup:
+  exclude:
+    names_regex:
+      - "gruntwork-test-.*"
+
+MSKCluster:
+  include:
+    names_regex:
+      - "^msk-cluster-[a-zA-Z0-9]{6}$"
+      - "^msk-cluster-[a-zA-Z0-9]{6}-.*"
+      - "^msk-tiered-storage-test.*"
+
+InternetGateway:
+  exclude:
+    names_regex:
+      # Exclude the IGW for default VPCs in phxdevops. This IGW is attached to the default VPC
+      # and is used by tests that require internet access from within the VPC. Without it, any
+      # VPC-based test that requires internet will fail.
+      - "gw-new-default-igw"
+
+Route53HostedZone:
+  exclude:
+    names_regex:
+      - ".*gruntwork.in"
+      - ".*gruntwork-dev.io"
