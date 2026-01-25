@@ -1,0 +1,20 @@
+name: "Nuke: PhxDevOps"
+
+on:
+  schedule:
+    # TODO: Change back to '0 */3 * * *' after confirming schedule works
+    - cron: '*/5 * * * *'  # Every 5 minutes (TESTING)
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nuke:
+    uses: ./.github/workflows/nuke-account.yml
+    with:
+      account_name: PhxDevOps
+      role_arn: arn:aws:iam::087285199408:role/cloud-nuke-gha
+      older_than: 2h
+    secrets: inherit

@@ -1,0 +1,21 @@
+name: "Nuke: Sandbox"
+
+on:
+  schedule:
+    # TODO: Change back to '0 0 * * *' after confirming schedule works
+    - cron: '*/5 * * * *'  # Every 5 minutes (TESTING)
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nuke:
+    uses: ./.github/workflows/nuke-account.yml
+    with:
+      account_name: Sandbox
+      role_arn: arn:aws:iam::738755648600:role/cloud-nuke-gha
+      older_than: 24h
+      extra_excludes: --exclude-resource-type eip
+    secrets: inherit
