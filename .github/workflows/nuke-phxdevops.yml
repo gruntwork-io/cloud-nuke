@@ -1,0 +1,19 @@
+name: "Nuke: PhxDevOps"
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'  # Every 3 hours
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nuke:
+    uses: ./.github/workflows/nuke-account.yml
+    with:
+      account_name: PhxDevOps
+      role_arn: arn:aws:iam::087285199408:role/cloud-nuke-gha
+      older_than: 2h
+    secrets: inherit

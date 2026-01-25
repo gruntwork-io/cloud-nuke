@@ -1,0 +1,20 @@
+name: "Nuke: Sandbox"
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Nightly at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nuke:
+    uses: ./.github/workflows/nuke-account.yml
+    with:
+      account_name: Sandbox
+      role_arn: arn:aws:iam::738755648600:role/cloud-nuke-gha
+      older_than: 24h
+      extra_excludes: --exclude-resource-type eip
+    secrets: inherit

@@ -1,0 +1,20 @@
+name: "Nuke: ConfigTests"
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'  # Every 3 hours
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nuke:
+    uses: ./.github/workflows/nuke-account.yml
+    with:
+      account_name: ConfigTests
+      role_arn: arn:aws:iam::677276116620:role/cloud-nuke-gha
+      older_than: 2h
+      extra_excludes: --exclude-resource-type internet-gateway
+    secrets: inherit
