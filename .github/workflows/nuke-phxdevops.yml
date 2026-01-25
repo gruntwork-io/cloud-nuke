@@ -2,8 +2,7 @@ name: "Nuke: PhxDevOps"
 
 on:
   schedule:
-    # TODO: Change back to '0 */3 * * *' after confirming schedule works
-    - cron: '*/5 * * * *'  # Every 5 minutes (TESTING)
+    - cron: '0 */3 * * *'  # Every 3 hours
   workflow_dispatch:
 
 permissions:

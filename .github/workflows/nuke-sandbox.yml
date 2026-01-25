@@ -2,8 +2,7 @@ name: "Nuke: Sandbox"
 
 on:
   schedule:
-    # TODO: Change back to '0 0 * * *' after confirming schedule works
-    - cron: '*/5 * * * *'  # Every 5 minutes (TESTING)
+    - cron: '0 0 * * *'  # Nightly at midnight UTC
   workflow_dispatch:
 
 permissions:
