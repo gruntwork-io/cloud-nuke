@@ -102,7 +102,7 @@ jobs:
   regional:
     name: "${{ inputs.account_name }}: ${{ matrix.region }}"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     strategy:
       fail-fast: false  # Continue other regions even if one fails
       matrix:
@@ -119,7 +119,7 @@ jobs:
           - eu-west-1
           - eu-west-2
           - eu-west-3
-          - me-central-1
+          # - me-central-1  # Opt-in region, not enabled in all accounts
           - sa-east-1
           - us-east-1
           - us-east-2
