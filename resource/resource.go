@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/cloud-nuke/report"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
@@ -158,30 +157,22 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 }
 
 // Nuke deletes the resources with the given identifiers (implements AwsResource/GcpResource interface)
-// This is the single place where all reporting happens.
-func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) error {
+// Returns the results of each deletion attempt. The caller is responsible for reporting.
+func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) ([]NukeResult, error) {
 	if len(identifiers) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	if r.Nuker == nil {
-		return fmt.Errorf("%s: Nuker function not configured", r.ResourceTypeName)
+		return nil, fmt.Errorf("%s: Nuker function not configured", r.ResourceTypeName)
 	}
 
 	ptrIdentifiers := util.ToStringPtrSlice(identifiers)
 	results := r.Nuker(ctx, r.Client, r.Scope, r.ResourceTypeName, ptrIdentifiers)
 
-	// Centralized reporting and error aggregation
+	// Aggregate errors and log results (logging stays here, it's not reporting)
 	var allErrs *multierror.Error
 	for _, result := range results {
-		// Report to the report package
-		report.Record(report.Entry{
-			Identifier:   result.Identifier,
-			ResourceType: r.ResourceTypeName,
-			Error:        result.Error,
-		})
-
-		// Log the result
 		if result.Error != nil {
 			logging.Errorf("[Failed] %s %s: %s", r.ResourceTypeName, result.Identifier, result.Error)
 			allErrs = multierror.Append(allErrs, fmt.Errorf("%s: %w", result.Identifier, result.Error))
@@ -190,10 +181,7 @@ func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) error {
 		}
 	}
 
-	if err := allErrs.ErrorOrNil(); err != nil {
-		return errors.WithStackTrace(err)
-	}
-	return nil
+	return results, errors.WithStackTrace(allErrs.ErrorOrNil())
 }
 
 // IsNukable checks if a resource can be nuked (implements AwsResource/GcpResource interface).

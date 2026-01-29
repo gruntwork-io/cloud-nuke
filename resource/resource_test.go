@@ -85,9 +85,10 @@ func TestResource_Nuke(t *testing.T) {
 	}
 	r.Init(nil)
 
-	err := r.Nuke(context.Background(), []string{"id-1", "id-2"})
+	results, err := r.Nuke(context.Background(), []string{"id-1", "id-2"})
 
 	require.NoError(t, err)
+	assert.Len(t, results, 2)
 	assert.Equal(t, []string{"id-1", "id-2"}, nuked)
 }
 
@@ -100,9 +101,10 @@ func TestResource_Nuke_EmptySkipsNuker(t *testing.T) {
 		},
 	}
 
-	err := r.Nuke(context.Background(), []string{})
+	results, err := r.Nuke(context.Background(), []string{})
 
 	require.NoError(t, err)
+	assert.Nil(t, results)
 	assert.False(t, nukerCalled)
 }
 
@@ -115,9 +117,10 @@ func TestResource_Nuke_PropagatesError(t *testing.T) {
 	}
 	r.Init(nil)
 
-	err := r.Nuke(context.Background(), []string{"id-1"})
+	results, err := r.Nuke(context.Background(), []string{"id-1"})
 
 	require.Error(t, err)
+	assert.Len(t, results, 1)
 	assert.Contains(t, err.Error(), "delete failed")
 }
 
