@@ -9,11 +9,71 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  CLOUD_NUKE_VERSION: '0.40.0'
+  COMMON_EXCLUDES: >-
+    --exclude-resource-type iam
+    --exclude-resource-type iam-group
+    --exclude-resource-type iam-policy
+    --exclude-resource-type iam-role
+    --exclude-resource-type iam-service-linked-role
+    --exclude-resource-type oidcprovider
+    --exclude-resource-type route53-hosted-zone
+    --exclude-resource-type route53-cidr-collection
+    --exclude-resource-type route53-traffic-policy
+    --exclude-resource-type ecr
+    --exclude-resource-type config-rules
+    --exclude-resource-type nat-gateway
+    --exclude-resource-type ec2-subnet
+
 jobs:
   nuke:
-    uses: ./.github/workflows/nuke-account.yml
-    with:
-      account_name: PhxDevOps
-      role_arn: arn:aws:iam::087285199408:role/cloud-nuke-gha
-      older_than: 2h
-    secrets: inherit
+    name: PhxDevOps
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cloud-nuke
+        run: |
+          wget -q -O /usr/local/bin/cloud-nuke \
+            --header="Authorization: Bearer ${GITHUB_TOKEN}" \
+            "https://github.com/gruntwork-io/cloud-nuke/releases/download/v${CLOUD_NUKE_VERSION}/cloud-nuke_linux_amd64"
+          chmod +x /usr/local/bin/cloud-nuke
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::087285199408:role/cloud-nuke-gha
+          aws-region: us-east-1
+
+      - name: Run cloud-nuke
+        run: |
+          cloud-nuke aws \
+            --force \
+            --older-than 2h \
+            --config ./.github/nuke_config.yml \
+            --region global \
+            --region ap-northeast-1 \
+            --region ap-northeast-2 \
+            --region ap-northeast-3 \
+            --region ap-south-1 \
+            --region ap-southeast-1 \
+            --region ap-southeast-2 \
+            --region ca-central-1 \
+            --region eu-central-1 \
+            --region eu-north-1 \
+            --region eu-west-1 \
+            --region eu-west-2 \
+            --region eu-west-3 \
+            --region sa-east-1 \
+            --region us-east-1 \
+            --region us-east-2 \
+            --region us-west-1 \
+            --region us-west-2 \
+            ${{ env.COMMON_EXCLUDES }} \
+            --delete-unaliased-kms-keys \
+            --log-level info
