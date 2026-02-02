@@ -102,4 +102,3 @@ func TestCollector_ConcurrentAccess(t *testing.T) {
 
 	assert.Len(t, r.events, 100)
 }
-
