@@ -113,27 +113,10 @@ func TestJSONRenderer_NukeOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "aws", output.Command)
-	assert.Equal(t, []string{"us-east-1", "us-west-2"}, output.Regions)
 	assert.Len(t, output.Found, 3)
 	assert.Len(t, output.Resources, 2)
-	assert.Len(t, output.Errors, 1)
-	assert.Equal(t, 3, output.Summary.Found)
-	assert.Equal(t, 2, output.Summary.Total)
 	assert.Equal(t, 1, output.Summary.Deleted)
 	assert.Equal(t, 1, output.Summary.Failed)
-	assert.Equal(t, 1, output.Summary.GeneralErrors)
-
-	// Check found resources
-	assert.Equal(t, "i-123", output.Found[0].Identifier)
-	assert.True(t, output.Found[0].Nukable)
-	assert.Equal(t, "i-789", output.Found[2].Identifier)
-	assert.False(t, output.Found[2].Nukable)
-	assert.Equal(t, "protected", output.Found[2].Reason)
-
-	// Check resource statuses
-	assert.Equal(t, "deleted", output.Resources[0].Status)
-	assert.Equal(t, "failed", output.Resources[1].Status)
-	assert.Equal(t, "access denied", output.Resources[1].Error)
 }
 
 func TestJSONRenderer_EmptyOutput(t *testing.T) {

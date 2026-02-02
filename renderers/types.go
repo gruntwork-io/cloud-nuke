@@ -1,26 +1,8 @@
 package renderers
 
 import (
-	"io"
-	"os"
 	"time"
-
-	"github.com/gruntwork-io/go-commons/errors"
 )
-
-// GetOutputWriter returns a writer for the specified output file or stdout if empty.
-func GetOutputWriter(outputFile string) (io.Writer, func() error, error) {
-	if outputFile == "" {
-		return os.Stdout, func() error { return nil }, nil
-	}
-
-	file, err := os.Create(outputFile)
-	if err != nil {
-		return nil, nil, errors.WithStackTrace(err)
-	}
-
-	return file, file.Close, nil
-}
 
 // JSON Output Types
 

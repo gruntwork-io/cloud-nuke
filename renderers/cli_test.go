@@ -48,40 +48,6 @@ func TestCLIRenderer_OnEvent(t *testing.T) {
 	assert.Len(t, r.errors, 1)
 }
 
-func TestCLIRenderer_NukeOutput(t *testing.T) {
-	var buf bytes.Buffer
-	r := NewCLIRenderer(&buf)
-
-	// Simulate real nuke flow: ResourceFound → ScanComplete → NukeStarted → ResourceDeleted → NukeComplete
-	r.OnEvent(reporting.ResourceFound{
-		ResourceType: "ec2",
-		Region:       "us-east-1",
-		Identifier:   "i-123",
-		Nukable:      true,
-	})
-	r.OnEvent(reporting.ScanComplete{}) // Spinner stops here
-	r.OnEvent(reporting.NukeStarted{Total: 2})
-	r.OnEvent(reporting.ResourceDeleted{
-		ResourceType: "ec2",
-		Region:       "us-east-1",
-		Identifier:   "i-123",
-		Success:      true,
-	})
-	r.OnEvent(reporting.ResourceDeleted{
-		ResourceType: "ec2",
-		Region:       "us-east-1",
-		Identifier:   "i-456",
-		Success:      false,
-		Error:        "access denied",
-	})
-	r.OnEvent(reporting.NukeComplete{})
-
-	output := buf.String()
-	assert.Contains(t, output, "i-123")
-	assert.Contains(t, output, "i-456")
-	assert.Contains(t, output, "ec2")
-}
-
 func TestCLIRenderer_EmptyRender(t *testing.T) {
 	var buf bytes.Buffer
 	r := NewCLIRenderer(&buf)

@@ -47,58 +47,88 @@ func NewCLIRenderer(writer io.Writer) *CLIRenderer {
 	}
 }
 
-// OnEvent handles incoming events.
+// OnEvent routes events to appropriate handlers.
 // Terminal events (ScanComplete for inspect, NukeComplete for nuke) trigger final output.
 func (r *CLIRenderer) OnEvent(event reporting.Event) {
 	switch e := event.(type) {
 	case reporting.ScanStarted:
-		r.printScanStarted(e)
+		r.handleScanStarted(e)
 	case reporting.ScanProgress:
-		if r.spinner != nil {
-			r.spinner.UpdateText(fmt.Sprintf("Scanning %s in %s", e.ResourceType, e.Region))
-		}
+		r.updateSpinner(fmt.Sprintf("Scanning %s in %s", e.ResourceType, e.Region))
 	case reporting.ResourceFound:
 		r.found = append(r.found, e)
 	case reporting.ScanComplete:
-		if r.spinner != nil {
-			_ = r.spinner.Stop()
-			r.spinner = nil
-		}
-		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found Resources")
-		r.printFoundTable()
-		// If not in nuke mode, ScanComplete is terminal - finalize output
-		if !r.nukeMode {
-			r.printErrorsTable()
-			if len(r.errors) == 0 && len(r.found) == 0 {
-				pterm.Info.WithWriter(r.writer).Println("No resources found.")
-			}
-		}
+		r.handleScanComplete()
 	case reporting.ResourceDeleted:
-		r.deleted = append(r.deleted, e)
-		if r.progressBar != nil {
-			r.progressBar.Add(1)
-		}
+		r.handleResourceDeleted(e)
 	case reporting.GeneralError:
 		r.errors = append(r.errors, e)
 	case reporting.NukeStarted:
-		r.nukeMode = true
-		progressBar, err := pterm.DefaultProgressbar.WithTotal(e.Total).Start()
-		if err != nil {
-			_, _ = fmt.Fprintf(r.writer, "Warning: failed to start progress bar: %v\n", err)
-		}
-		r.progressBar = progressBar
+		r.handleNukeStarted(e)
 	case reporting.NukeProgress:
-		if r.progressBar != nil {
-			r.progressBar.UpdateTitle(fmt.Sprintf("Nuking batch of %d %s in %s", e.BatchSize, e.ResourceType, e.Region))
-		}
+		r.updateProgressBar(fmt.Sprintf("Nuking batch of %d %s in %s", e.BatchSize, e.ResourceType, e.Region))
 	case reporting.NukeComplete:
-		if r.progressBar != nil {
-			_, _ = r.progressBar.Stop()
-			r.progressBar = nil
-		}
-		r.printErrorsTable()
-		r.printDeletedTable()
+		r.handleNukeComplete()
 	}
+}
+
+// updateSpinner safely updates spinner text if spinner is active.
+func (r *CLIRenderer) updateSpinner(text string) {
+	if r.spinner != nil {
+		r.spinner.UpdateText(text)
+	}
+}
+
+// updateProgressBar safely updates progress bar title if progress bar is active.
+func (r *CLIRenderer) updateProgressBar(title string) {
+	if r.progressBar != nil {
+		r.progressBar.UpdateTitle(title)
+	}
+}
+
+// handleScanComplete stops the spinner and displays found resources.
+func (r *CLIRenderer) handleScanComplete() {
+	if r.spinner != nil {
+		_ = r.spinner.Stop()
+		r.spinner = nil
+	}
+	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found Resources")
+	r.printFoundTable()
+	// If not in nuke mode, ScanComplete is terminal - finalize output
+	if !r.nukeMode {
+		r.printErrorsTable()
+		if len(r.errors) == 0 && len(r.found) == 0 {
+			pterm.Info.WithWriter(r.writer).Println("No resources found.")
+		}
+	}
+}
+
+// handleResourceDeleted records deletion result and updates progress bar.
+func (r *CLIRenderer) handleResourceDeleted(e reporting.ResourceDeleted) {
+	r.deleted = append(r.deleted, e)
+	if r.progressBar != nil {
+		r.progressBar.Add(1)
+	}
+}
+
+// handleNukeStarted initializes nuke mode and starts the progress bar.
+func (r *CLIRenderer) handleNukeStarted(e reporting.NukeStarted) {
+	r.nukeMode = true
+	progressBar, err := pterm.DefaultProgressbar.WithTotal(e.Total).Start()
+	if err != nil {
+		_, _ = fmt.Fprintf(r.writer, "Warning: failed to start progress bar: %v\n", err)
+	}
+	r.progressBar = progressBar
+}
+
+// handleNukeComplete stops progress bar and displays final results.
+func (r *CLIRenderer) handleNukeComplete() {
+	if r.progressBar != nil {
+		_, _ = r.progressBar.Stop()
+		r.progressBar = nil
+	}
+	r.printErrorsTable()
+	r.printDeletedTable()
 }
 
 func (r *CLIRenderer) printErrorsTable() {
@@ -110,7 +140,7 @@ func (r *CLIRenderer) printErrorsTable() {
 	_, _ = r.writer.Write([]byte("\r"))
 
 	tableData := pterm.TableData{
-		{"ResourceType", "Description", "Error"},
+		{"Resource Type", "Description", "Error"},
 	}
 	for _, e := range r.errors {
 		tableData = append(tableData, []string{e.ResourceType, e.Description, e.Error})
@@ -154,7 +184,8 @@ func (r *CLIRenderer) printFoundTable() {
 		Render()
 }
 
-func (r *CLIRenderer) printScanStarted(e reporting.ScanStarted) {
+// handleScanStarted displays query parameters and restarts spinner.
+func (r *CLIRenderer) handleScanStarted(e reporting.ScanStarted) {
 	// Stop spinner temporarily to print section header
 	if r.spinner != nil {
 		_ = r.spinner.Stop()
