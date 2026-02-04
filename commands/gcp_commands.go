@@ -5,11 +5,11 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/gcp"
+	"github.com/gruntwork-io/cloud-nuke/renderers"
+	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"github.com/pterm/pterm"
 	"github.com/urfave/cli/v2"
 )
 
@@ -100,14 +100,24 @@ func gcpInspect(c *cli.Context) error {
 // gcpNukeHelper is the core logic for nuking GCP resources.
 // It retrieves resources, confirms deletion with the user, and executes the nuke operation.
 func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) error {
-	// Retrieve all matching resources
-	account, err := handleGetGcpResourcesWithFormat(c, configObj, projectID, outputFormat, outputFile)
+	// Setup reporting - cleanup calls Complete() and closes writer
+	collector, cleanup, err := setupGcpReporting(outputFormat, outputFile, projectID)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	// Retrieve all matching resources (emits ResourceFound events via collector)
+	account, err := gcp.GetAllResources(projectID, configObj, time.Time{}, time.Time{}, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
 		}, map[string]interface{}{})
 		return errors.WithStackTrace(err)
 	}
+
+	// Signal scan complete - renderer will show found resources table
+	collector.Emit(reporting.ScanComplete{})
 
 	// Confirm with user before proceeding (unless --force or --dry-run is set)
 	shouldProceed, err := confirmNuke(c, len(account.Resources) > 0)
@@ -117,27 +127,25 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		gcp.NukeAllResources(account, configObj, nil)
-		ui.RenderRunReportWithFormat(outputFormat, outputFile)
+		gcp.NukeAllResources(account, configObj, collector)
 	}
 
 	return nil
 }
 
 // handleGetGcpResourcesWithFormat retrieves all GCP resources matching the filters and renders them
-// in the specified output format. This is used for both inspect and nuke operations.
+// in the specified output format. This is used for inspect operations only.
 func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) (
 	*gcp.GcpProjectResources, error) {
-	// Display query parameters (only for table format to avoid cluttering JSON output)
-	if !ui.ShouldSuppressProgressOutput(outputFormat) {
-		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("GCP Resource Query Parameters")
-		pterm.Println("Project ID:", projectID)
-		pterm.Println()
+	// Setup reporting - cleanup calls Complete() and closes writer
+	collector, cleanup, err := setupGcpReporting(outputFormat, outputFile, projectID)
+	if err != nil {
+		return nil, err
 	}
+	defer cleanup()
 
-	// Retrieve all resources matching the filters
-	// Note: GCP uses config-based time filtering instead of query-based like AWS
-	accountResources, err := gcp.GetAllResources(projectID, configObj, time.Time{}, time.Time{})
+	// Retrieve all resources matching the filters (emits ResourceFound events via collector)
+	accountResources, err := gcp.GetAllResources(projectID, configObj, time.Time{}, time.Time{}, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
@@ -145,19 +153,23 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, pr
 		return nil, errors.WithStackTrace(err)
 	}
 
-	// Display found resources header (only for table format)
-	if !ui.ShouldSuppressProgressOutput(outputFormat) {
-		pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("Found GCP Resources")
-	}
+	// Signal scan complete - renderer will show found resources table
+	collector.Emit(reporting.ScanComplete{})
 
-	// Render the resources in the requested format (table or JSON)
-	err = ui.RenderGcpResourcesAsTableWithFormat(accountResources, outputFormat, outputFile)
-
-	return accountResources, err
+	return accountResources, nil
 }
 
 // handleListGcpResourceTypes displays all available GCP resource types that can be targeted.
 func handleListGcpResourceTypes() error {
-	pterm.DefaultSection.WithTopPadding(1).WithBottomPadding(0).Println("GCP Resource Types")
-	return ui.RenderResourceTypesAsBulletList(gcp.ListResourceTypes())
+	return printResourceTypes("GCP Resource Types", gcp.ListResourceTypes())
+}
+
+// setupGcpReporting creates a collector and appropriate renderer for GCP operations.
+// Returns the collector, cleanup function (which calls Complete() and closes writer), and any error.
+func setupGcpReporting(outputFormat string, outputFile string, projectID string) (
+	*reporting.Collector, func(), error) {
+	return setupReporting(outputFormat, outputFile, renderers.JSONRendererConfig{
+		Command: "gcp",
+		Regions: []string{projectID},
+	})
 }

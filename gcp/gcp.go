@@ -9,14 +9,14 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/gcp/resources"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
-	"github.com/pterm/pterm"
 )
 
 // GetAllResources lists all GCP resources that can be deleted.
-func GetAllResources(projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time) (*GcpProjectResources, error) {
+func GetAllResources(projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time, collector *reporting.Collector) (*GcpProjectResources, error) {
 	allResources := GcpProjectResources{
 		Resources: map[string]GcpResources{},
 	}
@@ -24,49 +24,76 @@ func GetAllResources(projectID string, configObj config.Config, excludeAfter tim
 	// Get all resource types to delete
 	resourceTypes := getAllResourceTypes()
 
-	// Create a progress bar
-	bar, _ := pterm.DefaultProgressbar.WithTotal(len(resourceTypes)).WithTitle("Retrieving GCP resources").Start()
-
 	// For each resource type
 	for _, resourceType := range resourceTypes {
-		// Update progress bar
-		bar.UpdateTitle(fmt.Sprintf("Retrieving GCP %s", resourceType.ResourceName()))
+		// Emit scan progress event
+		collector.Emit(reporting.ScanProgress{
+			ResourceType: resourceType.ResourceName(),
+			Region:       "global",
+		})
 
 		// Initialize the resource
 		resourceType.Init(projectID)
 
 		// Get all resource identifiers
-		if _, err := resourceType.GetAndSetIdentifiers(context.Background(), configObj); err != nil {
+		identifiers, err := resourceType.GetAndSetIdentifiers(context.Background(), configObj)
+		if err != nil {
 			logging.Debugf("Error getting identifiers for %s: %v", resourceType.ResourceName(), err)
+			collector.Emit(reporting.GeneralError{
+				ResourceType: resourceType.ResourceName(),
+				Description:  fmt.Sprintf("Unable to retrieve %s", resourceType.ResourceName()),
+				Error:        err.Error(),
+			})
 			continue
 		}
 
-		// Add the resource to the map
-		allResources.Resources["global"] = GcpResources{
-			Resources: append(allResources.Resources["global"].Resources, &resourceType),
-		}
+		// Only append if we have non-empty identifiers
+		if len(identifiers) > 0 {
+			logging.Infof("Found %d %s resources", len(identifiers), resourceType.ResourceName())
+			allResources.Resources["global"] = GcpResources{
+				Resources: append(allResources.Resources["global"].Resources, &resourceType),
+			}
 
-		// Increment progress bar
-		bar.Increment()
+			// Emit ResourceFound events for each identifier
+			for _, id := range identifiers {
+				nukable, reason := true, ""
+				if _, err := resourceType.IsNukable(id); err != nil {
+					nukable, reason = false, err.Error()
+				}
+				collector.Emit(reporting.ResourceFound{
+					ResourceType: resourceType.ResourceName(),
+					Region:       "global",
+					Identifier:   id,
+					Nukable:      nukable,
+					Reason:       reason,
+				})
+			}
+		}
 	}
 
-	// Stop progress bar
-	bar.Stop()
+	logging.Info("Done searching for GCP resources")
+	logging.Infof("Found total of %d GCP resources", allResources.TotalResourceCount())
 
 	return &allResources, nil
 }
 
 // NukeAllResources nukes all GCP resources
-func NukeAllResources(account *GcpProjectResources, configObj config.Config, bar *pterm.ProgressbarPrinter) {
+func NukeAllResources(account *GcpProjectResources, configObj config.Config, collector *reporting.Collector) {
+	// Emit NukeStarted event (CLIRenderer will initialize progress bar)
+	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
+
 	resourcesInRegion := account.Resources["global"]
 
 	for _, gcpResource := range resourcesInRegion.Resources {
-		nukeResource(gcpResource, configObj, bar)
+		nukeResource(gcpResource, configObj, collector)
 	}
+
+	// Emit NukeComplete event (triggers final output in renderers)
+	collector.Emit(reporting.NukeComplete{})
 }
 
 // nukeResource nukes a single GCP resource type
-func nukeResource(gcpResource *GcpResource, configObj config.Config, bar *pterm.ProgressbarPrinter) {
+func nukeResource(gcpResource *GcpResource, configObj config.Config, collector *reporting.Collector) {
 	// Filter to only nukable resources
 	var nukableIdentifiers []string
 	for _, id := range (*gcpResource).ResourceIdentifiers() {
@@ -96,11 +123,32 @@ func nukeResource(gcpResource *GcpResource, configObj config.Config, bar *pterm.
 	logging.Debugf("Terminating %d %s in batches", len(nukableIdentifiers), (*gcpResource).ResourceName())
 	batches := util.Split(nukableIdentifiers, (*gcpResource).MaxBatchSize())
 
-	for i := 0; i < len(batches); i++ {
-		batch := batches[i]
-		bar.UpdateTitle(fmt.Sprintf("Nuking batch of %d %s resource(s)",
-			len(batch), (*gcpResource).ResourceName()))
-		if err := (*gcpResource).Nuke(ctx, batch); err != nil {
+	for i, batch := range batches {
+		// Emit progress event (CLIRenderer updates its progress bar)
+		collector.Emit(reporting.NukeProgress{
+			ResourceType: (*gcpResource).ResourceName(),
+			Region:       "global",
+			BatchSize:    len(batch),
+		})
+
+		results, err := (*gcpResource).Nuke(ctx, batch)
+
+		// Emit ResourceDeleted for each result
+		for _, result := range results {
+			errStr := ""
+			if result.Error != nil {
+				errStr = result.Error.Error()
+			}
+			collector.Emit(reporting.ResourceDeleted{
+				ResourceType: (*gcpResource).ResourceName(),
+				Region:       "global",
+				Identifier:   result.Identifier,
+				Success:      result.Error == nil,
+				Error:        errStr,
+			})
+		}
+
+		if err != nil {
 			if strings.Contains(err.Error(), "QUOTA_EXCEEDED") {
 				logging.Debug(
 					"Quota exceeded. Waiting 1 minute before making new requests",
@@ -119,9 +167,6 @@ func nukeResource(gcpResource *GcpResource, configObj config.Config, bar *pterm.
 			logging.Debug("Sleeping for 10 seconds before processing next batch...")
 			time.Sleep(10 * time.Second)
 		}
-
-		// Update the spinner to show the current resource type being nuked
-		bar.Add(len(batch))
 	}
 }
 

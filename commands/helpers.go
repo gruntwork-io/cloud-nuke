@@ -7,7 +7,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/ui"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
@@ -93,7 +92,7 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 		promptMessage := fmt.Sprintf("\nAre you sure you want to nuke all listed resources? Enter '%s' to confirm (or exit with ^C) ",
 			NukeConfirmationWord)
 
-		proceed, err := ui.RenderNukeConfirmationPrompt(promptMessage, MaxConfirmationAttempts)
+		proceed, err := renderNukeConfirmationPrompt(promptMessage, MaxConfirmationAttempts)
 		if err != nil {
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: "Error confirming nuke",
