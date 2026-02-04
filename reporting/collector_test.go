@@ -64,8 +64,10 @@ func TestCollector_FullFlow(t *testing.T) {
 	assert.IsType(t, ResourceDeleted{}, r.events[2])
 	assert.IsType(t, GeneralError{}, r.events[4])
 
-	// Complete marks collector as closed
+	// Complete emits Complete event and marks collector as closed
 	c.Complete()
+	assert.Len(t, r.events, 6)
+	assert.IsType(t, Complete{}, r.events[5])
 
 	// Events after close should be ignored
 	c.Emit(ResourceDeleted{
@@ -74,10 +76,11 @@ func TestCollector_FullFlow(t *testing.T) {
 		Identifier:   "i-4",
 		Success:      true,
 	})
-	assert.Len(t, r.events, 5)
+	assert.Len(t, r.events, 6) // Still 6, new event ignored
 
-	// Second complete should be no-op
+	// Second complete should be no-op (no additional Complete event)
 	c.Complete()
+	assert.Len(t, r.events, 6)
 }
 
 func TestCollector_ConcurrentAccess(t *testing.T) {
