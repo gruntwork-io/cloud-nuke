@@ -87,7 +87,12 @@ func (NukeProgress) EventType() string { return "nuke_progress" }
 
 // NukeComplete is emitted when all nuke operations are finished.
 // Used by CLI renderer to stop progress bar and display deletion results.
-// Used by JSON renderer to output final JSON.
 type NukeComplete struct{}
 
 func (NukeComplete) EventType() string { return "nuke_complete" }
+
+// Complete is emitted by collector.Complete(), signaling the end of the operation.
+// JSON renderer outputs on this event (using nukeMode to decide format).
+type Complete struct{}
+
+func (Complete) EventType() string { return "complete" }

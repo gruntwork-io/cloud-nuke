@@ -26,7 +26,8 @@ func GetOutputWriter(outputFile string) (io.Writer, func() error, error) {
 }
 
 // JSONRenderer outputs results as JSON.
-// Output is triggered by terminal events (ScanComplete for inspect, NukeComplete for nuke).
+// Output is triggered by Complete event (emitted when collector.Complete() is called).
+// Uses nukeMode to determine output format: NukeOutput if nuke occurred, InspectOutput otherwise.
 type JSONRenderer struct {
 	writer   io.Writer
 	command  string
@@ -35,7 +36,7 @@ type JSONRenderer struct {
 	found    []reporting.ResourceFound
 	deleted  []reporting.ResourceDeleted
 	errors   []reporting.GeneralError
-	nukeMode bool // true if NukeStarted was received
+	nukeMode bool // true if NukeStarted was received, determines output format
 }
 
 // NewJSONRenderer creates a JSON renderer.
@@ -54,8 +55,7 @@ func NewJSONRenderer(writer io.Writer, cfg JSONRendererConfig) *JSONRenderer {
 	}
 }
 
-// OnEvent collects events and outputs JSON on terminal events.
-// Terminal events: ScanComplete (for inspect), NukeComplete (for nuke).
+// OnEvent collects events and outputs JSON on Complete.
 func (r *JSONRenderer) OnEvent(event reporting.Event) {
 	switch e := event.(type) {
 	case reporting.ResourceFound:
@@ -66,16 +66,14 @@ func (r *JSONRenderer) OnEvent(event reporting.Event) {
 		r.errors = append(r.errors, e)
 	case reporting.NukeStarted:
 		r.nukeMode = true
-	case reporting.ScanComplete:
-		// If not in nuke mode, ScanComplete is terminal - output JSON
-		if !r.nukeMode {
-			if err := r.renderInspectOutput(); err != nil {
-				_, _ = fmt.Fprintf(r.writer, "Error rendering JSON output: %v\n", err)
-			}
+	case reporting.Complete:
+		var err error
+		if r.nukeMode {
+			err = r.renderNukeOutput()
+		} else {
+			err = r.renderInspectOutput()
 		}
-	case reporting.NukeComplete:
-		// NukeComplete is terminal for nuke mode - output JSON
-		if err := r.renderNukeOutput(); err != nil {
+		if err != nil {
 			_, _ = fmt.Fprintf(r.writer, "Error rendering JSON output: %v\n", err)
 		}
 	}
