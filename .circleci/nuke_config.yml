@@ -284,10 +284,9 @@ MSKCluster:
 InternetGateway:
   exclude:
     names_regex:
-      # Exclude the IGW for default VPCs in phxdevops. This IGW is attached to the default VPC
-      # and is used by tests that require internet access from within the VPC. Without it, any
-      # VPC-based test that requires internet will fail.
-      - "gw-new-default-igw"
+      # Exclude any IGW with gruntwork or gw- prefix to protect infrastructure resources
+      - "^gruntwork.*"
+      - "^gw-.*"
 
 Route53HostedZone:
   exclude:
