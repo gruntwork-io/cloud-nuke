@@ -5,10 +5,10 @@ import (
 )
 
 // Renderer processes events and produces output.
-// All rendering is triggered by events (ScanComplete for inspect, NukeComplete for nuke).
+// CLI renderer outputs progressively on ScanComplete and NukeComplete.
+// JSON renderer outputs once on Complete (emitted by collector.Complete()).
 type Renderer interface {
 	// OnEvent is called for each event as it occurs.
-	// Terminal events (ScanComplete, NukeComplete) trigger final output.
 	OnEvent(event Event)
 }
 
@@ -51,12 +51,21 @@ func (c *Collector) Emit(event Event) {
 	}
 }
 
-// Complete marks collection as finished.
+// Complete marks collection as finished and signals renderers to flush output.
+// Emits Complete event before closing, allowing renderers to output final state.
 // Safe to call multiple times - subsequent calls are no-ops.
-// Note: Final rendering is triggered by terminal events (ScanComplete, NukeComplete),
-// not by this method.
 func (c *Collector) Complete() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if c.closed {
+		return
+	}
+
+	// Signal renderers to output final state
+	for _, r := range c.renderers {
+		r.OnEvent(Complete{})
+	}
+
 	c.closed = true
 }
