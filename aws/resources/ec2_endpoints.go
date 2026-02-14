@@ -112,5 +112,5 @@ func verifyEC2EndpointPermission(ctx context.Context, client EC2EndpointsAPI, id
 		VpcEndpointIds: []string{aws.ToString(id)},
 		DryRun:         aws.Bool(true),
 	})
-	return err
+	return util.TransformAWSError(err)
 }
