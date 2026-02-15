@@ -14,7 +14,7 @@ process](https://help.github.com/articles/about-pull-requests/) for contribution
 ## If you are adding a new nuked resource
 
 ⚠️ If your contribution includes the addition of a new nuked resource, please mark the PR as backward incompatible.
-Read [choosing a new release tag](README.md#choosing-a-new-release-tag) for more info.
+Read [choosing a new release tag](docs/developing.md#choosing-a-release-tag) for more info.
 
 
 ## File a GitHub issue or write an RFC
@@ -49,13 +49,13 @@ We also recommend updating the automated tests *before* updating any code (see [
 Development](https://en.wikipedia.org/wiki/Test-driven_development)). That means you add or update a test case,
 verify that it's failing with a clear error message, and *then* make the code changes to get that test to pass. This
 ensures the tests stay up to date and verify all the functionality in this Module, including whatever new
-functionality you're adding in your contribution. Check out [Developing cloud-nuke](README.md#developing-cloud-nuke)
+functionality you're adding in your contribution. Check out [Developing cloud-nuke](docs/developing.md)
 for instructions on running the automated tests.
 
 ## Update the code
 
 At this point, make your code changes and use your new test case to verify that everything is working. Check out
-[Developing cloud-nuke](README.md#developing-cloud-nuke) for instructions on how to build and run `cloud-nuke` locally.
+[Developing cloud-nuke](docs/developing.md) for instructions on how to build and run `cloud-nuke` locally.
 
 We have a [style guide](https://gruntwork.io/guides/style%20guides/golang-style-guide/) for the Go programming language,
 in which we documented some best practices for writing Go code. Please ensure your code adheres to the guidelines
