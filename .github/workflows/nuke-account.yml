@@ -1,5 +1,5 @@
 # Reusable workflow for nuking resources in a single AWS account.
-# Called by nuke-phxdevops.yml, nuke-configtests.yml, nuke-sandbox.yml, etc.
+# Called by nuke.yml with account-specific parameters.
 name: Nuke Account
 
 on:
@@ -64,6 +64,7 @@ jobs:
           restore-keys: ${{ runner.os }}-go-
       - run: go mod download
       - name: Nuke global resources
+        id: nuke
         env:
           DISABLE_TELEMETRY: true
         run: |
@@ -74,6 +75,18 @@ jobs:
             --delete-unaliased-kms-keys --log-level info \
             --output-format json --output-file /tmp/nuke-global.json 2>&1 | tee /tmp/nuke-global.log
           EXIT_CODE=${PIPESTATUS[0]}
+
+          # Parse counts from JSON output
+          if [ -f /tmp/nuke-global.json ]; then
+            DELETED=$(jq -r '.summary.deleted // 0' /tmp/nuke-global.json)
+            ERRORS=$(jq -r '.summary.failed // 0' /tmp/nuke-global.json)
+          else
+            DELETED=0
+            ERRORS=0
+          fi
+          echo "deleted_count=${DELETED}" >> $GITHUB_OUTPUT
+          echo "error_count=${ERRORS}" >> $GITHUB_OUTPUT
+
           exit $EXIT_CODE
       - name: Upload global results
         if: always()
@@ -133,6 +146,7 @@ jobs:
           restore-keys: ${{ runner.os }}-go-
       - run: go mod download
       - name: Nuke ${{ matrix.region }}
+        id: nuke
         env:
           DISABLE_TELEMETRY: true
         run: |
@@ -143,6 +157,18 @@ jobs:
             --delete-unaliased-kms-keys --log-level info \
             --output-format json --output-file /tmp/nuke-${{ matrix.region }}.json 2>&1 | tee /tmp/nuke-${{ matrix.region }}.log
           EXIT_CODE=${PIPESTATUS[0]}
+
+          # Parse counts from JSON output
+          if [ -f /tmp/nuke-${{ matrix.region }}.json ]; then
+            DELETED=$(jq -r '.summary.deleted // 0' /tmp/nuke-${{ matrix.region }}.json)
+            ERRORS=$(jq -r '.summary.failed // 0' /tmp/nuke-${{ matrix.region }}.json)
+          else
+            DELETED=0
+            ERRORS=0
+          fi
+          echo "deleted_count=${DELETED}" >> $GITHUB_OUTPUT
+          echo "error_count=${ERRORS}" >> $GITHUB_OUTPUT
+
           exit $EXIT_CODE
       - name: Upload results
         if: always()
@@ -182,19 +208,14 @@ jobs:
           # Aggregate counts from all JSON files
           TOTAL_DELETED=0
           TOTAL_FAILED=0
-          REGION_LINES=""
           while IFS= read -r json_file; do
             if [ -f "$json_file" ]; then
-              REGION=$(basename "$json_file" .json | sed 's/^nuke-//')
               DELETED=$(jq -r '.summary.deleted // 0' "$json_file")
               FAILED=$(jq -r '.summary.failed // 0' "$json_file")
               TOTAL_DELETED=$((TOTAL_DELETED + DELETED))
               TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
-              if [ "$DELETED" -gt 0 ] || [ "$FAILED" -gt 0 ]; then
-                REGION_LINES="${REGION_LINES}\n• ${REGION}: deleted ${DELETED}, failed ${FAILED}"
-              fi
             fi
-          done < <(find /tmp/logs -name "*.json" 2>/dev/null | sort)
+          done < <(find /tmp/logs -name "*.json" 2>/dev/null)
 
           if [ "${{ needs.global.result }}" == "success" ] && \
              [ "${{ needs.regional.result }}" == "success" ]; then
@@ -207,9 +228,6 @@ jobs:
 
           MSG="*${{ inputs.account_name }} Nuke*: ${STATUS}"
           MSG="${MSG}\nDeleted: ${TOTAL_DELETED:-0} | Failed: ${TOTAL_FAILED:-0}"
-          if [ -n "$REGION_LINES" ]; then
-            MSG="${MSG}${REGION_LINES}"
-          fi
           MSG="${MSG}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
 
           curl -sS -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d @- <<EOF
