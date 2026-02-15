@@ -17,6 +17,12 @@ const (
 	FailureEmoji = "❌"
 )
 
+// MaxResourcesForDetailedTable is the threshold above which the CLI renders
+// a summary table (grouped by resource type and region) instead of listing
+// every individual resource. This prevents O(n²) pterm column-width
+// calculation from hanging the CLI with very large resource counts.
+const MaxResourcesForDetailedTable = 500
+
 // CLIRenderer outputs results to terminal using pterm.
 type CLIRenderer struct {
 	writer      io.Writer
@@ -163,6 +169,11 @@ func (r *CLIRenderer) printFoundTable() {
 		return
 	}
 
+	if len(r.found) > MaxResourcesForDetailedTable {
+		r.printFoundSummaryTable()
+		return
+	}
+
 	tableData := pterm.TableData{
 		{"Resource Type", "Region", "Identifier", "Nukable"},
 	}
@@ -174,6 +185,66 @@ func (r *CLIRenderer) printFoundTable() {
 		}
 		tableData = append(tableData, []string{e.ResourceType, e.Region, e.Identifier, nukable})
 	}
+
+	_ = pterm.DefaultTable.
+		WithBoxed(true).
+		WithData(tableData).
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		WithWriter(r.writer).
+		Render()
+}
+
+// printFoundSummaryTable renders a compact summary grouped by resource type
+// and region instead of listing every individual resource.
+func (r *CLIRenderer) printFoundSummaryTable() {
+	type key struct {
+		ResourceType string
+		Region       string
+	}
+	type counts struct {
+		total      int
+		nukable    int
+		nonNukable int
+	}
+
+	summary := make(map[key]*counts)
+	var order []key
+
+	for _, e := range r.found {
+		k := key{e.ResourceType, e.Region}
+		c, exists := summary[k]
+		if !exists {
+			c = &counts{}
+			summary[k] = c
+			order = append(order, k)
+		}
+		c.total++
+		if e.Nukable {
+			c.nukable++
+		} else {
+			c.nonNukable++
+		}
+	}
+
+	tableData := pterm.TableData{
+		{"Resource Type", "Region", "Count", "Nukable", "Not Nukable"},
+	}
+	for _, k := range order {
+		c := summary[k]
+		tableData = append(tableData, []string{
+			k.ResourceType,
+			k.Region,
+			fmt.Sprintf("%d", c.total),
+			fmt.Sprintf("%d", c.nukable),
+			fmt.Sprintf("%d", c.nonNukable),
+		})
+	}
+
+	pterm.Info.WithWriter(r.writer).Printfln(
+		"Showing summary (%d resources total). Use --output json for full details.",
+		len(r.found),
+	)
 
 	_ = pterm.DefaultTable.
 		WithBoxed(true).
@@ -242,6 +313,11 @@ func (r *CLIRenderer) printDeletedTable() {
 	// Workaround for pterm progressbar cleanup
 	_, _ = r.writer.Write([]byte("\r"))
 
+	if len(r.deleted) > MaxResourcesForDetailedTable {
+		r.printDeletedSummaryTable()
+		return
+	}
+
 	tableData := pterm.TableData{
 		{"Identifier", "Resource Type", "Deleted Successfully"},
 	}
@@ -255,6 +331,66 @@ func (r *CLIRenderer) printDeletedTable() {
 		}
 		tableData = append(tableData, []string{e.Identifier, e.ResourceType, status})
 	}
+
+	_ = pterm.DefaultTable.
+		WithHasHeader().
+		WithBoxed(true).
+		WithRowSeparator("-").
+		WithLeftAlignment().
+		WithData(tableData).
+		WithWriter(r.writer).
+		Render()
+
+	_, _ = r.writer.Write([]byte("\r"))
+}
+
+// printDeletedSummaryTable renders a compact summary of deletion results
+// grouped by resource type and region.
+func (r *CLIRenderer) printDeletedSummaryTable() {
+	type key struct {
+		ResourceType string
+		Region       string
+	}
+	type counts struct {
+		success int
+		failure int
+	}
+
+	summary := make(map[key]*counts)
+	var order []key
+
+	for _, e := range r.deleted {
+		k := key{e.ResourceType, e.Region}
+		c, exists := summary[k]
+		if !exists {
+			c = &counts{}
+			summary[k] = c
+			order = append(order, k)
+		}
+		if e.Success {
+			c.success++
+		} else {
+			c.failure++
+		}
+	}
+
+	tableData := pterm.TableData{
+		{"Resource Type", "Region", "Successful", "Failed"},
+	}
+	for _, k := range order {
+		c := summary[k]
+		tableData = append(tableData, []string{
+			k.ResourceType,
+			k.Region,
+			fmt.Sprintf("%d", c.success),
+			fmt.Sprintf("%d", c.failure),
+		})
+	}
+
+	pterm.Info.WithWriter(r.writer).Printfln(
+		"Showing summary (%d resources deleted). Use --output json for full details.",
+		len(r.deleted),
+	)
 
 	_ = pterm.DefaultTable.
 		WithHasHeader().
