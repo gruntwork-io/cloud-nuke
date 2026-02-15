@@ -125,10 +125,12 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          # Aggregate counts from all JSON files
+          NL=$'\n'
+
+          # Aggregate counts from all JSON files into a temp file for sorting
           TOTAL_DELETED=0
           TOTAL_FAILED=0
-          REGION_LINES=""
+          REGION_DATA=$(mktemp)
           while IFS= read -r json_file; do
             if [ -f "$json_file" ]; then
               REGION=$(basename "$json_file" .json | sed 's/^nuke-//')
@@ -137,25 +139,47 @@ jobs:
               TOTAL_DELETED=$((TOTAL_DELETED + DELETED))
               TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
               if [ "$DELETED" -gt 0 ] || [ "$FAILED" -gt 0 ]; then
-                REGION_LINES="${REGION_LINES}\n• ${REGION}: deleted ${DELETED}, failed ${FAILED}"
+                echo "${DELETED} ${FAILED} ${REGION}" >> "$REGION_DATA"
               fi
             fi
           done < <(find /tmp/logs -name "*.json" 2>/dev/null | sort)
 
+          # Sort regions: those with deletions first, then by failure count descending
+          # Take top 5 most active regions
+          TOP_REGIONS=""
+          SHOWN=0
+          REMAINING_COUNT=0
+          REMAINING_DELETED=0
+          REMAINING_FAILED=0
+          while IFS=' ' read -r DEL FAIL REG; do
+            if [ "$SHOWN" -lt 5 ]; then
+              TOP_REGIONS="${TOP_REGIONS}${NL}• ${REG}: deleted ${DEL}, failed ${FAIL}"
+              SHOWN=$((SHOWN + 1))
+            else
+              REMAINING_COUNT=$((REMAINING_COUNT + 1))
+              REMAINING_DELETED=$((REMAINING_DELETED + DEL))
+              REMAINING_FAILED=$((REMAINING_FAILED + FAIL))
+            fi
+          done < <(sort -k2,2nr "$REGION_DATA")
+          rm -f "$REGION_DATA"
+
           if [ "${{ needs.nuke.result }}" == "success" ]; then
-            STATUS="✅ Success"
+            STATUS=":white_check_mark: Success"
             COLOR="good"
           else
-            STATUS="❌ Failed"
+            STATUS=":x: Failed"
             COLOR="danger"
           fi
 
           MSG="*${{ inputs.account_name }} Nuke*: ${STATUS}"
-          MSG="${MSG}\nDeleted: ${TOTAL_DELETED:-0} | Failed: ${TOTAL_FAILED:-0}"
-          if [ -n "$REGION_LINES" ]; then
-            MSG="${MSG}${REGION_LINES}"
+          MSG="${MSG}${NL}Deleted: ${TOTAL_DELETED:-0} | Failed: ${TOTAL_FAILED:-0}"
+          if [ -n "$TOP_REGIONS" ]; then
+            MSG="${MSG}${TOP_REGIONS}"
           fi
-          MSG="${MSG}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+          if [ "$REMAINING_COUNT" -gt 0 ]; then
+            MSG="${MSG}${NL}_+ ${REMAINING_COUNT} other regions: deleted ${REMAINING_DELETED}, failed ${REMAINING_FAILED}_"
+          fi
+          MSG="${MSG}${NL}<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
 
           PAYLOAD=$(jq -n \
             --arg color "$COLOR" \
