@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -92,6 +93,9 @@ func deleteSecretsManagerSecret(ctx context.Context, client SecretsManagerAPI, s
 	})
 	if err != nil {
 		return err
+	}
+	if secret == nil {
+		return fmt.Errorf("DescribeSecret returned nil for secret %s", aws.ToString(secretID))
 	}
 
 	// Delete replications if this is a primary secret with replicas
