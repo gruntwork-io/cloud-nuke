@@ -79,7 +79,7 @@ func listEC2IPAMCustomAllocations(ctx context.Context, client EC2IPAMCustomAlloc
 			page, err := paginator.NextPage(ctx)
 			if err != nil {
 				logging.Debugf("Failed to get allocations for pool %s: %v", aws.ToString(poolID), err)
-				continue
+				break
 			}
 
 			for _, allocation := range page.IpamPoolAllocations {
