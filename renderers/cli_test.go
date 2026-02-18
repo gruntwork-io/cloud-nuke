@@ -2,6 +2,7 @@ package renderers
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/gruntwork-io/cloud-nuke/reporting"
@@ -96,4 +97,58 @@ func TestCLIRenderer_ProgressEvents(t *testing.T) {
 	// NukeComplete stops progress bar
 	r.OnEvent(reporting.NukeComplete{})
 	assert.Nil(t, r.progressBar, "progress bar should be stopped after NukeComplete")
+}
+
+func TestCLIRenderer_LargeDatasetSummary(t *testing.T) {
+	var buf bytes.Buffer
+	r := NewCLIRenderer(&buf)
+
+	// Emit more than MaxResourcesForDetailedTable ResourceFound events
+	count := MaxResourcesForDetailedTable + 100
+	for i := 0; i < count; i++ {
+		r.OnEvent(reporting.ResourceFound{
+			ResourceType: "sns-topic",
+			Region:       "us-east-1",
+			Identifier:   fmt.Sprintf("arn:aws:sns:us-east-1:123456789012:topic-%d", i),
+			Nukable:      true,
+		})
+	}
+	r.OnEvent(reporting.ScanComplete{})
+
+	output := buf.String()
+
+	// Should contain the summary info message
+	assert.Contains(t, output, "summary")
+	assert.Contains(t, output, fmt.Sprintf("%d resources total", count))
+	assert.Contains(t, output, "--output json")
+
+	// Should NOT contain individual resource identifiers
+	assert.NotContains(t, output, "topic-0")
+	assert.NotContains(t, output, "topic-100")
+}
+
+func TestCLIRenderer_LargeDeletedDatasetSummary(t *testing.T) {
+	var buf bytes.Buffer
+	r := NewCLIRenderer(&buf)
+
+	// Set up nuke mode
+	count := MaxResourcesForDetailedTable + 50
+	r.OnEvent(reporting.NukeStarted{Total: count})
+
+	for i := 0; i < count; i++ {
+		r.OnEvent(reporting.ResourceDeleted{
+			ResourceType: "sns-topic",
+			Region:       "us-east-1",
+			Identifier:   fmt.Sprintf("arn:aws:sns:us-east-1:123456789012:topic-%d", i),
+			Success:      true,
+		})
+	}
+	r.OnEvent(reporting.NukeComplete{})
+
+	output := buf.String()
+
+	assert.Contains(t, output, "summary")
+	assert.Contains(t, output, fmt.Sprintf("%d resources deleted", count))
+	assert.Contains(t, output, "--output json")
+	assert.NotContains(t, output, "topic-0")
 }
