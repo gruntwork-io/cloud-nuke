@@ -33,6 +33,10 @@ type EC2VpcAPI interface {
 	DescribeInternetGateways(ctx context.Context, params *ec2.DescribeInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInternetGatewaysOutput, error)
 	DetachInternetGateway(ctx context.Context, params *ec2.DetachInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachInternetGatewayOutput, error)
 	DeleteInternetGateway(ctx context.Context, params *ec2.DeleteInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteInternetGatewayOutput, error)
+	DescribeSubnets(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
+	DeleteSubnet(ctx context.Context, params *ec2.DeleteSubnetInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSubnetOutput, error)
+	DescribeVpcPeeringConnections(ctx context.Context, params *ec2.DescribeVpcPeeringConnectionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcPeeringConnectionsOutput, error)
+	DeleteVpcPeeringConnection(ctx context.Context, params *ec2.DeleteVpcPeeringConnectionInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcPeeringConnectionOutput, error)
 }
 
 // NewEC2VPC creates a new EC2 VPC resource using the generic resource pattern.
@@ -95,9 +99,11 @@ func cleanupVPCDependencies(ctx context.Context, client EC2VpcAPI, id *string) e
 	vpcID := aws.ToString(id)
 	logging.Debugf("[VPC Safety Net] Cleaning up remaining dependencies for VPC %s", vpcID)
 
+	cleanupVPCPeeringConnections(ctx, client, vpcID)
 	cleanupVPCRouteTables(ctx, client, vpcID)
 	cleanupVPCNetworkInterfaces(ctx, client, vpcID)
 	cleanupVPCSecurityGroups(ctx, client, vpcID)
+	cleanupVPCSubnets(ctx, client, vpcID)
 	cleanupVPCInternetGateways(ctx, client, vpcID)
 
 	logging.Debugf("[VPC Safety Net] Finished dependency cleanup for VPC %s", vpcID)
@@ -109,7 +115,6 @@ func cleanupVPCRouteTables(ctx context.Context, client EC2VpcAPI, vpcID string) 
 	resp, err := client.DescribeRouteTables(ctx, &ec2.DescribeRouteTablesInput{
 		Filters: []types.Filter{
 			{Name: aws.String("vpc-id"), Values: []string{vpcID}},
-			{Name: aws.String("association.main"), Values: []string{"false"}},
 		},
 	})
 	if err != nil {
@@ -118,6 +123,11 @@ func cleanupVPCRouteTables(ctx context.Context, client EC2VpcAPI, vpcID string) 
 	}
 
 	for _, rt := range resp.RouteTables {
+		// Skip main route tables — they are deleted automatically with the VPC
+		if isMainRouteTable(rt) {
+			continue
+		}
+
 		rtID := aws.ToString(rt.RouteTableId)
 
 		// Disassociate all subnet associations first
@@ -257,6 +267,77 @@ func cleanupVPCInternetGateways(ctx context.Context, client EC2VpcAPI, vpcID str
 			logging.Debugf("[VPC Safety Net] Failed to delete IGW %s: %s", igwID, err)
 		} else {
 			logging.Debugf("[VPC Safety Net] Deleted IGW %s", igwID)
+		}
+	}
+}
+
+// cleanupVPCSubnets deletes remaining subnets in the VPC (best-effort).
+func cleanupVPCSubnets(ctx context.Context, client EC2VpcAPI, vpcID string) {
+	resp, err := client.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
+		Filters: []types.Filter{
+			{Name: aws.String("vpc-id"), Values: []string{vpcID}},
+		},
+	})
+	if err != nil {
+		logging.Debugf("[VPC Safety Net] Failed to describe subnets for %s: %s", vpcID, err)
+		return
+	}
+
+	for _, subnet := range resp.Subnets {
+		subnetID := aws.ToString(subnet.SubnetId)
+		if _, err := client.DeleteSubnet(ctx, &ec2.DeleteSubnetInput{
+			SubnetId: subnet.SubnetId,
+		}); err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to delete subnet %s: %s", subnetID, err)
+		} else {
+			logging.Debugf("[VPC Safety Net] Deleted subnet %s", subnetID)
+		}
+	}
+}
+
+// cleanupVPCPeeringConnections deletes active VPC peering connections for the VPC (best-effort).
+func cleanupVPCPeeringConnections(ctx context.Context, client EC2VpcAPI, vpcID string) {
+	// Check peering connections where this VPC is the requester
+	requesterResp, err := client.DescribeVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
+		Filters: []types.Filter{
+			{Name: aws.String("requester-vpc-info.vpc-id"), Values: []string{vpcID}},
+			{Name: aws.String("status-code"), Values: []string{"active", "pending-acceptance", "provisioning"}},
+		},
+	})
+	if err != nil {
+		logging.Debugf("[VPC Safety Net] Failed to describe requester peering connections for %s: %s", vpcID, err)
+	} else {
+		for _, pcx := range requesterResp.VpcPeeringConnections {
+			pcxID := aws.ToString(pcx.VpcPeeringConnectionId)
+			if _, err := client.DeleteVpcPeeringConnection(ctx, &ec2.DeleteVpcPeeringConnectionInput{
+				VpcPeeringConnectionId: pcx.VpcPeeringConnectionId,
+			}); err != nil {
+				logging.Debugf("[VPC Safety Net] Failed to delete peering connection %s: %s", pcxID, err)
+			} else {
+				logging.Debugf("[VPC Safety Net] Deleted peering connection %s", pcxID)
+			}
+		}
+	}
+
+	// Check peering connections where this VPC is the accepter
+	accepterResp, err := client.DescribeVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
+		Filters: []types.Filter{
+			{Name: aws.String("accepter-vpc-info.vpc-id"), Values: []string{vpcID}},
+			{Name: aws.String("status-code"), Values: []string{"active", "pending-acceptance", "provisioning"}},
+		},
+	})
+	if err != nil {
+		logging.Debugf("[VPC Safety Net] Failed to describe accepter peering connections for %s: %s", vpcID, err)
+	} else {
+		for _, pcx := range accepterResp.VpcPeeringConnections {
+			pcxID := aws.ToString(pcx.VpcPeeringConnectionId)
+			if _, err := client.DeleteVpcPeeringConnection(ctx, &ec2.DeleteVpcPeeringConnectionInput{
+				VpcPeeringConnectionId: pcx.VpcPeeringConnectionId,
+			}); err != nil {
+				logging.Debugf("[VPC Safety Net] Failed to delete peering connection %s: %s", pcxID, err)
+			} else {
+				logging.Debugf("[VPC Safety Net] Deleted peering connection %s", pcxID)
+			}
 		}
 	}
 }
