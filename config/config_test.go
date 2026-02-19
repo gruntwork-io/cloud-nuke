@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"testing"
@@ -26,8 +28,8 @@ func emptyConfig() *Config {
 		CloudWatchAlarm:                 ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudWatchDashboard:             ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudWatchLogGroup:              ResourceType{FilterRule{}, FilterRule{}, "", false},
-		CloudtrailTrail:                 ResourceType{FilterRule{}, FilterRule{}, "", false},
-		CloudfrontDistribution:          ResourceType{FilterRule{}, FilterRule{}, "", false},
+		CloudTrailTrail:                 ResourceType{FilterRule{}, FilterRule{}, "", false},
+		CloudFrontDistribution:          ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudFormationStack:             ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CodeDeployApplications:          ResourceType{FilterRule{}, FilterRule{}, "", false},
 		ConfigServiceRecorder:           ResourceType{FilterRule{}, FilterRule{}, "", false},
@@ -35,8 +37,8 @@ func emptyConfig() *Config {
 		DataSyncLocation:                ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DataSyncTask:                    ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DBGlobalClusters:                ResourceType{FilterRule{}, FilterRule{}, "", false},
-		DBClusters:                      AWSProtectectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
-		DBInstances:                     AWSProtectectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
+		DBClusters:                      AWSProtectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
+		DBInstances:                     AWSProtectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
 		DBGlobalClusterMemberships:      ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DBSubnetGroups:                  ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DynamoDB:                        ResourceType{FilterRule{}, FilterRule{}, "", false},
@@ -62,10 +64,10 @@ func emptyConfig() *Config {
 		ELBv2:                           ResourceType{FilterRule{}, FilterRule{}, "", false},
 		ElasticFileSystem:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		ElasticIP:                       ResourceType{FilterRule{}, FilterRule{}, "", false},
-		Elasticache:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
-		ElasticacheParameterGroups:      ResourceType{FilterRule{}, FilterRule{}, "", false},
-		ElasticCacheServerless:          ResourceType{FilterRule{}, FilterRule{}, "", false},
-		ElasticacheSubnetGroups:         ResourceType{FilterRule{}, FilterRule{}, "", false},
+		ElastiCache:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
+		ElastiCacheParameterGroup:      ResourceType{FilterRule{}, FilterRule{}, "", false},
+		ElastiCacheServerless:          ResourceType{FilterRule{}, FilterRule{}, "", false},
+		ElastiCacheSubnetGroup:         ResourceType{FilterRule{}, FilterRule{}, "", false},
 		EventBridge:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		EventBridgeArchive:              ResourceType{FilterRule{}, FilterRule{}, "", false},
 		EventBridgeRule:                 ResourceType{FilterRule{}, FilterRule{}, "", false},
@@ -88,13 +90,13 @@ func emptyConfig() *Config {
 		LaunchTemplate:                  ResourceType{FilterRule{}, FilterRule{}, "", false},
 		MacieMember:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		MSKCluster:                      ResourceType{FilterRule{}, FilterRule{}, "", false},
-		NatGateway:                      EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, "", false}},
+		NATGateway:                      EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, "", false}},
 		OIDCProvider:                    ResourceType{FilterRule{}, FilterRule{}, "", false},
 		OpenSearchDomain:                ResourceType{FilterRule{}, FilterRule{}, "", false},
 		Redshift:                        ResourceType{FilterRule{}, FilterRule{}, "", false},
-		RdsSnapshot:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
-		RdsParameterGroup:               ResourceType{FilterRule{}, FilterRule{}, "", false},
-		RdsProxy:                        ResourceType{FilterRule{}, FilterRule{}, "", false},
+		RDSSnapshot:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
+		RDSParameterGroup:               ResourceType{FilterRule{}, FilterRule{}, "", false},
+		RDSProxy:                        ResourceType{FilterRule{}, FilterRule{}, "", false},
 		S3:                              ResourceType{FilterRule{}, FilterRule{}, "", false},
 		S3AccessPoint:                   ResourceType{FilterRule{}, FilterRule{}, "", false},
 		S3ObjectLambdaAccessPoint:       ResourceType{FilterRule{}, FilterRule{}, "", false},
@@ -108,12 +110,12 @@ func emptyConfig() *Config {
 		SQS:                             ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SageMakerNotebook:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SageMakerStudioDomain:           ResourceType{FilterRule{}, FilterRule{}, "", false},
-		SecretsManagerSecrets:           ResourceType{FilterRule{}, FilterRule{}, "", false},
+		SecretsManager:           ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SecurityHub:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		Snapshots:                       ResourceType{FilterRule{}, FilterRule{}, "", false},
 		TransitGateway:                  ResourceType{FilterRule{}, FilterRule{}, "", false},
 		TransitGatewayRouteTable:        ResourceType{FilterRule{}, FilterRule{}, "", false},
-		TransitGatewaysVpcAttachment:    ResourceType{FilterRule{}, FilterRule{}, "", false},
+		TransitGatewayVPCAttachment:    ResourceType{FilterRule{}, FilterRule{}, "", false},
 		TransitGatewayPeeringAttachment: ResourceType{FilterRule{}, FilterRule{}, "", false},
 		VPC:                             EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, "", false}},
 		Route53HostedZone:               ResourceType{FilterRule{}, FilterRule{}, "", false},
@@ -136,15 +138,18 @@ func emptyConfig() *Config {
 
 func TestConfig_Garbage(t *testing.T) {
 	configFilePath := "./mocks/garbage.yaml"
-	configObj, err := GetConfig(configFilePath)
+	_, err := GetConfig(configFilePath)
+	require.Error(t, err)
+}
 
-	require.NoError(t, err)
+func TestConfig_UnknownField(t *testing.T) {
+	content := []byte("S3:\n  include:\n    names_regex:\n      - \".*\"\nBogusKey:\n  include:\n    names_regex:\n      - \".*\"\n")
+	tmpFile := filepath.Join(t.TempDir(), "unknown.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, content, 0644))
 
-	if !reflect.DeepEqual(configObj, emptyConfig()) {
-		assert.Fail(t, "Config should be empty, %+v\n", configObj)
-	}
-
-	return
+	_, err := GetConfig(tmpFile)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "BogusKey")
 }
 
 func TestConfig_Malformed(t *testing.T) {

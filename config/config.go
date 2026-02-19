@@ -37,8 +37,8 @@ type Config struct {
 	CloudWatchLogGroup              ResourceType                  `yaml:"CloudWatchLogGroup"`
 	CloudMapNamespace               ResourceType                  `yaml:"CloudMapNamespace"`
 	CloudMapService                 ResourceType                  `yaml:"CloudMapService"`
-	CloudtrailTrail                 ResourceType                  `yaml:"CloudtrailTrail"`
-	CloudfrontDistribution          ResourceType                  `yaml:"CloudfrontDistribution"`
+	CloudTrailTrail                 ResourceType                  `yaml:"CloudTrailTrail"`
+	CloudFrontDistribution          ResourceType                  `yaml:"CloudFrontDistribution"`
 	CloudFormationStack             ResourceType                  `yaml:"CloudFormationStack"`
 	CodeDeployApplications          ResourceType                  `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType                  `yaml:"ConfigServiceRecorder"`
@@ -46,8 +46,8 @@ type Config struct {
 	DataSyncLocation                ResourceType                  `yaml:"DataSyncLocation"`
 	DataSyncTask                    ResourceType                  `yaml:"DataSyncTask"`
 	DBGlobalClusters                ResourceType                  `yaml:"DBGlobalClusters"`
-	DBClusters                      AWSProtectectableResourceType `yaml:"DBClusters"`
-	DBInstances                     AWSProtectectableResourceType `yaml:"DBInstances"`
+	DBClusters                      AWSProtectableResourceType `yaml:"DBClusters"`
+	DBInstances                     AWSProtectableResourceType `yaml:"DBInstances"`
 	DBGlobalClusterMemberships      ResourceType                  `yaml:"DBGlobalClusterMemberships"`
 	DBSubnetGroups                  ResourceType                  `yaml:"DBSubnetGroups"`
 	DynamoDB                        ResourceType                  `yaml:"DynamoDB"`
@@ -55,7 +55,7 @@ type Config struct {
 	ElasticBeanstalk                ResourceType                  `yaml:"ElasticBeanstalk"`
 	EC2                             ResourceType                  `yaml:"EC2"`
 	EC2DedicatedHosts               ResourceType                  `yaml:"EC2DedicatedHosts"`
-	EC2DHCPOption                   ResourceType                  `yaml:"EC2DhcpOption"`
+	EC2DHCPOption                   ResourceType                  `yaml:"EC2DHCPOption"`
 	EC2KeyPairs                     ResourceType                  `yaml:"EC2KeyPairs"`
 	EC2IPAM                         ResourceType                  `yaml:"EC2IPAM"`
 	EC2IPAMByoasn                   ResourceType                  `yaml:"EC2IPAMByoasn"`
@@ -75,10 +75,10 @@ type Config struct {
 	ELBv2                           ResourceType                  `yaml:"ELBv2"`
 	ElasticFileSystem               ResourceType                  `yaml:"ElasticFileSystem"`
 	ElasticIP                       ResourceType                  `yaml:"ElasticIP"`
-	Elasticache                     ResourceType                  `yaml:"Elasticache"`
-	ElasticacheParameterGroups      ResourceType                  `yaml:"ElasticacheParameterGroups"`
-	ElasticCacheServerless          ResourceType                  `yaml:"ElasticCacheServerless"`
-	ElasticacheSubnetGroups         ResourceType                  `yaml:"ElasticacheSubnetGroups"`
+	ElastiCache                     ResourceType                  `yaml:"ElastiCache"`
+	ElastiCacheParameterGroup       ResourceType                  `yaml:"ElastiCacheParameterGroup"`
+	ElastiCacheServerless           ResourceType                  `yaml:"ElastiCacheServerless"`
+	ElastiCacheSubnetGroup          ResourceType                  `yaml:"ElastiCacheSubnetGroup"`
 	EventBridge                     ResourceType                  `yaml:"EventBridge"`
 	EventBridgeArchive              ResourceType                  `yaml:"EventBridgeArchive"`
 	EventBridgeRule                 ResourceType                  `yaml:"EventBridgeRule"`
@@ -101,35 +101,35 @@ type Config struct {
 	LaunchTemplate                  ResourceType                  `yaml:"LaunchTemplate"`
 	MacieMember                     ResourceType                  `yaml:"MacieMember"`
 	MSKCluster                      ResourceType                  `yaml:"MSKCluster"`
-	NatGateway                      EC2ResourceType               `yaml:"NatGateway"`
+	NATGateway                      EC2ResourceType               `yaml:"NATGateway"`
 	OIDCProvider                    ResourceType                  `yaml:"OIDCProvider"`
 	OpenSearchDomain                ResourceType                  `yaml:"OpenSearchDomain"`
 	Redshift                        ResourceType                  `yaml:"Redshift"`
 	RedshiftSnapshotCopyGrant       ResourceType                  `yaml:"RedshiftSnapshotCopyGrant"`
-	RdsSnapshot                     ResourceType                  `yaml:"RdsSnapshot"`
-	RdsParameterGroup               ResourceType                  `yaml:"RdsParameterGroup"`
-	RdsProxy                        ResourceType                  `yaml:"RdsProxy"`
-	S3                              ResourceType                  `yaml:"s3"`
+	RDSSnapshot                     ResourceType                  `yaml:"RDSSnapshot"`
+	RDSParameterGroup               ResourceType                  `yaml:"RDSParameterGroup"`
+	RDSProxy                        ResourceType                  `yaml:"RDSProxy"`
+	S3                              ResourceType                  `yaml:"S3"`
 	S3AccessPoint                   ResourceType                  `yaml:"S3AccessPoint"`
 	S3ObjectLambdaAccessPoint       ResourceType                  `yaml:"S3ObjectLambdaAccessPoint"`
 	S3MultiRegionAccessPoint        ResourceType                  `yaml:"S3MultiRegionAccessPoint"`
-	SESIdentity                     ResourceType                  `yaml:"SesIdentity"`
-	SESConfigurationSet             ResourceType                  `yaml:"SesConfigurationset"`
-	SESReceiptRuleSet               ResourceType                  `yaml:"SesReceiptRuleSet"`
-	SESReceiptFilter                ResourceType                  `yaml:"SesReceiptFilter"`
-	SESEmailTemplates               ResourceType                  `yaml:"SesEmailTemplates"`
+	SESIdentity                     ResourceType                  `yaml:"SESIdentity"`
+	SESConfigurationSet             ResourceType                  `yaml:"SESConfigurationSet"`
+	SESReceiptRuleSet               ResourceType                  `yaml:"SESReceiptRuleSet"`
+	SESReceiptFilter                ResourceType                  `yaml:"SESReceiptFilter"`
+	SESEmailTemplates               ResourceType                  `yaml:"SESEmailTemplates"`
 	SNS                             ResourceType                  `yaml:"SNS"`
 	SQS                             ResourceType                  `yaml:"SQS"`
 	SageMakerEndpoint               ResourceType                  `yaml:"SageMakerEndpoint"`
 	SageMakerEndpointConfig         ResourceType                  `yaml:"SageMakerEndpointConfig"`
 	SageMakerNotebook               ResourceType                  `yaml:"SageMakerNotebook"`
 	SageMakerStudioDomain           ResourceType                  `yaml:"SageMakerStudioDomain"`
-	SecretsManagerSecrets           ResourceType                  `yaml:"SecretsManager"`
+	SecretsManager                  ResourceType                  `yaml:"SecretsManager"`
 	SecurityHub                     ResourceType                  `yaml:"SecurityHub"`
 	Snapshots                       ResourceType                  `yaml:"Snapshots"`
 	TransitGateway                  ResourceType                  `yaml:"TransitGateway"`
 	TransitGatewayRouteTable        ResourceType                  `yaml:"TransitGatewayRouteTable"`
-	TransitGatewaysVpcAttachment    ResourceType                  `yaml:"TransitGatewaysVpcAttachment"`
+	TransitGatewayVPCAttachment     ResourceType                  `yaml:"TransitGatewayVPCAttachment"`
 	TransitGatewayPeeringAttachment ResourceType                  `yaml:"TransitGatewayPeeringAttachment"`
 	VPC                             EC2ResourceType               `yaml:"VPC"`
 	Route53HostedZone               ResourceType                  `yaml:"Route53HostedZone"`
@@ -253,7 +253,7 @@ type EC2ResourceType struct {
 	ResourceType `yaml:",inline"`
 }
 
-type AWSProtectectableResourceType struct {
+type AWSProtectableResourceType struct {
 	ResourceType             `yaml:",inline"`
 	IncludeDeletionProtected bool `yaml:"include_deletion_protected"`
 }
@@ -311,7 +311,7 @@ func GetConfig(filePath string) (*Config, error) {
 		return nil, err
 	}
 
-	err = yaml.Unmarshal(yamlFile, &configObj)
+	err = yaml.UnmarshalStrict(yamlFile, &configObj)
 	if err != nil {
 		return nil, err
 	}
