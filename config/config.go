@@ -147,6 +147,8 @@ type Config struct {
 	VPCLatticeServiceNetwork        ResourceType                  `yaml:"VPCLatticeServiceNetwork"`
 	VPCLatticeService               ResourceType                  `yaml:"VPCLatticeService"`
 	VPCLatticeTargetGroup           ResourceType                  `yaml:"VPCLatticeTargetGroup"`
+	RouteTable                      EC2ResourceType               `yaml:"RouteTable"`
+	VPCPeeringConnection            ResourceType                  `yaml:"VPCPeeringConnection"`
 
 	// GCP Resources
 	GCSBucket ResourceType `yaml:"GCSBucket"`

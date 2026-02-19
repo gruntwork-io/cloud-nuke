@@ -2,13 +2,18 @@ package resources
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // NatGatewaysAPI defines the interface for NAT Gateway operations.
@@ -28,7 +33,7 @@ func NewNatGateways() AwsResource {
 		}),
 		func(c config.Config) config.EC2ResourceType { return c.NatGateway },
 		listNatGateways,
-		resource.SimpleBatchDeleter(deleteNatGateway),
+		resource.ConcurrentDeleteThenWaitAll(deleteNatGateway, waitForNatGatewaysDeleted),
 		nil,
 	)
 }
@@ -107,4 +112,39 @@ func deleteNatGateway(ctx context.Context, client NatGatewaysAPI, id *string) er
 		NatGatewayId: id,
 	})
 	return err
+}
+
+// waitForNatGatewaysDeleted waits for all NAT Gateways to reach the "deleted" state.
+// NAT Gateway deletion is asynchronous — the API returns immediately but the gateway
+// transitions through "deleting" before reaching "deleted". Downstream resources like
+// subnets and VPCs will fail with DependencyViolation if we don't wait.
+func waitForNatGatewaysDeleted(ctx context.Context, client NatGatewaysAPI, ids []string) error {
+	return retry.DoWithRetry(
+		logging.Logger.WithTime(time.Now()),
+		"Waiting for all NAT Gateways to be deleted",
+		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
+		30, 10*time.Second,
+		func() error {
+			resp, err := client.DescribeNatGateways(ctx, &ec2.DescribeNatGatewaysInput{
+				NatGatewayIds: ids,
+				Filter: []types.Filter{
+					{
+						Name: aws.String("state"),
+						Values: []string{
+							string(types.NatGatewayStateAvailable),
+							string(types.NatGatewayStateDeleting),
+							string(types.NatGatewayStatePending),
+						},
+					},
+				},
+			})
+			if err != nil {
+				return errors.WithStackTrace(retry.FatalError{Underlying: err})
+			}
+			if len(resp.NatGateways) > 0 {
+				return fmt.Errorf("%d NAT Gateways still deleting", len(resp.NatGateways))
+			}
+			return nil
+		},
+	)
 }

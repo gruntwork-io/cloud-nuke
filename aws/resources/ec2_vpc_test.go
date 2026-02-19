@@ -16,9 +16,28 @@ import (
 )
 
 type mockEC2VpcClient struct {
-	DescribeVpcsOutput ec2.DescribeVpcsOutput
-	DeleteVpcOutput    ec2.DeleteVpcOutput
-	DeleteVpcError     error
+	DescribeVpcsOutput              ec2.DescribeVpcsOutput
+	DeleteVpcOutput                 ec2.DeleteVpcOutput
+	DeleteVpcError                  error
+	DescribeRouteTablesOutput       ec2.DescribeRouteTablesOutput
+	DisassociateRouteTableOutput    ec2.DisassociateRouteTableOutput
+	DeleteRouteTableOutput          ec2.DeleteRouteTableOutput
+	DescribeSecurityGroupsOutput    ec2.DescribeSecurityGroupsOutput
+	RevokeSecurityGroupIngressOutput ec2.RevokeSecurityGroupIngressOutput
+	RevokeSecurityGroupEgressOutput ec2.RevokeSecurityGroupEgressOutput
+	DeleteSecurityGroupOutput       ec2.DeleteSecurityGroupOutput
+	DescribeNetworkInterfacesOutput ec2.DescribeNetworkInterfacesOutput
+	DetachNetworkInterfaceOutput    ec2.DetachNetworkInterfaceOutput
+	DeleteNetworkInterfaceOutput    ec2.DeleteNetworkInterfaceOutput
+	DescribeInternetGatewaysOutput  ec2.DescribeInternetGatewaysOutput
+	DetachInternetGatewayOutput     ec2.DetachInternetGatewayOutput
+	DeleteInternetGatewayOutput     ec2.DeleteInternetGatewayOutput
+
+	// Track calls for assertions
+	DeletedRouteTableIDs    []string
+	DeletedSecurityGroupIDs []string
+	DeletedENIIDs           []string
+	DeletedIGWIDs           []string
 }
 
 func (m *mockEC2VpcClient) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
@@ -31,6 +50,62 @@ func (m *mockEC2VpcClient) DeleteVpc(ctx context.Context, params *ec2.DeleteVpcI
 
 func (m *mockEC2VpcClient) CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
 	return &ec2.CreateTagsOutput{}, nil
+}
+
+func (m *mockEC2VpcClient) DescribeRouteTables(ctx context.Context, params *ec2.DescribeRouteTablesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeRouteTablesOutput, error) {
+	return &m.DescribeRouteTablesOutput, nil
+}
+
+func (m *mockEC2VpcClient) DisassociateRouteTable(ctx context.Context, params *ec2.DisassociateRouteTableInput, optFns ...func(*ec2.Options)) (*ec2.DisassociateRouteTableOutput, error) {
+	return &m.DisassociateRouteTableOutput, nil
+}
+
+func (m *mockEC2VpcClient) DeleteRouteTable(ctx context.Context, params *ec2.DeleteRouteTableInput, optFns ...func(*ec2.Options)) (*ec2.DeleteRouteTableOutput, error) {
+	m.DeletedRouteTableIDs = append(m.DeletedRouteTableIDs, aws.ToString(params.RouteTableId))
+	return &m.DeleteRouteTableOutput, nil
+}
+
+func (m *mockEC2VpcClient) DescribeSecurityGroups(ctx context.Context, input *ec2.DescribeSecurityGroupsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
+	return &m.DescribeSecurityGroupsOutput, nil
+}
+
+func (m *mockEC2VpcClient) RevokeSecurityGroupIngress(ctx context.Context, input *ec2.RevokeSecurityGroupIngressInput, optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupIngressOutput, error) {
+	return &m.RevokeSecurityGroupIngressOutput, nil
+}
+
+func (m *mockEC2VpcClient) RevokeSecurityGroupEgress(ctx context.Context, input *ec2.RevokeSecurityGroupEgressInput, optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupEgressOutput, error) {
+	return &m.RevokeSecurityGroupEgressOutput, nil
+}
+
+func (m *mockEC2VpcClient) DeleteSecurityGroup(ctx context.Context, input *ec2.DeleteSecurityGroupInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSecurityGroupOutput, error) {
+	m.DeletedSecurityGroupIDs = append(m.DeletedSecurityGroupIDs, aws.ToString(input.GroupId))
+	return &m.DeleteSecurityGroupOutput, nil
+}
+
+func (m *mockEC2VpcClient) DescribeNetworkInterfaces(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
+	return &m.DescribeNetworkInterfacesOutput, nil
+}
+
+func (m *mockEC2VpcClient) DetachNetworkInterface(ctx context.Context, params *ec2.DetachNetworkInterfaceInput, optFns ...func(*ec2.Options)) (*ec2.DetachNetworkInterfaceOutput, error) {
+	return &m.DetachNetworkInterfaceOutput, nil
+}
+
+func (m *mockEC2VpcClient) DeleteNetworkInterface(ctx context.Context, params *ec2.DeleteNetworkInterfaceInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkInterfaceOutput, error) {
+	m.DeletedENIIDs = append(m.DeletedENIIDs, aws.ToString(params.NetworkInterfaceId))
+	return &m.DeleteNetworkInterfaceOutput, nil
+}
+
+func (m *mockEC2VpcClient) DescribeInternetGateways(ctx context.Context, params *ec2.DescribeInternetGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInternetGatewaysOutput, error) {
+	return &m.DescribeInternetGatewaysOutput, nil
+}
+
+func (m *mockEC2VpcClient) DetachInternetGateway(ctx context.Context, params *ec2.DetachInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachInternetGatewayOutput, error) {
+	return &m.DetachInternetGatewayOutput, nil
+}
+
+func (m *mockEC2VpcClient) DeleteInternetGateway(ctx context.Context, params *ec2.DeleteInternetGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteInternetGatewayOutput, error) {
+	m.DeletedIGWIDs = append(m.DeletedIGWIDs, aws.ToString(params.InternetGatewayId))
+	return &m.DeleteInternetGatewayOutput, nil
 }
 
 func TestListVPCs(t *testing.T) {
@@ -106,4 +181,49 @@ func TestDeleteVPC(t *testing.T) {
 	mock := &mockEC2VpcClient{}
 	err := deleteVPC(context.Background(), mock, aws.String("vpc-test"))
 	require.NoError(t, err)
+}
+
+func TestCleanupVPCDependencies(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockEC2VpcClient{
+		DescribeRouteTablesOutput: ec2.DescribeRouteTablesOutput{
+			RouteTables: []types.RouteTable{
+				{
+					RouteTableId: aws.String("rtb-1"),
+					Associations: []types.RouteTableAssociation{
+						{RouteTableAssociationId: aws.String("rtbassoc-1"), Main: aws.Bool(false)},
+					},
+				},
+			},
+		},
+		DescribeSecurityGroupsOutput: ec2.DescribeSecurityGroupsOutput{
+			SecurityGroups: []types.SecurityGroup{
+				{GroupId: aws.String("sg-default"), GroupName: aws.String("default")},
+				{GroupId: aws.String("sg-custom"), GroupName: aws.String("my-sg")},
+			},
+		},
+		DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
+			NetworkInterfaces: []types.NetworkInterface{
+				{
+					NetworkInterfaceId: aws.String("eni-1"),
+					Attachment:         &types.NetworkInterfaceAttachment{AttachmentId: aws.String("attach-1")},
+				},
+			},
+		},
+		DescribeInternetGatewaysOutput: ec2.DescribeInternetGatewaysOutput{
+			InternetGateways: []types.InternetGateway{
+				{InternetGatewayId: aws.String("igw-1")},
+			},
+		},
+	}
+
+	err := cleanupVPCDependencies(context.Background(), mock, aws.String("vpc-test"))
+	require.NoError(t, err)
+
+	// Verify cleanup actions were taken
+	require.Equal(t, []string{"rtb-1"}, mock.DeletedRouteTableIDs)
+	require.Equal(t, []string{"sg-custom"}, mock.DeletedSecurityGroupIDs) // default SG skipped
+	require.Equal(t, []string{"eni-1"}, mock.DeletedENIIDs)
+	require.Equal(t, []string{"igw-1"}, mock.DeletedIGWIDs)
 }
