@@ -30,7 +30,7 @@ func NewTransitGatewaysVpcAttachment() AwsResource {
 			r.Client = ec2.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.TransitGatewaysVpcAttachment
+			return c.TransitGatewayVPCAttachment
 		},
 		Lister: listTransitGatewaysVpcAttachments,
 		Nuker:  resource.SequentialDeleteThenWaitAll(deleteTransitGatewayVpcAttachment, waitForTransitGatewayAttachmentsToBeDeleted),

@@ -19,7 +19,7 @@ type LaunchTemplatesAPI interface {
 // NewLaunchTemplates creates a new Launch Templates resource using the generic resource pattern.
 func NewLaunchTemplates() AwsResource {
 	return NewAwsResource(&resource.Resource[LaunchTemplatesAPI]{
-		ResourceTypeName: "lt",
+		ResourceTypeName: "launch-template",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[LaunchTemplatesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

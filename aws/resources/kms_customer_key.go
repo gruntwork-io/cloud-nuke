@@ -34,7 +34,7 @@ func NewKmsCustomerKeys() AwsResource {
 	kmsResource := &kmsCustomerKeysResource{}
 
 	return NewAwsResource(&resource.Resource[KmsCustomerKeysAPI]{
-		ResourceTypeName: "kmscustomerkeys",
+		ResourceTypeName: "kms-customer-key",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[KmsCustomerKeysAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

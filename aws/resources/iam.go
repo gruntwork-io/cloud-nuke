@@ -45,7 +45,7 @@ type IAMUsersAPI interface {
 // NewIAMUsers creates a new IAMUsers resource using the generic resource pattern.
 func NewIAMUsers() AwsResource {
 	return NewAwsResource(&resource.Resource[IAMUsersAPI]{
-		ResourceTypeName: "iam",
+		ResourceTypeName: "iam-user",
 		BatchSize:        DefaultBatchSize,
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMUsersAPI], cfg aws.Config) {

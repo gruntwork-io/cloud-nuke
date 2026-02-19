@@ -30,7 +30,7 @@ type EKSClustersAPI interface {
 // NewEKSClusters creates a new EKS Clusters resource using the generic resource pattern.
 func NewEKSClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[EKSClustersAPI]{
-		ResourceTypeName: "ekscluster",
+		ResourceTypeName: "eks-cluster",
 		// Tentative batch size to ensure AWS doesn't throttle. Note that deleting EKS clusters involves deleting many
 		// associated sub resources in tight loops, and they happen in parallel in go routines. We conservatively pick 10
 		// here, both to limit overloading the runtime and to avoid AWS throttling with many API calls.

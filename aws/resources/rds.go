@@ -23,7 +23,7 @@ type DBInstancesAPI interface {
 // NewDBInstances creates a new DBInstances resource using the generic resource pattern.
 func NewDBInstances() AwsResource {
 	return NewAwsResource(&resource.Resource[DBInstancesAPI]{
-		ResourceTypeName: "rds",
+		ResourceTypeName: "rds-instance",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBInstancesAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

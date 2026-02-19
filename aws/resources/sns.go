@@ -26,7 +26,7 @@ type SNSTopicAPI interface {
 // NewSNSTopic creates a new SNSTopic resource using the generic resource pattern.
 func NewSNSTopic() AwsResource {
 	return NewAwsResource(&resource.Resource[SNSTopicAPI]{
-		ResourceTypeName: "snstopic",
+		ResourceTypeName: "sns-topic",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SNSTopicAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

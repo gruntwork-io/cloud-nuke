@@ -23,7 +23,7 @@ type S3ControlMultiRegionAPI interface {
 // NewS3MultiRegionAccessPoints creates a new S3 Multi-Region Access Point resource.
 func NewS3MultiRegionAccessPoints() AwsResource {
 	return NewAwsResource(&resource.Resource[S3ControlMultiRegionAPI]{
-		ResourceTypeName: "s3-mrap",
+		ResourceTypeName: "s3-multi-region-access-point",
 		BatchSize:        5,
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ControlMultiRegionAPI], cfg aws.Config) {

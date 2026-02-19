@@ -19,7 +19,7 @@ type ApiGatewayAPI interface {
 // NewApiGateway creates a new ApiGateway resource using the generic resource pattern.
 func NewApiGateway() AwsResource {
 	return NewAwsResource(&resource.Resource[ApiGatewayAPI]{
-		ResourceTypeName: "apigateway",
+		ResourceTypeName: "api-gateway",
 		BatchSize:        10,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ApiGatewayAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

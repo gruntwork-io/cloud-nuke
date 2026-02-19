@@ -20,7 +20,7 @@ type ElasticCacheServerlessAPI interface {
 // NewElasticCacheServerless creates a new ElastiCache Serverless resource using the generic resource pattern.
 func NewElasticCacheServerless() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticCacheServerlessAPI]{
-		ResourceTypeName: "elasticcache-serverless",
+		ResourceTypeName: "elasticache-serverless",
 		// Tentative batch size to ensure AWS doesn't throttle
 		BatchSize: DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticCacheServerlessAPI], cfg aws.Config) {
@@ -28,7 +28,7 @@ func NewElasticCacheServerless() AwsResource {
 			r.Client = elasticache.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.ElasticCacheServerless
+			return c.ElastiCacheServerless
 		},
 		Lister: listElasticCacheServerless,
 		Nuker:  resource.SimpleBatchDeleter(deleteElasticCacheServerless),

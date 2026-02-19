@@ -21,14 +21,14 @@ type ElasticacheParameterGroupsAPI interface {
 // NewElasticacheParameterGroups creates a new Elasticache Parameter Groups resource using the generic resource pattern.
 func NewElasticacheParameterGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticacheParameterGroupsAPI]{
-		ResourceTypeName: "elasticacheParameterGroups",
+		ResourceTypeName: "elasticache-parameter-group",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticacheParameterGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = elasticache.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.ElasticacheParameterGroups
+			return c.ElastiCacheParameterGroup
 		},
 		Lister: listElasticacheParameterGroups,
 		Nuker:  resource.SimpleBatchDeleter(deleteElasticacheParameterGroup),

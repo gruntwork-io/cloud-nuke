@@ -36,7 +36,7 @@ const describeClustersRequestBatchSize = 100
 // NewECSClusters creates a new ECS Clusters resource using the generic resource pattern.
 func NewECSClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[ECSClustersAPI]{
-		ResourceTypeName: "ecscluster",
+		ResourceTypeName: "ecs-cluster",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ECSClustersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

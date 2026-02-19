@@ -20,14 +20,14 @@ type ElasticacheSubnetGroupsAPI interface {
 // NewElasticacheSubnetGroups creates a new Elasticache Subnet Groups resource using the generic resource pattern.
 func NewElasticacheSubnetGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticacheSubnetGroupsAPI]{
-		ResourceTypeName: "elasticacheSubnetGroups",
+		ResourceTypeName: "elasticache-subnet-group",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticacheSubnetGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = elasticache.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.ElasticacheSubnetGroups
+			return c.ElastiCacheSubnetGroup
 		},
 		Lister: listElasticacheSubnetGroups,
 		Nuker:  resource.SimpleBatchDeleter(deleteElasticacheSubnetGroup),
