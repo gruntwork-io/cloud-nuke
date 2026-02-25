@@ -26,7 +26,7 @@ func NewCloudtrailTrail() AwsResource {
 			r.Client = cloudtrail.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.CloudtrailTrail
+			return c.CloudTrailTrail
 		},
 		Lister: listCloudtrailTrails,
 		Nuker:  resource.SimpleBatchDeleter(deleteCloudtrailTrail),

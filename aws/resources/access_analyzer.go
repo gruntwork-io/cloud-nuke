@@ -18,7 +18,7 @@ type AccessAnalyzerAPI interface {
 // NewAccessAnalyzer creates a new AccessAnalyzer resource using the generic resource pattern.
 func NewAccessAnalyzer() AwsResource {
 	return NewAwsResource(&resource.Resource[AccessAnalyzerAPI]{
-		ResourceTypeName: "accessanalyzer",
+		ResourceTypeName: "access-analyzer",
 		BatchSize:        10,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[AccessAnalyzerAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

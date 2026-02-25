@@ -23,7 +23,7 @@ type SecretsManagerAPI interface {
 // NewSecretsManagerSecrets creates a new SecretsManagerSecrets resource using the generic resource pattern.
 func NewSecretsManagerSecrets() AwsResource {
 	return NewAwsResource(&resource.Resource[SecretsManagerAPI]{
-		ResourceTypeName: "secretsmanager",
+		ResourceTypeName: "secrets-manager",
 		// Tentative batch size to ensure AWS doesn't throttle. Note that secrets manager does not support bulk delete,
 		// so we will be deleting this many in parallel using go routines. We conservatively pick 10 here, both to limit
 		// overloading the runtime and to avoid AWS throttling with many API calls.
@@ -33,7 +33,7 @@ func NewSecretsManagerSecrets() AwsResource {
 			r.Client = secretsmanager.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.SecretsManagerSecrets
+			return c.SecretsManager
 		},
 		Lister: listSecretsManagerSecrets,
 		Nuker:  resource.SimpleBatchDeleter(deleteSecretsManagerSecret),

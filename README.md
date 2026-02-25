@@ -586,12 +586,12 @@ The `tags_operator` field supports case-insensitive values: `"AND"`, `"and"`, `"
 #### Timeout
 You have the flexibility to set individual timeout options for specific resources. The execution will pause until the designated timeout is reached for each resource.
 ```yaml
-s3:
+S3:
   timeout: 10m
 
   ........
 
-s3:
+S3:
   timeout: 5s
 
 ```
@@ -608,16 +608,16 @@ of the file that are supported are listed here.
 | acm                              | ACM                           | ✅ (Domain Name)                       | ✅ (Created Time)                    | ❌    | ✅       |
 | acmpca                           | ACMPCA                        | ❌                                     | ✅ (LastStateChange or Created Time) | ❌    | ✅       |
 | ami                              | AMI                           | ✅ (Image Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
-| apigateway                       | APIGateway                    | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    | ✅       |
-| apigatewayv2                     | APIGatewayV2                  | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    | ✅       |
-| accessanalyzer                   | AccessAnalyzer                | ✅ (Analyzer Name)                     | ✅ (Created Time)                    | ❌    | ✅       |
+| api-gateway                      | APIGateway                    | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    | ✅       |
+| api-gateway-v2                   | APIGatewayV2                  | ✅ (API Name)                          | ✅ (Created Time)                    | ❌    | ✅       |
+| access-analyzer                  | AccessAnalyzer                | ✅ (Analyzer Name)                     | ✅ (Created Time)                    | ❌    | ✅       |
 | asg                              | AutoScalingGroup              | ✅ (ASG Name)                          | ✅ (Created Time)                    | ✅    | ✅       |
 | app-runner-service               | AppRunnerService              | ✅ (App Runner Service Name)           | ✅ (Created Time)                    | ❌    | ✅       |
 | backup-vault                     | BackupVault                   | ✅ (Backup Vault Name)                 | ✅ (Created Time)                    | ❌    | ✅       |
 | cloudwatch-alarm                 | CloudWatchAlarm               | ✅ (Alarm Name)                        | ✅ (AlarmConfigurationUpdated Time)  | ❌    | ✅       |
 | cloudwatch-dashboard             | CloudWatchDashboard           | ✅ (Dashboard Name)                    | ✅ (LastModified Time)               | ❌    | ✅       |
 | cloudwatch-loggroup              | CloudWatchLogGroup            | ✅ (Log Group Name)                    | ✅ (Creation Time)                   | ❌    | ✅       |
-| cloudtrail                       | CloudtrailTrail               | ✅ (Trail Name)                        | ❌                                   | ✅    | ✅       |
+| cloudtrail                       | CloudTrailTrail               | ✅ (Trail Name)                        | ❌                                   | ✅    | ✅       |
 | cloudmap-namespace               | CloudMapNamespace             | ✅ (Namespace Name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
 | cloudmap-service                 | CloudMapService               | ✅ (Service Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | codedeploy-application           | CodeDeployApplications        | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
@@ -630,7 +630,7 @@ of the file that are supported are listed here.
 | elastic-beanstalk                | ElasticBeanstalk              | ✅ (Application Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
 | ec2                              | EC2                           | ✅ (Instance Name)                     | ✅ (Launch Time)                     | ✅    | ✅       |
 | ec2-dedicated-hosts              | EC2DedicatedHosts             | ✅ (EC2 Name Tag)                      | ✅ (Allocation Time)                 | ❌    | ✅       |
-| ec2-dhcp-option                  | EC2DhcpOption                 | ❌                                     | ❌                                   | ❌    | ✅       |
+| ec2-dhcp-option                  | EC2DHCPOption                 | ❌                                     | ❌                                   | ❌    | ✅       |
 | ec2-keypairs                     | EC2KeyPairs                   | ✅ (Key Pair Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | ec2-ipam                         | EC2IPAM                       | ✅ (IPAM name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
 | ec2-ipam-pool                    | EC2IPAMPool                   | ✅ (IPAM Pool name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
@@ -640,72 +640,72 @@ of the file that are supported are listed here.
 | ec2-subnet                       | EC2Subnet                     | ✅ (Subnet Name)                       | ✅ (Creation Time)                   | ✅    | ❌       |
 | ec2-endpoint                     | EC2Endpoint                   | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | ecr                              | ECRRepository                 | ✅ (Repository Name)                   | ✅ (Creation Time)                   | ❌    | ✅       |
-| ecscluster                       | ECSCluster                    | ✅ (Cluster Name)                      | ✅ (First Seen Tag Time)             | ✅    | ✅       |
-| ecsserv                          | ECSService                    | ✅ (Service Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
-| ekscluster                       | EKSCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| ecs-cluster                      | ECSCluster                    | ✅ (Cluster Name)                      | ✅ (First Seen Tag Time)             | ✅    | ✅       |
+| ecs-service                      | ECSService                    | ✅ (Service Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| eks-cluster                      | EKSCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | elb                              | ELBv1                         | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    | ✅       |
 | elbv2                            | ELBv2                         | ✅ (Load Balancer Name)                | ✅ (Created Time)                    | ❌    | ✅       |
 | efs                              | ElasticFileSystem             | ✅ (File System Name)                  | ✅ (Creation Time)                   | ❌    | ✅       |
 | eip                              | ElasticIP                     | ✅ (Elastic IP Allocation Name)        | ✅ (First Seen Tag Time)             | ✅    | ✅       |
-| elasticache                      | Elasticache                   | ✅ (Cluster ID & Replication Group ID) | ✅ (Creation Time)                   | ❌    | ✅       |
-| elasticcache-serverless          | ElasticCacheServerless        | ✅ (Cluster Name )                     | ✅ (Creation Time)                   | ❌    | ✅       |
-| elasticacheparametergroups       | ElasticacheParameterGroups    | ✅ (Parameter Group Name)              | ❌                                   | ❌    | ✅       |
-| elasticachesubnetgroups          | ElasticacheSubnetGroups       | ✅ (Subnet Group Name)                 | ❌                                   | ❌    | ✅       |
+| elasticache                      | ElastiCache                   | ✅ (Cluster ID & Replication Group ID) | ✅ (Creation Time)                   | ❌    | ✅       |
+| elasticache-serverless           | ElastiCacheServerless         | ✅ (Cluster Name )                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| elasticache-parameter-group      | ElastiCacheParameterGroup     | ✅ (Parameter Group Name)              | ❌                                   | ❌    | ✅       |
+| elasticache-subnet-group         | ElastiCacheSubnetGroup        | ✅ (Subnet Group Name)                 | ❌                                   | ❌    | ✅       |
 | event-bridge                     | EventBridge                   | ✅ (Bus  Name)                         | ✅ (Creation Time)                   | ❌    | ✅       |
 | event-bridge-archive             | EventBridgeArchive            | ✅ (Archive Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | event-bridge-rule                | EventBridgeRule               | ✅ (Bus Rule Name)                     | ❌                                   | ❌    | ✅       |
 | event-bridge-schedule            | EventBridgeSchedule           | ✅ (Schedule Name)                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | event-bridge-schedule-group      | EventBridgeScheduleGroup      | ✅ (Schedule Group Name)               | ✅ (Creation Time)                   | ❌    | ✅       |
 | grafana                          | Grafana                       | ✅ (Workspace Name)                    | ✅ (Creation Time)                   | ✅    | ✅       |
-| guardduty                        | GuardDuty                     | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
+| guard-duty                       | GuardDuty                     | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
 | iam-group                        | IAMGroups                     | ✅ (Group Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
 | iam-policy                       | IAMPolicies                   | ✅ (Policy Name)                       | ✅ (Creation Time)                   | ✅    | ✅       |
 | iam-role                         | IAMRoles                      | ✅ (Role Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
 | iam-service-linked-role          | IAMServiceLinkedRoles         | ✅ (Service Linked Role Name)          | ✅ (Creation Time)                   | ❌    | ✅       |
-| iam                              | IAMUsers                      | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
+| iam-user                         | IAMUsers                      | ✅ (User Name)                         | ✅ (Creation Time)                   | ✅    | ✅       |
 | internet-gateway                 | InternetGateway               | ✅ (Gateway Name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | egress-only-internet-gateway     | EgressOnlyInternetGateway     | ✅ (Gateway name)                      | ✅ (Creation Time)                   | ✅    | ✅       |
-| kmscustomerkeys                  | KMSCustomerKeys               | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    | ❌       |
+| kms-customer-key                 | KMSCustomerKeys               | ✅ (Key Name)                          | ✅ (Creation Time)                   | ❌    | ❌       |
 | kinesis-stream                   | KinesisStream                 | ✅ (Stream Name)                       | ❌                                   | ❌    | ✅       |
 | kinesis-firehose                 | KinesisFirehose               | ✅ (Delivery Stream Name)              | ❌                                   | ❌    | ✅       |
 | lambda                           | LambdaFunction                | ✅ (Function Name)                     | ✅ (Last Modified Time)              | ✅    | ✅       |
-| lc                               | LaunchConfiguration           | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    | ✅       |
-| lt                               | LaunchTemplate                | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ✅    | ✅       |
+| launch-configuration             | LaunchConfiguration           | ✅ (Launch Configuration Name)         | ✅ (Created Time)                    | ❌    | ✅       |
+| launch-template                  | LaunchTemplate                | ✅ (Launch Template Name)              | ✅ (Created Time)                    | ✅    | ✅       |
 | macie-member                     | MacieMember                   | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | msk-cluster                      | MSKCluster                    | ✅ (Cluster Name)                      | ✅ (Creation Time)                   | ❌    | ✅       |
 | managed-prometheus               | ManagedPrometheus             | ✅ (Workspace Alias)                   | ✅ (Creation Time)                   | ✅    | ✅       |
-| nat-gateway                      | NatGateway                    | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
+| nat-gateway                      | NATGateway                    | ✅ (EC2 Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | network-acl                      | NetworkACL                    | ✅ (ACL Name Tag)                      | ✅ (Creation Time)                   | ✅    | ✅       |
 | network-interface                | NetworkInterface              | ✅ (Interface Name Tag)                | ✅ (Creation Time)                   | ✅    | ✅       |
-| oidcprovider                     | OIDCProvider                  | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    | ✅       |
-| opensearchdomain                 | OpenSearchDomain              | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    | ✅       |
+| oidc-provider                    | OIDCProvider                  | ✅ (Provider URL)                      | ✅ (Creation Time)                   | ❌    | ✅       |
+| opensearch-domain                | OpenSearchDomain              | ✅ (Domain Name)                       | ✅ (First Seen Tag Time)             | ❌    | ✅       |
 | redshift                         | Redshift                      | ✅ (Cluster Identifier)                | ✅ (Creation Time)                   | ❌    | ✅       |
 | rds-cluster                      | DBClusters                    | ✅ (DB Cluster Identifier )            | ✅ (Creation Time)                   | ✅    | ✅       |
-| rds                              | DBInstances                   | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    | ✅       |
-| rds-parameter-group              | RdsParameterGroup             | ✅ (Group Name)                        | ❌                                   | ❌    | ✅       |
+| rds-instance                     | DBInstances                   | ✅ (DB Name)                           | ✅ (Creation Time)                   | ✅    | ✅       |
+| rds-parameter-group              | RDSParameterGroup             | ✅ (Group Name)                        | ❌                                   | ❌    | ✅       |
 | rds-subnet-group                 | DBSubnetGroups                | ✅ (DB Subnet Group Name)              | ❌                                   | ❌    | ✅       |
 | rds-proxy                        | RDSProxy                      | ✅ (proxy Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
-| s3                               | s3                            | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    | ✅       |
-| s3-ap                            | s3AccessPoint                 | ✅ (Access point Name)                 | ❌                                   | ❌    | ✅       |
-| s3-olap                          | S3ObjectLambdaAccessPoint     | ✅ (Object Lambda Access point Name)   | ❌                                   | ❌    | ✅       |
-| s3-mrap                          | S3MultiRegionAccessPoint      | ✅ (Multi region Access point Name)    | ✅ (Creation Time)                   | ❌    | ✅       |
+| s3                               | S3                            | ✅ (Bucket Name)                       | ✅ (Creation Time)                   | ✅    | ✅       |
+| s3-access-point                  | S3AccessPoint                 | ✅ (Access point Name)                 | ❌                                   | ❌    | ✅       |
+| s3-object-lambda-access-point    | S3ObjectLambdaAccessPoint     | ✅ (Object Lambda Access point Name)   | ❌                                   | ❌    | ✅       |
+| s3-multi-region-access-point     | S3MultiRegionAccessPoint      | ✅ (Multi region Access point Name)    | ✅ (Creation Time)                   | ❌    | ✅       |
 | security-group                   | SecurityGroup                 | ✅ (Security group name)               | ✅ (Creation Time)                   | ✅    | ❌       |
-| ses-configuration-set            | SesConfigurationset           | ✅ (Configuration set name)            | ❌                                   | ❌    | ✅       |
-| ses-email-template               | SesEmailTemplates             | ✅ (Template Name)                     | ✅ (Creation Time)                   | ❌    | ✅       |
-| ses-identity                     | SesIdentity                   | ✅ (Identity -Mail/Domain)             | ❌                                   | ❌    | ✅       |
-| ses-receipt-rule-set             | SesReceiptRuleSet             | ✅ (Receipt Rule Set Name)             | ✅ (Creation Time)                   | ❌    | ✅       |
-| ses-receipt-filter               | SesReceiptFilter              | ✅ (Receipt Filter Name)               | ❌                                   | ❌    | ✅       |
-| snstopic                         | SNS                           | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    | ✅       |
+| ses-configuration-set            | SESConfigurationSet           | ✅ (Configuration set name)            | ❌                                   | ❌    | ✅       |
+| ses-email-template               | SESEmailTemplates             | ✅ (Template Name)                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| ses-identity                     | SESIdentity                   | ✅ (Identity -Mail/Domain)             | ❌                                   | ❌    | ✅       |
+| ses-receipt-rule-set             | SESReceiptRuleSet             | ✅ (Receipt Rule Set Name)             | ✅ (Creation Time)                   | ❌    | ✅       |
+| ses-receipt-filter               | SESReceiptFilter              | ✅ (Receipt Filter Name)               | ❌                                   | ❌    | ✅       |
+| sns-topic                        | SNS                           | ✅ (Topic Name)                        | ✅ (First Seen Tag Time)             | ❌    | ✅       |
 | sqs                              | SQS                           | ✅ (Queue Name)                        | ✅ (Creation Time)                   | ❌    | ✅       |
-| sagemaker-notebook-smni          | SageMakerNotebook             | ✅ (Notebook Instance Name)            | ✅ (Creation Time)                   | ❌    | ✅       |
+| sagemaker-notebook-instance      | SageMakerNotebook             | ✅ (Notebook Instance Name)            | ✅ (Creation Time)                   | ❌    | ✅       |
 | sagemaker-endpoint               | SageMakerEndpoint             | ✅ (Endpoint Name)                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | sagemaker-studio                 | SageMakerStudioDomain         | ❌                                     | ❌                                   | ❌    | ✅       |
-| secretsmanager                   | SecretsManager                | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ✅    | ✅       |
+| secrets-manager                  | SecretsManager                | ✅ (Secret Name)                       | ✅ (Last Accessed or Creation Time)  | ✅    | ✅       |
 | security-hub                     | SecurityHub                   | ❌                                     | ✅ (Created Time)                    | ❌    | ✅       |
-| snap                             | Snapshots                     | ❌                                     | ✅ (Creation Time)                   | ✅    | ✅       |
+| ebs-snapshot                     | Snapshots                     | ❌                                     | ✅ (Creation Time)                   | ✅    | ✅       |
 | transit-gateway                  | TransitGateway                | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | transit-gateway-route-table      | TransitGatewayRouteTable      | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
-| transit-gateway-attachment       | TransitGatewaysVpcAttachment  | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
+| transit-gateway-attachment       | TransitGatewayVPCAttachment   | ❌                                     | ✅ (Creation Time)                   | ❌    | ✅       |
 | vpc                              | VPC                           | ✅ (EC2 Name Tag)                      | ✅ (First Seen Tag Time)             | ✅    | ❌       |
 | route53-hosted-zone              | Route53HostedZone             | ✅ (Hosted zone name)                  | ❌                                   | ❌    | ❌       |
 | route53-cidr-collection          | Route53CIDRCollection         | ✅ (Cidr collection name)              | ❌                                   | ❌    | ❌       |
@@ -765,14 +765,14 @@ cloud-nuke aws --resource-type s3 --config path/to/file.yaml
 >
 > The options provided in the command line take precedence over those provided in any config file that gets passed in.
 > For
-> example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `ec2:` at
+> example, say you provide `--resource-type s3` in the command line, along with a config file that specifies `EC2:` at
 > the
-> top level but doesn't specify `s3:`. The command line argument filters the resource types to include only s3, so the
-> rules in the config file for `ec2:` are ignored, and ec2 resources are not nuked. All s3 resources would be nuked.
+> top level but doesn't specify `S3:`. The command line argument filters the resource types to include only s3, so the
+> rules in the config file for `EC2:` are ignored, and ec2 resources are not nuked. All s3 resources would be nuked.
 >
 > In the same vein, say you do not provide a `--resource-type` option in the command line, but you do pass in a config
-> file that only lists rules for `s3:`, such as `cloud-nuke aws --config path/to/config.yaml`. In this case _all_
-> resources would be nuked, but among `s3` buckets, only those matching your config file rules would be nuked.
+> file that only lists rules for `S3:`, such as `cloud-nuke aws --config path/to/config.yaml`. In this case _all_
+> resources would be nuked, but among `S3` buckets, only those matching your config file rules would be nuked.
 >
 > Be careful when nuking and append the `--dry-run` option if you're unsure. Even without `--dry-run`, `cloud-nuke` will
 > list resources that would undergo nuking and wait for your confirmation before carrying it out.

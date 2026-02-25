@@ -27,7 +27,7 @@ type OIDCProvidersAPI interface {
 // OIDC Providers are global IAM resources.
 func NewOIDCProviders() AwsResource {
 	return NewAwsResource(&resource.Resource[OIDCProvidersAPI]{
-		ResourceTypeName: "oidcprovider",
+		ResourceTypeName: "oidc-provider",
 		BatchSize:        10,
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[OIDCProvidersAPI], cfg aws.Config) {

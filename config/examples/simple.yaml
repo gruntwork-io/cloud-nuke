@@ -1,5 +1,5 @@
 # exclude s3 bucket that match `bucket-.*` but include anything else that match `bucket.*`
-s3:
+S3:
   include:
     names_regex:
     - bucket.*

@@ -69,7 +69,7 @@ func (m mockedEKSCluster) ListNodegroups(ctx context.Context, params *eks.ListNo
 
 func TestEKSClusters_ResourceName(t *testing.T) {
 	r := NewEKSClusters()
-	require.Equal(t, "ekscluster", r.ResourceName())
+	require.Equal(t, "eks-cluster", r.ResourceName())
 }
 
 func TestEKSClusters_MaxBatchSize(t *testing.T) {
@@ -174,7 +174,7 @@ func TestDeleteEKSClusters(t *testing.T) {
 		DescribeClusterError:         &types.ResourceNotFoundException{Message: aws.String("cluster not found")},
 	}
 
-	results := deleteEKSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ekscluster", []*string{&testClusterName})
+	results := deleteEKSClusters(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "eks-cluster", []*string{&testClusterName})
 	require.Len(t, results, 1)
 	require.NoError(t, results[0].Error)
 }
