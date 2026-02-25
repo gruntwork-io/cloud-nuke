@@ -30,7 +30,7 @@ func NewEC2DhcpOptions() AwsResource {
 			r.Client = ec2.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.EC2DedicatedHosts // Note: Using EC2DedicatedHosts as there's no dedicated config for DHCP options
+			return c.EC2DHCPOption // Fixed: Now correctly using EC2DHCPOption config
 		},
 		Lister: listEC2DhcpOptions,
 		Nuker: resource.MultiStepDeleter(

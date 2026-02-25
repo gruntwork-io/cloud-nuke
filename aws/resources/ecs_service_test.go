@@ -147,7 +147,7 @@ func TestECSService_NukeAll(t *testing.T) {
 		DeleteServiceOutput: ecs.DeleteServiceOutput{},
 	}
 
-	results := deleteECSServices(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "ecsserv", []*string{aws.String("testArn1")}, serviceClusterMap)
+	results := deleteECSServices(context.Background(), mockClient, resource.Scope{Region: "us-east-1"}, "ecs-service", []*string{aws.String("testArn1")}, serviceClusterMap)
 	require.Len(t, results, 1)
 	require.Equal(t, "testArn1", results[0].Identifier)
 }

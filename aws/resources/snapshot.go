@@ -24,7 +24,7 @@ type SnapshotsAPI interface {
 // NewSnapshots creates a new Snapshots resource using the generic resource pattern.
 func NewSnapshots() AwsResource {
 	return NewAwsResource(&resource.Resource[SnapshotsAPI]{
-		ResourceTypeName: "snap",
+		ResourceTypeName: "ebs-snapshot",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SnapshotsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

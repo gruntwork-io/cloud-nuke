@@ -95,7 +95,7 @@ func (m mockedEC2Cluster) TagResource(ctx context.Context, params *ecs.TagResour
 
 func TestECSClusters_ResourceName(t *testing.T) {
 	r := NewECSClusters()
-	require.Equal(t, "ecscluster", r.ResourceName())
+	require.Equal(t, "ecs-cluster", r.ResourceName())
 }
 
 func TestECSClusters_MaxBatchSize(t *testing.T) {
@@ -452,7 +452,7 @@ func TestECSClustersMultiStepDeleter(t *testing.T) {
 	}
 
 	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster)
-	results := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
+	results := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecs-cluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
 	require.Len(t, results, 1)
 	for _, result := range results {
 		require.NoError(t, result.Error)
@@ -465,7 +465,7 @@ func TestECSClustersMultiStepDeleter_EmptyList(t *testing.T) {
 	mock := mockedEC2Cluster{}
 
 	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster)
-	results := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecscluster", []*string{})
+	results := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecs-cluster", []*string{})
 	require.Len(t, results, 0)
 }
 

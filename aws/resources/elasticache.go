@@ -33,7 +33,7 @@ func NewElasticaches() AwsResource {
 			r.Client = elasticache.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.Elasticache
+			return c.ElastiCache
 		},
 		Lister: listElasticaches,
 		// Use SequentialDeleter since each deletion involves waiters

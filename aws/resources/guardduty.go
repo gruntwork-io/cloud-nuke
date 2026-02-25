@@ -20,7 +20,7 @@ type GuardDutyAPI interface {
 // NewGuardDuty creates a new GuardDuty resource using the generic resource pattern.
 func NewGuardDuty() AwsResource {
 	return NewAwsResource(&resource.Resource[GuardDutyAPI]{
-		ResourceTypeName: "guardduty",
+		ResourceTypeName: "guard-duty",
 		BatchSize:        10,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[GuardDutyAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

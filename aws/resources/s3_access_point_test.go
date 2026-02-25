@@ -84,7 +84,7 @@ func TestS3AccessPoint_Nuke(t *testing.T) {
 		ctx,
 		mock,
 		resource.Scope{Region: "us-east-1"},
-		"s3-ap",
+		"s3-access-point",
 		[]*string{aws.String("test-access-point")},
 	)
 

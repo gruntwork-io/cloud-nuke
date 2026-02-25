@@ -81,7 +81,7 @@ func TestS3ObjectLambdaAccessPoint_Nuke(t *testing.T) {
 		ctx,
 		mock,
 		resource.Scope{Region: "us-east-1"},
-		"s3-olap",
+		"s3-object-lambda-access-point",
 		[]*string{aws.String("test-access-point")},
 	)
 

@@ -1,5 +1,5 @@
 # Reusable workflow for nuking resources in a single AWS account.
-# Called by nuke.yml with account-specific parameters.
+# Called by nuke-phxdevops.yml, nuke-configtests.yml, nuke-sandbox.yml, etc.
 name: Nuke Account
 
 on:
@@ -38,75 +38,15 @@ env:
     --exclude-resource-type ec2-subnet
 
 jobs:
-  # Nuke global resources (IAM, S3, Route53, etc.) - runs in us-east-1
-  global:
-    name: "${{ inputs.account_name }}: Global"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ inputs.role_arn }}
-          aws-region: us-east-1
-      - uses: jdx/mise-action@v3
-        with:
-          version: ${{ env.MISE_VERSION }}
-          experimental: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-      - run: go mod download
-      - name: Nuke global resources
-        id: nuke
-        env:
-          DISABLE_TELEMETRY: true
-        run: |
-          set +e
-          go run -ldflags="-X 'main.VERSION=${{ github.sha }}'" main.go aws \
-            --older-than ${{ inputs.older_than }} --force --config ./.github/nuke_config.yml \
-            --region global ${{ env.COMMON_EXCLUDES }} ${{ inputs.extra_excludes }} \
-            --delete-unaliased-kms-keys --log-level info \
-            --output-format json --output-file /tmp/nuke-global.json 2>&1 | tee /tmp/nuke-global.log
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          # Parse counts from JSON output
-          if [ -f /tmp/nuke-global.json ]; then
-            DELETED=$(jq -r '.summary.deleted // 0' /tmp/nuke-global.json)
-            ERRORS=$(jq -r '.summary.failed // 0' /tmp/nuke-global.json)
-          else
-            DELETED=0
-            ERRORS=0
-          fi
-          echo "deleted_count=${DELETED}" >> $GITHUB_OUTPUT
-          echo "error_count=${ERRORS}" >> $GITHUB_OUTPUT
-
-          exit $EXIT_CODE
-      - name: Upload global results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ inputs.account_name }}-global
-          path: |
-            /tmp/nuke-global.log
-            /tmp/nuke-global.json
-          retention-days: 7
-
-  # Nuke regional resources across all supported regions in parallel
-  regional:
+  nuke:
     name: "${{ inputs.account_name }}: ${{ matrix.region }}"
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ matrix.region == 'global' && 30 || 60 }}
     strategy:
-      fail-fast: false  # Continue other regions even if one fails
+      fail-fast: false
       matrix:
         region:
+          - global
           - ap-northeast-1
           - ap-northeast-2
           - ap-northeast-3
@@ -130,7 +70,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ inputs.role_arn }}
-          aws-region: ${{ matrix.region }}
+          aws-region: ${{ matrix.region == 'global' && 'us-east-1' || matrix.region }}
       - uses: jdx/mise-action@v3
         with:
           version: ${{ env.MISE_VERSION }}
@@ -146,7 +86,6 @@ jobs:
           restore-keys: ${{ runner.os }}-go-
       - run: go mod download
       - name: Nuke ${{ matrix.region }}
-        id: nuke
         env:
           DISABLE_TELEMETRY: true
         run: |
@@ -157,18 +96,6 @@ jobs:
             --delete-unaliased-kms-keys --log-level info \
             --output-format json --output-file /tmp/nuke-${{ matrix.region }}.json 2>&1 | tee /tmp/nuke-${{ matrix.region }}.log
           EXIT_CODE=${PIPESTATUS[0]}
-
-          # Parse counts from JSON output
-          if [ -f /tmp/nuke-${{ matrix.region }}.json ]; then
-            DELETED=$(jq -r '.summary.deleted // 0' /tmp/nuke-${{ matrix.region }}.json)
-            ERRORS=$(jq -r '.summary.failed // 0' /tmp/nuke-${{ matrix.region }}.json)
-          else
-            DELETED=0
-            ERRORS=0
-          fi
-          echo "deleted_count=${DELETED}" >> $GITHUB_OUTPUT
-          echo "error_count=${ERRORS}" >> $GITHUB_OUTPUT
-
           exit $EXIT_CODE
       - name: Upload results
         if: always()
@@ -185,13 +112,8 @@ jobs:
     name: "${{ inputs.account_name }}: Notify"
     runs-on: ubuntu-latest
     if: always()
-    needs: [global, regional]
+    needs: [nuke]
     steps:
-      # Use PhxDevOps role to access Slack webhook stored in Secrets Manager
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::087285199408:role/cloud-nuke-gha
-          aws-region: us-east-1
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -200,47 +122,70 @@ jobs:
           merge-multiple: true
         continue-on-error: true
       - name: Aggregate and notify
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          WEBHOOK_URL=$(aws secretsmanager get-secret-value \
-            --secret-id cloud-nuke/slack-webhook \
-            --query SecretString --output text)
+          NL=$'\n'
 
-          # Aggregate counts from all JSON files
+          # Aggregate counts from all JSON files into a temp file for sorting
           TOTAL_DELETED=0
           TOTAL_FAILED=0
+          REGION_DATA=$(mktemp)
           while IFS= read -r json_file; do
             if [ -f "$json_file" ]; then
+              REGION=$(basename "$json_file" .json | sed 's/^nuke-//')
               DELETED=$(jq -r '.summary.deleted // 0' "$json_file")
               FAILED=$(jq -r '.summary.failed // 0' "$json_file")
               TOTAL_DELETED=$((TOTAL_DELETED + DELETED))
               TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
+              if [ "$DELETED" -gt 0 ] || [ "$FAILED" -gt 0 ]; then
+                echo "${DELETED} ${FAILED} ${REGION}" >> "$REGION_DATA"
+              fi
             fi
-          done < <(find /tmp/logs -name "*.json" 2>/dev/null)
+          done < <(find /tmp/logs -name "*.json" 2>/dev/null | sort)
 
-          if [ "${{ needs.global.result }}" == "success" ] && \
-             [ "${{ needs.regional.result }}" == "success" ]; then
-            STATUS="✅ Success"
+          # Sort regions: those with deletions first, then by failure count descending
+          # Take top 5 most active regions
+          TOP_REGIONS=""
+          SHOWN=0
+          REMAINING_COUNT=0
+          REMAINING_DELETED=0
+          REMAINING_FAILED=0
+          while IFS=' ' read -r DEL FAIL REG; do
+            if [ "$SHOWN" -lt 5 ]; then
+              TOP_REGIONS="${TOP_REGIONS}${NL}• ${REG}: deleted ${DEL}, failed ${FAIL}"
+              SHOWN=$((SHOWN + 1))
+            else
+              REMAINING_COUNT=$((REMAINING_COUNT + 1))
+              REMAINING_DELETED=$((REMAINING_DELETED + DEL))
+              REMAINING_FAILED=$((REMAINING_FAILED + FAIL))
+            fi
+          done < <(sort -k2,2nr "$REGION_DATA")
+          rm -f "$REGION_DATA"
+
+          if [ "${{ needs.nuke.result }}" == "success" ]; then
+            STATUS=":white_check_mark: Success"
             COLOR="good"
           else
-            STATUS="❌ Failed"
+            STATUS=":x: Failed"
             COLOR="danger"
           fi
 
           MSG="*${{ inputs.account_name }} Nuke*: ${STATUS}"
-          MSG="${MSG}\nDeleted: ${TOTAL_DELETED:-0} | Failed: ${TOTAL_FAILED:-0}"
-          MSG="${MSG}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+          MSG="${MSG}${NL}Deleted: ${TOTAL_DELETED:-0} | Failed: ${TOTAL_FAILED:-0}"
+          if [ -n "$TOP_REGIONS" ]; then
+            MSG="${MSG}${TOP_REGIONS}"
+          fi
+          if [ "$REMAINING_COUNT" -gt 0 ]; then
+            MSG="${MSG}${NL}_+ ${REMAINING_COUNT} other regions: deleted ${REMAINING_DELETED}, failed ${REMAINING_FAILED}_"
+          fi
+          MSG="${MSG}${NL}<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
 
-          curl -sS -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d @- <<EOF
-          {
-            "attachments": [{
-              "color": "${COLOR}",
-              "blocks": [{
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "${MSG}"
-                }
-              }]
-            }]
-          }
-          EOF
+          PAYLOAD=$(jq -n \
+            --arg color "$COLOR" \
+            --arg text "$MSG" \
+            '{attachments: [{color: $color, blocks: [{type: "section", text: {type: "mrkdwn", text: $text}}]}]}')
+
+          curl -sS -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"

@@ -207,7 +207,7 @@ CloudWatchLogGroup:
     tag: test
   timeout: 1h
   protect_until_expire: true
-CloudtrailTrail:
+CloudTrailTrail:
   include:
     names_regex:
     - that.*
@@ -463,7 +463,7 @@ EC2DedicatedHosts:
     tag: test
   timeout: 1h
   protect_until_expire: true
-EC2DhcpOption:
+EC2DHCPOption:
   include:
     names_regex:
     - that.*
@@ -752,7 +752,7 @@ ElasticIP:
     tag: test
   timeout: 1h
   protect_until_expire: true
-Elasticache:
+ElastiCache:
   include:
     names_regex:
     - that.*
@@ -768,7 +768,7 @@ Elasticache:
     tag: test
   timeout: 1h
   protect_until_expire: true
-ElasticacheParameterGroups:
+ElastiCacheParameterGroup:
   include:
     names_regex:
     - that.*
@@ -784,7 +784,7 @@ ElasticacheParameterGroups:
     tag: test
   timeout: 1h
   protect_until_expire: true
-ElasticacheSubnetGroups:
+ElastiCacheSubnetGroup:
   include:
     names_regex:
     - that.*
@@ -1121,7 +1121,7 @@ MSKCluster:
     tag: test
   timeout: 1h
   protect_until_expire: true
-NatGateway:
+NATGateway:
   include:
     names_regex:
     - that.*
@@ -1185,7 +1185,7 @@ Redshift:
     tag: test
   timeout: 1h
   protect_until_expire: true
-RdsSnapshot:
+RDSSnapshot:
   include:
     names_regex:
     - that.*
@@ -1201,7 +1201,7 @@ RdsSnapshot:
     tag: test
   timeout: 1h
   protect_until_expire: true
-RdsParameterGroup:
+RDSParameterGroup:
   include:
     names_regex:
     - that.*
@@ -1217,7 +1217,7 @@ RdsParameterGroup:
     tag: test
   timeout: 1h
   protect_until_expire: true
-RdsProxy:
+RDSProxy:
   include:
     names_regex:
     - that.*
@@ -1233,7 +1233,7 @@ RdsProxy:
     tag: test
   timeout: 1h
   protect_until_expire: true
-s3:
+S3:
   include:
     names_regex:
     - that.*
@@ -1297,7 +1297,7 @@ S3MultiRegionAccessPoint:
     tag: test
   timeout: 1h
   protect_until_expire: true
-SesIdentity:
+SESIdentity:
   include:
     names_regex:
     - that.*
@@ -1313,7 +1313,7 @@ SesIdentity:
     tag: test
   timeout: 1h
   protect_until_expire: true
-SesConfigurationset:
+SESConfigurationSet:
   include:
     names_regex:
     - that.*
@@ -1329,7 +1329,7 @@ SesConfigurationset:
     tag: test
   timeout: 1h
   protect_until_expire: true
-SesReceiptRuleSet:
+SESReceiptRuleSet:
   include:
     names_regex:
     - that.*
@@ -1345,7 +1345,7 @@ SesReceiptRuleSet:
     tag: test
   timeout: 1h
   protect_until_expire: true
-SesReceiptFilter:
+SESReceiptFilter:
   include:
     names_regex:
     - that.*
@@ -1361,7 +1361,7 @@ SesReceiptFilter:
     tag: test
   timeout: 1h
   protect_until_expire: true
-SesEmailTemplates:
+SESEmailTemplates:
   include:
     names_regex:
     - that.*
@@ -1540,7 +1540,7 @@ TransitGatewayRouteTable:
     tag: test
   timeout: 1h
   protect_until_expire: true
-TransitGatewaysVpcAttachment:
+TransitGatewayVPCAttachment:
   include:
     names_regex:
     - that.*

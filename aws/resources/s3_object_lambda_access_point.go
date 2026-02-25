@@ -22,7 +22,7 @@ type S3ObjectLambdaAccessPointAPI interface {
 // NewS3ObjectLambdaAccessPoints creates a new S3 Object Lambda Access Point resource.
 func NewS3ObjectLambdaAccessPoints() AwsResource {
 	return NewAwsResource(&resource.Resource[S3ObjectLambdaAccessPointAPI]{
-		ResourceTypeName: "s3-olap",
+		ResourceTypeName: "s3-object-lambda-access-point",
 		BatchSize:        5,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ObjectLambdaAccessPointAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

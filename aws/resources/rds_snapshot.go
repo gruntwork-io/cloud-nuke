@@ -27,7 +27,7 @@ func NewRdsSnapshot() AwsResource {
 			r.Client = rds.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.RdsSnapshot
+			return c.RDSSnapshot
 		},
 		Lister: listRdsSnapshots,
 		Nuker:  resource.SimpleBatchDeleter(deleteRdsSnapshot),

@@ -22,7 +22,7 @@ type S3ControlAccessPointAPI interface {
 // NewS3AccessPoints creates a new S3 Access Point resource using the generic resource pattern.
 func NewS3AccessPoints() AwsResource {
 	return NewAwsResource(&resource.Resource[S3ControlAccessPointAPI]{
-		ResourceTypeName: "s3-ap",
+		ResourceTypeName: "s3-access-point",
 		BatchSize:        5,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ControlAccessPointAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
