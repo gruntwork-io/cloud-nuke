@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 type mockSecretsManagerClient struct {
 	ListSecretsOutput                  secretsmanager.ListSecretsOutput
 	DescribeSecretOutput               secretsmanager.DescribeSecretOutput
+	DescribeSecretError                error
 	DeleteSecretOutput                 secretsmanager.DeleteSecretOutput
 	RemoveRegionsFromReplicationOutput secretsmanager.RemoveRegionsFromReplicationOutput
 }
@@ -26,6 +28,9 @@ func (m *mockSecretsManagerClient) ListSecrets(ctx context.Context, params *secr
 }
 
 func (m *mockSecretsManagerClient) DescribeSecret(ctx context.Context, params *secretsmanager.DescribeSecretInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.DescribeSecretOutput, error) {
+	if m.DescribeSecretError != nil {
+		return nil, m.DescribeSecretError
+	}
 	return &m.DescribeSecretOutput, nil
 }
 
@@ -116,4 +121,16 @@ func TestDeleteSecretsManagerSecret_WithReplicas(t *testing.T) {
 
 	err := deleteSecretsManagerSecret(context.Background(), mock, aws.String("arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret"))
 	require.NoError(t, err)
+}
+
+func TestDeleteSecretsManagerSecret_DescribeSecretError(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSecretsManagerClient{
+		DescribeSecretError: fmt.Errorf("throttling: rate exceeded"),
+	}
+
+	err := deleteSecretsManagerSecret(context.Background(), mock, aws.String("arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "throttling")
 }

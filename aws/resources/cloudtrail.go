@@ -54,6 +54,9 @@ func listCloudtrailTrails(ctx context.Context, client CloudtrailTrailAPI, scope 
 				ResourceIdList: []string{*trail.TrailARN},
 			}); err == nil && len(tags.ResourceTagList) > 0 {
 				for _, tag := range tags.ResourceTagList[0].TagsList {
+					if tag.Key == nil || tag.Value == nil {
+						continue
+					}
 					rv.Tags[*tag.Key] = *tag.Value
 				}
 			}
