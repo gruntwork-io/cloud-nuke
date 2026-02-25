@@ -26,7 +26,7 @@ type LambdaLayersAPI interface {
 // NewLambdaLayers creates a new LambdaLayers resource using the generic resource pattern.
 func NewLambdaLayers() AwsResource {
 	return NewAwsResource(&resource.Resource[LambdaLayersAPI]{
-		ResourceTypeName: "lambda_layer",
+		ResourceTypeName: "lambda-layer",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[LambdaLayersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

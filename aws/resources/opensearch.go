@@ -32,7 +32,7 @@ type OpenSearchDomainsAPI interface {
 // NewOpenSearchDomains creates a new OpenSearchDomains resource using the generic resource pattern.
 func NewOpenSearchDomains() AwsResource {
 	return NewAwsResource(&resource.Resource[OpenSearchDomainsAPI]{
-		ResourceTypeName: "opensearchdomain",
+		ResourceTypeName: "opensearch-domain",
 		BatchSize:        10,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[OpenSearchDomainsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

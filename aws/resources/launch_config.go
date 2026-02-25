@@ -19,7 +19,7 @@ type LaunchConfigsAPI interface {
 // NewLaunchConfigs creates a new Launch Configurations resource using the generic resource pattern.
 func NewLaunchConfigs() AwsResource {
 	return NewAwsResource(&resource.Resource[LaunchConfigsAPI]{
-		ResourceTypeName: "lc",
+		ResourceTypeName: "launch-configuration",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[LaunchConfigsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

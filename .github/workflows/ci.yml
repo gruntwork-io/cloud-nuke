@@ -35,6 +35,8 @@ jobs:
             ${{ runner.os }}-go-
       - name: Download Go modules
         run: go mod download
+      - name: Check resource naming conventions
+        run: ./scripts/check-resource-naming.sh
       - name: Run golangci-lint
         run: golangci-lint run --new-from-rev=origin/master ./...
 

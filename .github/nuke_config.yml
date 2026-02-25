@@ -1,6 +1,6 @@
 # This is a config file specifically for Gruntwork sandbox accounts to only clean up S3 buckets that we know for sure
 # are used for testing.
-s3:
+S3:
   include:
     names_regex:
       - "^cloudfront-example-[a-zA-Z0-9]{6}\\.gruntwork\\.in.*"
@@ -57,7 +57,7 @@ SecretsManager:
       - "ECRDeployRunnerTestSSHKey-[a-zA-Z0-9]{6}$"
       - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
 
-NatGateway:
+NATGateway:
   exclude:
     names_regex:
       # We have an active ECS Deploy Runner running in the sandbox environment for sales demos, and this NAT gateway is
@@ -271,7 +271,7 @@ DBSubnetGroups:
     names_regex:
       - "gruntwork-test-db-subnet-group"
 
-RdsParameterGroup:
+RDSParameterGroup:
   exclude:
     names_regex:
       - "gruntwork-test-.*"

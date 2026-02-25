@@ -1,7 +1,7 @@
-s3:
+S3:
   include:
     - .*
-s3:
+S3:
   include:
     tags:
       - .*

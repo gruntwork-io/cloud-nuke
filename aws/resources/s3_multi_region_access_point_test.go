@@ -97,7 +97,7 @@ func TestS3MultiRegionAccessPoint_Nuke(t *testing.T) {
 		ctx,
 		client,
 		resource.Scope{Region: "global"},
-		"s3-mrap",
+		"s3-multi-region-access-point",
 		[]*string{aws.String("test-access-point")},
 	)
 

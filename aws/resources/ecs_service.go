@@ -32,7 +32,7 @@ type ecsServicesResource struct {
 func NewECSServices() AwsResource {
 	r := &ecsServicesResource{
 		Resource: &resource.Resource[ECSServicesAPI]{
-			ResourceTypeName: "ecsserv",
+			ResourceTypeName: "ecs-service",
 			BatchSize:        DefaultBatchSize,
 		},
 		serviceClusterMap: make(map[string]string),

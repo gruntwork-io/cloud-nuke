@@ -38,7 +38,7 @@ func NewCloudfrontDistributions() AwsResource {
 			r.Client = cloudfront.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.CloudfrontDistribution
+			return c.CloudFrontDistribution
 		},
 		Lister: listCloudfrontDistributions,
 		Nuker:  resource.SequentialDeleter(nukeCloudfrontDistribution),

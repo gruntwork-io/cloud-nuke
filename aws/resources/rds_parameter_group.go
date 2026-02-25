@@ -28,7 +28,7 @@ func NewRdsParameterGroup() AwsResource {
 			r.Client = rds.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.RdsParameterGroup
+			return c.RDSParameterGroup
 		},
 		Lister: listRdsParameterGroups,
 		Nuker:  resource.SimpleBatchDeleter(deleteRdsParameterGroup),

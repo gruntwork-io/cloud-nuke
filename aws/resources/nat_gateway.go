@@ -31,7 +31,7 @@ func NewNatGateways() AwsResource {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)
 		}),
-		func(c config.Config) config.EC2ResourceType { return c.NatGateway },
+		func(c config.Config) config.EC2ResourceType { return c.NATGateway },
 		listNatGateways,
 		resource.ConcurrentDeleteThenWaitAll(deleteNatGateway, waitForNatGatewaysDeleted),
 		nil,

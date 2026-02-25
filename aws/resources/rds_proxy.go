@@ -26,7 +26,7 @@ func NewRdsProxy() AwsResource {
 			r.Client = rds.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.RdsProxy
+			return c.RDSProxy
 		},
 		Lister: listRdsProxies,
 		Nuker:  resource.SimpleBatchDeleter(deleteRdsProxy),
