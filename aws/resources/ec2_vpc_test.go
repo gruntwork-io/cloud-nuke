@@ -249,6 +249,7 @@ func TestCleanupVPCDependencies(t *testing.T) {
 				{
 					NetworkInterfaceId: aws.String("eni-1"),
 					Attachment:         &types.NetworkInterfaceAttachment{AttachmentId: aws.String("attach-1")},
+					Status:             types.NetworkInterfaceStatusAvailable,
 				},
 			},
 		},

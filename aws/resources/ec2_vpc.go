@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -112,60 +113,71 @@ func cleanupVPCDependencies(ctx context.Context, client EC2VpcAPI, id *string) e
 
 // cleanupVPCRouteTables deletes non-main route tables in the VPC (best-effort).
 func cleanupVPCRouteTables(ctx context.Context, client EC2VpcAPI, vpcID string) {
-	resp, err := client.DescribeRouteTables(ctx, &ec2.DescribeRouteTablesInput{
+	paginator := ec2.NewDescribeRouteTablesPaginator(client, &ec2.DescribeRouteTablesInput{
 		Filters: []types.Filter{
 			{Name: aws.String("vpc-id"), Values: []string{vpcID}},
 		},
 	})
-	if err != nil {
-		logging.Debugf("[VPC Safety Net] Failed to describe route tables for %s: %s", vpcID, err)
-		return
-	}
 
-	for _, rt := range resp.RouteTables {
-		// Skip main route tables — they are deleted automatically with the VPC
-		if isMainRouteTable(rt) {
-			continue
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to describe route tables for %s: %s", vpcID, err)
+			return
 		}
 
-		rtID := aws.ToString(rt.RouteTableId)
-
-		// Disassociate all subnet associations first
-		for _, assoc := range rt.Associations {
-			if assoc.Main != nil && *assoc.Main {
+		for _, rt := range page.RouteTables {
+			// Skip main route tables — they are deleted automatically with the VPC
+			if isMainRouteTable(rt) {
 				continue
 			}
-			if _, err := client.DisassociateRouteTable(ctx, &ec2.DisassociateRouteTableInput{
-				AssociationId: assoc.RouteTableAssociationId,
-			}); err != nil {
-				logging.Debugf("[VPC Safety Net] Failed to disassociate route table %s: %s", rtID, err)
-			}
-		}
 
-		if _, err := client.DeleteRouteTable(ctx, &ec2.DeleteRouteTableInput{
-			RouteTableId: rt.RouteTableId,
-		}); err != nil {
-			logging.Debugf("[VPC Safety Net] Failed to delete route table %s: %s", rtID, err)
-		} else {
-			logging.Debugf("[VPC Safety Net] Deleted route table %s", rtID)
+			rtID := aws.ToString(rt.RouteTableId)
+
+			// Disassociate all subnet associations first
+			for _, assoc := range rt.Associations {
+				if assoc.Main != nil && *assoc.Main {
+					continue
+				}
+				if _, err := client.DisassociateRouteTable(ctx, &ec2.DisassociateRouteTableInput{
+					AssociationId: assoc.RouteTableAssociationId,
+				}); err != nil {
+					logging.Debugf("[VPC Safety Net] Failed to disassociate route table %s: %s", rtID, err)
+				}
+			}
+
+			if _, err := client.DeleteRouteTable(ctx, &ec2.DeleteRouteTableInput{
+				RouteTableId: rt.RouteTableId,
+			}); err != nil {
+				logging.Debugf("[VPC Safety Net] Failed to delete route table %s: %s", rtID, err)
+			} else {
+				logging.Debugf("[VPC Safety Net] Deleted route table %s", rtID)
+			}
 		}
 	}
 }
 
 // cleanupVPCSecurityGroups revokes cross-group rules and deletes non-default security groups (best-effort).
 func cleanupVPCSecurityGroups(ctx context.Context, client EC2VpcAPI, vpcID string) {
-	resp, err := client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
+	// Collect all security groups first so we can do two passes (revoke rules, then delete)
+	var allGroups []types.SecurityGroup
+	paginator := ec2.NewDescribeSecurityGroupsPaginator(client, &ec2.DescribeSecurityGroupsInput{
 		Filters: []types.Filter{
 			{Name: aws.String("vpc-id"), Values: []string{vpcID}},
 		},
 	})
-	if err != nil {
-		logging.Debugf("[VPC Safety Net] Failed to describe security groups for %s: %s", vpcID, err)
-		return
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to describe security groups for %s: %s", vpcID, err)
+			return
+		}
+		allGroups = append(allGroups, page.SecurityGroups...)
 	}
 
 	// First pass: revoke all ingress/egress rules that reference other groups in this VPC
-	for _, sg := range resp.SecurityGroups {
+	for _, sg := range allGroups {
 		sgID := aws.ToString(sg.GroupId)
 
 		if len(sg.IpPermissions) > 0 {
@@ -188,7 +200,7 @@ func cleanupVPCSecurityGroups(ctx context.Context, client EC2VpcAPI, vpcID strin
 	}
 
 	// Second pass: delete non-default security groups
-	for _, sg := range resp.SecurityGroups {
+	for _, sg := range allGroups {
 		if aws.ToString(sg.GroupName) == "default" {
 			continue
 		}
@@ -205,30 +217,54 @@ func cleanupVPCSecurityGroups(ctx context.Context, client EC2VpcAPI, vpcID strin
 }
 
 // cleanupVPCNetworkInterfaces detaches and deletes remaining ENIs in the VPC (best-effort).
+// Uses a two-pass approach: detach all ENIs first, wait for them to become available, then delete.
 func cleanupVPCNetworkInterfaces(ctx context.Context, client EC2VpcAPI, vpcID string) {
-	resp, err := client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
+	var allENIs []types.NetworkInterface
+	paginator := ec2.NewDescribeNetworkInterfacesPaginator(client, &ec2.DescribeNetworkInterfacesInput{
 		Filters: []types.Filter{
 			{Name: aws.String("vpc-id"), Values: []string{vpcID}},
 		},
 	})
-	if err != nil {
-		logging.Debugf("[VPC Safety Net] Failed to describe network interfaces for %s: %s", vpcID, err)
-		return
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to describe network interfaces for %s: %s", vpcID, err)
+			return
+		}
+		allENIs = append(allENIs, page.NetworkInterfaces...)
 	}
 
-	for _, eni := range resp.NetworkInterfaces {
+	// First pass: detach all attached ENIs
+	var detachedENIIDs []string
+	for _, eni := range allENIs {
 		eniID := aws.ToString(eni.NetworkInterfaceId)
 
-		// Detach if attached
 		if eni.Attachment != nil && eni.Attachment.AttachmentId != nil {
 			if _, err := client.DetachNetworkInterface(ctx, &ec2.DetachNetworkInterfaceInput{
 				AttachmentId: eni.Attachment.AttachmentId,
 				Force:        aws.Bool(true),
 			}); err != nil {
 				logging.Debugf("[VPC Safety Net] Failed to detach ENI %s: %s", eniID, err)
+			} else {
+				detachedENIIDs = append(detachedENIIDs, eniID)
 			}
 		}
+	}
 
+	// Wait for detached ENIs to reach "available" status before deleting
+	if len(detachedENIIDs) > 0 {
+		waiter := ec2.NewNetworkInterfaceAvailableWaiter(client)
+		if err := waiter.Wait(ctx, &ec2.DescribeNetworkInterfacesInput{
+			NetworkInterfaceIds: detachedENIIDs,
+		}, 2*time.Minute); err != nil {
+			logging.Debugf("[VPC Safety Net] Timed out waiting for ENIs to become available in %s: %s", vpcID, err)
+		}
+	}
+
+	// Second pass: delete all ENIs
+	for _, eni := range allENIs {
+		eniID := aws.ToString(eni.NetworkInterfaceId)
 		if _, err := client.DeleteNetworkInterface(ctx, &ec2.DeleteNetworkInterfaceInput{
 			NetworkInterfaceId: eni.NetworkInterfaceId,
 		}); err != nil {
@@ -241,56 +277,64 @@ func cleanupVPCNetworkInterfaces(ctx context.Context, client EC2VpcAPI, vpcID st
 
 // cleanupVPCInternetGateways detaches and deletes remaining internet gateways (best-effort).
 func cleanupVPCInternetGateways(ctx context.Context, client EC2VpcAPI, vpcID string) {
-	resp, err := client.DescribeInternetGateways(ctx, &ec2.DescribeInternetGatewaysInput{
+	paginator := ec2.NewDescribeInternetGatewaysPaginator(client, &ec2.DescribeInternetGatewaysInput{
 		Filters: []types.Filter{
 			{Name: aws.String("attachment.vpc-id"), Values: []string{vpcID}},
 		},
 	})
-	if err != nil {
-		logging.Debugf("[VPC Safety Net] Failed to describe internet gateways for %s: %s", vpcID, err)
-		return
-	}
 
-	for _, igw := range resp.InternetGateways {
-		igwID := aws.ToString(igw.InternetGatewayId)
-
-		if _, err := client.DetachInternetGateway(ctx, &ec2.DetachInternetGatewayInput{
-			InternetGatewayId: igw.InternetGatewayId,
-			VpcId:             aws.String(vpcID),
-		}); err != nil {
-			logging.Debugf("[VPC Safety Net] Failed to detach IGW %s: %s", igwID, err)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to describe internet gateways for %s: %s", vpcID, err)
+			return
 		}
 
-		if _, err := client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
-			InternetGatewayId: igw.InternetGatewayId,
-		}); err != nil {
-			logging.Debugf("[VPC Safety Net] Failed to delete IGW %s: %s", igwID, err)
-		} else {
-			logging.Debugf("[VPC Safety Net] Deleted IGW %s", igwID)
+		for _, igw := range page.InternetGateways {
+			igwID := aws.ToString(igw.InternetGatewayId)
+
+			if _, err := client.DetachInternetGateway(ctx, &ec2.DetachInternetGatewayInput{
+				InternetGatewayId: igw.InternetGatewayId,
+				VpcId:             aws.String(vpcID),
+			}); err != nil {
+				logging.Debugf("[VPC Safety Net] Failed to detach IGW %s: %s", igwID, err)
+			}
+
+			if _, err := client.DeleteInternetGateway(ctx, &ec2.DeleteInternetGatewayInput{
+				InternetGatewayId: igw.InternetGatewayId,
+			}); err != nil {
+				logging.Debugf("[VPC Safety Net] Failed to delete IGW %s: %s", igwID, err)
+			} else {
+				logging.Debugf("[VPC Safety Net] Deleted IGW %s", igwID)
+			}
 		}
 	}
 }
 
 // cleanupVPCSubnets deletes remaining subnets in the VPC (best-effort).
 func cleanupVPCSubnets(ctx context.Context, client EC2VpcAPI, vpcID string) {
-	resp, err := client.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
+	paginator := ec2.NewDescribeSubnetsPaginator(client, &ec2.DescribeSubnetsInput{
 		Filters: []types.Filter{
 			{Name: aws.String("vpc-id"), Values: []string{vpcID}},
 		},
 	})
-	if err != nil {
-		logging.Debugf("[VPC Safety Net] Failed to describe subnets for %s: %s", vpcID, err)
-		return
-	}
 
-	for _, subnet := range resp.Subnets {
-		subnetID := aws.ToString(subnet.SubnetId)
-		if _, err := client.DeleteSubnet(ctx, &ec2.DeleteSubnetInput{
-			SubnetId: subnet.SubnetId,
-		}); err != nil {
-			logging.Debugf("[VPC Safety Net] Failed to delete subnet %s: %s", subnetID, err)
-		} else {
-			logging.Debugf("[VPC Safety Net] Deleted subnet %s", subnetID)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to describe subnets for %s: %s", vpcID, err)
+			return
+		}
+
+		for _, subnet := range page.Subnets {
+			subnetID := aws.ToString(subnet.SubnetId)
+			if _, err := client.DeleteSubnet(ctx, &ec2.DeleteSubnetInput{
+				SubnetId: subnet.SubnetId,
+			}); err != nil {
+				logging.Debugf("[VPC Safety Net] Failed to delete subnet %s: %s", subnetID, err)
+			} else {
+				logging.Debugf("[VPC Safety Net] Deleted subnet %s", subnetID)
+			}
 		}
 	}
 }
@@ -298,16 +342,21 @@ func cleanupVPCSubnets(ctx context.Context, client EC2VpcAPI, vpcID string) {
 // cleanupVPCPeeringConnections deletes active VPC peering connections for the VPC (best-effort).
 func cleanupVPCPeeringConnections(ctx context.Context, client EC2VpcAPI, vpcID string) {
 	// Check peering connections where this VPC is the requester
-	requesterResp, err := client.DescribeVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
+	requesterPaginator := ec2.NewDescribeVpcPeeringConnectionsPaginator(client, &ec2.DescribeVpcPeeringConnectionsInput{
 		Filters: []types.Filter{
 			{Name: aws.String("requester-vpc-info.vpc-id"), Values: []string{vpcID}},
 			{Name: aws.String("status-code"), Values: []string{"active", "pending-acceptance", "provisioning"}},
 		},
 	})
-	if err != nil {
-		logging.Debugf("[VPC Safety Net] Failed to describe requester peering connections for %s: %s", vpcID, err)
-	} else {
-		for _, pcx := range requesterResp.VpcPeeringConnections {
+
+	for requesterPaginator.HasMorePages() {
+		page, err := requesterPaginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to describe requester peering connections for %s: %s", vpcID, err)
+			break
+		}
+
+		for _, pcx := range page.VpcPeeringConnections {
 			pcxID := aws.ToString(pcx.VpcPeeringConnectionId)
 			if _, err := client.DeleteVpcPeeringConnection(ctx, &ec2.DeleteVpcPeeringConnectionInput{
 				VpcPeeringConnectionId: pcx.VpcPeeringConnectionId,
@@ -320,16 +369,21 @@ func cleanupVPCPeeringConnections(ctx context.Context, client EC2VpcAPI, vpcID s
 	}
 
 	// Check peering connections where this VPC is the accepter
-	accepterResp, err := client.DescribeVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
+	accepterPaginator := ec2.NewDescribeVpcPeeringConnectionsPaginator(client, &ec2.DescribeVpcPeeringConnectionsInput{
 		Filters: []types.Filter{
 			{Name: aws.String("accepter-vpc-info.vpc-id"), Values: []string{vpcID}},
 			{Name: aws.String("status-code"), Values: []string{"active", "pending-acceptance", "provisioning"}},
 		},
 	})
-	if err != nil {
-		logging.Debugf("[VPC Safety Net] Failed to describe accepter peering connections for %s: %s", vpcID, err)
-	} else {
-		for _, pcx := range accepterResp.VpcPeeringConnections {
+
+	for accepterPaginator.HasMorePages() {
+		page, err := accepterPaginator.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to describe accepter peering connections for %s: %s", vpcID, err)
+			break
+		}
+
+		for _, pcx := range page.VpcPeeringConnections {
 			pcxID := aws.ToString(pcx.VpcPeeringConnectionId)
 			if _, err := client.DeleteVpcPeeringConnection(ctx, &ec2.DeleteVpcPeeringConnectionInput{
 				VpcPeeringConnectionId: pcx.VpcPeeringConnectionId,
