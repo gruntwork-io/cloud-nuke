@@ -23,12 +23,12 @@ env:
   MISE_VERSION: '2025.12.10'
   # Resources excluded across all accounts to prevent breaking infrastructure
   COMMON_EXCLUDES: >-
-    --exclude-resource-type iam
+    --exclude-resource-type iam-user
     --exclude-resource-type iam-group
     --exclude-resource-type iam-policy
     --exclude-resource-type iam-role
     --exclude-resource-type iam-service-linked-role
-    --exclude-resource-type oidcprovider
+    --exclude-resource-type oidc-provider
     --exclude-resource-type route53-hosted-zone
     --exclude-resource-type route53-cidr-collection
     --exclude-resource-type route53-traffic-policy
