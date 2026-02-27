@@ -15,12 +15,22 @@ import (
 )
 
 type mockNatGatewayClient struct {
-	DescribeNatGatewaysOutput ec2.DescribeNatGatewaysOutput
-	DeleteNatGatewayOutput    ec2.DeleteNatGatewayOutput
-	DescribeVpcsOutput        ec2.DescribeVpcsOutput
+	DescribeNatGatewaysOutput  ec2.DescribeNatGatewaysOutput
+	DescribeNatGatewaysOutputs []ec2.DescribeNatGatewaysOutput // for sequential calls
+	describeCalls              int
+	DeleteNatGatewayOutput     ec2.DeleteNatGatewayOutput
+	DescribeVpcsOutput         ec2.DescribeVpcsOutput
 }
 
 func (m *mockNatGatewayClient) DescribeNatGateways(ctx context.Context, params *ec2.DescribeNatGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNatGatewaysOutput, error) {
+	if len(m.DescribeNatGatewaysOutputs) > 0 {
+		idx := m.describeCalls
+		m.describeCalls++
+		if idx >= len(m.DescribeNatGatewaysOutputs) {
+			idx = len(m.DescribeNatGatewaysOutputs) - 1
+		}
+		return &m.DescribeNatGatewaysOutputs[idx], nil
+	}
 	return &m.DescribeNatGatewaysOutput, nil
 }
 
@@ -94,4 +104,21 @@ func TestDeleteNatGateway(t *testing.T) {
 	mock := &mockNatGatewayClient{}
 	err := deleteNatGateway(context.Background(), mock, aws.String("ngw-test"))
 	require.NoError(t, err)
+}
+
+func TestWaitForNatGatewaysDeleted(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockNatGatewayClient{
+		DescribeNatGatewaysOutputs: []ec2.DescribeNatGatewaysOutput{
+			// First call: one gateway still deleting
+			{NatGateways: []types.NatGateway{{NatGatewayId: aws.String("ngw-1"), State: types.NatGatewayStateDeleting}}},
+			// Second call: all done
+			{NatGateways: []types.NatGateway{}},
+		},
+	}
+
+	err := waitForNatGatewaysDeleted(context.Background(), mock, []string{"ngw-1"})
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, mock.describeCalls, 2)
 }

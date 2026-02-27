@@ -102,6 +102,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		// Note: nuking transitgateway vpc attachement before nuking the vpc since vpc could be associated with it.
 		resources.NewTransitGatewayPeeringAttachment(),
 		resources.NewTransitGatewaysVpcAttachment(),
+		resources.NewVPCPeeringConnection(),
 		resources.NewEC2Endpoints(),
 		resources.NewECR(),
 		resources.NewECSClusters(),
@@ -169,19 +170,21 @@ func getRegisteredRegionalResources() []AwsResource {
 		resources.NewVPCLatticeService(),
 		resources.NewVPCLatticeTargetGroup(),
 		// Note: VPC deletion order per AWS docs (https://docs.aws.amazon.com/vpc/latest/userguide/delete-vpc.html):
-		// 1. Network Interfaces (ENIs must be deleted before security groups and subnets)
+		// 1. Route Tables (custom route tables must be disassociated and deleted before subnets/VPC)
+		resources.NewRouteTable(),
+		// 2. Network Interfaces (ENIs must be deleted before security groups and subnets)
 		resources.NewNetworkInterface(),
-		// 2. Security Groups (must be deleted before VPC, after ENIs that reference them)
+		// 3. Security Groups (must be deleted before VPC, after ENIs that reference them)
 		resources.NewSecurityGroup(),
-		// 3. Network ACLs (must be deleted before subnets)
+		// 4. Network ACLs (must be deleted before subnets)
 		resources.NewNetworkACL(),
-		// 4. Subnets (after ENIs, security groups, network ACLs)
+		// 5. Subnets (after ENIs, security groups, network ACLs)
 		resources.NewEC2Subnet(),
-		// 5. Internet Gateways (detach and delete before VPC)
+		// 6. Internet Gateways (detach and delete before VPC)
 		resources.NewInternetGateway(),
-		// 6. VPCs (must be deleted last after all VPC-dependent resources)
+		// 7. VPCs (must be deleted last after all VPC-dependent resources)
 		resources.NewEC2VPC(),
-		// 7. DHCP Options (can be deleted after VPC since they're just disassociated)
+		// 8. DHCP Options (can be deleted after VPC since they're just disassociated)
 		resources.NewEC2DhcpOptions(),
 	}
 }

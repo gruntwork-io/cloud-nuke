@@ -133,6 +133,8 @@ func emptyConfig() *Config {
 		VPCLatticeServiceNetwork:        ResourceType{FilterRule{}, FilterRule{}, "", false},
 		VPCLatticeService:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		VPCLatticeTargetGroup:           ResourceType{FilterRule{}, FilterRule{}, "", false},
+		RouteTable:                      EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, "", false}},
+		VPCPeeringConnection:            ResourceType{FilterRule{}, FilterRule{}, "", false},
 	}
 }
 
