@@ -54,6 +54,10 @@ const (
 	// that don't have a native created-at timestamp (e.g., EIP, ECS Clusters).
 	// This supports the `--older-than <duration>` filtering in cloud-nuke.
 	firstSeenTagKey = "cloud-nuke-first-seen"
+
+	// awsLambdaTimeFormat is the time format used by AWS Lambda for timestamps
+	// such as LastModified and CreatedDate in function and layer responses.
+	awsLambdaTimeFormat = "2006-01-02T15:04:05.000+0000"
 )
 
 // AwsInitClientFunc is the AWS-specific client initialization function signature.

@@ -20,7 +20,8 @@ type EC2KeyPairsAPI interface {
 func NewEC2KeyPairs() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2KeyPairsAPI]{
 		ResourceTypeName: "ec2-keypairs",
-		BatchSize:        200,
+		// Simple single-call delete API with high throughput; can handle large batches.
+		BatchSize: 200,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2KeyPairsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

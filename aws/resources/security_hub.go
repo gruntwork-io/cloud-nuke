@@ -28,7 +28,8 @@ type SecurityHubAPI interface {
 func NewSecurityHub() AwsResource {
 	return NewAwsResource(&resource.Resource[SecurityHubAPI]{
 		ResourceTypeName: "security-hub",
-		BatchSize:        5,
+		// SecurityHub API has tight rate limits; keep batch size low to avoid throttling.
+		BatchSize: 5,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SecurityHubAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = securityhub.NewFromConfig(cfg)

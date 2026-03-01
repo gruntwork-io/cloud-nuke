@@ -156,13 +156,13 @@ func nukeSageMakerDomain(ctx context.Context, client SageMakerStudioAPI, scope r
 	// Check for errors from phase 1
 	for err := range errChan {
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
 
 	// Phase 2: Delete user profiles (after apps are deleted)
 	if err := deleteAllUserProfiles(ctx, client, domainID, scope); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Phase 3: Delete the domain itself
@@ -208,7 +208,7 @@ func deleteAllApps(ctx context.Context, client SageMakerStudioAPI, domainID stri
 
 	for err := range errChan {
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
 	return nil
@@ -231,7 +231,7 @@ func deleteApp(ctx context.Context, client SageMakerStudioAPI, domainID string, 
 	return waitForDeletion(ctx, client, fmt.Sprintf("app %s", aws.ToString(app.AppName)), func() (bool, error) {
 		apps, err := client.ListApps(ctx, &sagemaker.ListAppsInput{DomainIdEquals: aws.String(domainID)})
 		if err != nil {
-			return false, err
+			return false, errors.WithStackTrace(err)
 		}
 		for _, a := range apps.Apps {
 			if aws.ToString(a.AppName) == aws.ToString(app.AppName) && a.Status != types.AppStatusDeleted {
@@ -267,7 +267,7 @@ func deleteAllSpaces(ctx context.Context, client SageMakerStudioAPI, domainID st
 
 	for err := range errChan {
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
 	return nil
@@ -285,7 +285,7 @@ func deleteSpace(ctx context.Context, client SageMakerStudioAPI, domainID string
 	return waitForDeletion(ctx, client, fmt.Sprintf("space %s", aws.ToString(space.SpaceName)), func() (bool, error) {
 		spaces, err := client.ListSpaces(ctx, &sagemaker.ListSpacesInput{DomainIdEquals: aws.String(domainID)})
 		if err != nil {
-			return false, err
+			return false, errors.WithStackTrace(err)
 		}
 		for _, s := range spaces.Spaces {
 			if aws.ToString(s.SpaceName) == aws.ToString(space.SpaceName) {
@@ -321,7 +321,7 @@ func deleteAllMlflowServers(ctx context.Context, client SageMakerStudioAPI, scop
 
 	for err := range errChan {
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
 	return nil
@@ -338,7 +338,7 @@ func deleteMlflowServer(ctx context.Context, client SageMakerStudioAPI, server t
 	return waitForDeletion(ctx, client, fmt.Sprintf("MLflow server %s", aws.ToString(server.TrackingServerName)), func() (bool, error) {
 		servers, err := client.ListMlflowTrackingServers(ctx, &sagemaker.ListMlflowTrackingServersInput{})
 		if err != nil {
-			return false, err
+			return false, errors.WithStackTrace(err)
 		}
 		for _, s := range servers.TrackingServerSummaries {
 			if aws.ToString(s.TrackingServerName) == aws.ToString(server.TrackingServerName) {
@@ -374,7 +374,7 @@ func deleteAllUserProfiles(ctx context.Context, client SageMakerStudioAPI, domai
 
 	for err := range errChan {
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 	}
 	return nil
@@ -392,7 +392,7 @@ func deleteUserProfile(ctx context.Context, client SageMakerStudioAPI, domainID 
 	return waitForDeletion(ctx, client, fmt.Sprintf("user profile %s", aws.ToString(profile.UserProfileName)), func() (bool, error) {
 		profiles, err := client.ListUserProfiles(ctx, &sagemaker.ListUserProfilesInput{DomainIdEquals: aws.String(domainID)})
 		if err != nil {
-			return false, err
+			return false, errors.WithStackTrace(err)
 		}
 		for _, p := range profiles.UserProfiles {
 			if aws.ToString(p.UserProfileName) == aws.ToString(profile.UserProfileName) {
@@ -413,7 +413,7 @@ func waitForDeletion(ctx context.Context, client SageMakerStudioAPI, resourceNam
 
 		exists, err := checkExists()
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		if !exists {
 			logging.Debugf("[OK] %s deletion confirmed", resourceName)

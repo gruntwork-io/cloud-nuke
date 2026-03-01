@@ -65,8 +65,7 @@ func shouldIncludeLambdaFunction(ctx context.Context, client LambdaFunctionsAPI,
 
 	fnLastModified := aws.ToString(lambdaFn.LastModified)
 	fnName := lambdaFn.FunctionName
-	layout := "2006-01-02T15:04:05.000+0000"
-	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
+	lastModifiedDateTime, err := time.Parse(awsLambdaTimeFormat, fnLastModified)
 	if err != nil {
 		logging.Debugf("Could not parse last modified timestamp (%s) of Lambda function %s. Excluding from delete.", fnLastModified, *fnName)
 		return false

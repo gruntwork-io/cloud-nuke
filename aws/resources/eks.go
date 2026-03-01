@@ -179,7 +179,7 @@ func deleteEKSClusterAsync(ctx context.Context, client EKSClustersAPI, wg *sync.
 			NodegroupName: nodeGroup,
 		}, DefaultWaitTimeout)
 		if err != nil {
-			logging.Debugf("[Failed] Failed waiting for Node Group %s associated with cluster %s to be deleted: %s", aws.ToString(nodeGroup), eksClusterName, err)
+			logging.Debugf("[Failed] Waiting for Node Group %s associated with cluster %s to be deleted: %s", aws.ToString(nodeGroup), eksClusterName, err)
 			allSubResourceErrs = multierror.Append(allSubResourceErrs, err)
 		} else {
 			logging.Debugf("Deleted Node Group %s associated with cluster %s", aws.ToString(nodeGroup), eksClusterName)
@@ -194,7 +194,7 @@ func deleteEKSClusterAsync(ctx context.Context, client EKSClustersAPI, wg *sync.
 	// request to delete the EKS cluster.
 	_, deleteErr := client.DeleteCluster(ctx, &eks.DeleteClusterInput{Name: aws.String(eksClusterName)})
 	if deleteErr != nil {
-		logging.Debugf("[Failed] Failed deleting EKS cluster %s: %s", eksClusterName, deleteErr)
+		logging.Debugf("[Failed] Deleting EKS cluster %s: %s", eksClusterName, deleteErr)
 	}
 	errChan <- deleteErr
 }
@@ -229,7 +229,7 @@ func scheduleDeleteEKSClusterManagedNodeGroup(ctx context.Context, client EKSClu
 			NodegroupName: nodeGroup,
 		})
 		if err != nil {
-			logging.Debugf("[Failed] Failed deleting Node Group %s associated with cluster %s: %s", aws.ToString(nodeGroup), eksClusterName, err)
+			logging.Debugf("[Failed] Deleting Node Group %s associated with cluster %s: %s", aws.ToString(nodeGroup), eksClusterName, err)
 			allDeleteErrs = multierror.Append(allDeleteErrs, err)
 		} else {
 			deletedNodeGroups = append(deletedNodeGroups, nodeGroup)
@@ -267,7 +267,7 @@ func deleteEKSClusterFargateProfiles(ctx context.Context, client EKSClustersAPI,
 			FargateProfileName: fargateProfile,
 		})
 		if err != nil {
-			logging.Debugf("[Failed] Failed deleting Fargate Profile %s associated with cluster %s: %s", aws.ToString(fargateProfile), eksClusterName, err)
+			logging.Debugf("[Failed] Deleting Fargate Profile %s associated with cluster %s: %s", aws.ToString(fargateProfile), eksClusterName, err)
 			allDeleteErrs = multierror.Append(allDeleteErrs, err)
 			continue
 		}
@@ -278,7 +278,7 @@ func deleteEKSClusterFargateProfiles(ctx context.Context, client EKSClustersAPI,
 			FargateProfileName: fargateProfile,
 		}, DefaultWaitTimeout)
 		if waitErr != nil {
-			logging.Debugf("[Failed] Failed waiting for Fargate Profile %s associated with cluster %s to be deleted: %s", aws.ToString(fargateProfile), eksClusterName, waitErr)
+			logging.Debugf("[Failed] Waiting for Fargate Profile %s associated with cluster %s to be deleted: %s", aws.ToString(fargateProfile), eksClusterName, waitErr)
 			allDeleteErrs = multierror.Append(allDeleteErrs, waitErr)
 		} else {
 			logging.Debugf("Deleted Fargate Profile %s associated with cluster %s", aws.ToString(fargateProfile), eksClusterName)
@@ -299,7 +299,7 @@ func waitUntilEksClustersDeleted(ctx context.Context, client EKSClustersAPI, res
 		}, DefaultWaitTimeout)
 
 		if err != nil {
-			logging.Debugf("[Failed] Failed waiting for EKS cluster to be deleted %s: %s", *eksClusterName, err)
+			logging.Debugf("[Failed] Waiting for EKS cluster to be deleted %s: %s", *eksClusterName, err)
 		} else {
 			logging.Debugf("Deleted EKS cluster: %s", aws.ToString(eksClusterName))
 			successfullyDeleted = append(successfullyDeleted, eksClusterName)

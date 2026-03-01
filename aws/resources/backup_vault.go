@@ -98,7 +98,7 @@ func nukeRecoveryPoints(ctx context.Context, client BackupVaultAPI, name *string
 		return err
 	}
 
-	logging.Debugf("[Ok] successfully nuked recovery points of backup vault %s", vaultName)
+	logging.Debugf("[OK] Successfully nuked recovery points of backup vault %s", vaultName)
 	return nil
 }
 

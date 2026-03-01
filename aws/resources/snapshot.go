@@ -116,7 +116,7 @@ func deregisterSnapshotAMIs(ctx context.Context, client SnapshotsAPI, snapshotID
 		}
 	}
 
-	logging.Debugf("[Ok] De-registered all the images for snapshot: %s", aws.ToString(snapshotID))
+	logging.Debugf("[OK] De-registered all the images for snapshot: %s", aws.ToString(snapshotID))
 	return nil
 }
 

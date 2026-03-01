@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -75,7 +76,7 @@ func NewS3Buckets() AwsResource {
 func listS3Buckets(ctx context.Context, client S3API, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	output, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStackTrace(err)
 	}
 
 	if len(output.Buckets) == 0 {
@@ -184,7 +185,7 @@ func getBucketRegion(ctx context.Context, client S3API, bucketName string) (stri
 		Bucket: aws.String(bucketName),
 	})
 	if err != nil {
-		return "", err
+		return "", errors.WithStackTrace(err)
 	}
 
 	// GetBucketLocation returns empty string for us-east-1
@@ -207,7 +208,7 @@ func getBucketTags(ctx context.Context, client S3API, bucketName string) (map[st
 				return nil, nil
 			}
 		}
-		return nil, err
+		return nil, errors.WithStackTrace(err)
 	}
 	return util.ConvertS3TypesTagsToMap(result.TagSet), nil
 }
@@ -218,12 +219,12 @@ func emptyBucket(ctx context.Context, client S3API, bucketName *string) error {
 
 	// Delete all object versions and deletion markers
 	if err := deleteAllVersionsAndMarkers(ctx, client, bucketName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Delete any remaining unversioned objects
 	if err := deleteAllObjects(ctx, client, bucketName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	logging.Debugf("[OK] Emptied bucket %s", aws.ToString(bucketName))
@@ -250,14 +251,14 @@ func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *
 
 		output, err := client.ListObjectVersions(ctx, input)
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 
 		// Delete object versions
 		if len(output.Versions) > 0 {
 			logging.Debugf("Deleting page %d of versions (%d) from bucket %s", pageId, len(output.Versions), aws.ToString(bucketName))
 			if err := deleteObjectVersions(ctx, client, bucketName, output.Versions); err != nil {
-				return err
+				return errors.WithStackTrace(err)
 			}
 		}
 
@@ -265,7 +266,7 @@ func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *
 		if len(output.DeleteMarkers) > 0 {
 			logging.Debugf("Deleting page %d of deletion markers (%d) from bucket %s", pageId, len(output.DeleteMarkers), aws.ToString(bucketName))
 			if err := deleteDeletionMarkers(ctx, client, bucketName, output.DeleteMarkers); err != nil {
-				return err
+				return errors.WithStackTrace(err)
 			}
 		}
 
@@ -302,7 +303,7 @@ func deleteObjectVersions(ctx context.Context, client S3API, bucketName *string,
 			Quiet:   aws.Bool(true),
 		},
 	})
-	return err
+	return errors.WithStackTrace(err)
 }
 
 // deleteDeletionMarkers deletes a batch of deletion markers.
@@ -326,7 +327,7 @@ func deleteDeletionMarkers(ctx context.Context, client S3API, bucketName *string
 			Quiet:   aws.Bool(true),
 		},
 	})
-	return err
+	return errors.WithStackTrace(err)
 }
 
 // deleteAllObjects deletes all remaining unversioned objects from a bucket.
@@ -342,7 +343,7 @@ func deleteAllObjects(ctx context.Context, client S3API, bucketName *string) err
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 
 		if len(page.Contents) == 0 {
@@ -364,7 +365,7 @@ func deleteAllObjects(ctx context.Context, client S3API, bucketName *string) err
 			},
 		})
 		if err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		pageId++
 	}
@@ -377,7 +378,7 @@ func deleteBucketPolicy(ctx context.Context, client S3API, bucketName *string) e
 	_, err := client.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
 		Bucket: bucketName,
 	})
-	return err
+	return errors.WithStackTrace(err)
 }
 
 // deleteBucketLifecycle deletes the bucket lifecycle configuration.
@@ -385,7 +386,7 @@ func deleteBucketLifecycle(ctx context.Context, client S3API, bucketName *string
 	_, err := client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
 		Bucket: bucketName,
 	})
-	return err
+	return errors.WithStackTrace(err)
 }
 
 // deleteBucketWithWait deletes the bucket and waits for deletion confirmation.
@@ -394,7 +395,7 @@ func deleteBucketWithWait(ctx context.Context, client S3API, bucketName *string)
 		Bucket: bucketName,
 	})
 	if err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	return waitForBucketDeletion(ctx, client, aws.ToString(bucketName))

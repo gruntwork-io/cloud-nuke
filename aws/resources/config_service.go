@@ -23,7 +23,8 @@ type ConfigServiceRuleAPI interface {
 func NewConfigServiceRules() AwsResource {
 	return NewAwsResource(&resource.Resource[ConfigServiceRuleAPI]{
 		ResourceTypeName: "config-rules",
-		BatchSize:        200,
+		// Simple single-call delete API with high throughput; can handle large batches.
+		BatchSize: 200,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ConfigServiceRuleAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = configservice.NewFromConfig(cfg)
