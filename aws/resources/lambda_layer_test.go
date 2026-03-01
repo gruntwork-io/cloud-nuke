@@ -117,6 +117,18 @@ func TestListLambdaLayers(t *testing.T) {
 	}
 }
 
+func TestShouldIncludeLambdaLayer_NilLatestMatchingVersion(t *testing.T) {
+	t.Parallel()
+
+	layer := &types.LayersListItem{
+		LayerName:             aws.String("test-layer"),
+		LatestMatchingVersion: nil, // nil version should be handled gracefully
+	}
+
+	result := shouldIncludeLambdaLayer(layer, config.ResourceType{})
+	require.False(t, result)
+}
+
 func TestDeleteLambdaLayerVersion(t *testing.T) {
 	t.Parallel()
 

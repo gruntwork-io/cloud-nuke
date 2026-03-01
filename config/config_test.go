@@ -952,6 +952,70 @@ func TestShouldIncludeBasedOnIncludeRuleTags(t *testing.T) {
 	}
 }
 
+func TestAllResourceTypesComplete(t *testing.T) {
+	// This test uses reflection to verify that allResourceTypes() covers every
+	// struct field in Config. If you add a new field to Config, add it to
+	// allResourceTypes() — this test will fail until you do.
+	c := &Config{}
+	got := c.allResourceTypes()
+
+	// Build a set of pointers returned by allResourceTypes()
+	ptrSet := make(map[uintptr]bool, len(got))
+	for _, rt := range got {
+		ptrSet[reflect.ValueOf(rt).Pointer()] = true
+	}
+
+	v := reflect.ValueOf(c).Elem()
+	t.Logf("Config has %d fields, allResourceTypes returned %d pointers", v.NumField(), len(got))
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldName := v.Type().Field(i).Name
+
+		// Find the embedded ResourceType within this field
+		var rtPtr uintptr
+		switch field.Type() {
+		case reflect.TypeOf(ResourceType{}):
+			rtPtr = field.Addr().Pointer()
+		case reflect.TypeOf(EC2ResourceType{}):
+			rtPtr = field.FieldByName("ResourceType").Addr().Pointer()
+		case reflect.TypeOf(AWSProtectableResourceType{}):
+			rtPtr = field.FieldByName("ResourceType").Addr().Pointer()
+		case reflect.TypeOf(KMSCustomerKeyResourceType{}):
+			rtPtr = field.FieldByName("ResourceType").Addr().Pointer()
+		default:
+			t.Fatalf("Config field %q has unexpected type %s", fieldName, field.Type())
+		}
+
+		if !ptrSet[rtPtr] {
+			t.Errorf("Config field %q is missing from allResourceTypes()", fieldName)
+		}
+	}
+}
+
+func TestAllEC2ResourceTypesComplete(t *testing.T) {
+	c := &Config{}
+	got := c.allEC2ResourceTypes()
+
+	ptrSet := make(map[uintptr]bool, len(got))
+	for _, rt := range got {
+		ptrSet[reflect.ValueOf(rt).Pointer()] = true
+	}
+
+	v := reflect.ValueOf(c).Elem()
+	ec2Type := reflect.TypeOf(EC2ResourceType{})
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldName := v.Type().Field(i).Name
+		if field.Type() != ec2Type {
+			continue
+		}
+		if !ptrSet[field.Addr().Pointer()] {
+			t.Errorf("EC2ResourceType field %q is missing from allEC2ResourceTypes()", fieldName)
+		}
+	}
+}
+
 func TestShouldIncludeBasedOnTag_NilTagsSafety(t *testing.T) {
 	// When include tag filters are specified, resources that don't support tags (nil) should be excluded
 	r := ResourceType{

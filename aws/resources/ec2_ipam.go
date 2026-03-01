@@ -123,6 +123,10 @@ func nukePublicIPAMPools(ctx context.Context, client EC2IPAMAPI, ipamID *string)
 		return nil
 	}
 
+	if ipam.Ipams[0].PublicDefaultScopeId == nil {
+		return nil
+	}
+
 	// Get the public scope details
 	scope, err := client.DescribeIpamScopes(ctx, &ec2.DescribeIpamScopesInput{
 		IpamScopeIds: []string{*ipam.Ipams[0].PublicDefaultScopeId},
@@ -132,6 +136,10 @@ func nukePublicIPAMPools(ctx context.Context, client EC2IPAMAPI, ipamID *string)
 	}
 
 	if len(scope.IpamScopes) == 0 {
+		return nil
+	}
+
+	if scope.IpamScopes[0].IpamScopeArn == nil {
 		return nil
 	}
 

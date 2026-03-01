@@ -130,6 +130,24 @@ func TestListEC2IPAMs(t *testing.T) {
 	}
 }
 
+func TestNukeEC2IPAM_NilPublicDefaultScopeId(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockEC2IPAMClient{
+		DescribeIpamsOutput: ec2.DescribeIpamsOutput{
+			Ipams: []types.Ipam{
+				{
+					IpamId:               aws.String("ipam-test"),
+					PublicDefaultScopeId: nil, // nil scope ID should be handled gracefully
+				},
+			},
+		},
+	}
+
+	err := nukeEC2IPAM(context.Background(), mock, aws.String("ipam-test"))
+	require.NoError(t, err)
+}
+
 func TestNukeEC2IPAM(t *testing.T) {
 	t.Parallel()
 
