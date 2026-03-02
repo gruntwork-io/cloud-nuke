@@ -1,0 +1,169 @@
+package resources
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/resource"
+	compute "google.golang.org/api/compute/v1"
+	"google.golang.org/api/googleapi"
+)
+
+// NewComputeInstances creates a new Compute Engine VM instance resource using the generic resource pattern.
+func NewComputeInstances() GcpResource {
+	return NewGcpResource(&resource.Resource[*compute.Service]{
+		ResourceTypeName: "compute-instance",
+		BatchSize:        ComputeInstanceBatchSize,
+		InitClient: WrapGcpInitClient(func(r *resource.Resource[*compute.Service], projectID string) {
+			r.Scope.ProjectID = projectID
+			client, err := compute.NewService(context.Background())
+			if err != nil {
+				panic(fmt.Sprintf("failed to create Compute Engine client: %v", err))
+			}
+			r.Client = client
+		}),
+		ConfigGetter: func(c config.Config) config.ResourceType {
+			return c.ComputeInstance
+		},
+		Lister: listComputeInstances,
+		Nuker:  resource.SimpleBatchDeleter(deleteComputeInstance),
+	})
+}
+
+// ComputeInstanceBatchSize controls the number of instances per nuke batch.
+// The effective concurrency is capped at DefaultMaxConcurrent (10) by the
+// semaphore in SimpleBatchDeleter; this batch size just controls how many
+// identifiers are handed to a single Nuke call.
+const ComputeInstanceBatchSize = 20
+
+// listComputeInstances retrieves all Compute Engine VM instances across all zones in the project.
+func listComputeInstances(ctx context.Context, client *compute.Service, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	var result []*string
+
+	err := client.Instances.AggregatedList(scope.ProjectID).Pages(ctx, func(list *compute.InstanceAggregatedList) error {
+		for zonePath, scopedList := range list.Items {
+			// Only process zone-scoped entries (skip regions/ or other scopes)
+			if !strings.HasPrefix(zonePath, "zones/") {
+				continue
+			}
+			if scopedList.Instances == nil {
+				continue
+			}
+			zone := extractZoneName(zonePath)
+			for _, instance := range scopedList.Instances {
+				createdAt, err := time.Parse(time.RFC3339Nano, instance.CreationTimestamp)
+				if err != nil {
+					logging.Debugf("Error parsing creation timestamp for instance %s: %v", instance.Name, err)
+					continue
+				}
+
+				tags := make(map[string]string, len(instance.Labels))
+				for k, v := range instance.Labels {
+					tags[k] = v
+				}
+
+				resourceValue := config.ResourceValue{
+					Name: &instance.Name,
+					Time: &createdAt,
+					Tags: tags,
+				}
+
+				if cfg.ShouldInclude(resourceValue) {
+					id := fmt.Sprintf("%s/%s/%s", scope.ProjectID, zone, instance.Name)
+					result = append(result, &id)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing compute instances: %w", err)
+	}
+
+	return result, nil
+}
+
+// deleteComputeInstance deletes a single Compute Engine VM instance and waits
+// for the operation to complete.
+func deleteComputeInstance(ctx context.Context, client *compute.Service, id *string) error {
+	project, zone, name, err := parseComputeInstanceID(*id)
+	if err != nil {
+		return err
+	}
+
+	op, err := client.Instances.Delete(project, zone, name).Context(ctx).Do()
+	if err != nil {
+		if isGCPNotFound(err) {
+			logging.Debugf("Compute instance %s already deleted, skipping", *id)
+			return nil
+		}
+		return fmt.Errorf("error deleting compute instance %s: %w", *id, err)
+	}
+
+	// Wait for the delete operation to complete
+	if err := waitForZoneOperation(ctx, client, project, zone, op.Name); err != nil {
+		return fmt.Errorf("error waiting for deletion of compute instance %s: %w", *id, err)
+	}
+
+	logging.Debugf("Deleted compute instance: %s", *id)
+	return nil
+}
+
+// waitForZoneOperation waits for a zone operation to complete using the GCP
+// long-poll Wait API. If the provided context has no deadline, a default
+// timeout of DefaultWaitTimeout is applied to prevent indefinite blocking.
+func waitForZoneOperation(ctx context.Context, client *compute.Service, project, zone, opName string) error {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, DefaultWaitTimeout)
+		defer cancel()
+	}
+
+	for {
+		op, err := client.ZoneOperations.Wait(project, zone, opName).Context(ctx).Do()
+		if err != nil {
+			return fmt.Errorf("error waiting for operation %s: %w", opName, err)
+		}
+		if op.Status == "DONE" {
+			if op.Error != nil && len(op.Error.Errors) > 0 {
+				msgs := make([]string, len(op.Error.Errors))
+				for i, e := range op.Error.Errors {
+					msgs[i] = e.Message
+				}
+				return fmt.Errorf("operation %s failed: %s", opName, strings.Join(msgs, "; "))
+			}
+			return nil
+		}
+		// ZoneOperations.Wait returns when the operation completes or the
+		// server-side timeout (default ~2 min) elapses. If it returned
+		// without DONE, loop to wait again.
+	}
+}
+
+// isGCPNotFound returns true if the error is a GCP API 404 Not Found error.
+func isGCPNotFound(err error) bool {
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) {
+		return apiErr.Code == 404
+	}
+	return false
+}
+
+// parseComputeInstanceID parses a composite ID of the form "project/zone/name".
+func parseComputeInstanceID(id string) (project, zone, name string, err error) {
+	parts := strings.SplitN(id, "/", 3)
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
+		return "", "", "", fmt.Errorf("invalid compute instance ID %q: expected format project/zone/name", id)
+	}
+	return parts[0], parts[1], parts[2], nil
+}
+
+// extractZoneName extracts the zone name from an aggregated list key (e.g., "zones/us-central1-a" -> "us-central1-a").
+func extractZoneName(zonePath string) string {
+	return strings.TrimPrefix(zonePath, "zones/")
+}

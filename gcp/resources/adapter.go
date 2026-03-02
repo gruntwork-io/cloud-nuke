@@ -3,8 +3,11 @@ package resources
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -31,6 +34,9 @@ func WrapGcpInitClient[C any](fn GcpInitClientFunc[C]) func(r *resource.Resource
 // GcpResourceAdapter wraps a generic Resource to satisfy the GcpResource interface.
 type GcpResourceAdapter[C any] struct {
 	*resource.Resource[C]
+	// initErr stores any error (including recovered panics) from Init so that
+	// subsequent operations can fail gracefully instead of crashing.
+	initErr error
 }
 
 // NewGcpResource creates a GcpResourceAdapter from a generic Resource.
@@ -39,12 +45,34 @@ func NewGcpResource[C any](r *resource.Resource[C]) GcpResource {
 }
 
 // Init initializes the resource with GCP project ID.
+// Recovers from panics in InitClient (e.g., credential failures) and stores
+// the error so GetAndSetIdentifiers and Nuke fail gracefully.
 func (g *GcpResourceAdapter[C]) Init(projectID string) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Debugf("Recovered panic during Init of %s: %v\n%s",
+				g.Resource.ResourceTypeName, r, debug.Stack())
+			g.initErr = fmt.Errorf("initialization failed: %v", r)
+		}
+	}()
 	g.Resource.Init(projectID)
 }
 
+// GetAndSetIdentifiers discovers resources and stores their identifiers.
+// Returns an error if Init failed.
+func (g *GcpResourceAdapter[C]) GetAndSetIdentifiers(ctx context.Context, configObj config.Config) ([]string, error) {
+	if g.initErr != nil {
+		return nil, fmt.Errorf("%s: %w", g.Resource.ResourceName(), g.initErr)
+	}
+	return g.Resource.GetAndSetIdentifiers(ctx, configObj)
+}
+
 // Nuke deletes the resources with the given identifiers.
+// Returns an error if Init failed.
 func (g *GcpResourceAdapter[C]) Nuke(ctx context.Context, identifiers []string) ([]resource.NukeResult, error) {
+	if g.initErr != nil {
+		return nil, fmt.Errorf("%s: %w", g.Resource.ResourceName(), g.initErr)
+	}
 	return g.Resource.Nuke(ctx, identifiers)
 }
 
