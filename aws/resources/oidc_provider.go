@@ -29,7 +29,6 @@ func NewOIDCProviders() AwsResource {
 	return NewAwsResource(&resource.Resource[OIDCProvidersAPI]{
 		ResourceTypeName: "oidc-provider",
 		BatchSize:        10,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[OIDCProvidersAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = iam.NewFromConfig(cfg)

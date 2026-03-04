@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -27,6 +28,11 @@ func gcpNuke(c *cli.Context) error {
 	// Handle the --list-resource-types flag
 	if c.Bool(FlagListResourceTypes) {
 		return handleListGcpResourceTypes()
+	}
+
+	// --resource-type and --exclude-resource-type are not yet supported for GCP
+	if c.IsSet(FlagResourceType) || c.IsSet(FlagExcludeResourceType) {
+		return fmt.Errorf("--resource-type and --exclude-resource-type are not yet supported for GCP commands; all GCP resource types will be processed")
 	}
 
 	// Parse and set log level
@@ -70,6 +76,11 @@ func gcpInspect(c *cli.Context) error {
 	// Handle the --list-resource-types flag
 	if c.Bool(FlagListResourceTypes) {
 		return handleListGcpResourceTypes()
+	}
+
+	// --resource-type and --exclude-resource-type are not yet supported for GCP
+	if c.IsSet(FlagResourceType) || c.IsSet(FlagExcludeResourceType) {
+		return fmt.Errorf("--resource-type and --exclude-resource-type are not yet supported for GCP commands; all GCP resource types will be processed")
 	}
 
 	// Parse and set log level

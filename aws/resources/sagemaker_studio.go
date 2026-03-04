@@ -56,10 +56,7 @@ func NewSageMakerStudio() AwsResource {
 			r.Client = sagemaker.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return config.ResourceType{
-				Timeout:            c.SageMakerStudioDomain.Timeout,
-				ProtectUntilExpire: c.SageMakerStudioDomain.ProtectUntilExpire,
-			}
+			return c.SageMakerStudioDomain
 		},
 		Lister: listSageMakerDomains,
 		Nuker:  nukeSageMakerDomains,

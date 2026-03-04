@@ -150,7 +150,7 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		return aws.NukeAllResources(account, query.Regions, collector)
+		return aws.NukeAllResources(c.Context, account, query.Regions, collector)
 	}
 
 	return nil

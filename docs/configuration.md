@@ -91,6 +91,23 @@ s3:
   timeout: 10m
 ```
 
+### protect_until_expire
+
+Enable time-based protection using the `cloud-nuke-after` tag. When enabled, resources tagged with `cloud-nuke-after` and a future timestamp will be protected from deletion until that time passes.
+
+```yaml
+EC2:
+  protect_until_expire: true
+```
+
+To protect a resource, tag it with `cloud-nuke-after` and an RFC 3339 timestamp:
+
+```
+cloud-nuke-after = 2026-06-01T00:00:00Z
+```
+
+The resource will be excluded from deletion until after `2026-06-01T00:00:00Z`. Once the timestamp passes, the resource becomes eligible for deletion again.
+
 ## Exclusion Tag
 
 By default, resources tagged with `cloud-nuke-excluded` are excluded from deletion.

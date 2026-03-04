@@ -16,7 +16,9 @@ import (
 func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -25,7 +27,9 @@ func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
 func ConvertTypesTagsToMap(tags []ec2types.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -33,7 +37,9 @@ func ConvertTypesTagsToMap(tags []ec2types.Tag) map[string]string {
 func ConvertSecretsManagerTagsToMap(tags []secretsmanagertypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -42,7 +48,9 @@ func ConvertSecretsManagerTagsToMap(tags []secretsmanagertypes.Tag) map[string]s
 func ConvertAutoScalingTagsToMap(tags []autoscaling.TagDescription) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -51,7 +59,9 @@ func ConvertAutoScalingTagsToMap(tags []autoscaling.TagDescription) map[string]s
 func ConvertStringPtrTagsToMap(tags map[string]*string) map[string]string {
 	tagMap := make(map[string]string)
 	for key, value := range tags {
-		tagMap[key] = *value
+		if value != nil {
+			tagMap[key] = *value
+		}
 	}
 
 	return tagMap
@@ -60,7 +70,9 @@ func ConvertStringPtrTagsToMap(tags map[string]*string) map[string]string {
 func ConvertIAMTagsToMap(tags []iam.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -69,7 +81,9 @@ func ConvertIAMTagsToMap(tags []iam.Tag) map[string]string {
 func ConvertRDSTypeTagsToMap(tags []rdstypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -87,7 +101,9 @@ func GetEC2ResourceNameTagValue(tags []ec2types.Tag) *string {
 func ConvertNetworkFirewallTagsToMap(tags []networkfirewalltypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -107,7 +123,9 @@ func ConvertSageMakerTagsToMap(tags []sagemakertypes.Tag) map[string]string {
 func ConvertRoute53TagsToMap(tags []route53types.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -116,7 +134,9 @@ func ConvertRoute53TagsToMap(tags []route53types.Tag) map[string]string {
 func ConvertCloudFormationTagsToMap(tags []cloudformationtypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap

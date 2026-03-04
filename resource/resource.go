@@ -53,11 +53,6 @@ type Resource[C any] struct {
 	// Set based on AWS/GCP API rate limits for this resource type.
 	BatchSize int
 
-	// IsGlobal indicates whether this resource is global (true) or regional (false).
-	// Global resources (e.g., IAM, Route53) are only queried once, not per-region.
-	// Regional resources (e.g., EC2, S3) are queried for each target region.
-	IsGlobal bool
-
 	// InitClient initializes the client from cloud-specific config.
 	// For AWS: cfg is aws.Config
 	// For GCP: cfg is string (projectID)
