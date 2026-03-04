@@ -19,9 +19,9 @@ type mockedEKSCluster struct {
 	DeleteClusterOutput          eks.DeleteClusterOutput
 	DeleteFargateProfileOutput   eks.DeleteFargateProfileOutput
 	DeleteNodegroupOutput        eks.DeleteNodegroupOutput
-	DescribeClusterOutputByName map[string]*eks.DescribeClusterOutput
-	DescribeClusterErrorByName map[string]error
-	DescribeClusterError       error // Error to return for all DescribeCluster calls (simulates deleted cluster)
+	DescribeClusterOutputByName  map[string]*eks.DescribeClusterOutput
+	DescribeClusterErrorByName   map[string]error
+	DescribeClusterError         error // Error to return for all DescribeCluster calls (simulates deleted cluster)
 	DescribeFargateProfileOutput eks.DescribeFargateProfileOutput
 	DescribeNodegroupOutput      eks.DescribeNodegroupOutput
 	ListClustersOutput           eks.ListClustersOutput
