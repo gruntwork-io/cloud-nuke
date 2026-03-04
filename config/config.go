@@ -3,7 +3,6 @@ package config
 import (
 	"io/ioutil"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -154,94 +153,201 @@ type Config struct {
 	GCSBucket ResourceType `yaml:"GCSBucket"`
 }
 
-func (c *Config) addTimeAfterFilter(timeFilter *time.Time, fieldName string) {
-	// Do nothing if the time filter is nil
-	if timeFilter == nil {
-		return
-	}
-
-	v := reflect.ValueOf(c).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if field.Kind() != reflect.Struct {
-			continue
-		}
-
-		ruleField := field.FieldByName(fieldName)
-		filterRule := ruleField.Addr().Interface().(*FilterRule)
-		filterRule.TimeAfter = timeFilter
+// allResourceTypes returns pointers to the embedded ResourceType for every
+// resource field in Config. This replaces the old reflection-based approach
+// with a type-safe enumeration. If you add a new field to Config, add it here
+// too — TestAllResourceTypesComplete will catch any omission.
+func (c *Config) allResourceTypes() []*ResourceType {
+	return []*ResourceType{
+		&c.ACM,
+		&c.ACMPCA,
+		&c.AMI,
+		&c.APIGateway,
+		&c.APIGatewayV2,
+		&c.AccessAnalyzer,
+		&c.AutoScalingGroup,
+		&c.AppRunnerService,
+		&c.BackupVault,
+		&c.ManagedPrometheus,
+		&c.CloudWatchAlarm,
+		&c.CloudWatchDashboard,
+		&c.CloudWatchLogGroup,
+		&c.CloudMapNamespace,
+		&c.CloudMapService,
+		&c.CloudTrailTrail,
+		&c.CloudFrontDistribution,
+		&c.CloudFormationStack,
+		&c.CodeDeployApplications,
+		&c.ConfigServiceRecorder,
+		&c.ConfigServiceRule,
+		&c.DataSyncLocation,
+		&c.DataSyncTask,
+		&c.DBGlobalClusters,
+		&c.DBClusters.ResourceType,
+		&c.DBInstances.ResourceType,
+		&c.DBGlobalClusterMemberships,
+		&c.DBSubnetGroups,
+		&c.DynamoDB,
+		&c.EBSVolume,
+		&c.ElasticBeanstalk,
+		&c.EC2,
+		&c.EC2DedicatedHosts,
+		&c.EC2DHCPOption,
+		&c.EC2KeyPairs,
+		&c.EC2IPAM,
+		&c.EC2IPAMByoasn,
+		&c.EC2IPAMCustomAllocation,
+		&c.EC2IPAMPool,
+		&c.EC2IPAMResourceDiscovery,
+		&c.EC2IPAMScope,
+		&c.EC2Endpoint.ResourceType,
+		&c.EC2Subnet.ResourceType,
+		&c.EC2PlacementGroups,
+		&c.EgressOnlyInternetGateway,
+		&c.ECRRepository,
+		&c.ECSCluster,
+		&c.ECSService,
+		&c.EKSCluster,
+		&c.ELBv1,
+		&c.ELBv2,
+		&c.ElasticFileSystem,
+		&c.ElasticIP,
+		&c.ElastiCache,
+		&c.ElastiCacheParameterGroup,
+		&c.ElastiCacheServerless,
+		&c.ElastiCacheSubnetGroup,
+		&c.EventBridge,
+		&c.EventBridgeArchive,
+		&c.EventBridgeRule,
+		&c.EventBridgeSchedule,
+		&c.EventBridgeScheduleGroup,
+		&c.Grafana,
+		&c.GuardDuty,
+		&c.IAMGroups,
+		&c.IAMPolicies,
+		&c.IAMInstanceProfiles,
+		&c.IAMRoles,
+		&c.IAMServiceLinkedRoles,
+		&c.IAMUsers,
+		&c.KMSCustomerKeys.ResourceType,
+		&c.KinesisStream,
+		&c.KinesisFirehose,
+		&c.LambdaFunction,
+		&c.LambdaLayer,
+		&c.LaunchConfiguration,
+		&c.LaunchTemplate,
+		&c.MacieMember,
+		&c.MSKCluster,
+		&c.NATGateway.ResourceType,
+		&c.OIDCProvider,
+		&c.OpenSearchDomain,
+		&c.Redshift,
+		&c.RedshiftSnapshotCopyGrant,
+		&c.RDSSnapshot,
+		&c.RDSParameterGroup,
+		&c.RDSProxy,
+		&c.S3,
+		&c.S3AccessPoint,
+		&c.S3ObjectLambdaAccessPoint,
+		&c.S3MultiRegionAccessPoint,
+		&c.SESIdentity,
+		&c.SESConfigurationSet,
+		&c.SESReceiptRuleSet,
+		&c.SESReceiptFilter,
+		&c.SESEmailTemplates,
+		&c.SNS,
+		&c.SQS,
+		&c.SageMakerEndpoint,
+		&c.SageMakerEndpointConfig,
+		&c.SageMakerNotebook,
+		&c.SageMakerStudioDomain,
+		&c.SecretsManager,
+		&c.SecurityHub,
+		&c.Snapshots,
+		&c.TransitGateway,
+		&c.TransitGatewayRouteTable,
+		&c.TransitGatewayVPCAttachment,
+		&c.TransitGatewayPeeringAttachment,
+		&c.VPC.ResourceType,
+		&c.Route53HostedZone,
+		&c.Route53CIDRCollection,
+		&c.Route53TrafficPolicy,
+		&c.InternetGateway.ResourceType,
+		&c.NetworkACL,
+		&c.NetworkInterface.ResourceType,
+		&c.SecurityGroup.ResourceType,
+		&c.NetworkFirewall,
+		&c.NetworkFirewallPolicy,
+		&c.NetworkFirewallRuleGroup,
+		&c.NetworkFirewallTLSConfig,
+		&c.NetworkFirewallResourcePolicy,
+		&c.VPCLatticeServiceNetwork,
+		&c.VPCLatticeService,
+		&c.VPCLatticeTargetGroup,
+		&c.RouteTable.ResourceType,
+		&c.VPCPeeringConnection,
+		&c.GCSBucket,
 	}
 }
-func (c *Config) addTimeOut(timeout *time.Duration, fieldName string) {
-	// Do nothing if the time filter is nil or 0s
-	if timeout == nil || *timeout <= 0 {
-		return
-	}
 
-	v := reflect.ValueOf(c).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if field.Kind() != reflect.Struct {
-			continue
-		}
-
-		timeoutField := field.FieldByName(fieldName)
-		timeoutVal := timeoutField.Addr().Interface().(*string)
-		*timeoutVal = timeout.String()
-	}
-}
-
-func (c *Config) addBoolFlag(flag bool, fieldName string) {
-	// Do nothing if the flag filter is false, by default it will be false
-	if flag == false {
-		return
-	}
-
-	v := reflect.ValueOf(c).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if field.Kind() != reflect.Struct {
-			continue
-		}
-
-		defaultOnlyField := field.FieldByName(fieldName)
-		// IsValid reports whether v represents a value.
-		// It returns false if v is the zero Value.
-		// If IsValid returns false, all other methods except String panic.
-		if defaultOnlyField.IsValid() {
-			defaultOnlyVal := defaultOnlyField.Addr().Interface().(*bool)
-			*defaultOnlyVal = flag
-		}
+// allEC2ResourceTypes returns pointers to the EC2ResourceType fields in Config.
+// These are the only fields that have a DefaultOnly flag.
+func (c *Config) allEC2ResourceTypes() []*EC2ResourceType {
+	return []*EC2ResourceType{
+		&c.EC2Endpoint,
+		&c.EC2Subnet,
+		&c.NATGateway,
+		&c.VPC,
+		&c.InternetGateway,
+		&c.NetworkInterface,
+		&c.SecurityGroup,
+		&c.RouteTable,
 	}
 }
 
 func (c *Config) AddIncludeAfterTime(includeAfter *time.Time) {
-	// include after filter has been applied to all resources via `newer-than` flag, we are
-	// setting this rule across all resource types.
-	c.addTimeAfterFilter(includeAfter, "IncludeRule")
+	if includeAfter == nil {
+		return
+	}
+	for _, rt := range c.allResourceTypes() {
+		rt.IncludeRule.TimeAfter = includeAfter
+	}
 }
 
 func (c *Config) AddExcludeAfterTime(excludeAfter *time.Time) {
-	// exclude after filter has been applied to all resources via `older-than` flag, we are
-	// setting this rule across all resource types.
-	c.addTimeAfterFilter(excludeAfter, "ExcludeRule")
+	if excludeAfter == nil {
+		return
+	}
+	for _, rt := range c.allResourceTypes() {
+		rt.ExcludeRule.TimeAfter = excludeAfter
+	}
 }
 
 func (c *Config) AddTimeout(timeout *time.Duration) {
-	// timeout filter has been applied to all resources via `timeout` flag, we are
-	// setting this rule across all resource types.
-	c.addTimeOut(timeout, "Timeout")
+	if timeout == nil || *timeout <= 0 {
+		return
+	}
+	for _, rt := range c.allResourceTypes() {
+		rt.Timeout = timeout.String()
+	}
 }
 
 func (c *Config) AddEC2DefaultOnly(flag bool) {
-	// The flag filter has been applied to all resources via the default-only flag.
-	// We are now setting this rule across all resource types that have a field named `DefaultOnly`.
-	c.addBoolFlag(flag, "DefaultOnly")
+	if !flag {
+		return
+	}
+	for _, rt := range c.allEC2ResourceTypes() {
+		rt.DefaultOnly = flag
+	}
 }
 
 func (c *Config) AddProtectUntilExpireFlag(flag bool) {
-	// We are now setting this rule across all resource types that have a field named `ProtectUntilExpire`.
-	c.addBoolFlag(flag, "ProtectUntilExpire")
+	if !flag {
+		return
+	}
+	for _, rt := range c.allResourceTypes() {
+		rt.ProtectUntilExpire = flag
+	}
 }
 
 type KMSCustomerKeyResourceType struct {

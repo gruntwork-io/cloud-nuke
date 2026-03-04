@@ -87,6 +87,10 @@ func shouldIncludeLambdaLayer(lambdaLayer *types.LayersListItem, cfg config.Reso
 		return false
 	}
 
+	if lambdaLayer.LatestMatchingVersion == nil {
+		return false
+	}
+
 	// Lambda layers are immutable, so the created date of the latest version
 	// is on par with last modified
 	fnLastModified := aws.ToString(lambdaLayer.LatestMatchingVersion.CreatedDate)
