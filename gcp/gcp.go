@@ -174,6 +174,7 @@ func nukeResource(gcpResource *GcpResource, configObj config.Config, collector *
 func getAllResourceTypes() []GcpResource {
 	return []GcpResource{
 		resources.NewGCSBuckets(),
+		resources.NewComputeInstances(),
 	}
 }
 
