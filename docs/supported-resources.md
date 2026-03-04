@@ -266,6 +266,22 @@ This table shows which filtering features are supported for each resource type i
 | ipam-byoasn | EC2IPAMByoasn | | | | ✓ |
 | ipam-custom-allocation | EC2IPAMCustomAllocation | | | | ✓ |
 
+## GCP Supported Resources
+
+cloud-nuke supports inspecting and deleting the following GCP resources. The **CLI ID** column is the value you pass to `--resource-type`.
+
+| CLI ID | Resource |
+|---|---|
+| `gcs-bucket` | Google Cloud Storage Bucket |
+| `cloud-function` | Cloud Functions (Gen2) |
+
+### GCP Config Support Matrix
+
+| Resource Type | Config Key | names_regex | time | timeout |
+|---|---|---|---|---|
+| gcs-bucket | GCSBucket | ✓ | ✓ | ✓ |
+| cloud-function | CloudFunction | ✓ | ✓ | ✓ |
+
 ## IsNukable Permission Check
 
 For certain resources, cloud-nuke can verify whether you have sufficient permissions before attempting deletion. If not, it raises `error: INSUFFICIENT_PERMISSION`.
@@ -278,3 +294,4 @@ Supported resources: AMI, EBS, DHCP Option, Egress Only Internet Gateway, Endpoi
 
 - `error:INSUFFICIENT_PERMISSION` — You don't have enough permission to nuke the resource.
 - `error:DIFFERENT_OWNER` — You are attempting to nuke a resource for which you are not the owner.
+
