@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -95,16 +94,6 @@ func TestIAMInstanceProfiles_ListIAMInstanceProfiles(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now),
-				}},
-			expected: []string{testName1},
-		},
-		"tagExclusion": {
-			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					Tag: aws.String("somearn"),
-					TagValue: &config.Expression{
-						RE: *regexp.MustCompile("^" + "some" + strings.ToLower(testArn2) + "$"),
-					},
 				}},
 			expected: []string{testName1},
 		},

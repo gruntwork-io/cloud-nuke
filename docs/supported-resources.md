@@ -4,12 +4,12 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 
 | CLI ID | Resource |
 |---|---|
-| `accessanalyzer` | IAM Access Analyzer |
+| `access-analyzer` | IAM Access Analyzer |
 | `acm` | ACM Certificate |
 | `acmpca` | ACM Private CA |
 | `ami` | EC2 AMI |
-| `apigateway` | API Gateway (v1) |
-| `apigatewayv2` | API Gateway (v2) |
+| `api-gateway` | API Gateway (v1) |
+| `api-gateway-v2` | API Gateway (v2) |
 | `app-runner-service` | App Runner Service |
 | `asg` | Auto Scaling Group |
 | `backup-vault` | Backup Vault |
@@ -28,6 +28,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `data-sync-task` | DataSync Task |
 | `dynamodb` | DynamoDB Table |
 | `ebs` | EBS Volume |
+| `ebs-snapshot` | EBS Snapshot |
 | `ec2` | EC2 Instance |
 | `ec2-dedicated-hosts` | EC2 Dedicated Host |
 | `ec2-dhcp-option` | EC2 DHCP Option Set |
@@ -36,17 +37,17 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `ec2-placement-groups` | EC2 Placement Group |
 | `ec2-subnet` | EC2 Subnet |
 | `ecr` | ECR Repository |
-| `ecscluster` | ECS Cluster |
-| `ecsserv` | ECS Service |
+| `ecs-cluster` | ECS Cluster |
+| `ecs-service` | ECS Service |
 | `efs` | EFS File System |
 | `egress-only-internet-gateway` | Egress Only Internet Gateway |
 | `eip` | Elastic IP |
-| `ekscluster` | EKS Cluster |
+| `eks-cluster` | EKS Cluster |
 | `elastic-beanstalk` | Elastic Beanstalk Application |
 | `elasticache` | ElastiCache Cluster |
-| `elasticacheParameterGroups` | ElastiCache Parameter Group |
-| `elasticacheSubnetGroups` | ElastiCache Subnet Group |
-| `elasticcache-serverless` | ElastiCache Serverless Cluster |
+| `elasticache-parameter-group` | ElastiCache Parameter Group |
+| `elasticache-serverless` | ElastiCache Serverless Cluster |
+| `elasticache-subnet-group` | ElastiCache Subnet Group |
 | `elb` | Classic Load Balancer |
 | `elbv2` | Application/Network Load Balancer |
 | `event-bridge` | EventBridge Bus |
@@ -55,13 +56,13 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `event-bridge-schedule` | EventBridge Schedule |
 | `event-bridge-schedule-group` | EventBridge Schedule Group |
 | `grafana` | Grafana Workspace |
-| `guardduty` | GuardDuty Detector |
-| `iam` | IAM User |
+| `guard-duty` | GuardDuty Detector |
 | `iam-group` | IAM Group |
 | `iam-instance-profile` | IAM Instance Profile |
 | `iam-policy` | IAM Policy |
 | `iam-role` | IAM Role |
 | `iam-service-linked-role` | IAM Service-linked Role |
+| `iam-user` | IAM User |
 | `internet-gateway` | Internet Gateway |
 | `ipam` | EC2 IPAM |
 | `ipam-byoasn` | EC2 IPAM BYOASN |
@@ -71,11 +72,11 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `ipam-scope` | EC2 IPAM Scope |
 | `kinesis-firehose` | Kinesis Firehose |
 | `kinesis-stream` | Kinesis Stream |
-| `kmscustomerkeys` | KMS Customer Managed Key |
+| `kms-customer-key` | KMS Customer Managed Key |
 | `lambda` | Lambda Function |
-| `lambda_layer` | Lambda Layer |
-| `lc` | Launch Configuration |
-| `lt` | Launch Template |
+| `lambda-layer` | Lambda Layer |
+| `launch-configuration` | Launch Configuration |
+| `launch-template` | Launch Template |
 | `macie-member` | Macie Member Account |
 | `managed-prometheus` | Managed Prometheus Workspace |
 | `msk-cluster` | MSK Cluster |
@@ -87,30 +88,31 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `network-firewall-rule-group` | Network Firewall Rule Group |
 | `network-firewall-tls-config` | Network Firewall TLS Config |
 | `network-interface` | Network Interface |
-| `oidcprovider` | OIDC Provider |
-| `opensearchdomain` | OpenSearch Domain |
-| `rds` | RDS DB Instance (incl. Neptune, DocumentDB) |
+| `oidc-provider` | OIDC Provider |
+| `opensearch-domain` | OpenSearch Domain |
 | `rds-cluster` | RDS DB Cluster |
 | `rds-global-cluster` | RDS Global Cluster |
 | `rds-global-cluster-membership` | RDS Global Cluster Membership |
+| `rds-instance` | RDS DB Instance (incl. Neptune, DocumentDB) |
 | `rds-parameter-group` | RDS Parameter Group |
 | `rds-proxy` | RDS Proxy |
 | `rds-snapshot` | RDS Snapshot |
 | `rds-subnet-group` | RDS Subnet Group |
 | `redshift` | Redshift Cluster |
 | `redshift-snapshot-copy-grant` | Redshift Snapshot Copy Grant |
+| `route-table` | Route Table |
 | `route53-cidr-collection` | Route53 CIDR Collection |
 | `route53-hosted-zone` | Route53 Hosted Zone |
 | `route53-traffic-policy` | Route53 Traffic Policy |
 | `s3` | S3 Bucket |
-| `s3-ap` | S3 Access Point |
-| `s3-mrap` | S3 Multi Region Access Point |
-| `s3-olap` | S3 Object Lambda Access Point |
+| `s3-access-point` | S3 Access Point |
+| `s3-multi-region-access-point` | S3 Multi Region Access Point |
+| `s3-object-lambda-access-point` | S3 Object Lambda Access Point |
 | `sagemaker-endpoint` | SageMaker Endpoint |
 | `sagemaker-endpoint-config` | SageMaker Endpoint Configuration |
-| `sagemaker-notebook-smni` | SageMaker Notebook Instance |
+| `sagemaker-notebook-instance` | SageMaker Notebook Instance |
 | `sagemaker-studio` | SageMaker Studio Domain |
-| `secretsmanager` | Secrets Manager Secret |
+| `secrets-manager` | Secrets Manager Secret |
 | `security-group` | Security Group |
 | `security-hub` | Security Hub |
 | `ses-configuration-set` | SES Configuration Set |
@@ -118,8 +120,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `ses-identity` | SES Identity |
 | `ses-receipt-filter` | SES Receipt Filter |
 | `ses-receipt-rule-set` | SES Receipt Rule Set |
-| `snap` | EBS Snapshot |
-| `snstopic` | SNS Topic |
+| `sns-topic` | SNS Topic |
 | `sqs` | SQS Queue |
 | `transit-gateway` | Transit Gateway |
 | `transit-gateway-attachment` | Transit Gateway VPC Attachment |
@@ -129,8 +130,9 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `vpc-lattice-service` | VPC Lattice Service |
 | `vpc-lattice-service-network` | VPC Lattice Service Network |
 | `vpc-lattice-target-group` | VPC Lattice Target Group |
+| `vpc-peering-connection` | VPC Peering Connection |
 
-> **WARNING:** The RDS APIs also interact with Neptune and DocumentDB resources. Running `cloud-nuke aws --resource-type rds` without a config file will remove any Neptune and DocumentDB resources in the account.
+> **WARNING:** The RDS APIs also interact with Neptune and DocumentDB resources. Running `cloud-nuke aws --resource-type rds-instance` without a config file will remove any Neptune and DocumentDB resources in the account.
 
 > **NOTE:** Resources created by AWS Backup are managed by AWS Backup and cannot be deleted through standard API calls. These resources are tagged by AWS Backup and are automatically filtered out by cloud-nuke.
 
@@ -140,21 +142,23 @@ This table shows which filtering features are supported for each resource type i
 
 | Resource Type | Config Key | names_regex | time | tags | timeout |
 |---|---|---|---|---|---|
+| access-analyzer | AccessAnalyzer | ✓ | ✓ | | ✓ |
 | acm | ACM | ✓ | ✓ | | ✓ |
 | acmpca | ACMPCA | | ✓ | | ✓ |
 | ami | AMI | ✓ | ✓ | | ✓ |
-| apigateway | APIGateway | ✓ | ✓ | | ✓ |
-| apigatewayv2 | APIGatewayV2 | ✓ | ✓ | | ✓ |
-| accessanalyzer | AccessAnalyzer | ✓ | ✓ | | ✓ |
-| asg | AutoScalingGroup | ✓ | ✓ | ✓ | ✓ |
+| api-gateway | APIGateway | ✓ | ✓ | | ✓ |
+| api-gateway-v2 | APIGatewayV2 | ✓ | ✓ | | ✓ |
 | app-runner-service | AppRunnerService | ✓ | ✓ | | ✓ |
+| asg | AutoScalingGroup | ✓ | ✓ | ✓ | ✓ |
 | backup-vault | BackupVault | ✓ | ✓ | | ✓ |
+| cloudformation-stack | CloudFormationStack | ✓ | ✓ | ✓ | ✓ |
+| cloudfront-distribution | CloudfrontDistribution | | | | ✓ |
+| cloudmap-namespace | CloudMapNamespace | ✓ | ✓ | ✓ | ✓ |
+| cloudmap-service | CloudMapService | ✓ | ✓ | ✓ | ✓ |
+| cloudtrail | CloudtrailTrail | ✓ | | ✓ | ✓ |
 | cloudwatch-alarm | CloudWatchAlarm | ✓ | ✓ | | ✓ |
 | cloudwatch-dashboard | CloudWatchDashboard | ✓ | ✓ | | ✓ |
 | cloudwatch-loggroup | CloudWatchLogGroup | ✓ | ✓ | | ✓ |
-| cloudtrail | CloudtrailTrail | ✓ | | ✓ | ✓ |
-| cloudmap-namespace | CloudMapNamespace | ✓ | ✓ | ✓ | ✓ |
-| cloudmap-service | CloudMapService | ✓ | ✓ | ✓ | ✓ |
 | codedeploy-application | CodeDeployApplications | ✓ | ✓ | | ✓ |
 | config-recorders | ConfigServiceRecorder | ✓ | | | ✓ |
 | config-rules | ConfigServiceRule | ✓ | | | ✓ |
@@ -162,109 +166,109 @@ This table shows which filtering features are supported for each resource type i
 | data-sync-task | DataSyncTask | ✓ | | | ✓ |
 | dynamodb | DynamoDB | ✓ | ✓ | | ✓ |
 | ebs | EBSVolume | ✓ | ✓ | ✓ | ✓ |
-| elastic-beanstalk | ElasticBeanstalk | ✓ | ✓ | | ✓ |
+| ebs-snapshot | Snapshots | | ✓ | ✓ | ✓ |
 | ec2 | EC2 | ✓ | ✓ | ✓ | ✓ |
 | ec2-dedicated-hosts | EC2DedicatedHosts | ✓ | ✓ | | ✓ |
 | ec2-dhcp-option | EC2DhcpOption | | | | ✓ |
+| ec2-endpoint | EC2Endpoint | ✓ | ✓ | ✓ | ✓ |
 | ec2-keypairs | EC2KeyPairs | ✓ | ✓ | ✓ | ✓ |
-| ipam | EC2IPAM | ✓ | ✓ | ✓ | ✓ |
-| ipam-pool | EC2IPAMPool | ✓ | ✓ | ✓ | ✓ |
-| ipam-resource-discovery | EC2IPAMResourceDiscovery | ✓ | ✓ | ✓ | ✓ |
-| ipam-scope | EC2IPAMScope | ✓ | ✓ | ✓ | ✓ |
 | ec2-placement-groups | EC2PlacementGroups | ✓ | ✓ | ✓ | ✓ |
 | ec2-subnet | EC2Subnet | ✓ | ✓ | ✓ | |
-| ec2-endpoint | EC2Endpoint | ✓ | ✓ | ✓ | ✓ |
 | ecr | ECRRepository | ✓ | ✓ | | ✓ |
-| ecscluster | ECSCluster | ✓ | ✓ | ✓ | ✓ |
-| ecsserv | ECSService | ✓ | ✓ | ✓ | ✓ |
-| ekscluster | EKSCluster | ✓ | ✓ | ✓ | ✓ |
+| ecs-cluster | ECSCluster | ✓ | ✓ | ✓ | ✓ |
+| ecs-service | ECSService | ✓ | ✓ | ✓ | ✓ |
+| efs | ElasticFileSystem | ✓ | ✓ | | ✓ |
+| egress-only-internet-gateway | EgressOnlyInternetGateway | ✓ | ✓ | ✓ | ✓ |
+| eip | ElasticIP | ✓ | ✓ | ✓ | ✓ |
+| eks-cluster | EKSCluster | ✓ | ✓ | ✓ | ✓ |
+| elastic-beanstalk | ElasticBeanstalk | ✓ | ✓ | | ✓ |
+| elasticache | Elasticache | ✓ | ✓ | | ✓ |
+| elasticache-parameter-group | ElasticacheParameterGroups | ✓ | | | ✓ |
+| elasticache-serverless | ElasticCacheServerless | ✓ | ✓ | | ✓ |
+| elasticache-subnet-group | ElasticacheSubnetGroups | ✓ | | | ✓ |
 | elb | ELBv1 | ✓ | ✓ | | ✓ |
 | elbv2 | ELBv2 | ✓ | ✓ | | ✓ |
-| efs | ElasticFileSystem | ✓ | ✓ | | ✓ |
-| eip | ElasticIP | ✓ | ✓ | ✓ | ✓ |
-| elasticache | Elasticache | ✓ | ✓ | | ✓ |
-| elasticcache-serverless | ElasticCacheServerless | ✓ | ✓ | | ✓ |
-| elasticacheparametergroups | ElasticacheParameterGroups | ✓ | | | ✓ |
-| elasticachesubnetgroups | ElasticacheSubnetGroups | ✓ | | | ✓ |
 | event-bridge | EventBridge | ✓ | ✓ | | ✓ |
 | event-bridge-archive | EventBridgeArchive | ✓ | ✓ | | ✓ |
 | event-bridge-rule | EventBridgeRule | ✓ | | | ✓ |
 | event-bridge-schedule | EventBridgeSchedule | ✓ | ✓ | | ✓ |
 | event-bridge-schedule-group | EventBridgeScheduleGroup | ✓ | ✓ | | ✓ |
 | grafana | Grafana | ✓ | ✓ | ✓ | ✓ |
-| guardduty | GuardDuty | | ✓ | | ✓ |
+| guard-duty | GuardDuty | | ✓ | | ✓ |
 | iam-group | IAMGroups | ✓ | ✓ | | ✓ |
+| iam-instance-profile | IAMInstanceProfiles | ✓ | ✓ | ✓ | ✓ |
 | iam-policy | IAMPolicies | ✓ | ✓ | ✓ | ✓ |
 | iam-role | IAMRoles | ✓ | ✓ | ✓ | ✓ |
 | iam-service-linked-role | IAMServiceLinkedRoles | ✓ | ✓ | | ✓ |
-| iam | IAMUsers | ✓ | ✓ | ✓ | ✓ |
+| iam-user | IAMUsers | ✓ | ✓ | ✓ | ✓ |
 | internet-gateway | InternetGateway | ✓ | ✓ | ✓ | ✓ |
-| egress-only-internet-gateway | EgressOnlyInternetGateway | ✓ | ✓ | ✓ | ✓ |
-| kmscustomerkeys | KMSCustomerKeys | ✓ | ✓ | | |
-| kinesis-stream | KinesisStream | ✓ | | | ✓ |
+| ipam | EC2IPAM | ✓ | ✓ | ✓ | ✓ |
+| ipam-byoasn | EC2IPAMByoasn | | | | ✓ |
+| ipam-custom-allocation | EC2IPAMCustomAllocation | | | | ✓ |
+| ipam-pool | EC2IPAMPool | ✓ | ✓ | ✓ | ✓ |
+| ipam-resource-discovery | EC2IPAMResourceDiscovery | ✓ | ✓ | ✓ | ✓ |
+| ipam-scope | EC2IPAMScope | ✓ | ✓ | ✓ | ✓ |
 | kinesis-firehose | KinesisFirehose | ✓ | | | ✓ |
+| kinesis-stream | KinesisStream | ✓ | | | ✓ |
+| kms-customer-key | KMSCustomerKeys | ✓ | ✓ | | |
 | lambda | LambdaFunction | ✓ | ✓ | ✓ | ✓ |
-| lc | LaunchConfiguration | ✓ | ✓ | | ✓ |
-| lt | LaunchTemplate | ✓ | ✓ | ✓ | ✓ |
+| lambda-layer | LambdaLayer | ✓ | ✓ | | ✓ |
+| launch-configuration | LaunchConfiguration | ✓ | ✓ | | ✓ |
+| launch-template | LaunchTemplate | ✓ | ✓ | ✓ | ✓ |
 | macie-member | MacieMember | | ✓ | | ✓ |
-| msk-cluster | MSKCluster | ✓ | ✓ | | ✓ |
 | managed-prometheus | ManagedPrometheus | ✓ | ✓ | ✓ | ✓ |
+| msk-cluster | MSKCluster | ✓ | ✓ | | ✓ |
 | nat-gateway | NatGateway | ✓ | ✓ | ✓ | ✓ |
 | network-acl | NetworkACL | ✓ | ✓ | ✓ | ✓ |
+| network-firewall | NetworkFirewall | ✓ | ✓ | ✓ | |
+| network-firewall-policy | NetworkFirewallPolicy | ✓ | ✓ | ✓ | |
+| network-firewall-resource-policy | NetworkFirewallResourcePolicy | ✓ | | | |
+| network-firewall-rule-group | NetworkFirewallRuleGroup | ✓ | ✓ | ✓ | |
+| network-firewall-tls-config | NetworkFirewallTLSConfig | ✓ | ✓ | ✓ | |
 | network-interface | NetworkInterface | ✓ | ✓ | ✓ | ✓ |
-| oidcprovider | OIDCProvider | ✓ | ✓ | | ✓ |
-| opensearchdomain | OpenSearchDomain | ✓ | ✓ | | ✓ |
-| redshift | Redshift | ✓ | ✓ | | ✓ |
+| oidc-provider | OIDCProvider | ✓ | ✓ | | ✓ |
+| opensearch-domain | OpenSearchDomain | ✓ | ✓ | | ✓ |
 | rds-cluster | DBClusters | ✓ | ✓ | ✓ | ✓ |
-| rds | DBInstances | ✓ | ✓ | ✓ | ✓ |
+| rds-global-cluster | DBGlobalClusters | ✓ | | | ✓ |
+| rds-global-cluster-membership | DBGlobalClusterMemberships | ✓ | | | ✓ |
+| rds-instance | DBInstances | ✓ | ✓ | ✓ | ✓ |
 | rds-parameter-group | RdsParameterGroup | ✓ | | | ✓ |
-| rds-subnet-group | DBSubnetGroups | ✓ | | | ✓ |
 | rds-proxy | RDSProxy | ✓ | ✓ | | ✓ |
+| rds-snapshot | RdsSnapshot | ✓ | ✓ | ✓ | ✓ |
+| rds-subnet-group | DBSubnetGroups | ✓ | | | ✓ |
+| redshift | Redshift | ✓ | ✓ | | ✓ |
+| redshift-snapshot-copy-grant | RedshiftSnapshotCopyGrant | ✓ | | | ✓ |
+| route-table | RouteTable | ✓ | ✓ | ✓ | ✓ |
+| route53-cidr-collection | Route53CIDRCollection | ✓ | | | |
+| route53-hosted-zone | Route53HostedZone | ✓ | | | |
+| route53-traffic-policy | Route53TrafficPolicy | ✓ | | | |
 | s3 | s3 | ✓ | ✓ | ✓ | ✓ |
-| s3-ap | s3AccessPoint | ✓ | | | ✓ |
-| s3-olap | S3ObjectLambdaAccessPoint | ✓ | | | ✓ |
-| s3-mrap | S3MultiRegionAccessPoint | ✓ | ✓ | | ✓ |
+| s3-access-point | s3AccessPoint | ✓ | | | ✓ |
+| s3-multi-region-access-point | S3MultiRegionAccessPoint | ✓ | ✓ | | ✓ |
+| s3-object-lambda-access-point | S3ObjectLambdaAccessPoint | ✓ | | | ✓ |
+| sagemaker-endpoint | SageMakerEndpoint | ✓ | ✓ | ✓ | ✓ |
+| sagemaker-endpoint-config | SageMakerEndpointConfig | ✓ | ✓ | ✓ | ✓ |
+| sagemaker-notebook-instance | SageMakerNotebook | ✓ | ✓ | | ✓ |
+| sagemaker-studio | SageMakerStudioDomain | ✓ | ✓ | ✓ | ✓ |
+| secrets-manager | SecretsManager | ✓ | ✓ | ✓ | ✓ |
 | security-group | SecurityGroup | ✓ | ✓ | ✓ | |
+| security-hub | SecurityHub | | ✓ | | ✓ |
 | ses-configuration-set | SesConfigurationset | ✓ | | | ✓ |
 | ses-email-template | SesEmailTemplates | ✓ | ✓ | | ✓ |
 | ses-identity | SesIdentity | ✓ | | | ✓ |
-| ses-receipt-rule-set | SesReceiptRuleSet | ✓ | ✓ | | ✓ |
 | ses-receipt-filter | SesReceiptFilter | ✓ | | | ✓ |
-| snstopic | SNS | ✓ | ✓ | | ✓ |
+| ses-receipt-rule-set | SesReceiptRuleSet | ✓ | ✓ | | ✓ |
+| sns-topic | SNS | ✓ | ✓ | | ✓ |
 | sqs | SQS | ✓ | ✓ | | ✓ |
-| sagemaker-notebook-smni | SageMakerNotebook | ✓ | ✓ | | ✓ |
-| sagemaker-endpoint | SageMakerEndpoint | ✓ | ✓ | ✓ | ✓ |
-| sagemaker-studio | SageMakerStudioDomain | | | | ✓ |
-| secretsmanager | SecretsManager | ✓ | ✓ | ✓ | ✓ |
-| security-hub | SecurityHub | | ✓ | | ✓ |
-| snap | Snapshots | | ✓ | ✓ | ✓ |
 | transit-gateway | TransitGateway | | ✓ | | ✓ |
-| transit-gateway-route-table | TransitGatewayRouteTable | | ✓ | | ✓ |
 | transit-gateway-attachment | TransitGatewaysVpcAttachment | | ✓ | | ✓ |
+| transit-gateway-peering-attachment | TransitGatewayPeeringAttachment | | ✓ | | ✓ |
+| transit-gateway-route-table | TransitGatewayRouteTable | | ✓ | | ✓ |
 | vpc | VPC | ✓ | ✓ | ✓ | |
-| route53-hosted-zone | Route53HostedZone | ✓ | | | |
-| route53-cidr-collection | Route53CIDRCollection | ✓ | | | |
-| route53-traffic-policy | Route53TrafficPolicy | ✓ | | | |
-| network-firewall | NetworkFirewall | ✓ | ✓ | ✓ | |
-| network-firewall-policy | NetworkFirewallPolicy | ✓ | ✓ | ✓ | |
-| network-firewall-rule-group | NetworkFirewallRuleGroup | ✓ | ✓ | ✓ | |
-| network-firewall-tls-config | NetworkFirewallTLSConfig | ✓ | ✓ | ✓ | |
-| network-firewall-resource-policy | NetworkFirewallResourcePolicy | ✓ | | | |
 | vpc-lattice-service | VPCLatticeService | ✓ | ✓ | | ✓ |
 | vpc-lattice-service-network | VPCLatticeServiceNetwork | ✓ | ✓ | | ✓ |
 | vpc-lattice-target-group | VPCLatticeTargetGroup | ✓ | ✓ | | ✓ |
-| cloudfront-distribution | CloudfrontDistribution | | | | ✓ |
-| cloudformation-stack | CloudFormationStack | ✓ | ✓ | ✓ | ✓ |
-| lambda_layer | LambdaLayer | ✓ | ✓ | | ✓ |
-| rds-global-cluster | DBGlobalClusters | ✓ | | | ✓ |
-| rds-global-cluster-membership | DBGlobalClusterMemberships | ✓ | | | ✓ |
-| rds-snapshot | RdsSnapshot | ✓ | ✓ | ✓ | ✓ |
-| redshift-snapshot-copy-grant | RedshiftSnapshotCopyGrant | ✓ | | | ✓ |
-| sagemaker-endpoint-config | SageMakerEndpointConfig | ✓ | ✓ | ✓ | ✓ |
-| iam-instance-profile | IAMInstanceProfiles | ✓ | ✓ | ✓ | ✓ |
-| transit-gateway-peering-attachment | TransitGatewayPeeringAttachment | | ✓ | | ✓ |
-| ipam-byoasn | EC2IPAMByoasn | | | | ✓ |
-| ipam-custom-allocation | EC2IPAMCustomAllocation | | | | ✓ |
+| vpc-peering-connection | VPCPeeringConnection | | ✓ | | ✓ |
 
 ## IsNukable Permission Check
 

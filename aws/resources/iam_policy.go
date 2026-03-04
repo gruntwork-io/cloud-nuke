@@ -33,7 +33,6 @@ func NewIAMPolicies() AwsResource {
 	return NewAwsResource(&resource.Resource[IAMPoliciesAPI]{
 		ResourceTypeName: "iam-policy",
 		BatchSize:        20,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMPoliciesAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = iam.NewFromConfig(cfg)
