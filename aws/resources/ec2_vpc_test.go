@@ -16,35 +16,41 @@ import (
 )
 
 type mockEC2VpcClient struct {
-	DescribeVpcsOutput               ec2.DescribeVpcsOutput
-	DeleteVpcOutput                  ec2.DeleteVpcOutput
-	DeleteVpcError                   error
-	DescribeRouteTablesOutput        ec2.DescribeRouteTablesOutput
-	DisassociateRouteTableOutput     ec2.DisassociateRouteTableOutput
-	DeleteRouteTableOutput           ec2.DeleteRouteTableOutput
-	DescribeSecurityGroupsOutput     ec2.DescribeSecurityGroupsOutput
-	RevokeSecurityGroupIngressOutput ec2.RevokeSecurityGroupIngressOutput
-	RevokeSecurityGroupEgressOutput  ec2.RevokeSecurityGroupEgressOutput
-	DeleteSecurityGroupOutput        ec2.DeleteSecurityGroupOutput
-	DescribeNetworkInterfacesOutput  ec2.DescribeNetworkInterfacesOutput
-	DetachNetworkInterfaceOutput     ec2.DetachNetworkInterfaceOutput
-	DeleteNetworkInterfaceOutput     ec2.DeleteNetworkInterfaceOutput
-	DescribeInternetGatewaysOutput   ec2.DescribeInternetGatewaysOutput
-	DetachInternetGatewayOutput      ec2.DetachInternetGatewayOutput
-	DeleteInternetGatewayOutput      ec2.DeleteInternetGatewayOutput
+	// Core VPC operations
+	DescribeVpcsOutput ec2.DescribeVpcsOutput
+	DeleteVpcOutput    ec2.DeleteVpcOutput
+	DeleteVpcError     error
 
-	DescribeSubnetsOutput               ec2.DescribeSubnetsOutput
-	DeleteSubnetOutput                  ec2.DeleteSubnetOutput
+	// Safety net dependencies (ordered to match cleanupVPCDependencies execution order)
 	DescribeVpcPeeringConnectionsOutput ec2.DescribeVpcPeeringConnectionsOutput
 	DeleteVpcPeeringConnectionOutput    ec2.DeleteVpcPeeringConnectionOutput
+	DescribeVpnGatewaysOutput           ec2.DescribeVpnGatewaysOutput
+	DetachVpnGatewayOutput              ec2.DetachVpnGatewayOutput
+	DeleteVpnGatewayOutput              ec2.DeleteVpnGatewayOutput
+	DescribeRouteTablesOutput           ec2.DescribeRouteTablesOutput
+	DisassociateRouteTableOutput        ec2.DisassociateRouteTableOutput
+	DeleteRouteTableOutput              ec2.DeleteRouteTableOutput
+	DescribeNetworkInterfacesOutput     ec2.DescribeNetworkInterfacesOutput
+	DetachNetworkInterfaceOutput        ec2.DetachNetworkInterfaceOutput
+	DeleteNetworkInterfaceOutput        ec2.DeleteNetworkInterfaceOutput
+	DescribeSecurityGroupsOutput        ec2.DescribeSecurityGroupsOutput
+	RevokeSecurityGroupIngressOutput    ec2.RevokeSecurityGroupIngressOutput
+	RevokeSecurityGroupEgressOutput     ec2.RevokeSecurityGroupEgressOutput
+	DeleteSecurityGroupOutput           ec2.DeleteSecurityGroupOutput
+	DescribeSubnetsOutput               ec2.DescribeSubnetsOutput
+	DeleteSubnetOutput                  ec2.DeleteSubnetOutput
+	DescribeInternetGatewaysOutput      ec2.DescribeInternetGatewaysOutput
+	DetachInternetGatewayOutput         ec2.DetachInternetGatewayOutput
+	DeleteInternetGatewayOutput         ec2.DeleteInternetGatewayOutput
 
-	// Track calls for assertions
-	DeletedRouteTableIDs    []string
-	DeletedSecurityGroupIDs []string
-	DeletedENIIDs           []string
-	DeletedIGWIDs           []string
-	DeletedSubnetIDs        []string
+	// Track calls for assertions (matches execution order)
 	DeletedPeeringIDs       []string
+	DeletedVGWIDs           []string
+	DeletedRouteTableIDs    []string
+	DeletedENIIDs           []string
+	DeletedSecurityGroupIDs []string
+	DeletedSubnetIDs        []string
+	DeletedIGWIDs           []string
 }
 
 func (m *mockEC2VpcClient) DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
@@ -133,6 +139,19 @@ func (m *mockEC2VpcClient) DeleteVpcPeeringConnection(ctx context.Context, param
 	return &m.DeleteVpcPeeringConnectionOutput, nil
 }
 
+func (m *mockEC2VpcClient) DescribeVpnGateways(ctx context.Context, params *ec2.DescribeVpnGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpnGatewaysOutput, error) {
+	return &m.DescribeVpnGatewaysOutput, nil
+}
+
+func (m *mockEC2VpcClient) DetachVpnGateway(ctx context.Context, params *ec2.DetachVpnGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachVpnGatewayOutput, error) {
+	return &m.DetachVpnGatewayOutput, nil
+}
+
+func (m *mockEC2VpcClient) DeleteVpnGateway(ctx context.Context, params *ec2.DeleteVpnGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpnGatewayOutput, error) {
+	m.DeletedVGWIDs = append(m.DeletedVGWIDs, aws.ToString(params.VpnGatewayId))
+	return &m.DeleteVpnGatewayOutput, nil
+}
+
 func TestListVPCs(t *testing.T) {
 	t.Parallel()
 
@@ -211,10 +230,21 @@ func TestDeleteVPC(t *testing.T) {
 func TestCleanupVPCDependencies(t *testing.T) {
 	t.Parallel()
 
+	// Mock data ordered to match cleanupVPCDependencies execution order
 	mock := &mockEC2VpcClient{
 		DescribeVpcPeeringConnectionsOutput: ec2.DescribeVpcPeeringConnectionsOutput{
 			VpcPeeringConnections: []types.VpcPeeringConnection{
 				{VpcPeeringConnectionId: aws.String("pcx-1")},
+			},
+		},
+		DescribeVpnGatewaysOutput: ec2.DescribeVpnGatewaysOutput{
+			VpnGateways: []types.VpnGateway{
+				{
+					VpnGatewayId: aws.String("vgw-1"),
+					VpcAttachments: []types.VpcAttachment{
+						{VpcId: aws.String("vpc-test"), State: types.AttachmentStatusDetached},
+					},
+				},
 			},
 		},
 		DescribeRouteTablesOutput: ec2.DescribeRouteTablesOutput{
@@ -238,12 +268,6 @@ func TestCleanupVPCDependencies(t *testing.T) {
 				},
 			},
 		},
-		DescribeSecurityGroupsOutput: ec2.DescribeSecurityGroupsOutput{
-			SecurityGroups: []types.SecurityGroup{
-				{GroupId: aws.String("sg-default"), GroupName: aws.String("default")},
-				{GroupId: aws.String("sg-custom"), GroupName: aws.String("my-sg")},
-			},
-		},
 		DescribeNetworkInterfacesOutput: ec2.DescribeNetworkInterfacesOutput{
 			NetworkInterfaces: []types.NetworkInterface{
 				{
@@ -251,6 +275,12 @@ func TestCleanupVPCDependencies(t *testing.T) {
 					Attachment:         &types.NetworkInterfaceAttachment{AttachmentId: aws.String("attach-1")},
 					Status:             types.NetworkInterfaceStatusAvailable,
 				},
+			},
+		},
+		DescribeSecurityGroupsOutput: ec2.DescribeSecurityGroupsOutput{
+			SecurityGroups: []types.SecurityGroup{
+				{GroupId: aws.String("sg-default"), GroupName: aws.String("default")},
+				{GroupId: aws.String("sg-custom"), GroupName: aws.String("my-sg")},
 			},
 		},
 		DescribeSubnetsOutput: ec2.DescribeSubnetsOutput{
@@ -269,12 +299,12 @@ func TestCleanupVPCDependencies(t *testing.T) {
 	err := cleanupVPCDependencies(context.Background(), mock, aws.String("vpc-test"))
 	require.NoError(t, err)
 
-	// Verify cleanup actions were taken
-	// pcx-1 appears twice because the mock returns it for both requester and accepter queries
-	require.Equal(t, []string{"pcx-1", "pcx-1"}, mock.DeletedPeeringIDs)
+	// Verify cleanup actions (ordered to match execution order)
+	require.Equal(t, []string{"pcx-1", "pcx-1"}, mock.DeletedPeeringIDs)        // appears twice: requester + accepter queries
+	require.Equal(t, []string{"vgw-1"}, mock.DeletedVGWIDs)                      // VPN gateway detached + deleted
 	require.Equal(t, []string{"rtb-1", "rtb-orphan"}, mock.DeletedRouteTableIDs) // main RT skipped, orphan included
-	require.Equal(t, []string{"sg-custom"}, mock.DeletedSecurityGroupIDs)        // default SG skipped
 	require.Equal(t, []string{"eni-1"}, mock.DeletedENIIDs)
+	require.Equal(t, []string{"sg-custom"}, mock.DeletedSecurityGroupIDs) // default SG skipped
 	require.Equal(t, []string{"subnet-1", "subnet-2"}, mock.DeletedSubnetIDs)
 	require.Equal(t, []string{"igw-1"}, mock.DeletedIGWIDs)
 }

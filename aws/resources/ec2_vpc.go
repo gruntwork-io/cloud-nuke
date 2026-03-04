@@ -38,6 +38,9 @@ type EC2VpcAPI interface {
 	DeleteSubnet(ctx context.Context, params *ec2.DeleteSubnetInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSubnetOutput, error)
 	DescribeVpcPeeringConnections(ctx context.Context, params *ec2.DescribeVpcPeeringConnectionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcPeeringConnectionsOutput, error)
 	DeleteVpcPeeringConnection(ctx context.Context, params *ec2.DeleteVpcPeeringConnectionInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcPeeringConnectionOutput, error)
+	DescribeVpnGateways(ctx context.Context, params *ec2.DescribeVpnGatewaysInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpnGatewaysOutput, error)
+	DetachVpnGateway(ctx context.Context, params *ec2.DetachVpnGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DetachVpnGatewayOutput, error)
+	DeleteVpnGateway(ctx context.Context, params *ec2.DeleteVpnGatewayInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpnGatewayOutput, error)
 }
 
 // NewEC2VPC creates a new EC2 VPC resource using the generic resource pattern.
@@ -101,6 +104,7 @@ func cleanupVPCDependencies(ctx context.Context, client EC2VpcAPI, id *string) e
 	logging.Debugf("[VPC Safety Net] Cleaning up remaining dependencies for VPC %s", vpcID)
 
 	cleanupVPCPeeringConnections(ctx, client, vpcID)
+	cleanupVPCVpnGateways(ctx, client, vpcID)
 	cleanupVPCRouteTables(ctx, client, vpcID)
 	cleanupVPCNetworkInterfaces(ctx, client, vpcID)
 	cleanupVPCSecurityGroups(ctx, client, vpcID)
@@ -271,6 +275,63 @@ func cleanupVPCNetworkInterfaces(ctx context.Context, client EC2VpcAPI, vpcID st
 			logging.Debugf("[VPC Safety Net] Failed to delete ENI %s: %s", eniID, err)
 		} else {
 			logging.Debugf("[VPC Safety Net] Deleted ENI %s", eniID)
+		}
+	}
+}
+
+// cleanupVPCVpnGateways detaches and deletes remaining VPN gateways (best-effort).
+// Detachment is async, so we poll for completion before deleting.
+func cleanupVPCVpnGateways(ctx context.Context, client EC2VpcAPI, vpcID string) {
+	// DescribeVpnGateways does not support pagination — it returns all results in one call.
+	output, err := client.DescribeVpnGateways(ctx, &ec2.DescribeVpnGatewaysInput{
+		Filters: []types.Filter{
+			{Name: aws.String("attachment.vpc-id"), Values: []string{vpcID}},
+			{Name: aws.String("state"), Values: []string{"available"}},
+		},
+	})
+	if err != nil {
+		logging.Debugf("[VPC Safety Net] Failed to describe VPN gateways for %s: %s", vpcID, err)
+		return
+	}
+
+	for _, vgw := range output.VpnGateways {
+		vgwID := aws.ToString(vgw.VpnGatewayId)
+
+		if _, err := client.DetachVpnGateway(ctx, &ec2.DetachVpnGatewayInput{
+			VpnGatewayId: vgw.VpnGatewayId,
+			VpcId:        aws.String(vpcID),
+		}); err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to detach VPN gateway %s: %s", vgwID, err)
+		}
+
+		// Poll until detachment completes — no AWS waiter exists for VPN gateways
+		isDetached := func(ctx context.Context) (bool, error) {
+			out, err := client.DescribeVpnGateways(ctx, &ec2.DescribeVpnGatewaysInput{
+				VpnGatewayIds: []string{vgwID},
+			})
+			if err != nil {
+				return false, err
+			}
+			if len(out.VpnGateways) == 0 {
+				return true, nil
+			}
+			for _, att := range out.VpnGateways[0].VpcAttachments {
+				if aws.ToString(att.VpcId) == vpcID && att.State != types.AttachmentStatusDetached {
+					return false, nil
+				}
+			}
+			return true, nil
+		}
+		if err := util.PollUntil(ctx, "VPN gateway detach "+vgwID, 5*time.Second, 2*time.Minute, isDetached); err != nil {
+			logging.Debugf("[VPC Safety Net] Timed out waiting for VPN gateway %s to detach: %s", vgwID, err)
+		}
+
+		if _, err := client.DeleteVpnGateway(ctx, &ec2.DeleteVpnGatewayInput{
+			VpnGatewayId: vgw.VpnGatewayId,
+		}); err != nil {
+			logging.Debugf("[VPC Safety Net] Failed to delete VPN gateway %s: %s", vgwID, err)
+		} else {
+			logging.Debugf("[VPC Safety Net] Deleted VPN gateway %s", vgwID)
 		}
 	}
 }
