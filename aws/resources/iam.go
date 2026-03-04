@@ -123,47 +123,47 @@ func listIAMUsers(ctx context.Context, client IAMUsersAPI, scope resource.Scope,
 func deleteIAMUser(ctx context.Context, client IAMUsersAPI, userName *string) error {
 	// Step 1: Detach user policies
 	if err := detachUserPolicies(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 2: Delete inline user policies
 	if err := deleteInlineUserPolicies(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 3: Remove user from groups
 	if err := removeUserFromGroups(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 4: Delete login profile
 	if err := deleteLoginProfile(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 5: Delete access keys
 	if err := deleteAccessKeys(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 6: Delete signing certificates
 	if err := deleteSigningCertificates(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 7: Delete SSH public keys
 	if err := deleteSSHPublicKeys(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 8: Delete service-specific credentials
 	if err := deleteServiceSpecificCredentials(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 9: Delete MFA devices
 	if err := deleteMFADevices(ctx, client, userName); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Step 10: Delete the user

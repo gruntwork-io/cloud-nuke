@@ -22,7 +22,8 @@ type EC2PlacementGroupsAPI interface {
 func NewEC2PlacementGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2PlacementGroupsAPI]{
 		ResourceTypeName: "ec2-placement-groups",
-		BatchSize:        200,
+		// Simple single-call delete API with high throughput; can handle large batches.
+		BatchSize: 200,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2PlacementGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

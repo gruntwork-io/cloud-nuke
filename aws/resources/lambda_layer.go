@@ -91,8 +91,7 @@ func shouldIncludeLambdaLayer(lambdaLayer *types.LayersListItem, cfg config.Reso
 	// is on par with last modified
 	fnLastModified := aws.ToString(lambdaLayer.LatestMatchingVersion.CreatedDate)
 	fnName := lambdaLayer.LayerName
-	layout := "2006-01-02T15:04:05.000+0000"
-	lastModifiedDateTime, err := time.Parse(layout, fnLastModified)
+	lastModifiedDateTime, err := time.Parse(awsLambdaTimeFormat, fnLastModified)
 	if err != nil {
 		logging.Debugf("Could not parse last modified timestamp (%s) of Lambda layer %s. Excluding from delete.", fnLastModified, *fnName)
 		return false

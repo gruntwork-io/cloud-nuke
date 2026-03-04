@@ -11,6 +11,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 const (
@@ -58,7 +59,7 @@ func listNetworkInterfaces(ctx context.Context, client NetworkInterfaceAPI, scop
 			},
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 		for _, vpc := range vpcs.Vpcs {
 			defaultVpcIds[aws.ToString(vpc.VpcId)] = true
@@ -75,7 +76,7 @@ func listNetworkInterfaces(ctx context.Context, client NetworkInterfaceAPI, scop
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[Network Interface] Failed to list network interfaces: %s", err)
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, networkInterface := range page.NetworkInterfaces {
@@ -130,7 +131,7 @@ func verifyNetworkInterfacePermission(ctx context.Context, client NetworkInterfa
 		NetworkInterfaceId: id,
 		DryRun:             aws.Bool(true),
 	})
-	return err
+	return errors.WithStackTrace(err)
 }
 
 // deleteNetworkInterfaceWithDetach detaches and deletes a single Network Interface.
@@ -138,7 +139,7 @@ func verifyNetworkInterfacePermission(ctx context.Context, client NetworkInterfa
 func deleteNetworkInterfaceWithDetach(ctx context.Context, client NetworkInterfaceAPI, id *string) error {
 	// First detach the network interface if attached
 	if err := detachNetworkInterface(ctx, client, id); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Then delete the network interface
@@ -159,7 +160,7 @@ func detachNetworkInterface(ctx context.Context, client NetworkInterfaceAPI, id 
 	})
 	if err != nil {
 		logging.Debugf("[detachNetworkInterface] Failed to describe network interface %s: %v", aws.ToString(id), err)
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	for _, networkInterface := range output.NetworkInterfaces {
@@ -173,7 +174,7 @@ func detachNetworkInterface(ctx context.Context, client NetworkInterfaceAPI, id 
 
 		if err := nukeAttachedInstance(ctx, client, instanceID); err != nil {
 			logging.Debugf("[detachNetworkInterface] Failed to nuke instance %s attached to network interface %s: %v", aws.ToString(instanceID), aws.ToString(id), err)
-			return err
+			return errors.WithStackTrace(err)
 		}
 
 		logging.Debugf("[detachNetworkInterface] Successfully nuked instance %s and detached network interface %s", aws.ToString(instanceID), aws.ToString(id))
@@ -191,7 +192,7 @@ func nukeAttachedInstance(ctx context.Context, client NetworkInterfaceAPI, insta
 	// Release the elastic IPs attached to the instance before nuking
 	if err := releaseNetworkInterfaceEIPs(ctx, client, instanceID); err != nil {
 		logging.Debugf("[nukeAttachedInstance] Failed to release Elastic IPs for instance %s: %v", aws.ToString(instanceID), err)
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Terminate the instance
@@ -200,7 +201,7 @@ func nukeAttachedInstance(ctx context.Context, client NetworkInterfaceAPI, insta
 	})
 	if err != nil {
 		logging.Debugf("[nukeAttachedInstance] Failed to terminate instance %s: %v", aws.ToString(instanceID), err)
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	logging.Debugf("[nukeAttachedInstance] Waiting for instance %s to terminate", aws.ToString(instanceID))
@@ -211,7 +212,7 @@ func nukeAttachedInstance(ctx context.Context, client NetworkInterfaceAPI, insta
 		InstanceIds: []string{aws.ToString(instanceID)},
 	}, DefaultNetworkInterfaceTimeout); err != nil {
 		logging.Debugf("[nukeAttachedInstance] Instance termination waiting failed for instance %s: %v", aws.ToString(instanceID), err)
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	logging.Debugf("[nukeAttachedInstance] Successfully nuked instance %s", aws.ToString(instanceID))
@@ -237,7 +238,7 @@ func releaseNetworkInterfaceEIPs(ctx context.Context, client NetworkInterfaceAPI
 	})
 	if err != nil {
 		logging.Debugf("[releaseNetworkInterfaceEIPs] Failed to describe addresses for instance %s: %v", aws.ToString(instanceID), err)
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	for _, address := range output.Addresses {
@@ -276,9 +277,9 @@ func deleteNetworkInterfaceByID(ctx context.Context, client NetworkInterfaceAPI,
 	// Check if the error is not the interface ID not found error
 	if err != nil && util.TransformAWSError(err) != util.ErrInterfaceIDNotFound {
 		logging.Debugf("[Failed] Error deleting network interface %s: %s", aws.ToString(id), err)
-		return err
+		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("[Ok] network interface deleted successfully %s", aws.ToString(id))
+	logging.Debugf("[OK] network interface deleted successfully %s", aws.ToString(id))
 	return nil
 }

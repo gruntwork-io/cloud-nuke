@@ -23,7 +23,8 @@ type CloudWatchAlarmsAPI interface {
 func NewCloudWatchAlarms() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudWatchAlarmsAPI]{
 		ResourceTypeName: "cloudwatch-alarm",
-		BatchSize:        99,
+		// CloudWatch DeleteAlarms API accepts a maximum of 100 alarm names per call.
+		BatchSize: 99,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudWatchAlarmsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = cloudwatch.NewFromConfig(cfg)

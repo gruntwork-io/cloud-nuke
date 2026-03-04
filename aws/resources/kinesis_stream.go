@@ -19,7 +19,8 @@ type KinesisStreamsAPI interface {
 func NewKinesisStreams() AwsResource {
 	return NewAwsResource(&resource.Resource[KinesisStreamsAPI]{
 		ResourceTypeName: "kinesis-stream",
-		BatchSize:        35,
+		// Conservative batch size to avoid AWS API rate limiting for sequential delete calls.
+		BatchSize: 35,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[KinesisStreamsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = kinesis.NewFromConfig(cfg)

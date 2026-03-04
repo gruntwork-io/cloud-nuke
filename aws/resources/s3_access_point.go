@@ -23,7 +23,8 @@ type S3ControlAccessPointAPI interface {
 func NewS3AccessPoints() AwsResource {
 	return NewAwsResource(&resource.Resource[S3ControlAccessPointAPI]{
 		ResourceTypeName: "s3-access-point",
-		BatchSize:        5,
+		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
+		BatchSize: 5,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ControlAccessPointAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = s3control.NewFromConfig(cfg)

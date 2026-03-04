@@ -24,7 +24,8 @@ type S3ControlMultiRegionAPI interface {
 func NewS3MultiRegionAccessPoints() AwsResource {
 	return NewAwsResource(&resource.Resource[S3ControlMultiRegionAPI]{
 		ResourceTypeName: "s3-multi-region-access-point",
-		BatchSize:        5,
+		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
+		BatchSize: 5,
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ControlMultiRegionAPI], cfg aws.Config) {
 			r.Scope.Region = "global"

@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2IPAMAPI defines the interface for EC2 IPAM operations.
@@ -53,7 +54,7 @@ func listEC2IPAMs(ctx context.Context, client EC2IPAMAPI, scope resource.Scope, 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStackTrace(err)
 		}
 
 		for _, ipam := range page.Ipams {
@@ -89,14 +90,14 @@ func verifyEC2IPAMPermission(ctx context.Context, client EC2IPAMAPI, id *string)
 		Cascade: aws.Bool(true),
 		DryRun:  aws.Bool(true),
 	})
-	return err
+	return errors.WithStackTrace(err)
 }
 
 // nukeEC2IPAM deletes a single IPAM and its associated public scope pools.
 func nukeEC2IPAM(ctx context.Context, client EC2IPAMAPI, id *string) error {
 	// First, nuke public IPAM pools (cascade delete only handles private scope)
 	if err := nukePublicIPAMPools(ctx, client, id); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Then delete the IPAM itself
@@ -104,7 +105,7 @@ func nukeEC2IPAM(ctx context.Context, client EC2IPAMAPI, id *string) error {
 		IpamId:  id,
 		Cascade: aws.Bool(true), // Deletes private scopes, pools, and allocations
 	})
-	return err
+	return errors.WithStackTrace(err)
 }
 
 // nukePublicIPAMPools deletes all pools in the public scope of an IPAM.
@@ -116,7 +117,7 @@ func nukePublicIPAMPools(ctx context.Context, client EC2IPAMAPI, ipamID *string)
 		IpamIds: []string{*ipamID},
 	})
 	if err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	if len(ipam.Ipams) == 0 {
@@ -128,7 +129,7 @@ func nukePublicIPAMPools(ctx context.Context, client EC2IPAMAPI, ipamID *string)
 		IpamScopeIds: []string{*ipam.Ipams[0].PublicDefaultScopeId},
 	})
 	if err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	if len(scope.IpamScopes) == 0 {
@@ -145,21 +146,21 @@ func nukePublicIPAMPools(ctx context.Context, client EC2IPAMAPI, ipamID *string)
 		},
 	})
 	if err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Delete each pool after cleaning up its CIDRs and allocations
 	for _, pool := range pools.IpamPools {
 		if err := deProvisionPoolCIDRs(ctx, client, pool.IpamPoolId); err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		if err := releaseCustomAllocations(ctx, client, pool.IpamPoolId); err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		if _, err := client.DeleteIpamPool(ctx, &ec2.DeleteIpamPoolInput{
 			IpamPoolId: pool.IpamPoolId,
 		}); err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		logging.Debugf("Deleted IPAM Pool %s from IPAM %s", aws.ToString(pool.IpamPoolId), aws.ToString(ipamID))
 	}
@@ -179,7 +180,7 @@ func deProvisionPoolCIDRs(ctx context.Context, client EC2IPAMAPI, poolID *string
 		},
 	})
 	if err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	for _, poolCidr := range output.IpamPoolCidrs {
@@ -187,7 +188,7 @@ func deProvisionPoolCIDRs(ctx context.Context, client EC2IPAMAPI, poolID *string
 			IpamPoolId: poolID,
 			Cidr:       poolCidr.Cidr,
 		}); err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		logging.Debugf("De-Provisioned CIDR from IPAM Pool %s", aws.ToString(poolID))
 	}
@@ -201,7 +202,7 @@ func releaseCustomAllocations(ctx context.Context, client EC2IPAMAPI, poolID *st
 		IpamPoolId: poolID,
 	})
 	if err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	for _, allocation := range output.IpamPoolAllocations {
@@ -213,7 +214,7 @@ func releaseCustomAllocations(ctx context.Context, client EC2IPAMAPI, poolID *st
 			IpamPoolAllocationId: allocation.IpamPoolAllocationId,
 			Cidr:                 allocation.Cidr,
 		}); err != nil {
-			return err
+			return errors.WithStackTrace(err)
 		}
 		logging.Debugf("Released custom allocated CIDR from IPAM Pool %s", aws.ToString(poolID))
 	}

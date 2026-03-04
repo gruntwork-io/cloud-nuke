@@ -150,6 +150,6 @@ func deleteDhcpOption(ctx context.Context, client EC2DhcpOptionAPI, id *string) 
 		return errors.WithStackTrace(err)
 	}
 
-	logging.Debugf("[Ok] DHCP Option deleted successfully %s", aws.ToString(id))
+	logging.Debugf("[OK] DHCP Option deleted successfully %s", aws.ToString(id))
 	return nil
 }
