@@ -300,7 +300,7 @@ func TestCleanupVPCDependencies(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify cleanup actions (ordered to match execution order)
-	require.Equal(t, []string{"pcx-1", "pcx-1"}, mock.DeletedPeeringIDs)        // appears twice: requester + accepter queries
+	require.Equal(t, []string{"pcx-1", "pcx-1"}, mock.DeletedPeeringIDs)         // appears twice: requester + accepter queries
 	require.Equal(t, []string{"vgw-1"}, mock.DeletedVGWIDs)                      // VPN gateway detached + deleted
 	require.Equal(t, []string{"rtb-1", "rtb-orphan"}, mock.DeletedRouteTableIDs) // main RT skipped, orphan included
 	require.Equal(t, []string{"eni-1"}, mock.DeletedENIIDs)
