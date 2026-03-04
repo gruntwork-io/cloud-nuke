@@ -45,17 +45,7 @@ S3:
       - "^test-s3-test-tg.*"
 
 SecretsManager:
-  include:
-    names_regex:
-      - "^test-name-[a-zA-Z0-9]{6}$"
-      - "^test-cloud-nuke-.*"
-      - ".*-lambda-docker-[a-zA-Z0-9]{6}$"
-      - "^test[a-zA-Z0-9]{6}-db-secret$"
-      - "^GruntworkSampleAppFrontendCA[a-zA-Z0-9]{6}$"
-      - "^GruntworkSampleAppBackendCA[a-zA-Z0-9]{6}$"
-      - "^RDSDBConfig[a-zA-Z0-9]{6}$"
-      - "ECRDeployRunnerTestSSHKey-[a-zA-Z0-9]{6}$"
-      - "ECRDeployRunnerTestGitPAT-[a-zA-Z0-9]{6}$"
+  # Delete all secrets - no filtering needed
 
 NATGateway:
   exclude:
