@@ -19,8 +19,9 @@ type mockedEKSCluster struct {
 	DeleteClusterOutput          eks.DeleteClusterOutput
 	DeleteFargateProfileOutput   eks.DeleteFargateProfileOutput
 	DeleteNodegroupOutput        eks.DeleteNodegroupOutput
-	DescribeClusterOutputByName  map[string]*eks.DescribeClusterOutput
-	DescribeClusterError         error // Error to return for DescribeCluster (simulates deleted cluster)
+	DescribeClusterOutputByName map[string]*eks.DescribeClusterOutput
+	DescribeClusterErrorByName map[string]error
+	DescribeClusterError       error // Error to return for all DescribeCluster calls (simulates deleted cluster)
 	DescribeFargateProfileOutput eks.DescribeFargateProfileOutput
 	DescribeNodegroupOutput      eks.DescribeNodegroupOutput
 	ListClustersOutput           eks.ListClustersOutput
@@ -44,7 +45,11 @@ func (m mockedEKSCluster) DescribeCluster(ctx context.Context, params *eks.Descr
 	if m.DescribeClusterError != nil {
 		return nil, m.DescribeClusterError
 	}
-	return m.DescribeClusterOutputByName[aws.ToString(params.Name)], nil
+	name := aws.ToString(params.Name)
+	if err, ok := m.DescribeClusterErrorByName[name]; ok {
+		return nil, err
+	}
+	return m.DescribeClusterOutputByName[name], nil
 }
 
 func (m mockedEKSCluster) DescribeFargateProfile(ctx context.Context, params *eks.DescribeFargateProfileInput, optFns ...func(*eks.Options)) (*eks.DescribeFargateProfileOutput, error) {
@@ -156,6 +161,35 @@ func TestListEKSClusters(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+func TestListEKSClusters_GhostClusterSkipped(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	realCluster := "real-cluster"
+	ghostCluster := "ghost-cluster"
+
+	mock := mockedEKSCluster{
+		ListClustersOutput: eks.ListClustersOutput{
+			Clusters: []string{realCluster, ghostCluster},
+		},
+		DescribeClusterOutputByName: map[string]*eks.DescribeClusterOutput{
+			realCluster: {
+				Cluster: &types.Cluster{
+					Name:      aws.String(realCluster),
+					CreatedAt: &now,
+				},
+			},
+		},
+		DescribeClusterErrorByName: map[string]error{
+			ghostCluster: &types.ResourceNotFoundException{Message: aws.String("cluster not found")},
+		},
+	}
+
+	names, err := listEKSClusters(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Equal(t, []string{realCluster}, aws.ToStringSlice(names))
 }
 
 func TestDeleteEKSClusters(t *testing.T) {
