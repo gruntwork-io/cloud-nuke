@@ -2,15 +2,17 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
+	goerrors "github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -55,12 +57,12 @@ func listEKSClusters(ctx context.Context, client EKSClustersAPI, scope resource.
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, goerrors.WithStackTrace(err)
 		}
 
 		filteredClusters, err := filterEKSClusters(ctx, client, aws.StringSlice(page.Clusters), cfg)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, goerrors.WithStackTrace(err)
 		}
 		allClusters = append(allClusters, filteredClusters...)
 	}
@@ -74,7 +76,13 @@ func filterEKSClusters(ctx context.Context, client EKSClustersAPI, clusterNames 
 	for _, clusterName := range clusterNames {
 		describeResult, err := client.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: clusterName})
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			// Skip clusters that appear in ListClusters but no longer exist (ghost entries)
+			var notFound *ekstypes.ResourceNotFoundException
+			if errors.As(err, &notFound) {
+				logging.Debugf("Skipping EKS cluster %s: not found during describe", aws.ToString(clusterName))
+				continue
+			}
+			return nil, goerrors.WithStackTrace(err)
 		}
 
 		if !cfg.ShouldInclude(config.ResourceValue{
@@ -211,7 +219,7 @@ func scheduleDeleteEKSClusterManagedNodeGroup(ctx context.Context, client EKSClu
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, goerrors.WithStackTrace(err)
 		}
 
 		allNodeGroups = append(allNodeGroups, aws.StringSlice(page.Nodegroups)...)
@@ -248,7 +256,7 @@ func deleteEKSClusterFargateProfiles(ctx context.Context, client EKSClustersAPI,
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return goerrors.WithStackTrace(err)
 		}
 
 		allFargateProfiles = append(allFargateProfiles, aws.StringSlice(page.FargateProfileNames)...)
