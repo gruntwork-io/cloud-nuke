@@ -34,8 +34,6 @@ env:
     --exclude-resource-type route53-traffic-policy
     --exclude-resource-type ecr
     --exclude-resource-type config-rules
-    --exclude-resource-type nat-gateway
-    --exclude-resource-type ec2-subnet
 
 jobs:
   nuke:
