@@ -277,5 +277,5 @@ InternetGateway:
 Route53HostedZone:
   exclude:
     names_regex:
-      - ".*gruntwork.in"
-      - ".*gruntwork-dev.io"
+      - ".*gruntwork\\.in\\.?$"
+      - ".*gruntwork-dev\\.io\\.?$"

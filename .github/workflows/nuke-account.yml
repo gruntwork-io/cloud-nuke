@@ -29,7 +29,6 @@ env:
     --exclude-resource-type iam-role
     --exclude-resource-type iam-service-linked-role
     --exclude-resource-type oidc-provider
-    --exclude-resource-type route53-hosted-zone
     --exclude-resource-type route53-cidr-collection
     --exclude-resource-type route53-traffic-policy
     --exclude-resource-type ecr

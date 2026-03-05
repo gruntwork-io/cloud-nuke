@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -29,6 +30,10 @@ func (m mockedRoute53HostedZone) ListHostedZones(_ context.Context, _ *route53.L
 }
 
 func (m mockedRoute53HostedZone) ListTagsForResources(_ context.Context, params *route53.ListTagsForResourcesInput, _ ...func(*route53.Options)) (*route53.ListTagsForResourcesOutput, error) {
+	// Enforce the real API limit of 10 resource IDs per call
+	if len(params.ResourceIds) > 10 {
+		return nil, fmt.Errorf("ListTagsForResources: API limit is 10 resource IDs, got %d", len(params.ResourceIds))
+	}
 	// Filter the output to only include requested resource IDs
 	var filtered []types.ResourceTagSet
 	for _, tagSet := range m.ListTagsForResourcesOutput.ResourceTagSets {
@@ -142,6 +147,48 @@ func TestRoute53HostedZone_List(t *testing.T) {
 			assert.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
+}
+
+func TestRoute53HostedZone_ListBatching(t *testing.T) {
+	t.Parallel()
+
+	// Create 12 zones to exercise the ListTagsForResources batching (API limit is 10).
+	// The mock enforces the 10-ID limit, so this test will fail if batching is broken.
+	var zones []types.HostedZone
+	var tagSets []types.ResourceTagSet
+	var expected []string
+	for i := 1; i <= 12; i++ {
+		id := fmt.Sprintf("zone%d", i)
+		name := fmt.Sprintf("test%d.example.com.", i)
+		zones = append(zones, types.HostedZone{Id: aws.String("/hostedzone/" + id), Name: aws.String(name)})
+		tagSets = append(tagSets, types.ResourceTagSet{
+			ResourceId: aws.String(id),
+			Tags:       []types.Tag{{Key: aws.String("env"), Value: aws.String(fmt.Sprintf("env%d", i))}},
+		})
+		expected = append(expected, fmt.Sprintf("/hostedzone/%s|%s", id, name))
+	}
+
+	client := mockedRoute53HostedZone{
+		ListHostedZonesOutput:      route53.ListHostedZonesOutput{HostedZones: zones},
+		ListTagsForResourcesOutput: route53.ListTagsForResourcesOutput{ResourceTagSets: tagSets},
+	}
+
+	ids, err := listRoute53HostedZones(context.Background(), client, resource.Scope{Region: "global"}, config.ResourceType{})
+	require.NoError(t, err)
+	assert.Equal(t, expected, aws.ToStringSlice(ids))
+
+	// Also verify tag-based filtering works across batch boundaries (zone11 is in batch 2)
+	client2 := mockedRoute53HostedZone{
+		ListHostedZonesOutput:      route53.ListHostedZonesOutput{HostedZones: zones},
+		ListTagsForResourcesOutput: route53.ListTagsForResourcesOutput{ResourceTagSets: tagSets},
+	}
+	ids2, err := listRoute53HostedZones(context.Background(), client2, resource.Scope{Region: "global"}, config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("env11")}},
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/hostedzone/zone11|test11.example.com."}, aws.ToStringSlice(ids2))
 }
 
 func TestRoute53HostedZone_Delete(t *testing.T) {
