@@ -234,9 +234,10 @@ IAMPolicies:
       - "^eks-service-catalog-[a-zA-Z0-9]{6}-k8s-cluster-autoscaler"
       - "^eks-service-catalog-[a-zA-Z0-9]{6}-k8s-external-dns"
 KMSCustomerKeys:
-  include:
+  exclude:
     names_regex:
-      - "^cloud-nuke-test-.*$"
+      # Shared test key referenced by multiple repos (terragrunt, terraform-aws-security, terraform-aws-eks, etc.)
+      - "^dedicated-test-key$"
 VPC:
   exclude:
     names_regex:
