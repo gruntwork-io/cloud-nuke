@@ -4,3 +4,16 @@ vendor
 cloud-nuke
 config.yaml
 .envrc
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.tfvars
+
+# Secrets
+.env*
+
+# Build artifacts
+infra/cost-anomaly-alerts/lambda/function.zip

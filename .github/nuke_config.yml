@@ -148,6 +148,7 @@ IAMRoles:
       - "^github$"
       - "^github-read-only$"
       - "^cloud-nuke-gha$"
+      - "^cost-anomaly-to-slack-role$"
   include:
     names_regex:
       - "^cloud-nuke-Test*"
@@ -240,10 +241,16 @@ ECSCluster:
   exclude:
     names_regex:
       - "^ecs-deploy-runner"
+SNS:
+  exclude:
+    names_regex:
+      - "^cost-anomaly-alerts$"
+
 LambdaFunction:
   exclude:
     names_regex:
       - "^ecs-deploy-runner-invoker"
+      - "^cost-anomaly-to-slack$"
 
 ACM:
   exclude:
