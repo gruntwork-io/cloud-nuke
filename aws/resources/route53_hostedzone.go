@@ -61,17 +61,13 @@ func listRoute53HostedZones(ctx context.Context, client Route53HostedZoneAPI, sc
 			zoneIds = append(zoneIds, strings.TrimPrefix(aws.ToString(zone.Id), "/hostedzone/"))
 		}
 
-		// Fetch tags for all zones in this page, batching to respect API limit of 10
+		// Fetch tags in batches of 10 (API limit for ListTagsForResources)
+		// Reference: https://docs.aws.amazon.com/Route53/latest/APIReference/API_ListTagsForResources.html
 		tagsByZoneId := make(map[string][]types.Tag)
-		const maxTagBatch = 10
-		for i := 0; i < len(zoneIds); i += maxTagBatch {
-			end := i + maxTagBatch
-			if end > len(zoneIds) {
-				end = len(zoneIds)
-			}
+		for _, batch := range util.Split(zoneIds, 10) {
 			tagsOutput, err := client.ListTagsForResources(ctx, &route53.ListTagsForResourcesInput{
 				ResourceType: types.TagResourceTypeHostedzone,
-				ResourceIds:  zoneIds[i:end],
+				ResourceIds:  batch,
 			})
 			if err != nil {
 				return nil, err
