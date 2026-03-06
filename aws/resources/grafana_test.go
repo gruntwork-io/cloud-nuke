@@ -32,11 +32,13 @@ func TestListGrafanaWorkspaces(t *testing.T) {
 
 	now := time.Now()
 	tests := map[string]struct {
+		region     string
 		workspaces []types.WorkspaceSummary
 		configObj  config.ResourceType
 		expected   []string
 	}{
 		"emptyFilter": {
+			region: "us-east-1",
 			workspaces: []types.WorkspaceSummary{
 				{Id: aws.String("ws1"), Name: aws.String("ws1"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
 				{Id: aws.String("ws2"), Name: aws.String("ws2"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
@@ -45,6 +47,7 @@ func TestListGrafanaWorkspaces(t *testing.T) {
 			expected:  []string{"ws1", "ws2"},
 		},
 		"nameExclusionFilter": {
+			region: "us-east-1",
 			workspaces: []types.WorkspaceSummary{
 				{Id: aws.String("ws1"), Name: aws.String("ws1"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
 				{Id: aws.String("skip-this"), Name: aws.String("skip-this"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
@@ -57,6 +60,7 @@ func TestListGrafanaWorkspaces(t *testing.T) {
 			expected: []string{"ws1"},
 		},
 		"skipsInactiveStatus": {
+			region: "us-east-1",
 			workspaces: []types.WorkspaceSummary{
 				{Id: aws.String("active"), Name: aws.String("active"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
 				{Id: aws.String("creating"), Name: aws.String("creating"), Created: aws.Time(now), Status: types.WorkspaceStatusCreating},
@@ -64,12 +68,25 @@ func TestListGrafanaWorkspaces(t *testing.T) {
 			configObj: config.ResourceType{},
 			expected:  []string{"active"},
 		},
+		"unsupportedRegion": {
+			region: "af-south-1",
+			workspaces: []types.WorkspaceSummary{
+				{Id: aws.String("ws1"), Name: aws.String("ws1"), Created: aws.Time(now), Status: types.WorkspaceStatusActive},
+			},
+			configObj: config.ResourceType{},
+			expected:  []string{},
+		},
+		"emptyRegion": {
+			region:    "",
+			configObj: config.ResourceType{},
+			expected:  []string{},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			mock := &mockGrafanaClient{ListWorkspacesOutput: grafana.ListWorkspacesOutput{Workspaces: tc.workspaces}}
-			ids, err := listGrafanaWorkspaces(context.Background(), mock, resource.Scope{}, tc.configObj)
+			ids, err := listGrafanaWorkspaces(context.Background(), mock, resource.Scope{Region: tc.region}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
