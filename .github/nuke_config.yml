@@ -35,7 +35,9 @@ S3:
       - "^redis-copy-snapshot-example-.*"
 
 SecretsManager:
-  # Delete all secrets - no filtering needed
+  exclude:
+    names_regex:
+      - "^cost-anomaly-alerts/.*"
 
 NATGateway:
   exclude:
@@ -53,7 +55,7 @@ OIDCProvider:
 CloudWatchLogGroup:
   exclude:
     names_regex:
-      - "^/aws/lambda/cost-anomaly-to-slack$"
+      - "^/aws/lambda/cost-anomaly-alerts-to-slack$"
       - "^/aws/lambda/ecs-deploy-runner-invoker$"
 
 IAMUsers:
@@ -73,7 +75,7 @@ IAMRoles:
       - "^github-read-only$"
       - "^cloud-nuke-gha$"
       # Cost alerting
-      - "^cost-anomaly-to-slack-role$"
+      - "^cost-anomaly-alerts-to-slack$"
       # CI/CD and deployment
       - "^_circle-ci-.*"
       - "^pipelines-policy-update-.*"
@@ -135,7 +137,7 @@ LambdaFunction:
   exclude:
     names_regex:
       - "^ecs-deploy-runner-invoker"
-      - "^cost-anomaly-to-slack$"
+      - "^cost-anomaly-alerts-to-slack$"
 
 ACM:
   exclude:
