@@ -59,6 +59,13 @@ func listEC2Subnets(ctx context.Context, client EC2SubnetAPI, scope resource.Sco
 		}
 
 		for _, subnet := range page.Subnets {
+			// Skip default subnets when not explicitly targeting them.
+			// The defaults-aws command sets defaultOnly=true to target these;
+			// the regular aws command should leave them alone.
+			if !defaultOnly && aws.ToBool(subnet.DefaultForAz) {
+				continue
+			}
+
 			tagMap := util.ConvertTypesTagsToMap(subnet.Tags)
 
 			// Get first seen time from tags
@@ -99,7 +106,7 @@ func verifyEC2SubnetPermission(ctx context.Context, client EC2SubnetAPI, id *str
 		SubnetId: id,
 		DryRun:   aws.Bool(true),
 	})
-	return err
+	return util.TransformAWSError(err)
 }
 
 // deleteSubnet deletes a single EC2 Subnet.

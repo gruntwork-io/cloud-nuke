@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -16,16 +17,34 @@ import (
 )
 
 type mockEC2EndpointsClient struct {
-	DescribeVpcEndpointsOutput ec2.DescribeVpcEndpointsOutput
-	DeleteVpcEndpointsOutput   ec2.DeleteVpcEndpointsOutput
-	DescribeVpcsOutput         ec2.DescribeVpcsOutput
+	DescribeVpcEndpointsOutput  ec2.DescribeVpcEndpointsOutput
+	DescribeVpcEndpointsOutputs []ec2.DescribeVpcEndpointsOutput
+	DescribeVpcEndpointsError   error
+	describeCalls               int
+	DeleteVpcEndpointsOutput    ec2.DeleteVpcEndpointsOutput
+	DeleteVpcEndpointsError     error
+	DescribeVpcsOutput          ec2.DescribeVpcsOutput
 }
 
 func (m *mockEC2EndpointsClient) DescribeVpcEndpoints(ctx context.Context, params *ec2.DescribeVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointsOutput, error) {
+	if len(m.DescribeVpcEndpointsOutputs) > 0 && len(params.Filters) > 0 {
+		idx := m.describeCalls
+		m.describeCalls++
+		if idx >= len(m.DescribeVpcEndpointsOutputs) {
+			idx = len(m.DescribeVpcEndpointsOutputs) - 1
+		}
+		return &m.DescribeVpcEndpointsOutputs[idx], nil
+	}
+	if len(params.Filters) > 0 && m.DescribeVpcEndpointsError != nil {
+		return nil, m.DescribeVpcEndpointsError
+	}
 	return &m.DescribeVpcEndpointsOutput, nil
 }
 
 func (m *mockEC2EndpointsClient) DeleteVpcEndpoints(ctx context.Context, params *ec2.DeleteVpcEndpointsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteVpcEndpointsOutput, error) {
+	if m.DeleteVpcEndpointsError != nil {
+		return nil, m.DeleteVpcEndpointsError
+	}
 	return &m.DeleteVpcEndpointsOutput, nil
 }
 
@@ -100,10 +119,81 @@ func TestListEC2Endpoints(t *testing.T) {
 	}
 }
 
-func TestDeleteEC2Endpoints(t *testing.T) {
+func TestDeleteEC2Endpoint(t *testing.T) {
 	t.Parallel()
 
-	mock := &mockEC2EndpointsClient{}
-	err := deleteEC2Endpoints(context.Background(), mock, []string{"vpce-12345", "vpce-67890"})
-	require.NoError(t, err)
+	t.Run("success", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{}
+		require.NoError(t, deleteEC2Endpoint(context.Background(), mock, aws.String("vpce-12345")))
+	})
+
+	t.Run("unsuccessful item", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{
+			DeleteVpcEndpointsOutput: ec2.DeleteVpcEndpointsOutput{
+				Unsuccessful: []types.UnsuccessfulItem{{
+					ResourceId: aws.String("vpce-12345"),
+					Error:      &types.UnsuccessfulItemError{Message: aws.String("endpoint is in use")},
+				}},
+			},
+		}
+		err := deleteEC2Endpoint(context.Background(), mock, aws.String("vpce-12345"))
+		require.ErrorContains(t, err, "endpoint is in use")
+	})
+
+	t.Run("unsuccessful item with nil error", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{
+			DeleteVpcEndpointsOutput: ec2.DeleteVpcEndpointsOutput{
+				Unsuccessful: []types.UnsuccessfulItem{{ResourceId: aws.String("vpce-12345")}},
+			},
+		}
+		err := deleteEC2Endpoint(context.Background(), mock, aws.String("vpce-12345"))
+		require.ErrorContains(t, err, "unknown error")
+	})
+
+	t.Run("api error", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{DeleteVpcEndpointsError: fmt.Errorf("api error")}
+		require.Error(t, deleteEC2Endpoint(context.Background(), mock, aws.String("vpce-12345")))
+	})
+}
+
+func TestWaitForEndpointsDeleted(t *testing.T) {
+	t.Parallel()
+
+	t.Run("already deleted", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{
+			DescribeVpcEndpointsOutputs: []ec2.DescribeVpcEndpointsOutput{
+				{VpcEndpoints: []types.VpcEndpoint{}},
+			},
+		}
+		require.NoError(t, waitForEndpointsDeleted(context.Background(), mock, []string{"vpce-12345"}))
+	})
+
+	t.Run("deleting then deleted", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{
+			DescribeVpcEndpointsOutputs: []ec2.DescribeVpcEndpointsOutput{
+				{VpcEndpoints: []types.VpcEndpoint{{VpcEndpointId: aws.String("vpce-12345"), State: "deleting"}}},
+				{VpcEndpoints: []types.VpcEndpoint{}},
+			},
+		}
+		require.NoError(t, waitForEndpointsDeleted(context.Background(), mock, []string{"vpce-12345"}))
+		require.GreaterOrEqual(t, mock.describeCalls, 2)
+	})
+
+	t.Run("ignores unrelated endpoints", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{
+			DescribeVpcEndpointsOutputs: []ec2.DescribeVpcEndpointsOutput{
+				// Unrelated endpoint still deleting — ours is gone
+				{VpcEndpoints: []types.VpcEndpoint{{VpcEndpointId: aws.String("vpce-other"), State: "deleting"}}},
+			},
+		}
+		require.NoError(t, waitForEndpointsDeleted(context.Background(), mock, []string{"vpce-12345"}))
+	})
+
+	t.Run("api error is fatal", func(t *testing.T) {
+		mock := &mockEC2EndpointsClient{
+			DescribeVpcEndpointsError: fmt.Errorf("throttling"),
+		}
+		require.Error(t, waitForEndpointsDeleted(context.Background(), mock, []string{"vpce-12345"}))
+		require.Equal(t, 0, mock.describeCalls, "FatalError should stop retries after first attempt")
+	})
 }
