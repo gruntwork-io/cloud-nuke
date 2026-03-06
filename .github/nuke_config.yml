@@ -165,6 +165,18 @@ InternetGateway:
       - "^gruntwork.*"
       - "^gw-.*"
 
+BackupVault:
+  exclude:
+    names_regex:
+      # AWS-managed EFS automatic backup vault (resource policy explicitly denies deletion)
+      - "^aws/efs/automatic-backup-vault$"
+
+CloudTrailTrail:
+  exclude:
+    names_regex:
+      # AWS Control Tower managed trail (cross-account, cannot be deleted)
+      - "^aws-controltower-BaselineCloudTrail$"
+
 Route53HostedZone:
   exclude:
     names_regex:
