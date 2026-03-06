@@ -41,14 +41,17 @@ func TestListAppRunnerServices(t *testing.T) {
 	}
 
 	tests := map[string]struct {
+		region    string
 		configObj config.ResourceType
 		expected  []string
 	}{
 		"emptyFilter": {
+			region:    "us-east-1",
 			configObj: config.ResourceType{},
 			expected:  []string{"arn::svc1", "arn::svc2"},
 		},
 		"nameExclusionFilter": {
+			region: "us-east-1",
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("svc1")}},
@@ -57,6 +60,7 @@ func TestListAppRunnerServices(t *testing.T) {
 			expected: []string{"arn::svc2"},
 		},
 		"timeAfterExclusionFilter": {
+			region: "us-east-1",
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
@@ -64,11 +68,21 @@ func TestListAppRunnerServices(t *testing.T) {
 			},
 			expected: []string{"arn::svc1"},
 		},
+		"unsupportedRegion": {
+			region:    "af-south-1",
+			configObj: config.ResourceType{},
+			expected:  []string{},
+		},
+		"emptyRegion": {
+			region:    "",
+			configObj: config.ResourceType{},
+			expected:  []string{},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			arns, err := listAppRunnerServices(context.Background(), mock, resource.Scope{}, tc.configObj)
+			arns, err := listAppRunnerServices(context.Background(), mock, resource.Scope{Region: tc.region}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(arns))
 		})

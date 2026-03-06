@@ -2,12 +2,21 @@ package resources
 
 import (
 	"context"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/apprunner"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
+
+// AppRunnerAllowedRegions lists AWS regions where App Runner is supported.
+// Reference: https://docs.aws.amazon.com/general/latest/gr/apprunner.html
+var AppRunnerAllowedRegions = []string{
+	"us-east-1", "us-east-2", "us-west-2", "ap-south-1", "ap-southeast-1", "ap-southeast-2",
+	"ap-northeast-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
+}
 
 // AppRunnerServiceAPI defines the interface for App Runner service operations.
 type AppRunnerServiceAPI interface {
@@ -34,6 +43,12 @@ func NewAppRunnerService() AwsResource {
 
 // listAppRunnerServices retrieves all App Runner services that match the config filters.
 func listAppRunnerServices(ctx context.Context, client AppRunnerServiceAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	// Check if region supports App Runner
+	if !slices.Contains(AppRunnerAllowedRegions, scope.Region) {
+		logging.Debugf("Region %s is not allowed for App Runner", scope.Region)
+		return nil, nil
+	}
+
 	var identifiers []*string
 	paginator := apprunner.NewListServicesPaginator(client, &apprunner.ListServicesInput{
 		MaxResults: aws.Int32(20),

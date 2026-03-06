@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/grafana"
@@ -10,6 +11,14 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
+
+// GrafanaAllowedRegions lists AWS regions where Amazon Managed Grafana is supported.
+// Reference: https://docs.aws.amazon.com/general/latest/gr/grafana.html
+var GrafanaAllowedRegions = []string{
+	"us-east-1", "us-east-2", "us-west-2", "ap-south-1", "ap-southeast-1", "ap-southeast-2",
+	"ap-northeast-1", "ap-northeast-2", "ca-central-1", "eu-central-1", "eu-north-1",
+	"eu-west-1", "eu-west-2", "eu-west-3", "sa-east-1",
+}
 
 // GrafanaAPI defines the interface for Grafana operations.
 type GrafanaAPI interface {
@@ -36,6 +45,12 @@ func NewGrafana() AwsResource {
 
 // listGrafanaWorkspaces retrieves all Grafana Workspaces that match the config filters.
 func listGrafanaWorkspaces(ctx context.Context, client GrafanaAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+	// Check if region supports Grafana
+	if !slices.Contains(GrafanaAllowedRegions, scope.Region) {
+		logging.Debugf("Region %s is not allowed for Grafana", scope.Region)
+		return nil, nil
+	}
+
 	var workspaceIDs []*string
 
 	paginator := grafana.NewListWorkspacesPaginator(client, &grafana.ListWorkspacesInput{})
