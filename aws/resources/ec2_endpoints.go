@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -10,6 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // EC2EndpointsAPI defines the interface for EC2 VPC Endpoints operations.
@@ -29,7 +32,7 @@ func NewEC2Endpoints() AwsResource {
 		}),
 		func(c config.Config) config.EC2ResourceType { return c.EC2Endpoint },
 		listEC2Endpoints,
-		resource.BulkDeleter(deleteEC2Endpoints),
+		resource.ConcurrentDeleteThenWaitAll(deleteEC2Endpoint, waitForEndpointsDeleted),
 		&EC2ResourceOptions[EC2EndpointsAPI]{PermissionVerifier: verifyEC2EndpointPermission},
 	)
 }
@@ -96,14 +99,78 @@ func listEC2Endpoints(ctx context.Context, client EC2EndpointsAPI, scope resourc
 	return result, nil
 }
 
-// deleteEC2Endpoints deletes VPC endpoints using the bulk delete API.
-func deleteEC2Endpoints(ctx context.Context, client EC2EndpointsAPI, ids []string) error {
-	logging.Debugf("Deleting VPC endpoints: %v", ids)
-
-	_, err := client.DeleteVpcEndpoints(ctx, &ec2.DeleteVpcEndpointsInput{
-		VpcEndpointIds: ids,
+// deleteEC2Endpoint deletes a single VPC endpoint.
+func deleteEC2Endpoint(ctx context.Context, client EC2EndpointsAPI, id *string) error {
+	resp, err := client.DeleteVpcEndpoints(ctx, &ec2.DeleteVpcEndpointsInput{
+		VpcEndpointIds: []string{aws.ToString(id)},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if resp != nil && len(resp.Unsuccessful) > 0 {
+		item := resp.Unsuccessful[0]
+		msg := "unknown error"
+		if item.Error != nil {
+			msg = aws.ToString(item.Error.Message)
+		}
+		return fmt.Errorf("failed to delete VPC endpoint %s: %s", aws.ToString(id), msg)
+	}
+	return nil
+}
+
+// waitForEndpointsDeleted waits for all VPC Endpoints to finish deleting.
+// VPC Endpoint deletion is asynchronous — the API returns immediately but ENIs
+// aren't released until the endpoint finishes deleting. Downstream resources like
+// subnets will fail with DependencyViolation if we don't wait.
+func waitForEndpointsDeleted(ctx context.Context, client EC2EndpointsAPI, ids []string) error {
+	idSet := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		idSet[id] = true
+	}
+
+	return retry.DoWithRetry(
+		logging.Logger.WithTime(time.Now()),
+		"Waiting for all VPC Endpoints to be deleted",
+		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
+		30, 10*time.Second,
+		func() error {
+			// Query by state filter only — not by ID. AWS removes fully-deleted
+			// endpoints from DescribeVpcEndpoints and returns NotFound if any ID
+			// in the batch is gone, which would cause false-success when other
+			// endpoints are still deleting.
+			input := &ec2.DescribeVpcEndpointsInput{
+				Filters: []types.Filter{
+					{
+						Name: aws.String("vpc-endpoint-state"),
+						Values: []string{
+							"pending",
+							"available",
+							"deleting",
+							"pendingAcceptance",
+						},
+					},
+				},
+			}
+
+			remaining := 0
+			paginator := ec2.NewDescribeVpcEndpointsPaginator(client, input)
+			for paginator.HasMorePages() {
+				page, err := paginator.NextPage(ctx)
+				if err != nil {
+					return retry.FatalError{Underlying: err}
+				}
+				for _, ep := range page.VpcEndpoints {
+					if idSet[aws.ToString(ep.VpcEndpointId)] {
+						remaining++
+					}
+				}
+			}
+			if remaining > 0 {
+				return fmt.Errorf("%d VPC Endpoints still deleting", remaining)
+			}
+			return nil
+		},
+	)
 }
 
 // verifyEC2EndpointPermission performs a dry-run delete to check permissions.

@@ -86,6 +86,25 @@ func TestListEC2Subnets_WithFilter(t *testing.T) {
 	require.Equal(t, []string{"subnet-001"}, aws.ToStringSlice(ids))
 }
 
+func TestListEC2Subnets_SkipsDefaultSubnets(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockEC2SubnetClient{
+		DescribeOutput: ec2.DescribeSubnetsOutput{
+			Subnets: []types.Subnet{
+				{SubnetId: aws.String("subnet-default"), DefaultForAz: aws.Bool(true)},
+				{SubnetId: aws.String("subnet-custom"), DefaultForAz: aws.Bool(false)},
+				{SubnetId: aws.String("subnet-nil")}, // DefaultForAz unset (nil)
+			},
+		},
+	}
+
+	// defaultOnly=false: default subnets are skipped, non-default and nil are kept
+	ids, err := listEC2Subnets(context.Background(), mock, resource.Scope{}, config.ResourceType{}, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"subnet-custom", "subnet-nil"}, aws.ToStringSlice(ids))
+}
+
 func TestDeleteSubnet(t *testing.T) {
 	t.Parallel()
 
