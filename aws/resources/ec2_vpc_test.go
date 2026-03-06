@@ -219,6 +219,50 @@ func TestListVPCs(t *testing.T) {
 	}
 }
 
+func TestListVPCs_SkipsDefaultVPC(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	mock := &mockEC2VpcClient{
+		DescribeVpcsOutput: ec2.DescribeVpcsOutput{
+			Vpcs: []types.Vpc{
+				{
+					VpcId:     aws.String("vpc-custom"),
+					IsDefault: aws.Bool(false),
+					Tags: []types.Tag{
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+					},
+				},
+				{
+					VpcId:     aws.String("vpc-default"),
+					IsDefault: aws.Bool(true),
+					Tags: []types.Tag{
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+					},
+				},
+				{
+					VpcId: aws.String("vpc-nil"), // IsDefault unset (nil) — treated as non-default
+					Tags: []types.Tag{
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+					},
+				},
+			},
+		},
+	}
+
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+
+	// defaultOnly=false: default VPC should be skipped, nil IsDefault treated as non-default
+	ids, err := listVPCs(ctx, mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{}, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"vpc-custom", "vpc-nil"}, aws.ToStringSlice(ids))
+
+	// defaultOnly=true (defaults-aws command): default VPC must be INCLUDED
+	ids, err = listVPCs(ctx, mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{}, true)
+	require.NoError(t, err)
+	require.Contains(t, aws.ToStringSlice(ids), "vpc-default")
+}
+
 func TestDeleteVPC(t *testing.T) {
 	t.Parallel()
 

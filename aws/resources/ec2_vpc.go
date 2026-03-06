@@ -76,6 +76,12 @@ func listVPCs(ctx context.Context, client EC2VpcAPI, scope resource.Scope, cfg c
 		}
 
 		for _, vpc := range page.Vpcs {
+			// Defense-in-depth: skip default VPCs when not explicitly targeting them,
+			// even though the API filter should already exclude them.
+			if !defaultOnly && aws.ToBool(vpc.IsDefault) {
+				continue
+			}
+
 			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, vpc.VpcId, util.ConvertTypesTagsToMap(vpc.Tags))
 			if err != nil {
 				logging.Errorf("Unable to retrieve first seen tag for VPC %s: %v", aws.ToString(vpc.VpcId), err)

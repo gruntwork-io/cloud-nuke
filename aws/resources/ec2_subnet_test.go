@@ -103,6 +103,11 @@ func TestListEC2Subnets_SkipsDefaultSubnets(t *testing.T) {
 	ids, err := listEC2Subnets(context.Background(), mock, resource.Scope{}, config.ResourceType{}, false)
 	require.NoError(t, err)
 	require.Equal(t, []string{"subnet-custom", "subnet-nil"}, aws.ToStringSlice(ids))
+
+	// defaultOnly=true (defaults-aws command): default subnets must be INCLUDED
+	ids, err = listEC2Subnets(context.Background(), mock, resource.Scope{}, config.ResourceType{}, true)
+	require.NoError(t, err)
+	require.Contains(t, aws.ToStringSlice(ids), "subnet-default")
 }
 
 func TestDeleteSubnet(t *testing.T) {
