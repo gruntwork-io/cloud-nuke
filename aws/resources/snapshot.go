@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	goerr "errors"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -122,8 +123,14 @@ func deregisterSnapshotAMIs(ctx context.Context, client SnapshotsAPI, snapshotID
 
 // deleteSnapshot deletes a single EBS Snapshot.
 func deleteSnapshot(ctx context.Context, client SnapshotsAPI, snapshotID *string) error {
-	_, err := client.DeleteSnapshot(ctx, &ec2.DeleteSnapshotInput{
+	if _, err := client.DeleteSnapshot(ctx, &ec2.DeleteSnapshotInput{
 		SnapshotId: snapshotID,
-	})
-	return err
+	}); err != nil {
+		if goerr.Is(util.TransformAWSError(err), util.ErrInvalidSnapshotNotFound) {
+			logging.Debugf("Snapshot %s already deleted (ok)", aws.ToString(snapshotID))
+			return nil
+		}
+		return errors.WithStackTrace(err)
+	}
+	return nil
 }

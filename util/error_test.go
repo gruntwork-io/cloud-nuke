@@ -86,6 +86,14 @@ func TestTransformAWSError(t *testing.T) {
 			wantErr: ErrResourceNotFoundException,
 		},
 		{
+			name: "invalid snapshot not found",
+			argErr: &smithy.GenericAPIError{
+				Code:    "InvalidSnapshot.NotFound",
+				Message: "InvalidSnapshot.NotFound",
+			},
+			wantErr: ErrInvalidSnapshotNotFound,
+		},
+		{
 			name: "smithy dry run operation",
 			argErr: &smithy.GenericAPIError{
 				Code:    "DryRunOperation",

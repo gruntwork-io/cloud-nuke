@@ -16,6 +16,7 @@ var ErrInvalidPermisionNotFound = errors.New("error:InvalidPermission.NotFound")
 var ErrInvalidGroupNotFound = errors.New("error:InvalidGroup.NotFound")
 var ErrDeleteProtectionEnabled = errors.New("error:DeleteProtectionEnabled")
 var ErrResourceNotFoundException = errors.New("error:ErrResourceNotFoundException")
+var ErrInvalidSnapshotNotFound = errors.New("error:InvalidSnapshot.NotFound")
 
 const AWsUnauthorizedError string = "UnauthorizedOperation"
 const AWSAccessDeniedException string = "AccessDeniedException"
@@ -42,6 +43,8 @@ func TransformAWSError(err error) error {
 			return ErrInvalidGroupNotFound
 		case "ResourceNotFoundException":
 			return ErrResourceNotFoundException
+		case "InvalidSnapshot.NotFound":
+			return ErrInvalidSnapshotNotFound
 		}
 
 		if apiErr.ErrorCode() == "DryRunOperation" && apiErr.ErrorMessage() == AwsDryRunSuccess {
