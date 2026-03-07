@@ -150,7 +150,8 @@ type Config struct {
 	VPCPeeringConnection            ResourceType               `yaml:"VPCPeeringConnection"`
 
 	// GCP Resources
-	GCSBucket ResourceType `yaml:"GCSBucket"`
+	GCSBucket     ResourceType `yaml:"GCSBucket"`
+	CloudFunction ResourceType `yaml:"CloudFunction"`
 }
 
 // allResourceTypes returns pointers to the embedded ResourceType for every
@@ -287,6 +288,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.RouteTable.ResourceType,
 		&c.VPCPeeringConnection,
 		&c.GCSBucket,
+		&c.CloudFunction,
 	}
 }
 
