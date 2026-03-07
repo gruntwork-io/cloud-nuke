@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
@@ -107,9 +108,41 @@ func TestListSnapshots(t *testing.T) {
 func TestDeleteSnapshot(t *testing.T) {
 	t.Parallel()
 
-	mock := &mockSnapshotsClient{}
-	err := deleteSnapshot(context.Background(), mock, aws.String("snap-test"))
-	require.NoError(t, err)
+	tests := map[string]struct {
+		deleteErr error
+		expectErr bool
+	}{
+		"success": {
+			deleteErr: nil,
+			expectErr: false,
+		},
+		"NotFound is ignored": {
+			deleteErr: &smithy.GenericAPIError{
+				Code:    "InvalidSnapshot.NotFound",
+				Message: "The snapshot 'snap-gone' does not exist.",
+			},
+			expectErr: false,
+		},
+		"other API error is propagated": {
+			deleteErr: &smithy.GenericAPIError{
+				Code:    "InternalError",
+				Message: "Something went wrong",
+			},
+			expectErr: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mock := &mockSnapshotsClient{DeleteSnapshotErr: tc.deleteErr}
+			err := deleteSnapshot(context.Background(), mock, aws.String("snap-test"))
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestDeregisterSnapshotAMIs(t *testing.T) {
