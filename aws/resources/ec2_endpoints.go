@@ -69,6 +69,13 @@ func listEC2Endpoints(ctx context.Context, client EC2EndpointsAPI, scope resourc
 		}
 
 		for _, endpoint := range page.VpcEndpoints {
+			// Skip requester-managed endpoints — these are created by AWS services
+			// and cannot be deleted directly.
+			if aws.ToBool(endpoint.RequesterManaged) {
+				logging.Debugf("[Skip] VPC endpoint %s is requester-managed (created by AWS service)", aws.ToString(endpoint.VpcEndpointId))
+				continue
+			}
+
 			// When defaultOnly is true, skip endpoints not in default VPCs
 			if defaultOnly && !defaultVpcIds[aws.ToString(endpoint.VpcId)] {
 				continue

@@ -110,6 +110,44 @@ func TestListEC2Endpoints(t *testing.T) {
 		},
 	}
 
+	t.Run("requesterManagedFilter", func(t *testing.T) {
+		reqManagedEndpoint := "vpce-reqmanaged"
+		nilReqManagedEndpoint := "vpce-nilreqmanaged"
+		mockWithReqManaged := &mockEC2EndpointsClient{
+			DescribeVpcEndpointsOutput: ec2.DescribeVpcEndpointsOutput{
+				VpcEndpoints: []types.VpcEndpoint{
+					{
+						VpcEndpointId:    aws.String(endpoint1),
+						RequesterManaged: aws.Bool(false),
+						Tags: []types.Tag{
+							{Key: aws.String("Name"), Value: aws.String(testName1)},
+							{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+						},
+					},
+					{
+						VpcEndpointId:    aws.String(reqManagedEndpoint),
+						RequesterManaged: aws.Bool(true),
+						Tags: []types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("requester-managed-ep")},
+							{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+						},
+					},
+					{
+						// RequesterManaged nil — should be treated as user-managed and included
+						VpcEndpointId: aws.String(nilReqManagedEndpoint),
+						Tags: []types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("nil-requester-managed-ep")},
+							{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+						},
+					},
+				},
+			},
+		}
+		ids, err := listEC2Endpoints(ctx, mockWithReqManaged, resource.Scope{}, config.ResourceType{}, false)
+		require.NoError(t, err)
+		require.Equal(t, []string{endpoint1, nilReqManagedEndpoint}, aws.ToStringSlice(ids))
+	})
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			ids, err := listEC2Endpoints(ctx, mock, resource.Scope{}, tc.configObj, false)
