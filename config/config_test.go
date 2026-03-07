@@ -135,6 +135,10 @@ func emptyConfig() *Config {
 		VPCLatticeTargetGroup:           ResourceType{FilterRule{}, FilterRule{}, "", false},
 		RouteTable:                      EC2ResourceType{false, ResourceType{FilterRule{}, FilterRule{}, "", false}},
 		VPCPeeringConnection:            ResourceType{FilterRule{}, FilterRule{}, "", false},
+
+		// GCP Resources
+		GCSBucket:        ResourceType{FilterRule{}, FilterRule{}, "", false},
+		ArtifactRegistry: ResourceType{FilterRule{}, FilterRule{}, "", false},
 	}
 }
 
