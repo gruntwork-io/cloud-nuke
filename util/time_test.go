@@ -30,6 +30,12 @@ func TestParseTimestamp(t *testing.T) {
 			newTime(time.Date(2024, 4, 12, 15, 18, 5, 0, time.UTC)),
 			false,
 		},
+		{
+			"it should parse bare ISO 8601 value \"2015-01-01T00:00:00\" correctly",
+			args{timestamp: aws.String("2015-01-01T00:00:00")},
+			newTime(time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)),
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
