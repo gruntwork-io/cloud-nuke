@@ -79,7 +79,7 @@ func deleteGCSBucket(ctx context.Context, client *storage.Client, name *string) 
 	// Delete the bucket
 	deleteErr := bucket.Delete(ctx)
 	if deleteErr != nil {
-		if strings.Contains(deleteErr.Error(), "bucket is not empty") {
+		if strings.Contains(strings.ToLower(deleteErr.Error()), "bucket is not empty") || strings.Contains(strings.ToLower(deleteErr.Error()), "bucket you tried to delete is not empty") {
 			// Bucket may have versioned objects, try force delete
 			if forceErr := forceEmptyBucket(ctx, bucket, bucketName); forceErr != nil {
 				return fmt.Errorf("error force emptying bucket %s: %w", bucketName, forceErr)
