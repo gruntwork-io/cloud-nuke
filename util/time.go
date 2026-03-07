@@ -25,6 +25,9 @@ const (
 	// The time format of the `firstSeenTagKey` tag value.
 	firstSeenTimeFormat       = time.RFC3339
 	firstSeenTimeFormatLegacy = time.DateTime
+
+	// ISO 8601 without timezone — used by some AWS APIs (e.g., Data Pipeline).
+	iso8601Bare = "2006-01-02T15:04:05"
 )
 
 func IsFirstSeenTag(key *string) bool {
@@ -32,14 +35,19 @@ func IsFirstSeenTag(key *string) bool {
 }
 
 func ParseTimestamp(timestamp *string) (*time.Time, error) {
-	parsed, err := time.Parse(firstSeenTimeFormat, aws.ToString(timestamp))
+	s := aws.ToString(timestamp)
+
+	parsed, err := time.Parse(firstSeenTimeFormat, s)
 	if err != nil {
 		logging.Debugf("Error parsing the timestamp into a `RFC3339` Time format. Trying parsing the timestamp using the legacy `time.DateTime` format.")
-		parsed, err = time.Parse(firstSeenTimeFormatLegacy, aws.ToString(timestamp))
-		if err != nil {
-			logging.Debugf("Error parsing the timestamp into legacy `time.DateTime` Time format")
-			return nil, errors.WithStackTrace(err)
-		}
+		parsed, err = time.Parse(firstSeenTimeFormatLegacy, s)
+	}
+	if err != nil {
+		logging.Debugf("Error parsing the timestamp into legacy `time.DateTime` Time format. Trying bare ISO 8601 format.")
+		parsed, err = time.Parse(iso8601Bare, s)
+	}
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
 	}
 
 	return &parsed, nil

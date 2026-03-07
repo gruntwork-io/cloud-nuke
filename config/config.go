@@ -42,6 +42,7 @@ type Config struct {
 	CodeDeployApplications          ResourceType               `yaml:"CodeDeployApplications"`
 	ConfigServiceRecorder           ResourceType               `yaml:"ConfigServiceRecorder"`
 	ConfigServiceRule               ResourceType               `yaml:"ConfigServiceRule"`
+	DataPipeline                    ResourceType               `yaml:"DataPipeline"`
 	DataSyncLocation                ResourceType               `yaml:"DataSyncLocation"`
 	DataSyncTask                    ResourceType               `yaml:"DataSyncTask"`
 	DBGlobalClusters                ResourceType               `yaml:"DBGlobalClusters"`
@@ -180,6 +181,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.CodeDeployApplications,
 		&c.ConfigServiceRecorder,
 		&c.ConfigServiceRule,
+		&c.DataPipeline,
 		&c.DataSyncLocation,
 		&c.DataSyncTask,
 		&c.DBGlobalClusters,

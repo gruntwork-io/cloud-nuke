@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/storage v1.39.1
-	github.com/aws/aws-sdk-go-v2 v1.38.3
+	github.com/aws/aws-sdk-go-v2 v1.41.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.5
 	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.36.12
 	github.com/aws/aws-sdk-go-v2/service/acm v1.30.17
@@ -22,6 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.45.11
 	github.com/aws/aws-sdk-go-v2/service/codedeploy v1.29.17
 	github.com/aws/aws-sdk-go-v2/service/configservice v1.51.11
+	github.com/aws/aws-sdk-go-v2/service/datapipeline v1.30.18
 	github.com/aws/aws-sdk-go-v2/service/datasync v1.45.3
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.39.9
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.202.3
@@ -60,8 +61,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.13
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.13
 	github.com/aws/aws-sdk-go-v2/service/vpclattice v1.13.9
-	github.com/aws/smithy-go v1.23.0
-	github.com/charmbracelet/lipgloss v0.6.0
+	github.com/aws/smithy-go v1.24.2
 	github.com/go-errors/errors v1.4.2
 	github.com/gruntwork-io/go-commons v0.17.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -82,8 +82,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.8 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.58 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.27 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.6 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.19 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.19 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.31 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.2 // indirect
@@ -108,11 +108,7 @@ require (
 	github.com/gookit/color v1.5.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.5 // indirect
-	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/muesli/reflow v0.3.0 // indirect
-	github.com/muesli/termenv v0.11.1-0.20220204035834-5ac8409525e0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect

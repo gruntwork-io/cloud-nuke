@@ -89,6 +89,7 @@ func getRegisteredRegionalResources() []AwsResource {
 		resources.NewCodeDeployApplications(),
 		resources.NewConfigServiceRecorders(),
 		resources.NewConfigServiceRules(),
+		resources.NewDataPipeline(),
 		resources.NewDataSyncTask(),
 		resources.NewDataSyncLocation(),
 		resources.NewDynamoDB(),
