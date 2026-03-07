@@ -120,23 +120,12 @@ jobs:
       - name: Integration test (dry-run against us-east-1)
         env:
           DISABLE_TELEMETRY: "true"
-        # NOTE: Keep --exclude-resource-type list in sync with COMMON_EXCLUDES in nuke-account.yml
         run: |
           go run main.go aws \
             --dry-run \
             --force \
             --config ./.github/nuke_config.yml \
             --region us-east-1 \
-            --exclude-resource-type iam-user \
-            --exclude-resource-type iam-group \
-            --exclude-resource-type iam-policy \
-            --exclude-resource-type iam-role \
-            --exclude-resource-type iam-service-linked-role \
-            --exclude-resource-type oidc-provider \
-            --exclude-resource-type route53-cidr-collection \
-            --exclude-resource-type route53-traffic-policy \
-            --exclude-resource-type ecr \
-            --exclude-resource-type config-rules \
             --log-level info
 
   build:
