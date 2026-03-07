@@ -57,6 +57,8 @@ CloudWatchLogGroup:
     names_regex:
       - "^/aws/lambda/cost-anomaly-alerts-to-slack$"
       - "^/aws/lambda/ecs-deploy-runner-invoker$"
+      # AWS Control Tower managed log group (SCP denies deletion)
+      - "^/aws/lambda/aws-controltower-"
 
 IAMUsers:
   exclude:
@@ -132,12 +134,16 @@ SNS:
   exclude:
     names_regex:
       - "^cost-anomaly-alerts$"
+      # AWS Control Tower managed topic (SCP denies deletion)
+      - "aws-controltower-"
 
 LambdaFunction:
   exclude:
     names_regex:
       - "^ecs-deploy-runner-invoker"
       - "^cost-anomaly-alerts-to-slack$"
+      # AWS Control Tower managed function (SCP denies deletion)
+      - "^aws-controltower-"
 
 ACM:
   exclude:
@@ -176,6 +182,18 @@ CloudTrailTrail:
     names_regex:
       # AWS Control Tower managed trail (cross-account, cannot be deleted)
       - "^aws-controltower-BaselineCloudTrail$"
+
+EventBridge:
+  exclude:
+    names_regex:
+      # AWS Control Tower managed rule (SCP denies deletion)
+      - "aws-controltower-"
+
+ConfigServiceRecorder:
+  exclude:
+    names_regex:
+      # AWS Control Tower managed recorder (SCP denies deletion)
+      - "^aws-controltower-"
 
 Route53HostedZone:
   exclude:
