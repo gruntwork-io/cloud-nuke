@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -51,7 +52,7 @@ func listCloudFunctions(ctx context.Context, client *functions.FunctionClient, s
 	it := client.ListFunctions(ctx, req)
 	for {
 		fn, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {
@@ -62,14 +63,14 @@ func listCloudFunctions(ctx context.Context, client *functions.FunctionClient, s
 		name := fn.Name
 
 		// Use UpdateTime as the resource timestamp for time-based filtering
-		var createTime time.Time
+		var resourceTime time.Time
 		if fn.UpdateTime != nil {
-			createTime = fn.UpdateTime.AsTime()
+			resourceTime = fn.UpdateTime.AsTime()
 		}
 
 		resourceValue := config.ResourceValue{
 			Name: &name,
-			Time: &createTime,
+			Time: &resourceTime,
 		}
 
 		if cfg.ShouldInclude(resourceValue) {
