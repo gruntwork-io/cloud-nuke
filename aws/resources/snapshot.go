@@ -126,6 +126,8 @@ func deleteSnapshot(ctx context.Context, client SnapshotsAPI, snapshotID *string
 	if _, err := client.DeleteSnapshot(ctx, &ec2.DeleteSnapshotInput{
 		SnapshotId: snapshotID,
 	}); err != nil {
+		// Snapshots may be auto-deleted by AWS after AMI deregistration in step 1
+		// of the multi-step deleter, so NotFound here means already cleaned up.
 		if goerr.Is(util.TransformAWSError(err), util.ErrInvalidSnapshotNotFound) {
 			logging.Debugf("Snapshot %s already deleted (ok)", aws.ToString(snapshotID))
 			return nil
