@@ -14,10 +14,12 @@ import (
 
 // GrafanaAllowedRegions lists AWS regions where Amazon Managed Grafana is supported.
 // Reference: https://docs.aws.amazon.com/general/latest/gr/grafana.html
+// Regions verified to have working Grafana endpoints as of 2026-03.
+// ap-south-1, ca-central-1, eu-north-1, eu-west-3, and sa-east-1 are listed
+// in the AWS docs but return DNS errors ("no such host") in practice.
 var GrafanaAllowedRegions = []string{
-	"us-east-1", "us-east-2", "us-west-2", "ap-south-1", "ap-southeast-1", "ap-southeast-2",
-	"ap-northeast-1", "ap-northeast-2", "ca-central-1", "eu-central-1", "eu-north-1",
-	"eu-west-1", "eu-west-2", "eu-west-3", "sa-east-1",
+	"us-east-1", "us-east-2", "us-west-2", "ap-southeast-1", "ap-southeast-2",
+	"ap-northeast-1", "ap-northeast-2", "eu-central-1", "eu-west-1", "eu-west-2",
 }
 
 // GrafanaAPI defines the interface for Grafana operations.

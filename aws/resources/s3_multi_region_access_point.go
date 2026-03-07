@@ -29,6 +29,7 @@ func NewS3MultiRegionAccessPoints() AwsResource {
 		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ControlMultiRegionAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
+			cfg.Region = "us-west-2" // MRAP control-plane requests must be routed to us-west-2
 			r.Client = s3control.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {

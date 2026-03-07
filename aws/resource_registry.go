@@ -53,6 +53,7 @@ func getRegisteredGlobalResources() []AwsResource {
 		resources.NewRoute53HostedZone(),
 		resources.NewRoute53CidrCollections(),
 		resources.NewRoute53TrafficPolicies(),
+		resources.NewS3MultiRegionAccessPoints(),
 		resources.NewS3Buckets(),
 	}
 }
@@ -140,7 +141,6 @@ func getRegisteredRegionalResources() []AwsResource {
 		resources.NewRedshiftSnapshotCopyGrants(),
 		resources.NewS3AccessPoints(),
 		resources.NewS3ObjectLambdaAccessPoints(),
-		resources.NewS3MultiRegionAccessPoints(),
 		resources.NewSageMakerNotebookInstances(),
 		resources.NewSageMakerStudio(),
 		resources.NewSageMakerEndpoint(),
