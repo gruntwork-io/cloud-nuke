@@ -77,6 +77,68 @@ jobs:
           name: test-logs
           path: /tmp/logs/
 
+  integration-test:
+    needs: lint
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.12.10
+          experimental: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::087285199408:role/cloud-nuke-gha
+          aws-region: us-east-1
+      - name: Go module cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Download Go modules
+        run: go mod download
+      - name: Validate nuke config (parse test)
+        env:
+          DISABLE_TELEMETRY: "true"
+        run: |
+          output=$(go test -v -run '^TestNukeConfigFile$' ./config/... 2>&1)
+          echo "$output"
+          echo "$output" | grep -q 'PASS: TestNukeConfigFile' || { echo "ERROR: TestNukeConfigFile did not run"; exit 1; }
+      - name: Integration test (dry-run against us-east-1)
+        env:
+          DISABLE_TELEMETRY: "true"
+        # NOTE: Keep --exclude-resource-type list in sync with COMMON_EXCLUDES in nuke-account.yml
+        run: |
+          go run main.go aws \
+            --dry-run \
+            --force \
+            --config ./.github/nuke_config.yml \
+            --region us-east-1 \
+            --exclude-resource-type iam-user \
+            --exclude-resource-type iam-group \
+            --exclude-resource-type iam-policy \
+            --exclude-resource-type iam-role \
+            --exclude-resource-type iam-service-linked-role \
+            --exclude-resource-type oidc-provider \
+            --exclude-resource-type route53-cidr-collection \
+            --exclude-resource-type route53-traffic-policy \
+            --exclude-resource-type ecr \
+            --exclude-resource-type config-rules \
+            --log-level info
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
