@@ -24,6 +24,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `codedeploy-application` | CodeDeploy Application |
 | `config-recorders` | Config Service Recorder |
 | `config-rules` | Config Service Rule |
+| `data-pipeline` | Data Pipeline |
 | `data-sync-location` | DataSync Location |
 | `data-sync-task` | DataSync Task |
 | `dynamodb` | DynamoDB Table |
@@ -158,6 +159,7 @@ This table shows which filtering features are supported for each resource type i
 | codedeploy-application | CodeDeployApplications | ✓ | ✓ | | ✓ |
 | config-recorders | ConfigServiceRecorder | ✓ | | | ✓ |
 | config-rules | ConfigServiceRule | ✓ | | | ✓ |
+| data-pipeline | DataPipeline | ✓ | ✓ | | ✓ |
 | data-sync-location | DataSyncLocation | | | | ✓ |
 | data-sync-task | DataSyncTask | ✓ | | | ✓ |
 | dynamodb | DynamoDB | ✓ | ✓ | | ✓ |
