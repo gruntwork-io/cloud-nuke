@@ -9,6 +9,9 @@ import (
 )
 
 // AwsResource is an interface that represents a single AWS resource.
+// This interface is structurally identical to aws.AwsResource but defined here
+// to avoid a circular import (aws imports resources). Go's structural typing
+// ensures that types satisfying this interface also satisfy aws.AwsResource.
 // This interface is satisfied by AwsResourceAdapter[C] which wraps resource.Resource[C].
 type AwsResource interface {
 	Init(cfg aws.Config)
@@ -18,6 +21,5 @@ type AwsResource interface {
 	Nuke(ctx context.Context, identifiers []string) ([]resource.NukeResult, error)
 	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
 	IsNukable(string) (bool, error)
-	PrepareContext(context.Context, config.ResourceType) error
 	GetAndSetResourceConfig(config.Config) config.ResourceType
 }

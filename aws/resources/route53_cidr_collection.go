@@ -25,7 +25,6 @@ func NewRoute53CidrCollections() AwsResource {
 	return NewAwsResource(&resource.Resource[Route53CidrCollectionAPI]{
 		ResourceTypeName: "route53-cidr-collection",
 		BatchSize:        DefaultBatchSize,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[Route53CidrCollectionAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = route53.NewFromConfig(cfg)

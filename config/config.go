@@ -1,7 +1,7 @@
 package config
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -363,8 +363,7 @@ type EC2ResourceType struct {
 }
 
 type AWSProtectableResourceType struct {
-	ResourceType             `yaml:",inline"`
-	IncludeDeletionProtected bool `yaml:"include_deletion_protected"`
+	ResourceType `yaml:",inline"`
 }
 
 type ResourceType struct {
@@ -378,8 +377,6 @@ type FilterRule struct {
 	NamesRegExp  []Expression          `yaml:"names_regex"`
 	TimeAfter    *time.Time            `yaml:"time_after"`
 	TimeBefore   *time.Time            `yaml:"time_before"`
-	Tag          *string               `yaml:"tag"`       // Deprecated ~ A tag to filter resources by. (e.g., If set under ExcludedRule, resources with this tag will be excluded).
-	TagValue     *Expression           `yaml:"tag_value"` // Deprecated
 	Tags         map[string]Expression `yaml:"tags"`
 	TagsOperator string                `yaml:"tags_operator"` // "AND" or "OR" - defaults to "OR" for backward compatibility
 }
@@ -415,7 +412,7 @@ func GetConfig(filePath string) (*Config, error) {
 		return nil, err
 	}
 
-	yamlFile, err := ioutil.ReadFile(absolutePath)
+	yamlFile, err := os.ReadFile(absolutePath)
 	if err != nil {
 		return nil, err
 	}
@@ -544,18 +541,10 @@ func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
 }
 
 func (r ResourceType) getExclusionTag() string {
-	if r.ExcludeRule.Tag != nil {
-		return *r.ExcludeRule.Tag
-	}
-
 	return DefaultAwsResourceExclusionTagKey
 }
 
 func (r ResourceType) getExclusionTagValue() *Expression {
-	if r.ExcludeRule.TagValue != nil {
-		return r.ExcludeRule.TagValue
-	}
-
 	return &Expression{RE: *regexp.MustCompile(DefaultAwsResourceExclusionTagValue)}
 }
 

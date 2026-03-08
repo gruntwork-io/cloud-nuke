@@ -23,7 +23,6 @@ func NewRoute53TrafficPolicies() AwsResource {
 	return NewAwsResource(&resource.Resource[Route53TrafficPolicyAPI]{
 		ResourceTypeName: "route53-traffic-policy",
 		BatchSize:        DefaultBatchSize,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[Route53TrafficPolicyAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = route53.NewFromConfig(cfg)

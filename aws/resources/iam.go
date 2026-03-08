@@ -47,7 +47,6 @@ func NewIAMUsers() AwsResource {
 	return NewAwsResource(&resource.Resource[IAMUsersAPI]{
 		ResourceTypeName: "iam-user",
 		BatchSize:        DefaultBatchSize,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMUsersAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = iam.NewFromConfig(cfg)

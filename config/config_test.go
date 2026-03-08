@@ -328,34 +328,8 @@ func TestAddIncludeAndExcludeAfterTime(t *testing.T) {
 }
 
 func TestGetExclusionTag(t *testing.T) {
-	tests := []struct {
-		name        string
-		want        string
-		ExcludeRule FilterRule
-	}{
-		{
-			name: "empty config returns default tag",
-			want: DefaultAwsResourceExclusionTagKey,
-		},
-		{
-			name: "custom exclusion tag is returned",
-			ExcludeRule: FilterRule{
-				Tag: aws.String("my-custom-tag"),
-			},
-			want: "my-custom-tag",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testConfig := &Config{}
-			testConfig.ACM = ResourceType{
-				ExcludeRule: tt.ExcludeRule,
-			}
-
-			require.Equal(t, tt.want, testConfig.ACM.getExclusionTag())
-		})
-	}
+	testConfig := &Config{}
+	require.Equal(t, DefaultAwsResourceExclusionTagKey, testConfig.ACM.getExclusionTag())
 }
 
 func TestShouldIncludeBasedOnTag(t *testing.T) {
@@ -372,90 +346,26 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 		expect bool
 	}{
 		{
-			name:   "should include resource with default exclude tag",
+			name:   "should exclude resource with default exclude tag set to true",
 			given:  arg{},
 			when:   map[string]string{DefaultAwsResourceExclusionTagKey: "true"},
 			expect: false,
 		},
 		{
-			name: "should include resource with custom exclude tag",
-			given: arg{
-				ExcludeRule: FilterRule{
-					Tag: aws.String("my-custom-skip-tag"),
-				},
-				ProtectUntilExpire: false,
-			},
-			when:   map[string]string{"my-custom-skip-tag": "true"},
-			expect: false,
-		},
-		{
-			name: "should include resource with custom exclude tag and empty value",
-			given: arg{
-				ExcludeRule: FilterRule{
-					Tag: aws.String("my-custom-skip-tag"),
-					TagValue: &Expression{
-						RE: *regexp.MustCompile(""),
-					},
-				},
-				ProtectUntilExpire: false,
-			},
-			when:   map[string]string{"my-custom-skip-tag": ""},
-			expect: false,
-		},
-		{
-			name: "should include resource with custom exclude tag and empty value (using regular expression)",
-			given: arg{
-				ExcludeRule: FilterRule{
-					Tag: aws.String("my-custom-skip-tag"),
-					TagValue: &Expression{
-						RE: *regexp.MustCompile(".*"),
-					},
-				},
-				ProtectUntilExpire: false,
-			},
-			when:   map[string]string{"my-custom-skip-tag": ""},
-			expect: false,
-		},
-		{
-			name: "should include resource with custom exclude tag and prefix value (using regular expression)",
-			given: arg{
-				ExcludeRule: FilterRule{
-					Tag: aws.String("my-custom-skip-tag"),
-					TagValue: &Expression{
-						RE: *regexp.MustCompile("protected-.*"),
-					},
-				},
-				ProtectUntilExpire: false,
-			},
-			when:   map[string]string{"my-custom-skip-tag": "protected-database"},
-			expect: false,
-		},
-		{
-			name: "should include resource when exclude tag is not set to true",
-			given: arg{
-				ExcludeRule: FilterRule{
-					Tag: aws.String(DefaultAwsResourceExclusionTagKey),
-				},
-				ProtectUntilExpire: false,
-			},
+			name:   "should include resource when exclude tag is not set to true",
+			given:  arg{},
 			when:   map[string]string{DefaultAwsResourceExclusionTagKey: "false"},
 			expect: true,
 		},
 		{
-			name: "should include resource when no tags are set",
-			given: arg{
-				ExcludeRule: FilterRule{
-					Tag: aws.String(DefaultAwsResourceExclusionTagKey),
-				},
-				ProtectUntilExpire: false,
-			},
+			name:   "should include resource when no tags are set",
+			given:  arg{},
 			when:   map[string]string{},
 			expect: true,
 		},
 		{
-			name: "should include resource when protection expires in the future",
+			name: "should exclude resource when protection expires in the future",
 			given: arg{
-				ExcludeRule:        FilterRule{},
 				ProtectUntilExpire: true,
 			},
 			when:   map[string]string{CloudNukeAfterExclusionTagKey: timeIn2h.Format(time.RFC3339)},
@@ -464,7 +374,6 @@ func TestShouldIncludeBasedOnTag(t *testing.T) {
 		{
 			name: "should include resource when protection expired in the past",
 			given: arg{
-				ExcludeRule:        FilterRule{},
 				ProtectUntilExpire: true,
 			},
 			when:   map[string]string{CloudNukeAfterExclusionTagKey: time.Now().Format(time.RFC3339)},

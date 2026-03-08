@@ -57,13 +57,7 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 		for _, resource := range registeredResources {
 			if IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
 
-				// PrepareContext sets up the resource context for execution, utilizing the context 'c' and the resource individual configuration.
-				// This function should be called after configuring the timeout to ensure proper execution context.
-				resourceConfig := (*resource).GetAndSetResourceConfig(configObj)
-				err := (*resource).PrepareContext(c, resourceConfig)
-				if err != nil {
-					return nil, err
-				}
+				(*resource).GetAndSetResourceConfig(configObj)
 
 				// Emit scan progress event
 				collector.Emit(reporting.ScanProgress{
