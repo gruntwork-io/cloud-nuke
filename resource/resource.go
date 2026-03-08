@@ -13,7 +13,7 @@ import (
 )
 
 // DefaultBatchSize is the maximum number of resources per batch
-const DefaultBatchSize = 10
+const DefaultBatchSize = 50
 
 // Scope represents the cloud provider-specific scope for a resource.
 // For AWS: Region is set (e.g., "us-east-1" or "global" for global resources)
@@ -49,7 +49,7 @@ type Resource[C any] struct {
 	ResourceTypeName string
 
 	// BatchSize is the maximum number of resources to delete per batch.
-	// If 0, defaults to DefaultBatchSize (10).
+	// If 0, defaults to DefaultBatchSize (50).
 	// Set based on AWS/GCP API rate limits for this resource type.
 	BatchSize int
 
