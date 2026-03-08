@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/hashicorp/go-multierror"
 
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
@@ -157,7 +158,8 @@ func IsNukeable(resourceType string, resourceTypes []string) bool {
 	return false
 }
 
-func nukeAllResourcesInRegion(account *AwsAccountResources, region string, collector *reporting.Collector) {
+func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources, region string, collector *reporting.Collector) error {
+	var allErrors *multierror.Error
 	resourcesInRegion := account.Resources[region]
 
 	for _, awsResource := range resourcesInRegion.Resources {
@@ -175,7 +177,7 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, colle
 				BatchSize:    len(batch),
 			})
 
-			results, err := (*awsResource).Nuke(context.TODO(), batch)
+			results, err := (*awsResource).Nuke(ctx, batch)
 
 			// Emit ResourceDeleted for each result
 			for _, result := range results {
@@ -194,7 +196,10 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, colle
 
 			if err != nil {
 				// Handle rate limiting
-				if strings.Contains(err.Error(), "RequestLimitExceeded") {
+				errMsg := err.Error()
+			if strings.Contains(errMsg, "RequestLimitExceeded") ||
+				strings.Contains(errMsg, "ThrottlingException") ||
+				strings.Contains(errMsg, "TooManyRequestsException") {
 					logging.Debug(
 						"Request limit reached. Waiting 1 minute before making new requests",
 					)
@@ -202,7 +207,9 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, colle
 					continue
 				}
 
-				// Report to telemetry - aggregated metrics of failures per resources.
+				allErrors = multierror.Append(allErrors, fmt.Errorf("[%s] %s: %w", region, (*awsResource).ResourceName(), err))
+
+			// Report to telemetry - aggregated metrics of failures per resources.
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: fmt.Sprintf("error:Nuke:%s", (*awsResource).ResourceName()),
 				}, map[string]interface{}{
@@ -216,12 +223,16 @@ func nukeAllResourcesInRegion(account *AwsAccountResources, region string, colle
 			}
 		}
 	}
+
+	return allErrors.ErrorOrNil()
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources(account *AwsAccountResources, regions []string, collector *reporting.Collector) error {
+func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions []string, collector *reporting.Collector) error {
 	// Emit NukeStarted event (CLIRenderer will initialize progress bar)
 	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
+
+	var allErrors *multierror.Error
 
 	telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "Begin nuking resources",
@@ -234,10 +245,9 @@ func NukeAllResources(account *AwsAccountResources, regions []string, collector 
 			"region": region,
 		})
 
-		// We intentionally do not handle an error returned from this method, because we collect individual errors
-		// on per-resource basis via the collector. In the run report displayed at the end of
-		// a cloud-nuke run, we show exactly which resources deleted cleanly and which encountered errors
-		nukeAllResourcesInRegion(account, region, collector)
+		if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
+			allErrors = multierror.Append(allErrors, err)
+		}
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Done Nuking Region",
 		}, map[string]interface{}{
@@ -249,5 +259,5 @@ func NukeAllResources(account *AwsAccountResources, regions []string, collector 
 	// Emit NukeComplete event (triggers final output in renderers)
 	collector.Emit(reporting.NukeComplete{})
 
-	return nil
+	return allErrors.ErrorOrNil()
 }
