@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
 
@@ -79,7 +79,8 @@ func deleteGCSBucket(ctx context.Context, client *storage.Client, name *string) 
 	// Delete the bucket
 	deleteErr := bucket.Delete(ctx)
 	if deleteErr != nil {
-		if strings.Contains(deleteErr.Error(), "bucket is not empty") {
+		var apiErr *googleapi.Error
+		if errors.As(deleteErr, &apiErr) && apiErr.Code == 409 {
 			// Bucket may have versioned objects, try force delete
 			if forceErr := forceEmptyBucket(ctx, bucket, bucketName); forceErr != nil {
 				return fmt.Errorf("error force emptying bucket %s: %w", bucketName, forceErr)
