@@ -2,7 +2,7 @@
 #
 # Validates naming conventions for cloud-nuke resources and config keys.
 #
-# Resource type names (ResourceTypeName in aws/resources/*.go):
+# Resource type names (ResourceTypeName in <provider>/resources/**/*.go):
 #   - Must be lowercase kebab-case: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
 #   - Must be unique across all resources
 #
@@ -19,10 +19,26 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # --- Check ResourceTypeName values ---
 echo "Checking ResourceTypeName conventions..."
 
+# Discover all provider resource directories (aws/resources, gcp/resources, etc.)
+RESOURCE_DIRS=()
+for dir in "$ROOT"/*/resources; do
+  [[ -d "$dir" ]] && RESOURCE_DIRS+=("$dir")
+done
+
+if [[ ${#RESOURCE_DIRS[@]} -eq 0 ]]; then
+  echo "  ERROR: No resource directories found"
+  exit 1
+fi
+
 # Extract all ResourceTypeName values (skip comments)
-NAMES=$(grep -rh 'ResourceTypeName:' "$ROOT/aws/resources/" --include='*.go' \
+NAMES=$(grep -rh 'ResourceTypeName:' "${RESOURCE_DIRS[@]}" --include='*.go' \
   | grep -v '^\s*//' \
-  | sed -n 's/.*ResourceTypeName:[[:space:]]*"\([^"]*\)".*/\1/p')
+  | sed -n 's/.*ResourceTypeName:[[:space:]]*"\([^"]*\)".*/\1/p') || true
+
+if [[ -z "$NAMES" ]]; then
+  echo "  ERROR: No ResourceTypeName values found"
+  exit 1
+fi
 
 KEBAB_PATTERN='^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
 while IFS= read -r name; do
@@ -49,10 +65,12 @@ CONFIG_BLOCK=$(sed -n '/^type Config struct {$/,/^}$/p' "$ROOT/config/config.go"
   | sed '$d')
 
 PASCAL_PATTERN='^[A-Z][A-Za-z0-9]*$'
+TAG_COUNT=0
 while IFS= read -r line; do
   # Extract yaml tag (strip ,inline etc.)
   tag=$(echo "$line" | sed -n 's/.*yaml:"\([^",]*\).*/\1/p')
   [[ -z "$tag" ]] && continue
+  TAG_COUNT=$((TAG_COUNT + 1))
 
   # Check PascalCase
   if ! [[ "$tag" =~ $PASCAL_PATTERN ]]; then
@@ -75,6 +93,8 @@ if [[ -n "$YAML_DUPES" ]]; then
   echo "  FAIL: Duplicate YAML tags: $YAML_DUPES"
   ERRORS=$((ERRORS + 1))
 fi
+
+echo "  Checked $TAG_COUNT YAML tags"
 
 if [[ $ERRORS -gt 0 ]]; then
   echo ""
