@@ -197,9 +197,9 @@ func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources,
 			if err != nil {
 				// Handle rate limiting
 				errMsg := err.Error()
-			if strings.Contains(errMsg, "RequestLimitExceeded") ||
-				strings.Contains(errMsg, "ThrottlingException") ||
-				strings.Contains(errMsg, "TooManyRequestsException") {
+				if strings.Contains(errMsg, "RequestLimitExceeded") ||
+					strings.Contains(errMsg, "ThrottlingException") ||
+					strings.Contains(errMsg, "TooManyRequestsException") {
 					logging.Debug(
 						"Request limit reached. Waiting 1 minute before making new requests",
 					)
@@ -209,7 +209,7 @@ func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources,
 
 				allErrors = multierror.Append(allErrors, fmt.Errorf("[%s] %s: %w", region, (*awsResource).ResourceName(), err))
 
-			// Report to telemetry - aggregated metrics of failures per resources.
+				// Report to telemetry - aggregated metrics of failures per resources.
 				telemetry.TrackEvent(commonTelemetry.EventContext{
 					EventName: fmt.Sprintf("error:Nuke:%s", (*awsResource).ResourceName()),
 				}, map[string]interface{}{
