@@ -16,7 +16,9 @@ import (
 func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -25,7 +27,9 @@ func ConvertS3TypesTagsToMap(tags []s3types.Tag) map[string]string {
 func ConvertTypesTagsToMap(tags []ec2types.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap
@@ -33,7 +37,9 @@ func ConvertTypesTagsToMap(tags []ec2types.Tag) map[string]string {
 func ConvertSecretsManagerTagsToMap(tags []secretsmanagertypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
 	}
 
 	return tagMap

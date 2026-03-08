@@ -84,8 +84,19 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 	// Wait for the deletion to start
 	time.Sleep(3 * time.Second)
 
-	// Poll for deletion completion
+	// Poll for deletion completion with a maximum timeout of 5 minutes
+	const maxWait = 5 * time.Minute
+	const pollInterval = 3 * time.Second
+	deadline := time.Now().Add(maxWait)
+
 	for {
+		if err := ctx.Err(); err != nil {
+			return errors.WithStackTrace(fmt.Errorf("context cancelled while waiting for deletion of IAM ServiceLinked Role %s: %w", aws.ToString(roleName), err))
+		}
+		if time.Now().After(deadline) {
+			return errors.WithStackTrace(fmt.Errorf("timed out after %s waiting for deletion of IAM ServiceLinked Role %s", maxWait, aws.ToString(roleName)))
+		}
+
 		status, err := client.GetServiceLinkedRoleDeletionStatus(ctx, &iam.GetServiceLinkedRoleDeletionStatusInput{
 			DeletionTaskId: deletionData.DeletionTaskId,
 		})
@@ -98,7 +109,7 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 			return nil
 		case types.DeletionTaskStatusTypeInProgress:
 			logging.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.ToString(roleName))
-			time.Sleep(3 * time.Second)
+			time.Sleep(pollInterval)
 		default:
 			// Failed or unknown status
 			return errors.WithStackTrace(fmt.Errorf("deletion of IAM ServiceLinked Role %s failed with status %s", aws.ToString(roleName), string(status.Status)))
