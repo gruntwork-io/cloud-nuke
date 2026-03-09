@@ -142,6 +142,17 @@ func emptyConfig() *Config {
 	}
 }
 
+func TestNukeConfigFile(t *testing.T) {
+	// Validate the production nuke config used by scheduled GitHub Actions
+	configObj, err := GetConfig("../.github/nuke_config.yml")
+	require.NoError(t, err, "nuke_config.yml should parse without errors")
+	require.NotNil(t, configObj)
+
+	// Guard against an accidentally emptied or truncated config file
+	assert.NotEmpty(t, configObj.S3.ExcludeRule.NamesRegExp,
+		"S3 exclude rules should be populated from nuke_config.yml")
+}
+
 func TestConfig_Garbage(t *testing.T) {
 	configFilePath := "./mocks/garbage.yaml"
 	_, err := GetConfig(configFilePath)
