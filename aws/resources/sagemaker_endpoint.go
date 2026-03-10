@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
@@ -103,24 +102,6 @@ func shouldExcludeByTags(endpointName *string, tagMap map[string]string, cfg con
 			if pattern.RE.MatchString(tagValue) {
 				logging.Debugf("Excluding endpoint %s due to tag '%s' with value '%s' matching pattern '%s'",
 					*endpointName, tag, tagValue, pattern.RE.String())
-				return true
-			}
-		}
-	}
-
-	// Check the deprecated Tag/TagValue approach
-	if cfg.ExcludeRule.Tag != nil {
-		tagName := *cfg.ExcludeRule.Tag
-		if tagValue, hasTag := tagMap[tagName]; hasTag {
-			if cfg.ExcludeRule.TagValue != nil {
-				if cfg.ExcludeRule.TagValue.RE.MatchString(tagValue) {
-					logging.Debugf("Excluding endpoint %s due to deprecated tag '%s' with value '%s' matching pattern '%s'",
-						*endpointName, tagName, tagValue, cfg.ExcludeRule.TagValue.RE.String())
-					return true
-				}
-			} else if strings.EqualFold(tagValue, "true") {
-				logging.Debugf("Excluding endpoint %s due to deprecated tag '%s' with default value 'true'",
-					*endpointName, tagName)
 				return true
 			}
 		}

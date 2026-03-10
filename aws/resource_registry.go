@@ -1,13 +1,9 @@
 package aws
 
 import (
-	"reflect"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 )
-
-const Global = "global"
 
 // GetAllRegisteredResources - returns a list of all registered resources without initialization.
 // This is useful for listing all resources without initializing them.
@@ -21,7 +17,7 @@ func GetAllRegisteredResources() []*AwsResource {
 // GetAndInitRegisteredResources - returns a list of all registered resources with initialization.
 func GetAndInitRegisteredResources(session aws.Config, region string) []*AwsResource {
 	var registeredResources []AwsResource
-	if region == Global {
+	if region == GlobalRegion {
 		registeredResources = getRegisteredGlobalResources()
 	} else {
 		registeredResources = getRegisteredRegionalResources()
@@ -202,22 +198,7 @@ func toAwsResourcesPointer(resources []AwsResource) []*AwsResource {
 func initRegisteredResources(resources []*AwsResource, session aws.Config, region string) []*AwsResource {
 	for _, resource := range resources {
 		(*resource).Init(session)
-
-		// Note: only regional resources have the field `Region`, which is used for logging purposes only
-		setRegionForRegionalResource(resource, region)
 	}
 
 	return resources
-}
-
-func setRegionForRegionalResource(regionResource *AwsResource, region string) {
-	// Use reflection to set the Region field if the resource type has it
-	resourceValue := reflect.ValueOf(*regionResource) // Dereference the pointer
-	resourceValue = resourceValue.Elem()              // Get the underlying value
-	regionField := resourceValue.FieldByName("Region")
-
-	if regionField.IsValid() && regionField.CanSet() {
-		// The field is valid and can be set
-		regionField.SetString(region)
-	}
 }

@@ -26,7 +26,6 @@ func NewS3MultiRegionAccessPoints() AwsResource {
 		ResourceTypeName: "s3-multi-region-access-point",
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
 		BatchSize: 5,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ControlMultiRegionAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			cfg.Region = "us-west-2" // MRAP control-plane requests must be routed to us-west-2

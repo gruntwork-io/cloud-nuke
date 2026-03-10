@@ -33,7 +33,6 @@ func NewIAMRoles() AwsResource {
 	return NewAwsResource(&resource.Resource[IAMRolesAPI]{
 		ResourceTypeName: "iam-role",
 		BatchSize:        20,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMRolesAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = iam.NewFromConfig(cfg)

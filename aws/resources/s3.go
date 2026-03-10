@@ -59,7 +59,6 @@ func NewS3Buckets() AwsResource {
 	return NewAwsResource(&resource.Resource[S3API]{
 		ResourceTypeName: "s3",
 		BatchSize:        500,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3API], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = s3.NewFromConfig(cfg)

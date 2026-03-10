@@ -26,7 +26,6 @@ func NewDBGlobalClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[DBGlobalClustersAPI]{
 		ResourceTypeName: "rds-global-cluster",
 		BatchSize:        DefaultBatchSize,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBGlobalClustersAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = rds.NewFromConfig(cfg)

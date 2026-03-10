@@ -24,7 +24,6 @@ func NewIAMInstanceProfiles() AwsResource {
 	return NewAwsResource(&resource.Resource[IAMInstanceProfilesAPI]{
 		ResourceTypeName: "iam-instance-profile",
 		BatchSize:        20,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMInstanceProfilesAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = iam.NewFromConfig(cfg)

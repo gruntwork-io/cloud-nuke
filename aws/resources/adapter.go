@@ -142,14 +142,6 @@ func (a *AwsResourceAdapter[C]) Nuke(ctx context.Context, identifiers []string) 
 	return a.Resource.Nuke(ctx, identifiers)
 }
 
-// PrepareContext is a no-op for generic resources.
-// The generic Resource pattern passes context directly to Nuke() and Lister functions,
-// eliminating the need for context preparation. This method exists solely for
-// compatibility with the AwsResource interface.
-func (a *AwsResourceAdapter[C]) PrepareContext(_ context.Context, _ config.ResourceType) error {
-	return nil
-}
-
 // Compile-time interface satisfaction check.
 // This ensures AwsResourceAdapter correctly implements AwsResource at compile time.
 var _ AwsResource = (*AwsResourceAdapter[any])(nil)

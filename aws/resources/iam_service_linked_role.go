@@ -28,7 +28,6 @@ func NewIAMServiceLinkedRoles() AwsResource {
 	return NewAwsResource(&resource.Resource[IAMServiceLinkedRolesAPI]{
 		ResourceTypeName: "iam-service-linked-role",
 		BatchSize:        DefaultBatchSize,
-		IsGlobal:         true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[IAMServiceLinkedRolesAPI], cfg aws.Config) {
 			r.Scope.Region = "global"
 			r.Client = iam.NewFromConfig(cfg)
