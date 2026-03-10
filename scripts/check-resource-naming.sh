@@ -30,6 +30,8 @@ if [[ ${#RESOURCE_DIRS[@]} -eq 0 ]]; then
   exit 1
 fi
 
+echo "  Scanning: ${RESOURCE_DIRS[*]}"
+
 # Extract all ResourceTypeName values (skip comments)
 NAMES=$(grep -rh 'ResourceTypeName:' "${RESOURCE_DIRS[@]}" --include='*.go' \
   | grep -v '^\s*//' \
@@ -63,6 +65,11 @@ echo "Checking Config struct YAML tag conventions..."
 CONFIG_BLOCK=$(sed -n '/^type Config struct {$/,/^}$/p' "$ROOT/config/config.go" \
   | tail -n +2 \
   | sed '$d')
+
+if [[ -z "$CONFIG_BLOCK" ]]; then
+  echo "  ERROR: Could not extract Config struct from config/config.go"
+  exit 1
+fi
 
 PASCAL_PATTERN='^[A-Z][A-Za-z0-9]*$'
 TAG_COUNT=0
