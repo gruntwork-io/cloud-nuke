@@ -62,3 +62,16 @@ type ResourceExecutionTimeout struct {
 func (err ResourceExecutionTimeout) Error() string {
 	return fmt.Sprintf("execution timed out after: %v", err.Timeout)
 }
+
+// IsThrottlingError checks if the error is an AWS API throttling error
+// using structured error code matching via smithy.APIError.
+func IsThrottlingError(err error) bool {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "RequestLimitExceeded", "ThrottlingException", "TooManyRequestsException":
+			return true
+		}
+	}
+	return false
+}

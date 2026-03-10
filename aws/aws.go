@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -196,10 +195,7 @@ func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources,
 
 			if err != nil {
 				// Handle rate limiting
-				errMsg := err.Error()
-				if strings.Contains(errMsg, "RequestLimitExceeded") ||
-					strings.Contains(errMsg, "ThrottlingException") ||
-					strings.Contains(errMsg, "TooManyRequestsException") {
+				if util.IsThrottlingError(err) {
 					logging.Debug(
 						"Request limit reached. Waiting 1 minute before making new requests",
 					)
