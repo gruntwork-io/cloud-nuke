@@ -7,14 +7,14 @@ ACM:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ACMPCA:
@@ -25,14 +25,14 @@ ACMPCA:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 AMI:
@@ -43,14 +43,14 @@ AMI:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 APIGateway:
@@ -61,14 +61,14 @@ APIGateway:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 APIGatewayV2:
@@ -79,14 +79,14 @@ APIGatewayV2:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 AccessAnalyzer:
@@ -97,14 +97,14 @@ AccessAnalyzer:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 AutoScalingGroup:
@@ -115,14 +115,14 @@ AutoScalingGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 AppRunnerService:
@@ -133,14 +133,14 @@ AppRunnerService:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 BackupVault:
@@ -151,14 +151,14 @@ BackupVault:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ManagedPrometheus:
@@ -169,14 +169,14 @@ ManagedPrometheus:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 CloudWatchAlarm:
@@ -187,14 +187,14 @@ CloudWatchAlarm:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 CloudWatchDashboard:
@@ -205,14 +205,14 @@ CloudWatchDashboard:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 CloudWatchLogGroup:
@@ -223,14 +223,14 @@ CloudWatchLogGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 CloudTrailTrail:
@@ -241,14 +241,14 @@ CloudTrailTrail:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 CodeDeployApplications:
@@ -259,14 +259,14 @@ CodeDeployApplications:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ConfigServiceRecorder:
@@ -277,14 +277,14 @@ ConfigServiceRecorder:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ConfigServiceRule:
@@ -295,14 +295,14 @@ ConfigServiceRule:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DataSyncLocation:
@@ -313,14 +313,14 @@ DataSyncLocation:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DataSyncTask:
@@ -331,14 +331,14 @@ DataSyncTask:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DBGlobalClusters:
@@ -349,14 +349,14 @@ DBGlobalClusters:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DBClusters:
@@ -367,14 +367,14 @@ DBClusters:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DBInstances:
@@ -385,14 +385,14 @@ DBInstances:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DBGlobalClusterMemberships:
@@ -403,14 +403,14 @@ DBGlobalClusterMemberships:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DBSubnetGroups:
@@ -421,14 +421,14 @@ DBSubnetGroups:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 DynamoDB:
@@ -439,14 +439,14 @@ DynamoDB:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EBSVolume:
@@ -457,14 +457,14 @@ EBSVolume:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ElasticBeanstalk:
@@ -475,14 +475,14 @@ ElasticBeanstalk:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2:
@@ -493,14 +493,14 @@ EC2:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2DedicatedHosts:
@@ -511,14 +511,14 @@ EC2DedicatedHosts:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2DHCPOption:
@@ -529,14 +529,14 @@ EC2DHCPOption:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2KeyPairs:
@@ -547,14 +547,14 @@ EC2KeyPairs:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2IPAM:
@@ -565,14 +565,14 @@ EC2IPAM:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2IPAMPool:
@@ -583,14 +583,14 @@ EC2IPAMPool:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2IPAMResourceDiscovery:
@@ -601,14 +601,14 @@ EC2IPAMResourceDiscovery:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2IPAMScope:
@@ -619,14 +619,14 @@ EC2IPAMScope:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2Endpoint:
@@ -637,14 +637,14 @@ EC2Endpoint:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2Subnet:
@@ -656,14 +656,14 @@ EC2Subnet:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EC2PlacementGroups:
@@ -674,14 +674,14 @@ EC2PlacementGroups:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EgressOnlyInternetGateway:
@@ -692,14 +692,14 @@ EgressOnlyInternetGateway:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ECRRepository:
@@ -710,14 +710,14 @@ ECRRepository:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ECSCluster:
@@ -728,14 +728,14 @@ ECSCluster:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ECSService:
@@ -746,14 +746,14 @@ ECSService:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EKSCluster:
@@ -764,14 +764,14 @@ EKSCluster:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ELBv1:
@@ -782,14 +782,14 @@ ELBv1:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ELBv2:
@@ -800,14 +800,14 @@ ELBv2:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ElasticFileSystem:
@@ -818,14 +818,14 @@ ElasticFileSystem:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ElasticIP:
@@ -836,14 +836,14 @@ ElasticIP:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ElastiCache:
@@ -854,14 +854,14 @@ ElastiCache:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ElastiCacheParameterGroup:
@@ -872,14 +872,14 @@ ElastiCacheParameterGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 ElastiCacheSubnetGroup:
@@ -890,14 +890,14 @@ ElastiCacheSubnetGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EventBridge:
@@ -908,14 +908,14 @@ EventBridge:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EventBridgeArchive:
@@ -926,14 +926,14 @@ EventBridgeArchive:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EventBridgeRule:
@@ -944,14 +944,14 @@ EventBridgeRule:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EventBridgeSchedule:
@@ -962,14 +962,14 @@ EventBridgeSchedule:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 EventBridgeScheduleGroup:
@@ -980,14 +980,14 @@ EventBridgeScheduleGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 GuardDuty:
@@ -998,14 +998,14 @@ GuardDuty:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 IAMGroups:
@@ -1016,14 +1016,14 @@ IAMGroups:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 IAMPolicies:
@@ -1034,14 +1034,14 @@ IAMPolicies:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 IAMRoles:
@@ -1052,14 +1052,14 @@ IAMRoles:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 IAMServiceLinkedRoles:
@@ -1070,14 +1070,14 @@ IAMServiceLinkedRoles:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 IAMUsers:
@@ -1088,14 +1088,14 @@ IAMUsers:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 KMSCustomerKeys:
@@ -1107,14 +1107,14 @@ KMSCustomerKeys:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - alias/this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 KinesisStream:
@@ -1125,14 +1125,14 @@ KinesisStream:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 KinesisFirehose:
@@ -1143,14 +1143,14 @@ KinesisFirehose:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 LambdaFunction:
@@ -1161,14 +1161,14 @@ LambdaFunction:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 LambdaLayer:
@@ -1179,14 +1179,14 @@ LambdaLayer:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 LaunchConfiguration:
@@ -1197,14 +1197,14 @@ LaunchConfiguration:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 LaunchTemplate:
@@ -1215,14 +1215,14 @@ LaunchTemplate:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 MacieMember:
@@ -1233,14 +1233,14 @@ MacieMember:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 MSKCluster:
@@ -1251,14 +1251,14 @@ MSKCluster:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NATGateway:
@@ -1269,14 +1269,14 @@ NATGateway:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 OIDCProvider:
@@ -1287,14 +1287,14 @@ OIDCProvider:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 OpenSearchDomain:
@@ -1305,14 +1305,14 @@ OpenSearchDomain:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 Redshift:
@@ -1323,14 +1323,14 @@ Redshift:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 RDSSnapshot:
@@ -1341,14 +1341,14 @@ RDSSnapshot:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 RDSParameterGroup:
@@ -1359,14 +1359,14 @@ RDSParameterGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 RDSProxy:
@@ -1377,14 +1377,14 @@ RDSProxy:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 S3:
@@ -1395,14 +1395,14 @@ S3:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 S3AccessPoint:
@@ -1413,14 +1413,14 @@ S3AccessPoint:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 S3ObjectLambdaAccessPoint:
@@ -1431,14 +1431,14 @@ S3ObjectLambdaAccessPoint:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 S3MultiRegionAccessPoint:
@@ -1449,14 +1449,14 @@ S3MultiRegionAccessPoint:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SESIdentity:
@@ -1467,14 +1467,14 @@ SESIdentity:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SESConfigurationSet:
@@ -1485,14 +1485,14 @@ SESConfigurationSet:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SESReceiptRuleSet:
@@ -1503,14 +1503,14 @@ SESReceiptRuleSet:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SESReceiptFilter:
@@ -1521,14 +1521,14 @@ SESReceiptFilter:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SESEmailTemplates:
@@ -1539,14 +1539,14 @@ SESEmailTemplates:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SNS:
@@ -1557,14 +1557,14 @@ SNS:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SQS:
@@ -1575,14 +1575,14 @@ SQS:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SageMakerEndpoint:
@@ -1593,14 +1593,14 @@ SageMakerEndpoint:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
       - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SageMakerEndpointConfig:
@@ -1611,14 +1611,14 @@ SageMakerEndpointConfig:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
       - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SageMakerNotebook:
@@ -1629,14 +1629,14 @@ SageMakerNotebook:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SageMakerStudioDomain:
@@ -1650,14 +1650,14 @@ SecretsManager:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SecurityHub:
@@ -1668,14 +1668,14 @@ SecurityHub:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 Snapshots:
@@ -1686,14 +1686,14 @@ Snapshots:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 TransitGateway:
@@ -1704,14 +1704,14 @@ TransitGateway:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 TransitGatewayRouteTable:
@@ -1722,14 +1722,14 @@ TransitGatewayRouteTable:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 TransitGatewayVPCAttachment:
@@ -1740,14 +1740,14 @@ TransitGatewayVPCAttachment:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 TransitGatewayPeeringAttachment:
@@ -1758,14 +1758,14 @@ TransitGatewayPeeringAttachment:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 VPC:
@@ -1777,14 +1777,14 @@ VPC:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 Route53HostedZone:
@@ -1795,14 +1795,14 @@ Route53HostedZone:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 Route53CIDRCollection:
@@ -1813,14 +1813,14 @@ Route53CIDRCollection:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 Route53TrafficPolicy:
@@ -1831,14 +1831,14 @@ Route53TrafficPolicy:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 InternetGateway:
@@ -1849,14 +1849,14 @@ InternetGateway:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NetworkACL:
@@ -1867,14 +1867,14 @@ NetworkACL:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NetworkInterface:
@@ -1885,14 +1885,14 @@ NetworkInterface:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 SecurityGroup:
@@ -1904,14 +1904,14 @@ SecurityGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NetworkFirewall:
@@ -1922,14 +1922,14 @@ NetworkFirewall:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NetworkFirewallPolicy:
@@ -1940,14 +1940,14 @@ NetworkFirewallPolicy:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NetworkFirewallRuleGroup:
@@ -1958,14 +1958,14 @@ NetworkFirewallRuleGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NetworkFirewallTLSConfig:
@@ -1976,14 +1976,14 @@ NetworkFirewallTLSConfig:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 NetworkFirewallResourcePolicy:
@@ -1994,14 +1994,14 @@ NetworkFirewallResourcePolicy:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 VPCLatticeServiceNetwork:
@@ -2012,14 +2012,14 @@ VPCLatticeServiceNetwork:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 VPCLatticeService:
@@ -2030,14 +2030,14 @@ VPCLatticeService:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 VPCLatticeTargetGroup:
@@ -2048,14 +2048,14 @@ VPCLatticeTargetGroup:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 
@@ -2068,14 +2068,14 @@ RouteTable:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
 
@@ -2087,13 +2087,13 @@ VPCPeeringConnection:
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   exclude:
     names_regex:
     - this.*
     time_after: 2024-02-02T00:00:00Z
     time_before: 2024-01-01T00:00:00Z
     tags:
-      Environment: "^test.*$"
+      test: "true"
   timeout: 1h
   protect_until_expire: true
