@@ -12,6 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -81,27 +82,24 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 		return errors.WithStackTrace(err)
 	}
 
-	// Wait for the deletion to start
-	time.Sleep(3 * time.Second)
-
 	// Poll for deletion completion
-	for {
-		status, err := client.GetServiceLinkedRoleDeletionStatus(ctx, &iam.GetServiceLinkedRoleDeletionStatusInput{
-			DeletionTaskId: deletionData.DeletionTaskId,
-		})
-		if err != nil {
-			return errors.WithStackTrace(err)
-		}
+	return util.PollUntil(ctx, fmt.Sprintf("IAM ServiceLinked Role %s deletion", aws.ToString(roleName)), 3*time.Second, 5*time.Minute,
+		func(ctx context.Context) (bool, error) {
+			status, err := client.GetServiceLinkedRoleDeletionStatus(ctx, &iam.GetServiceLinkedRoleDeletionStatusInput{
+				DeletionTaskId: deletionData.DeletionTaskId,
+			})
+			if err != nil {
+				return false, errors.WithStackTrace(err)
+			}
 
-		switch status.Status {
-		case types.DeletionTaskStatusTypeSucceeded:
-			return nil
-		case types.DeletionTaskStatusTypeInProgress:
-			logging.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.ToString(roleName))
-			time.Sleep(3 * time.Second)
-		default:
-			// Failed or unknown status
-			return errors.WithStackTrace(fmt.Errorf("deletion of IAM ServiceLinked Role %s failed with status %s", aws.ToString(roleName), string(status.Status)))
-		}
-	}
+			switch status.Status {
+			case types.DeletionTaskStatusTypeSucceeded:
+				return true, nil
+			case types.DeletionTaskStatusTypeInProgress:
+				logging.Debugf("Deletion of IAM ServiceLinked Role %s is still in progress", aws.ToString(roleName))
+				return false, nil
+			default:
+				return false, fmt.Errorf("failed with status %s", string(status.Status))
+			}
+		})
 }

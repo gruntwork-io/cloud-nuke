@@ -56,10 +56,7 @@ func NewSageMakerStudio() AwsResource {
 			r.Client = sagemaker.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return config.ResourceType{
-				Timeout:            c.SageMakerStudioDomain.Timeout,
-				ProtectUntilExpire: c.SageMakerStudioDomain.ProtectUntilExpire,
-			}
+			return c.SageMakerStudioDomain
 		},
 		Lister: listSageMakerDomains,
 		Nuker:  nukeSageMakerDomains,
@@ -78,10 +75,20 @@ func listSageMakerDomains(ctx context.Context, client SageMakerStudioAPI, scope 
 		}
 
 		for _, domain := range page.Domains {
-			if domain.DomainId != nil {
-				logging.Debugf("Found SageMaker Studio domain: %s (Status: %s)", *domain.DomainId, domain.Status)
-				domainIDs = append(domainIDs, domain.DomainId)
+			if domain.DomainId == nil {
+				continue
 			}
+
+			if !cfg.ShouldInclude(config.ResourceValue{
+				Name: domain.DomainName,
+				Time: domain.CreationTime,
+			}) {
+				logging.Debugf("Skipping SageMaker Studio domain %s (filtered by config)", *domain.DomainId)
+				continue
+			}
+
+			logging.Debugf("Found SageMaker Studio domain: %s (Status: %s)", *domain.DomainId, domain.Status)
+			domainIDs = append(domainIDs, domain.DomainId)
 		}
 	}
 

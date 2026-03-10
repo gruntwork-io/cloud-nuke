@@ -23,6 +23,8 @@ func NewGCSBuckets() GcpResource {
 			r.Scope.ProjectID = projectID
 			client, err := storage.NewClient(context.Background())
 			if err != nil {
+				// Panic is recovered by GcpResourceAdapter.Init() and stored as initErr,
+				// causing subsequent GetAndSetIdentifiers/Nuke calls to return the error gracefully.
 				panic(fmt.Sprintf("failed to create GCS client: %v", err))
 			}
 			r.Client = client
