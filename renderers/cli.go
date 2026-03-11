@@ -149,7 +149,7 @@ func (r *CLIRenderer) printErrorsTable() {
 		{"Resource Type", "Description", "Error"},
 	}
 	for _, e := range r.errors {
-		tableData = append(tableData, []string{e.ResourceType, e.Description, e.Error})
+		tableData = append(tableData, []string{e.ResourceType, e.Description, util.Truncate(util.RemoveNewlines(e.Error), 120)})
 	}
 
 	_ = pterm.DefaultTable.

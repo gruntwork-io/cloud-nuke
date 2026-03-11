@@ -10,7 +10,7 @@ import (
 // GcpResource is an interface that represents a single GCP resource.
 // This interface is satisfied by GcpResourceAdapter[C] which wraps resource.Resource[C].
 type GcpResource interface {
-	Init(projectID string)
+	Init(cfg GcpConfig)
 	ResourceName() string
 	ResourceIdentifiers() []string
 	MaxBatchSize() int

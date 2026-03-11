@@ -21,8 +21,8 @@ func NewCloudFunctions() GcpResource {
 	return NewGcpResource(&resource.Resource[*functions.FunctionClient]{
 		ResourceTypeName: "cloud-function",
 		BatchSize:        DefaultBatchSize,
-		InitClient: WrapGcpInitClient(func(r *resource.Resource[*functions.FunctionClient], projectID string) {
-			r.Scope.ProjectID = projectID
+		InitClient: WrapGcpInitClient(func(r *resource.Resource[*functions.FunctionClient], cfg GcpConfig) {
+			r.Scope.ProjectID = cfg.ProjectID
 			client, err := functions.NewFunctionClient(context.Background())
 			if err != nil {
 				panic(fmt.Sprintf("failed to create Cloud Functions client: %v", err))

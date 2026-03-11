@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gruntwork-io/cloud-nuke/reporting"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -97,6 +98,28 @@ func TestCLIRenderer_ProgressEvents(t *testing.T) {
 	// NukeComplete stops progress bar
 	r.OnEvent(reporting.NukeComplete{})
 	assert.Nil(t, r.progressBar, "progress bar should be stopped after NukeComplete")
+}
+
+func TestCLIRenderer_MultilineErrorRendering(t *testing.T) {
+	var buf bytes.Buffer
+	r := NewCLIRenderer(&buf)
+
+	multilineError := "rpc error: code = PermissionDenied desc = Cloud Functions API has not been used\n" +
+		"in project 123456 before or it is disabled. Enable it by visiting\n" +
+		"https://console.developers.google.com/apis/api/cloudfunctions.googleapis.com\n" +
+		"then retry."
+
+	r.OnEvent(reporting.GeneralError{
+		ResourceType: "cloud-function",
+		Description:  "Unable to retrieve cloud-function",
+		Error:        multilineError,
+	})
+	r.OnEvent(reporting.ScanComplete{})
+
+	output := buf.String()
+	sanitized := util.Truncate(util.RemoveNewlines(multilineError), 120)
+	assert.Contains(t, output, sanitized)
+	assert.Contains(t, output, "cloud-function")
 }
 
 func TestCLIRenderer_LargeDatasetSummary(t *testing.T) {

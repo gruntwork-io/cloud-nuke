@@ -17,4 +17,7 @@ type (
 
 	// GcpProjectResources is a struct that represents the resources found in a single GCP project.
 	GcpProjectResources = resources.GcpProjectResources
+
+	// GcpConfig holds the configuration needed to initialize a GCP resource.
+	GcpConfig = resources.GcpConfig
 )

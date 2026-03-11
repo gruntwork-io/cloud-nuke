@@ -55,7 +55,7 @@ type Resource[C any] struct {
 
 	// InitClient initializes the client from cloud-specific config.
 	// For AWS: cfg is aws.Config
-	// For GCP: cfg is string (projectID)
+	// For GCP: cfg is resources.GcpConfig
 	// Set r.Client and r.Scope directly in this function.
 	InitClient func(r *Resource[C], cfg any)
 
@@ -89,7 +89,7 @@ type Resource[C any] struct {
 
 // Init initializes the resource with cloud-specific configuration.
 // For AWS: cfg should be aws.Config
-// For GCP: cfg should be string (projectID)
+// For GCP: cfg should be resources.GcpConfig
 // Must be called before GetAndSetIdentifiers or Nuke.
 func (r *Resource[C]) Init(cfg any) {
 	r.nukables = make(map[string]error)
