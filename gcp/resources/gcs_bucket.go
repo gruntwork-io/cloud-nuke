@@ -19,8 +19,8 @@ func NewGCSBuckets() GcpResource {
 	return NewGcpResource(&resource.Resource[*storage.Client]{
 		ResourceTypeName: "gcs-bucket",
 		BatchSize:        DefaultBatchSize,
-		InitClient: WrapGcpInitClient(func(r *resource.Resource[*storage.Client], projectID string) {
-			r.Scope.ProjectID = projectID
+		InitClient: WrapGcpInitClient(func(r *resource.Resource[*storage.Client], cfg GcpConfig) {
+			r.Scope.ProjectID = cfg.ProjectID
 			client, err := storage.NewClient(context.Background())
 			if err != nil {
 				// Panic is recovered by GcpResourceAdapter.Init() and stored as initErr,

@@ -58,6 +58,10 @@ func gcpNuke(c *cli.Context) error {
 	outputFormat := c.String(FlagOutputFormat)
 	outputFile := c.String(FlagOutputFile)
 
+	if err := query.Validate(); err != nil {
+		return err
+	}
+
 	return gcpNukeHelper(c, configObj, query, outputFormat, outputFile)
 }
 
@@ -95,6 +99,10 @@ func gcpInspect(c *cli.Context) error {
 	// Get output preferences
 	outputFormat := c.String(FlagOutputFormat)
 	outputFile := c.String(FlagOutputFile)
+
+	if err := query.Validate(); err != nil {
+		return err
+	}
 
 	// Retrieve and display resources without deleting them
 	_, err := handleGetGcpResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
@@ -134,7 +142,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, query *gcp.Query, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		if err := gcp.NukeAllResources(c.Context, account, configObj, collector); err != nil {
+		if err := gcp.NukeAllResources(c.Context, account, query.Regions, collector); err != nil {
 			return err
 		}
 	}
