@@ -16,7 +16,7 @@ import (
 )
 
 // GetAllResources lists all GCP resources that can be deleted.
-func GetAllResources(ctx context.Context, projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time, collector *reporting.Collector) (*GcpProjectResources, error) {
+func GetAllResources(ctx context.Context, query *Query, configObj config.Config, collector *reporting.Collector) (*GcpProjectResources, error) {
 	allResources := GcpProjectResources{
 		Resources: map[string]GcpResources{},
 	}
@@ -33,12 +33,12 @@ func GetAllResources(ctx context.Context, projectID string, configObj config.Con
 		})
 
 		// Initialize the resource
-		resourceType.Init(projectID)
+		resourceType.Init(query.ProjectID)
 
 		// Get all resource identifiers
 		identifiers, err := resourceType.GetAndSetIdentifiers(ctx, configObj)
 		if err != nil {
-			if isServiceDisabledError(err) {
+			if isServiceDisabledError(err) && !isTargeted(resourceType.ResourceName(), query.ResourceTypes) {
 				logging.Debugf("Skipping %s: API is disabled in this project", resourceType.ResourceName())
 				continue
 			}
@@ -183,6 +183,15 @@ func nukeResource(ctx context.Context, gcpResource *GcpResource, configObj confi
 	}
 
 	return allErrors.ErrorOrNil()
+}
+
+func isTargeted(name string, resourceTypes []string) bool {
+	for _, t := range resourceTypes {
+		if t == name {
+			return true
+		}
+	}
+	return false
 }
 
 // getAllResourceTypes - Returns all GCP resource types that can be deleted
