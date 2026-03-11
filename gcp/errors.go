@@ -3,11 +3,18 @@ package gcp
 import (
 	"errors"
 
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// InvalidResourceTypesSuppliedError is returned when invalid resource type names are provided.
+type InvalidResourceTypesSuppliedError = util.InvalidResourceTypesSuppliedError
+
+// ResourceTypeAndExcludeFlagsBothPassedError is returned when both --resource-type and --exclude-resource-type are specified.
+type ResourceTypeAndExcludeFlagsBothPassedError = util.ResourceTypeAndExcludeFlagsBothPassedError
 
 // isServiceDisabledError checks whether the error (or any wrapped cause) is a
 // gRPC SERVICE_DISABLED error from googleapis.com. It walks the error chain

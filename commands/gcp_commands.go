@@ -1,11 +1,8 @@
 package commands
 
 import (
-	"time"
-
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/gcp"
-	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
@@ -18,10 +15,7 @@ import (
 // These functions implement the CLI commands for GCP operations
 
 // gcpNuke is the main command handler for nuking (deleting) GCP resources.
-// It supports time-based filtering and config file overrides.
-//
-// Note: The --resource-type and --exclude-resource-type flags are currently ignored for GCP.
-// GCP always processes all resource types. This should be implemented in a future PR.
+// It supports time-based filtering, config file overrides, and resource type filtering.
 func gcpNuke(c *cli.Context) error {
 	defer telemetry.TrackCommandLifecycle("gcp")()
 
@@ -30,9 +24,13 @@ func gcpNuke(c *cli.Context) error {
 		return handleListGcpResourceTypes()
 	}
 
-	// --resource-type and --exclude-resource-type are not yet supported for GCP
-	if c.IsSet(FlagResourceType) || c.IsSet(FlagExcludeResourceType) {
-		logging.Warn("--resource-type and --exclude-resource-type are not yet supported for GCP commands; all GCP resource types will be processed")
+	// Resolve resource type selections
+	resourceTypes, err := gcp.HandleResourceTypeSelections(
+		c.StringSlice(FlagResourceType),
+		c.StringSlice(FlagExcludeResourceType),
+	)
+	if err != nil {
+		return err
 	}
 
 	// Parse and set log level
@@ -62,14 +60,11 @@ func gcpNuke(c *cli.Context) error {
 	outputFormat := c.String(FlagOutputFormat)
 	outputFile := c.String(FlagOutputFile)
 
-	return gcpNukeHelper(c, configObj, projectID, outputFormat, outputFile)
+	return gcpNukeHelper(c, configObj, projectID, resourceTypes, outputFormat, outputFile)
 }
 
 // gcpInspect is the command handler for non-destructive inspection of GCP resources.
 // It lists resources that would be deleted without actually deleting them.
-//
-// Note: The --resource-type and --exclude-resource-type flags are currently ignored for GCP.
-// GCP always inspects all resource types. This should be implemented in a future PR.
 func gcpInspect(c *cli.Context) error {
 	defer telemetry.TrackCommandLifecycle("gcp-inspect")()
 
@@ -78,9 +73,13 @@ func gcpInspect(c *cli.Context) error {
 		return handleListGcpResourceTypes()
 	}
 
-	// --resource-type and --exclude-resource-type are not yet supported for GCP
-	if c.IsSet(FlagResourceType) || c.IsSet(FlagExcludeResourceType) {
-		logging.Warn("--resource-type and --exclude-resource-type are not yet supported for GCP commands; all GCP resource types will be processed")
+	// Resolve resource type selections
+	resourceTypes, err := gcp.HandleResourceTypeSelections(
+		c.StringSlice(FlagResourceType),
+		c.StringSlice(FlagExcludeResourceType),
+	)
+	if err != nil {
+		return err
 	}
 
 	// Parse and set log level
@@ -101,7 +100,7 @@ func gcpInspect(c *cli.Context) error {
 	outputFile := c.String(FlagOutputFile)
 
 	// Retrieve and display resources without deleting them
-	_, err := handleGetGcpResourcesWithFormat(c, configObj, projectID, outputFormat, outputFile)
+	_, err = handleGetGcpResourcesWithFormat(c, configObj, projectID, resourceTypes, outputFormat, outputFile)
 	return err
 }
 
@@ -110,7 +109,7 @@ func gcpInspect(c *cli.Context) error {
 
 // gcpNukeHelper is the core logic for nuking GCP resources.
 // It retrieves resources, confirms deletion with the user, and executes the nuke operation.
-func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) error {
+func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, resourceTypes []string, outputFormat string, outputFile string) error {
 	// Setup reporting - cleanup calls Complete() and closes writer
 	collector, cleanup, err := setupGcpReporting(outputFormat, outputFile, projectID)
 	if err != nil {
@@ -119,7 +118,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, ou
 	defer cleanup()
 
 	// Retrieve all matching resources (emits ResourceFound events via collector)
-	account, err := gcp.GetAllResources(c.Context, projectID, configObj, time.Time{}, time.Time{}, collector)
+	account, err := gcp.GetAllResources(c.Context, projectID, configObj, resourceTypes, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -148,7 +147,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, ou
 
 // handleGetGcpResourcesWithFormat retrieves all GCP resources matching the filters and renders them
 // in the specified output format. This is used for inspect operations only.
-func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, projectID string, outputFormat string, outputFile string) (
+func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, projectID string, resourceTypes []string, outputFormat string, outputFile string) (
 	*gcp.GcpProjectResources, error) {
 	// Setup reporting - cleanup calls Complete() and closes writer
 	collector, cleanup, err := setupGcpReporting(outputFormat, outputFile, projectID)
@@ -158,7 +157,7 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, pr
 	defer cleanup()
 
 	// Retrieve all resources matching the filters (emits ResourceFound events via collector)
-	accountResources, err := gcp.GetAllResources(c.Context, projectID, configObj, time.Time{}, time.Time{}, collector)
+	accountResources, err := gcp.GetAllResources(c.Context, projectID, configObj, resourceTypes, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",

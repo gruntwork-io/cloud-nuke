@@ -15,7 +15,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/go-commons/collections"
 )
 
 // GetAllResources - Lists all aws resources
@@ -136,19 +135,16 @@ func ListResourceTypes() []string {
 	return resourceTypes
 }
 
-// IsValidResourceType - Checks if a resourceType is valid or not
+// IsValidResourceType checks if a resourceType is valid or not.
 func IsValidResourceType(resourceType string, allResourceTypes []string) bool {
-	return collections.ListContainsElement(allResourceTypes, resourceType)
+	return util.IsValidResourceType(resourceType, allResourceTypes)
 }
 
-// IsNukeable - Checks if we should nuke a resource or not
+// IsNukeable checks if a resource type should be processed given the selected resource types.
+// A nil slice means no filter was applied — all types are nukeable.
+// A non-nil empty slice means all types were excluded — nothing is nukeable.
 func IsNukeable(resourceType string, resourceTypes []string) bool {
-	if len(resourceTypes) == 0 ||
-		collections.ListContainsElement(resourceTypes, "all") ||
-		collections.ListContainsElement(resourceTypes, resourceType) {
-		return true
-	}
-	return false
+	return util.IsNukeable(resourceType, resourceTypes)
 }
 
 func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources, region string, collector *reporting.Collector) error {

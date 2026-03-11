@@ -122,7 +122,8 @@ func TestIsNukeable(t *testing.T) {
 
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{ec2ResourceName}), true)
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{"all"}), true)
-	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{}), true)
+	assert.Equal(t, aws.IsNukeable(ec2ResourceName, nil), true)             // nil = no filter, all types
+	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{}), false)     // non-nil empty = no types
 	assert.Equal(t, aws.IsNukeable(ec2ResourceName, []string{amiResourceName}), false)
 }
 

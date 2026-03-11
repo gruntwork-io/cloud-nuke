@@ -3,6 +3,7 @@ package gcp
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -16,16 +17,23 @@ import (
 )
 
 // GetAllResources lists all GCP resources that can be deleted.
-func GetAllResources(ctx context.Context, projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time, collector *reporting.Collector) (*GcpProjectResources, error) {
+// The resourceTypes parameter filters which resource types to process.
+// A nil slice means all types; a non-nil empty slice means no types.
+func GetAllResources(ctx context.Context, projectID string, configObj config.Config, resourceTypes []string, collector *reporting.Collector) (*GcpProjectResources, error) {
 	allResources := GcpProjectResources{
 		Resources: map[string]GcpResources{},
 	}
 
 	// Get all resource types to delete
-	resourceTypes := getAllResourceTypes()
+	allResourceTypes := getAllResourceTypes()
 
 	// For each resource type
-	for _, resourceType := range resourceTypes {
+	for _, resourceType := range allResourceTypes {
+		// Skip resource types not selected by the user
+		if !IsNukeable(resourceType.ResourceName(), resourceTypes) {
+			continue
+		}
+
 		// Emit scan progress event
 		collector.Emit(reporting.ScanProgress{
 			ResourceType: resourceType.ResourceName(),
@@ -181,7 +189,7 @@ func nukeResource(ctx context.Context, gcpResource *GcpResource, configObj confi
 	return allErrors.ErrorOrNil()
 }
 
-// getAllResourceTypes - Returns all GCP resource types that can be deleted
+// getAllResourceTypes returns all GCP resource types that can be deleted.
 func getAllResourceTypes() []GcpResource {
 	return []GcpResource{
 		resources.NewGCSBuckets(),
@@ -189,11 +197,32 @@ func getAllResourceTypes() []GcpResource {
 	}
 }
 
-// ListResourceTypes - Returns list of resources which can be passed to --resource-type
+// ListResourceTypes returns a sorted list of GCP resource type names that can be
+// passed to --resource-type.
 func ListResourceTypes() []string {
 	resourceTypes := []string{}
 	for _, r := range getAllResourceTypes() {
 		resourceTypes = append(resourceTypes, r.ResourceName())
 	}
+	sort.Strings(resourceTypes)
 	return resourceTypes
+}
+
+// IsValidResourceType checks if the given resource type is a valid GCP resource type.
+func IsValidResourceType(resourceType string) bool {
+	return util.IsValidResourceType(resourceType, ListResourceTypes())
+}
+
+// IsNukeable checks if a resource type should be processed given the selected resource types.
+// A nil slice means no filter was applied — all types are nukeable.
+// A non-nil empty slice means all types were excluded — nothing is nukeable.
+func IsNukeable(resourceType string, resourceTypes []string) bool {
+	return util.IsNukeable(resourceType, resourceTypes)
+}
+
+// HandleResourceTypeSelections validates and resolves the include/exclude resource type flags
+// into a final list of resource types to process. The two flags are mutually exclusive.
+// A nil return means "all types"; a non-nil empty return means "no types".
+func HandleResourceTypeSelections(includeResourceTypes, excludeResourceTypes []string) ([]string, error) {
+	return util.HandleResourceTypeSelections(includeResourceTypes, excludeResourceTypes, ListResourceTypes())
 }

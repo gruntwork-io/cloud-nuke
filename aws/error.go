@@ -1,6 +1,10 @@
 package aws
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/gruntwork-io/cloud-nuke/util"
+)
 
 type CouldNotSelectRegionError struct {
 	Underlying error
@@ -18,19 +22,11 @@ func (err CouldNotDetermineEnabledRegionsError) Error() string {
 	return fmt.Sprintf("Unable to determine enabled regions in target account. Original error: %v", err.Underlying)
 }
 
-type InvalidResourceTypesSuppliedError struct {
-	InvalidTypes []string
-}
+// InvalidResourceTypesSuppliedError is returned when invalid resource type names are provided.
+type InvalidResourceTypesSuppliedError = util.InvalidResourceTypesSuppliedError
 
-func (err InvalidResourceTypesSuppliedError) Error() string {
-	return fmt.Sprintf("Invalid resourceTypes %s specified: %s", err.InvalidTypes, "Try --list-resource-types to get a list of valid resource types.")
-}
-
-type ResourceTypeAndExcludeFlagsBothPassedError struct{}
-
-func (err ResourceTypeAndExcludeFlagsBothPassedError) Error() string {
-	return "You can not specify both --resource-type and --exclude-resource-type"
-}
+// ResourceTypeAndExcludeFlagsBothPassedError is returned when both --resource-type and --exclude-resource-type are specified.
+type ResourceTypeAndExcludeFlagsBothPassedError = util.ResourceTypeAndExcludeFlagsBothPassedError
 
 type InvalidTimeStringPassedError struct {
 	Entry      string
