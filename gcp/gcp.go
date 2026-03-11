@@ -3,7 +3,6 @@ package gcp
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -13,10 +12,11 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
+	"github.com/hashicorp/go-multierror"
 )
 
 // GetAllResources lists all GCP resources that can be deleted.
-func GetAllResources(projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time, collector *reporting.Collector) (*GcpProjectResources, error) {
+func GetAllResources(ctx context.Context, projectID string, configObj config.Config, excludeAfter time.Time, includeAfter time.Time, collector *reporting.Collector) (*GcpProjectResources, error) {
 	allResources := GcpProjectResources{
 		Resources: map[string]GcpResources{},
 	}
@@ -36,7 +36,7 @@ func GetAllResources(projectID string, configObj config.Config, excludeAfter tim
 		resourceType.Init(projectID)
 
 		// Get all resource identifiers
-		identifiers, err := resourceType.GetAndSetIdentifiers(context.Background(), configObj)
+		identifiers, err := resourceType.GetAndSetIdentifiers(ctx, configObj)
 		if err != nil {
 			logging.Debugf("Error getting identifiers for %s: %v", resourceType.ResourceName(), err)
 			collector.Emit(reporting.GeneralError{
@@ -78,22 +78,28 @@ func GetAllResources(projectID string, configObj config.Config, excludeAfter tim
 }
 
 // NukeAllResources nukes all GCP resources
-func NukeAllResources(account *GcpProjectResources, configObj config.Config, collector *reporting.Collector) {
+func NukeAllResources(ctx context.Context, account *GcpProjectResources, configObj config.Config, collector *reporting.Collector) error {
 	// Emit NukeStarted event (CLIRenderer will initialize progress bar)
 	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
+
+	var allErrors *multierror.Error
 
 	resourcesInRegion := account.Resources["global"]
 
 	for _, gcpResource := range resourcesInRegion.Resources {
-		nukeResource(gcpResource, configObj, collector)
+		if err := nukeResource(ctx, gcpResource, configObj, collector); err != nil {
+			allErrors = multierror.Append(allErrors, err)
+		}
 	}
 
 	// Emit NukeComplete event (triggers final output in renderers)
 	collector.Emit(reporting.NukeComplete{})
+
+	return allErrors.ErrorOrNil()
 }
 
 // nukeResource nukes a single GCP resource type
-func nukeResource(gcpResource *GcpResource, configObj config.Config, collector *reporting.Collector) {
+func nukeResource(ctx context.Context, gcpResource *GcpResource, configObj config.Config, collector *reporting.Collector) error {
 	// Filter to only nukable resources
 	var nukableIdentifiers []string
 	for _, id := range (*gcpResource).ResourceIdentifiers() {
@@ -105,11 +111,10 @@ func nukeResource(gcpResource *GcpResource, configObj config.Config, collector *
 	}
 
 	if len(nukableIdentifiers) == 0 {
-		return
+		return nil
 	}
 
-	// Create context with timeout from resource config
-	ctx := context.Background()
+	// Apply timeout from resource config on top of the caller-provided context
 	resourceConfig := (*gcpResource).GetAndSetResourceConfig(configObj)
 	if resourceConfig.Timeout != "" {
 		if duration, err := time.ParseDuration(resourceConfig.Timeout); err == nil {
@@ -122,6 +127,8 @@ func nukeResource(gcpResource *GcpResource, configObj config.Config, collector *
 	// Split API calls into batches
 	logging.Debugf("Terminating %d %s in batches", len(nukableIdentifiers), (*gcpResource).ResourceName())
 	batches := util.Split(nukableIdentifiers, (*gcpResource).MaxBatchSize())
+
+	var allErrors *multierror.Error
 
 	for i, batch := range batches {
 		// Emit progress event (CLIRenderer updates its progress bar)
@@ -149,13 +156,15 @@ func nukeResource(gcpResource *GcpResource, configObj config.Config, collector *
 		}
 
 		if err != nil {
-			if strings.Contains(err.Error(), "QUOTA_EXCEEDED") {
+			if isQuotaExhaustedError(err) {
 				logging.Debug(
 					"Quota exceeded. Waiting 1 minute before making new requests",
 				)
 				time.Sleep(1 * time.Minute)
 				continue
 			}
+
+			allErrors = multierror.Append(allErrors, fmt.Errorf("[global] %s: %w", (*gcpResource).ResourceName(), err))
 
 			// Report to telemetry - aggregated metrics of failures per resources.
 			telemetry.TrackEvent(commonTelemetry.EventContext{
@@ -168,6 +177,8 @@ func nukeResource(gcpResource *GcpResource, configObj config.Config, collector *
 			time.Sleep(10 * time.Second)
 		}
 	}
+
+	return allErrors.ErrorOrNil()
 }
 
 // getAllResourceTypes - Returns all GCP resource types that can be deleted

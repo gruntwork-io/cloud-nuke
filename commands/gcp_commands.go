@@ -119,7 +119,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, ou
 	defer cleanup()
 
 	// Retrieve all matching resources (emits ResourceFound events via collector)
-	account, err := gcp.GetAllResources(projectID, configObj, time.Time{}, time.Time{}, collector)
+	account, err := gcp.GetAllResources(c.Context, projectID, configObj, time.Time{}, time.Time{}, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -138,7 +138,9 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, projectID string, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		gcp.NukeAllResources(account, configObj, collector)
+		if err := gcp.NukeAllResources(c.Context, account, configObj, collector); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -156,7 +158,7 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, pr
 	defer cleanup()
 
 	// Retrieve all resources matching the filters (emits ResourceFound events via collector)
-	accountResources, err := gcp.GetAllResources(projectID, configObj, time.Time{}, time.Time{}, collector)
+	accountResources, err := gcp.GetAllResources(c.Context, projectID, configObj, time.Time{}, time.Time{}, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
