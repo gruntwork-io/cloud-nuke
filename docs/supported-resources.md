@@ -278,6 +278,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 
 | CLI ID | Resource |
 |---|---|
+| `artifact-registry` | Artifact Registry Repository |
 | `cloud-function` | Cloud Functions (Gen2) |
 | `gcs-bucket` | Google Cloud Storage Bucket |
 
@@ -285,6 +286,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 
 | Resource Type | Config Key | names_regex | time | timeout |
 |---|---|---|---|---|
+| artifact-registry | ArtifactRegistry | ✓ | ✓ | ✓ |
 | cloud-function | CloudFunction | ✓ | ✓ | ✓ |
 | gcs-bucket | GCSBucket | ✓ | ✓ | ✓ |
 
