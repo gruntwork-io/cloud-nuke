@@ -3,4 +3,5 @@ vendor
 .vscode
 cloud-nuke
 config.yaml
+.env
 .envrc
