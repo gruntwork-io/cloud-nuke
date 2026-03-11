@@ -128,6 +128,7 @@ func CreateCli(version string) *cli.App {
 				},
 			),
 		},
+		MCPCommand(version),
 	}
 
 	return app
