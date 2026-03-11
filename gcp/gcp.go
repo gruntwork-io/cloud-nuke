@@ -38,6 +38,10 @@ func GetAllResources(ctx context.Context, projectID string, configObj config.Con
 		// Get all resource identifiers
 		identifiers, err := resourceType.GetAndSetIdentifiers(ctx, configObj)
 		if err != nil {
+			if isServiceDisabledError(err) {
+				logging.Debugf("Skipping %s: API is disabled in this project", resourceType.ResourceName())
+				continue
+			}
 			logging.Debugf("Error getting identifiers for %s: %v", resourceType.ResourceName(), err)
 			collector.Emit(reporting.GeneralError{
 				ResourceType: resourceType.ResourceName(),

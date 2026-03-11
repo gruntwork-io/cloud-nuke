@@ -51,7 +51,7 @@ func Truncate(s string, maxLen int) string {
 // RemoveNewlines will delete all the newlines in a given string, which is useful for making error messages
 // "sit" more nicely within their specified table cells in the terminal
 func RemoveNewlines(s string) string {
-	return strings.ReplaceAll(s, "\n", "")
+	return strings.ReplaceAll(s, "\n", " ")
 }
 
 // ToStringPtrSlice converts a slice of strings to a slice of string pointers.
