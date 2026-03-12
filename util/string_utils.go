@@ -54,6 +54,23 @@ func RemoveNewlines(s string) string {
 	return strings.ReplaceAll(s, "\n", " ")
 }
 
+// DerefString safely dereferences a string pointer, returning "" for nil.
+func DerefString(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// DerefStringSlice dereferences a slice of string pointers to a slice of strings.
+func DerefStringSlice(ps []*string) []string {
+	result := make([]string, len(ps))
+	for i, p := range ps {
+		result[i] = DerefString(p)
+	}
+	return result
+}
+
 // ToStringPtrSlice converts a slice of strings to a slice of string pointers.
 func ToStringPtrSlice(strs []string) []*string {
 	result := make([]*string, len(strs))

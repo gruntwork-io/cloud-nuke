@@ -1,30 +1,14 @@
 package aws
 
 import (
-	"context"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/gruntwork-io/cloud-nuke/config"
-	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 )
-
-// AwsResource is an interface that represents a single AWS resource
-type AwsResource interface {
-	Init(cfg aws.Config)
-	ResourceName() string
-	ResourceIdentifiers() []string
-	MaxBatchSize() int
-	Nuke(ctx context.Context, identifiers []string) ([]resource.NukeResult, error)
-	GetAndSetIdentifiers(c context.Context, configObj config.Config) ([]string, error)
-	IsNukable(string) (bool, error)
-
-	GetAndSetResourceConfig(config.Config) config.ResourceType
-}
 
 // AwsResources is a struct to hold multiple instances of AwsResource.
 type AwsResources struct {
-	Resources []*AwsResource
+	Resources []*resources.AwsResource
 }
 
 // AwsAccountResources is a struct that represents the resources found in a single AWS account

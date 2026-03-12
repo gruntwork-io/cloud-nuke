@@ -7,7 +7,7 @@ import (
 
 // GetAllRegisteredResources - returns a list of all registered resources without initialization.
 // This is useful for listing all resources without initializing them.
-func GetAllRegisteredResources() []*AwsResource {
+func GetAllRegisteredResources() []*resources.AwsResource {
 	registeredResources := getRegisteredGlobalResources()
 	registeredResources = append(registeredResources, getRegisteredRegionalResources()...)
 
@@ -15,8 +15,8 @@ func GetAllRegisteredResources() []*AwsResource {
 }
 
 // GetAndInitRegisteredResources - returns a list of all registered resources with initialization.
-func GetAndInitRegisteredResources(session aws.Config, region string) []*AwsResource {
-	var registeredResources []AwsResource
+func GetAndInitRegisteredResources(session aws.Config, region string) []*resources.AwsResource {
+	var registeredResources []resources.AwsResource
 	if region == GlobalRegion {
 		registeredResources = getRegisteredGlobalResources()
 	} else {
@@ -34,8 +34,8 @@ func GetAndInitRegisteredResources(session aws.Config, region string) []*AwsReso
 // 4. Service Linked Roles (special AWS-managed roles)
 // 5. Instance Profiles (any remaining standalone profiles)
 // 6. Policies (now fully detached from all entities)
-func getRegisteredGlobalResources() []AwsResource {
-	return []AwsResource{
+func getRegisteredGlobalResources() []resources.AwsResource {
+	return []resources.AwsResource{
 		resources.NewCloudfrontDistributions(),
 		resources.NewDBGlobalClusters(),
 		// IAM deletion order: Users -> Groups -> Roles -> ServiceLinkedRoles -> InstanceProfiles -> Policies
@@ -54,11 +54,11 @@ func getRegisteredGlobalResources() []AwsResource {
 	}
 }
 
-func getRegisteredRegionalResources() []AwsResource {
+func getRegisteredRegionalResources() []resources.AwsResource {
 	// Note: The order is important because it determines the order of nuking resources. Some resources need to
 	// be deleted before others (Dependencies between resources exist). For example, we want to delete all EC2
 	// instances before deleting the VPC.
-	return []AwsResource{
+	return []resources.AwsResource{
 		resources.NewAccessAnalyzer(),
 		resources.NewACM(),
 		resources.NewACMPCA(),
@@ -186,19 +186,19 @@ func getRegisteredRegionalResources() []AwsResource {
 	}
 }
 
-func toAwsResourcesPointer(resources []AwsResource) []*AwsResource {
-	var awsResourcePointers []*AwsResource
-	for i := range resources {
-		awsResourcePointers = append(awsResourcePointers, &resources[i])
+func toAwsResourcesPointer(res []resources.AwsResource) []*resources.AwsResource {
+	var awsResourcePointers []*resources.AwsResource
+	for i := range res {
+		awsResourcePointers = append(awsResourcePointers, &res[i])
 	}
 
 	return awsResourcePointers
 }
 
-func initRegisteredResources(resources []*AwsResource, session aws.Config, region string) []*AwsResource {
-	for _, resource := range resources {
-		(*resource).Init(session)
+func initRegisteredResources(res []*resources.AwsResource, session aws.Config, region string) []*resources.AwsResource {
+	for _, r := range res {
+		(*r).Init(session)
 	}
 
-	return resources
+	return res
 }
