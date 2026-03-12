@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,7 +46,8 @@ func TestResource_GetAndSetIdentifiers(t *testing.T) {
 	r := &Resource[*mockClient]{
 		ResourceTypeName: "test",
 		Lister: func(ctx context.Context, client *mockClient, scope Scope, resourceCfg config.ResourceType) ([]*string, error) {
-			return []*string{aws.String("id-1"), aws.String("id-2")}, nil
+			id1, id2 := "id-1", "id-2"
+			return []*string{&id1, &id2}, nil
 		},
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return config.ResourceType{}
@@ -128,7 +129,8 @@ func TestResource_PermissionVerification(t *testing.T) {
 	r := &Resource[*mockClient]{
 		ResourceTypeName: "test",
 		Lister: func(ctx context.Context, client *mockClient, scope Scope, resourceCfg config.ResourceType) ([]*string, error) {
-			return []*string{aws.String("allowed"), aws.String("denied")}, nil
+			allowed, denied := "allowed", "denied"
+			return []*string{&allowed, &denied}, nil
 		},
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return config.ResourceType{}
@@ -178,7 +180,7 @@ func TestSimpleBatchDeleter(t *testing.T) {
 		return nil
 	})
 
-	ids := []*string{aws.String("1"), aws.String("2"), aws.String("3")}
+	ids := util.ToStringPtrSlice([]string{"1", "2", "3"})
 	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
 
 	assert.Len(t, results, 3)
@@ -195,7 +197,7 @@ func TestSequentialDeleter(t *testing.T) {
 		return nil
 	})
 
-	ids := []*string{aws.String("a"), aws.String("b"), aws.String("c")}
+	ids := util.ToStringPtrSlice([]string{"a", "b", "c"})
 	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
 
 	assert.Len(t, results, 3)
@@ -213,7 +215,7 @@ func TestSequentialDeleter_AccumulatesErrors(t *testing.T) {
 		return nil
 	})
 
-	ids := []*string{aws.String("ok"), aws.String("fail"), aws.String("also-ok")}
+	ids := util.ToStringPtrSlice([]string{"ok", "fail", "also-ok"})
 	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
 
 	assert.Len(t, results, 3)
@@ -236,7 +238,7 @@ func TestMultiStepDeleter(t *testing.T) {
 		},
 	)
 
-	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", util.ToStringPtrSlice([]string{"x"}))
 
 	assert.Len(t, results, 1)
 	assert.NoError(t, results[0].Error)
@@ -255,7 +257,7 @@ func TestMultiStepDeleter_StopsOnFailure(t *testing.T) {
 		},
 	)
 
-	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", util.ToStringPtrSlice([]string{"x"}))
 
 	assert.Len(t, results, 1)
 	assert.Error(t, results[0].Error)

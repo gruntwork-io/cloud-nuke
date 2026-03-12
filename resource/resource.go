@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -32,6 +31,19 @@ func (s Scope) String() string {
 		return s.ProjectID
 	}
 	return s.Region
+}
+
+// NukeableResource defines the common interface for all cloud resources that can be nuked.
+// This is embedded by provider-specific interfaces (AwsResource, GcpResource) which add
+// their own Init method with provider-specific config types.
+type NukeableResource interface {
+	ResourceName() string
+	ResourceIdentifiers() []string
+	MaxBatchSize() int
+	Nuke(ctx context.Context, identifiers []string) ([]NukeResult, error)
+	GetAndSetIdentifiers(ctx context.Context, configObj config.Config) ([]string, error)
+	IsNukable(string) (bool, error)
+	GetAndSetResourceConfig(config.Config) config.ResourceType
 }
 
 // Resource is the universal struct for all nukeable resources.
@@ -147,7 +159,7 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 		})
 	}
 
-	r.identifiers = aws.ToStringSlice(identifiers)
+	r.identifiers = util.DerefStringSlice(identifiers)
 	return r.identifiers, nil
 }
 
