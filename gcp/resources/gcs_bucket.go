@@ -18,7 +18,7 @@ import (
 func NewGCSBuckets() GcpResource {
 	return NewGcpResource(&resource.Resource[*storage.Client]{
 		ResourceTypeName: "gcs-bucket",
-		BatchSize:        DefaultBatchSize,
+		BatchSize:        resource.DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*storage.Client], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
 			client, err := storage.NewClient(context.Background())
@@ -54,6 +54,7 @@ func listGCSBuckets(ctx context.Context, client *storage.Client, scope resource.
 		resourceValue := config.ResourceValue{
 			Name: &bucket.Name,
 			Time: &bucket.Created,
+			Tags: bucket.Labels,
 		}
 
 		if cfg.ShouldInclude(resourceValue) {
@@ -105,7 +106,10 @@ func deleteGCSBucket(ctx context.Context, client *storage.Client, name *string) 
 }
 
 // emptyBucket deletes all objects in a bucket.
+// Returns an error if any object deletions fail, so the caller knows the bucket may not be fully empty.
 func emptyBucket(ctx context.Context, bucket *storage.BucketHandle, bucketName string) error {
+	var deleteErrors int
+	var lastErr error
 	it := bucket.Objects(ctx, nil)
 	for {
 		obj, err := it.Next()
@@ -118,15 +122,23 @@ func emptyBucket(ctx context.Context, bucket *storage.BucketHandle, bucketName s
 
 		if err := bucket.Object(obj.Name).Delete(ctx); err != nil {
 			logging.Debugf("Error deleting object %s in bucket %s: %v", obj.Name, bucketName, err)
+			lastErr = err
+			deleteErrors++
 			// Continue trying to delete other objects
 		}
+	}
+	if deleteErrors > 0 {
+		return fmt.Errorf("failed to delete %d objects in bucket %s (last error: %w)", deleteErrors, bucketName, lastErr)
 	}
 	return nil
 }
 
 // forceEmptyBucket deletes all object versions and delete markers in a bucket.
+// Continues on individual object deletion errors and returns the aggregate result.
 func forceEmptyBucket(ctx context.Context, bucket *storage.BucketHandle, bucketName string) error {
 	it := bucket.Objects(ctx, &storage.Query{Versions: true})
+	var deleteErrors int
+	var lastErr error
 	for {
 		obj, err := it.Next()
 		if errors.Is(err, iterator.Done) {
@@ -137,9 +149,14 @@ func forceEmptyBucket(ctx context.Context, bucket *storage.BucketHandle, bucketN
 		}
 
 		if err := bucket.Object(obj.Name).Generation(obj.Generation).Delete(ctx); err != nil {
-			return fmt.Errorf("error deleting object version %s (gen %d) in bucket %s: %w",
+			logging.Debugf("Error deleting object version %s (gen %d) in bucket %s: %v",
 				obj.Name, obj.Generation, bucketName, err)
+			deleteErrors++
+			lastErr = err
 		}
+	}
+	if deleteErrors > 0 {
+		return fmt.Errorf("failed to delete %d object versions in bucket %s (last error: %w)", deleteErrors, bucketName, lastErr)
 	}
 	return nil
 }

@@ -2,12 +2,27 @@ package gcp
 
 import (
 	"errors"
+	"fmt"
 
 	"google.golang.org/api/googleapi"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// ResourceInspectionError wraps errors from GCP resource scanning,
+// matching the pattern used by aws.ResourceInspectionError.
+type ResourceInspectionError struct {
+	Underlying error
+}
+
+func (err ResourceInspectionError) Error() string {
+	return fmt.Sprintf("Error encountered when querying for GCP resources. Original error: %v", err.Underlying)
+}
+
+func (err ResourceInspectionError) Unwrap() error {
+	return err.Underlying
+}
 
 // isServiceDisabledError checks whether the error (or any wrapped cause) is a
 // gRPC SERVICE_DISABLED error from googleapis.com. It walks the error chain

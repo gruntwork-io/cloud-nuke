@@ -177,7 +177,7 @@ func getEcsClusterFirstSeenTag(ctx context.Context, client ECSClustersAPI, clust
 
 	for _, tag := range clusterTags.Tags {
 		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err = util.ParseTimestamp(tag.Value)
+			firstSeenTime, err = util.ParseTimestampPtr(tag.Value)
 			if err != nil {
 				logging.Debugf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.ToString(clusterArn))
 				return firstSeenTime, errors.WithStackTrace(err)
@@ -198,7 +198,7 @@ func setEcsClusterFirstSeenTag(ctx context.Context, client ECSClustersAPI, clust
 		ResourceArn: clusterArn,
 		Tags: []types.Tag{
 			{
-				Key:   aws.String(firstSeenTagKey),
+				Key:   aws.String(util.FirstSeenTagKey),
 				Value: aws.String(firstSeenTime),
 			},
 		},

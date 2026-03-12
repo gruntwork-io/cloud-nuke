@@ -67,7 +67,7 @@ func listSecurityHubs(ctx context.Context, client SecurityHubAPI, _ resource.Sco
 }
 
 func shouldIncludeSecurityHub(hub *securityhub.DescribeHubOutput, cfg config.ResourceType) bool {
-	subscribedAt, err := util.ParseTimestamp(hub.SubscribedAt)
+	subscribedAt, err := util.ParseTimestampPtr(hub.SubscribedAt)
 	if err != nil {
 		logging.Debugf(
 			"Could not parse subscribedAt timestamp (%s) of security hub. Excluding from delete.", *hub.SubscribedAt)

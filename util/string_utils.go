@@ -26,11 +26,16 @@ func Split(identifiers []string, limit int) [][]string {
 func Difference(a, b []*string) []*string {
 	mb := make(map[string]bool, len(b))
 	for _, x := range b {
-		mb[*x] = true
+		if x != nil {
+			mb[*x] = true
+		}
 	}
 
 	var diff []*string
 	for _, x := range a {
+		if x == nil {
+			continue
+		}
 		if _, found := mb[*x]; !found {
 			diff = append(diff, x)
 		}
@@ -52,6 +57,24 @@ func Truncate(s string, maxLen int) string {
 // "sit" more nicely within their specified table cells in the terminal
 func RemoveNewlines(s string) string {
 	return strings.ReplaceAll(s, "\n", " ")
+}
+
+// DerefString safely dereferences a string pointer, returning empty string for nil.
+func DerefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// DerefStringSlice converts a slice of string pointers to a slice of strings.
+// Nil pointers are converted to empty strings.
+func DerefStringSlice(ptrs []*string) []string {
+	result := make([]string, len(ptrs))
+	for i, p := range ptrs {
+		result[i] = DerefString(p)
+	}
+	return result
 }
 
 // ToStringPtrSlice converts a slice of strings to a slice of string pointers.

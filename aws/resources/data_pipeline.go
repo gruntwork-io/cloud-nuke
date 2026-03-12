@@ -70,7 +70,7 @@ func listDataPipelines(ctx context.Context, client DataPipelineAPI, scope resour
 				rv := config.ResourceValue{Name: &name}
 				for _, field := range desc.Fields {
 					if aws.ToString(field.Key) == "@creationTime" {
-						rv.Time, _ = util.ParseTimestamp(field.StringValue)
+						rv.Time, _ = util.ParseTimestampPtr(field.StringValue)
 						break
 					}
 				}

@@ -151,7 +151,7 @@ func setOpenSearchFirstSeenTag(ctx context.Context, client OpenSearchDomainsAPI,
 		ARN: domainARN,
 		TagList: []types.Tag{
 			{
-				Key:   aws.String(firstSeenTagKey),
+				Key:   aws.String(util.FirstSeenTagKey),
 				Value: aws.String(firstSeenTime),
 			},
 		},
@@ -178,7 +178,7 @@ func getOpenSearchFirstSeenTag(ctx context.Context, client OpenSearchDomainsAPI,
 
 	for _, tag := range domainTags.TagList {
 		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestamp(tag.Value)
+			firstSeenTime, err := util.ParseTimestampPtr(tag.Value)
 			if err != nil {
 				logging.Errorf("Error parsing the `cloud-nuke-first-seen` tag for OpenSearch Domain with ARN %s", aws.ToString(domainARN))
 				return firstSeenTime, errors.WithStackTrace(err)

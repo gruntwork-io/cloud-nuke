@@ -58,7 +58,7 @@ func TestOpenSearch_GetAll(t *testing.T) {
 		},
 		ListTagsOutput: opensearch.ListTagsOutput{
 			TagList: []types.Tag{{
-				Key:   aws.String(firstSeenTagKey),
+				Key:   aws.String(util.FirstSeenTagKey),
 				Value: aws.String(util.FormatTimestamp(now)),
 			}},
 		},

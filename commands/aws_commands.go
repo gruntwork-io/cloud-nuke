@@ -99,6 +99,22 @@ func awsInspect(c *cli.Context) error {
 		return handleListResourceTypes()
 	}
 
+	// Parse and set log level
+	if err := parseLogLevel(c); err != nil {
+		return err
+	}
+
+	// Load config file if provided (matches awsNuke behavior)
+	configObj, err := loadConfigFile(c.String(FlagConfig))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	// Apply timeout to config (matches awsNuke behavior)
+	if err = parseAndApplyTimeout(c, &configObj); err != nil {
+		return err
+	}
+
 	// Build AWS query from CLI flags
 	query, err := generateQuery(c, c.Bool(FlagListUnaliasedKMSKeys), nil, false)
 	if err != nil {
@@ -110,7 +126,7 @@ func awsInspect(c *cli.Context) error {
 	outputFile := c.String(FlagOutputFile)
 
 	// Retrieve and display resources without deleting them
-	_, err = handleGetResourcesWithFormat(c, config.Config{}, query, outputFormat, outputFile)
+	_, err = handleGetResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
 	return err
 }
 

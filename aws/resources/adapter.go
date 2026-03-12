@@ -36,7 +36,6 @@ package resources
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -44,16 +43,13 @@ import (
 )
 
 const (
-	// DefaultWaitTimeout is the default timeout for AWS resource deletion waiters.
-	DefaultWaitTimeout = 5 * time.Minute
+	// DefaultWaitTimeout is an alias for resource.DefaultWaitTimeout.
+	// Kept here so existing AWS resource files can reference it without a package qualifier.
+	DefaultWaitTimeout = resource.DefaultWaitTimeout
 
-	// DefaultBatchSize is the default batch size for resource deletion operations.
-	DefaultBatchSize = 50
-
-	// firstSeenTagKey is a tag used to track resource creation time for resources
-	// that don't have a native created-at timestamp (e.g., EIP, ECS Clusters).
-	// This supports the `--older-than <duration>` filtering in cloud-nuke.
-	firstSeenTagKey = "cloud-nuke-first-seen"
+	// DefaultBatchSize is an alias for resource.DefaultBatchSize.
+	// Kept here so existing AWS resource files can reference it without a package qualifier.
+	DefaultBatchSize = resource.DefaultBatchSize
 
 	// awsLambdaTimeFormat is the time format used by AWS Lambda for timestamps
 	// such as LastModified and CreatedDate in function and layer responses.

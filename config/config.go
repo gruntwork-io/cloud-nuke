@@ -8,16 +8,26 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	cnutil "github.com/gruntwork-io/cloud-nuke/util"
 	"gopkg.in/yaml.v2"
 )
 
 const (
-	DefaultAwsResourceExclusionTagKey   = "cloud-nuke-excluded"
-	DefaultAwsResourceExclusionTagValue = "true"
-	CloudNukeAfterExclusionTagKey       = "cloud-nuke-after"
-	CloudNukeAfterTimeFormat            = time.RFC3339
-	CloudNukeAfterTimeFormatLegacy      = time.DateTime
+	DefaultResourceExclusionTagKey   = "cloud-nuke-excluded"
+	DefaultResourceExclusionTagValue = "true"
+	CloudNukeAfterExclusionTagKey    = "cloud-nuke-after"
+	CloudNukeAfterTimeFormat         = time.RFC3339
+	CloudNukeAfterTimeFormatLegacy   = time.DateTime
+
+	// Deprecated: Use DefaultResourceExclusionTagKey instead.
+	DefaultAwsResourceExclusionTagKey = DefaultResourceExclusionTagKey
+	// Deprecated: Use DefaultResourceExclusionTagValue instead.
+	DefaultAwsResourceExclusionTagValue = DefaultResourceExclusionTagValue
 )
+
+// defaultExclusionTagValueExpr is a compiled regex for the default exclusion tag value,
+// cached at package level to avoid recompiling on every call to getExclusionTagValue().
+var defaultExclusionTagValueExpr = Expression{RE: *regexp.MustCompile(DefaultResourceExclusionTagValue)}
 
 // Config - the config object we pass around
 type Config struct {
@@ -46,8 +56,8 @@ type Config struct {
 	DataSyncLocation                ResourceType               `yaml:"DataSyncLocation"`
 	DataSyncTask                    ResourceType               `yaml:"DataSyncTask"`
 	DBGlobalClusters                ResourceType               `yaml:"DBGlobalClusters"`
-	DBClusters                      AWSProtectableResourceType `yaml:"DBClusters"`
-	DBInstances                     AWSProtectableResourceType `yaml:"DBInstances"`
+	DBClusters                      ResourceType               `yaml:"DBClusters"`
+	DBInstances                     ResourceType               `yaml:"DBInstances"`
 	DBGlobalClusterMemberships      ResourceType               `yaml:"DBGlobalClusterMemberships"`
 	DBSubnetGroups                  ResourceType               `yaml:"DBSubnetGroups"`
 	DynamoDB                        ResourceType               `yaml:"DynamoDB"`
@@ -186,8 +196,8 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.DataSyncLocation,
 		&c.DataSyncTask,
 		&c.DBGlobalClusters,
-		&c.DBClusters.ResourceType,
-		&c.DBInstances.ResourceType,
+		&c.DBClusters,
+		&c.DBInstances,
 		&c.DBGlobalClusterMemberships,
 		&c.DBSubnetGroups,
 		&c.DynamoDB,
@@ -361,10 +371,6 @@ type KMSCustomerKeyResourceType struct {
 
 type EC2ResourceType struct {
 	DefaultOnly  bool `yaml:"default_only"`
-	ResourceType `yaml:",inline"`
-}
-
-type AWSProtectableResourceType struct {
 	ResourceType `yaml:",inline"`
 }
 
@@ -543,25 +549,17 @@ func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
 }
 
 func (r ResourceType) getExclusionTag() string {
-	return DefaultAwsResourceExclusionTagKey
+	return DefaultResourceExclusionTagKey
 }
 
 func (r ResourceType) getExclusionTagValue() *Expression {
-	return &Expression{RE: *regexp.MustCompile(DefaultAwsResourceExclusionTagValue)}
+	return &defaultExclusionTagValueExpr
 }
 
+// ParseTimestamp delegates to util.ParseTimestamp, which tries RFC3339,
+// time.DateTime, and bare ISO 8601 formats.
 func ParseTimestamp(timestamp string) (*time.Time, error) {
-	parsed, err := time.Parse(CloudNukeAfterTimeFormat, timestamp)
-	if err != nil {
-		logging.Debugf("Error parsing the timestamp into a `%v` Time format. Trying parsing the timestamp using the legacy `time.DateTime` format.", CloudNukeAfterTimeFormat)
-		parsed, err = time.Parse(CloudNukeAfterTimeFormatLegacy, timestamp)
-		if err != nil {
-			logging.Debugf("Error parsing the timestamp into legacy `time.DateTime` Time format")
-			return nil, err
-		}
-	}
-
-	return &parsed, nil
+	return cnutil.ParseTimestamp(timestamp)
 }
 
 func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {

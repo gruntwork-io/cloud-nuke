@@ -53,7 +53,7 @@ func listGuardDutyDetectors(ctx context.Context, client GuardDutyAPI, scope reso
 				return nil, err
 			}
 
-			createdAt, err := util.ParseTimestamp(detector.CreatedAt)
+			createdAt, err := util.ParseTimestampPtr(detector.CreatedAt)
 			if err != nil {
 				continue
 			}

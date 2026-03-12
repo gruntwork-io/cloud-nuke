@@ -20,7 +20,7 @@ import (
 func NewCloudFunctions() GcpResource {
 	return NewGcpResource(&resource.Resource[*functions.FunctionClient]{
 		ResourceTypeName: "cloud-function",
-		BatchSize:        DefaultBatchSize,
+		BatchSize:        resource.DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*functions.FunctionClient], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
 			client, err := functions.NewFunctionClient(context.Background())
@@ -71,6 +71,7 @@ func listCloudFunctions(ctx context.Context, client *functions.FunctionClient, s
 		resourceValue := config.ResourceValue{
 			Name: &name,
 			Time: &resourceTime,
+			Tags: fn.Labels,
 		}
 
 		if cfg.ShouldInclude(resourceValue) {

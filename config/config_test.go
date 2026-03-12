@@ -38,8 +38,8 @@ func emptyConfig() *Config {
 		DataSyncLocation:                ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DataSyncTask:                    ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DBGlobalClusters:                ResourceType{FilterRule{}, FilterRule{}, "", false},
-		DBClusters:                      AWSProtectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
-		DBInstances:                     AWSProtectableResourceType{ResourceType: ResourceType{FilterRule{}, FilterRule{}, "", false}},
+		DBClusters:                      ResourceType{FilterRule{}, FilterRule{}, "", false},
+		DBInstances:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DBGlobalClusterMemberships:      ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DBSubnetGroups:                  ResourceType{FilterRule{}, FilterRule{}, "", false},
 		DynamoDB:                        ResourceType{FilterRule{}, FilterRule{}, "", false},
@@ -903,8 +903,6 @@ func TestAllResourceTypesComplete(t *testing.T) {
 		case reflect.TypeOf(ResourceType{}):
 			rtPtr = field.Addr().Pointer()
 		case reflect.TypeOf(EC2ResourceType{}):
-			rtPtr = field.FieldByName("ResourceType").Addr().Pointer()
-		case reflect.TypeOf(AWSProtectableResourceType{}):
 			rtPtr = field.FieldByName("ResourceType").Addr().Pointer()
 		case reflect.TypeOf(KMSCustomerKeyResourceType{}):
 			rtPtr = field.FieldByName("ResourceType").Addr().Pointer()

@@ -1,23 +1,15 @@
 package resources
 
 import (
-	"context"
-
-	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
 // GcpResource is an interface that represents a single GCP resource.
+// It embeds the provider-agnostic NukeableResource interface and adds GCP-specific Init.
 // This interface is satisfied by GcpResourceAdapter[C] which wraps resource.Resource[C].
 type GcpResource interface {
+	resource.NukeableResource
 	Init(cfg GcpConfig)
-	ResourceName() string
-	ResourceIdentifiers() []string
-	MaxBatchSize() int
-	Nuke(ctx context.Context, identifiers []string) ([]resource.NukeResult, error)
-	GetAndSetIdentifiers(ctx context.Context, configObj config.Config) ([]string, error)
-	IsNukable(identifier string) (bool, error)
-	GetAndSetResourceConfig(configObj config.Config) config.ResourceType
 }
 
 // GcpResources is a struct to hold multiple instances of GcpResource.

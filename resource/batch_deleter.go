@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/logging"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 const (
@@ -59,7 +59,7 @@ func SimpleBatchDeleter[C any](deleteFn DeleteFunc[C]) NukerFunc[C] {
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				idStr := aws.ToString(identifier)
+				idStr := util.DerefString(identifier)
 				err := deleteFn(ctx, client, identifier)
 
 				mu.Lock()
@@ -83,7 +83,7 @@ func SequentialDeleter[C any](deleteFn DeleteFunc[C]) NukerFunc[C] {
 
 		results := make([]NukeResult, 0, len(identifiers))
 		for _, id := range identifiers {
-			idStr := aws.ToString(id)
+			idStr := util.DerefString(id)
 			err := deleteFn(ctx, client, id)
 			results = append(results, NukeResult{Identifier: idStr, Error: err})
 		}
@@ -123,7 +123,7 @@ func BulkResultDeleter[C any](deleteFn BulkResultDeleteFunc[C]) NukerFunc[C] {
 
 		ids := make([]string, len(identifiers))
 		for i, id := range identifiers {
-			ids[i] = aws.ToString(id)
+			ids[i] = util.DerefString(id)
 		}
 
 		return deleteFn(ctx, client, ids)
@@ -159,7 +159,7 @@ func MultiStepDeleter[C any](steps ...DeleteFunc[C]) NukerFunc[C] {
 
 		results := make([]NukeResult, 0, len(identifiers))
 		for _, id := range identifiers {
-			idStr := aws.ToString(id)
+			idStr := util.DerefString(id)
 			var stepErr error
 
 			for i, step := range steps {
@@ -204,7 +204,7 @@ func SequentialDeleteThenWaitAll[C any](deleteFn DeleteFunc[C], waitAllFn WaitAl
 
 		// Phase 1: Delete all resources sequentially
 		for _, id := range identifiers {
-			idStr := aws.ToString(id)
+			idStr := util.DerefString(id)
 			err := deleteFn(ctx, client, id)
 
 			if err != nil {
@@ -263,7 +263,7 @@ func ConcurrentDeleteThenWaitAll[C any](deleteFn DeleteFunc[C], waitAllFn WaitAl
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				idStr := aws.ToString(identifier)
+				idStr := util.DerefString(identifier)
 				err := deleteFn(ctx, client, identifier)
 				deleteResults[idx] = deleteResult{idStr: idStr, err: err}
 

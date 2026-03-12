@@ -83,7 +83,7 @@ func listEC2Subnets(ctx context.Context, client EC2SubnetAPI, scope resource.Sco
 // getEC2SubnetFirstSeenTime extracts the first seen time from tag map.
 func getEC2SubnetFirstSeenTime(tagMap map[string]string) *time.Time {
 	if firstSeenStr, ok := tagMap[util.FirstSeenTagKey]; ok {
-		if t, err := util.ParseTimestamp(aws.String(firstSeenStr)); err == nil {
+		if t, err := util.ParseTimestamp(firstSeenStr); err == nil {
 			return t
 		}
 	}

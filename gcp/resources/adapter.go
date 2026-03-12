@@ -3,14 +3,12 @@ package resources
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
 const (
-	DefaultWaitTimeout = 5 * time.Minute
-	DefaultBatchSize   = 50
+	DefaultWaitTimeout = resource.DefaultWaitTimeout
 )
 
 // GcpConfig holds the configuration needed to initialize a GCP resource,

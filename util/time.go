@@ -34,23 +34,28 @@ func IsFirstSeenTag(key *string) bool {
 	return aws.ToString(key) == FirstSeenTagKey
 }
 
-func ParseTimestamp(timestamp *string) (*time.Time, error) {
-	s := aws.ToString(timestamp)
-
-	parsed, err := time.Parse(firstSeenTimeFormat, s)
+// ParseTimestamp tries to parse a timestamp string using multiple formats:
+// RFC3339, time.DateTime (legacy), and bare ISO 8601 (without timezone).
+func ParseTimestamp(timestamp string) (*time.Time, error) {
+	parsed, err := time.Parse(firstSeenTimeFormat, timestamp)
 	if err != nil {
 		logging.Debugf("Error parsing the timestamp into a `RFC3339` Time format. Trying parsing the timestamp using the legacy `time.DateTime` format.")
-		parsed, err = time.Parse(firstSeenTimeFormatLegacy, s)
+		parsed, err = time.Parse(firstSeenTimeFormatLegacy, timestamp)
 	}
 	if err != nil {
 		logging.Debugf("Error parsing the timestamp into legacy `time.DateTime` Time format. Trying bare ISO 8601 format.")
-		parsed, err = time.Parse(iso8601Bare, s)
+		parsed, err = time.Parse(iso8601Bare, timestamp)
 	}
 	if err != nil {
 		return nil, errors.WithStackTrace(err)
 	}
 
 	return &parsed, nil
+}
+
+// ParseTimestampPtr is a convenience wrapper around ParseTimestamp for *string values.
+func ParseTimestampPtr(timestamp *string) (*time.Time, error) {
+	return ParseTimestamp(aws.ToString(timestamp))
 }
 
 func FormatTimestamp(timestamp time.Time) string {
@@ -74,7 +79,7 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 	// check the first seen already exists in the given map
 	for key, value := range tags {
 		if IsFirstSeenTag(aws.String(key)) {
-			firstSeenTime, err = ParseTimestamp(aws.String(value))
+			firstSeenTime, err = ParseTimestamp(value)
 			if err != nil {
 				return nil, errors.WithStackTrace(err)
 			}

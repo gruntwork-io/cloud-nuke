@@ -59,7 +59,7 @@ func gcpNuke(c *cli.Context) error {
 	outputFile := c.String(FlagOutputFile)
 
 	if err := query.Validate(); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	return gcpNukeHelper(c, configObj, query, outputFormat, outputFile)
@@ -83,13 +83,22 @@ func gcpInspect(c *cli.Context) error {
 		return err
 	}
 
+	// Load config file if provided (matches gcpNuke behavior)
+	configObj, err := loadConfigFile(c.String(FlagConfig))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
 	query := &gcp.Query{
 		ProjectID:            c.String(FlagProjectID),
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 	}
 
-	configObj := config.Config{}
+	// Apply timeout to config (matches gcpNuke behavior)
+	if err := parseAndApplyTimeout(c, &configObj); err != nil {
+		return err
+	}
 
 	// Apply time filters to config
 	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {
@@ -101,11 +110,11 @@ func gcpInspect(c *cli.Context) error {
 	outputFile := c.String(FlagOutputFile)
 
 	if err := query.Validate(); err != nil {
-		return err
+		return errors.WithStackTrace(err)
 	}
 
 	// Retrieve and display resources without deleting them
-	_, err := handleGetGcpResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
+	_, err = handleGetGcpResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
 	return err
 }
 
@@ -122,13 +131,16 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, query *gcp.Query, ou
 	}
 	defer cleanup()
 
+	// Emit scan started event with query parameters
+	collector.Emit(buildGcpScanStarted(query))
+
 	// Retrieve all matching resources (emits ResourceFound events via collector)
 	account, err := gcp.GetAllResources(c.Context, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
 		}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
+		return errors.WithStackTrace(gcp.ResourceInspectionError{Underlying: err})
 	}
 
 	// Signal scan complete - renderer will show found resources table
@@ -161,13 +173,16 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, qu
 	}
 	defer cleanup()
 
+	// Emit scan started event with query parameters
+	collector.Emit(buildGcpScanStarted(query))
+
 	// Retrieve all resources matching the filters (emits ResourceFound events via collector)
 	accountResources, err := gcp.GetAllResources(c.Context, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
 		}, map[string]interface{}{})
-		return nil, errors.WithStackTrace(err)
+		return nil, errors.WithStackTrace(gcp.ResourceInspectionError{Underlying: err})
 	}
 
 	// Signal scan complete - renderer will show found resources table
@@ -179,6 +194,14 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, qu
 // handleListGcpResourceTypes displays all available GCP resource types that can be targeted.
 func handleListGcpResourceTypes() error {
 	return printResourceTypes("GCP Resource Types", gcp.ListResourceTypes())
+}
+
+// buildGcpScanStarted creates a ScanStarted event from a GCP query.
+func buildGcpScanStarted(query *gcp.Query) reporting.ScanStarted {
+	return reporting.ScanStarted{
+		Regions:       query.Regions,
+		ResourceTypes: query.ResourceTypes,
+	}
 }
 
 // setupGcpReporting creates a collector and appropriate renderer for GCP operations.

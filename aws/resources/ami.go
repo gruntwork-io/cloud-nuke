@@ -55,7 +55,7 @@ func listAMIs(ctx context.Context, client AMIsAPI, scope resource.Scope, cfg con
 				continue
 			}
 
-			createdTime, err := util.ParseTimestamp(image.CreationDate)
+			createdTime, err := util.ParseTimestampPtr(image.CreationDate)
 			if err != nil {
 				return nil, err
 			}

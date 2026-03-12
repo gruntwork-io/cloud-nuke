@@ -5,13 +5,14 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockClient struct{}
+
+func strPtr(s string) *string { return &s }
 
 func TestResource_MaxBatchSize(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
@@ -46,7 +47,7 @@ func TestResource_GetAndSetIdentifiers(t *testing.T) {
 	r := &Resource[*mockClient]{
 		ResourceTypeName: "test",
 		Lister: func(ctx context.Context, client *mockClient, scope Scope, resourceCfg config.ResourceType) ([]*string, error) {
-			return []*string{aws.String("id-1"), aws.String("id-2")}, nil
+			return []*string{strPtr("id-1"), strPtr("id-2")}, nil
 		},
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return config.ResourceType{}
@@ -128,7 +129,7 @@ func TestResource_PermissionVerification(t *testing.T) {
 	r := &Resource[*mockClient]{
 		ResourceTypeName: "test",
 		Lister: func(ctx context.Context, client *mockClient, scope Scope, resourceCfg config.ResourceType) ([]*string, error) {
-			return []*string{aws.String("allowed"), aws.String("denied")}, nil
+			return []*string{strPtr("allowed"), strPtr("denied")}, nil
 		},
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return config.ResourceType{}
@@ -171,37 +172,33 @@ func TestResource_IsNukable(t *testing.T) {
 
 // Batch Deleter Tests
 
+func assertAllSucceeded(t *testing.T, results []NukeResult, expectedLen int) {
+	t.Helper()
+	assert.Len(t, results, expectedLen)
+	for _, r := range results {
+		assert.NoError(t, r.Error)
+	}
+}
+
 func TestSimpleBatchDeleter(t *testing.T) {
-	deleteCount := 0
-	deleter := SimpleBatchDeleter(func(ctx context.Context, client *mockClient, id *string) error {
-		deleteCount++
+	count := 0
+	deleter := SimpleBatchDeleter(func(_ context.Context, _ *mockClient, _ *string) error {
+		count++
 		return nil
 	})
-
-	ids := []*string{aws.String("1"), aws.String("2"), aws.String("3")}
-	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
-
-	assert.Len(t, results, 3)
-	for _, result := range results {
-		assert.NoError(t, result.Error)
-	}
-	assert.Equal(t, 3, deleteCount)
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{strPtr("1"), strPtr("2"), strPtr("3")})
+	assertAllSucceeded(t, results, 3)
+	assert.Equal(t, 3, count)
 }
 
 func TestSequentialDeleter(t *testing.T) {
-	order := []string{}
-	deleter := SequentialDeleter(func(ctx context.Context, client *mockClient, id *string) error {
+	var order []string
+	deleter := SequentialDeleter(func(_ context.Context, _ *mockClient, id *string) error {
 		order = append(order, *id)
 		return nil
 	})
-
-	ids := []*string{aws.String("a"), aws.String("b"), aws.String("c")}
-	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
-
-	assert.Len(t, results, 3)
-	for _, result := range results {
-		assert.NoError(t, result.Error)
-	}
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{strPtr("a"), strPtr("b"), strPtr("c")})
+	assertAllSucceeded(t, results, 3)
 	assert.Equal(t, []string{"a", "b", "c"}, order)
 }
 
@@ -213,7 +210,7 @@ func TestSequentialDeleter_AccumulatesErrors(t *testing.T) {
 		return nil
 	})
 
-	ids := []*string{aws.String("ok"), aws.String("fail"), aws.String("also-ok")}
+	ids := []*string{strPtr("ok"), strPtr("fail"), strPtr("also-ok")}
 	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", ids)
 
 	assert.Len(t, results, 3)
@@ -236,7 +233,7 @@ func TestMultiStepDeleter(t *testing.T) {
 		},
 	)
 
-	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{strPtr("x")})
 
 	assert.Len(t, results, 1)
 	assert.NoError(t, results[0].Error)
@@ -255,11 +252,47 @@ func TestMultiStepDeleter_StopsOnFailure(t *testing.T) {
 		},
 	)
 
-	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{aws.String("x")})
+	results := deleter(context.Background(), &mockClient{}, Scope{}, "test", []*string{strPtr("x")})
 
 	assert.Len(t, results, 1)
 	assert.Error(t, results[0].Error)
 	assert.False(t, step2Called)
+}
+
+func TestResource_Init_PanicRecovery(t *testing.T) {
+	r := &Resource[*mockClient]{
+		ResourceTypeName: "panicky-resource",
+		InitClient: func(r *Resource[*mockClient], cfg any) {
+			panic("failed to create client: missing credentials")
+		},
+	}
+
+	// Init should NOT panic
+	assert.NotPanics(t, func() { r.Init("test-config") })
+
+	// GetAndSetIdentifiers should return the recovered error
+	r.ConfigGetter = func(c config.Config) config.ResourceType { return config.ResourceType{} }
+	r.Lister = func(ctx context.Context, client *mockClient, scope Scope, cfg config.ResourceType) ([]*string, error) {
+		return nil, nil
+	}
+	_, err := r.GetAndSetIdentifiers(context.Background(), config.Config{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client initialization panicked")
+	assert.Contains(t, err.Error(), "missing credentials")
+
+	// Nuke should also return the recovered error
+	r.Nuker = func(ctx context.Context, client *mockClient, scope Scope, resourceType string, ids []*string) []NukeResult {
+		return nil
+	}
+	_, err = r.Nuke(context.Background(), []string{"id-1"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client initialization panicked")
+
+	// IsNukable should return (false, initErr)
+	nukable, err := r.IsNukable("any-id")
+	assert.False(t, nukable)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client initialization panicked")
 }
 
 func TestScope_String(t *testing.T) {

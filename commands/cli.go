@@ -83,6 +83,7 @@ func CreateCli(version string) *cli.App {
 				InspectResourceTypeFlags(),
 				CommonTimeFlags(),
 				CommonOutputFlags(),
+				[]cli.Flag{ConfigFlag()},
 			),
 		}, {
 			Name:   "defaults-aws",
@@ -117,6 +118,7 @@ func CreateCli(version string) *cli.App {
 				CommonTimeFlags(),
 				CommonOutputFlags(),
 				[]cli.Flag{
+					ConfigFlag(),
 					&cli.BoolFlag{
 						Name:  FlagListUnaliasedKMSKeys,
 						Usage: "List KMS keys that do not have aliases associated with them.",

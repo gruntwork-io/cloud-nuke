@@ -3,8 +3,8 @@ package resource
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -12,8 +12,13 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// DefaultBatchSize is the maximum number of resources per batch
-const DefaultBatchSize = 50
+const (
+	// DefaultBatchSize is the maximum number of resources per batch
+	DefaultBatchSize = 50
+
+	// DefaultWaitTimeout is the default timeout for resource deletion waiters.
+	DefaultWaitTimeout = 5 * time.Minute
+)
 
 // Scope represents the cloud provider-specific scope for a resource.
 // For AWS: Region is set (e.g., "us-east-1" or "global" for global resources)
@@ -32,6 +37,19 @@ func (s Scope) String() string {
 		return s.ProjectID
 	}
 	return s.Region
+}
+
+// NukeableResource is the provider-agnostic interface for resources that can be nuked.
+// Both AwsResource and GcpResource embed this interface plus their provider-specific Init().
+// This enables shared orchestration code across providers.
+type NukeableResource interface {
+	ResourceName() string
+	ResourceIdentifiers() []string
+	MaxBatchSize() int
+	Nuke(ctx context.Context, identifiers []string) ([]NukeResult, error)
+	GetAndSetIdentifiers(ctx context.Context, configObj config.Config) ([]string, error)
+	IsNukable(string) (bool, error)
+	GetAndSetResourceConfig(config.Config) config.ResourceType
 }
 
 // Resource is the universal struct for all nukeable resources.
@@ -85,16 +103,29 @@ type Resource[C any] struct {
 
 	// nukables tracks which resources can be nuked (nil value = nukable)
 	nukables map[string]error
+
+	// initErr stores any error that occurred during Init (including recovered panics).
+	// When set, GetAndSetIdentifiers and Nuke return this error gracefully.
+	initErr error
 }
 
 // Init initializes the resource with cloud-specific configuration.
 // For AWS: cfg should be aws.Config
 // For GCP: cfg should be resources.GcpConfig
 // Must be called before GetAndSetIdentifiers or Nuke.
+// Panics from InitClient are recovered and stored as initErr,
+// causing subsequent GetAndSetIdentifiers/Nuke calls to return the error gracefully.
 func (r *Resource[C]) Init(cfg any) {
 	r.nukables = make(map[string]error)
 	if r.InitClient != nil {
-		r.InitClient(r, cfg)
+		func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					r.initErr = fmt.Errorf("%s: client initialization panicked: %v", r.ResourceTypeName, rec)
+				}
+			}()
+			r.InitClient(r, cfg)
+		}()
 	}
 }
 
@@ -126,6 +157,9 @@ func (r *Resource[C]) GetAndSetResourceConfig(configObj config.Config) config.Re
 
 // GetAndSetIdentifiers discovers resources and stores their identifiers (implements AwsResource/GcpResource interface)
 func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config.Config) ([]string, error) {
+	if r.initErr != nil {
+		return nil, r.initErr
+	}
 	if r.Lister == nil {
 		return nil, fmt.Errorf("%s: Lister function not configured", r.ResourceTypeName)
 	}
@@ -147,13 +181,16 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 		})
 	}
 
-	r.identifiers = aws.ToStringSlice(identifiers)
+	r.identifiers = util.DerefStringSlice(identifiers)
 	return r.identifiers, nil
 }
 
 // Nuke deletes the resources with the given identifiers (implements AwsResource/GcpResource interface)
 // Returns the results of each deletion attempt. The caller is responsible for reporting.
 func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) ([]NukeResult, error) {
+	if r.initErr != nil {
+		return nil, r.initErr
+	}
 	if len(identifiers) == 0 {
 		return nil, nil
 	}
@@ -183,6 +220,9 @@ func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) ([]NukeRes
 // Returns (true, nil) if nukable, (false, error) if not.
 // If the identifier was never verified, returns (true, nil) - assuming nukable by default.
 func (r *Resource[C]) IsNukable(id string) (bool, error) {
+	if r.initErr != nil {
+		return false, r.initErr
+	}
 	err, ok := r.nukables[id]
 	if !ok {
 		// Not in the map - for resources without permission verification,

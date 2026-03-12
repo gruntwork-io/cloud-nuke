@@ -14,9 +14,8 @@ type ScanProgress struct {
 
 func (ScanProgress) EventType() string { return "scan_progress" }
 
-// ScanStarted is emitted at the beginning of AWS resource scanning.
+// ScanStarted is emitted at the beginning of resource scanning (both AWS and GCP).
 // Used by CLI renderer to display query parameters.
-// Note: GCP does not emit this event as it has no interesting query parameters to display.
 type ScanStarted struct {
 	Regions              []string
 	ResourceTypes        []string

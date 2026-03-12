@@ -10,12 +10,20 @@ func (err CouldNotSelectRegionError) Error() string {
 	return fmt.Sprintf("Unable to determine target region set. Please double check your combination of target and excluded regions. Original error: %v", err.Underlying)
 }
 
+func (err CouldNotSelectRegionError) Unwrap() error {
+	return err.Underlying
+}
+
 type CouldNotDetermineEnabledRegionsError struct {
 	Underlying error
 }
 
 func (err CouldNotDetermineEnabledRegionsError) Error() string {
 	return fmt.Sprintf("Unable to determine enabled regions in target account. Original error: %v", err.Underlying)
+}
+
+func (err CouldNotDetermineEnabledRegionsError) Unwrap() error {
+	return err.Underlying
 }
 
 type InvalidResourceTypesSuppliedError struct {
@@ -41,6 +49,10 @@ func (err InvalidTimeStringPassedError) Error() string {
 	return fmt.Sprintf("Could not parse %s as a valid time duration. Underlying error: %s", err.Entry, err.Underlying)
 }
 
+func (err InvalidTimeStringPassedError) Unwrap() error {
+	return err.Underlying
+}
+
 type QueryCreationError struct {
 	Underlying error
 }
@@ -49,10 +61,18 @@ func (err QueryCreationError) Error() string {
 	return fmt.Sprintf("Error forming a cloud-nuke Query with supplied parameters. Original error: %v", err.Underlying)
 }
 
+func (err QueryCreationError) Unwrap() error {
+	return err.Underlying
+}
+
 type ResourceInspectionError struct {
 	Underlying error
 }
 
 func (err ResourceInspectionError) Error() string {
 	return fmt.Sprintf("Error encountered when querying for account resources. Original error: %v", err.Underlying)
+}
+
+func (err ResourceInspectionError) Unwrap() error {
+	return err.Underlying
 }

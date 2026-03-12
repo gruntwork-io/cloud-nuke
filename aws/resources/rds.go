@@ -30,7 +30,7 @@ func NewDBInstances() AwsResource {
 			r.Client = rds.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.DBInstances.ResourceType
+			return c.DBInstances
 		},
 		Lister: listDBInstances,
 		Nuker:  resource.SequentialDeleteThenWaitAll(deleteDBInstance, waitForDBInstancesDeleted),

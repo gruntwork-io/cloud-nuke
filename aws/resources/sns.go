@@ -113,7 +113,7 @@ func getFirstSeenSNSTag(ctx context.Context, client SNSTopicAPI, topicArn string
 
 	for _, tag := range response.Tags {
 		if util.IsFirstSeenTag(tag.Key) {
-			return util.ParseTimestamp(tag.Value)
+			return util.ParseTimestampPtr(tag.Value)
 		}
 	}
 

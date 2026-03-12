@@ -30,7 +30,7 @@ func NewDBClusters() AwsResource {
 			r.Client = rds.NewFromConfig(cfg)
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
-			return c.DBClusters.ResourceType
+			return c.DBClusters
 		},
 		Lister: listDBClusters,
 		Nuker:  resource.SequentialDeleteThenWaitAll(deleteDBCluster, waitForDBClustersDeleted),

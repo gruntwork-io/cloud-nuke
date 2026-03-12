@@ -2,7 +2,6 @@ package gcp
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gruntwork-io/go-commons/collections"
 )
@@ -15,14 +14,12 @@ type Query struct {
 	ExcludeResourceTypes []string
 	Regions              []string
 	ExcludeRegions       []string
-	ExcludeAfter         *time.Time
-	IncludeAfter         *time.Time
-	Timeout              *time.Duration
 }
 
 // Validate ensures the query has valid defaults.
 // If no regions are specified, it defaults to GlobalRegion.
 // ExcludeRegions are filtered out from the region list.
+// Validates that requested resource types exist.
 func (q *Query) Validate() error {
 	if len(q.Regions) == 0 {
 		q.Regions = []string{GlobalRegion}
@@ -40,6 +37,37 @@ func (q *Query) Validate() error {
 
 	if len(q.Regions) == 0 {
 		return fmt.Errorf("no regions to process after applying exclusions")
+	}
+
+	// Validate resource types and exclude resource types
+	needsValidation := (len(q.ResourceTypes) > 0 && !collections.ListContainsElement(q.ResourceTypes, "all")) ||
+		len(q.ExcludeResourceTypes) > 0
+	if needsValidation {
+		validTypes := ListResourceTypes()
+
+		if len(q.ResourceTypes) > 0 && !collections.ListContainsElement(q.ResourceTypes, "all") {
+			var invalidTypes []string
+			for _, rt := range q.ResourceTypes {
+				if !collections.ListContainsElement(validTypes, rt) {
+					invalidTypes = append(invalidTypes, rt)
+				}
+			}
+			if len(invalidTypes) > 0 {
+				return fmt.Errorf("invalid resource type(s) %v specified. Use --list-resource-types to see valid types", invalidTypes)
+			}
+		}
+
+		if len(q.ExcludeResourceTypes) > 0 {
+			var invalidTypes []string
+			for _, rt := range q.ExcludeResourceTypes {
+				if !collections.ListContainsElement(validTypes, rt) {
+					invalidTypes = append(invalidTypes, rt)
+				}
+			}
+			if len(invalidTypes) > 0 {
+				return fmt.Errorf("invalid exclude resource type(s) %v specified. Use --list-resource-types to see valid types", invalidTypes)
+			}
+		}
 	}
 
 	return nil
