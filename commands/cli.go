@@ -68,6 +68,7 @@ func CreateCli(version string) *cli.App {
 			Action: errors.WithPanicHandling(gcpNuke),
 			Flags: CombineFlags(
 				[]cli.Flag{GCPProjectFlag()},
+				RegionFlags(),
 				CommonResourceTypeFlags(),
 				CommonTimeFlags(),
 				CommonExecutionFlags(),
@@ -80,6 +81,7 @@ func CreateCli(version string) *cli.App {
 			Action: errors.WithPanicHandling(gcpInspect),
 			Flags: CombineFlags(
 				[]cli.Flag{GCPProjectFlag()},
+				RegionFlags(),
 				InspectResourceTypeFlags(),
 				CommonTimeFlags(),
 				CommonOutputFlags(),
