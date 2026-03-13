@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -46,7 +47,16 @@ func NewGcpResource[C any](r *resource.Resource[C]) GcpResource {
 }
 
 // Init initializes the resource with GCP configuration.
+// Panics from InitClient (e.g., missing credentials) are recovered and stored
+// in Resource.InitializationError so that subsequent GetAndSetIdentifiers/Nuke
+// calls return the error gracefully instead of crashing the process.
 func (g *GcpResourceAdapter[C]) Init(cfg GcpConfig) {
+	defer func() {
+		if r := recover(); r != nil {
+			g.Resource.InitializationError = fmt.Errorf("panic during Init for %s: %v", g.Resource.ResourceTypeName, r)
+			logging.Debugf("%s", g.Resource.InitializationError)
+		}
+	}()
 	g.Resource.Init(cfg)
 }
 
