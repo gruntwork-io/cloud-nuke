@@ -89,7 +89,16 @@ func gcpInspect(c *cli.Context) error {
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 	}
 
-	configObj := config.Config{}
+	// Load config file if provided
+	configObj, err := loadConfigFile(c.String(FlagConfig))
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	// Apply timeout to config
+	if err := parseAndApplyTimeout(c, &configObj); err != nil {
+		return err
+	}
 
 	// Apply time filters to config
 	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {
@@ -105,7 +114,7 @@ func gcpInspect(c *cli.Context) error {
 	}
 
 	// Retrieve and display resources without deleting them
-	_, err := handleGetGcpResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
+	_, err = handleGetGcpResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
 	return err
 }
 
