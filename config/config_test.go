@@ -138,8 +138,9 @@ func emptyConfig() *Config {
 		VPCPeeringConnection:            ResourceType{FilterRule{}, FilterRule{}, "", false},
 
 		// GCP Resources
-		GCSBucket:     ResourceType{FilterRule{}, FilterRule{}, "", false},
-		CloudFunction: ResourceType{FilterRule{}, FilterRule{}, "", false},
+		GCSBucket:        ResourceType{FilterRule{}, FilterRule{}, "", false},
+		CloudFunction:    ResourceType{FilterRule{}, FilterRule{}, "", false},
+		ArtifactRegistry: ResourceType{FilterRule{}, FilterRule{}, "", false},
 	}
 }
 

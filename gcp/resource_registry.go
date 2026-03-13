@@ -12,6 +12,7 @@ func getRegisteredGlobalResources() []GcpResource {
 	return []GcpResource{
 		resources.NewGCSBuckets(),
 		resources.NewCloudFunctions(),
+		resources.NewArtifactRegistryRepositories(),
 	}
 }
 

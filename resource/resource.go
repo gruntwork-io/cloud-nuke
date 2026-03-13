@@ -89,6 +89,9 @@ type Resource[C any] struct {
 	// Client is the typed cloud service client
 	Client C
 
+	// InitializationError stores any error that occurred during InitClient
+	InitializationError error
+
 	// Scope contains Region (AWS) and/or ProjectID (GCP)
 	Scope Scope
 
@@ -146,6 +149,12 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 	if r.ConfigGetter == nil {
 		return nil, fmt.Errorf("%s: ConfigGetter function not configured", r.ResourceTypeName)
 	}
+
+	// If an error occurred during initialization (e.g. API disabled), return it here
+	if r.InitializationError != nil {
+		return nil, r.InitializationError
+	}
+
 	resourceCfg := r.ConfigGetter(configObj)
 	identifiers, err := r.Lister(ctx, r.Client, r.Scope, resourceCfg)
 	if err != nil {
@@ -168,6 +177,10 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) ([]NukeResult, error) {
 	if len(identifiers) == 0 {
 		return nil, nil
+	}
+
+	if r.InitializationError != nil {
+		return nil, r.InitializationError
 	}
 
 	if r.Nuker == nil {
