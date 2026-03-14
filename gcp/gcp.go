@@ -39,6 +39,8 @@ func GetAllResources(ctx context.Context, query *Query, configObj config.Config,
 		Resources: map[string]GcpResources{},
 	}
 
+	ctx = context.WithValue(ctx, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
+
 	for _, region := range query.Regions {
 		cfg := resources.GcpConfig{ProjectID: query.ProjectID, Region: region}
 		regionResources := GetAndInitRegisteredResources(cfg, region)

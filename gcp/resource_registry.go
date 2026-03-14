@@ -13,6 +13,7 @@ func getRegisteredGlobalResources() []GcpResource {
 		resources.NewGCSBuckets(),
 		resources.NewCloudFunctions(),
 		resources.NewArtifactRegistryRepositories(),
+		resources.NewPubSubTopics(),
 	}
 }
 

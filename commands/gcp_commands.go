@@ -42,6 +42,7 @@ func gcpNuke(c *cli.Context) error {
 		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
+		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
 	}
 
 	// Apply timeout to config
@@ -86,6 +87,7 @@ func gcpInspect(c *cli.Context) error {
 		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
+		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
 	}
 
 	// Load config file if provided

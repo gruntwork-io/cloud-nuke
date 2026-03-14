@@ -141,6 +141,7 @@ func emptyConfig() *Config {
 		GCSBucket:        ResourceType{FilterRule{}, FilterRule{}, "", false},
 		CloudFunction:    ResourceType{FilterRule{}, FilterRule{}, "", false},
 		ArtifactRegistry: ResourceType{FilterRule{}, FilterRule{}, "", false},
+		GcpPubSubTopic:   ResourceType{FilterRule{}, FilterRule{}, "", false},
 	}
 }
 

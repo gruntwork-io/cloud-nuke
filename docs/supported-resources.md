@@ -281,6 +281,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 | `artifact-registry` | Artifact Registry Repository |
 | `cloud-function` | Cloud Functions (Gen2) |
 | `gcs-bucket` | Google Cloud Storage Bucket |
+| `gcp-pubsub-topic` | Pub/Sub Topic |
 
 ### GCP Config Support Matrix
 
@@ -289,6 +290,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 | artifact-registry | ArtifactRegistry | ✓ | ✓ | ✓ |
 | cloud-function | CloudFunction | ✓ | ✓ | ✓ |
 | gcs-bucket | GCSBucket | ✓ | ✓ | ✓ |
+| gcp-pubsub-topic | GcpPubSubTopic | ✓ | ✓ | ✓ |
 
 ## IsNukable Permission Check
 

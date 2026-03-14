@@ -18,6 +18,7 @@ type Query struct {
 	ExcludeAfter         *time.Time
 	IncludeAfter         *time.Time
 	Timeout              *time.Duration
+	ExcludeFirstSeen     bool
 }
 
 // Validate ensures the query has valid defaults.
