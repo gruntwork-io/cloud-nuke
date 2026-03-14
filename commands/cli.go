@@ -73,7 +73,13 @@ func CreateCli(version string) *cli.App {
 				CommonTimeFlags(),
 				CommonExecutionFlags(),
 				CommonOutputFlags(),
-				[]cli.Flag{ConfigFlag()},
+				[]cli.Flag{
+					ConfigFlag(),
+					&cli.BoolFlag{
+						Name:  FlagExcludeFirstSeen,
+						Usage: "Set a flag for excluding first-seen-tag",
+					},
+				},
 			),
 		}, {
 			Name:   "inspect-gcp",
@@ -85,7 +91,13 @@ func CreateCli(version string) *cli.App {
 				InspectResourceTypeFlags(),
 				CommonTimeFlags(),
 				CommonOutputFlags(),
-				[]cli.Flag{ConfigFlag()},
+				[]cli.Flag{
+					ConfigFlag(),
+					&cli.BoolFlag{
+						Name:  FlagExcludeFirstSeen,
+						Usage: "Set a flag for excluding first-seen-tag",
+					},
+				},
 			),
 		}, {
 			Name:   "defaults-aws",

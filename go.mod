@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	cloud.google.com/go/artifactregistry v1.17.1
 	cloud.google.com/go/functions v1.19.7
+	cloud.google.com/go/pubsub v1.49.0
 	cloud.google.com/go/storage v1.50.0
 	github.com/aws/aws-sdk-go-v2 v1.41.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.5
