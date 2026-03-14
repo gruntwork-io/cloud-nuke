@@ -36,8 +36,9 @@ func NewArtifactRegistryRepositories() GcpResource {
 			r.Scope.ProjectID = cfg.ProjectID
 			client, err := artifactregistry.NewClient(context.Background())
 			if err != nil {
-				r.InitializationError = fmt.Errorf("failed to create Artifact Registry client: %w", err)
-				return
+				// Panic is recovered by GcpResourceAdapter.Init() and stored as InitializationError,
+				// causing subsequent GetAndSetIdentifiers/Nuke calls to return the error gracefully.
+				panic(fmt.Sprintf("failed to create Artifact Registry client: %v", err))
 			}
 			r.Client = client
 		}),

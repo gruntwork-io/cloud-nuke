@@ -30,38 +30,14 @@ func gcpNuke(c *cli.Context) error {
 		return err
 	}
 
-	// Load config file if provided
-	configObj, err := loadConfigFile(c.String(FlagConfig))
+	configObj, query, err := generateGcpQuery(c)
 	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	query := &gcp.Query{
-		ProjectID:            c.String(FlagProjectID),
-		Regions:              c.StringSlice(FlagRegion),
-		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
-		ResourceTypes:        c.StringSlice(FlagResourceType),
-		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
-		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
-	}
-
-	// Apply timeout to config
-	if err := parseAndApplyTimeout(c, &configObj); err != nil {
-		return err
-	}
-
-	// Apply time filters to config
-	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {
 		return err
 	}
 
 	// Get output preferences
 	outputFormat := c.String(FlagOutputFormat)
 	outputFile := c.String(FlagOutputFile)
-
-	if err := query.Validate(); err != nil {
-		return err
-	}
 
 	return gcpNukeHelper(c, configObj, query, outputFormat, outputFile)
 }
@@ -81,38 +57,14 @@ func gcpInspect(c *cli.Context) error {
 		return err
 	}
 
-	query := &gcp.Query{
-		ProjectID:            c.String(FlagProjectID),
-		Regions:              c.StringSlice(FlagRegion),
-		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
-		ResourceTypes:        c.StringSlice(FlagResourceType),
-		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
-		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
-	}
-
-	// Load config file if provided
-	configObj, err := loadConfigFile(c.String(FlagConfig))
+	configObj, query, err := generateGcpQuery(c)
 	if err != nil {
-		return errors.WithStackTrace(err)
-	}
-
-	// Apply timeout to config
-	if err := parseAndApplyTimeout(c, &configObj); err != nil {
-		return err
-	}
-
-	// Apply time filters to config
-	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {
 		return err
 	}
 
 	// Get output preferences
 	outputFormat := c.String(FlagOutputFormat)
 	outputFile := c.String(FlagOutputFile)
-
-	if err := query.Validate(); err != nil {
-		return err
-	}
 
 	// Retrieve and display resources without deleting them
 	_, err = handleGetGcpResourcesWithFormat(c, configObj, query, outputFormat, outputFile)
@@ -121,6 +73,52 @@ func gcpInspect(c *cli.Context) error {
 
 // Helper Functions
 // These functions contain shared logic used by multiple command handlers
+
+// generateGcpQuery parses CLI flags into a validated gcp.Query and config.Config.
+func generateGcpQuery(c *cli.Context) (config.Config, *gcp.Query, error) {
+	configObj, err := loadConfigFile(c.String(FlagConfig))
+	if err != nil {
+		return config.Config{}, nil, errors.WithStackTrace(err)
+	}
+
+	excludeAfter, err := parseDurationParam(FlagOlderThan, c.String(FlagOlderThan))
+	if err != nil {
+		return config.Config{}, nil, errors.WithStackTrace(err)
+	}
+
+	includeAfter, err := parseDurationParam(FlagNewerThan, c.String(FlagNewerThan))
+	if err != nil {
+		return config.Config{}, nil, errors.WithStackTrace(err)
+	}
+
+	timeout, err := parseTimeoutDurationParam(FlagTimeout, c.String(FlagTimeout))
+	if err != nil {
+		return config.Config{}, nil, errors.WithStackTrace(err)
+	}
+
+	configObj.ApplyTimeFilters(excludeAfter, includeAfter)
+	if timeout != nil {
+		configObj.AddTimeout(timeout)
+	}
+
+	query := &gcp.Query{
+		ProjectID:            c.String(FlagProjectID),
+		Regions:              c.StringSlice(FlagRegion),
+		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
+		ResourceTypes:        c.StringSlice(FlagResourceType),
+		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
+		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
+		ExcludeAfter:         excludeAfter,
+		IncludeAfter:         includeAfter,
+		Timeout:              timeout,
+	}
+
+	if err := query.Validate(); err != nil {
+		return config.Config{}, nil, errors.WithStackTrace(err)
+	}
+
+	return configObj, query, nil
+}
 
 // gcpNukeHelper is the core logic for nuking GCP resources.
 // It retrieves resources, confirms deletion with the user, and executes the nuke operation.
