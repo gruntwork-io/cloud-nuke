@@ -114,7 +114,7 @@ func generateGcpQuery(c *cli.Context) (config.Config, *gcp.Query, error) {
 	}
 
 	if err := query.Validate(); err != nil {
-		return config.Config{}, nil, err
+		return config.Config{}, nil, errors.WithStackTrace(err)
 	}
 
 	return configObj, query, nil
