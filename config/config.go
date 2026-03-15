@@ -154,7 +154,9 @@ type Config struct {
 	GCSBucket        ResourceType `yaml:"GCSBucket"`
 	CloudFunction    ResourceType `yaml:"CloudFunction"`
 	ArtifactRegistry ResourceType `yaml:"ArtifactRegistry"`
-	GcpPubSubTopic   ResourceType `yaml:"GcpPubSubTopic"`
+	GcpPubSubTopic     ResourceType `yaml:"GcpPubSubTopic"`
+	GcpCloudRunService ResourceType `yaml:"GcpCloudRunService"`
+	GcpCloudRunJob     ResourceType `yaml:"GcpCloudRunJob"`
 }
 
 // allResourceTypes returns pointers to the embedded ResourceType for every
@@ -295,6 +297,8 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.CloudFunction,
 		&c.ArtifactRegistry,
 		&c.GcpPubSubTopic,
+		&c.GcpCloudRunService,
+		&c.GcpCloudRunJob,
 	}
 }
 
