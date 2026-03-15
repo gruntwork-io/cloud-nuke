@@ -282,6 +282,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 | `cloud-function` | Cloud Functions (Gen2) |
 | `gcs-bucket` | Google Cloud Storage Bucket |
 | `gcp-pubsub-topic` | Pub/Sub Topic |
+| `cloud-run-service` | Cloud Run Service |
 
 ### GCP Config Support Matrix
 
@@ -291,6 +292,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 | cloud-function | CloudFunction | ✓ | ✓ | ✓ |
 | gcs-bucket | GCSBucket | ✓ | ✓ | ✓ |
 | gcp-pubsub-topic | GcpPubSubTopic | ✓ | ✓ | ✓ |
+| cloud-run-service | GcpCloudRunService | ✓ | ✓ | ✓ |
 
 ## IsNukable Permission Check
 
