@@ -143,6 +143,7 @@ func emptyConfig() *Config {
 		ArtifactRegistry: ResourceType{FilterRule{}, FilterRule{}, "", false},
 		GcpPubSubTopic:     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		GcpCloudRunService: ResourceType{FilterRule{}, FilterRule{}, "", false},
+		GcpCloudRunJob:     ResourceType{FilterRule{}, FilterRule{}, "", false},
 	}
 }
 

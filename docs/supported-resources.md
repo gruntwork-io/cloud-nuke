@@ -283,6 +283,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 | `gcs-bucket` | Google Cloud Storage Bucket |
 | `gcp-pubsub-topic` | Pub/Sub Topic |
 | `cloud-run-service` | Cloud Run Service |
+| `cloud-run-job` | Cloud Run Job |
 
 ### GCP Config Support Matrix
 
@@ -293,6 +294,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 | gcs-bucket | GCSBucket | ✓ | ✓ | ✓ |
 | gcp-pubsub-topic | GcpPubSubTopic | ✓ | ✓ | ✓ |
 | cloud-run-service | GcpCloudRunService | ✓ | ✓ | ✓ |
+| cloud-run-job | GcpCloudRunJob | ✓ | ✓ | ✓ |
 
 ## IsNukable Permission Check
 
