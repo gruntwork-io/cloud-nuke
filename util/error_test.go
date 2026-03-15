@@ -111,3 +111,23 @@ func TestTransformAWSError(t *testing.T) {
 		})
 	}
 }
+
+func TestIsWarningError(t *testing.T) {
+	warningCodes := []string{
+		"DependencyViolation",
+		"InvalidDBSubnetGroupStateFault",
+		"InvalidDBClusterStateFault",
+		"InvalidClusterState",
+		"DBSubnetGroupNotFoundFault",
+		"DBParameterGroupNotFound",
+		"InvalidSubnetID.NotFound",
+		"InvalidNetworkInterfaceID.NotFound",
+	}
+	for _, code := range warningCodes {
+		require.True(t, IsWarningError(&smithy.GenericAPIError{Code: code}), code)
+	}
+
+	require.False(t, IsWarningError(&smithy.GenericAPIError{Code: "AccessDenied"}))
+	require.False(t, IsWarningError(errors.New("some error")))
+	require.False(t, IsWarningError(nil))
+}
