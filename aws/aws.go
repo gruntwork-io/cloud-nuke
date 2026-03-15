@@ -183,6 +183,7 @@ func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources,
 					Region:       region,
 					Identifier:   result.Identifier,
 					Success:      result.Error == nil,
+					Warning:      result.Error != nil && util.IsWarningError(result.Error),
 					Error:        errStr,
 				})
 			}

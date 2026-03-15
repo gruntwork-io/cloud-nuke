@@ -15,6 +15,7 @@ import (
 const (
 	SuccessEmoji = "✅"
 	FailureEmoji = "❌"
+	WarningEmoji = "⚠️"
 )
 
 // MaxResourcesForDetailedTable is the threshold above which the CLI renders
@@ -326,6 +327,8 @@ func (r *CLIRenderer) printDeletedTable() {
 		var status string
 		if e.Success {
 			status = SuccessEmoji
+		} else if e.Warning {
+			status = fmt.Sprintf("%s %s", WarningEmoji, util.Truncate(util.RemoveNewlines(e.Error), 40))
 		} else {
 			status = fmt.Sprintf("%s %s", FailureEmoji, util.Truncate(util.RemoveNewlines(e.Error), 40))
 		}
@@ -354,6 +357,7 @@ func (r *CLIRenderer) printDeletedSummaryTable() {
 	type counts struct {
 		success int
 		failure int
+		warned  int
 	}
 
 	summary := make(map[key]*counts)
@@ -369,13 +373,15 @@ func (r *CLIRenderer) printDeletedSummaryTable() {
 		}
 		if e.Success {
 			c.success++
+		} else if e.Warning {
+			c.warned++
 		} else {
 			c.failure++
 		}
 	}
 
 	tableData := pterm.TableData{
-		{"Resource Type", "Region", "Successful", "Failed"},
+		{"Resource Type", "Region", "Successful", "Failed", "Warned"},
 	}
 	for _, k := range order {
 		c := summary[k]
@@ -384,6 +390,7 @@ func (r *CLIRenderer) printDeletedSummaryTable() {
 			k.Region,
 			fmt.Sprintf("%d", c.success),
 			fmt.Sprintf("%d", c.failure),
+			fmt.Sprintf("%d", c.warned),
 		})
 	}
 

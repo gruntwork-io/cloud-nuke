@@ -52,6 +52,7 @@ type ResourceDeleted struct {
 	Region       string
 	Identifier   string
 	Success      bool
+	Warning      bool   // True if failure is transient/expected (e.g., DependencyViolation)
 	Error        string // Empty if success
 }
 

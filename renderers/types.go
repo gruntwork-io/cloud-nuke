@@ -60,7 +60,7 @@ type NukeResourceInfo struct {
 	ResourceType string `json:"resource_type"`
 	Region       string `json:"region"`
 	Identifier   string `json:"identifier"`
-	Status       string `json:"status"` // "deleted" or "failed"
+	Status       string `json:"status"` // "deleted", "failed", or "warned"
 	Error        string `json:"error,omitempty"`
 }
 
@@ -77,6 +77,7 @@ type NukeSummary struct {
 	Total         int `json:"total"`
 	Deleted       int `json:"deleted"`
 	Failed        int `json:"failed"`
+	Warned        int `json:"warned"`
 	GeneralErrors int `json:"general_errors"`
 }
 
