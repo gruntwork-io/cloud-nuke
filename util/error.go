@@ -75,3 +75,42 @@ func IsThrottlingError(err error) bool {
 	}
 	return false
 }
+
+// IsWarningError checks if the error is a transient/expected failure that
+// should be logged as a warning rather than causing a non-zero exit code.
+// These errors fall into two categories:
+//
+// Ordering/dependency errors — resources deleted in the wrong order. The
+// dependent resource will be cleaned up on the next nuke run once the
+// parent is gone:
+//   - DependencyViolation: EC2 subnet/ENI/SG still referenced by another resource
+//   - InvalidDBSubnetGroupStateFault: RDS subnet group in use by a DB instance
+//   - InvalidDBClusterStateFault: RDS cluster can't be deleted while its instances exist
+//   - InvalidClusterState: Redshift cluster has an operation in progress
+//
+// Already-deleted errors — resource was deleted between the scan and nuke
+// phases (e.g., by another concurrent nuke run or TTL expiry). Safe to ignore:
+//   - DBSubnetGroupNotFoundFault: RDS subnet group no longer exists
+//   - DBParameterGroupNotFound: RDS parameter group no longer exists
+//   - InvalidSubnetID.NotFound: EC2 subnet no longer exists
+//   - InvalidNetworkInterfaceID.NotFound: EC2 ENI no longer exists
+func IsWarningError(err error) bool {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		// Ordering/dependency errors
+		case "DependencyViolation",
+			"InvalidDBSubnetGroupStateFault",
+			"InvalidDBClusterStateFault",
+			"InvalidClusterState":
+			return true
+		// Already-deleted errors
+		case "DBSubnetGroupNotFoundFault",
+			"DBParameterGroupNotFound",
+			"InvalidSubnetID.NotFound",
+			"InvalidNetworkInterfaceID.NotFound":
+			return true
+		}
+	}
+	return false
+}

@@ -194,8 +194,13 @@ func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) ([]NukeRes
 	var allErrs *multierror.Error
 	for _, result := range results {
 		if result.Error != nil {
-			logging.Errorf("[Failed] %s %s: %s", r.ResourceTypeName, result.Identifier, result.Error)
-			allErrs = multierror.Append(allErrs, fmt.Errorf("%s: %w", result.Identifier, result.Error))
+			if util.IsWarningError(result.Error) {
+				logging.Warnf("[Warning] %s %s: %s (non-fatal, will retry next run)",
+					r.ResourceTypeName, result.Identifier, result.Error)
+			} else {
+				logging.Errorf("[Failed] %s %s: %s", r.ResourceTypeName, result.Identifier, result.Error)
+				allErrs = multierror.Append(allErrs, fmt.Errorf("%s: %w", result.Identifier, result.Error))
+			}
 		} else {
 			logging.Debugf("[OK] Deleted %s: %s", r.ResourceTypeName, result.Identifier)
 		}

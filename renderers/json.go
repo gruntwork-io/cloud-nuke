@@ -153,12 +153,18 @@ func (r *JSONRenderer) renderNukeOutput() error {
 	resources := make([]NukeResourceInfo, 0, len(r.deleted))
 	deletedCount := 0
 	failedCount := 0
+	warnedCount := 0
 
 	for _, e := range r.deleted {
 		status := "deleted"
 		if !e.Success {
-			status = "failed"
-			failedCount++
+			if e.Warning {
+				status = "warned"
+				warnedCount++
+			} else {
+				status = "failed"
+				failedCount++
+			}
 		} else {
 			deletedCount++
 		}
@@ -192,6 +198,7 @@ func (r *JSONRenderer) renderNukeOutput() error {
 			Total:         len(r.deleted),
 			Deleted:       deletedCount,
 			Failed:        failedCount,
+			Warned:        warnedCount,
 			GeneralErrors: len(r.errors),
 		},
 	}
