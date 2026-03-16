@@ -112,6 +112,7 @@ func emptyConfig() *Config {
 		SageMakerNotebook:               ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SageMakerStudioDomain:           ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SecretsManager:                  ResourceType{FilterRule{}, FilterRule{}, "", false},
+		SSMParameter:                    ResourceType{FilterRule{}, FilterRule{}, "", false},
 		SecurityHub:                     ResourceType{FilterRule{}, FilterRule{}, "", false},
 		Snapshots:                       ResourceType{FilterRule{}, FilterRule{}, "", false},
 		TransitGateway:                  ResourceType{FilterRule{}, FilterRule{}, "", false},

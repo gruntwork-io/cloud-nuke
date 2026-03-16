@@ -61,6 +61,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ses v1.29.9
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.18
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.13
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.56.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.13
 	github.com/aws/aws-sdk-go-v2/service/vpclattice v1.13.9
 	github.com/aws/smithy-go v1.24.2
@@ -123,6 +124,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/gookit/color v1.5.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.5 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect

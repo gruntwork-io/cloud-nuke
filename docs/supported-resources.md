@@ -123,6 +123,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `ses-receipt-rule-set` | SES Receipt Rule Set |
 | `sns-topic` | SNS Topic |
 | `sqs` | SQS Queue |
+| `ssm-parameter` | SSM Parameter Store Parameter |
 | `transit-gateway` | Transit Gateway |
 | `transit-gateway-attachment` | Transit Gateway VPC Attachment |
 | `transit-gateway-peering-attachment` | Transit Gateway Peering Attachment |
@@ -262,6 +263,7 @@ This table shows which filtering features are supported for each resource type i
 | ses-receipt-rule-set | SESReceiptRuleSet | ✓ | ✓ | | ✓ |
 | sns-topic | SNS | ✓ | ✓ | | ✓ |
 | sqs | SQS | ✓ | ✓ | | ✓ |
+| ssm-parameter | SSMParameter | ✓ | ✓ | ✓ | ✓ |
 | transit-gateway | TransitGateway | ✓ | ✓ | | ✓ |
 | transit-gateway-attachment | TransitGatewayVPCAttachment | | ✓ | | ✓ |
 | transit-gateway-peering-attachment | TransitGatewayPeeringAttachment | | ✓ | | ✓ |
