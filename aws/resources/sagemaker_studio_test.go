@@ -45,6 +45,9 @@ type mockSageMakerStudioClient struct {
 	deletedDomains  map[string]bool
 	deletedServers  map[string]bool
 	deletedSpaces   map[string]bool
+
+	// Track deletion order
+	deletionOrder []string
 }
 
 func newMockSageMakerStudioClient() *mockSageMakerStudioClient {
@@ -124,7 +127,13 @@ func (m *mockSageMakerStudioClient) ListApps(ctx context.Context, params *sagema
 
 	var activeApps []types.AppDetails
 	for _, app := range m.ListAppsOutput.Apps {
-		key := aws.ToString(app.DomainId) + "/" + aws.ToString(app.UserProfileName) + "/" + aws.ToString(app.AppName)
+		key := aws.ToString(app.DomainId) + "/"
+		if app.UserProfileName != nil {
+			key += aws.ToString(app.UserProfileName)
+		} else if app.SpaceName != nil {
+			key += aws.ToString(app.SpaceName)
+		}
+		key += "/" + aws.ToString(app.AppName)
 		if m.deletedApps[key] {
 			app.Status = types.AppStatusDeleted
 		}
@@ -149,6 +158,7 @@ func (m *mockSageMakerStudioClient) DeleteApp(ctx context.Context, params *sagem
 	}
 	key += "/" + aws.ToString(params.AppName)
 	m.deletedApps[key] = true
+	m.deletionOrder = append(m.deletionOrder, "app:"+aws.ToString(params.AppName))
 	return &sagemaker.DeleteAppOutput{}, nil
 }
 
@@ -196,7 +206,46 @@ func (m *mockSageMakerStudioClient) DeleteSpace(ctx context.Context, params *sag
 
 	key := aws.ToString(params.DomainId) + "/" + aws.ToString(params.SpaceName)
 	m.deletedSpaces[key] = true
+	m.deletionOrder = append(m.deletionOrder, "space:"+aws.ToString(params.SpaceName))
 	return &sagemaker.DeleteSpaceOutput{}, nil
+}
+
+func TestNukeSageMakerDomain_AppsDeletedBeforeSpaces(t *testing.T) {
+	t.Parallel()
+
+	mock := newMockSageMakerStudioClient()
+	mock.ListAppsOutput = sagemaker.ListAppsOutput{
+		Apps: []types.AppDetails{
+			{AppName: aws.String("app-1"), AppType: types.AppTypeJupyterServer, DomainId: aws.String("domain-1"), SpaceName: aws.String("space-1"), Status: types.AppStatusInService},
+		},
+	}
+	mock.ListSpacesOutput = sagemaker.ListSpacesOutput{
+		Spaces: []types.SpaceDetails{
+			{SpaceName: aws.String("space-1"), DomainId: aws.String("domain-1"), Status: types.SpaceStatusInService},
+		},
+	}
+
+	err := nukeSageMakerDomain(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "domain-1")
+	require.NoError(t, err)
+
+	// Verify that all app deletions happened before any space deletions
+	mock.mu.Lock()
+	defer mock.mu.Unlock()
+
+	appIdx := -1
+	spaceIdx := -1
+	for i, entry := range mock.deletionOrder {
+		if appIdx == -1 && entry == "app:app-1" {
+			appIdx = i
+		}
+		if spaceIdx == -1 && entry == "space:space-1" {
+			spaceIdx = i
+		}
+	}
+
+	require.NotEqual(t, -1, appIdx, "app should have been deleted")
+	require.NotEqual(t, -1, spaceIdx, "space should have been deleted")
+	require.Less(t, appIdx, spaceIdx, "apps must be deleted before spaces")
 }
 
 func TestListSageMakerDomains(t *testing.T) {

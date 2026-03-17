@@ -134,17 +134,16 @@ func nukeSageMakerDomains(ctx context.Context, client SageMakerStudioAPI, scope 
 func nukeSageMakerDomain(ctx context.Context, client SageMakerStudioAPI, scope resource.Scope, domainID string) error {
 	logging.Debugf("Starting deletion of SageMaker Studio domain %s in %s", domainID, scope)
 
-	// Phase 1: Delete apps, spaces, and MLflow tracking servers in parallel
-	var wg sync.WaitGroup
-	errChan := make(chan error, 3)
+	// Phase 1a: Delete all apps first (spaces depend on apps being gone)
+	if err := deleteAllApps(ctx, client, domainID, scope); err != nil {
+		return errors.WithStackTrace(err)
+	}
 
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		if err := deleteAllApps(ctx, client, domainID, scope); err != nil {
-			errChan <- err
-		}
-	}()
+	// Phase 1b: Delete spaces and MLflow tracking servers in parallel (after apps are gone)
+	var wg sync.WaitGroup
+	errChan := make(chan error, 2)
+
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		if err := deleteAllSpaces(ctx, client, domainID, scope); err != nil {
@@ -160,7 +159,7 @@ func nukeSageMakerDomain(ctx context.Context, client SageMakerStudioAPI, scope r
 	wg.Wait()
 	close(errChan)
 
-	// Check for errors from phase 1
+	// Check for errors from phase 1b
 	for err := range errChan {
 		if err != nil {
 			return errors.WithStackTrace(err)
