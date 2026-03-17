@@ -39,10 +39,6 @@ func NewComputeInstances() GcpResource {
 // identifiers are handed to a single Nuke call.
 const ComputeInstanceBatchSize = 20
 
-// computeDeleteDelay is the rate-limiting delay between instance deletions to
-// avoid GCP Compute Engine API quota issues (default 20 req/s per project).
-const computeDeleteDelay = 500 * time.Millisecond
-
 // listComputeInstances retrieves all Compute Engine VM instances across all zones in the project.
 func listComputeInstances(ctx context.Context, client *compute.Service, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var result []*string
@@ -68,7 +64,7 @@ func listComputeInstances(ctx context.Context, client *compute.Service, scope re
 				// Skip suspended instances -- GCP returns 400 on delete;
 				// the instance must be resumed or stopped first.
 				if instance.Status == "SUSPENDED" {
-					logging.Warnf("Skipping instance %s in zone %s: instance is suspended (must be resumed before deletion)", instance.Name, zone)
+					logging.Warnf("Skipping instance %s in zone %s: instance is suspended (must be resumed or stopped before deletion)", instance.Name, zone)
 					continue
 				}
 
@@ -134,10 +130,6 @@ func deleteComputeInstance(ctx context.Context, client *compute.Service, id *str
 	}
 
 	logging.Debugf("Deleted compute instance: %s", *id)
-
-	// Rate-limiting delay to avoid GCP API quota issues
-	time.Sleep(computeDeleteDelay)
-
 	return nil
 }
 

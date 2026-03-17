@@ -9,16 +9,19 @@ import (
 )
 
 func TestComputeInstances_ResourceName(t *testing.T) {
+	t.Parallel()
 	r := NewComputeInstances()
 	assert.Equal(t, "compute-instance", r.ResourceName())
 }
 
 func TestComputeInstances_MaxBatchSize(t *testing.T) {
+	t.Parallel()
 	r := NewComputeInstances()
 	assert.Equal(t, ComputeInstanceBatchSize, r.MaxBatchSize())
 }
 
 func TestComputeInstances_ConfigGetter(t *testing.T) {
+	t.Parallel()
 	r := NewComputeInstances()
 	cfg := config.Config{
 		ComputeInstance: config.ResourceType{
@@ -30,6 +33,7 @@ func TestComputeInstances_ConfigGetter(t *testing.T) {
 }
 
 func TestParseComputeInstanceID(t *testing.T) {
+	t.Parallel()
 	project, zone, name, err := parseComputeInstanceID("my-project/us-central1-a/my-vm")
 	require.NoError(t, err)
 	assert.Equal(t, "my-project", project)
@@ -38,6 +42,7 @@ func TestParseComputeInstanceID(t *testing.T) {
 }
 
 func TestParseComputeInstanceID_SlashesInName(t *testing.T) {
+	t.Parallel()
 	// SplitN with limit 3 captures everything after second "/" as the name
 	project, zone, name, err := parseComputeInstanceID("project/zone/name/with/slashes")
 	require.NoError(t, err)
@@ -47,6 +52,7 @@ func TestParseComputeInstanceID_SlashesInName(t *testing.T) {
 }
 
 func TestParseComputeInstanceID_Invalid(t *testing.T) {
+	t.Parallel()
 	tests := []string{
 		"",
 		"only-one",
@@ -63,6 +69,7 @@ func TestParseComputeInstanceID_Invalid(t *testing.T) {
 }
 
 func TestExtractZoneName(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "us-central1-a", extractZoneName("zones/us-central1-a"))
 	assert.Equal(t, "europe-west1-b", extractZoneName("zones/europe-west1-b"))
 	assert.Equal(t, "already-bare", extractZoneName("already-bare"))
