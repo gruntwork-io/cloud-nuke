@@ -18,6 +18,10 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+// projectKey is the single map key used for GcpProjectResources.Resources.
+// GCP resources are project-scoped; location is a filter hint, not a scope.
+const projectKey = "project"
+
 // IsNukeable checks whether a resource type should be nuked based on the
 // requested resource types and exclude lists. An empty include list or the
 // special value "all" means nuke everything, minus any excluded types.
@@ -34,67 +38,71 @@ func IsNukeable(resourceType string, resourceTypes []string, excludeResourceType
 }
 
 // GetAllResources lists all GCP resources that can be deleted.
+// Each resource is called exactly once; location filtering is handled internally by each resource's Lister.
 func GetAllResources(ctx context.Context, query *Query, configObj config.Config, collector *reporting.Collector) (*GcpProjectResources, error) {
 	allResources := GcpProjectResources{
+		ProjectID: query.ProjectID,
 		Resources: map[string]GcpResources{},
 	}
 
 	ctx = context.WithValue(ctx, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
 
-	for _, region := range query.Regions {
-		cfg := resources.GcpConfig{ProjectID: query.ProjectID, Region: region}
-		regionResources := GetAndInitRegisteredResources(cfg, region)
+	cfg := resources.GcpConfig{
+		ProjectID:        query.ProjectID,
+		Locations:        query.Locations,
+		ExcludeLocations: query.ExcludeLocations,
+	}
+	allRegistered := GetAndInitRegisteredResources(cfg)
 
-		for _, res := range regionResources {
-			resourceName := (*res).ResourceName()
+	for _, res := range allRegistered {
+		resourceName := (*res).ResourceName()
 
-			if !IsNukeable(resourceName, query.ResourceTypes, query.ExcludeResourceTypes) {
+		if !IsNukeable(resourceName, query.ResourceTypes, query.ExcludeResourceTypes) {
+			continue
+		}
+
+		// Emit scan progress event
+		collector.Emit(reporting.ScanProgress{
+			ResourceType: resourceName,
+			Region:       query.ProjectID,
+		})
+
+		// Get all resource identifiers
+		identifiers, err := (*res).GetAndSetIdentifiers(ctx, configObj)
+		if err != nil {
+			if isServiceDisabledError(err) && !collections.ListContainsElement(query.ResourceTypes, resourceName) {
+				logging.Debugf("Skipping %s: API is disabled in this project", resourceName)
 				continue
 			}
-
-			// Emit scan progress event
-			collector.Emit(reporting.ScanProgress{
+			logging.Debugf("Error getting identifiers for %s: %v", resourceName, err)
+			collector.Emit(reporting.GeneralError{
 				ResourceType: resourceName,
-				Region:       region,
+				Description:  fmt.Sprintf("Unable to retrieve %s", resourceName),
+				Error:        err.Error(),
 			})
+			continue
+		}
 
-			// Get all resource identifiers
-			identifiers, err := (*res).GetAndSetIdentifiers(ctx, configObj)
-			if err != nil {
-				if isServiceDisabledError(err) && !collections.ListContainsElement(query.ResourceTypes, resourceName) {
-					logging.Debugf("Skipping %s: API is disabled in this project", resourceName)
-					continue
-				}
-				logging.Debugf("Error getting identifiers for %s: %v", resourceName, err)
-				collector.Emit(reporting.GeneralError{
-					ResourceType: resourceName,
-					Description:  fmt.Sprintf("Unable to retrieve %s", resourceName),
-					Error:        err.Error(),
-				})
-				continue
+		// Only append if we have non-empty identifiers
+		if len(identifiers) > 0 {
+			logging.Infof("Found %d %s resources", len(identifiers), resourceName)
+			allResources.Resources[projectKey] = GcpResources{
+				Resources: append(allResources.Resources[projectKey].Resources, res),
 			}
 
-			// Only append if we have non-empty identifiers
-			if len(identifiers) > 0 {
-				logging.Infof("Found %d %s resources", len(identifiers), resourceName)
-				allResources.Resources[region] = GcpResources{
-					Resources: append(allResources.Resources[region].Resources, res),
+			// Emit ResourceFound events for each identifier
+			for _, id := range identifiers {
+				nukable, reason := true, ""
+				if _, err := (*res).IsNukable(id); err != nil {
+					nukable, reason = false, err.Error()
 				}
-
-				// Emit ResourceFound events for each identifier
-				for _, id := range identifiers {
-					nukable, reason := true, ""
-					if _, err := (*res).IsNukable(id); err != nil {
-						nukable, reason = false, err.Error()
-					}
-					collector.Emit(reporting.ResourceFound{
-						ResourceType: resourceName,
-						Region:       region,
-						Identifier:   id,
-						Nukable:      nukable,
-						Reason:       reason,
-					})
-				}
+				collector.Emit(reporting.ResourceFound{
+					ResourceType: resourceName,
+					Region:       query.ProjectID,
+					Identifier:   id,
+					Nukable:      nukable,
+					Reason:       reason,
+				})
 			}
 		}
 	}
@@ -105,16 +113,18 @@ func GetAllResources(ctx context.Context, query *Query, configObj config.Config,
 	return &allResources, nil
 }
 
-// NukeAllResources nukes all GCP resources across the given regions.
-func NukeAllResources(ctx context.Context, account *GcpProjectResources, regions []string, collector *reporting.Collector) error {
+// NukeAllResources nukes all GCP resources in the project.
+func NukeAllResources(ctx context.Context, account *GcpProjectResources, collector *reporting.Collector) error {
 	// Emit NukeStarted event (CLIRenderer will initialize progress bar)
 	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
 
 	var allErrors *multierror.Error
 
-	for _, region := range regions {
-		if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
-			allErrors = multierror.Append(allErrors, err)
+	for _, gcpResources := range account.Resources {
+		for _, gcpResource := range gcpResources.Resources {
+			if err := nukeResource(ctx, gcpResource, account.ProjectID, collector); err != nil {
+				allErrors = multierror.Append(allErrors, err)
+			}
 		}
 	}
 
@@ -124,22 +134,8 @@ func NukeAllResources(ctx context.Context, account *GcpProjectResources, regions
 	return allErrors.ErrorOrNil()
 }
 
-// nukeAllResourcesInRegion nukes all resources in a single region.
-func nukeAllResourcesInRegion(ctx context.Context, account *GcpProjectResources, region string, collector *reporting.Collector) error {
-	var allErrors *multierror.Error
-
-	resourcesInRegion := account.Resources[region]
-	for _, gcpResource := range resourcesInRegion.Resources {
-		if err := nukeResource(ctx, gcpResource, region, collector); err != nil {
-			allErrors = multierror.Append(allErrors, err)
-		}
-	}
-
-	return allErrors.ErrorOrNil()
-}
-
-// nukeResource nukes a single GCP resource type
-func nukeResource(ctx context.Context, gcpResource *GcpResource, region string, collector *reporting.Collector) error {
+// nukeResource nukes a single GCP resource type within a project scope.
+func nukeResource(ctx context.Context, gcpResource *GcpResource, scope string, collector *reporting.Collector) error {
 	// Filter to only nukable resources
 	var nukableIdentifiers []string
 	for _, id := range (*gcpResource).ResourceIdentifiers() {
@@ -164,7 +160,7 @@ func nukeResource(ctx context.Context, gcpResource *GcpResource, region string, 
 		// Emit progress event (CLIRenderer updates its progress bar)
 		collector.Emit(reporting.NukeProgress{
 			ResourceType: (*gcpResource).ResourceName(),
-			Region:       region,
+			Region:       scope,
 			BatchSize:    len(batch),
 		})
 
@@ -178,7 +174,7 @@ func nukeResource(ctx context.Context, gcpResource *GcpResource, region string, 
 			}
 			collector.Emit(reporting.ResourceDeleted{
 				ResourceType: (*gcpResource).ResourceName(),
-				Region:       region,
+				Region:       scope,
 				Identifier:   result.Identifier,
 				Success:      result.Error == nil,
 				Error:        errStr,
@@ -194,13 +190,13 @@ func nukeResource(ctx context.Context, gcpResource *GcpResource, region string, 
 				continue
 			}
 
-			allErrors = multierror.Append(allErrors, fmt.Errorf("[%s] %s: %w", region, (*gcpResource).ResourceName(), err))
+			allErrors = multierror.Append(allErrors, fmt.Errorf("[%s] %s: %w", scope, (*gcpResource).ResourceName(), err))
 
 			// Report to telemetry - aggregated metrics of failures per resources.
 			telemetry.TrackEvent(commonTelemetry.EventContext{
 				EventName: fmt.Sprintf("error:Nuke:%s", (*gcpResource).ResourceName()),
 			}, map[string]interface{}{
-				"region": region,
+				"scope": scope,
 			})
 		}
 

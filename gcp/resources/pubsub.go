@@ -27,12 +27,16 @@ const (
 )
 
 // NewPubSubTopics creates a new Pub/Sub topic resource using the generic resource pattern.
+// Pub/Sub topics are project-scoped; the API does not expose location info on topics,
+// so --region/--exclude-region do not filter Pub/Sub results.
 func NewPubSubTopics() GcpResource {
 	return NewGcpResource(&resource.Resource[*pubsub.PublisherClient]{
 		ResourceTypeName: "gcp-pubsub-topic",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*pubsub.PublisherClient], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
+			r.Scope.Locations = cfg.Locations
+			r.Scope.ExcludeLocations = cfg.ExcludeLocations
 			client, err := pubsub.NewPublisherClient(context.Background())
 			if err != nil {
 				panic(fmt.Sprintf("failed to create Pub/Sub publisher client: %v", err))
