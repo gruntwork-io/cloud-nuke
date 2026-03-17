@@ -16,10 +16,12 @@ const DefaultBatchSize = 50
 
 // Scope represents the cloud provider-specific scope for a resource.
 // For AWS: Region is set (e.g., "us-east-1" or "global" for global resources)
-// For GCP: ProjectID is set, and optionally Region for regional resources
+// For GCP: ProjectID is set, with Locations as an optional filter hint
 type Scope struct {
-	Region    string // AWS region (e.g., "us-east-1") or "global" for global resources
-	ProjectID string // GCP project ID
+	Region           string   // AWS region (e.g., "us-east-1") or "global" for global resources
+	ProjectID        string   // GCP project ID
+	Locations        []string // GCP location filter hints (e.g., ["us-central1", "global"])
+	ExcludeLocations []string // GCP locations to exclude
 }
 
 // String returns a human-readable representation of the scope for logging

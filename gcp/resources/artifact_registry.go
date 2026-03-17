@@ -34,10 +34,13 @@ func NewArtifactRegistryRepositories() GcpResource {
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*artifactregistry.Client], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
+			r.Scope.Locations = cfg.Locations
+			r.Scope.ExcludeLocations = cfg.ExcludeLocations
 			client, err := artifactregistry.NewClient(context.Background())
 			if err != nil {
-				r.InitializationError = fmt.Errorf("failed to create Artifact Registry client: %w", err)
-				return
+				// Panic is recovered by GcpResourceAdapter.Init() and stored as InitializationError,
+				// causing subsequent GetAndSetIdentifiers/Nuke calls to return the error gracefully.
+				panic(fmt.Sprintf("failed to create Artifact Registry client: %v", err))
 			}
 			r.Client = client
 		}),
@@ -68,6 +71,10 @@ func listArtifactRegistryRepositories(ctx context.Context, client *artifactregis
 		}
 		if err != nil {
 			return nil, fmt.Errorf("error listing artifact registry locations: %w", err)
+		}
+
+		if !MatchesLocationFilter(loc.LocationId, scope.Locations, scope.ExcludeLocations) {
+			continue
 		}
 
 		// List repositories in this location

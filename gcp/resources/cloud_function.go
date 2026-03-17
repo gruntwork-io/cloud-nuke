@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	functions "cloud.google.com/go/functions/apiv2"
@@ -23,8 +24,12 @@ func NewCloudFunctions() GcpResource {
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*functions.FunctionClient], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
+			r.Scope.Locations = cfg.Locations
+			r.Scope.ExcludeLocations = cfg.ExcludeLocations
 			client, err := functions.NewFunctionClient(context.Background())
 			if err != nil {
+				// Panic is recovered by GcpResourceAdapter.Init() and stored as InitializationError,
+				// causing subsequent GetAndSetIdentifiers/Nuke calls to return the error gracefully.
 				panic(fmt.Sprintf("failed to create Cloud Functions client: %v", err))
 			}
 			r.Client = client
@@ -38,43 +43,69 @@ func NewCloudFunctions() GcpResource {
 }
 
 // listCloudFunctions retrieves all Cloud Functions (Gen2) in the project that match the config filters.
-// It queries across all locations using the wildcard parent: projects/{projectID}/locations/-
+// If scope.Locations is set, it queries specific locations; otherwise it uses the wildcard locations/-.
 func listCloudFunctions(ctx context.Context, client *functions.FunctionClient, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var result []*string
 
-	// Use the wildcard "-" for location to list functions across ALL regions
-	parent := fmt.Sprintf("projects/%s/locations/-", scope.ProjectID)
-
-	req := &functionspb.ListFunctionsRequest{
-		Parent: parent,
+	// Build the list of parents to query
+	var parents []string
+	if len(scope.Locations) == 0 {
+		// Use the wildcard "-" for location to list functions across ALL locations
+		parents = []string{fmt.Sprintf("projects/%s/locations/-", scope.ProjectID)}
+	} else {
+		for _, loc := range scope.Locations {
+			if !MatchesLocationFilter(loc, nil, scope.ExcludeLocations) {
+				continue
+			}
+			if strings.EqualFold(loc, "global") {
+				logging.Debugf("Skipping Cloud Functions for location 'global' (not supported)")
+				continue
+			}
+			parents = append(parents, fmt.Sprintf("projects/%s/locations/%s", scope.ProjectID, loc))
+		}
 	}
 
-	it := client.ListFunctions(ctx, req)
-	for {
-		fn, err := it.Next()
-		if errors.Is(err, iterator.Done) {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error listing cloud functions: %w", err)
+	for _, parent := range parents {
+		req := &functionspb.ListFunctionsRequest{
+			Parent: parent,
 		}
 
-		// fn.Name is the fully qualified name: projects/{project}/locations/{location}/functions/{function}
-		name := fn.Name
+		it := client.ListFunctions(ctx, req)
+		for {
+			fn, err := it.Next()
+			if errors.Is(err, iterator.Done) {
+				break
+			}
+			if err != nil {
+				logging.Debugf("Error listing cloud functions in %s: %v", parent, err)
+				break
+			}
 
-		// Use UpdateTime as the resource timestamp for time-based filtering
-		var resourceTime time.Time
-		if fn.UpdateTime != nil {
-			resourceTime = fn.UpdateTime.AsTime()
-		}
+			// fn.Name is the fully qualified name: projects/{project}/locations/{location}/functions/{function}
+			name := fn.Name
 
-		resourceValue := config.ResourceValue{
-			Name: &name,
-			Time: &resourceTime,
-		}
+			// Post-filter by location when using wildcard query
+			if len(scope.ExcludeLocations) > 0 {
+				loc := ExtractLocationFromResourceName(name)
+				if loc == "" || !MatchesLocationFilter(loc, nil, scope.ExcludeLocations) {
+					continue
+				}
+			}
 
-		if cfg.ShouldInclude(resourceValue) {
-			result = append(result, &name)
+			// Use UpdateTime as the resource timestamp for time-based filtering
+			var resourceTime time.Time
+			if fn.UpdateTime != nil {
+				resourceTime = fn.UpdateTime.AsTime()
+			}
+
+			resourceValue := config.ResourceValue{
+				Name: &name,
+				Time: &resourceTime,
+			}
+
+			if cfg.ShouldInclude(resourceValue) {
+				result = append(result, &name)
+			}
 		}
 	}
 

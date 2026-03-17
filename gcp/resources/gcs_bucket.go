@@ -21,9 +21,11 @@ func NewGCSBuckets() GcpResource {
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*storage.Client], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
+			r.Scope.Locations = cfg.Locations
+			r.Scope.ExcludeLocations = cfg.ExcludeLocations
 			client, err := storage.NewClient(context.Background())
 			if err != nil {
-				// Panic is recovered by GcpResourceAdapter.Init() and stored as initErr,
+				// Panic is recovered by GcpResourceAdapter.Init() and stored as InitializationError,
 				// causing subsequent GetAndSetIdentifiers/Nuke calls to return the error gracefully.
 				panic(fmt.Sprintf("failed to create GCS client: %v", err))
 			}
@@ -49,6 +51,10 @@ func listGCSBuckets(ctx context.Context, client *storage.Client, scope resource.
 		}
 		if err != nil {
 			return nil, fmt.Errorf("error listing buckets: %w", err)
+		}
+
+		if !MatchesLocationFilter(bucket.Location, scope.Locations, scope.ExcludeLocations) {
+			continue
 		}
 
 		resourceValue := config.ResourceValue{
