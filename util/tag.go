@@ -4,9 +4,12 @@ import (
 	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	efstypes "github.com/aws/aws-sdk-go-v2/service/efs/types"
 	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	networkfirewalltypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
+	opensearchtypes "github.com/aws/aws-sdk-go-v2/service/opensearch/types"
 	rdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
+	redshifttypes "github.com/aws/aws-sdk-go-v2/service/redshift/types"
 	route53types "github.com/aws/aws-sdk-go-v2/service/route53/types"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	sagemakertypes "github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
@@ -125,5 +128,35 @@ func ConvertCloudFormationTagsToMap(tags []cloudformationtypes.Tag) map[string]s
 		tagMap[*tag.Key] = *tag.Value
 	}
 
+	return tagMap
+}
+
+func ConvertEFSTagsToMap(tags []efstypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertOpenSearchTagsToMap(tags []opensearchtypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertRedshiftTagsToMap(tags []redshifttypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
 	return tagMap
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -61,6 +62,7 @@ func listElasticFileSystems(ctx context.Context, client ElasticFileSystemAPI, sc
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: system.Name,
 				Time: system.CreationTime,
+				Tags: util.ConvertEFSTagsToMap(system.Tags),
 			}) {
 				allEfs = append(allEfs, system.FileSystemId)
 			}
