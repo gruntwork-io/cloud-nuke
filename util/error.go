@@ -87,6 +87,7 @@ func IsThrottlingError(err error) bool {
 //   - InvalidDBSubnetGroupStateFault: RDS subnet group in use by a DB instance
 //   - InvalidDBClusterStateFault: RDS cluster can't be deleted while its instances exist
 //   - InvalidClusterState: Redshift cluster has an operation in progress
+//   - InvalidHomeRegionException: CloudTrail trail can only be deleted from its home region
 //
 // Already-deleted errors — resource was deleted between the scan and nuke
 // phases (e.g., by another concurrent nuke run or TTL expiry). Safe to ignore:
@@ -94,6 +95,7 @@ func IsThrottlingError(err error) bool {
 //   - DBParameterGroupNotFound: RDS parameter group no longer exists
 //   - InvalidSubnetID.NotFound: EC2 subnet no longer exists
 //   - InvalidNetworkInterfaceID.NotFound: EC2 ENI no longer exists
+//   - TrailNotFoundException: CloudTrail trail already deleted by another region/job
 func IsWarningError(err error) bool {
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
@@ -102,13 +104,15 @@ func IsWarningError(err error) bool {
 		case "DependencyViolation",
 			"InvalidDBSubnetGroupStateFault",
 			"InvalidDBClusterStateFault",
-			"InvalidClusterState":
+			"InvalidClusterState",
+			"InvalidHomeRegionException":
 			return true
 		// Already-deleted errors
 		case "DBSubnetGroupNotFoundFault",
 			"DBParameterGroupNotFound",
 			"InvalidSubnetID.NotFound",
-			"InvalidNetworkInterfaceID.NotFound":
+			"InvalidNetworkInterfaceID.NotFound",
+			"TrailNotFoundException":
 			return true
 		}
 	}
