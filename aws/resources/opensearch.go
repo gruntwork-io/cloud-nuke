@@ -63,16 +63,22 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 	for _, domain := range domains {
 		var firstSeenTime *time.Time
 
-		if !excludeFirstSeenTag {
-			firstSeenTime, err = getFirstSeenOrSet(ctx, client, domain.ARN)
-			if err != nil {
-				return nil, errors.WithStackTrace(err)
-			}
-		}
-
+		// Single ListTags call per domain — used for both first-seen and tag filtering
 		tags, err := getOpenSearchDomainTags(ctx, client, domain.ARN)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			logging.Debugf("Error getting tags for OpenSearch domain %s: %v", aws.ToString(domain.DomainName), err)
+			tags = map[string]string{}
+		}
+
+		if !excludeFirstSeenTag {
+			firstSeenTime = parseOpenSearchFirstSeenTag(tags)
+		}
+
+		if !excludeFirstSeenTag && firstSeenTime == nil {
+			err := setOpenSearchFirstSeenTag(ctx, client, domain.ARN, time.Now().UTC())
+			if err != nil {
+				logging.Debugf("Error setting first seen tag for OpenSearch domain %s: %v", aws.ToString(domain.DomainName), err)
+			}
 		}
 
 		if cfg.ShouldInclude(config.ResourceValue{
@@ -87,20 +93,18 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 	return domainsToNuke, nil
 }
 
-// getFirstSeenOrSet retrieves the first-seen timestamp or sets it if not present.
-func getFirstSeenOrSet(ctx context.Context, client OpenSearchDomainsAPI, domainARN *string) (*time.Time, error) {
-	firstSeenTime, err := getOpenSearchFirstSeenTag(ctx, client, domainARN)
+// parseOpenSearchFirstSeenTag extracts the first-seen timestamp from a tags map (no API call).
+func parseOpenSearchFirstSeenTag(tags map[string]string) *time.Time {
+	value, ok := tags[firstSeenTagKey]
+	if !ok {
+		return nil
+	}
+	parsed, err := util.ParseTimestamp(aws.String(value))
 	if err != nil {
-		return nil, err
+		logging.Debugf("Error parsing first-seen tag value %q: %v", value, err)
+		return nil
 	}
-
-	if firstSeenTime == nil {
-		if err := setOpenSearchFirstSeenTag(ctx, client, domainARN, time.Now().UTC()); err != nil {
-			return nil, err
-		}
-	}
-
-	return firstSeenTime, nil
+	return parsed
 }
 
 // getAllActiveOpenSearchDomains filters all active OpenSearch domains, which are those that have the `Created` flag true and `Deleted` flag false.
@@ -178,32 +182,6 @@ func setOpenSearchFirstSeenTag(ctx context.Context, client OpenSearchDomainsAPI,
 	}
 
 	return nil
-}
-
-// getOpenSearchFirstSeenTag gets the `cloud-nuke-first-seen` tag value for a given OpenSearch Domain
-func getOpenSearchFirstSeenTag(ctx context.Context, client OpenSearchDomainsAPI, domainARN *string) (*time.Time, error) {
-	var firstSeenTime *time.Time
-
-	input := &opensearch.ListTagsInput{ARN: domainARN}
-	domainTags, err := client.ListTags(ctx, input)
-	if err != nil {
-		logging.Errorf("Error getting the tags for OpenSearch Domain with ARN %s", aws.ToString(domainARN))
-		return firstSeenTime, errors.WithStackTrace(err)
-	}
-
-	for _, tag := range domainTags.TagList {
-		if util.IsFirstSeenTag(tag.Key) {
-			firstSeenTime, err := util.ParseTimestamp(tag.Value)
-			if err != nil {
-				logging.Errorf("Error parsing the `cloud-nuke-first-seen` tag for OpenSearch Domain with ARN %s", aws.ToString(domainARN))
-				return firstSeenTime, errors.WithStackTrace(err)
-			}
-
-			return firstSeenTime, nil
-		}
-	}
-
-	return firstSeenTime, nil
 }
 
 // deleteOpenSearchDomain deletes a single OpenSearch domain.

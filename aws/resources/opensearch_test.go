@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ type mockedOpenSearch struct {
 	ListDomainNamesOutput opensearch.ListDomainNamesOutput
 	DescribeDomainsOutput opensearch.DescribeDomainsOutput
 	ListTagsOutput        opensearch.ListTagsOutput
+	ListTagsError         error
 	DeleteDomainOutput    opensearch.DeleteDomainOutput
 }
 
@@ -37,6 +39,9 @@ func (m mockedOpenSearch) DescribeDomains(ctx context.Context, params *opensearc
 }
 
 func (m mockedOpenSearch) ListTags(ctx context.Context, params *opensearch.ListTagsInput, optFns ...func(*opensearch.Options)) (*opensearch.ListTagsOutput, error) {
+	if m.ListTagsError != nil {
+		return nil, m.ListTagsError
+	}
 	return &m.ListTagsOutput, nil
 }
 
@@ -156,4 +161,30 @@ func TestOpenSearch_WaitForDeleted(t *testing.T) {
 
 	err := waitForOpenSearchDomainsDeleted(context.Background(), mockClient, []string{"test-domain"})
 	require.NoError(t, err)
+}
+
+func TestOpenSearch_GetAll_TagFetchErrorContinues(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, true)
+
+	mockClient := mockedOpenSearch{
+		ListDomainNamesOutput: opensearch.ListDomainNamesOutput{
+			DomainNames: []types.DomainInfo{
+				{DomainName: aws.String("domain-with-tag-error")},
+			},
+		},
+		DescribeDomainsOutput: opensearch.DescribeDomainsOutput{
+			DomainStatusList: []types.DomainStatus{
+				{DomainName: aws.String("domain-with-tag-error"), Created: aws.Bool(true), Deleted: aws.Bool(false)},
+			},
+		},
+		ListTagsError: fmt.Errorf("simulated ListTags API error"),
+	}
+
+	// Should not return an error — tag fetch failure is logged and continued
+	names, err := listOpenSearchDomains(ctx, mockClient, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
+	require.NoError(t, err)
+	// Domain is still included with empty tags (no tag filter configured)
+	require.Equal(t, []string{"domain-with-tag-error"}, aws.ToStringSlice(names))
 }
