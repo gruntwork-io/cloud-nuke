@@ -151,7 +151,7 @@ This table shows which filtering features are supported for each resource type i
 | api-gateway-v2 | APIGatewayV2 | ✓ | ✓ | ✓ | ✓ |
 | app-runner-service | AppRunnerService | ✓ | ✓ | | ✓ |
 | asg | AutoScalingGroup | ✓ | ✓ | ✓ | ✓ |
-| backup-vault | BackupVault | ✓ | ✓ | | ✓ |
+| backup-vault | BackupVault | ✓ | ✓ | ✓ | ✓ |
 | cloudformation-stack | CloudFormationStack | ✓ | ✓ | ✓ | ✓ |
 | cloudfront-distribution | CloudFrontDistribution | ✓ | | | ✓ |
 | cloudmap-namespace | CloudMapNamespace | ✓ | ✓ | ✓ | ✓ |
