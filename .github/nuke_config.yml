@@ -189,6 +189,12 @@ EventBridge:
       # AWS Control Tower managed rule (SCP denies deletion)
       - "aws-controltower-"
 
+EventBridgeRule:
+  exclude:
+    names_regex:
+      # AWS Control Tower managed rule (SCP denies deletion)
+      - "aws-controltower-"
+
 ConfigServiceRecorder:
   exclude:
     names_regex:
