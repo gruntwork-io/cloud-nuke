@@ -20,6 +20,7 @@ const kmsRemovalWindow = 7
 type KmsCustomerKeysAPI interface {
 	ListKeys(ctx context.Context, params *kms.ListKeysInput, optFns ...func(*kms.Options)) (*kms.ListKeysOutput, error)
 	ListAliases(ctx context.Context, params *kms.ListAliasesInput, optFns ...func(*kms.Options)) (*kms.ListAliasesOutput, error)
+	ListResourceTags(ctx context.Context, params *kms.ListResourceTagsInput, optFns ...func(*kms.Options)) (*kms.ListResourceTagsOutput, error)
 	DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error)
 	ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error)
 }
@@ -169,7 +170,36 @@ func shouldIncludeKey(ctx context.Context, client KmsCustomerKeysAPI, keyId stri
 		return false, nil
 	}
 
+	// Check tag-based filtering
+	tags, err := getKmsKeyTags(ctx, client, keyId)
+	if err != nil {
+		logging.Debugf("Error getting tags for KMS key %s: %v", keyId, err)
+		// If we can't get tags, pass empty map so tag filters correctly exclude this resource
+		tags = map[string]string{}
+	}
+	if !cfg.ShouldIncludeBasedOnTag(tags) {
+		return false, nil
+	}
+
 	return true, nil
+}
+
+// getKmsKeyTags retrieves all tags for a KMS key as a map.
+func getKmsKeyTags(ctx context.Context, client KmsCustomerKeysAPI, keyId string) (map[string]string, error) {
+	output, err := client.ListResourceTags(ctx, &kms.ListResourceTagsInput{
+		KeyId: &keyId,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	tagMap := make(map[string]string)
+	for _, tag := range output.Tags {
+		if tag.TagKey != nil && tag.TagValue != nil {
+			tagMap[*tag.TagKey] = *tag.TagValue
+		}
+	}
+	return tagMap, nil
 }
 
 // deleteKmsCustomerKey schedules a single KMS customer key for deletion.

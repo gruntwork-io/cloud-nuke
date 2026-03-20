@@ -16,6 +16,7 @@ import (
 type mockKmsClient struct {
 	ListKeysOutput            kms.ListKeysOutput
 	ListAliasesOutput         kms.ListAliasesOutput
+	ListResourceTagsOutput    kms.ListResourceTagsOutput
 	DescribeKeyOutput         map[string]kms.DescribeKeyOutput
 	ScheduleKeyDeletionOutput kms.ScheduleKeyDeletionOutput
 }
@@ -31,6 +32,10 @@ func (m *mockKmsClient) ListAliases(ctx context.Context, params *kms.ListAliases
 func (m *mockKmsClient) DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error) {
 	output := m.DescribeKeyOutput[*params.KeyId]
 	return &output, nil
+}
+
+func (m *mockKmsClient) ListResourceTags(ctx context.Context, params *kms.ListResourceTagsInput, optFns ...func(*kms.Options)) (*kms.ListResourceTagsOutput, error) {
+	return &m.ListResourceTagsOutput, nil
 }
 
 func (m *mockKmsClient) ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error) {

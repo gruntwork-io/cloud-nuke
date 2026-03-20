@@ -70,9 +70,15 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 			}
 		}
 
+		tags, err := getOpenSearchDomainTags(ctx, client, domain.ARN)
+		if err != nil {
+			return nil, errors.WithStackTrace(err)
+		}
+
 		if cfg.ShouldInclude(config.ResourceValue{
 			Name: domain.DomainName,
 			Time: firstSeenTime,
+			Tags: tags,
 		}) {
 			domainsToNuke = append(domainsToNuke, domain.DomainName)
 		}
@@ -140,6 +146,15 @@ func getAllActiveOpenSearchDomains(ctx context.Context, client OpenSearchDomains
 	}
 
 	return filteredDomains, nil
+}
+
+// getOpenSearchDomainTags retrieves all tags for an OpenSearch domain as a map.
+func getOpenSearchDomainTags(ctx context.Context, client OpenSearchDomainsAPI, domainARN *string) (map[string]string, error) {
+	output, err := client.ListTags(ctx, &opensearch.ListTagsInput{ARN: domainARN})
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+	return util.ConvertOpenSearchTagsToMap(output.TagList), nil
 }
 
 // setOpenSearchFirstSeenTag tags an OpenSearch Domain identified by the given ARN when it's first seen by cloud-nuke

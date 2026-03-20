@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -49,6 +50,7 @@ func listRedshiftClusters(ctx context.Context, client RedshiftClustersAPI, scope
 			if cfg.ShouldInclude(config.ResourceValue{
 				Time: cluster.ClusterCreateTime,
 				Name: cluster.ClusterIdentifier,
+				Tags: util.ConvertRedshiftTagsToMap(cluster.Tags),
 			}) {
 				clusterIds = append(clusterIds, cluster.ClusterIdentifier)
 			}
