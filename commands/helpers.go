@@ -2,6 +2,8 @@ package commands
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -165,6 +167,43 @@ func parseDurationParam(flagName string, paramValue string) (*time.Time, error) 
 	// Calculate the time point in the past
 	excludeAfter := time.Now().Add(duration)
 	return &excludeAfter, nil
+}
+
+// parseTagFlags parses --include-tag flag values (format: key=value) into a map
+// of tag key to compiled regex Expression. The value portion is treated as a regex pattern.
+// Returns nil if no tags are provided.
+func parseTagFlags(tagValues []string) (map[string]config.Expression, error) {
+	if len(tagValues) == 0 {
+		return nil, nil //nolint:nilnil
+	}
+
+	tags := make(map[string]config.Expression, len(tagValues))
+	for _, tagValue := range tagValues {
+		parts := strings.SplitN(tagValue, "=", 2)
+		if len(parts) != 2 {
+			return nil, errors.WithStackTrace(InvalidTagFormatError{Value: tagValue})
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		if key == "" || value == "" {
+			return nil, errors.WithStackTrace(InvalidTagFormatError{Value: tagValue})
+		}
+
+		if _, exists := tags[key]; exists {
+			return nil, errors.WithStackTrace(DuplicateTagKeyError{Key: key})
+		}
+
+		re, err := regexp.Compile(value)
+		if err != nil {
+			return nil, errors.WithStackTrace(InvalidTagRegexError{Value: tagValue, Underlying: err})
+		}
+
+		tags[key] = config.Expression{RE: *re}
+	}
+
+	return tags, nil
 }
 
 // parseTimeoutDurationParam parses a timeout duration string (e.g., "30m", "1h").

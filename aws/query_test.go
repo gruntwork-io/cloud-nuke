@@ -31,11 +31,11 @@ func hasAWSCredentialsForQuery() bool {
 	return false
 }
 
-func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
+func TestQueryValidateAcceptsValidExcludeAfterEntries(t *testing.T) {
 	telemetry.InitTelemetry("cloud-nuke", "")
 
 	// Skip if AWS credentials are not available (fast check via env vars)
-	// NewQuery validates regions against AWS, which requires credentials
+	// Validate checks regions against AWS, which requires credentials
 	if !hasAWSCredentialsForQuery() {
 		t.Skip("Skipping test: AWS credentials not available")
 	}
@@ -71,18 +71,15 @@ func TestNewQueryAcceptsValidExcludeAfterEntries(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			q, err := NewQuery(
-				tc.Regions,
-				tc.ExcludeRegions,
-				tc.ResourceTypes,
-				tc.ExcludeResourceTypes,
-				tc.ExcludeAfter,
-				tc.IncludeAfter,
-				false,
-				nil,
-				false,
-				false,
-			)
+			q := &Query{
+				Regions:              tc.Regions,
+				ExcludeRegions:       tc.ExcludeRegions,
+				ResourceTypes:        tc.ResourceTypes,
+				ExcludeResourceTypes: tc.ExcludeResourceTypes,
+				ExcludeAfter:         tc.ExcludeAfter,
+				IncludeAfter:         tc.IncludeAfter,
+			}
+			err := q.Validate()
 			require.NoError(t, err)
 			assert.True(t, q.ProtectUntilExpire)
 		})
