@@ -18,6 +18,7 @@ type mockKmsClient struct {
 	ListAliasesOutput         kms.ListAliasesOutput
 	DescribeKeyOutput         map[string]kms.DescribeKeyOutput
 	ScheduleKeyDeletionOutput kms.ScheduleKeyDeletionOutput
+	ListResourceTagsOutput    map[string]kms.ListResourceTagsOutput
 }
 
 func (m *mockKmsClient) ListKeys(ctx context.Context, params *kms.ListKeysInput, optFns ...func(*kms.Options)) (*kms.ListKeysOutput, error) {
@@ -35,6 +36,11 @@ func (m *mockKmsClient) DescribeKey(ctx context.Context, params *kms.DescribeKey
 
 func (m *mockKmsClient) ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error) {
 	return &m.ScheduleKeyDeletionOutput, nil
+}
+
+func (m *mockKmsClient) ListResourceTags(ctx context.Context, params *kms.ListResourceTagsInput, optFns ...func(*kms.Options)) (*kms.ListResourceTagsOutput, error) {
+	tags := m.ListResourceTagsOutput[*params.KeyId]
+	return &tags, nil
 }
 
 func TestListKmsCustomerKeys(t *testing.T) {
@@ -247,6 +253,95 @@ func TestListKmsCustomerKeys_SkipsPendingDeletion(t *testing.T) {
 	names, err := listKmsCustomerKeys(context.Background(), mock, config.ResourceType{}, false)
 	require.NoError(t, err)
 	require.Equal(t, []string{activeKey}, aws.ToStringSlice(names))
+}
+
+func TestListKmsCustomerKeys_FilterTags(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	keyWithoutTags, keyFooFaz, keyFoo := "keyWithoutTags", "keyFooFaz", "keyFoo"
+
+	mock := &mockKmsClient{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(keyWithoutTags)},
+				{KeyId: aws.String(keyFooFaz)},
+				{KeyId: aws.String(keyFoo)},
+			},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{AliasName: aws.String("alias/no-tags"), TargetKeyId: aws.String(keyWithoutTags)},
+				{AliasName: aws.String("alias/foo-faz"), TargetKeyId: aws.String(keyFooFaz)},
+				{AliasName: aws.String("alias/foo"), TargetKeyId: aws.String(keyFoo)},
+			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			keyWithoutTags: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(keyWithoutTags),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+			keyFooFaz: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(keyFooFaz),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now.Add(time.Hour)),
+			}},
+			keyFoo: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(keyFoo),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now.Add(time.Hour)),
+			}},
+		},
+		ListResourceTagsOutput: map[string]kms.ListResourceTagsOutput{
+			keyWithoutTags: {Tags: []types.Tag{}},
+			keyFooFaz: {
+				Tags: []types.Tag{
+					{TagKey: aws.String("foo"), TagValue: aws.String("bar")},
+					{TagKey: aws.String("faz"), TagValue: aws.String("baz")},
+				},
+			},
+			keyFoo: {
+				Tags: []types.Tag{
+					{TagKey: aws.String("foo"), TagValue: aws.String("bar")},
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{keyWithoutTags, keyFooFaz, keyFoo},
+		},
+		"tagInclusionFiler": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
+				},
+			},
+			expected: []string{keyFooFaz, keyFoo},
+		},
+		"tagExclusionFiler": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"faz": {RE: *regexp.MustCompile("baz")}},
+				},
+			},
+			expected: []string{keyWithoutTags, keyFoo},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			names, err := listKmsCustomerKeys(context.Background(), mock, tc.configObj, false)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
+	}
 }
 
 func TestDeleteKmsCustomerKey(t *testing.T) {

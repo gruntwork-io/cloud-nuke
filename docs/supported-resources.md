@@ -212,7 +212,7 @@ This table shows which filtering features are supported for each resource type i
 | ipam-scope | EC2IPAMScope | ✓ | ✓ | ✓ | ✓ |
 | kinesis-firehose | KinesisFirehose | ✓ | | | ✓ |
 | kinesis-stream | KinesisStream | ✓ | | | ✓ |
-| kms-customer-key | KMSCustomerKeys | ✓ | ✓ | | |
+| kms-customer-key | KMSCustomerKeys | ✓ | ✓ | ✓ | |
 | lambda | LambdaFunction | ✓ | ✓ | ✓ | ✓ |
 | lambda-layer | LambdaLayer | ✓ | ✓ | | ✓ |
 | launch-configuration | LaunchConfiguration | ✓ | ✓ | | ✓ |

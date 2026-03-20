@@ -22,6 +22,7 @@ type KmsCustomerKeysAPI interface {
 	ListAliases(ctx context.Context, params *kms.ListAliasesInput, optFns ...func(*kms.Options)) (*kms.ListAliasesOutput, error)
 	DescribeKey(ctx context.Context, params *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error)
 	ScheduleKeyDeletion(ctx context.Context, params *kms.ScheduleKeyDeletionInput, optFns ...func(*kms.Options)) (*kms.ScheduleKeyDeletionOutput, error)
+	ListResourceTags(ctx context.Context, params *kms.ListResourceTagsInput, optFns ...func(*kms.Options)) (*kms.ListResourceTagsOutput, error)
 }
 
 // kmsCustomerKeysResource holds additional config that the lister needs
@@ -167,6 +168,19 @@ func shouldIncludeKey(ctx context.Context, client KmsCustomerKeysAPI, keyId stri
 	// Check time-based filtering
 	if metadata.CreationDate != nil && !cfg.ShouldIncludeBasedOnTime(*metadata.CreationDate) {
 		return false, nil
+	}
+
+	// Check tags
+	if len(cfg.IncludeRule.Tags) > 0 || len(cfg.ExcludeRule.Tags) > 0 {
+		tags, err := client.ListResourceTags(ctx, &kms.ListResourceTagsInput{KeyId: &keyId})
+		if err != nil {
+			return false, err
+		}
+		tagMap := make(map[string]string)
+		for _, tag := range tags.Tags {
+			tagMap[aws.ToString(tag.TagKey)] = aws.ToString(tag.TagValue)
+		}
+		return cfg.ShouldIncludeBasedOnTag(tagMap), nil
 	}
 
 	return true, nil
