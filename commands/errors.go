@@ -40,3 +40,28 @@ type InvalidLogLevelError struct {
 func (e InvalidLogLevelError) Error() string {
 	return fmt.Sprintf("Invalid log level '%s': %v", e.Value, e.Underlying)
 }
+
+type InvalidTagFormatError struct {
+	Value string
+}
+
+func (e InvalidTagFormatError) Error() string {
+	return fmt.Sprintf("Invalid tag format '%s': expected key=value (e.g., gruntwork-repo=terraform-aws-data-storage)", e.Value)
+}
+
+type InvalidTagRegexError struct {
+	Value      string
+	Underlying error
+}
+
+func (e InvalidTagRegexError) Error() string {
+	return fmt.Sprintf("Invalid regex in tag value '%s': %v", e.Value, e.Underlying)
+}
+
+type DuplicateTagKeyError struct {
+	Key string
+}
+
+func (e DuplicateTagKeyError) Error() string {
+	return fmt.Sprintf("Duplicate tag key '%s': each tag key may only be specified once", e.Key)
+}

@@ -48,6 +48,7 @@ func CreateCli(version string) *cli.App {
 				RegionFlags(),
 				CommonResourceTypeFlags(),
 				CommonTimeFlags(),
+				TagFlags(),
 				CommonExecutionFlags(),
 				CommonOutputFlags(),
 				[]cli.Flag{
@@ -130,6 +131,7 @@ func CreateCli(version string) *cli.App {
 				RegionFlags(),
 				InspectResourceTypeFlags(),
 				CommonTimeFlags(),
+				TagFlags(),
 				CommonOutputFlags(),
 				[]cli.Flag{
 					ConfigFlag(),

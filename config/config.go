@@ -358,6 +358,30 @@ func (c *Config) AddProtectUntilExpireFlag(flag bool) {
 	}
 }
 
+// AddIncludeTags applies global tag include filters to all resource types.
+// This merges CLI-provided tags with any existing per-resource-type include tags
+// from the config file, with config file tags taking precedence on conflicts.
+func (c *Config) AddIncludeTags(tags map[string]Expression) {
+	if len(tags) == 0 {
+		return
+	}
+	for _, rt := range c.allResourceTypes() {
+		if rt.IncludeRule.Tags == nil {
+			rt.IncludeRule.Tags = make(map[string]Expression, len(tags))
+		}
+		for k, v := range tags {
+			// Only set if not already defined by config file (config takes precedence)
+			if _, exists := rt.IncludeRule.Tags[k]; !exists {
+				rt.IncludeRule.Tags[k] = v
+			}
+		}
+		// When global tags are applied, use AND logic so all tags must match
+		if rt.IncludeRule.TagsOperator == "" {
+			rt.IncludeRule.TagsOperator = "AND"
+		}
+	}
+}
+
 type KMSCustomerKeyResourceType struct {
 	IncludeUnaliasedKeys bool `yaml:"include_unaliased_keys"`
 	ResourceType         `yaml:",inline"`

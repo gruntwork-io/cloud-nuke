@@ -22,6 +22,7 @@ import (
 func GetAllResources(c context.Context, query *Query, configObj config.Config, collector *reporting.Collector) (*AwsAccountResources, error) {
 	configObj.AddExcludeAfterTime(query.ExcludeAfter)
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
+	configObj.AddIncludeTags(query.IncludeTags)
 	configObj.AddTimeout(query.Timeout)
 	// Only override the config file value if the CLI flag is explicitly set to true
 	if query.ListUnaliasedKMSKeys {

@@ -2,6 +2,8 @@ package aws
 
 import (
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/config"
 )
 
 // Query is a struct that represents the desired parameters for scanning resources within a given account
@@ -17,40 +19,15 @@ type Query struct {
 	ExcludeFirstSeen     bool
 	DefaultOnly          bool
 	ProtectUntilExpire   bool
-}
-
-// NewQuery configures and returns a Query struct that can be passed into the InspectResources method
-func NewQuery(regions, excludeRegions, resourceTypes, excludeResourceTypes []string,
-	excludeAfter, includeAfter *time.Time,
-	listUnaliasedKMSKeys bool, timeout *time.Duration,
-	defaultOnly, excludeFirstSeen bool,
-) (*Query, error) {
-	q := &Query{
-		Regions:              regions,
-		ExcludeRegions:       excludeRegions,
-		ResourceTypes:        resourceTypes,
-		ExcludeResourceTypes: excludeResourceTypes,
-		ExcludeAfter:         excludeAfter,
-		IncludeAfter:         includeAfter,
-		ListUnaliasedKMSKeys: listUnaliasedKMSKeys,
-		Timeout:              timeout,
-		DefaultOnly:          defaultOnly,
-		ExcludeFirstSeen:     excludeFirstSeen,
-		ProtectUntilExpire:   true,
-	}
-
-	validationErr := q.Validate()
-
-	if validationErr != nil {
-		return q, validationErr
-	}
-
-	return q, nil
+	IncludeTags          map[string]config.Expression
 }
 
 // Validate ensures the configured values for a Query are valid, returning an error if there are
 // any invalid params, or nil if the Query is valid
 func (q *Query) Validate() error {
+	// TODO: this unconditionally overrides YAML config — see https://github.com/gruntwork-io/cloud-nuke/issues/1077
+	q.ProtectUntilExpire = true
+
 	resourceTypes, err := HandleResourceTypeSelections(q.ResourceTypes, q.ExcludeResourceTypes)
 	if err != nil {
 		return err

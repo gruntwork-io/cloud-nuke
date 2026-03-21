@@ -192,6 +192,12 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// Parse tag filters
+	includeTags, err := parseTagFlags(c.StringSlice(FlagIncludeTag))
+	if err != nil {
+		return nil, errors.WithStackTrace(err)
+	}
+
 	// Determine which resource types to target
 	resourceTypes := c.StringSlice(FlagResourceType)
 	if overridingResourceTypes != nil {
@@ -199,18 +205,23 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 	}
 
 	// Build and return the query
-	return aws.NewQuery(
-		c.StringSlice(FlagRegion),
-		c.StringSlice(FlagExcludeRegion),
-		resourceTypes,
-		c.StringSlice(FlagExcludeResourceType),
-		excludeAfter,
-		includeAfter,
-		includeUnaliasedKmsKeys,
-		timeout,
-		onlyDefault,
-		c.Bool(FlagExcludeFirstSeen),
-	)
+	q := &aws.Query{
+		Regions:              c.StringSlice(FlagRegion),
+		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
+		ResourceTypes:        resourceTypes,
+		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
+		ExcludeAfter:         excludeAfter,
+		IncludeAfter:         includeAfter,
+		ListUnaliasedKMSKeys: includeUnaliasedKmsKeys,
+		Timeout:              timeout,
+		DefaultOnly:          onlyDefault,
+		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
+		IncludeTags:          includeTags,
+	}
+	if err := q.Validate(); err != nil {
+		return nil, err
+	}
+	return q, nil
 }
 
 // handleGetResourcesWithFormat retrieves all AWS resources matching the query and renders them

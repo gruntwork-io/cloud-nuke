@@ -25,19 +25,16 @@ func main() {
 	timeout := time.Duration(10 * time.Second)
 
 	// Configure query parameters for resource search
-	query, err := nuke_aws.NewQuery(
-		targetRegions,
-		excludeRegions,
-		resourceTypes,
-		excludeResourceTypes,
-		&excludeAfter,
-		&includeAfter,
-		false,    // listUnaliasedKMSKeys
-		&timeout,
-		false, // defaultOnly
-		false, // excludeFirstSeen
-	)
-	if err != nil {
+	query := &nuke_aws.Query{
+		Regions:              targetRegions,
+		ExcludeRegions:       excludeRegions,
+		ResourceTypes:        resourceTypes,
+		ExcludeResourceTypes: excludeResourceTypes,
+		ExcludeAfter:         &excludeAfter,
+		IncludeAfter:         &includeAfter,
+		Timeout:              &timeout,
+	}
+	if err := query.Validate(); err != nil {
 		fmt.Println(err)
 		return
 	}

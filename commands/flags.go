@@ -34,6 +34,7 @@ const (
 	FlagExcludeResourceType    = "exclude-resource-type"
 	FlagRegion                 = "region"
 	FlagExcludeRegion          = "exclude-region"
+	FlagIncludeTag             = "include-tag"
 )
 
 // Common flag sets for reuse across commands
@@ -147,6 +148,16 @@ func RegionFlags() []cli.Flag {
 		&cli.StringSliceFlag{
 			Name:  FlagExcludeRegion,
 			Usage: "Regions to exclude. Include multiple times if more than one.",
+		},
+	}
+}
+
+// TagFlags returns flags for tag-based filtering
+func TagFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringSliceFlag{
+			Name:  FlagIncludeTag,
+			Usage: `Only include resources with this tag (format: key=value). Key matching is exact (case-sensitive). Value is a case-sensitive regex that performs partial matching (use ^value$ for exact match, or (?i)value for case-insensitive). Each key may only appear once. Include multiple times for AND logic. Example: --include-tag "env=^prod$"`,
 		},
 	}
 }
