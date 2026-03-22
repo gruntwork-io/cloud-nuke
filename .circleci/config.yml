@@ -47,8 +47,8 @@ jobs:
   deploy:
     <<: *env
     macos:
-      xcode: 15.3.0
-    resource_class: macos.m1.medium.gen1
+      xcode: 16.2.0
+    resource_class: macos.m1.large.gen1
     steps:
       - checkout
       - attach_workspace:
