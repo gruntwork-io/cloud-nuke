@@ -200,7 +200,7 @@ jobs:
           MSG="${MSG}${NL}<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
 
           # Skip notification if notify_only_on_failure is set and there are no errors or warnings
-          if [ "${{ inputs.notify_only_on_failure }}" == "true" ] && [ "${{ needs.nuke.result }}" == "success" ] && [ "$TOTAL_FAILED" -eq 0 ] && [ "$TOTAL_WARNED" -eq 0 ]; then
+          if [ "${{ inputs.notify_only_on_failure }}" == "true" ] && [ "${{ needs.nuke.result }}" == "success" ] && [ "$TOTAL_FAILED" -eq 0 ]; then
             echo "No errors or warnings detected and notify_only_on_failure is set. Skipping Slack notification."
             exit 0
           fi
