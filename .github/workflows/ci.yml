@@ -3,12 +3,14 @@ name: CI
 on:
   push:
     branches: [master]
-    tags: ['v*']
   pull_request:
     branches: [master]
+  release:
+    types: [created]
 
 jobs:
   lint:
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -41,6 +43,7 @@ jobs:
         run: golangci-lint run --new-from-rev=origin/master ./...
 
   test:
+    if: github.event_name != 'release'
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -176,3 +179,98 @@ jobs:
         with:
           name: cloud-nuke_${{ matrix.os }}_${{ matrix.arch }}
           path: bin/
+
+  release:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Validate required secrets
+        env:
+          GW_GITHUB_OAUTH_TOKEN: ${{ secrets.GW_GITHUB_OAUTH_TOKEN }}
+          MACOS_AC_LOGIN: ${{ secrets.MACOS_AC_LOGIN }}
+          MACOS_AC_PASSWORD: ${{ secrets.MACOS_AC_PASSWORD }}
+          MACOS_AC_PROVIDER: ${{ secrets.MACOS_AC_PROVIDER }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          missing=()
+          for var in GW_GITHUB_OAUTH_TOKEN MACOS_AC_LOGIN MACOS_AC_PASSWORD MACOS_AC_PROVIDER MACOS_CERTIFICATE MACOS_CERTIFICATE_PASSWORD; do
+            if [ -z "${!var}" ]; then
+              missing+=("$var")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets: ${missing[*]}"
+            exit 1
+          fi
+          echo "All required secrets are set"
+
+      - uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v3
+        with:
+          version: 2025.12.10
+          experimental: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bin/
+          merge-multiple: true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::087285199408:role/cloud-nuke-gha
+          aws-region: us-east-1
+
+      - name: Install sign-binary-helpers
+        env:
+          GITHUB_OAUTH_TOKEN: ${{ secrets.GW_GITHUB_OAUTH_TOKEN }}
+        run: |
+          curl -Ls https://raw.githubusercontent.com/gruntwork-io/gruntwork-installer/master/bootstrap-gruntwork-installer.sh | bash /dev/stdin --version v0.0.39
+          gruntwork-install --module-name "gruntwork-module-circleci-helpers" --repo "https://github.com/gruntwork-io/terraform-aws-ci" --tag "v0.57.0"
+          gruntwork-install --module-name "sign-binary-helpers" --repo "https://github.com/gruntwork-io/terraform-aws-ci" --tag "v0.57.0"
+
+      - name: Sign macOS binaries
+        id: sign
+        continue-on-error: true
+        env:
+          MACOS_AC_LOGIN: ${{ secrets.MACOS_AC_LOGIN }}
+          AC_PASSWORD: ${{ secrets.MACOS_AC_PASSWORD }}
+          AC_PROVIDER: ${{ secrets.MACOS_AC_PROVIDER }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          sign-binary --install-macos-sign-dependencies --os mac .gon_amd64.hcl
+          sign-binary --os mac .gon_arm64.hcl
+          echo "Done signing the binaries"
+
+          unzip cloud-nuke_darwin_amd64.zip
+          mv cloud-nuke_darwin_amd64 bin/
+
+          unzip cloud-nuke_darwin_arm64.zip
+          mv cloud-nuke_darwin_arm64 bin/
+
+      - name: Warn if signing failed
+        if: steps.sign.outcome == 'failure'
+        run: echo "::warning::macOS signing failed — darwin binaries will be uploaded unsigned. Re-run the release job after fixing credentials."
+
+      - name: Generate SHA256SUMS
+        run: cd bin && shasum -a 256 * > SHA256SUMS
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for f in bin/*; do
+            gh release upload "${{ github.ref_name }}" "$f" --clobber
+          done
