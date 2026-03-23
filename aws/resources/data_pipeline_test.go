@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -151,6 +152,19 @@ func TestListDataPipelines(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
 		})
 	}
+}
+
+type dnsErrorPipelineClient struct{ mockDataPipelineClient }
+
+func (m *dnsErrorPipelineClient) ListPipelines(ctx context.Context, params *datapipeline.ListPipelinesInput, optFns ...func(*datapipeline.Options)) (*datapipeline.ListPipelinesOutput, error) {
+	return nil, fmt.Errorf("dial tcp: lookup datapipeline.ap-northeast-3.amazonaws.com: no such host")
+}
+
+func TestListDataPipelines_DNSError(t *testing.T) {
+	t.Parallel()
+	ids, err := listDataPipelines(context.Background(), &dnsErrorPipelineClient{}, resource.Scope{Region: "ap-northeast-3"}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Empty(t, ids)
 }
 
 func TestDeleteDataPipeline(t *testing.T) {

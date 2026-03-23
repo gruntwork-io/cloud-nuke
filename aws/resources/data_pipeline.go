@@ -2,10 +2,12 @@ package resources
 
 import (
 	"context"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/datapipeline"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
@@ -41,6 +43,13 @@ func listDataPipelines(ctx context.Context, client DataPipelineAPI, scope resour
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
+			// Data Pipeline service doesn't exist in many regions. The SDK
+			// fails with a DNS resolution error ("no such host") when
+			// attempting to connect. Treat this as an empty result.
+			if strings.Contains(err.Error(), "no such host") {
+				logging.Debugf("[data-pipeline] service not available in region %s, skipping", scope.Region)
+				return nil, nil
+			}
 			return nil, err
 		}
 
