@@ -143,6 +143,7 @@ func getRegisteredRegionalResources() []resources.AwsResource {
 		resources.NewSageMakerEndpoint(),
 		resources.NewSageMakerEndpointConfig(),
 		resources.NewSecretsManagerSecrets(),
+		resources.NewSSMParameter(),
 		resources.NewSecurityHub(),
 		resources.NewSesConfigurationSet(),
 		resources.NewSesEmailTemplates(),
