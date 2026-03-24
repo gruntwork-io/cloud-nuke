@@ -1,6 +1,12 @@
 name: CI
 
 on:
+  workflow_dispatch:
+    inputs:
+      run_release:
+        description: 'Run the release job (for testing)'
+        type: boolean
+        default: false
   push:
     branches: [master]
   pull_request:
@@ -181,7 +187,7 @@ jobs:
           path: bin/
 
   release:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.run_release)
     needs: build
     runs-on: macos-latest
     timeout-minutes: 30
@@ -268,9 +274,14 @@ jobs:
         run: cd bin && shasum -a 256 * > SHA256SUMS
 
       - name: Upload release assets
+        if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for f in bin/*; do
             gh release upload "${{ github.ref_name }}" "$f" --clobber
           done
+
+      - name: List built artifacts (workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        run: ls -lh bin/
