@@ -125,6 +125,7 @@ type Config struct {
 	SageMakerNotebook               ResourceType               `yaml:"SageMakerNotebook"`
 	SageMakerStudioDomain           ResourceType               `yaml:"SageMakerStudioDomain"`
 	SecretsManager                  ResourceType               `yaml:"SecretsManager"`
+	SSMParameter                    ResourceType               `yaml:"SSMParameter"`
 	SecurityHub                     ResourceType               `yaml:"SecurityHub"`
 	Snapshots                       ResourceType               `yaml:"Snapshots"`
 	TransitGateway                  ResourceType               `yaml:"TransitGateway"`
@@ -267,6 +268,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.SageMakerNotebook,
 		&c.SageMakerStudioDomain,
 		&c.SecretsManager,
+		&c.SSMParameter,
 		&c.SecurityHub,
 		&c.Snapshots,
 		&c.TransitGateway,

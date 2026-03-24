@@ -112,6 +112,7 @@ func emptyConfig() *Config {
 		SageMakerNotebook:               ResourceType{},
 		SageMakerStudioDomain:           ResourceType{},
 		SecretsManager:                  ResourceType{},
+		SSMParameter:                    ResourceType{},
 		SecurityHub:                     ResourceType{},
 		Snapshots:                       ResourceType{},
 		TransitGateway:                  ResourceType{},
