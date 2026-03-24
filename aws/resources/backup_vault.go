@@ -51,10 +51,10 @@ func listBackupVaults(ctx context.Context, client BackupVaultAPI, scope resource
 		}
 
 		for _, backupVault := range page.BackupVaultList {
-
 			tags, err := getTags(ctx, client, cfg, backupVault)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				logging.Errorf("failed to list tags for %s: %s", aws.ToString(backupVault.BackupVaultArn), err)
+				return []*string{}, nil
 			}
 
 			if cfg.ShouldInclude(config.ResourceValue{
@@ -70,6 +70,7 @@ func listBackupVaults(ctx context.Context, client BackupVaultAPI, scope resource
 	return names, nil
 }
 
+// getTags retrieves the tags for a given backup vault if tag-based filters are specified in the config.
 func getTags(ctx context.Context, client BackupVaultAPI, cfg config.ResourceType, backupVault types.BackupVaultListMember) (map[string]string, error) {
 	tags := map[string]string{}
 	if len(cfg.IncludeRule.Tags) > 0 || len(cfg.ExcludeRule.Tags) > 0 {

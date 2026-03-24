@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"sync/atomic"
 	"testing"
@@ -32,6 +33,7 @@ type mockBackupVaultClient struct {
 
 	//ListTags pagination support
 	ListTagsPages map[string]*mockListTagsPageOutput
+	ListTagsErr   error
 }
 
 func (m *mockBackupVaultClient) DeleteBackupVault(ctx context.Context, params *backup.DeleteBackupVaultInput, optFns ...func(*backup.Options)) (*backup.DeleteBackupVaultOutput, error) {
@@ -62,6 +64,9 @@ func (m *mockBackupVaultClient) ListRecoveryPointsByBackupVault(ctx context.Cont
 }
 
 func (m *mockBackupVaultClient) ListTags(ctx context.Context, params *backup.ListTagsInput, optFns ...func(*backup.Options)) (*backup.ListTagsOutput, error) {
+	if m.ListTagsErr != nil {
+		return nil, m.ListTagsErr
+	}
 	pages := m.ListTagsPages[*params.ResourceArn]
 	if pages == nil || pages.listTagsIndex >= len(pages.ListTagsPages) {
 		return &backup.ListTagsOutput{}, nil
@@ -147,14 +152,14 @@ func TestListBackupVaults_FilterTags(t *testing.T) {
 			configObj: config.ResourceType{},
 			expected:  []string{backupVaultWithoutTags, backVaultFooFaz, backVaultFoo},
 		},
-		"tagInclusionFiler": {
+		"tagInclusionFilter": {
 			configObj: config.ResourceType{
 				IncludeRule: config.FilterRule{
 					Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
 				}},
 			expected: []string{backVaultFooFaz, backVaultFoo},
 		},
-		"tagExclusionFiler": {
+		"tagExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					Tags: map[string]config.Expression{"faz": {RE: *regexp.MustCompile("baz")}},
@@ -197,6 +202,32 @@ func TestListBackupVaults_FilterTags(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+func TestListBackupVaults_TagsError(t *testing.T) {
+	t.Parallel()
+
+	testArn := "arn:aws:backup:us-east-1:123456789012:backup/test-vault"
+	mock := &mockBackupVaultClient{
+		ListBackupVaultsPages: []backup.ListBackupVaultsOutput{
+			{
+				BackupVaultList: []types.BackupVaultListMember{
+					{BackupVaultName: aws.String("test-vault"), BackupVaultArn: aws.String(testArn)},
+				},
+			},
+		},
+		ListTagsErr: errors.New("BackupVaultException"),
+	}
+
+	cfg := config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{"foo": {RE: *regexp.MustCompile("bar")}},
+		},
+	}
+
+	names, err := listBackupVaults(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{}, aws.ToStringSlice(names))
 }
 
 func TestNukeBackupVault(t *testing.T) {
