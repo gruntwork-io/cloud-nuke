@@ -18,16 +18,12 @@ type Query struct {
 	Timeout              *time.Duration
 	ExcludeFirstSeen     bool
 	DefaultOnly          bool
-	ProtectUntilExpire   bool
 	IncludeTags          map[string]config.Expression
 }
 
 // Validate ensures the configured values for a Query are valid, returning an error if there are
 // any invalid params, or nil if the Query is valid
 func (q *Query) Validate() error {
-	// TODO: this unconditionally overrides YAML config — see https://github.com/gruntwork-io/cloud-nuke/issues/1077
-	q.ProtectUntilExpire = true
-
 	resourceTypes, err := HandleResourceTypeSelections(q.ResourceTypes, q.ExcludeResourceTypes)
 	if err != nil {
 		return err
