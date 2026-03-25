@@ -31,7 +31,7 @@ type mockBackupVaultClient struct {
 	listRecoveryPointsIndex  int
 	DeleteRecoveryPointCount atomic.Int32
 
-	//ListTags pagination support
+	// ListTags pagination support
 	ListTagsPages map[string]*mockListTagsPageOutput
 	ListTagsErr   error
 }

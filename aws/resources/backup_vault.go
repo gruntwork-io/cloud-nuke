@@ -53,8 +53,8 @@ func listBackupVaults(ctx context.Context, client BackupVaultAPI, scope resource
 		for _, backupVault := range page.BackupVaultList {
 			tags, err := getTags(ctx, client, cfg, backupVault)
 			if err != nil {
-				logging.Errorf("failed to list tags for %s: %s", aws.ToString(backupVault.BackupVaultArn), err)
-				return []*string{}, nil
+				logging.Errorf("Unable to fetch tags for %s: %s", aws.ToString(backupVault.BackupVaultArn), err)
+				continue
 			}
 
 			if cfg.ShouldInclude(config.ResourceValue{
