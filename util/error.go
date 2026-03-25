@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/smithy-go"
@@ -96,6 +97,10 @@ func IsThrottlingError(err error) bool {
 //   - InvalidSubnetID.NotFound: EC2 subnet no longer exists
 //   - InvalidNetworkInterfaceID.NotFound: EC2 ENI no longer exists
 //   - TrailNotFoundException: CloudTrail trail already deleted by another region/job
+//
+// SCP-denied errors — the organization's service control policy permanently
+// forbids the action; retrying or fixing IAM permissions will not help:
+//   - AccessDeniedException with "explicit deny in a service control policy"
 func IsWarningError(err error) bool {
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
@@ -113,6 +118,11 @@ func IsWarningError(err error) bool {
 			"InvalidSubnetID.NotFound",
 			"InvalidNetworkInterfaceID.NotFound",
 			"TrailNotFoundException":
+			return true
+		}
+		// SCP-denied errors
+		if apiErr.ErrorCode() == "AccessDeniedException" &&
+			strings.Contains(apiErr.ErrorMessage(), "explicit deny in a service control policy") {
 			return true
 		}
 	}
