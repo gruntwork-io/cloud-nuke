@@ -121,8 +121,8 @@ func IsWarningError(err error) bool {
 			return true
 		}
 		// SCP-denied errors
-		if apiErr.ErrorCode() == "AccessDeniedException" &&
-			strings.Contains(apiErr.ErrorMessage(), "explicit deny in a service control policy") {
+		if apiErr.ErrorCode() == AWSAccessDeniedException &&
+			strings.Contains(strings.ToLower(apiErr.ErrorMessage()), "explicit deny in a service control policy") {
 			return true
 		}
 	}
