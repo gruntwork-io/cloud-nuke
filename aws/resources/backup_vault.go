@@ -7,9 +7,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/backup"
+	"github.com/aws/aws-sdk-go-v2/service/backup/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // BackupVaultAPI defines the interface for Backup Vault operations.
@@ -18,6 +20,7 @@ type BackupVaultAPI interface {
 	DeleteRecoveryPoint(ctx context.Context, params *backup.DeleteRecoveryPointInput, optFns ...func(*backup.Options)) (*backup.DeleteRecoveryPointOutput, error)
 	ListBackupVaults(ctx context.Context, params *backup.ListBackupVaultsInput, optFns ...func(*backup.Options)) (*backup.ListBackupVaultsOutput, error)
 	ListRecoveryPointsByBackupVault(ctx context.Context, params *backup.ListRecoveryPointsByBackupVaultInput, optFns ...func(*backup.Options)) (*backup.ListRecoveryPointsByBackupVaultOutput, error)
+	ListTags(ctx context.Context, params *backup.ListTagsInput, optFns ...func(*backup.Options)) (*backup.ListTagsOutput, error)
 }
 
 // NewBackupVault creates a new BackupVault resource using the generic resource pattern.
@@ -48,9 +51,16 @@ func listBackupVaults(ctx context.Context, client BackupVaultAPI, scope resource
 		}
 
 		for _, backupVault := range page.BackupVaultList {
+			tags, err := getTags(ctx, client, cfg, backupVault)
+			if err != nil {
+				logging.Errorf("Unable to fetch tags for %s: %s", aws.ToString(backupVault.BackupVaultArn), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: backupVault.BackupVaultName,
 				Time: backupVault.CreationDate,
+				Tags: tags,
 			}) {
 				names = append(names, backupVault.BackupVaultName)
 			}
@@ -58,6 +68,27 @@ func listBackupVaults(ctx context.Context, client BackupVaultAPI, scope resource
 	}
 
 	return names, nil
+}
+
+// getTags retrieves the tags for a given backup vault if tag-based filters are specified in the config.
+func getTags(ctx context.Context, client BackupVaultAPI, cfg config.ResourceType, backupVault types.BackupVaultListMember) (map[string]string, error) {
+	tags := map[string]string{}
+	if len(cfg.IncludeRule.Tags) > 0 || len(cfg.ExcludeRule.Tags) > 0 {
+		tagsPaginator := backup.NewListTagsPaginator(client, &backup.ListTagsInput{
+			ResourceArn: backupVault.BackupVaultArn,
+		})
+		for tagsPaginator.HasMorePages() {
+			tagsPage, errListTags := tagsPaginator.NextPage(ctx)
+			if errListTags != nil {
+				return nil, errors.WithStackTrace(errListTags)
+			}
+
+			for tagKey, tagValue := range tagsPage.Tags {
+				tags[tagKey] = tagValue
+			}
+		}
+	}
+	return tags, nil
 }
 
 // nukeRecoveryPoints deletes all recovery points in a backup vault.
