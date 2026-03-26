@@ -78,6 +78,13 @@ func listRoute53HostedZones(ctx context.Context, client Route53HostedZoneAPI, sc
 
 		// Filter zones based on config
 		for _, zone := range page.HostedZones {
+			// Skip zones managed by other AWS services (e.g., Cloud Map)
+			// These can only be deleted by removing the parent resource
+			if zone.LinkedService != nil {
+				logging.Debugf("Skipping hosted zone %s managed by %s",
+					aws.ToString(zone.Name), aws.ToString(zone.LinkedService.ServicePrincipal))
+				continue
+			}
 			zoneId := strings.TrimPrefix(aws.ToString(zone.Id), "/hostedzone/")
 			tags := util.ConvertRoute53TagsToMap(tagsByZoneId[zoneId])
 
