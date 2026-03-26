@@ -135,6 +135,12 @@ func TestIsWarningError(t *testing.T) {
 		Message: "User: arn:aws:sts::123456789012:assumed-role/role/session is not authorized to perform: config:DeleteConfigurationRecorder with an explicit deny in a service control policy",
 	}))
 
+	// SCP-denied errors with different casing are still warnings
+	require.True(t, IsWarningError(&smithy.GenericAPIError{
+		Code:    "AccessDeniedException",
+		Message: "User is not authorized with an Explicit Deny in a Service Control Policy",
+	}))
+
 	// Generic access denied errors (fixable IAM issues) are NOT warnings
 	require.False(t, IsWarningError(&smithy.GenericAPIError{Code: "AccessDeniedException", Message: "User is not authorized to perform this action"}))
 	require.False(t, IsWarningError(&smithy.GenericAPIError{Code: "AccessDenied"}))
