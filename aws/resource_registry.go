@@ -133,6 +133,7 @@ func getRegisteredRegionalResources() []resources.AwsResource {
 		resources.NewDBClusters(),
 		resources.NewRdsProxy(),
 		resources.NewRdsSnapshot(),
+		resources.NewRdsClusterSnapshot(),
 		resources.NewRdsParameterGroup(),
 		resources.NewRedshiftClusters(),
 		resources.NewRedshiftSnapshotCopyGrants(),
