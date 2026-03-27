@@ -98,6 +98,7 @@ func IsThrottlingError(err error) bool {
 //   - DBParameterGroupNotFound: RDS parameter group no longer exists
 //   - InvalidSubnetID.NotFound: EC2 subnet no longer exists
 //   - InvalidNetworkInterfaceID.NotFound: EC2 ENI no longer exists
+//   - InvalidDhcpOptionsID.NotFound: EC2 DHCP option set no longer exists
 //   - TrailNotFoundException: CloudTrail trail already deleted by another region/job
 //   - CacheSubnetGroupNotFoundFault: ElastiCache subnet group no longer exists
 //
@@ -122,6 +123,7 @@ func IsWarningError(err error) bool {
 			"DBParameterGroupNotFound",
 			"InvalidSubnetID.NotFound",
 			"InvalidNetworkInterfaceID.NotFound",
+			"InvalidDhcpOptionsID.NotFound",
 			"TrailNotFoundException",
 			"CacheSubnetGroupNotFoundFault":
 			return true
