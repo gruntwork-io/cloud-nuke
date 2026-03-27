@@ -103,6 +103,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `rds-subnet-group` | RDS Subnet Group |
 | `redshift` | Redshift Cluster |
 | `redshift-snapshot-copy-grant` | Redshift Snapshot Copy Grant |
+| `resource-share` | RAM Resource Share |
 | `route-table` | Route Table |
 | `route53-cidr-collection` | Route53 CIDR Collection |
 | `route53-hosted-zone` | Route53 Hosted Zone |
@@ -245,6 +246,7 @@ This table shows which filtering features are supported for each resource type i
 | rds-subnet-group | DBSubnetGroups | ✓ | | ✓ | ✓ |
 | redshift | Redshift | ✓ | ✓ | | ✓ |
 | redshift-snapshot-copy-grant | RedshiftSnapshotCopyGrant | ✓ | | | ✓ |
+| resource-share | ResourceShare | ✓ | ✓ | ✓ | ✓ |
 | route-table | RouteTable | ✓ | ✓ | ✓ | ✓ |
 | route53-cidr-collection | Route53CIDRCollection | ✓ | | | |
 | route53-hosted-zone | Route53HostedZone | ✓ | | ✓ | |

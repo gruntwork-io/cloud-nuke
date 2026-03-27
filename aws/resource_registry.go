@@ -138,6 +138,7 @@ func getRegisteredRegionalResources() []resources.AwsResource {
 		resources.NewRdsParameterGroup(),
 		resources.NewRedshiftClusters(),
 		resources.NewRedshiftSnapshotCopyGrants(),
+		resources.NewResourceShares(),
 		resources.NewS3AccessPoints(),
 		resources.NewS3ObjectLambdaAccessPoints(),
 		resources.NewSageMakerNotebookInstances(),

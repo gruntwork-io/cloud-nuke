@@ -95,6 +95,7 @@ func emptyConfig() *Config {
 		OIDCProvider:                    ResourceType{},
 		OpenSearchDomain:                ResourceType{},
 		Redshift:                        ResourceType{},
+		ResourceShare:                   ResourceType{},
 		RDSSnapshot:                     ResourceType{},
 		RDSClusterSnapshot:              ResourceType{},
 		RDSParameterGroup:               ResourceType{},

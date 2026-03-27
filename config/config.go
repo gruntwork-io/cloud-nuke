@@ -107,6 +107,7 @@ type Config struct {
 	OpenSearchDomain                ResourceType               `yaml:"OpenSearchDomain"`
 	Redshift                        ResourceType               `yaml:"Redshift"`
 	RedshiftSnapshotCopyGrant       ResourceType               `yaml:"RedshiftSnapshotCopyGrant"`
+	ResourceShare                   ResourceType               `yaml:"ResourceShare"`
 	RDSSnapshot                     ResourceType               `yaml:"RDSSnapshot"`
 	RDSClusterSnapshot              ResourceType               `yaml:"RDSClusterSnapshot"`
 	RDSParameterGroup               ResourceType               `yaml:"RDSParameterGroup"`
@@ -252,6 +253,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.OpenSearchDomain,
 		&c.Redshift,
 		&c.RedshiftSnapshotCopyGrant,
+		&c.ResourceShare,
 		&c.RDSSnapshot,
 		&c.RDSClusterSnapshot,
 		&c.RDSParameterGroup,

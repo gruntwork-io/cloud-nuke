@@ -50,6 +50,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/mq v1.34.19
 	github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.13
 	github.com/aws/aws-sdk-go-v2/service/opensearch v1.45.10
+	github.com/aws/aws-sdk-go-v2/service/ram v1.36.2
 	github.com/aws/aws-sdk-go-v2/service/rds v1.93.11
 	github.com/aws/aws-sdk-go-v2/service/redshift v1.53.11
 	github.com/aws/aws-sdk-go-v2/service/route53 v1.48.6
