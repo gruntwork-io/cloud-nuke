@@ -91,6 +91,8 @@ func IsThrottlingError(err error) bool {
 //   - InvalidHomeRegionException: CloudTrail trail can only be deleted from its home region
 //   - CacheSubnetGroupInUse: ElastiCache subnet group still used by a cache cluster
 //   - InvalidDBSnapshotState: RDS automated snapshot cannot be manually deleted
+//   - InvalidCacheClusterState: ElastiCache cluster is mid-transition (creating/modifying) and can't be deleted yet
+//   - InvalidDBParameterGroupState: RDS parameter group still referenced by a DB instance
 //
 // Already-deleted errors — resource was deleted between the scan and nuke
 // phases (e.g., by another concurrent nuke run or TTL expiry). Safe to ignore:
@@ -116,7 +118,9 @@ func IsWarningError(err error) bool {
 			"InvalidClusterState",
 			"InvalidHomeRegionException",
 			"CacheSubnetGroupInUse",
-			"InvalidDBSnapshotState":
+			"InvalidDBSnapshotState",
+			"InvalidCacheClusterState",
+			"InvalidDBParameterGroupState":
 			return true
 		// Already-deleted errors
 		case "DBSubnetGroupNotFoundFault",

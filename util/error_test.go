@@ -128,6 +128,8 @@ func TestIsWarningError(t *testing.T) {
 		"CacheSubnetGroupNotFoundFault",
 		"InvalidDBSnapshotState",
 		"InvalidDhcpOptionsID.NotFound",
+		"InvalidCacheClusterState",
+		"InvalidDBParameterGroupState",
 	}
 	for _, code := range warningCodes {
 		require.True(t, IsWarningError(&smithy.GenericAPIError{Code: code}), code)
