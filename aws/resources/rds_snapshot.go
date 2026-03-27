@@ -47,6 +47,10 @@ func listRdsSnapshots(ctx context.Context, client RdsSnapshotAPI, scope resource
 		}
 
 		for _, s := range page.DBSnapshots {
+			// Automated snapshots are managed by AWS and cannot be manually deleted
+			if aws.ToString(s.SnapshotType) == "automated" {
+				continue
+			}
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: s.DBSnapshotIdentifier,
 				Time: s.SnapshotCreateTime,
