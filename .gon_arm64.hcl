@@ -3,7 +3,7 @@
 
 source = ["./bin/cloud-nuke_darwin_arm64"]
 
-bundle_id = "io.gruntwork.app.terragrunt"
+bundle_id = "io.gruntwork.app.cloud-nuke"
 
 apple_id {
   username = "machine.apple@gruntwork.io"
