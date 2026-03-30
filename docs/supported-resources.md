@@ -97,6 +97,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `rds-instance` | RDS DB Instance (incl. Neptune, DocumentDB) |
 | `rds-parameter-group` | RDS Parameter Group |
 | `rds-proxy` | RDS Proxy |
+| `rds-cluster-snapshot` | RDS Cluster Snapshot |
 | `rds-snapshot` | RDS Snapshot |
 | `rds-subnet-group` | RDS Subnet Group |
 | `redshift` | Redshift Cluster |
@@ -237,6 +238,7 @@ This table shows which filtering features are supported for each resource type i
 | rds-instance | DBInstances | ✓ | ✓ | ✓ | ✓ |
 | rds-parameter-group | RDSParameterGroup | ✓ | | | ✓ |
 | rds-proxy | RDSProxy | ✓ | ✓ | | ✓ |
+| rds-cluster-snapshot | RDSClusterSnapshot | ✓ | ✓ | ✓ | ✓ |
 | rds-snapshot | RDSSnapshot | ✓ | ✓ | ✓ | ✓ |
 | rds-subnet-group | DBSubnetGroups | ✓ | | ✓ | ✓ |
 | redshift | Redshift | ✓ | ✓ | | ✓ |
