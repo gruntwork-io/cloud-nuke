@@ -38,6 +38,11 @@ func (m *mockSageMakerNotebookClient) DescribeNotebookInstance(ctx context.Conte
 }
 
 func (m *mockSageMakerNotebookClient) ListTags(ctx context.Context, params *sagemaker.ListTagsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListTagsOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn::test-notebook-1" {
+		return &sagemaker.ListTagsOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
 	return &sagemaker.ListTagsOutput{}, nil
 }
 
@@ -51,8 +56,8 @@ func TestListSageMakerNotebookInstances(t *testing.T) {
 	mock := &mockSageMakerNotebookClient{
 		ListNotebookInstancesOutput: sagemaker.ListNotebookInstancesOutput{
 			NotebookInstances: []types.NotebookInstanceSummary{
-				{NotebookInstanceName: aws.String(testName1), CreationTime: aws.Time(now)},
-				{NotebookInstanceName: aws.String(testName2), CreationTime: aws.Time(now.Add(1 * time.Hour))},
+				{NotebookInstanceName: aws.String(testName1), NotebookInstanceArn: aws.String("arn::test-notebook-1"), CreationTime: aws.Time(now)},
+				{NotebookInstanceName: aws.String(testName2), NotebookInstanceArn: aws.String("arn::test-notebook-2"), CreationTime: aws.Time(now.Add(1 * time.Hour))},
 			},
 		},
 	}
@@ -77,6 +82,14 @@ func TestListSageMakerNotebookInstances(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testName1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 				},
 			},
 			expected: []string{testName1},

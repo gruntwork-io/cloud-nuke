@@ -18,6 +18,7 @@ type mockedRdsDBParameterGroup struct {
 	RdsParameterGroupAPI
 	DescribeDBParameterGroupsOutput rds.DescribeDBParameterGroupsOutput
 	DeleteDBParameterGroupOutput    rds.DeleteDBParameterGroupOutput
+	TagsByARN                       map[string][]types.Tag
 }
 
 func (m mockedRdsDBParameterGroup) DescribeDBParameterGroups(ctx context.Context, params *rds.DescribeDBParameterGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBParameterGroupsOutput, error) {
@@ -29,7 +30,7 @@ func (m mockedRdsDBParameterGroup) DeleteDBParameterGroup(ctx context.Context, p
 }
 
 func (m mockedRdsDBParameterGroup) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
-	return &rds.ListTagsForResourceOutput{}, nil
+	return &rds.ListTagsForResourceOutput{TagList: m.TagsByARN[aws.ToString(params.ResourceName)]}, nil
 }
 
 func TestRdsParameterGroup_ResourceName(t *testing.T) {
@@ -47,17 +48,25 @@ func TestListRdsParameterGroups(t *testing.T) {
 
 	testName01 := "test-db-paramater-group-01"
 	testName02 := "test-db-paramater-group-02"
+	testArn01 := "arn:aws:rds:us-east-1:123456789:pg:" + testName01
+	testArn02 := "arn:aws:rds:us-east-1:123456789:pg:" + testName02
 
 	mock := mockedRdsDBParameterGroup{
 		DescribeDBParameterGroupsOutput: rds.DescribeDBParameterGroupsOutput{
 			DBParameterGroups: []types.DBParameterGroup{
 				{
 					DBParameterGroupName: aws.String(testName01),
+					DBParameterGroupArn:  aws.String(testArn01),
 				},
 				{
 					DBParameterGroupName: aws.String(testName02),
+					DBParameterGroupArn:  aws.String(testArn02),
 				},
 			},
+		},
+		TagsByARN: map[string][]types.Tag{
+			testArn01: {{Key: aws.String("env"), Value: aws.String("prod")}},
+			testArn02: {{Key: aws.String("env"), Value: aws.String("dev")}},
 		},
 	}
 
@@ -77,6 +86,16 @@ func TestListRdsParameterGroups(t *testing.T) {
 					}}},
 			},
 			expected: []string{testName02},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testName01},
 		},
 	}
 	for name, tc := range tests {

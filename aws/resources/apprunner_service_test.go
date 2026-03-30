@@ -28,6 +28,11 @@ func (m *mockAppRunnerServiceClient) ListServices(ctx context.Context, params *a
 }
 
 func (m *mockAppRunnerServiceClient) ListTagsForResource(ctx context.Context, params *apprunner.ListTagsForResourceInput, optFns ...func(*apprunner.Options)) (*apprunner.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn::svc1" {
+		return &apprunner.ListTagsForResourceOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
 	return &apprunner.ListTagsForResourceOutput{}, nil
 }
 
@@ -68,6 +73,15 @@ func TestListAppRunnerServices(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{"arn::svc1"},
+		},
+		"tagInclusionFilter": {
+			region: "us-east-1",
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 				},
 			},
 			expected: []string{"arn::svc1"},

@@ -18,6 +18,7 @@ type mockLambdaLayerClient struct {
 	ListLayersOutput         lambda.ListLayersOutput
 	ListLayerVersionsOutput  lambda.ListLayerVersionsOutput
 	DeleteLayerVersionOutput lambda.DeleteLayerVersionOutput
+	TagsByARN                map[string]map[string]string
 }
 
 func (m *mockLambdaLayerClient) ListLayers(ctx context.Context, params *lambda.ListLayersInput, optFns ...func(*lambda.Options)) (*lambda.ListLayersOutput, error) {
@@ -33,7 +34,7 @@ func (m *mockLambdaLayerClient) DeleteLayerVersion(ctx context.Context, params *
 }
 
 func (m *mockLambdaLayerClient) ListTags(ctx context.Context, params *lambda.ListTagsInput, optFns ...func(*lambda.Options)) (*lambda.ListTagsOutput, error) {
-	return &lambda.ListTagsOutput{}, nil
+	return &lambda.ListTagsOutput{Tags: m.TagsByARN[aws.ToString(params.Resource)]}, nil
 }
 
 func TestListLambdaLayers(t *testing.T) {
@@ -41,8 +42,9 @@ func TestListLambdaLayers(t *testing.T) {
 
 	testName1 := "test-layer-1"
 	testName2 := "test-layer-2"
+	testArn1 := "arn:aws:lambda:us-east-1:123456789:layer:" + testName1
+	testArn2 := "arn:aws:lambda:us-east-1:123456789:layer:" + testName2
 
-	// Use fixed times that work with the AWS Lambda date format
 	layout := "2006-01-02T15:04:05.000+0000"
 	time1Str := "2023-07-28T10:00:00.000+0000"
 	time2Str := "2023-07-28T12:00:00.000+0000"
@@ -54,12 +56,14 @@ func TestListLambdaLayers(t *testing.T) {
 			Layers: []types.LayersListItem{
 				{
 					LayerName: aws.String(testName1),
+					LayerArn:  aws.String(testArn1),
 					LatestMatchingVersion: &types.LayerVersionsListItem{
 						CreatedDate: aws.String(time1Str),
 					},
 				},
 				{
 					LayerName: aws.String(testName2),
+					LayerArn:  aws.String(testArn2),
 					LatestMatchingVersion: &types.LayerVersionsListItem{
 						CreatedDate: aws.String(time2Str),
 					},
@@ -70,6 +74,10 @@ func TestListLambdaLayers(t *testing.T) {
 			LayerVersions: []types.LayerVersionsListItem{
 				{Version: 1},
 			},
+		},
+		TagsByARN: map[string]map[string]string{
+			testArn1: {"env": "prod"},
+			testArn2: {"env": "dev"},
 		},
 	}
 
@@ -101,14 +109,22 @@ func TestListLambdaLayers(t *testing.T) {
 			expected: []string{testName1 + ":1"},
 		},
 		"timeBeforeExclusionFilter": {
-			// Exclude resources created before time2 (12:00)
-			// So time1 should be excluded, time2 should be included
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeBefore: aws.Time(time2),
 				},
 			},
 			expected: []string{testName2 + ":1"},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testName1 + ":1"},
 		},
 	}
 

@@ -19,6 +19,7 @@ type mockedRdsProxy struct {
 	RdsProxyAPI
 	DescribeDBProxiesOutput rds.DescribeDBProxiesOutput
 	DeleteDBProxyOutput     rds.DeleteDBProxyOutput
+	TagsByARN               map[string][]types.Tag
 }
 
 func (m mockedRdsProxy) DescribeDBProxies(ctx context.Context, params *rds.DescribeDBProxiesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBProxiesOutput, error) {
@@ -30,7 +31,7 @@ func (m mockedRdsProxy) DeleteDBProxy(ctx context.Context, params *rds.DeleteDBP
 }
 
 func (m mockedRdsProxy) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
-	return &rds.ListTagsForResourceOutput{}, nil
+	return &rds.ListTagsForResourceOutput{TagList: m.TagsByARN[aws.ToString(params.ResourceName)]}, nil
 }
 
 func TestRdsProxy_GetAll(t *testing.T) {
@@ -38,19 +39,27 @@ func TestRdsProxy_GetAll(t *testing.T) {
 
 	testName1 := "test-name1"
 	testName2 := "test-name2"
+	testArn1 := "arn:aws:rds:us-east-1:123456789:db-proxy:" + testName1
+	testArn2 := "arn:aws:rds:us-east-1:123456789:db-proxy:" + testName2
 	now := time.Now()
 	client := mockedRdsProxy{
 		DescribeDBProxiesOutput: rds.DescribeDBProxiesOutput{
 			DBProxies: []types.DBProxy{
 				{
 					DBProxyName: &testName1,
+					DBProxyArn:  aws.String(testArn1),
 					CreatedDate: &now,
 				},
 				{
 					DBProxyName: &testName2,
+					DBProxyArn:  aws.String(testArn2),
 					CreatedDate: aws.Time(now.Add(1)),
 				},
 			},
+		},
+		TagsByARN: map[string][]types.Tag{
+			testArn1: {{Key: aws.String("env"), Value: aws.String("prod")}},
+			testArn2: {{Key: aws.String("env"), Value: aws.String("dev")}},
 		},
 	}
 
@@ -77,6 +86,16 @@ func TestRdsProxy_GetAll(t *testing.T) {
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
 				}},
 			expected: []string{},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testName1},
 		},
 	}
 	for name, tc := range tests {

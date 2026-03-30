@@ -43,7 +43,10 @@ func (m *mockDynamoDBClient) DeleteTable(ctx context.Context, params *dynamodb.D
 }
 
 func (m *mockDynamoDBClient) ListTagsOfResource(ctx context.Context, params *dynamodb.ListTagsOfResourceInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTagsOfResourceOutput, error) {
-	return &dynamodb.ListTagsOfResourceOutput{}, nil
+	if aws.ToString(params.ResourceArn) == "arn:aws:dynamodb:us-east-1:123456789:table/table2" {
+		return &dynamodb.ListTagsOfResourceOutput{Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}}}, nil
+	}
+	return &dynamodb.ListTagsOfResourceOutput{Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("dev")}}}, nil
 }
 
 func TestDynamoDB_ResourceName(t *testing.T) {
@@ -73,12 +76,14 @@ func TestListDynamoDBTables(t *testing.T) {
 			testName1: {
 				Table: &types.TableDescription{
 					TableName:        aws.String(testName1),
+					TableArn:         aws.String("arn:aws:dynamodb:us-east-1:123456789:table/table1"),
 					CreationDateTime: aws.Time(now),
 				},
 			},
 			testName2: {
 				Table: &types.TableDescription{
 					TableName:        aws.String(testName2),
+					TableArn:         aws.String("arn:aws:dynamodb:us-east-1:123456789:table/table2"),
 					CreationDateTime: aws.Time(now.Add(1 * time.Hour)),
 				},
 			},
@@ -112,6 +117,17 @@ func TestListDynamoDBTables(t *testing.T) {
 				},
 			},
 			expected: []string{testName1},
+		},
+		{
+			name: "tagInclusionFilter",
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testName2},
 		},
 	}
 

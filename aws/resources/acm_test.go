@@ -28,6 +28,11 @@ func (m *mockACMClient) DeleteCertificate(ctx context.Context, params *acm.Delet
 }
 
 func (m *mockACMClient) ListTagsForCertificate(ctx context.Context, params *acm.ListTagsForCertificateInput, optFns ...func(*acm.Options)) (*acm.ListTagsForCertificateOutput, error) {
+	if aws.ToString(params.CertificateArn) == "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-1" {
+		return &acm.ListTagsForCertificateOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
 	return &acm.ListTagsForCertificateOutput{}, nil
 }
 
@@ -69,6 +74,14 @@ func TestListACMCertificates(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testArn1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 				},
 			},
 			expected: []string{testArn1},

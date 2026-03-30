@@ -36,6 +36,11 @@ func (m *mockSqsQueueClient) DeleteQueue(ctx context.Context, params *sqs.Delete
 }
 
 func (m *mockSqsQueueClient) ListQueueTags(ctx context.Context, params *sqs.ListQueueTagsInput, optFns ...func(*sqs.Options)) (*sqs.ListQueueTagsOutput, error) {
+	if aws.ToString(params.QueueUrl) == "https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue1" {
+		return &sqs.ListQueueTagsOutput{
+			Tags: map[string]string{"env": "prod"},
+		}, nil
+	}
 	return &sqs.ListQueueTagsOutput{}, nil
 }
 
@@ -76,6 +81,14 @@ func TestSqsQueue_GetAll(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{queue1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 				},
 			},
 			expected: []string{queue1},

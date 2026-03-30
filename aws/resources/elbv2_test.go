@@ -32,7 +32,15 @@ func (m mockedElbV2) DeleteLoadBalancer(ctx context.Context, params *elasticload
 }
 
 func (m mockedElbV2) DescribeTags(ctx context.Context, params *elasticloadbalancingv2.DescribeTagsInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeTagsOutput, error) {
-	return &elasticloadbalancingv2.DescribeTagsOutput{}, nil
+	tagValue := "dev"
+	if len(params.ResourceArns) > 0 && params.ResourceArns[0] == "test-arn-2" {
+		tagValue = "prod"
+	}
+	return &elasticloadbalancingv2.DescribeTagsOutput{
+		TagDescriptions: []types.TagDescription{
+			{Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String(tagValue)}}},
+		},
+	}, nil
 }
 
 func TestElbV2_GetAll(t *testing.T) {
@@ -82,6 +90,16 @@ func TestElbV2_GetAll(t *testing.T) {
 					TimeAfter: aws.Time(now),
 				}},
 			expected: []string{testArn1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testArn2},
 		},
 	}
 	for name, tc := range tests {

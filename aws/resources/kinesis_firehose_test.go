@@ -7,15 +7,16 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	firehosetypes "github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-// mockKinesisFirehoseClient implements KinesisFirehoseAPI for testing.
 type mockKinesisFirehoseClient struct {
-	ListDeliveryStreamsOutput  firehose.ListDeliveryStreamsOutput
+	ListDeliveryStreamsOutput   firehose.ListDeliveryStreamsOutput
 	DeleteDeliveryStreamOutput firehose.DeleteDeliveryStreamOutput
+	TagsByStream               map[string][]firehosetypes.Tag
 }
 
 func (m *mockKinesisFirehoseClient) ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error) {
@@ -27,7 +28,7 @@ func (m *mockKinesisFirehoseClient) DeleteDeliveryStream(ctx context.Context, pa
 }
 
 func (m *mockKinesisFirehoseClient) ListTagsForDeliveryStream(ctx context.Context, params *firehose.ListTagsForDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.ListTagsForDeliveryStreamOutput, error) {
-	return &firehose.ListTagsForDeliveryStreamOutput{}, nil
+	return &firehose.ListTagsForDeliveryStreamOutput{Tags: m.TagsByStream[aws.ToString(params.DeliveryStreamName)]}, nil
 }
 
 func TestListKinesisFirehose(t *testing.T) {
@@ -36,6 +37,10 @@ func TestListKinesisFirehose(t *testing.T) {
 	mock := &mockKinesisFirehoseClient{
 		ListDeliveryStreamsOutput: firehose.ListDeliveryStreamsOutput{
 			DeliveryStreamNames: []string{"stream1", "stream2"},
+		},
+		TagsByStream: map[string][]firehosetypes.Tag{
+			"stream1": {{Key: aws.String("env"), Value: aws.String("prod")}},
+			"stream2": {{Key: aws.String("env"), Value: aws.String("dev")}},
 		},
 	}
 
@@ -56,6 +61,16 @@ func TestListKinesisFirehose(t *testing.T) {
 				},
 			},
 			expected: []string{"stream2"},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{"stream1"},
 		},
 	}
 

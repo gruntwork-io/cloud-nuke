@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -211,6 +212,11 @@ func (m *mockSageMakerStudioClient) DeleteSpace(ctx context.Context, params *sag
 }
 
 func (m *mockSageMakerStudioClient) ListTags(ctx context.Context, params *sagemaker.ListTagsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListTagsOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn::domain-1" {
+		return &sagemaker.ListTagsOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
 	return &sagemaker.ListTagsOutput{}, nil
 }
 
@@ -259,6 +265,7 @@ func TestListSageMakerDomains(t *testing.T) {
 
 	tests := map[string]struct {
 		mock        *mockSageMakerStudioClient
+		configObj   config.ResourceType
 		expected    []string
 		expectError bool
 	}{
@@ -290,6 +297,23 @@ func TestListSageMakerDomains(t *testing.T) {
 			expected:    []string{},
 			expectError: false,
 		},
+		"tagInclusionFilter": {
+			mock: &mockSageMakerStudioClient{
+				ListDomainsOutput: sagemaker.ListDomainsOutput{
+					Domains: []types.DomainDetails{
+						{DomainId: aws.String("domain-1"), DomainName: aws.String("test-domain-1"), DomainArn: aws.String("arn::domain-1"), CreationTime: &now},
+						{DomainId: aws.String("domain-2"), DomainName: aws.String("test-domain-2"), DomainArn: aws.String("arn::domain-2"), CreationTime: &now},
+					},
+				},
+			},
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+				},
+			},
+			expected:    []string{"domain-1"},
+			expectError: false,
+		},
 		"apiError": {
 			mock:        &mockSageMakerStudioClient{ListDomainsError: fmt.Errorf("AWS API error")},
 			expected:    nil,
@@ -299,7 +323,7 @@ func TestListSageMakerDomains(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			ids, err := listSageMakerDomains(context.Background(), tc.mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
+			ids, err := listSageMakerDomains(context.Background(), tc.mock, resource.Scope{Region: "us-east-1"}, tc.configObj)
 
 			if tc.expectError {
 				require.Error(t, err)

@@ -31,6 +31,11 @@ func (m mockedEventBridgeService) ListEventBuses(ctx context.Context, params *ev
 }
 
 func (m mockedEventBridgeService) ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceARN) == "arn::test-bus-1" {
+		return &eventbridge.ListTagsForResourceOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
 	return &eventbridge.ListTagsForResourceOutput{}, nil
 }
 
@@ -82,6 +87,13 @@ func Test_EventBridge_GetAll(t *testing.T) {
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
 				}},
 			expected: []string{},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+				}},
+			expected: []string{bus1},
 		},
 	}
 

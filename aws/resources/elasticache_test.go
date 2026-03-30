@@ -20,6 +20,7 @@ type mockedElasticache struct {
 	DescribeCacheClustersOutput     elasticache.DescribeCacheClustersOutput
 	DeleteCacheClusterOutput        elasticache.DeleteCacheClusterOutput
 	DeleteReplicationGroupOutput    elasticache.DeleteReplicationGroupOutput
+	TagsByARN                       map[string][]types.Tag
 }
 
 func (m mockedElasticache) DescribeReplicationGroups(ctx context.Context, params *elasticache.DescribeReplicationGroupsInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeReplicationGroupsOutput, error) {
@@ -39,7 +40,7 @@ func (m mockedElasticache) DeleteReplicationGroup(ctx context.Context, params *e
 }
 
 func (m mockedElasticache) ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error) {
-	return &elasticache.ListTagsForResourceOutput{}, nil
+	return &elasticache.ListTagsForResourceOutput{TagList: m.TagsByARN[aws.ToString(params.ResourceName)]}, nil
 }
 
 func TestElasticaches_ResourceName(t *testing.T) {
@@ -58,22 +59,30 @@ func TestListElasticaches(t *testing.T) {
 	now := time.Now()
 	testName1 := "test-name-1"
 	testName2 := "test-name-2"
+	testArn1 := "arn:aws:elasticache:us-east-1:123456789:replicationgroup:" + testName1
+	testArn2 := "arn:aws:elasticache:us-east-1:123456789:replicationgroup:" + testName2
 
 	mock := mockedElasticache{
 		DescribeReplicationGroupsOutput: elasticache.DescribeReplicationGroupsOutput{
 			ReplicationGroups: []types.ReplicationGroup{
 				{
 					ReplicationGroupId:         aws.String(testName1),
+					ARN:                        aws.String(testArn1),
 					ReplicationGroupCreateTime: aws.Time(now),
 				},
 				{
 					ReplicationGroupId:         aws.String(testName2),
+					ARN:                        aws.String(testArn2),
 					ReplicationGroupCreateTime: aws.Time(now.Add(1)),
 				},
 			},
 		},
 		DescribeCacheClustersOutput: elasticache.DescribeCacheClustersOutput{
 			CacheClusters: []types.CacheCluster{},
+		},
+		TagsByARN: map[string][]types.Tag{
+			testArn1: {{Key: aws.String("env"), Value: aws.String("prod")}},
+			testArn2: {{Key: aws.String("env"), Value: aws.String("dev")}},
 		},
 	}
 
@@ -99,6 +108,16 @@ func TestListElasticaches(t *testing.T) {
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now),
 				}},
+			expected: []string{testName1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
 			expected: []string{testName1},
 		},
 	}

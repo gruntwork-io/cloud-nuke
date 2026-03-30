@@ -56,7 +56,12 @@ func (m *mockedCloudfrontDistribution) DeleteDistribution(_ context.Context, _ *
 	return &m.DeleteDistributionOutput, m.DeleteDistributionErr
 }
 
-func (m *mockedCloudfrontDistribution) ListTagsForResource(_ context.Context, _ *cloudfront.ListTagsForResourceInput, _ ...func(*cloudfront.Options)) (*cloudfront.ListTagsForResourceOutput, error) {
+func (m *mockedCloudfrontDistribution) ListTagsForResource(_ context.Context, params *cloudfront.ListTagsForResourceInput, _ ...func(*cloudfront.Options)) (*cloudfront.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.Resource) == "arn::E1EXAMPLE1" {
+		return &cloudfront.ListTagsForResourceOutput{Tags: &types.Tags{
+			Items: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}}, nil
+	}
 	return &cloudfront.ListTagsForResourceOutput{Tags: &types.Tags{}}, nil
 }
 
@@ -98,6 +103,22 @@ func TestCloudfrontDistribution_List(t *testing.T) {
 				},
 			},
 			expected: []string{testID2},
+		},
+		"tagInclusionFilter": {
+			listOutput: cloudfront.ListDistributionsOutput{
+				DistributionList: &types.DistributionList{
+					Items: []types.DistributionSummary{
+						{Id: aws.String(testID1), ARN: aws.String("arn::E1EXAMPLE1")},
+						{Id: aws.String(testID2), ARN: aws.String("arn::E2EXAMPLE2")},
+					},
+				},
+			},
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+				},
+			},
+			expected: []string{testID1},
 		},
 		"handles empty distribution list": {
 			listOutput: cloudfront.ListDistributionsOutput{

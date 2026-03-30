@@ -28,7 +28,10 @@ func (m *mockECRClient) DeleteRepository(ctx context.Context, params *ecr.Delete
 }
 
 func (m *mockECRClient) ListTagsForResource(ctx context.Context, params *ecr.ListTagsForResourceInput, optFns ...func(*ecr.Options)) (*ecr.ListTagsForResourceOutput, error) {
-	return &ecr.ListTagsForResourceOutput{}, nil
+	if aws.ToString(params.ResourceArn) == "arn:aws:ecr:us-east-1:123456789:repository/test-repo2" {
+		return &ecr.ListTagsForResourceOutput{Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}}}, nil
+	}
+	return &ecr.ListTagsForResourceOutput{Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("dev")}}}, nil
 }
 
 func TestListECRRepositories(t *testing.T) {
@@ -122,6 +125,43 @@ func TestListECRRepositories_TimeFilter(t *testing.T) {
 	names, err := listECRRepositories(context.Background(), mock, resource.Scope{}, cfg)
 	require.NoError(t, err)
 	require.Equal(t, []string{testName1}, aws.ToStringSlice(names))
+}
+
+func TestListECRRepositories_TagInclusionFilter(t *testing.T) {
+	t.Parallel()
+
+	testName1 := "test-repo1"
+	testName2 := "test-repo2"
+	now := time.Now()
+
+	mock := &mockECRClient{
+		DescribeRepositoriesOutput: ecr.DescribeRepositoriesOutput{
+			Repositories: []types.Repository{
+				{
+					RepositoryName: aws.String(testName1),
+					RepositoryArn:  aws.String("arn:aws:ecr:us-east-1:123456789:repository/test-repo1"),
+					CreatedAt:      aws.Time(now),
+				},
+				{
+					RepositoryName: aws.String(testName2),
+					RepositoryArn:  aws.String("arn:aws:ecr:us-east-1:123456789:repository/test-repo2"),
+					CreatedAt:      aws.Time(now),
+				},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{
+				"env": {RE: *regexp.MustCompile("^prod$")},
+			},
+		},
+	}
+
+	names, err := listECRRepositories(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{testName2}, aws.ToStringSlice(names))
 }
 
 func TestDeleteECRRepository(t *testing.T) {
