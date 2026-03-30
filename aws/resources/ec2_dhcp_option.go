@@ -9,6 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -85,7 +86,9 @@ func listEC2DhcpOptions(ctx context.Context, client EC2DhcpOptionAPI, scope reso
 				}
 			}
 
-			if isEligibleForNuke {
+			if isEligibleForNuke && cfg.ShouldInclude(config.ResourceValue{
+				Tags: util.ConvertTypesTagsToMap(dhcpOption.Tags),
+			}) {
 				dhcpOptionIds = append(dhcpOptionIds, dhcpOption.DhcpOptionsId)
 			}
 		}
