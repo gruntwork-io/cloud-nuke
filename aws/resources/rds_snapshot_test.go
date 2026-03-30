@@ -41,11 +41,13 @@ func TestListRdsSnapshots(t *testing.T) {
 					DBSnapshotIdentifier: aws.String(testName1),
 					SnapshotCreateTime:   aws.Time(now),
 					SnapshotType:         aws.String("manual"),
+					Status:               aws.String("available"),
 				},
 				{
 					DBSnapshotIdentifier: aws.String(testName2),
 					SnapshotCreateTime:   aws.Time(now.Add(1 * time.Hour)),
 					SnapshotType:         aws.String("manual"),
+					Status:               aws.String("available"),
 				},
 			},
 		},
@@ -97,16 +99,19 @@ func TestListRdsSnapshots_SkipsAutomated(t *testing.T) {
 					DBSnapshotIdentifier: aws.String("manual-snap"),
 					SnapshotCreateTime:   aws.Time(now),
 					SnapshotType:         aws.String("manual"),
+					Status:               aws.String("available"),
 				},
 				{
 					DBSnapshotIdentifier: aws.String("auto-snap"),
 					SnapshotCreateTime:   aws.Time(now),
 					SnapshotType:         aws.String("automated"),
+					Status:               aws.String("available"),
 				},
 				{
 					DBSnapshotIdentifier: aws.String("backup-snap"),
 					SnapshotCreateTime:   aws.Time(now),
 					SnapshotType:         aws.String("awsbackup"),
+					Status:               aws.String("available"),
 				},
 			},
 		},
@@ -115,6 +120,52 @@ func TestListRdsSnapshots_SkipsAutomated(t *testing.T) {
 	names, err := listRdsSnapshots(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
 	require.Equal(t, []string{"manual-snap", "backup-snap"}, aws.ToStringSlice(names))
+}
+
+func TestListRdsSnapshots_SkipsNonDeletableStates(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	mock := &mockRdsSnapshotClient{
+		DescribeDBSnapshotsOutput: rds.DescribeDBSnapshotsOutput{
+			DBSnapshots: []types.DBSnapshot{
+				{
+					DBSnapshotIdentifier: aws.String("available-snap"),
+					SnapshotCreateTime:   aws.Time(now),
+					SnapshotType:         aws.String("manual"),
+					Status:               aws.String("available"),
+				},
+				{
+					DBSnapshotIdentifier: aws.String("creating-snap"),
+					SnapshotCreateTime:   aws.Time(now),
+					SnapshotType:         aws.String("manual"),
+					Status:               aws.String("creating"),
+				},
+				{
+					DBSnapshotIdentifier: aws.String("copying-snap"),
+					SnapshotCreateTime:   aws.Time(now),
+					SnapshotType:         aws.String("manual"),
+					Status:               aws.String("copying"),
+				},
+				{
+					DBSnapshotIdentifier: aws.String("failed-snap"),
+					SnapshotCreateTime:   aws.Time(now),
+					SnapshotType:         aws.String("manual"),
+					Status:               aws.String("failed"),
+				},
+				{
+					DBSnapshotIdentifier: aws.String("nil-status-snap"),
+					SnapshotCreateTime:   aws.Time(now),
+					SnapshotType:         aws.String("manual"),
+					Status:               nil,
+				},
+			},
+		},
+	}
+
+	names, err := listRdsSnapshots(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"available-snap", "failed-snap"}, aws.ToStringSlice(names))
 }
 
 func TestDeleteRdsSnapshot(t *testing.T) {

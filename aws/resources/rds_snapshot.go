@@ -51,6 +51,11 @@ func listRdsSnapshots(ctx context.Context, client RdsSnapshotAPI, scope resource
 			if aws.ToString(s.SnapshotType) == "automated" {
 				continue
 			}
+			// Only snapshots in "available" or "failed" state can be deleted
+			status := aws.ToString(s.Status)
+			if status != "available" && status != "failed" {
+				continue
+			}
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: s.DBSnapshotIdentifier,
 				Time: s.SnapshotCreateTime,
