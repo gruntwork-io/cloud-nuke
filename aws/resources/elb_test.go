@@ -27,6 +27,10 @@ func (m mockedLoadBalancers) DeleteLoadBalancer(ctx context.Context, params *ela
 	return &m.DeleteLoadBalancerOutput, nil
 }
 
+func (m mockedLoadBalancers) DescribeTags(ctx context.Context, params *elasticloadbalancing.DescribeTagsInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DescribeTagsOutput, error) {
+	return &elasticloadbalancing.DescribeTagsOutput{}, nil
+}
+
 func TestElb_GetAll(t *testing.T) {
 	t.Parallel()
 

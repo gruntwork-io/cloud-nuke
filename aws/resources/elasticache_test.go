@@ -38,6 +38,10 @@ func (m mockedElasticache) DeleteReplicationGroup(ctx context.Context, params *e
 	return &m.DeleteReplicationGroupOutput, nil
 }
 
+func (m mockedElasticache) ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error) {
+	return &elasticache.ListTagsForResourceOutput{}, nil
+}
+
 func TestElasticaches_ResourceName(t *testing.T) {
 	r := NewElasticaches()
 	require.Equal(t, "elasticache", r.ResourceName())

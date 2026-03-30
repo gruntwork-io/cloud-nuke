@@ -58,7 +58,7 @@ func listGuardDutyDetectors(ctx context.Context, client GuardDutyAPI, scope reso
 				continue
 			}
 
-			if cfg.ShouldInclude(config.ResourceValue{Time: createdAt}) {
+			if cfg.ShouldInclude(config.ResourceValue{Time: createdAt, Tags: detector.Tags}) {
 				detectorIds = append(detectorIds, aws.String(detectorId))
 			}
 		}

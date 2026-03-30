@@ -29,6 +29,10 @@ func (m mockedEventBridgeScheduleGroupService) ListScheduleGroups(ctx context.Co
 	return &m.ListScheduleGroupsOutput, nil
 }
 
+func (m mockedEventBridgeScheduleGroupService) ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error) {
+	return &scheduler.ListTagsForResourceOutput{}, nil
+}
+
 func Test_EventBridgeScheduleGroup_GetAll(t *testing.T) {
 	t.Parallel()
 

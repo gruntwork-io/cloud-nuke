@@ -210,6 +210,10 @@ func (m *mockSageMakerStudioClient) DeleteSpace(ctx context.Context, params *sag
 	return &sagemaker.DeleteSpaceOutput{}, nil
 }
 
+func (m *mockSageMakerStudioClient) ListTags(ctx context.Context, params *sagemaker.ListTagsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListTagsOutput, error) {
+	return &sagemaker.ListTagsOutput{}, nil
+}
+
 func TestNukeSageMakerDomain_AppsDeletedBeforeSpaces(t *testing.T) {
 	t.Parallel()
 

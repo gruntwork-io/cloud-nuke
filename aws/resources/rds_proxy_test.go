@@ -29,6 +29,10 @@ func (m mockedRdsProxy) DeleteDBProxy(ctx context.Context, params *rds.DeleteDBP
 	return &m.DeleteDBProxyOutput, nil
 }
 
+func (m mockedRdsProxy) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
+	return &rds.ListTagsForResourceOutput{}, nil
+}
+
 func TestRdsProxy_GetAll(t *testing.T) {
 	t.Parallel()
 

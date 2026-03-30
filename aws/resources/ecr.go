@@ -6,13 +6,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // ECRAPI defines the interface for ECR operations.
 type ECRAPI interface {
 	DescribeRepositories(ctx context.Context, params *ecr.DescribeRepositoriesInput, optFns ...func(*ecr.Options)) (*ecr.DescribeRepositoriesOutput, error)
 	DeleteRepository(ctx context.Context, params *ecr.DeleteRepositoryInput, optFns ...func(*ecr.Options)) (*ecr.DeleteRepositoryOutput, error)
+	ListTagsForResource(ctx context.Context, params *ecr.ListTagsForResourceInput, optFns ...func(*ecr.Options)) (*ecr.ListTagsForResourceOutput, error)
 }
 
 // NewECR creates a new ECR resource using the generic resource pattern.
@@ -44,9 +47,18 @@ func listECRRepositories(ctx context.Context, client ECRAPI, scope resource.Scop
 		}
 
 		for _, repository := range page.Repositories {
+			tagsOutput, err := client.ListTagsForResource(ctx, &ecr.ListTagsForResourceInput{
+				ResourceArn: repository.RepositoryArn,
+			})
+			if err != nil {
+				logging.Debugf("[Failed] Unable to fetch tags for ECR repository %s: %s", aws.ToString(repository.RepositoryName), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Time: repository.CreatedAt,
 				Name: repository.RepositoryName,
+				Tags: util.ConvertECRTagsToMap(tagsOutput.Tags),
 			}) {
 				repositoryNames = append(repositoryNames, repository.RepositoryName)
 			}

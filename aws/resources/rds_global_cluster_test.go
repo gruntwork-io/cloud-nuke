@@ -27,6 +27,10 @@ func (m *mockDBGlobalClustersClient) DeleteGlobalCluster(ctx context.Context, pa
 	return &m.DeleteGlobalClusterOutput, nil
 }
 
+func (m *mockDBGlobalClustersClient) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
+	return &rds.ListTagsForResourceOutput{}, nil
+}
+
 func TestListDBGlobalClusters(t *testing.T) {
 	t.Parallel()
 

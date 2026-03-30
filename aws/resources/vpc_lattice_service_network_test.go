@@ -45,6 +45,10 @@ func (m *mockedVPCLatticeServiceNetwork) DeleteServiceNetworkServiceAssociation(
 	return &m.DeleteServiceNetworkServiceAssociationOutput, nil
 }
 
+func (m *mockedVPCLatticeServiceNetwork) ListTagsForResource(ctx context.Context, params *vpclattice.ListTagsForResourceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error) {
+	return &vpclattice.ListTagsForResourceOutput{}, nil
+}
+
 func TestVPCLatticeServiceNetwork_ResourceMetadata(t *testing.T) {
 	t.Parallel()
 

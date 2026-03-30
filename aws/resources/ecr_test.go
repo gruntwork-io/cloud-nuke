@@ -27,6 +27,10 @@ func (m *mockECRClient) DeleteRepository(ctx context.Context, params *ecr.Delete
 	return &m.DeleteRepositoryOutput, nil
 }
 
+func (m *mockECRClient) ListTagsForResource(ctx context.Context, params *ecr.ListTagsForResourceInput, optFns ...func(*ecr.Options)) (*ecr.ListTagsForResourceOutput, error) {
+	return &ecr.ListTagsForResourceOutput{}, nil
+}
+
 func TestListECRRepositories(t *testing.T) {
 	t.Parallel()
 

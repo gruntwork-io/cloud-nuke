@@ -28,6 +28,10 @@ func (m *mockCloudWatchLogGroupsClient) DeleteLogGroup(ctx context.Context, para
 	return &m.DeleteLogGroupOutput, nil
 }
 
+func (m *mockCloudWatchLogGroupsClient) ListTagsForResource(ctx context.Context, params *cloudwatchlogs.ListTagsForResourceInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.ListTagsForResourceOutput, error) {
+	return &cloudwatchlogs.ListTagsForResourceOutput{}, nil
+}
+
 func TestCloudWatchLogGroups_ResourceName(t *testing.T) {
 	r := NewCloudWatchLogGroups()
 	assert.Equal(t, "cloudwatch-loggroup", r.ResourceName())

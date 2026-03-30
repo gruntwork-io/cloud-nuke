@@ -27,6 +27,10 @@ func (m *mockEBApplicationsClient) DeleteApplication(ctx context.Context, params
 	return &m.DeleteApplicationOutput, nil
 }
 
+func (m *mockEBApplicationsClient) ListTagsForResource(ctx context.Context, params *elasticbeanstalk.ListTagsForResourceInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.ListTagsForResourceOutput, error) {
+	return &elasticbeanstalk.ListTagsForResourceOutput{}, nil
+}
+
 func TestListEBApplications(t *testing.T) {
 	t.Parallel()
 

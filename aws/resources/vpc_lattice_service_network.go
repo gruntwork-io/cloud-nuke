@@ -19,6 +19,7 @@ type VPCLatticeServiceNetworkAPI interface {
 	DeleteServiceNetwork(ctx context.Context, params *vpclattice.DeleteServiceNetworkInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkOutput, error)
 	ListServiceNetworkServiceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkServiceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkServiceAssociationsOutput, error)
 	DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error)
+	ListTagsForResource(ctx context.Context, params *vpclattice.ListTagsForResourceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error)
 }
 
 // NewVPCLatticeServiceNetwork creates a new VPC Lattice Service Network resource using the generic resource pattern.
@@ -55,9 +56,18 @@ func listVPCLatticeServiceNetworks(ctx context.Context, client VPCLatticeService
 		}
 
 		for _, item := range page.Items {
+			tagsOutput, err := client.ListTagsForResource(ctx, &vpclattice.ListTagsForResourceInput{
+				ResourceArn: item.Arn,
+			})
+			if err != nil {
+				logging.Debugf("Failed to get tags for VPC Lattice Service Network %s: %s", aws.ToString(item.Arn), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: item.Name,
 				Time: item.CreatedAt,
+				Tags: tagsOutput.Tags,
 			}) {
 				ids = append(ids, item.Arn)
 			}

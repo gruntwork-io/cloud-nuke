@@ -38,6 +38,10 @@ func (m *mockACMPCAClient) DeleteCertificateAuthority(ctx context.Context, param
 	return &m.DeleteCertificateAuthorityOutput, nil
 }
 
+func (m *mockACMPCAClient) ListTags(ctx context.Context, params *acmpca.ListTagsInput, optFns ...func(*acmpca.Options)) (*acmpca.ListTagsOutput, error) {
+	return &acmpca.ListTagsOutput{}, nil
+}
+
 func TestListACMPCA(t *testing.T) {
 	t.Parallel()
 

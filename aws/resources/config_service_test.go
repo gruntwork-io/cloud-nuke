@@ -36,6 +36,10 @@ func (m *mockConfigServiceRuleClient) DeleteConfigRule(ctx context.Context, para
 	return &m.DeleteConfigRuleOutput, nil
 }
 
+func (m *mockConfigServiceRuleClient) ListTagsForResource(ctx context.Context, params *configservice.ListTagsForResourceInput, optFns ...func(*configservice.Options)) (*configservice.ListTagsForResourceOutput, error) {
+	return &configservice.ListTagsForResourceOutput{}, nil
+}
+
 func TestListConfigServiceRules(t *testing.T) {
 	t.Parallel()
 

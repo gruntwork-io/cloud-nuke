@@ -45,6 +45,10 @@ func (m mockedEventBridgeRuleService) DeleteRule(ctx context.Context, params *ev
 	return &m.DeleteRuleOutput, nil
 }
 
+func (m mockedEventBridgeRuleService) ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
+	return &eventbridge.ListTagsForResourceOutput{}, nil
+}
+
 func Test_EventBridgeRule_GetAll(t *testing.T) {
 	t.Parallel()
 

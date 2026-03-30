@@ -32,6 +32,10 @@ func (m *mockLambdaLayerClient) DeleteLayerVersion(ctx context.Context, params *
 	return &m.DeleteLayerVersionOutput, nil
 }
 
+func (m *mockLambdaLayerClient) ListTags(ctx context.Context, params *lambda.ListTagsInput, optFns ...func(*lambda.Options)) (*lambda.ListTagsOutput, error) {
+	return &lambda.ListTagsOutput{}, nil
+}
+
 func TestListLambdaLayers(t *testing.T) {
 	t.Parallel()
 
@@ -125,7 +129,7 @@ func TestShouldIncludeLambdaLayer_NilLatestMatchingVersion(t *testing.T) {
 		LatestMatchingVersion: nil, // nil version should be handled gracefully
 	}
 
-	result := shouldIncludeLambdaLayer(layer, config.ResourceType{})
+	result := shouldIncludeLambdaLayer(layer, config.ResourceType{}, nil)
 	require.False(t, result)
 }
 

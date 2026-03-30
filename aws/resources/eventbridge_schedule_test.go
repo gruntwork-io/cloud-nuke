@@ -28,6 +28,10 @@ func (m *mockEventBridgeScheduleClient) DeleteSchedule(ctx context.Context, para
 	return &m.DeleteScheduleOutput, nil
 }
 
+func (m *mockEventBridgeScheduleClient) ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error) {
+	return &scheduler.ListTagsForResourceOutput{}, nil
+}
+
 func TestEventBridgeSchedule_ResourceName(t *testing.T) {
 	r := NewEventBridgeSchedule()
 	assert.Equal(t, "event-bridge-schedule", r.ResourceName())

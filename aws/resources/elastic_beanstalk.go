@@ -6,13 +6,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // EBApplicationsAPI defines the interface for Elastic Beanstalk operations.
 type EBApplicationsAPI interface {
 	DescribeApplications(ctx context.Context, params *elasticbeanstalk.DescribeApplicationsInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DescribeApplicationsOutput, error)
 	DeleteApplication(ctx context.Context, params *elasticbeanstalk.DeleteApplicationInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DeleteApplicationOutput, error)
+	ListTagsForResource(ctx context.Context, params *elasticbeanstalk.ListTagsForResourceInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.ListTagsForResourceOutput, error)
 }
 
 // NewEBApplications creates a new Elastic Beanstalk Applications resource using the generic resource pattern.
@@ -41,9 +44,22 @@ func listEBApplications(ctx context.Context, client EBApplicationsAPI, scope res
 
 	var appNames []*string
 	for _, app := range output.Applications {
+		var tags map[string]string
+		tagsOutput, err := client.ListTagsForResource(ctx, &elasticbeanstalk.ListTagsForResourceInput{
+			ResourceArn: app.ApplicationArn,
+		})
+		if err != nil {
+			logging.Debugf("Error getting tags for Elastic Beanstalk app %s: %v", aws.ToString(app.ApplicationName), err)
+			continue
+		}
+		if tagsOutput != nil {
+			tags = util.ConvertElasticBeanstalkTagsToMap(tagsOutput.ResourceTags)
+		}
+
 		if cfg.ShouldInclude(config.ResourceValue{
 			Name: app.ApplicationName,
 			Time: app.DateCreated,
+			Tags: tags,
 		}) {
 			appNames = append(appNames, app.ApplicationName)
 		}

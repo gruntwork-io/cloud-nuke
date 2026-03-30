@@ -11,6 +11,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -18,6 +19,7 @@ import (
 type DBGlobalClusterMembershipsAPI interface {
 	DescribeGlobalClusters(ctx context.Context, params *rds.DescribeGlobalClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeGlobalClustersOutput, error)
 	RemoveFromGlobalCluster(ctx context.Context, params *rds.RemoveFromGlobalClusterInput, optFns ...func(*rds.Options)) (*rds.RemoveFromGlobalClusterOutput, error)
+	ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error)
 }
 
 // NewDBGlobalClusterMemberships creates a new RDS Global Cluster Memberships resource.
@@ -49,8 +51,17 @@ func listDBGlobalClusterMemberships(ctx context.Context, client DBGlobalClusterM
 		}
 
 		for _, cluster := range page.GlobalClusters {
+			tags, err := client.ListTagsForResource(ctx, &rds.ListTagsForResourceInput{
+				ResourceName: cluster.GlobalClusterArn,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for RDS global cluster membership %s: %s", aws.ToString(cluster.GlobalClusterIdentifier), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: cluster.GlobalClusterIdentifier,
+				Tags: util.ConvertRDSTypeTagsToMap(tags.TagList),
 			}) {
 				names = append(names, cluster.GlobalClusterIdentifier)
 			}

@@ -41,6 +41,10 @@ func (m *mockDBGlobalClusterMembershipsClient) DescribeGlobalClusters(ctx contex
 	return &m.DescribeGlobalClustersOutput, m.DescribeGlobalClustersError
 }
 
+func (m *mockDBGlobalClusterMembershipsClient) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
+	return &rds.ListTagsForResourceOutput{}, nil
+}
+
 func (m *mockDBGlobalClusterMembershipsClient) RemoveFromGlobalCluster(ctx context.Context, params *rds.RemoveFromGlobalClusterInput, optFns ...func(*rds.Options)) (*rds.RemoveFromGlobalClusterOutput, error) {
 	if m.RemoveFromGlobalClusterCalls == nil {
 		m.RemoveFromGlobalClusterCalls = []string{}

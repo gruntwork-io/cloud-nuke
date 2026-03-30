@@ -42,6 +42,10 @@ func (m *mockDynamoDBClient) DeleteTable(ctx context.Context, params *dynamodb.D
 	return &m.DeleteTableOutput, m.DeleteTableError
 }
 
+func (m *mockDynamoDBClient) ListTagsOfResource(ctx context.Context, params *dynamodb.ListTagsOfResourceInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTagsOfResourceOutput, error) {
+	return &dynamodb.ListTagsOfResourceOutput{}, nil
+}
+
 func TestDynamoDB_ResourceName(t *testing.T) {
 	t.Parallel()
 	r := NewDynamoDB()

@@ -28,6 +28,10 @@ func (m mockedRdsDBParameterGroup) DeleteDBParameterGroup(ctx context.Context, p
 	return &m.DeleteDBParameterGroupOutput, nil
 }
 
+func (m mockedRdsDBParameterGroup) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
+	return &rds.ListTagsForResourceOutput{}, nil
+}
+
 func TestRdsParameterGroup_ResourceName(t *testing.T) {
 	r := NewRdsParameterGroup()
 	require.Equal(t, "rds-parameter-group", r.ResourceName())

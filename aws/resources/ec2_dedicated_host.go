@@ -89,6 +89,7 @@ func shouldIncludeHostId(host *types.Host, cfg config.ResourceType) bool {
 	return cfg.ShouldInclude(config.ResourceValue{
 		Name: hostNameTagValue,
 		Time: host.AllocationTime,
+		Tags: util.ConvertTypesTagsToMap(host.Tags),
 	})
 }
 

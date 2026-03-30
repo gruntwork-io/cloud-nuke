@@ -8,12 +8,14 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // EventBridgeAPI defines the interface for EventBridge operations.
 type EventBridgeAPI interface {
 	DeleteEventBus(ctx context.Context, params *eventbridge.DeleteEventBusInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteEventBusOutput, error)
 	ListEventBuses(ctx context.Context, params *eventbridge.ListEventBusesInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListEventBusesOutput, error)
+	ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
 }
 
 // NewEventBridge creates a new EventBridge resource using the generic resource pattern.
@@ -55,9 +57,18 @@ func listEventBuses(ctx context.Context, client EventBridgeAPI, scope resource.S
 				continue
 			}
 
+			tagsOutput, err := client.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
+				ResourceARN: bus.Arn,
+			})
+			if err != nil {
+				logging.Debugf("[Event Bridge] Failed to list tags for bus %s: %s", aws.ToString(bus.Name), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: bus.Name,
 				Time: bus.CreationTime,
+				Tags: util.ConvertEventBridgeTagsToMap(tagsOutput.Tags),
 			}) {
 				identifiers = append(identifiers, bus.Name)
 			}

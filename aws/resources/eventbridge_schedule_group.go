@@ -9,12 +9,14 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // EventBridgeScheduleGroupAPI defines the interface for EventBridge Schedule Group operations.
 type EventBridgeScheduleGroupAPI interface {
 	DeleteScheduleGroup(ctx context.Context, params *scheduler.DeleteScheduleGroupInput, optFns ...func(*scheduler.Options)) (*scheduler.DeleteScheduleGroupOutput, error)
 	ListScheduleGroups(ctx context.Context, params *scheduler.ListScheduleGroupsInput, optFns ...func(*scheduler.Options)) (*scheduler.ListScheduleGroupsOutput, error)
+	ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error)
 }
 
 // NewEventBridgeScheduleGroup creates a new EventBridgeScheduleGroup resource using the generic resource pattern.
@@ -57,9 +59,18 @@ func listEventBridgeScheduleGroups(ctx context.Context, client EventBridgeSchedu
 				continue
 			}
 
+			tagsOutput, err := client.ListTagsForResource(ctx, &scheduler.ListTagsForResourceInput{
+				ResourceArn: group.Arn,
+			})
+			if err != nil {
+				logging.Debugf("[Event Bridge Schedule] Failed to list tags for group %s: %s", aws.ToString(group.Name), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: group.Name,
 				Time: group.CreationDate,
+				Tags: util.ConvertSchedulerTagsToMap(tagsOutput.Tags),
 			}) {
 				identifiers = append(identifiers, group.Name)
 			}

@@ -56,6 +56,10 @@ func (m *mockedCloudfrontDistribution) DeleteDistribution(_ context.Context, _ *
 	return &m.DeleteDistributionOutput, m.DeleteDistributionErr
 }
 
+func (m *mockedCloudfrontDistribution) ListTagsForResource(_ context.Context, _ *cloudfront.ListTagsForResourceInput, _ ...func(*cloudfront.Options)) (*cloudfront.ListTagsForResourceOutput, error) {
+	return &cloudfront.ListTagsForResourceOutput{Tags: &types.Tags{}}, nil
+}
+
 func TestCloudfrontDistribution_List(t *testing.T) {
 	t.Parallel()
 

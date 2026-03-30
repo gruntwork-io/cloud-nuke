@@ -27,6 +27,10 @@ func (m *mockAppRunnerServiceClient) ListServices(ctx context.Context, params *a
 	return &m.ListServicesOutput, nil
 }
 
+func (m *mockAppRunnerServiceClient) ListTagsForResource(ctx context.Context, params *apprunner.ListTagsForResourceInput, optFns ...func(*apprunner.Options)) (*apprunner.ListTagsForResourceOutput, error) {
+	return &apprunner.ListTagsForResourceOutput{}, nil
+}
+
 func TestListAppRunnerServices(t *testing.T) {
 	t.Parallel()
 

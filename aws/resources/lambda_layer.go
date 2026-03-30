@@ -21,6 +21,7 @@ type LambdaLayersAPI interface {
 	DeleteLayerVersion(ctx context.Context, params *lambda.DeleteLayerVersionInput, optFns ...func(*lambda.Options)) (*lambda.DeleteLayerVersionOutput, error)
 	ListLayers(ctx context.Context, params *lambda.ListLayersInput, optFns ...func(*lambda.Options)) (*lambda.ListLayersOutput, error)
 	ListLayerVersions(ctx context.Context, params *lambda.ListLayerVersionsInput, optFns ...func(*lambda.Options)) (*lambda.ListLayerVersionsOutput, error)
+	ListTags(ctx context.Context, params *lambda.ListTagsInput, optFns ...func(*lambda.Options)) (*lambda.ListTagsOutput, error)
 }
 
 // NewLambdaLayers creates a new LambdaLayers resource using the generic resource pattern.
@@ -55,7 +56,15 @@ func listLambdaLayers(ctx context.Context, client LambdaLayersAPI, scope resourc
 		for _, layer := range page.Layers {
 			logging.Debugf("Found layer: %s", *layer.LayerName)
 
-			if !shouldIncludeLambdaLayer(&layer, cfg) {
+			tagsOutput, err := client.ListTags(ctx, &lambda.ListTagsInput{
+				Resource: layer.LayerArn,
+			})
+			if err != nil {
+				logging.Debugf("[Failed] Unable to fetch tags for Lambda layer %s: %s", aws.ToString(layer.LayerName), err)
+				continue
+			}
+
+			if !shouldIncludeLambdaLayer(&layer, cfg, tagsOutput.Tags) {
 				continue
 			}
 
@@ -82,7 +91,7 @@ func listLambdaLayers(ctx context.Context, client LambdaLayersAPI, scope resourc
 	return identifiers, nil
 }
 
-func shouldIncludeLambdaLayer(lambdaLayer *types.LayersListItem, cfg config.ResourceType) bool {
+func shouldIncludeLambdaLayer(lambdaLayer *types.LayersListItem, cfg config.ResourceType, tags map[string]string) bool {
 	if lambdaLayer == nil {
 		return false
 	}
@@ -104,6 +113,7 @@ func shouldIncludeLambdaLayer(lambdaLayer *types.LayersListItem, cfg config.Reso
 	return cfg.ShouldInclude(config.ResourceValue{
 		Time: &lastModifiedDateTime,
 		Name: fnName,
+		Tags: tags,
 	})
 }
 

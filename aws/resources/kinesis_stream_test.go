@@ -30,6 +30,10 @@ func (m *mockKinesisStreamsClient) DeleteStream(ctx context.Context, params *kin
 	return &m.DeleteStreamOutput, nil
 }
 
+func (m *mockKinesisStreamsClient) ListTagsForStream(ctx context.Context, params *kinesis.ListTagsForStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.ListTagsForStreamOutput, error) {
+	return &kinesis.ListTagsForStreamOutput{}, nil
+}
+
 func TestKinesisStreams_GetAll(t *testing.T) {
 	t.Parallel()
 

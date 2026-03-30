@@ -26,6 +26,10 @@ func (m *mockDataSyncTaskClient) ListTasks(ctx context.Context, params *datasync
 	return &m.ListTasksOutput, nil
 }
 
+func (m *mockDataSyncTaskClient) ListTagsForResource(ctx context.Context, params *datasync.ListTagsForResourceInput, optFns ...func(*datasync.Options)) (*datasync.ListTagsForResourceOutput, error) {
+	return &datasync.ListTagsForResourceOutput{}, nil
+}
+
 func TestListDataSyncTasks(t *testing.T) {
 	t.Parallel()
 

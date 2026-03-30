@@ -37,6 +37,10 @@ func (m *mockSageMakerNotebookClient) DescribeNotebookInstance(ctx context.Conte
 	return &m.DescribeNotebookInstanceOutput, nil
 }
 
+func (m *mockSageMakerNotebookClient) ListTags(ctx context.Context, params *sagemaker.ListTagsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListTagsOutput, error) {
+	return &sagemaker.ListTagsOutput{}, nil
+}
+
 func TestListSageMakerNotebookInstances(t *testing.T) {
 	t.Parallel()
 

@@ -26,6 +26,10 @@ func (m *mockDataSyncLocationClient) ListLocations(ctx context.Context, params *
 	return &m.ListLocationsOutput, nil
 }
 
+func (m *mockDataSyncLocationClient) ListTagsForResource(ctx context.Context, params *datasync.ListTagsForResourceInput, optFns ...func(*datasync.Options)) (*datasync.ListTagsForResourceOutput, error) {
+	return &datasync.ListTagsForResourceOutput{}, nil
+}
+
 func TestListDataSyncLocations(t *testing.T) {
 	t.Parallel()
 

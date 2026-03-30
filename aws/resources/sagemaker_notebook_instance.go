@@ -7,7 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 const (
@@ -20,6 +22,7 @@ const (
 // SageMakerNotebookInstancesAPI defines the interface for SageMaker Notebook Instance operations.
 type SageMakerNotebookInstancesAPI interface {
 	ListNotebookInstances(ctx context.Context, params *sagemaker.ListNotebookInstancesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListNotebookInstancesOutput, error)
+	ListTags(ctx context.Context, params *sagemaker.ListTagsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListTagsOutput, error)
 	StopNotebookInstance(ctx context.Context, params *sagemaker.StopNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.StopNotebookInstanceOutput, error)
 	DeleteNotebookInstance(ctx context.Context, params *sagemaker.DeleteNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteNotebookInstanceOutput, error)
 	DescribeNotebookInstance(ctx context.Context, params *sagemaker.DescribeNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DescribeNotebookInstanceOutput, error)
@@ -60,9 +63,22 @@ func listSageMakerNotebookInstances(ctx context.Context, client SageMakerNoteboo
 		}
 
 		for _, notebook := range page.NotebookInstances {
+			var tags map[string]string
+			tagsOutput, err := client.ListTags(ctx, &sagemaker.ListTagsInput{
+				ResourceArn: notebook.NotebookInstanceArn,
+			})
+			if err != nil {
+				logging.Debugf("Error getting tags for SageMaker notebook %s: %v", aws.ToString(notebook.NotebookInstanceName), err)
+				continue
+			}
+			if tagsOutput != nil {
+				tags = util.ConvertSageMakerTagsToMap(tagsOutput.Tags)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: notebook.NotebookInstanceName,
 				Time: notebook.CreationTime,
+				Tags: tags,
 			}) {
 				names = append(names, notebook.NotebookInstanceName)
 			}

@@ -38,6 +38,10 @@ func (m *mockVPCLatticeTargetGroupClient) DeleteTargetGroup(_ context.Context, _
 	return &m.DeleteTargetGroupOutput, nil
 }
 
+func (m *mockVPCLatticeTargetGroupClient) ListTagsForResource(_ context.Context, _ *vpclattice.ListTagsForResourceInput, _ ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error) {
+	return &vpclattice.ListTagsForResourceOutput{}, nil
+}
+
 func TestVPCLatticeTargetGroup_Properties(t *testing.T) {
 	t.Parallel()
 

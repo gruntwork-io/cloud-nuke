@@ -32,6 +32,10 @@ func (m *mockCloudWatchAlarmsClient) PutCompositeAlarm(ctx context.Context, para
 	return &m.PutCompositeAlarmOutput, nil
 }
 
+func (m *mockCloudWatchAlarmsClient) ListTagsForResource(ctx context.Context, params *cloudwatch.ListTagsForResourceInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.ListTagsForResourceOutput, error) {
+	return &cloudwatch.ListTagsForResourceOutput{}, nil
+}
+
 func TestListCloudWatchAlarms(t *testing.T) {
 	t.Parallel()
 

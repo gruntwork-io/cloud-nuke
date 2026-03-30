@@ -27,6 +27,10 @@ func (m mockedElasticCacheServerlessService) DescribeServerlessCaches(ctx contex
 	return &m.DescribeServerlessCachesOutput, nil
 }
 
+func (m mockedElasticCacheServerlessService) ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error) {
+	return &elasticache.ListTagsForResourceOutput{}, nil
+}
+
 func TestElasticCacheServerless_GetAll(t *testing.T) {
 	t.Parallel()
 

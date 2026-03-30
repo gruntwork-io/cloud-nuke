@@ -8,7 +8,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -16,6 +18,7 @@ import (
 type EventBridgeScheduleAPI interface {
 	ListSchedules(ctx context.Context, params *scheduler.ListSchedulesInput, optFns ...func(*scheduler.Options)) (*scheduler.ListSchedulesOutput, error)
 	DeleteSchedule(ctx context.Context, params *scheduler.DeleteScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.DeleteScheduleOutput, error)
+	ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error)
 }
 
 // NewEventBridgeSchedule creates a new EventBridge Schedule resource using the generic resource pattern.
@@ -48,9 +51,19 @@ func listEventBridgeSchedules(ctx context.Context, client EventBridgeScheduleAPI
 
 		for _, schedule := range page.Schedules {
 			id := aws.String(fmt.Sprintf("%s|%s", *schedule.GroupName, *schedule.Name))
+
+			tagsOutput, err := client.ListTagsForResource(ctx, &scheduler.ListTagsForResourceInput{
+				ResourceArn: schedule.Arn,
+			})
+			if err != nil {
+				logging.Debugf("[Event Bridge Schedule] Failed to list tags for schedule %s: %s", aws.ToString(schedule.Name), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: id,
 				Time: schedule.CreationDate,
+				Tags: util.ConvertSchedulerTagsToMap(tagsOutput.Tags),
 			}) {
 				identifiers = append(identifiers, id)
 			}

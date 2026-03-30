@@ -12,6 +12,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -44,6 +45,9 @@ type SageMakerStudioAPI interface {
 	// MLflow tracking server operations
 	ListMlflowTrackingServers(ctx context.Context, params *sagemaker.ListMlflowTrackingServersInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListMlflowTrackingServersOutput, error)
 	DeleteMlflowTrackingServer(ctx context.Context, params *sagemaker.DeleteMlflowTrackingServerInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteMlflowTrackingServerOutput, error)
+
+	// Tag operations
+	ListTags(ctx context.Context, params *sagemaker.ListTagsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListTagsOutput, error)
 }
 
 // NewSageMakerStudio creates a new SageMaker Studio resource using the generic resource pattern.
@@ -79,9 +83,22 @@ func listSageMakerDomains(ctx context.Context, client SageMakerStudioAPI, scope 
 				continue
 			}
 
+			var tagMap map[string]string
+			if domain.DomainArn != nil {
+				tagsOutput, err := client.ListTags(ctx, &sagemaker.ListTagsInput{
+					ResourceArn: domain.DomainArn,
+				})
+				if err != nil {
+					logging.Debugf("Failed to get tags for SageMaker Studio domain %s: %s", *domain.DomainId, err)
+					continue
+				}
+				tagMap = util.ConvertSageMakerTagsToMap(tagsOutput.Tags)
+			}
+
 			if !cfg.ShouldInclude(config.ResourceValue{
 				Name: domain.DomainName,
 				Time: domain.CreationTime,
+				Tags: tagMap,
 			}) {
 				logging.Debugf("Skipping SageMaker Studio domain %s (filtered by config)", *domain.DomainId)
 				continue

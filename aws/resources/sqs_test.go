@@ -35,6 +35,10 @@ func (m *mockSqsQueueClient) DeleteQueue(ctx context.Context, params *sqs.Delete
 	return &m.DeleteQueueOutput, nil
 }
 
+func (m *mockSqsQueueClient) ListQueueTags(ctx context.Context, params *sqs.ListQueueTagsInput, optFns ...func(*sqs.Options)) (*sqs.ListQueueTagsOutput, error) {
+	return &sqs.ListQueueTagsOutput{}, nil
+}
+
 func TestSqsQueue_GetAll(t *testing.T) {
 	t.Parallel()
 

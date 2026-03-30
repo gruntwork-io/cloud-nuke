@@ -26,6 +26,10 @@ func (m *mockKinesisFirehoseClient) DeleteDeliveryStream(ctx context.Context, pa
 	return &m.DeleteDeliveryStreamOutput, nil
 }
 
+func (m *mockKinesisFirehoseClient) ListTagsForDeliveryStream(ctx context.Context, params *firehose.ListTagsForDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.ListTagsForDeliveryStreamOutput, error) {
+	return &firehose.ListTagsForDeliveryStreamOutput{}, nil
+}
+
 func TestListKinesisFirehose(t *testing.T) {
 	t.Parallel()
 

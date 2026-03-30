@@ -11,6 +11,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	goerrors "github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -20,6 +21,7 @@ type ElasticachesAPI interface {
 	DescribeCacheClusters(ctx context.Context, params *elasticache.DescribeCacheClustersInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeCacheClustersOutput, error)
 	DeleteCacheCluster(ctx context.Context, params *elasticache.DeleteCacheClusterInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteCacheClusterOutput, error)
 	DeleteReplicationGroup(ctx context.Context, params *elasticache.DeleteReplicationGroupInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteReplicationGroupOutput, error)
+	ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error)
 }
 
 // NewElasticaches creates a new Elasticaches resource using the generic resource pattern.
@@ -54,9 +56,18 @@ func listElasticaches(ctx context.Context, client ElasticachesAPI, scope resourc
 		}
 
 		for _, replicationGroup := range page.ReplicationGroups {
+			tags, err := client.ListTagsForResource(ctx, &elasticache.ListTagsForResourceInput{
+				ResourceName: replicationGroup.ARN,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for ElastiCache replication group %s: %s", aws.ToString(replicationGroup.ReplicationGroupId), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: replicationGroup.ReplicationGroupId,
 				Time: replicationGroup.ReplicationGroupCreateTime,
+				Tags: util.ConvertElastiCacheTagsToMap(tags.TagList),
 			}) {
 				clusterIds = append(clusterIds, replicationGroup.ReplicationGroupId)
 			}
@@ -76,9 +87,18 @@ func listElasticaches(ctx context.Context, client ElasticachesAPI, scope resourc
 		}
 
 		for _, cluster := range page.CacheClusters {
+			tags, err := client.ListTagsForResource(ctx, &elasticache.ListTagsForResourceInput{
+				ResourceName: cluster.ARN,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for ElastiCache cluster %s: %s", aws.ToString(cluster.CacheClusterId), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: cluster.CacheClusterId,
 				Time: cluster.CacheClusterCreateTime,
+				Tags: util.ConvertElastiCacheTagsToMap(tags.TagList),
 			}) {
 				clusterIds = append(clusterIds, cluster.CacheClusterId)
 			}

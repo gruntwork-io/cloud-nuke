@@ -30,6 +30,10 @@ func (m mockedEventBridgeService) ListEventBuses(ctx context.Context, params *ev
 	return &m.ListEventBusesOutput, nil
 }
 
+func (m mockedEventBridgeService) ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
+	return &eventbridge.ListTagsForResourceOutput{}, nil
+}
+
 func Test_EventBridge_GetAll(t *testing.T) {
 	t.Parallel()
 

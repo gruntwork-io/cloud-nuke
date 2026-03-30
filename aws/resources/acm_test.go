@@ -27,6 +27,10 @@ func (m *mockACMClient) DeleteCertificate(ctx context.Context, params *acm.Delet
 	return &m.DeleteCertificateOutput, nil
 }
 
+func (m *mockACMClient) ListTagsForCertificate(ctx context.Context, params *acm.ListTagsForCertificateInput, optFns ...func(*acm.Options)) (*acm.ListTagsForCertificateOutput, error) {
+	return &acm.ListTagsForCertificateOutput{}, nil
+}
+
 func TestListACMCertificates(t *testing.T) {
 	t.Parallel()
 
