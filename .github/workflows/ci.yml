@@ -194,10 +194,11 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    env:
+      GON_VERSION: v0.0.37
     steps:
       - name: Validate required secrets
         env:
-          GW_GITHUB_OAUTH_TOKEN: ${{ secrets.GW_GITHUB_OAUTH_TOKEN }}
           MACOS_AC_LOGIN: ${{ secrets.MACOS_AC_LOGIN }}
           MACOS_AC_PASSWORD: ${{ secrets.MACOS_AC_PASSWORD }}
           MACOS_AC_PROVIDER: ${{ secrets.MACOS_AC_PROVIDER }}
@@ -205,12 +206,12 @@ jobs:
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
           missing=()
-          for var in GW_GITHUB_OAUTH_TOKEN MACOS_AC_LOGIN MACOS_AC_PASSWORD MACOS_AC_PROVIDER MACOS_CERTIFICATE MACOS_CERTIFICATE_PASSWORD; do
+          for var in MACOS_AC_LOGIN MACOS_AC_PASSWORD MACOS_AC_PROVIDER MACOS_CERTIFICATE MACOS_CERTIFICATE_PASSWORD; do
             if [ -z "${!var}" ]; then
               missing+=("$var")
             fi
           done
-          if [ ${#missing[@]} -gt 0 ]; then
+          if [ "${#missing[@]}" -gt 0 ]; then
             echo "::error::Missing required secrets: ${missing[*]}"
             exit 1
           fi
@@ -238,33 +239,30 @@ jobs:
           role-to-assume: arn:aws:iam::087285199408:role/cloud-nuke-gha
           aws-region: us-east-1
 
-      - name: Install sign-binary-helpers
-        env:
-          GITHUB_OAUTH_TOKEN: ${{ secrets.GW_GITHUB_OAUTH_TOKEN }}
-        run: |
-          curl -Ls https://raw.githubusercontent.com/gruntwork-io/gruntwork-installer/master/bootstrap-gruntwork-installer.sh | bash /dev/stdin --version v0.0.39
-          gruntwork-install --module-name "gruntwork-module-circleci-helpers" --repo "https://github.com/gruntwork-io/terraform-aws-ci" --tag "v0.57.0"
-          gruntwork-install --module-name "sign-binary-helpers" --repo "https://github.com/gruntwork-io/terraform-aws-ci" --tag "v0.57.0"
+      - name: Cache gon binary
+        id: cache-gon
+        uses: actions/cache@v4
+        with:
+          path: gon
+          key: gon-${{ env.GON_VERSION }}
+
+      - name: Install gon
+        if: steps.cache-gon.outputs.cache-hit != 'true'
+        run: .github/scripts/release/install-gon.sh "$GON_VERSION"
+
+      - name: Verify gon installation
+        run: gon --version
 
       - name: Sign macOS binaries
         id: sign
         continue-on-error: true
         env:
-          MACOS_AC_LOGIN: ${{ secrets.MACOS_AC_LOGIN }}
+          AC_USERNAME: ${{ secrets.MACOS_AC_LOGIN }}
           AC_PASSWORD: ${{ secrets.MACOS_AC_PASSWORD }}
           AC_PROVIDER: ${{ secrets.MACOS_AC_PROVIDER }}
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-        run: |
-          sign-binary --install-macos-sign-dependencies --os mac .gon_amd64.hcl
-          sign-binary --os mac .gon_arm64.hcl
-          echo "Done signing the binaries"
-
-          unzip cloud-nuke_darwin_amd64.zip
-          mv cloud-nuke_darwin_amd64 bin/
-
-          unzip cloud-nuke_darwin_arm64.zip
-          mv cloud-nuke_darwin_arm64 bin/
+        run: .github/scripts/release/sign-macos-binaries.sh bin
 
       - name: Warn if signing failed
         if: steps.sign.outcome == 'failure'
