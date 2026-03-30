@@ -9,6 +9,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // TransitGatewaysRouteTablesAPI defines the interface for Transit Gateway Route Tables operations.
@@ -62,7 +63,10 @@ func listTransitGatewayRouteTables(ctx context.Context, client TransitGatewaysRo
 				continue
 			}
 
-			if cfg.ShouldInclude(config.ResourceValue{Time: rt.CreationTime}) {
+			if cfg.ShouldInclude(config.ResourceValue{
+				Time: rt.CreationTime,
+				Tags: util.ConvertTypesTagsToMap(rt.Tags),
+			}) {
 				ids = append(ids, rt.TransitGatewayRouteTableId)
 			}
 		}

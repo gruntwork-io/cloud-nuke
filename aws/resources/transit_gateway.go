@@ -73,6 +73,7 @@ func listTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope r
 			if !cfg.ShouldInclude(config.ResourceValue{
 				Time: transitGateway.CreationTime,
 				Name: hostNameTagValue,
+				Tags: util.ConvertTypesTagsToMap(transitGateway.Tags),
 			}) {
 				continue
 			}

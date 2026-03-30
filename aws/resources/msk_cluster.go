@@ -65,6 +65,7 @@ func shouldIncludeMSKCluster(cluster types.Cluster, cfg config.ResourceType) boo
 	return cfg.ShouldInclude(config.ResourceValue{
 		Name: cluster.ClusterName,
 		Time: cluster.CreationTime,
+		Tags: cluster.Tags,
 	})
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // TransitGatewayPeeringAttachmentAPI defines the interface for Transit Gateway Peering Attachment operations.
@@ -46,6 +47,7 @@ func listTransitGatewayPeeringAttachments(ctx context.Context, client TransitGat
 		for _, attachment := range page.TransitGatewayPeeringAttachments {
 			if cfg.ShouldInclude(config.ResourceValue{
 				Time: attachment.CreationTime,
+				Tags: util.ConvertTypesTagsToMap(attachment.Tags),
 			}) {
 				ids = append(ids, attachment.TransitGatewayAttachmentId)
 			}

@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // RedshiftSnapshotCopyGrantsAPI defines the interface for Redshift Snapshot Copy Grant operations.
@@ -47,6 +48,7 @@ func listRedshiftSnapshotCopyGrants(ctx context.Context, client RedshiftSnapshot
 		for _, grant := range page.SnapshotCopyGrants {
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: grant.SnapshotCopyGrantName,
+				Tags: util.ConvertRedshiftTagsToMap(grant.Tags),
 			}) {
 				identifiers = append(identifiers, grant.SnapshotCopyGrantName)
 			}
