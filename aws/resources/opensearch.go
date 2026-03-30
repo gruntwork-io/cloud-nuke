@@ -199,8 +199,8 @@ func waitForOpenSearchDomainsDeleted(ctx context.Context, client OpenSearchDomai
 	return retry.DoWithRetry(
 		logging.Logger.WithTime(time.Now()),
 		"Waiting for all OpenSearch Domains to be deleted.",
-		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
-		30, 10*time.Second,
+		// Wait a maximum of 20 minutes: 20 seconds in between, up to 60 times
+		60, 20*time.Second,
 		func() error {
 			resp, err := client.DescribeDomains(ctx, &opensearch.DescribeDomainsInput{DomainNames: names})
 			if err != nil {

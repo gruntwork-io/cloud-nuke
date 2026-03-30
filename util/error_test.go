@@ -124,6 +124,12 @@ func TestIsWarningError(t *testing.T) {
 		"InvalidNetworkInterfaceID.NotFound",
 		"InvalidHomeRegionException",
 		"TrailNotFoundException",
+		"CacheSubnetGroupInUse",
+		"CacheSubnetGroupNotFoundFault",
+		"InvalidDBSnapshotState",
+		"InvalidDhcpOptionsID.NotFound",
+		"InvalidCacheClusterState",
+		"InvalidDBParameterGroupState",
 	}
 	for _, code := range warningCodes {
 		require.True(t, IsWarningError(&smithy.GenericAPIError{Code: code}), code)

@@ -79,7 +79,7 @@ func IsThrottlingError(err error) bool {
 
 // IsWarningError checks if the error is a transient/expected failure that
 // should be logged as a warning rather than causing a non-zero exit code.
-// These errors fall into two categories:
+// These errors fall into three categories:
 //
 // Ordering/dependency errors — resources deleted in the wrong order. The
 // dependent resource will be cleaned up on the next nuke run once the
@@ -89,6 +89,10 @@ func IsThrottlingError(err error) bool {
 //   - InvalidDBClusterStateFault: RDS cluster can't be deleted while its instances exist
 //   - InvalidClusterState: Redshift cluster has an operation in progress
 //   - InvalidHomeRegionException: CloudTrail trail can only be deleted from its home region
+//   - CacheSubnetGroupInUse: ElastiCache subnet group still used by a cache cluster
+//   - InvalidDBSnapshotState: RDS automated snapshot cannot be manually deleted
+//   - InvalidCacheClusterState: ElastiCache cluster is mid-transition (creating/modifying) and can't be deleted yet
+//   - InvalidDBParameterGroupState: RDS parameter group still referenced by a DB instance
 //
 // Already-deleted errors — resource was deleted between the scan and nuke
 // phases (e.g., by another concurrent nuke run or TTL expiry). Safe to ignore:
@@ -96,7 +100,9 @@ func IsThrottlingError(err error) bool {
 //   - DBParameterGroupNotFound: RDS parameter group no longer exists
 //   - InvalidSubnetID.NotFound: EC2 subnet no longer exists
 //   - InvalidNetworkInterfaceID.NotFound: EC2 ENI no longer exists
+//   - InvalidDhcpOptionsID.NotFound: EC2 DHCP option set no longer exists
 //   - TrailNotFoundException: CloudTrail trail already deleted by another region/job
+//   - CacheSubnetGroupNotFoundFault: ElastiCache subnet group no longer exists
 //
 // SCP-denied errors — the organization's service control policy permanently
 // forbids the action; retrying or fixing IAM permissions will not help:
@@ -110,14 +116,20 @@ func IsWarningError(err error) bool {
 			"InvalidDBSubnetGroupStateFault",
 			"InvalidDBClusterStateFault",
 			"InvalidClusterState",
-			"InvalidHomeRegionException":
+			"InvalidHomeRegionException",
+			"CacheSubnetGroupInUse",
+			"InvalidDBSnapshotState",
+			"InvalidCacheClusterState",
+			"InvalidDBParameterGroupState":
 			return true
 		// Already-deleted errors
 		case "DBSubnetGroupNotFoundFault",
 			"DBParameterGroupNotFound",
 			"InvalidSubnetID.NotFound",
 			"InvalidNetworkInterfaceID.NotFound",
-			"TrailNotFoundException":
+			"InvalidDhcpOptionsID.NotFound",
+			"TrailNotFoundException",
+			"CacheSubnetGroupNotFoundFault":
 			return true
 		}
 		// SCP-denied errors

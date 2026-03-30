@@ -117,6 +117,19 @@ func TestRoute53HostedZone_List(t *testing.T) {
 			},
 			expected: []string{"/hostedzone/zone2|example2.com."},
 		},
+		"skips cloud map managed zones": {
+			hostedZones: []types.HostedZone{
+				{Id: aws.String("/hostedzone/zone1"), Name: aws.String("example1.com.")},
+				{Id: aws.String("/hostedzone/zone2"), Name: aws.String("cloudmap.example.com."), LinkedService: &types.LinkedService{
+					ServicePrincipal: aws.String("servicediscovery.amazonaws.com"),
+				}},
+			},
+			tagSets: []types.ResourceTagSet{
+				{ResourceId: aws.String("zone1"), Tags: []types.Tag{}},
+			},
+			configObj: config.ResourceType{},
+			expected:  []string{"/hostedzone/zone1|example1.com."},
+		},
 		"tag inclusion filter": {
 			hostedZones: []types.HostedZone{
 				{Id: aws.String("/hostedzone/zone1"), Name: aws.String("example1.com.")},
