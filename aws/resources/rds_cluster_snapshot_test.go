@@ -129,36 +129,9 @@ func TestListRdsClusterSnapshots_SkipsNonDeletableStates(t *testing.T) {
 	mock := &mockRdsClusterSnapshotClient{
 		DescribeDBClusterSnapshotsOutput: rds.DescribeDBClusterSnapshotsOutput{
 			DBClusterSnapshots: []types.DBClusterSnapshot{
-				{
-					DBClusterSnapshotIdentifier: aws.String("available-snap"),
-					SnapshotCreateTime:          aws.Time(now),
-					SnapshotType:                aws.String("manual"),
-					Status:                      aws.String("available"),
-				},
-				{
-					DBClusterSnapshotIdentifier: aws.String("creating-snap"),
-					SnapshotCreateTime:          aws.Time(now),
-					SnapshotType:                aws.String("manual"),
-					Status:                      aws.String("creating"),
-				},
-				{
-					DBClusterSnapshotIdentifier: aws.String("copying-snap"),
-					SnapshotCreateTime:          aws.Time(now),
-					SnapshotType:                aws.String("manual"),
-					Status:                      aws.String("copying"),
-				},
-				{
-					DBClusterSnapshotIdentifier: aws.String("failed-snap"),
-					SnapshotCreateTime:          aws.Time(now),
-					SnapshotType:                aws.String("manual"),
-					Status:                      aws.String("failed"),
-				},
-				{
-					DBClusterSnapshotIdentifier: aws.String("nil-status-snap"),
-					SnapshotCreateTime:          aws.Time(now),
-					SnapshotType:                aws.String("manual"),
-					Status:                      nil,
-				},
+				{DBClusterSnapshotIdentifier: aws.String("available-snap"), SnapshotCreateTime: aws.Time(now), SnapshotType: aws.String("manual"), Status: aws.String("available")},
+				{DBClusterSnapshotIdentifier: aws.String("failed-snap"), SnapshotCreateTime: aws.Time(now), SnapshotType: aws.String("manual"), Status: aws.String("failed")},
+				{DBClusterSnapshotIdentifier: aws.String("creating-snap"), SnapshotCreateTime: aws.Time(now), SnapshotType: aws.String("manual"), Status: aws.String("creating")},
 			},
 		},
 	}

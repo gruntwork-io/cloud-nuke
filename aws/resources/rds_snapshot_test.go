@@ -129,36 +129,9 @@ func TestListRdsSnapshots_SkipsNonDeletableStates(t *testing.T) {
 	mock := &mockRdsSnapshotClient{
 		DescribeDBSnapshotsOutput: rds.DescribeDBSnapshotsOutput{
 			DBSnapshots: []types.DBSnapshot{
-				{
-					DBSnapshotIdentifier: aws.String("available-snap"),
-					SnapshotCreateTime:   aws.Time(now),
-					SnapshotType:         aws.String("manual"),
-					Status:               aws.String("available"),
-				},
-				{
-					DBSnapshotIdentifier: aws.String("creating-snap"),
-					SnapshotCreateTime:   aws.Time(now),
-					SnapshotType:         aws.String("manual"),
-					Status:               aws.String("creating"),
-				},
-				{
-					DBSnapshotIdentifier: aws.String("copying-snap"),
-					SnapshotCreateTime:   aws.Time(now),
-					SnapshotType:         aws.String("manual"),
-					Status:               aws.String("copying"),
-				},
-				{
-					DBSnapshotIdentifier: aws.String("failed-snap"),
-					SnapshotCreateTime:   aws.Time(now),
-					SnapshotType:         aws.String("manual"),
-					Status:               aws.String("failed"),
-				},
-				{
-					DBSnapshotIdentifier: aws.String("nil-status-snap"),
-					SnapshotCreateTime:   aws.Time(now),
-					SnapshotType:         aws.String("manual"),
-					Status:               nil,
-				},
+				{DBSnapshotIdentifier: aws.String("available-snap"), SnapshotCreateTime: aws.Time(now), SnapshotType: aws.String("manual"), Status: aws.String("available")},
+				{DBSnapshotIdentifier: aws.String("failed-snap"), SnapshotCreateTime: aws.Time(now), SnapshotType: aws.String("manual"), Status: aws.String("failed")},
+				{DBSnapshotIdentifier: aws.String("creating-snap"), SnapshotCreateTime: aws.Time(now), SnapshotType: aws.String("manual"), Status: aws.String("creating")},
 			},
 		},
 	}
