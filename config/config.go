@@ -107,6 +107,7 @@ type Config struct {
 	Redshift                        ResourceType               `yaml:"Redshift"`
 	RedshiftSnapshotCopyGrant       ResourceType               `yaml:"RedshiftSnapshotCopyGrant"`
 	RDSSnapshot                     ResourceType               `yaml:"RDSSnapshot"`
+	RDSClusterSnapshot              ResourceType               `yaml:"RDSClusterSnapshot"`
 	RDSParameterGroup               ResourceType               `yaml:"RDSParameterGroup"`
 	RDSProxy                        ResourceType               `yaml:"RDSProxy"`
 	S3                              ResourceType               `yaml:"S3"`
@@ -250,6 +251,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.Redshift,
 		&c.RedshiftSnapshotCopyGrant,
 		&c.RDSSnapshot,
+		&c.RDSClusterSnapshot,
 		&c.RDSParameterGroup,
 		&c.RDSProxy,
 		&c.S3,
