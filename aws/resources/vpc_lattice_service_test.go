@@ -37,6 +37,15 @@ func (m *mockVPCLatticeServiceClient) DeleteServiceNetworkServiceAssociation(ctx
 	return &m.DeleteServiceNetworkServiceAssociationOutput, nil
 }
 
+func (m *mockVPCLatticeServiceClient) ListTagsForResource(ctx context.Context, params *vpclattice.ListTagsForResourceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "test-service-1" {
+		return &vpclattice.ListTagsForResourceOutput{
+			Tags: map[string]string{"env": "prod"},
+		}, nil
+	}
+	return &vpclattice.ListTagsForResourceOutput{}, nil
+}
+
 func TestListVPCLatticeServices(t *testing.T) {
 	t.Parallel()
 
@@ -73,6 +82,14 @@ func TestListVPCLatticeServices(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{testName1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 				},
 			},
 			expected: []string{testName1},

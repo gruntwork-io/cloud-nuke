@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -20,6 +21,7 @@ type LoadBalancersV2PaginatorAPI interface {
 // LoadBalancersV2API defines the interface for ELBv2 operations.
 type LoadBalancersV2API interface {
 	DescribeLoadBalancers(ctx context.Context, params *elasticloadbalancingv2.DescribeLoadBalancersInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeLoadBalancersOutput, error)
+	DescribeTags(ctx context.Context, params *elasticloadbalancingv2.DescribeTagsInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeTagsOutput, error)
 	DeleteLoadBalancer(ctx context.Context, params *elasticloadbalancingv2.DeleteLoadBalancerInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DeleteLoadBalancerOutput, error)
 }
 
@@ -52,9 +54,24 @@ func listLoadBalancersV2(ctx context.Context, client LoadBalancersV2API, scope r
 		}
 
 		for _, balancer := range page.LoadBalancers {
+			tagMap := map[string]string{}
+			tagsOutput, err := client.DescribeTags(ctx, &elasticloadbalancingv2.DescribeTagsInput{
+				ResourceArns: []string{aws.ToString(balancer.LoadBalancerArn)},
+			})
+			if err != nil {
+				logging.Debugf("[elbv2] Failed to get tags for %s: %s", aws.ToString(balancer.LoadBalancerName), err)
+			} else if len(tagsOutput.TagDescriptions) > 0 {
+				for _, tag := range tagsOutput.TagDescriptions[0].Tags {
+					if tag.Key != nil && tag.Value != nil {
+						tagMap[*tag.Key] = *tag.Value
+					}
+				}
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: balancer.LoadBalancerName,
 				Time: balancer.CreatedTime,
+				Tags: tagMap,
 			}) {
 				arns = append(arns, balancer.LoadBalancerArn)
 			}

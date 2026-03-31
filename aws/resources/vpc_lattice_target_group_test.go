@@ -38,6 +38,15 @@ func (m *mockVPCLatticeTargetGroupClient) DeleteTargetGroup(_ context.Context, _
 	return &m.DeleteTargetGroupOutput, nil
 }
 
+func (m *mockVPCLatticeTargetGroupClient) ListTagsForResource(_ context.Context, params *vpclattice.ListTagsForResourceInput, _ ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn:aws:vpc-lattice:us-east-1:123456789012:targetgroup/tg-1" {
+		return &vpclattice.ListTagsForResourceOutput{
+			Tags: map[string]string{"env": "prod"},
+		}, nil
+	}
+	return &vpclattice.ListTagsForResourceOutput{}, nil
+}
+
 func TestVPCLatticeTargetGroup_Properties(t *testing.T) {
 	t.Parallel()
 
@@ -74,6 +83,19 @@ func TestListVPCLatticeTargetGroups(t *testing.T) {
 			cfg: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("skip-.*")}},
+				},
+			},
+			expected: []string{"arn:aws:vpc-lattice:us-east-1:123456789012:targetgroup/tg-1"},
+		},
+		{
+			name: "tagInclusionFilter",
+			items: []types.TargetGroupSummary{
+				{Arn: aws.String("arn:aws:vpc-lattice:us-east-1:123456789012:targetgroup/tg-1"), Name: aws.String("tg-1"), CreatedAt: aws.Time(now)},
+				{Arn: aws.String("arn:aws:vpc-lattice:us-east-1:123456789012:targetgroup/tg-2"), Name: aws.String("tg-2"), CreatedAt: aws.Time(now)},
+			},
+			cfg: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 				},
 			},
 			expected: []string{"arn:aws:vpc-lattice:us-east-1:123456789012:targetgroup/tg-1"},

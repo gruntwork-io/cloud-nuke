@@ -21,6 +21,7 @@ type LoadBalancersPaginatorAPI interface {
 // LoadBalancersAPI defines the interface for ELB operations.
 type LoadBalancersAPI interface {
 	DescribeLoadBalancers(ctx context.Context, params *elasticloadbalancing.DescribeLoadBalancersInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DescribeLoadBalancersOutput, error)
+	DescribeTags(ctx context.Context, params *elasticloadbalancing.DescribeTagsInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DescribeTagsOutput, error)
 	DeleteLoadBalancer(ctx context.Context, params *elasticloadbalancing.DeleteLoadBalancerInput, optFns ...func(*elasticloadbalancing.Options)) (*elasticloadbalancing.DeleteLoadBalancerOutput, error)
 }
 
@@ -53,9 +54,24 @@ func listLoadBalancers(ctx context.Context, client LoadBalancersAPI, scope resou
 		}
 
 		for _, balancer := range page.LoadBalancerDescriptions {
+			tagMap := map[string]string{}
+			tagsOutput, err := client.DescribeTags(ctx, &elasticloadbalancing.DescribeTagsInput{
+				LoadBalancerNames: []string{aws.ToString(balancer.LoadBalancerName)},
+			})
+			if err != nil {
+				logging.Debugf("[elb] Failed to get tags for %s: %s", aws.ToString(balancer.LoadBalancerName), err)
+			} else if len(tagsOutput.TagDescriptions) > 0 {
+				for _, tag := range tagsOutput.TagDescriptions[0].Tags {
+					if tag.Key != nil && tag.Value != nil {
+						tagMap[*tag.Key] = *tag.Value
+					}
+				}
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: balancer.LoadBalancerName,
 				Time: balancer.CreatedTime,
+				Tags: tagMap,
 			}) {
 				names = append(names, balancer.LoadBalancerName)
 			}

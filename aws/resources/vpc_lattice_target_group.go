@@ -18,6 +18,7 @@ type VPCLatticeTargetGroupAPI interface {
 	ListTargets(ctx context.Context, params *vpclattice.ListTargetsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTargetsOutput, error)
 	DeregisterTargets(ctx context.Context, params *vpclattice.DeregisterTargetsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeregisterTargetsOutput, error)
 	DeleteTargetGroup(ctx context.Context, params *vpclattice.DeleteTargetGroupInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteTargetGroupOutput, error)
+	ListTagsForResource(ctx context.Context, params *vpclattice.ListTagsForResourceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error)
 }
 
 // NewVPCLatticeTargetGroup creates a new VPC Lattice Target Group resource using the generic resource pattern.
@@ -49,9 +50,18 @@ func listVPCLatticeTargetGroups(ctx context.Context, client VPCLatticeTargetGrou
 		}
 
 		for _, item := range page.Items {
+			tagsOutput, err := client.ListTagsForResource(ctx, &vpclattice.ListTagsForResourceInput{
+				ResourceArn: item.Arn,
+			})
+			if err != nil {
+				logging.Debugf("Failed to get tags for VPC Lattice Target Group %s: %s", aws.ToString(item.Arn), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: item.Name,
 				Time: item.CreatedAt,
+				Tags: tagsOutput.Tags,
 			}) {
 				ids = append(ids, item.Arn)
 			}
