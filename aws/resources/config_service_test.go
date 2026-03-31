@@ -36,6 +36,15 @@ func (m *mockConfigServiceRuleClient) DeleteConfigRule(ctx context.Context, para
 	return &m.DeleteConfigRuleOutput, nil
 }
 
+func (m *mockConfigServiceRuleClient) ListTagsForResource(ctx context.Context, params *configservice.ListTagsForResourceInput, optFns ...func(*configservice.Options)) (*configservice.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn::test-rule-1" {
+		return &configservice.ListTagsForResourceOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
+	return &configservice.ListTagsForResourceOutput{}, nil
+}
+
 func TestListConfigServiceRules(t *testing.T) {
 	t.Parallel()
 
@@ -45,8 +54,8 @@ func TestListConfigServiceRules(t *testing.T) {
 	mock := &mockConfigServiceRuleClient{
 		DescribeConfigRulesOutput: configservice.DescribeConfigRulesOutput{
 			ConfigRules: []types.ConfigRule{
-				{ConfigRuleName: aws.String(testName1), ConfigRuleState: types.ConfigRuleStateActive},
-				{ConfigRuleName: aws.String(testName2), ConfigRuleState: types.ConfigRuleStateActive},
+				{ConfigRuleName: aws.String(testName1), ConfigRuleArn: aws.String("arn::test-rule-1"), ConfigRuleState: types.ConfigRuleStateActive},
+				{ConfigRuleName: aws.String(testName2), ConfigRuleArn: aws.String("arn::test-rule-2"), ConfigRuleState: types.ConfigRuleStateActive},
 			},
 		},
 	}
@@ -68,6 +77,14 @@ func TestListConfigServiceRules(t *testing.T) {
 				},
 			},
 			expected: []string{testName2},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+				},
+			},
+			expected: []string{testName1},
 		},
 	}
 

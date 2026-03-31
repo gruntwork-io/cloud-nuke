@@ -1,14 +1,22 @@
 package util
 
 import (
+	acmtypes "github.com/aws/aws-sdk-go-v2/service/acm/types"
+	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
+	apprunnertypes "github.com/aws/aws-sdk-go-v2/service/apprunner/types"
 	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	cloudfronttypes "github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	cloudwatchtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	configservicetypes "github.com/aws/aws-sdk-go-v2/service/configservice/types"
+	datapipelinetypes "github.com/aws/aws-sdk-go-v2/service/datapipeline/types"
+	datasynctypes "github.com/aws/aws-sdk-go-v2/service/datasync/types"
 	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	ecrtypes "github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	efstypes "github.com/aws/aws-sdk-go-v2/service/efs/types"
 	elasticachetypes "github.com/aws/aws-sdk-go-v2/service/elasticache/types"
+	ebtypes "github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk/types"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	firehosetypes "github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
@@ -251,6 +259,86 @@ func ConvertSchedulerTagsToMap(tags []schedulertypes.Tag) map[string]string {
 }
 
 func ConvertSNSTagsToMap(tags []snstypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertACMTagsToMap(tags []acmtypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertACMPCATagsToMap(tags []acmpcatypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertAppRunnerTagsToMap(tags []apprunnertypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertDataSyncTagsToMap(tags []datasynctypes.TagListEntry) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertConfigServiceTagsToMap(tags []configservicetypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertCloudFrontTagsToMap(tags []cloudfronttypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertElasticBeanstalkTagsToMap(tags []ebtypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertDataPipelineTagsToMap(tags []datapipelinetypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		if tag.Key != nil && tag.Value != nil {

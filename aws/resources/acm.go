@@ -10,11 +10,13 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // ACMAPI defines the interface for ACM operations.
 type ACMAPI interface {
 	ListCertificates(ctx context.Context, params *acm.ListCertificatesInput, optFns ...func(*acm.Options)) (*acm.ListCertificatesOutput, error)
+	ListTagsForCertificate(ctx context.Context, params *acm.ListTagsForCertificateInput, optFns ...func(*acm.Options)) (*acm.ListTagsForCertificateOutput, error)
 	DeleteCertificate(ctx context.Context, params *acm.DeleteCertificateInput, optFns ...func(*acm.Options)) (*acm.DeleteCertificateOutput, error)
 }
 
@@ -63,7 +65,28 @@ func listACMCertificates(ctx context.Context, client ACMAPI, scope resource.Scop
 		}
 
 		for _, cert := range page.CertificateSummaryList {
-			if shouldIncludeACMCertificate(cert, cfg) {
+			if aws.ToBool(cert.InUse) {
+				logging.Debugf("ACM %s is in use, skipping", aws.ToString(cert.CertificateArn))
+				continue
+			}
+
+			var tags map[string]string
+			tagsOutput, err := client.ListTagsForCertificate(ctx, &acm.ListTagsForCertificateInput{
+				CertificateArn: cert.CertificateArn,
+			})
+			if err != nil {
+				logging.Debugf("Error getting tags for ACM certificate %s: %v", aws.ToString(cert.CertificateArn), err)
+				continue
+			}
+			if tagsOutput != nil {
+				tags = util.ConvertACMTagsToMap(tagsOutput.Tags)
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: cert.DomainName,
+				Time: cert.CreatedAt,
+				Tags: tags,
+			}) {
 				acmArns = append(acmArns, cert.CertificateArn)
 			}
 		}
