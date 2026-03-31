@@ -29,6 +29,15 @@ func (m mockedEventBridgeScheduleGroupService) ListScheduleGroups(ctx context.Co
 	return &m.ListScheduleGroupsOutput, nil
 }
 
+func (m mockedEventBridgeScheduleGroupService) ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn::test-group-1" {
+		return &scheduler.ListTagsForResourceOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
+	return &scheduler.ListTagsForResourceOutput{}, nil
+}
+
 func Test_EventBridgeScheduleGroup_GetAll(t *testing.T) {
 	t.Parallel()
 
@@ -41,11 +50,13 @@ func Test_EventBridgeScheduleGroup_GetAll(t *testing.T) {
 		ListScheduleGroupsOutput: scheduler.ListScheduleGroupsOutput{
 			ScheduleGroups: []types.ScheduleGroupSummary{
 				{
+					Arn:          aws.String("arn::test-group-1"),
 					Name:         aws.String(group1),
 					State:        types.ScheduleGroupStateActive,
 					CreationDate: &now,
 				},
 				{
+					Arn:          aws.String("arn::test-group-2"),
 					Name:         aws.String(group2),
 					State:        types.ScheduleGroupStateActive,
 					CreationDate: aws.Time(now.Add(time.Hour)),
@@ -77,6 +88,13 @@ func Test_EventBridgeScheduleGroup_GetAll(t *testing.T) {
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
 				}},
 			expected: []string{},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+				}},
+			expected: []string{group1},
 		},
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // CloudWatchAlarmsAPI defines the interface for CloudWatch Alarm operations.
@@ -17,6 +18,7 @@ type CloudWatchAlarmsAPI interface {
 	DescribeAlarms(ctx context.Context, params *cloudwatch.DescribeAlarmsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DescribeAlarmsOutput, error)
 	DeleteAlarms(ctx context.Context, params *cloudwatch.DeleteAlarmsInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.DeleteAlarmsOutput, error)
 	PutCompositeAlarm(ctx context.Context, params *cloudwatch.PutCompositeAlarmInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.PutCompositeAlarmOutput, error)
+	ListTagsForResource(ctx context.Context, params *cloudwatch.ListTagsForResourceInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.ListTagsForResourceOutput, error)
 }
 
 // NewCloudWatchAlarms creates a new CloudWatch Alarms resource using the generic resource pattern.
@@ -52,18 +54,36 @@ func listCloudWatchAlarms(ctx context.Context, client CloudWatchAlarmsAPI, scope
 		}
 
 		for _, alarm := range page.MetricAlarms {
+			tagsOutput, err := client.ListTagsForResource(ctx, &cloudwatch.ListTagsForResourceInput{
+				ResourceARN: alarm.AlarmArn,
+			})
+			if err != nil {
+				logging.Debugf("[cloudwatch-alarm] Failed to list tags for alarm %s: %s", aws.ToString(alarm.AlarmName), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: alarm.AlarmName,
 				Time: alarm.AlarmConfigurationUpdatedTimestamp,
+				Tags: util.ConvertCloudWatchTagsToMap(tagsOutput.Tags),
 			}) {
 				allAlarms = append(allAlarms, alarm.AlarmName)
 			}
 		}
 
 		for _, alarm := range page.CompositeAlarms {
+			tagsOutput, err := client.ListTagsForResource(ctx, &cloudwatch.ListTagsForResourceInput{
+				ResourceARN: alarm.AlarmArn,
+			})
+			if err != nil {
+				logging.Debugf("[cloudwatch-alarm] Failed to list tags for alarm %s: %s", aws.ToString(alarm.AlarmName), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: alarm.AlarmName,
 				Time: alarm.AlarmConfigurationUpdatedTimestamp,
+				Tags: util.ConvertCloudWatchTagsToMap(tagsOutput.Tags),
 			}) {
 				allAlarms = append(allAlarms, alarm.AlarmName)
 			}

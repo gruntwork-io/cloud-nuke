@@ -28,6 +28,13 @@ func (m *mockCloudWatchLogGroupsClient) DeleteLogGroup(ctx context.Context, para
 	return &m.DeleteLogGroupOutput, nil
 }
 
+func (m *mockCloudWatchLogGroupsClient) ListTagsForResource(ctx context.Context, params *cloudwatchlogs.ListTagsForResourceInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn:aws:logs:us-east-1:123456789:log-group:log-group-2" {
+		return &cloudwatchlogs.ListTagsForResourceOutput{Tags: map[string]string{"env": "prod"}}, nil
+	}
+	return &cloudwatchlogs.ListTagsForResourceOutput{Tags: map[string]string{"env": "dev"}}, nil
+}
+
 func TestCloudWatchLogGroups_ResourceName(t *testing.T) {
 	r := NewCloudWatchLogGroups()
 	assert.Equal(t, "cloudwatch-loggroup", r.ResourceName())
@@ -78,6 +85,32 @@ func TestListCloudWatchLogGroups_WithFilter(t *testing.T) {
 	names, err := listCloudWatchLogGroups(context.Background(), mock, resource.Scope{}, cfg)
 	require.NoError(t, err)
 	require.Equal(t, []string{"log-group-1"}, aws.ToStringSlice(names))
+}
+
+func TestListCloudWatchLogGroups_TagInclusionFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UnixMilli()
+	mock := &mockCloudWatchLogGroupsClient{
+		DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
+			LogGroups: []types.LogGroup{
+				{LogGroupName: aws.String("log-group-1"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-1"), CreationTime: aws.Int64(now)},
+				{LogGroupName: aws.String("log-group-2"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-2"), CreationTime: aws.Int64(now)},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{
+				"env": {RE: *regexp.MustCompile("^prod$")},
+			},
+		},
+	}
+
+	names, err := listCloudWatchLogGroups(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{"log-group-2"}, aws.ToStringSlice(names))
 }
 
 func TestDeleteCloudWatchLogGroup(t *testing.T) {
