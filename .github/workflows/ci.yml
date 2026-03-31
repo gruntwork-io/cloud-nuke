@@ -187,7 +187,7 @@ jobs:
           path: bin/
 
   release:
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.run_release == 'true')
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.run_release)
     needs: build
     runs-on: macos-latest
     timeout-minutes: 30
