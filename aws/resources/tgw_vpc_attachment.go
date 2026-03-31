@@ -11,6 +11,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -56,7 +57,10 @@ func listTransitGatewaysVpcAttachments(ctx context.Context, client TransitGatewa
 				continue
 			}
 
-			if !cfg.ShouldInclude(config.ResourceValue{Time: attachment.CreationTime}) {
+			if !cfg.ShouldInclude(config.ResourceValue{
+				Time: attachment.CreationTime,
+				Tags: util.ConvertTypesTagsToMap(attachment.Tags),
+			}) {
 				continue
 			}
 
