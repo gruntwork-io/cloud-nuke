@@ -46,7 +46,7 @@ func listEC2IPAMByoasns(ctx context.Context, client EC2IPAMByoasnAPI, scope reso
 	}
 
 	for _, byoasn := range output.Byoasns {
-		if !cfg.ShouldInclude(config.ResourceValue{}) {
+		if !cfg.ShouldInclude(config.ResourceValue{Name: byoasn.Asn}) {
 			continue
 		}
 		result = append(result, byoasn.Asn)
