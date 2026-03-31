@@ -53,8 +53,8 @@ func TestListDataPipelines(t *testing.T) {
 
 	twoItemDescribe := []datapipeline.DescribePipelinesOutput{{
 		PipelineDescriptionList: []dptypes.PipelineDescription{
-			{PipelineId: aws.String("df-001"), Name: aws.String("pipeline1"), Fields: []dptypes.Field{{Key: aws.String("@creationTime"), StringValue: aws.String(nowStr)}}},
-			{PipelineId: aws.String("df-002"), Name: aws.String("pipeline2"), Fields: []dptypes.Field{{Key: aws.String("@creationTime"), StringValue: aws.String(laterStr)}}},
+			{PipelineId: aws.String("df-001"), Name: aws.String("pipeline1"), Fields: []dptypes.Field{{Key: aws.String("@creationTime"), StringValue: aws.String(nowStr)}}, Tags: []dptypes.Tag{{Key: aws.String("env"), Value: aws.String("prod")}}},
+			{PipelineId: aws.String("df-002"), Name: aws.String("pipeline2"), Fields: []dptypes.Field{{Key: aws.String("@creationTime"), StringValue: aws.String(laterStr)}}, Tags: []dptypes.Tag{{Key: aws.String("env"), Value: aws.String("dev")}}},
 		},
 	}}
 
@@ -88,6 +88,17 @@ func TestListDataPipelines(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(30 * time.Minute)),
+				},
+			},
+			expected: []string{"df-001"},
+		},
+		"tagInclusionFilter": {
+			mock: mockDataPipelineClient{ListPipelinesPages: twoItemList, DescribePipelinesPages: twoItemDescribe},
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
 				},
 			},
 			expected: []string{"df-001"},
