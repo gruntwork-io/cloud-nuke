@@ -59,16 +59,16 @@ func TestSNSTopic_GetAll(t *testing.T) {
 		},
 		ListTagsForResourceOutput: map[string]sns.ListTagsForResourceOutput{
 			testArn1: {
-				Tags: []types.Tag{{
-					Key:   aws.String(util.FirstSeenTagKey),
-					Value: aws.String(util.FormatTimestamp(now)),
-				}},
+				Tags: []types.Tag{
+					{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+					{Key: aws.String("env"), Value: aws.String("prod")},
+				},
 			},
 			testArn2: {
-				Tags: []types.Tag{{
-					Key:   aws.String(util.FirstSeenTagKey),
-					Value: aws.String(util.FormatTimestamp(now)),
-				}},
+				Tags: []types.Tag{
+					{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+					{Key: aws.String("env"), Value: aws.String("dev")},
+				},
 			},
 		},
 	}
@@ -96,6 +96,16 @@ func TestSNSTopic_GetAll(t *testing.T) {
 				},
 			},
 			expected: []string{},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testArn1},
 		},
 	}
 
