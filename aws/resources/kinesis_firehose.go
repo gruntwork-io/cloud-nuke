@@ -6,13 +6,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // KinesisFirehoseAPI defines the interface for Kinesis Firehose operations.
 type KinesisFirehoseAPI interface {
 	ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error)
 	DeleteDeliveryStream(ctx context.Context, params *firehose.DeleteDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DeleteDeliveryStreamOutput, error)
+	ListTagsForDeliveryStream(ctx context.Context, params *firehose.ListTagsForDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.ListTagsForDeliveryStreamOutput, error)
 }
 
 // NewKinesisFirehose creates a new Kinesis Firehose resource using the generic resource pattern.
@@ -48,8 +51,17 @@ func listKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, scope r
 		}
 
 		for _, stream := range output.DeliveryStreamNames {
+			tagsOutput, err := client.ListTagsForDeliveryStream(ctx, &firehose.ListTagsForDeliveryStreamInput{
+				DeliveryStreamName: aws.String(stream),
+			})
+			if err != nil {
+				logging.Debugf("[Failed] Unable to fetch tags for Kinesis Firehose stream %s: %s", stream, err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(stream),
+				Tags: util.ConvertFirehoseTagsToMap(tagsOutput.Tags),
 			}) {
 				ids = append(ids, aws.String(stream))
 			}
