@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"regexp"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -46,9 +47,31 @@ func TestListEC2IPAMByoasns(t *testing.T) {
 		},
 	}
 
-	ids, err := listEC2IPAMByoasns(context.Background(), mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.Equal(t, []string{testId1, testId2}, aws.ToStringSlice(ids))
+	tests := map[string]struct {
+		configObj config.ResourceType
+		expected  []string
+	}{
+		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testId1, testId2},
+		},
+		"nameExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testId1)}},
+				},
+			},
+			expected: []string{testId2},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ids, err := listEC2IPAMByoasns(context.Background(), mock, resource.Scope{}, tc.configObj)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
+		})
+	}
 }
 
 func TestDeleteEC2IPAMByoasn(t *testing.T) {

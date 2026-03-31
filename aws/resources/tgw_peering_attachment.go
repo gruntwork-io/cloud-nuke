@@ -46,6 +46,7 @@ func listTransitGatewayPeeringAttachments(ctx context.Context, client TransitGat
 
 		for _, attachment := range page.TransitGatewayPeeringAttachments {
 			if cfg.ShouldInclude(config.ResourceValue{
+				Name: attachment.TransitGatewayAttachmentId,
 				Time: attachment.CreationTime,
 				Tags: util.ConvertTypesTagsToMap(attachment.Tags),
 			}) {
