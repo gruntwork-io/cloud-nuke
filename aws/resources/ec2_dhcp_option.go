@@ -87,6 +87,7 @@ func listEC2DhcpOptions(ctx context.Context, client EC2DhcpOptionAPI, scope reso
 			}
 
 			if isEligibleForNuke && cfg.ShouldInclude(config.ResourceValue{
+				Name: dhcpOption.DhcpOptionsId,
 				Tags: util.ConvertTypesTagsToMap(dhcpOption.Tags),
 			}) {
 				dhcpOptionIds = append(dhcpOptionIds, dhcpOption.DhcpOptionsId)
