@@ -22,6 +22,7 @@ type SecurityHubAPI interface {
 	GetAdministratorAccount(ctx context.Context, params *securityhub.GetAdministratorAccountInput, optFns ...func(*securityhub.Options)) (*securityhub.GetAdministratorAccountOutput, error)
 	DisassociateFromAdministratorAccount(ctx context.Context, params *securityhub.DisassociateFromAdministratorAccountInput, optFns ...func(*securityhub.Options)) (*securityhub.DisassociateFromAdministratorAccountOutput, error)
 	DisableSecurityHub(ctx context.Context, params *securityhub.DisableSecurityHubInput, optFns ...func(*securityhub.Options)) (*securityhub.DisableSecurityHubOutput, error)
+	ListTagsForResource(ctx context.Context, params *securityhub.ListTagsForResourceInput, optFns ...func(*securityhub.Options)) (*securityhub.ListTagsForResourceOutput, error)
 }
 
 // NewSecurityHub creates a new SecurityHub resource using the generic resource pattern.
@@ -59,14 +60,26 @@ func listSecurityHubs(ctx context.Context, client SecurityHubAPI, _ resource.Sco
 		return nil, errors.WithStackTrace(err)
 	}
 
-	if shouldIncludeSecurityHub(output, cfg) {
+	var tags map[string]string
+	if output.HubArn != nil {
+		tagsOutput, err := client.ListTagsForResource(ctx, &securityhub.ListTagsForResourceInput{
+			ResourceArn: output.HubArn,
+		})
+		if err != nil {
+			logging.Debugf("Failed to get tags for Security Hub %s: %s", aws.ToString(output.HubArn), err)
+		} else {
+			tags = tagsOutput.Tags
+		}
+	}
+
+	if shouldIncludeSecurityHub(output, tags, cfg) {
 		securityHubArns = append(securityHubArns, output.HubArn)
 	}
 
 	return securityHubArns, nil
 }
 
-func shouldIncludeSecurityHub(hub *securityhub.DescribeHubOutput, cfg config.ResourceType) bool {
+func shouldIncludeSecurityHub(hub *securityhub.DescribeHubOutput, tags map[string]string, cfg config.ResourceType) bool {
 	subscribedAt, err := util.ParseTimestamp(hub.SubscribedAt)
 	if err != nil {
 		logging.Debugf(
@@ -74,7 +87,7 @@ func shouldIncludeSecurityHub(hub *securityhub.DescribeHubOutput, cfg config.Res
 		return false
 	}
 
-	return cfg.ShouldInclude(config.ResourceValue{Time: subscribedAt})
+	return cfg.ShouldInclude(config.ResourceValue{Time: subscribedAt, Tags: tags})
 }
 
 // removeSecurityHubMembers removes all member accounts from Security Hub.
