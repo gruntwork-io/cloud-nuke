@@ -8,7 +8,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -16,6 +18,7 @@ import (
 type ElasticacheParameterGroupsAPI interface {
 	DescribeCacheParameterGroups(ctx context.Context, params *elasticache.DescribeCacheParameterGroupsInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeCacheParameterGroupsOutput, error)
 	DeleteCacheParameterGroup(ctx context.Context, params *elasticache.DeleteCacheParameterGroupInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteCacheParameterGroupOutput, error)
+	ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error)
 }
 
 // NewElasticacheParameterGroups creates a new Elasticache Parameter Groups resource using the generic resource pattern.
@@ -47,7 +50,15 @@ func listElasticacheParameterGroups(ctx context.Context, client ElasticacheParam
 		}
 
 		for _, paramGroup := range page.CacheParameterGroups {
-			if shouldIncludeElasticacheParameterGroup(&paramGroup, cfg) {
+			tags, err := client.ListTagsForResource(ctx, &elasticache.ListTagsForResourceInput{
+				ResourceName: paramGroup.ARN,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for ElastiCache parameter group %s: %s", aws.ToString(paramGroup.CacheParameterGroupName), err)
+				continue
+			}
+
+			if shouldIncludeElasticacheParameterGroup(&paramGroup, cfg, util.ConvertElastiCacheTagsToMap(tags.TagList)) {
 				paramGroupNames = append(paramGroupNames, paramGroup.CacheParameterGroupName)
 			}
 		}
@@ -56,7 +67,7 @@ func listElasticacheParameterGroups(ctx context.Context, client ElasticacheParam
 	return paramGroupNames, nil
 }
 
-func shouldIncludeElasticacheParameterGroup(paramGroup *types.CacheParameterGroup, cfg config.ResourceType) bool {
+func shouldIncludeElasticacheParameterGroup(paramGroup *types.CacheParameterGroup, cfg config.ResourceType, tags map[string]string) bool {
 	if paramGroup == nil {
 		return false
 	}
@@ -67,6 +78,7 @@ func shouldIncludeElasticacheParameterGroup(paramGroup *types.CacheParameterGrou
 
 	return cfg.ShouldInclude(config.ResourceValue{
 		Name: paramGroup.CacheParameterGroupName,
+		Tags: tags,
 	})
 }
 

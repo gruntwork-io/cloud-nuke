@@ -7,7 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -15,6 +17,7 @@ import (
 type ElasticacheSubnetGroupsAPI interface {
 	DescribeCacheSubnetGroups(ctx context.Context, params *elasticache.DescribeCacheSubnetGroupsInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeCacheSubnetGroupsOutput, error)
 	DeleteCacheSubnetGroup(ctx context.Context, params *elasticache.DeleteCacheSubnetGroupInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteCacheSubnetGroupOutput, error)
+	ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error)
 }
 
 // NewElasticacheSubnetGroups creates a new Elasticache Subnet Groups resource using the generic resource pattern.
@@ -46,10 +49,22 @@ func listElasticacheSubnetGroups(ctx context.Context, client ElasticacheSubnetGr
 		}
 
 		for _, subnetGroup := range page.CacheSubnetGroups {
-			if !strings.Contains(aws.ToString(subnetGroup.CacheSubnetGroupName), "default") &&
-				cfg.ShouldInclude(config.ResourceValue{
-					Name: subnetGroup.CacheSubnetGroupName,
-				}) {
+			if strings.Contains(aws.ToString(subnetGroup.CacheSubnetGroupName), "default") {
+				continue
+			}
+
+			tags, err := client.ListTagsForResource(ctx, &elasticache.ListTagsForResourceInput{
+				ResourceName: subnetGroup.ARN,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for ElastiCache subnet group %s: %s", aws.ToString(subnetGroup.CacheSubnetGroupName), err)
+				continue
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: subnetGroup.CacheSubnetGroupName,
+				Tags: util.ConvertElastiCacheTagsToMap(tags.TagList),
+			}) {
 				subnetGroupNames = append(subnetGroupNames, subnetGroup.CacheSubnetGroupName)
 			}
 		}

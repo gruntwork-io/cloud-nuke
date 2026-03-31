@@ -7,7 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -15,6 +17,7 @@ import (
 type ElasticCacheServerlessAPI interface {
 	DeleteServerlessCache(ctx context.Context, params *elasticache.DeleteServerlessCacheInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteServerlessCacheOutput, error)
 	DescribeServerlessCaches(ctx context.Context, params *elasticache.DescribeServerlessCachesInput, optFns ...func(*elasticache.Options)) (*elasticache.DescribeServerlessCachesOutput, error)
+	ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error)
 }
 
 // NewElasticCacheServerless creates a new ElastiCache Serverless resource using the generic resource pattern.
@@ -58,9 +61,18 @@ func listElasticCacheServerless(ctx context.Context, client ElasticCacheServerle
 
 			name := split[len(split)-1]
 
+			tags, err := client.ListTagsForResource(ctx, &elasticache.ListTagsForResourceInput{
+				ResourceName: cluster.ARN,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for ElastiCache serverless cluster %s: %s", name, err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(name),
 				Time: cluster.CreateTime,
+				Tags: util.ConvertElastiCacheTagsToMap(tags.TagList),
 			}) {
 				output = append(output, aws.String(name))
 			}

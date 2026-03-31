@@ -17,6 +17,7 @@ type mockDBGlobalClustersClient struct {
 	DescribeGlobalClustersOutput rds.DescribeGlobalClustersOutput
 	DescribeGlobalClustersError  error
 	DeleteGlobalClusterOutput    rds.DeleteGlobalClusterOutput
+	TagsByARN                    map[string][]types.Tag
 }
 
 func (m *mockDBGlobalClustersClient) DescribeGlobalClusters(ctx context.Context, params *rds.DescribeGlobalClustersInput, optFns ...func(*rds.Options)) (*rds.DescribeGlobalClustersOutput, error) {
@@ -27,18 +28,28 @@ func (m *mockDBGlobalClustersClient) DeleteGlobalCluster(ctx context.Context, pa
 	return &m.DeleteGlobalClusterOutput, nil
 }
 
+func (m *mockDBGlobalClustersClient) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
+	return &rds.ListTagsForResourceOutput{TagList: m.TagsByARN[aws.ToString(params.ResourceName)]}, nil
+}
+
 func TestListDBGlobalClusters(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "test-global-cluster1"
 	testName2 := "test-global-cluster2"
+	testArn1 := "arn:aws:rds::123456789:global-cluster:" + testName1
+	testArn2 := "arn:aws:rds::123456789:global-cluster:" + testName2
 
 	mock := &mockDBGlobalClustersClient{
 		DescribeGlobalClustersOutput: rds.DescribeGlobalClustersOutput{
 			GlobalClusters: []types.GlobalCluster{
-				{GlobalClusterIdentifier: aws.String(testName1)},
-				{GlobalClusterIdentifier: aws.String(testName2)},
+				{GlobalClusterIdentifier: aws.String(testName1), GlobalClusterArn: aws.String(testArn1)},
+				{GlobalClusterIdentifier: aws.String(testName2), GlobalClusterArn: aws.String(testArn2)},
 			},
+		},
+		TagsByARN: map[string][]types.Tag{
+			testArn1: {{Key: aws.String("env"), Value: aws.String("prod")}},
+			testArn2: {{Key: aws.String("env"), Value: aws.String("dev")}},
 		},
 	}
 
@@ -57,6 +68,16 @@ func TestListDBGlobalClusters(t *testing.T) {
 				},
 			},
 			expected: []string{testName2},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testName1},
 		},
 	}
 

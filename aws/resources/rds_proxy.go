@@ -6,7 +6,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -14,6 +16,7 @@ import (
 type RdsProxyAPI interface {
 	DescribeDBProxies(ctx context.Context, params *rds.DescribeDBProxiesInput, optFns ...func(*rds.Options)) (*rds.DescribeDBProxiesOutput, error)
 	DeleteDBProxy(ctx context.Context, params *rds.DeleteDBProxyInput, optFns ...func(*rds.Options)) (*rds.DeleteDBProxyOutput, error)
+	ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error)
 }
 
 // NewRdsProxy creates a new RdsProxy resource using the generic resource pattern.
@@ -45,9 +48,18 @@ func listRdsProxies(ctx context.Context, client RdsProxyAPI, scope resource.Scop
 		}
 
 		for _, proxy := range page.DBProxies {
+			tags, err := client.ListTagsForResource(ctx, &rds.ListTagsForResourceInput{
+				ResourceName: proxy.DBProxyArn,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for RDS proxy %s: %s", aws.ToString(proxy.DBProxyName), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: proxy.DBProxyName,
 				Time: proxy.CreatedDate,
+				Tags: util.ConvertRDSTypeTagsToMap(tags.TagList),
 			}) {
 				names = append(names, proxy.DBProxyName)
 			}
