@@ -29,7 +29,6 @@ env:
   COMMON_EXCLUDES: >-
     --exclude-resource-type iam-user
     --exclude-resource-type iam-group
-    --exclude-resource-type iam-policy
     --exclude-resource-type iam-role
     --exclude-resource-type iam-service-linked-role
     --exclude-resource-type oidc-provider
