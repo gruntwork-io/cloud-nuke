@@ -5,6 +5,7 @@ import (
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	efstypes "github.com/aws/aws-sdk-go-v2/service/efs/types"
+	elasticachetypes "github.com/aws/aws-sdk-go-v2/service/elasticache/types"
 	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	networkfirewalltypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	opensearchtypes "github.com/aws/aws-sdk-go-v2/service/opensearch/types"
@@ -152,6 +153,16 @@ func ConvertOpenSearchTagsToMap(tags []opensearchtypes.Tag) map[string]string {
 }
 
 func ConvertRedshiftTagsToMap(tags []redshifttypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertElastiCacheTagsToMap(tags []elasticachetypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		if tag.Key != nil && tag.Value != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -16,6 +17,7 @@ import (
 type RdsParameterGroupAPI interface {
 	DeleteDBParameterGroup(ctx context.Context, params *rds.DeleteDBParameterGroupInput, optFns ...func(*rds.Options)) (*rds.DeleteDBParameterGroupOutput, error)
 	DescribeDBParameterGroups(ctx context.Context, params *rds.DescribeDBParameterGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBParameterGroupsOutput, error)
+	ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error)
 }
 
 // NewRdsParameterGroup creates a new RDS Parameter Group resource using the generic resource pattern.
@@ -58,8 +60,17 @@ func listRdsParameterGroups(ctx context.Context, client RdsParameterGroupAPI, sc
 				continue
 			}
 
+			tags, err := client.ListTagsForResource(ctx, &rds.ListTagsForResourceInput{
+				ResourceName: parameterGroup.DBParameterGroupArn,
+			})
+			if err != nil {
+				logging.Debugf("Failed to fetch tags for RDS parameter group %s: %s", aws.ToString(parameterGroup.DBParameterGroupName), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: parameterGroup.DBParameterGroupName,
+				Tags: util.ConvertRDSTypeTagsToMap(tags.TagList),
 			}) {
 				names = append(names, parameterGroup.DBParameterGroupName)
 			}

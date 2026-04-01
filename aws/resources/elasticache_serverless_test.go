@@ -17,6 +17,7 @@ import (
 type mockedElasticCacheServerlessService struct {
 	DeleteServerlessCacheOutput    elasticache.DeleteServerlessCacheOutput
 	DescribeServerlessCachesOutput elasticache.DescribeServerlessCachesOutput
+	TagsByARN                      map[string][]types.Tag
 }
 
 func (m mockedElasticCacheServerlessService) DeleteServerlessCache(ctx context.Context, params *elasticache.DeleteServerlessCacheInput, optFns ...func(*elasticache.Options)) (*elasticache.DeleteServerlessCacheOutput, error) {
@@ -27,27 +28,37 @@ func (m mockedElasticCacheServerlessService) DescribeServerlessCaches(ctx contex
 	return &m.DescribeServerlessCachesOutput, nil
 }
 
+func (m mockedElasticCacheServerlessService) ListTagsForResource(ctx context.Context, params *elasticache.ListTagsForResourceInput, optFns ...func(*elasticache.Options)) (*elasticache.ListTagsForResourceOutput, error) {
+	return &elasticache.ListTagsForResourceOutput{TagList: m.TagsByARN[aws.ToString(params.ResourceName)]}, nil
+}
+
 func TestElasticCacheServerless_GetAll(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	cluster1 := "test-workspace-1"
 	cluster2 := "test-workspace-2"
+	arn1 := "arn::region::" + cluster1
+	arn2 := "arn::region::" + cluster2
 
 	client := mockedElasticCacheServerlessService{
 		DescribeServerlessCachesOutput: elasticache.DescribeServerlessCachesOutput{
 			ServerlessCaches: []types.ServerlessCache{
 				{
-					ARN:        aws.String("arn::region::" + cluster1),
+					ARN:        aws.String(arn1),
 					CreateTime: &now,
 					Status:     aws.String("available"),
 				},
 				{
-					ARN:        aws.String("arn::region::" + cluster2),
+					ARN:        aws.String(arn2),
 					CreateTime: aws.Time(now.Add(1 * time.Hour)),
 					Status:     aws.String("available"),
 				},
 			},
+		},
+		TagsByARN: map[string][]types.Tag{
+			arn1: {{Key: aws.String("env"), Value: aws.String("prod")}},
+			arn2: {{Key: aws.String("env"), Value: aws.String("dev")}},
 		},
 	}
 
@@ -74,6 +85,16 @@ func TestElasticCacheServerless_GetAll(t *testing.T) {
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
 				}},
 			expected: []string{},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{cluster1},
 		},
 	}
 
