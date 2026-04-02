@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 )
 
@@ -14,6 +15,7 @@ import (
 type CloudWatchLogGroupsAPI interface {
 	DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
 	DeleteLogGroup(ctx context.Context, params *cloudwatchlogs.DeleteLogGroupInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DeleteLogGroupOutput, error)
+	ListTagsForResource(ctx context.Context, params *cloudwatchlogs.ListTagsForResourceInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.ListTagsForResourceOutput, error)
 }
 
 // NewCloudWatchLogGroups creates a new CloudWatch Log Groups resource using the generic resource pattern.
@@ -54,9 +56,18 @@ func listCloudWatchLogGroups(ctx context.Context, client CloudWatchLogGroupsAPI,
 				creationTime = aws.Time(time.Unix(0, aws.ToInt64(logGroup.CreationTime)*int64(time.Millisecond)))
 			}
 
+			tagsOutput, err := client.ListTagsForResource(ctx, &cloudwatchlogs.ListTagsForResourceInput{
+				ResourceArn: logGroup.Arn,
+			})
+			if err != nil {
+				logging.Debugf("[cloudwatch-loggroup] Failed to list tags for log group %s: %s", aws.ToString(logGroup.LogGroupName), err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: logGroup.LogGroupName,
 				Time: creationTime,
+				Tags: tagsOutput.Tags,
 			}) {
 				allLogGroups = append(allLogGroups, logGroup.LogGroupName)
 			}

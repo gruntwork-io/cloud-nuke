@@ -45,6 +45,15 @@ func (m mockedEventBridgeRuleService) DeleteRule(ctx context.Context, params *ev
 	return &m.DeleteRuleOutput, nil
 }
 
+func (m mockedEventBridgeRuleService) ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceARN) == "arn::rule-1" {
+		return &eventbridge.ListTagsForResourceOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
+	return &eventbridge.ListTagsForResourceOutput{}, nil
+}
+
 func Test_EventBridgeRule_GetAll(t *testing.T) {
 	t.Parallel()
 
@@ -69,10 +78,12 @@ func Test_EventBridgeRule_GetAll(t *testing.T) {
 		ListRulesOutput: eventbridge.ListRulesOutput{
 			Rules: []types.Rule{
 				{
+					Arn:          aws.String("arn::rule-1"),
 					EventBusName: aws.String(busName),
 					Name:         aws.String(rule1),
 				},
 				{
+					Arn:          aws.String("arn::rule-2"),
 					EventBusName: aws.String(busName),
 					Name:         aws.String(rule2),
 				},
@@ -96,6 +107,13 @@ func Test_EventBridgeRule_GetAll(t *testing.T) {
 					}},
 				}},
 			expected: []string{bRule2},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+				}},
+			expected: []string{bRule1},
 		},
 	}
 
