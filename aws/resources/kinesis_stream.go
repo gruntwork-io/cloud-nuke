@@ -6,13 +6,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // KinesisStreamsAPI defines the interface for Kinesis Streams operations.
 type KinesisStreamsAPI interface {
 	ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error)
 	DeleteStream(ctx context.Context, params *kinesis.DeleteStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DeleteStreamOutput, error)
+	ListTagsForStream(ctx context.Context, params *kinesis.ListTagsForStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.ListTagsForStreamOutput, error)
 }
 
 // NewKinesisStreams creates a new Kinesis Streams resource using the generic resource pattern.
@@ -45,8 +48,17 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 		}
 
 		for _, stream := range page.StreamNames {
+			tagsOutput, err := client.ListTagsForStream(ctx, &kinesis.ListTagsForStreamInput{
+				StreamName: aws.String(stream),
+			})
+			if err != nil {
+				logging.Debugf("[Failed] Unable to fetch tags for Kinesis stream %s: %s", stream, err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(stream),
+				Tags: util.ConvertKinesisTagsToMap(tagsOutput.Tags),
 			}) {
 				allStreams = append(allStreams, aws.String(stream))
 			}

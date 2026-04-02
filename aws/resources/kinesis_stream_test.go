@@ -7,17 +7,18 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	kinesistypes "github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/stretchr/testify/require"
 )
 
-// mockKinesisStreamsClient implements KinesisStreamsAPI for testing.
 type mockKinesisStreamsClient struct {
 	ListStreamsOutput           kinesis.ListStreamsOutput
 	DeleteStreamOutput          kinesis.DeleteStreamOutput
-	DeleteStreamInput           *kinesis.DeleteStreamInput // Captures input for verification
+	DeleteStreamInput           *kinesis.DeleteStreamInput
 	DeleteStreamEnforceConsumer *bool
+	TagsByStream                map[string][]kinesistypes.Tag
 }
 
 func (m *mockKinesisStreamsClient) ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error) {
@@ -30,12 +31,20 @@ func (m *mockKinesisStreamsClient) DeleteStream(ctx context.Context, params *kin
 	return &m.DeleteStreamOutput, nil
 }
 
+func (m *mockKinesisStreamsClient) ListTagsForStream(ctx context.Context, params *kinesis.ListTagsForStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.ListTagsForStreamOutput, error) {
+	return &kinesis.ListTagsForStreamOutput{Tags: m.TagsByStream[aws.ToString(params.StreamName)]}, nil
+}
+
 func TestKinesisStreams_GetAll(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockKinesisStreamsClient{
 		ListStreamsOutput: kinesis.ListStreamsOutput{
 			StreamNames: []string{"stream-keep", "stream-skip"},
+		},
+		TagsByStream: map[string][]kinesistypes.Tag{
+			"stream-keep": {{Key: aws.String("env"), Value: aws.String("prod")}},
+			"stream-skip": {{Key: aws.String("env"), Value: aws.String("dev")}},
 		},
 	}
 
@@ -51,6 +60,16 @@ func TestKinesisStreams_GetAll(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("stream-skip")}},
+				},
+			},
+			expected: []string{"stream-keep"},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
 				},
 			},
 			expected: []string{"stream-keep"},

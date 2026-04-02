@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
 )
@@ -19,6 +20,7 @@ type SqsQueueAPI interface {
 	ListQueues(ctx context.Context, params *sqs.ListQueuesInput, optFns ...func(*sqs.Options)) (*sqs.ListQueuesOutput, error)
 	GetQueueAttributes(ctx context.Context, params *sqs.GetQueueAttributesInput, optFns ...func(*sqs.Options)) (*sqs.GetQueueAttributesOutput, error)
 	DeleteQueue(ctx context.Context, params *sqs.DeleteQueueInput, optFns ...func(*sqs.Options)) (*sqs.DeleteQueueOutput, error)
+	ListQueueTags(ctx context.Context, params *sqs.ListQueueTagsInput, optFns ...func(*sqs.Options)) (*sqs.ListQueueTagsOutput, error)
 }
 
 // NewSqsQueue creates a new SqsQueue resource using the generic resource pattern.
@@ -55,9 +57,18 @@ func listSqsQueues(ctx context.Context, client SqsQueueAPI, scope resource.Scope
 				return nil, err
 			}
 
+			tagsOutput, err := client.ListQueueTags(ctx, &sqs.ListQueueTagsInput{
+				QueueUrl: aws.String(queueUrl),
+			})
+			if err != nil {
+				logging.Debugf("[Failed] Unable to fetch tags for SQS queue %s: %s", queueUrl, err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(queueUrl),
 				Time: createdAt,
+				Tags: tagsOutput.Tags,
 			}) {
 				queueUrls = append(queueUrls, aws.String(queueUrl))
 			}

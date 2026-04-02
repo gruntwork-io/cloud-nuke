@@ -64,12 +64,22 @@ func listSNSTopics(ctx context.Context, client SNSTopicAPI, scope resource.Scope
 				continue
 			}
 
+			// Fetch tags for include/exclude tag filtering
+			tagsOutput, err := client.ListTagsForResource(ctx, &sns.ListTagsForResourceInput{
+				ResourceArn: topic.TopicArn,
+			})
+			if err != nil {
+				logging.Debugf("[Failed] Unable to fetch tags for SNS topic %s: %s", *topic.TopicArn, err)
+				continue
+			}
+
 			// Extract topic name from ARN (format: arn:aws:sns:us-east-1:123456789012:MyTopic)
 			topicName := (*topic.TopicArn)[strings.LastIndex(*topic.TopicArn, ":")+1:]
 
 			if cfg.ShouldInclude(config.ResourceValue{
 				Time: firstSeenTime,
 				Name: &topicName,
+				Tags: util.ConvertSNSTagsToMap(tagsOutput.Tags),
 			}) {
 				topics = append(topics, topic.TopicArn)
 			}
