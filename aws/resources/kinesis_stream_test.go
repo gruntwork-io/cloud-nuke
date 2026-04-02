@@ -14,7 +14,7 @@ import (
 )
 
 type mockKinesisStreamsClient struct {
-	ListStreamsOutput            kinesis.ListStreamsOutput
+	ListStreamsOutput           kinesis.ListStreamsOutput
 	DeleteStreamOutput          kinesis.DeleteStreamOutput
 	DeleteStreamInput           *kinesis.DeleteStreamInput
 	DeleteStreamEnforceConsumer *bool

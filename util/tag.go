@@ -3,10 +3,13 @@ package util
 import (
 	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	cloudwatchtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	ecrtypes "github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	efstypes "github.com/aws/aws-sdk-go-v2/service/efs/types"
 	elasticachetypes "github.com/aws/aws-sdk-go-v2/service/elasticache/types"
+	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	firehosetypes "github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	iam "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	kinesistypes "github.com/aws/aws-sdk-go-v2/service/kinesis/types"
@@ -17,6 +20,7 @@ import (
 	route53types "github.com/aws/aws-sdk-go-v2/service/route53/types"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	sagemakertypes "github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
+	schedulertypes "github.com/aws/aws-sdk-go-v2/service/scheduler/types"
 	secretsmanagertypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 )
@@ -176,7 +180,27 @@ func ConvertElastiCacheTagsToMap(tags []elasticachetypes.Tag) map[string]string 
 	return tagMap
 }
 
+func ConvertCloudWatchTagsToMap(tags []cloudwatchtypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
 func ConvertECRTagsToMap(tags []ecrtypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertDynamoDBTagsToMap(tags []dynamodbtypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		if tag.Key != nil && tag.Value != nil {
@@ -196,7 +220,27 @@ func ConvertFirehoseTagsToMap(tags []firehosetypes.Tag) map[string]string {
 	return tagMap
 }
 
+func ConvertEventBridgeTagsToMap(tags []eventbridgetypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
 func ConvertKinesisTagsToMap(tags []kinesistypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertSchedulerTagsToMap(tags []schedulertypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		if tag.Key != nil && tag.Value != nil {

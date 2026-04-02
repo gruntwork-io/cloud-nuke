@@ -9,6 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -18,6 +19,7 @@ type DynamoDBAPI interface {
 	DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error)
 	UpdateTable(ctx context.Context, params *dynamodb.UpdateTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateTableOutput, error)
 	DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error)
+	ListTagsOfResource(ctx context.Context, params *dynamodb.ListTagsOfResourceInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ListTagsOfResourceOutput, error)
 }
 
 // NewDynamoDB creates a new DynamoDB resource using the generic resource pattern.
@@ -54,9 +56,18 @@ func listDynamoDBTables(ctx context.Context, client DynamoDBAPI, scope resource.
 				return nil, errors.WithStackTrace(err)
 			}
 
+			tagsOutput, err := client.ListTagsOfResource(ctx, &dynamodb.ListTagsOfResourceInput{
+				ResourceArn: tableDetail.Table.TableArn,
+			})
+			if err != nil {
+				logging.Debugf("[dynamodb] Failed to list tags for table %s: %s", table, err)
+				continue
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Time: tableDetail.Table.CreationDateTime,
 				Name: tableDetail.Table.TableName,
+				Tags: util.ConvertDynamoDBTagsToMap(tagsOutput.Tags),
 			}) {
 				tableNames = append(tableNames, aws.String(table))
 			}

@@ -32,6 +32,13 @@ func (m *mockCloudWatchAlarmsClient) PutCompositeAlarm(ctx context.Context, para
 	return &m.PutCompositeAlarmOutput, nil
 }
 
+func (m *mockCloudWatchAlarmsClient) ListTagsForResource(ctx context.Context, params *cloudwatch.ListTagsForResourceInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceARN) == "arn:aws:cloudwatch:us-east-1:123456789:alarm:test-alarm-2" {
+		return &cloudwatch.ListTagsForResourceOutput{Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}}}, nil
+	}
+	return &cloudwatch.ListTagsForResourceOutput{Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("dev")}}}, nil
+}
+
 func TestListCloudWatchAlarms(t *testing.T) {
 	t.Parallel()
 
@@ -42,8 +49,8 @@ func TestListCloudWatchAlarms(t *testing.T) {
 	mock := &mockCloudWatchAlarmsClient{
 		DescribeAlarmsOutput: cloudwatch.DescribeAlarmsOutput{
 			MetricAlarms: []types.MetricAlarm{
-				{AlarmName: aws.String(testName1), AlarmConfigurationUpdatedTimestamp: &now},
-				{AlarmName: aws.String(testName2), AlarmConfigurationUpdatedTimestamp: aws.Time(now.Add(1 * time.Hour))},
+				{AlarmName: aws.String(testName1), AlarmArn: aws.String("arn:aws:cloudwatch:us-east-1:123456789:alarm:test-alarm-1"), AlarmConfigurationUpdatedTimestamp: &now},
+				{AlarmName: aws.String(testName2), AlarmArn: aws.String("arn:aws:cloudwatch:us-east-1:123456789:alarm:test-alarm-2"), AlarmConfigurationUpdatedTimestamp: aws.Time(now.Add(1 * time.Hour))},
 			},
 		},
 	}
@@ -71,6 +78,16 @@ func TestListCloudWatchAlarms(t *testing.T) {
 				},
 			},
 			expected: []string{testName1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testName2},
 		},
 	}
 

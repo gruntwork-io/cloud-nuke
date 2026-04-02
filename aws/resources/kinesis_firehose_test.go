@@ -14,7 +14,7 @@ import (
 )
 
 type mockKinesisFirehoseClient struct {
-	ListDeliveryStreamsOutput   firehose.ListDeliveryStreamsOutput
+	ListDeliveryStreamsOutput  firehose.ListDeliveryStreamsOutput
 	DeleteDeliveryStreamOutput firehose.DeleteDeliveryStreamOutput
 	TagsByStream               map[string][]firehosetypes.Tag
 }

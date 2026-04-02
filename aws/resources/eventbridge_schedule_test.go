@@ -28,6 +28,15 @@ func (m *mockEventBridgeScheduleClient) DeleteSchedule(ctx context.Context, para
 	return &m.DeleteScheduleOutput, nil
 }
 
+func (m *mockEventBridgeScheduleClient) ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn::schedule1" {
+		return &scheduler.ListTagsForResourceOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
+	return &scheduler.ListTagsForResourceOutput{}, nil
+}
+
 func TestEventBridgeSchedule_ResourceName(t *testing.T) {
 	r := NewEventBridgeSchedule()
 	assert.Equal(t, "event-bridge-schedule", r.ResourceName())
@@ -72,6 +81,30 @@ func TestListEventBridgeSchedules_WithFilter(t *testing.T) {
 	cfg := config.ResourceType{
 		ExcludeRule: config.FilterRule{
 			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(".*skip-.*")}},
+		},
+	}
+
+	names, err := listEventBridgeSchedules(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{"default|schedule1"}, aws.ToStringSlice(names))
+}
+
+func TestListEventBridgeSchedules_TagFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	mock := &mockEventBridgeScheduleClient{
+		ListSchedulesOutput: scheduler.ListSchedulesOutput{
+			Schedules: []types.ScheduleSummary{
+				{Name: aws.String("schedule1"), GroupName: aws.String("default"), CreationDate: aws.Time(now), Arn: aws.String("arn::schedule1")},
+				{Name: aws.String("schedule2"), GroupName: aws.String("default"), CreationDate: aws.Time(now), Arn: aws.String("arn::schedule2")},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 		},
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // EventBridgeRuleAPI defines the interface for EventBridge Rule operations.
@@ -19,6 +20,7 @@ type EventBridgeRuleAPI interface {
 	ListEventBuses(ctx context.Context, params *eventbridge.ListEventBusesInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListEventBusesOutput, error)
 	ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
 	RemoveTargets(ctx context.Context, params *eventbridge.RemoveTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.RemoveTargetsOutput, error)
+	ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
 }
 
 // NewEventBridgeRule creates a new EventBridgeRule resource using the generic resource pattern.
@@ -66,8 +68,18 @@ func listEventBridgeRules(ctx context.Context, client EventBridgeRuleAPI, scope 
 			for _, rule := range rules.Rules {
 				// Create composite identifier: "busName|ruleName"
 				id := aws.String(fmt.Sprintf("%s|%s", aws.ToString(busName), aws.ToString(rule.Name)))
+
+				tagsOutput, err := client.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
+					ResourceARN: rule.Arn,
+				})
+				if err != nil {
+					logging.Debugf("[Event Bridge Rule] Failed to list tags for rule %s: %s", aws.ToString(rule.Name), err)
+					continue
+				}
+
 				if cfg.ShouldInclude(config.ResourceValue{
 					Name: id,
+					Tags: util.ConvertEventBridgeTagsToMap(tagsOutput.Tags),
 				}) {
 					identifiers = append(identifiers, id)
 				}
