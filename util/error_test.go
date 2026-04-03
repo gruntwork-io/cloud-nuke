@@ -117,6 +117,7 @@ func TestIsWarningError(t *testing.T) {
 		"DependencyViolation",
 		"InvalidDBSubnetGroupStateFault",
 		"InvalidDBClusterStateFault",
+		"InvalidDBClusterSnapshotStateFault",
 		"InvalidClusterState",
 		"DBSubnetGroupNotFoundFault",
 		"DBParameterGroupNotFound",
@@ -130,6 +131,8 @@ func TestIsWarningError(t *testing.T) {
 		"InvalidDhcpOptionsID.NotFound",
 		"InvalidCacheClusterState",
 		"InvalidDBParameterGroupState",
+		"AuthFailure",
+		"OperationNotPermitted",
 	}
 	for _, code := range warningCodes {
 		require.True(t, IsWarningError(&smithy.GenericAPIError{Code: code}), code)
