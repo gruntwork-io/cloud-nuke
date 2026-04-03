@@ -243,7 +243,7 @@ jobs:
         id: cache-gon
         uses: actions/cache@v4
         with:
-          path: gon
+          path: /usr/local/bin/gon
           key: gon-${{ env.GON_VERSION }}
 
       - name: Install gon
@@ -254,8 +254,6 @@ jobs:
         run: gon --version
 
       - name: Sign macOS binaries
-        id: sign
-        continue-on-error: true
         env:
           AC_USERNAME: ${{ secrets.MACOS_AC_LOGIN }}
           AC_PASSWORD: ${{ secrets.MACOS_AC_PASSWORD }}
@@ -263,10 +261,6 @@ jobs:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: .github/scripts/release/sign-macos-binaries.sh bin
-
-      - name: Warn if signing failed
-        if: steps.sign.outcome == 'failure'
-        run: echo "::warning::macOS signing failed — darwin binaries will be uploaded unsigned. Re-run the release job after fixing credentials."
 
       - name: Generate SHA256SUMS
         run: cd bin && shasum -a 256 * > SHA256SUMS
