@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/codedeploy/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,6 +20,7 @@ type mockedCodeDeployApplications struct {
 	ListApplicationsOutput     codedeploy.ListApplicationsOutput
 	BatchGetApplicationsOutput codedeploy.BatchGetApplicationsOutput
 	DeleteApplicationOutput    codedeploy.DeleteApplicationOutput
+	TagsByARN                  map[string][]types.Tag
 }
 
 func (m mockedCodeDeployApplications) ListApplications(ctx context.Context, params *codedeploy.ListApplicationsInput, optFns ...func(*codedeploy.Options)) (*codedeploy.ListApplicationsOutput, error) {
@@ -48,32 +50,42 @@ func (m mockedCodeDeployApplications) DeleteApplication(ctx context.Context, par
 	return &m.DeleteApplicationOutput, nil
 }
 
+func (m mockedCodeDeployApplications) ListTagsForResource(ctx context.Context, params *codedeploy.ListTagsForResourceInput, optFns ...func(*codedeploy.Options)) (*codedeploy.ListTagsForResourceOutput, error) {
+	if m.TagsByARN != nil {
+		if tags, ok := m.TagsByARN[aws.ToString(params.ResourceArn)]; ok {
+			return &codedeploy.ListTagsForResourceOutput{Tags: tags}, nil
+		}
+	}
+	return &codedeploy.ListTagsForResourceOutput{}, nil
+}
+
 func TestCodeDeployApplication_GetAll(t *testing.T) {
 	t.Parallel()
 
 	testName1 := "cloud-nuke-test-1"
 	testName2 := "cloud-nuke-test-2"
 	now := time.Now()
+	accountID := "123456789012"
+	region := "us-east-1"
+
 	client := mockedCodeDeployApplications{
 		ListApplicationsOutput: codedeploy.ListApplicationsOutput{
-			Applications: []string{
-				testName1,
-				testName2,
-			},
+			Applications: []string{testName1, testName2},
 		},
 		BatchGetApplicationsOutput: codedeploy.BatchGetApplicationsOutput{
 			ApplicationsInfo: []types.ApplicationInfo{
-				{
-					ApplicationName: aws.String(testName1),
-					CreateTime:      aws.Time(now),
-				},
-				{
-					ApplicationName: aws.String(testName2),
-					CreateTime:      aws.Time(now.Add(1)),
-				},
+				{ApplicationName: aws.String(testName1), CreateTime: aws.Time(now)},
+				{ApplicationName: aws.String(testName2), CreateTime: aws.Time(now.Add(1))},
+			},
+		},
+		TagsByARN: map[string][]types.Tag{
+			"arn:aws:codedeploy:" + region + ":" + accountID + ":application:" + testName1: {
+				{Key: aws.String("env"), Value: aws.String("prod")},
 			},
 		},
 	}
+
+	ctx := context.WithValue(context.Background(), util.AccountIdKey, accountID)
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -86,24 +98,31 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
-					NamesRegExp: []config.Expression{{
-						RE: *regexp.MustCompile(testName1),
-					}}},
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(testName1)}},
+				},
 			},
 			expected: []string{testName2},
 		},
 		"timeAfterExclusionFilter": {
 			configObj: config.ResourceType{
-				ExcludeRule: config.FilterRule{
-					TimeAfter: aws.Time(now.Add(-1)),
-				}},
+				ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-1))},
+			},
 			expected: []string{},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testName1},
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := listCodeDeployApplications(context.Background(), client, resource.Scope{Region: "us-east-1"}, tc.configObj)
-
+			names, err := listCodeDeployApplications(ctx, client, resource.Scope{Region: region}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})

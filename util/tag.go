@@ -8,6 +8,7 @@ import (
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	cloudfronttypes "github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	cloudwatchtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	codedeploytypes "github.com/aws/aws-sdk-go-v2/service/codedeploy/types"
 	configservicetypes "github.com/aws/aws-sdk-go-v2/service/configservice/types"
 	datapipelinetypes "github.com/aws/aws-sdk-go-v2/service/datapipeline/types"
 	datasynctypes "github.com/aws/aws-sdk-go-v2/service/datasync/types"
@@ -339,6 +340,16 @@ func ConvertElasticBeanstalkTagsToMap(tags []ebtypes.Tag) map[string]string {
 }
 
 func ConvertDataPipelineTagsToMap(tags []datapipelinetypes.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		if tag.Key != nil && tag.Value != nil {
+			tagMap[*tag.Key] = *tag.Value
+		}
+	}
+	return tagMap
+}
+
+func ConvertCodeDeployTagsToMap(tags []codedeploytypes.Tag) map[string]string {
 	tagMap := make(map[string]string)
 	for _, tag := range tags {
 		if tag.Key != nil && tag.Value != nil {
