@@ -6,13 +6,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/datasync"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // DataSyncTaskAPI defines the interface for DataSync Task operations.
 type DataSyncTaskAPI interface {
 	DeleteTask(ctx context.Context, params *datasync.DeleteTaskInput, optFns ...func(*datasync.Options)) (*datasync.DeleteTaskOutput, error)
 	ListTasks(ctx context.Context, params *datasync.ListTasksInput, optFns ...func(*datasync.Options)) (*datasync.ListTasksOutput, error)
+	ListTagsForResource(ctx context.Context, params *datasync.ListTagsForResourceInput, optFns ...func(*datasync.Options)) (*datasync.ListTagsForResourceOutput, error)
 }
 
 // NewDataSyncTask creates a new DataSync Task resource using the generic resource pattern.
@@ -48,8 +51,21 @@ func listDataSyncTasks(ctx context.Context, client DataSyncTaskAPI, scope resour
 		}
 
 		for _, task := range page.Tasks {
+			var tags map[string]string
+			tagsOutput, err := client.ListTagsForResource(ctx, &datasync.ListTagsForResourceInput{
+				ResourceArn: task.TaskArn,
+			})
+			if err != nil {
+				logging.Debugf("Error getting tags for DataSync task %s: %v", aws.ToString(task.TaskArn), err)
+				continue
+			}
+			if tagsOutput != nil {
+				tags = util.ConvertDataSyncTagsToMap(tagsOutput.Tags)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: task.Name,
+				Tags: tags,
 			}) {
 				identifiers = append(identifiers, task.TaskArn)
 			}

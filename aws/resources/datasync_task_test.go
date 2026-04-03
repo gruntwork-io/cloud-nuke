@@ -26,6 +26,15 @@ func (m *mockDataSyncTaskClient) ListTasks(ctx context.Context, params *datasync
 	return &m.ListTasksOutput, nil
 }
 
+func (m *mockDataSyncTaskClient) ListTagsForResource(ctx context.Context, params *datasync.ListTagsForResourceInput, optFns ...func(*datasync.Options)) (*datasync.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "arn:aws:datasync:us-east-1:123456789012:task/task-1" {
+		return &datasync.ListTagsForResourceOutput{
+			Tags: []types.TagListEntry{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
+	return &datasync.ListTagsForResourceOutput{}, nil
+}
+
 func TestListDataSyncTasks(t *testing.T) {
 	t.Parallel()
 
@@ -55,6 +64,14 @@ func TestListDataSyncTasks(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("task-2")}},
+				},
+			},
+			expected: []string{testArn1},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 				},
 			},
 			expected: []string{testArn1},

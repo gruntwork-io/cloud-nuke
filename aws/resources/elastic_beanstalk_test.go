@@ -27,6 +27,15 @@ func (m *mockEBApplicationsClient) DeleteApplication(ctx context.Context, params
 	return &m.DeleteApplicationOutput, nil
 }
 
+func (m *mockEBApplicationsClient) ListTagsForResource(ctx context.Context, params *elasticbeanstalk.ListTagsForResourceInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.ListTagsForResourceOutput, error) {
+	if aws.ToString(params.ResourceArn) == "app-arn-01" {
+		return &elasticbeanstalk.ListTagsForResourceOutput{
+			ResourceTags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
+	return &elasticbeanstalk.ListTagsForResourceOutput{}, nil
+}
+
 func TestListEBApplications(t *testing.T) {
 	t.Parallel()
 
@@ -116,6 +125,33 @@ func TestListEBApplications_TimeFilter(t *testing.T) {
 	cfg := config.ResourceType{
 		ExcludeRule: config.FilterRule{
 			TimeAfter: aws.Time(now),
+		},
+	}
+
+	names, err := listEBApplications(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{app1}, aws.ToStringSlice(names))
+}
+
+func TestListEBApplications_TagFilter(t *testing.T) {
+	t.Parallel()
+
+	app1 := "app1"
+	app2 := "app2"
+	now := time.Now()
+
+	mock := &mockEBApplicationsClient{
+		DescribeApplicationsOutput: elasticbeanstalk.DescribeApplicationsOutput{
+			Applications: []types.ApplicationDescription{
+				{ApplicationArn: aws.String("app-arn-01"), ApplicationName: &app1, DateCreated: aws.Time(now)},
+				{ApplicationArn: aws.String("app-arn-02"), ApplicationName: &app2, DateCreated: aws.Time(now)},
+			},
+		},
+	}
+
+	cfg := config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
 		},
 	}
 

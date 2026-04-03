@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
@@ -13,12 +14,18 @@ import (
 )
 
 type mockGuardDutyClient struct {
-	ListDetectorsOutput  guardduty.ListDetectorsOutput
-	GetDetectorOutput    guardduty.GetDetectorOutput
-	DeleteDetectorOutput guardduty.DeleteDetectorOutput
+	ListDetectorsOutput   guardduty.ListDetectorsOutput
+	GetDetectorOutput     guardduty.GetDetectorOutput
+	GetDetectorOutputByID map[string]*guardduty.GetDetectorOutput
+	DeleteDetectorOutput  guardduty.DeleteDetectorOutput
 }
 
 func (m *mockGuardDutyClient) GetDetector(ctx context.Context, params *guardduty.GetDetectorInput, optFns ...func(*guardduty.Options)) (*guardduty.GetDetectorOutput, error) {
+	if m.GetDetectorOutputByID != nil {
+		if out, ok := m.GetDetectorOutputByID[aws.ToString(params.DetectorId)]; ok {
+			return out, nil
+		}
+	}
 	return &m.GetDetectorOutput, nil
 }
 
@@ -75,6 +82,34 @@ func TestListGuardDutyDetectors_TimeFilter(t *testing.T) {
 	ids, err := listGuardDutyDetectors(context.Background(), mock, resource.Scope{}, cfg)
 	require.NoError(t, err)
 	require.Empty(t, ids)
+}
+
+func TestListGuardDutyDetectors_TagFilter(t *testing.T) {
+	t.Parallel()
+
+	testId1 := "test-detector-id-1"
+	testId2 := "test-detector-id-2"
+	now := time.Now()
+
+	mock := &mockGuardDutyClient{
+		ListDetectorsOutput: guardduty.ListDetectorsOutput{
+			DetectorIds: []string{testId1, testId2},
+		},
+		GetDetectorOutputByID: map[string]*guardduty.GetDetectorOutput{
+			testId1: {CreatedAt: aws.String(now.Format(time.RFC3339)), Tags: map[string]string{"env": "prod"}},
+			testId2: {CreatedAt: aws.String(now.Format(time.RFC3339))},
+		},
+	}
+
+	cfg := config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+		},
+	}
+
+	ids, err := listGuardDutyDetectors(context.Background(), mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{testId1}, aws.ToStringSlice(ids))
 }
 
 func TestDeleteGuardDutyDetector(t *testing.T) {

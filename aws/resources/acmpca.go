@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 const (
@@ -23,6 +24,7 @@ type ACMPCAAPI interface {
 	DeleteCertificateAuthority(ctx context.Context, params *acmpca.DeleteCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DeleteCertificateAuthorityOutput, error)
 	DescribeCertificateAuthority(ctx context.Context, params *acmpca.DescribeCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error)
 	ListCertificateAuthorities(ctx context.Context, params *acmpca.ListCertificateAuthoritiesInput, optFns ...func(*acmpca.Options)) (*acmpca.ListCertificateAuthoritiesOutput, error)
+	ListTags(ctx context.Context, params *acmpca.ListTagsInput, optFns ...func(*acmpca.Options)) (*acmpca.ListTagsOutput, error)
 	UpdateCertificateAuthority(ctx context.Context, params *acmpca.UpdateCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.UpdateCertificateAuthorityOutput, error)
 }
 
@@ -55,29 +57,37 @@ func listACMPCA(ctx context.Context, client ACMPCAAPI, scope resource.Scope, cfg
 		}
 
 		for _, ca := range page.CertificateAuthorities {
-			if shouldIncludeACMPCA(ca, cfg) {
+			if ca.Status == types.CertificateAuthorityStatusDeleted {
+				continue
+			}
+
+			referenceTime := aws.ToTime(ca.LastStateChangeAt)
+			if ca.LastStateChangeAt == nil {
+				referenceTime = aws.ToTime(ca.CreatedAt)
+			}
+
+			var tags map[string]string
+			tagsOutput, err := client.ListTags(ctx, &acmpca.ListTagsInput{
+				CertificateAuthorityArn: ca.Arn,
+			})
+			if err != nil {
+				logging.Debugf("Error getting tags for ACMPCA %s: %v", aws.ToString(ca.Arn), err)
+				continue
+			}
+			if tagsOutput != nil {
+				tags = util.ConvertACMPCATagsToMap(tagsOutput.Tags)
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Time: &referenceTime,
+				Tags: tags,
+			}) {
 				arns = append(arns, ca.Arn)
 			}
 		}
 	}
 
 	return arns, nil
-}
-
-// shouldIncludeACMPCA determines if an ACM PCA should be included based on config filters.
-func shouldIncludeACMPCA(ca types.CertificateAuthority, cfg config.ResourceType) bool {
-	if ca.Status == types.CertificateAuthorityStatusDeleted {
-		return false
-	}
-
-	// Use LastStateChangeAt as the reference time for time-based filters.
-	// Fall back to CreatedAt if the CA state was never changed.
-	referenceTime := aws.ToTime(ca.LastStateChangeAt)
-	if ca.LastStateChangeAt == nil {
-		referenceTime = aws.ToTime(ca.CreatedAt)
-	}
-
-	return cfg.ShouldInclude(config.ResourceValue{Time: &referenceTime})
 }
 
 // deleteACMPCA deletes a single ACM PCA certificate authority.

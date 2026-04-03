@@ -47,6 +47,7 @@ func listAccessAnalyzers(ctx context.Context, client AccessAnalyzerAPI, scope re
 			if cfg.ShouldInclude(config.ResourceValue{
 				Time: analyzer.CreatedAt,
 				Name: analyzer.Name,
+				Tags: analyzer.Tags,
 			}) {
 				allAnalyzers = append(allAnalyzers, analyzer.Name)
 			}

@@ -9,6 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 )
 
@@ -25,6 +26,7 @@ type CloudfrontDistributionAPI interface {
 	GetDistributionConfig(ctx context.Context, params *cloudfront.GetDistributionConfigInput, optFns ...func(*cloudfront.Options)) (*cloudfront.GetDistributionConfigOutput, error)
 	UpdateDistribution(ctx context.Context, params *cloudfront.UpdateDistributionInput, optFns ...func(*cloudfront.Options)) (*cloudfront.UpdateDistributionOutput, error)
 	DeleteDistribution(ctx context.Context, params *cloudfront.DeleteDistributionInput, optFns ...func(*cloudfront.Options)) (*cloudfront.DeleteDistributionOutput, error)
+	ListTagsForResource(ctx context.Context, params *cloudfront.ListTagsForResourceInput, optFns ...func(*cloudfront.Options)) (*cloudfront.ListTagsForResourceOutput, error)
 }
 
 // NewCloudfrontDistributions creates a new CloudFront distribution resource.
@@ -60,7 +62,22 @@ func listCloudfrontDistributions(ctx context.Context, client CloudfrontDistribut
 		}
 
 		for _, item := range page.DistributionList.Items {
-			if cfg.ShouldInclude(config.ResourceValue{Name: item.Id}) {
+			var tags map[string]string
+			tagsOutput, err := client.ListTagsForResource(ctx, &cloudfront.ListTagsForResourceInput{
+				Resource: item.ARN,
+			})
+			if err != nil {
+				logging.Debugf("Error getting tags for CloudFront distribution %s: %v", aws.ToString(item.Id), err)
+				continue
+			}
+			if tagsOutput != nil && tagsOutput.Tags != nil {
+				tags = util.ConvertCloudFrontTagsToMap(tagsOutput.Tags.Items)
+			}
+
+			if cfg.ShouldInclude(config.ResourceValue{
+				Name: item.Id,
+				Tags: tags,
+			}) {
 				ids = append(ids, item.Id)
 			}
 		}

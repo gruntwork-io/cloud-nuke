@@ -76,7 +76,10 @@ func listDataPipelines(ctx context.Context, client DataPipelineAPI, scope resour
 				pipelineID := aws.ToString(desc.PipelineId)
 				name := aws.ToString(desc.Name)
 
-				rv := config.ResourceValue{Name: &name}
+				rv := config.ResourceValue{
+					Name: &name,
+					Tags: util.ConvertDataPipelineTagsToMap(desc.Tags),
+				}
 				for _, field := range desc.Fields {
 					if aws.ToString(field.Key) == "@creationTime" {
 						rv.Time, _ = util.ParseTimestamp(field.StringValue)

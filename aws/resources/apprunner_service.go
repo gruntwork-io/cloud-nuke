@@ -9,6 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // AppRunnerAllowedRegions lists AWS regions where App Runner is supported.
@@ -22,6 +23,7 @@ var AppRunnerAllowedRegions = []string{
 type AppRunnerServiceAPI interface {
 	DeleteService(ctx context.Context, params *apprunner.DeleteServiceInput, optFns ...func(*apprunner.Options)) (*apprunner.DeleteServiceOutput, error)
 	ListServices(ctx context.Context, params *apprunner.ListServicesInput, optFns ...func(*apprunner.Options)) (*apprunner.ListServicesOutput, error)
+	ListTagsForResource(ctx context.Context, params *apprunner.ListTagsForResourceInput, optFns ...func(*apprunner.Options)) (*apprunner.ListTagsForResourceOutput, error)
 }
 
 // NewAppRunnerService creates a new App Runner service resource.
@@ -61,9 +63,22 @@ func listAppRunnerServices(ctx context.Context, client AppRunnerServiceAPI, scop
 		}
 
 		for _, service := range page.ServiceSummaryList {
+			var tags map[string]string
+			tagsOutput, err := client.ListTagsForResource(ctx, &apprunner.ListTagsForResourceInput{
+				ResourceArn: service.ServiceArn,
+			})
+			if err != nil {
+				logging.Debugf("Error getting tags for App Runner service %s: %v", aws.ToString(service.ServiceName), err)
+				continue
+			}
+			if tagsOutput != nil {
+				tags = util.ConvertAppRunnerTagsToMap(tagsOutput.Tags)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: service.ServiceName,
 				Time: service.CreatedAt,
+				Tags: tags,
 			}) {
 				identifiers = append(identifiers, service.ServiceArn)
 			}

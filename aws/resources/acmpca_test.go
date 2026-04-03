@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
@@ -36,6 +37,15 @@ func (m *mockACMPCAClient) UpdateCertificateAuthority(ctx context.Context, param
 
 func (m *mockACMPCAClient) DeleteCertificateAuthority(ctx context.Context, params *acmpca.DeleteCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DeleteCertificateAuthorityOutput, error) {
 	return &m.DeleteCertificateAuthorityOutput, nil
+}
+
+func (m *mockACMPCAClient) ListTags(ctx context.Context, params *acmpca.ListTagsInput, optFns ...func(*acmpca.Options)) (*acmpca.ListTagsOutput, error) {
+	if aws.ToString(params.CertificateAuthorityArn) == "arn:aws:acm-pca:us-east-1:123456789012:certificate-authority/test-ca-1" {
+		return &acmpca.ListTagsOutput{
+			Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}},
+		}, nil
+	}
+	return &acmpca.ListTagsOutput{}, nil
 }
 
 func TestListACMPCA(t *testing.T) {
@@ -83,6 +93,18 @@ func TestListACMPCA(t *testing.T) {
 				ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-1))},
 			},
 			expected: nil, // Excluded because lastStateChangeAt (now) is after the filter
+		},
+		"tagInclusionFilter": {
+			cas: []types.CertificateAuthority{
+				{CreatedAt: &now, Arn: aws.String(testArn1)},
+				{CreatedAt: &now, Arn: aws.String(testArn2)},
+			},
+			cfg: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^prod$")}},
+				},
+			},
+			expected: []string{testArn1},
 		},
 		"usesCreatedAtWhenLastStateChangeAtIsNil": {
 			cas: []types.CertificateAuthority{

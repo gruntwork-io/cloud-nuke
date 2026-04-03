@@ -9,6 +9,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // ConfigServiceRuleAPI defines the interface for AWS Config Service rule operations.
@@ -17,6 +18,7 @@ type ConfigServiceRuleAPI interface {
 	DescribeRemediationConfigurations(ctx context.Context, params *configservice.DescribeRemediationConfigurationsInput, optFns ...func(*configservice.Options)) (*configservice.DescribeRemediationConfigurationsOutput, error)
 	DeleteRemediationConfiguration(ctx context.Context, params *configservice.DeleteRemediationConfigurationInput, optFns ...func(*configservice.Options)) (*configservice.DeleteRemediationConfigurationOutput, error)
 	DeleteConfigRule(ctx context.Context, params *configservice.DeleteConfigRuleInput, optFns ...func(*configservice.Options)) (*configservice.DeleteConfigRuleOutput, error)
+	ListTagsForResource(ctx context.Context, params *configservice.ListTagsForResourceInput, optFns ...func(*configservice.Options)) (*configservice.ListTagsForResourceOutput, error)
 }
 
 // NewConfigServiceRules creates a new Config Service Rules resource using the generic resource pattern.
@@ -49,9 +51,26 @@ func listConfigServiceRules(ctx context.Context, client ConfigServiceRuleAPI, sc
 		}
 
 		for _, configRule := range page.ConfigRules {
+			if configRule.ConfigRuleState != types.ConfigRuleStateActive {
+				continue
+			}
+
+			var tags map[string]string
+			tagsOutput, err := client.ListTagsForResource(ctx, &configservice.ListTagsForResourceInput{
+				ResourceArn: configRule.ConfigRuleArn,
+			})
+			if err != nil {
+				logging.Debugf("Error getting tags for Config rule %s: %v", aws.ToString(configRule.ConfigRuleName), err)
+				continue
+			}
+			if tagsOutput != nil {
+				tags = util.ConvertConfigServiceTagsToMap(tagsOutput.Tags)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: configRule.ConfigRuleName,
-			}) && configRule.ConfigRuleState == types.ConfigRuleStateActive {
+				Tags: tags,
+			}) {
 				configRuleNames = append(configRuleNames, configRule.ConfigRuleName)
 			}
 		}
