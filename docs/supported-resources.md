@@ -80,6 +80,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `launch-template` | Launch Template |
 | `macie-member` | Macie Member Account |
 | `managed-prometheus` | Managed Prometheus Workspace |
+| `mq-broker` | Amazon MQ Broker |
 | `msk-cluster` | MSK Cluster |
 | `nat-gateway` | NAT Gateway |
 | `network-acl` | Network ACL |
@@ -221,6 +222,7 @@ This table shows which filtering features are supported for each resource type i
 | launch-template | LaunchTemplate | ✓ | ✓ | ✓ | ✓ |
 | macie-member | MacieMember | | ✓ | | ✓ |
 | managed-prometheus | ManagedPrometheus | ✓ | ✓ | ✓ | ✓ |
+| mq-broker | MQBroker | ✓ | ✓ | ✓ | ✓ |
 | msk-cluster | MSKCluster | ✓ | ✓ | | ✓ |
 | nat-gateway | NATGateway | ✓ | ✓ | ✓ | ✓ |
 | network-acl | NetworkACL | ✓ | ✓ | ✓ | ✓ |

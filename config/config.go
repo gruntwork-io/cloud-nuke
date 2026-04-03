@@ -101,6 +101,7 @@ type Config struct {
 	LaunchTemplate                  ResourceType               `yaml:"LaunchTemplate"`
 	MacieMember                     ResourceType               `yaml:"MacieMember"`
 	MSKCluster                      ResourceType               `yaml:"MSKCluster"`
+	MQBroker                        ResourceType               `yaml:"MQBroker"`
 	NATGateway                      EC2ResourceType            `yaml:"NATGateway"`
 	OIDCProvider                    ResourceType               `yaml:"OIDCProvider"`
 	OpenSearchDomain                ResourceType               `yaml:"OpenSearchDomain"`
@@ -245,6 +246,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.LaunchTemplate,
 		&c.MacieMember,
 		&c.MSKCluster,
+		&c.MQBroker,
 		&c.NATGateway.ResourceType,
 		&c.OIDCProvider,
 		&c.OpenSearchDomain,

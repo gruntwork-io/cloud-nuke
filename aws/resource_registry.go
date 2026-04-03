@@ -125,6 +125,7 @@ func getRegisteredRegionalResources() []resources.AwsResource {
 		resources.NewLaunchTemplates(),
 		resources.NewMacieMember(),
 		resources.NewMSKCluster(),
+		resources.NewMQBroker(),
 		resources.NewNatGateways(),
 		resources.NewOpenSearchDomains(),
 		resources.NewDBGlobalClusterMemberships(),
