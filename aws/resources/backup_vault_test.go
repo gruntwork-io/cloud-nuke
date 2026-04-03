@@ -122,6 +122,8 @@ func TestListBackupVaults(t *testing.T) {
 				ListBackupVaultsPages: []backup.ListBackupVaultsOutput{
 					{
 						BackupVaultList: []types.BackupVaultListMember{
+							{BackupVaultName: aws.String("Default"), CreationDate: aws.Time(now)},
+							{BackupVaultName: aws.String("aws/efs/automatic-backup-vault"), CreationDate: aws.Time(now)},
 							{BackupVaultName: aws.String(testName1), CreationDate: aws.Time(now)},
 							{BackupVaultName: aws.String(testName2), CreationDate: aws.Time(now.Add(1))},
 						},
