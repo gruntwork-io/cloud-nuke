@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -51,6 +52,12 @@ func listBackupVaults(ctx context.Context, client BackupVaultAPI, scope resource
 		}
 
 		for _, backupVault := range page.BackupVaultList {
+			name := aws.ToString(backupVault.BackupVaultName)
+			if strings.EqualFold(name, "default") || strings.HasPrefix(name, "aws/") {
+				logging.Debugf("Skipping %s since it is a default backup vault", name)
+				continue
+			}
+
 			tags, err := getTags(ctx, client, cfg, backupVault)
 			if err != nil {
 				logging.Errorf("Unable to fetch tags for %s: %s", aws.ToString(backupVault.BackupVaultArn), err)
