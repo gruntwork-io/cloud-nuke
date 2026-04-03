@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
@@ -52,6 +53,10 @@ func (m mockedSecurityHub) DisableSecurityHub(context.Context, *securityhub.Disa
 	return &m.DisableSecurityHubOutput, nil
 }
 
+func (m mockedSecurityHub) ListTagsForResource(_ context.Context, params *securityhub.ListTagsForResourceInput, _ ...func(*securityhub.Options)) (*securityhub.ListTagsForResourceOutput, error) {
+	return &securityhub.ListTagsForResourceOutput{Tags: map[string]string{"env": "prod"}}, nil
+}
+
 func TestSecurityHub_List(t *testing.T) {
 	t.Parallel()
 
@@ -71,6 +76,26 @@ func TestSecurityHub_List(t *testing.T) {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
 					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				},
+			},
+			expected: []string{},
+		},
+		"tagInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^prod$")},
+					},
+				},
+			},
+			expected: []string{testArn},
+		},
+		"tagInclusionFilterNoMatch": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					Tags: map[string]config.Expression{
+						"env": {RE: *regexp.MustCompile("^staging$")},
+					},
 				},
 			},
 			expected: []string{},
