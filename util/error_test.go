@@ -2,10 +2,12 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/aws/smithy-go"
 	commonErr "github.com/gruntwork-io/go-commons/errors"
+	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/require"
 )
 
@@ -149,6 +151,36 @@ func TestIsWarningError(t *testing.T) {
 		Code:    "AccessDeniedException",
 		Message: "User is not authorized with an Explicit Deny in a Service Control Policy",
 	}))
+
+	// Waiter timeout errors are warnings (deletion was initiated, will complete eventually)
+	require.True(t, IsWarningError(errors.New("exceeded max wait time for NodegroupDeleted waiter")))
+	require.True(t, IsWarningError(errors.New("exceeded max wait time for ClusterDeleted waiter")))
+	require.True(t, IsWarningError(errors.New("exceeded max wait time for FargateProfileDeleted waiter")))
+
+	// Wrapped waiter timeout errors are still warnings
+	require.True(t, IsWarningError(fmt.Errorf("deleting nodegroup: %w", errors.New("exceeded max wait time for NodegroupDeleted waiter"))))
+	require.True(t, IsWarningError(commonErr.WithStackTrace(errors.New("exceeded max wait time for NodegroupDeleted waiter"))))
+
+	// Multierror containing only waiter timeouts is a warning
+	waiterMultierr := multierror.Append(nil,
+		errors.New("exceeded max wait time for NodegroupDeleted waiter"),
+		errors.New("exceeded max wait time for NodegroupDeleted waiter"),
+	)
+	require.True(t, IsWarningError(waiterMultierr))
+
+	// Multierror containing only warning-class errors is a warning
+	mixedWarningMultierr := multierror.Append(nil,
+		errors.New("exceeded max wait time for NodegroupDeleted waiter"),
+		&smithy.GenericAPIError{Code: "DependencyViolation"},
+	)
+	require.True(t, IsWarningError(mixedWarningMultierr))
+
+	// Multierror containing a real error alongside a waiter timeout is NOT a warning
+	mixedRealMultierr := multierror.Append(nil,
+		errors.New("exceeded max wait time for NodegroupDeleted waiter"),
+		errors.New("some real API failure"),
+	)
+	require.False(t, IsWarningError(mixedRealMultierr))
 
 	// Generic access denied errors (fixable IAM issues) are NOT warnings
 	require.False(t, IsWarningError(&smithy.GenericAPIError{Code: "AccessDeniedException", Message: "User is not authorized to perform this action"}))
