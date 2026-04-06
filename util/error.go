@@ -87,6 +87,7 @@ func IsThrottlingError(err error) bool {
 //   - DependencyViolation: EC2 subnet/ENI/SG still referenced by another resource
 //   - InvalidDBSubnetGroupStateFault: RDS subnet group in use by a DB instance
 //   - InvalidDBClusterStateFault: RDS cluster can't be deleted while its instances exist
+//   - InvalidDBClusterSnapshotStateFault: RDS cluster snapshot is not in available/failed state
 //   - InvalidClusterState: Redshift cluster has an operation in progress
 //   - InvalidHomeRegionException: CloudTrail trail can only be deleted from its home region
 //   - CacheSubnetGroupInUse: ElastiCache subnet group still used by a cache cluster
@@ -115,6 +116,7 @@ func IsWarningError(err error) bool {
 		case "DependencyViolation",
 			"InvalidDBSubnetGroupStateFault",
 			"InvalidDBClusterStateFault",
+			"InvalidDBClusterSnapshotStateFault",
 			"InvalidClusterState",
 			"InvalidHomeRegionException",
 			"CacheSubnetGroupInUse",
@@ -130,6 +132,11 @@ func IsWarningError(err error) bool {
 			"InvalidDhcpOptionsID.NotFound",
 			"TrailNotFoundException",
 			"CacheSubnetGroupNotFoundFault":
+			return true
+		// Permission errors — the IAM role/policy permanently cannot perform
+		// the action on the specific resource (e.g., service-managed EIPs):
+		case "AuthFailure",
+			"OperationNotPermitted":
 			return true
 		}
 		// SCP-denied errors
