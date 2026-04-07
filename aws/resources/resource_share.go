@@ -44,6 +44,9 @@ func listResourceShares(ctx context.Context, client RAMResourceShareAPI, _ resou
 		}
 
 		for _, resourceShare := range page.ResourceShares {
+			if resourceShare.Status != types.ResourceShareStatusActive {
+				continue
+			}
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: resourceShare.Name,
 				Time: resourceShare.CreationTime,
