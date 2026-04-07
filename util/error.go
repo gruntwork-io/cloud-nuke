@@ -104,6 +104,7 @@ func IsThrottlingError(err error) bool {
 //   - InvalidDhcpOptionsID.NotFound: EC2 DHCP option set no longer exists
 //   - TrailNotFoundException: CloudTrail trail already deleted by another region/job
 //   - CacheSubnetGroupNotFoundFault: ElastiCache subnet group no longer exists
+//   - ResourceNotFoundException: EventBridge rule (or similar) no longer exists
 //
 // SCP-denied errors — the organization's service control policy permanently
 // forbids the action; retrying or fixing IAM permissions will not help:
@@ -131,7 +132,8 @@ func IsWarningError(err error) bool {
 			"InvalidNetworkInterfaceID.NotFound",
 			"InvalidDhcpOptionsID.NotFound",
 			"TrailNotFoundException",
-			"CacheSubnetGroupNotFoundFault":
+			"CacheSubnetGroupNotFoundFault",
+			"ResourceNotFoundException":
 			return true
 		// Permission errors — the IAM role/policy permanently cannot perform
 		// the action on the specific resource (e.g., service-managed EIPs):
