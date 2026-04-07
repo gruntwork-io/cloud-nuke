@@ -96,14 +96,8 @@ func IsThrottlingError(err error) bool {
 //   - InvalidDBParameterGroupState: RDS parameter group still referenced by a DB instance
 //
 // Already-deleted errors — resource was deleted between the scan and nuke
-// phases (e.g., by another concurrent nuke run or TTL expiry). Safe to ignore:
-//   - DBSubnetGroupNotFoundFault: RDS subnet group no longer exists
-//   - DBParameterGroupNotFound: RDS parameter group no longer exists
-//   - InvalidSubnetID.NotFound: EC2 subnet no longer exists
-//   - InvalidNetworkInterfaceID.NotFound: EC2 ENI no longer exists
-//   - InvalidDhcpOptionsID.NotFound: EC2 DHCP option set no longer exists
-//   - TrailNotFoundException: CloudTrail trail already deleted by another region/job
-//   - CacheSubnetGroupNotFoundFault: ElastiCache subnet group no longer exists
+// phases (e.g., by another concurrent nuke run or TTL expiry). Safe to ignore.
+// Matched by any error code containing "NotFound" (case-insensitive).
 //
 // SCP-denied errors — the organization's service control policy permanently
 // forbids the action; retrying or fixing IAM permissions will not help:
@@ -124,19 +118,14 @@ func IsWarningError(err error) bool {
 			"InvalidCacheClusterState",
 			"InvalidDBParameterGroupState":
 			return true
-		// Already-deleted errors
-		case "DBSubnetGroupNotFoundFault",
-			"DBParameterGroupNotFound",
-			"InvalidSubnetID.NotFound",
-			"InvalidNetworkInterfaceID.NotFound",
-			"InvalidDhcpOptionsID.NotFound",
-			"TrailNotFoundException",
-			"CacheSubnetGroupNotFoundFault":
-			return true
 		// Permission errors — the IAM role/policy permanently cannot perform
 		// the action on the specific resource (e.g., service-managed EIPs):
 		case "AuthFailure",
 			"OperationNotPermitted":
+			return true
+		}
+		// Already-deleted errors — any error code containing "NotFound"
+		if strings.Contains(strings.ToLower(apiErr.ErrorCode()), "notfound") {
 			return true
 		}
 		// SCP-denied errors
