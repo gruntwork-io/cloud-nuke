@@ -147,8 +147,8 @@ github.com/aws/aws-sdk-go-v2/service/kinesis v1.43.5 h1:LxgRVyuY+5DEPSX7kmin/V7t
 github.com/aws/aws-sdk-go-v2/service/kinesis v1.43.5/go.mod h1:eUebEBEqVfOwEyDDDbGauH4PNqDCuepRvTaNbJeWr5w=
 github.com/aws/aws-sdk-go-v2/service/kms v1.37.17 h1:s+2jfJo4rYT2Ms/ASd139kj49+Otyi/v2zFzv4X5CVU=
 github.com/aws/aws-sdk-go-v2/service/kms v1.37.17/go.mod h1:rtC85vnVnYbYWQWtm2tPHPnZ/JOPa5+iuUDip9XDa1Q=
-github.com/aws/aws-sdk-go-v2/service/lambda v1.69.11 h1:ybqEgFe2k84vK1P6MxoVoDuljM/MVCbtuJRTfinAU5c=
-github.com/aws/aws-sdk-go-v2/service/lambda v1.69.11/go.mod h1:rhwwYoVLICURXdg/st0cIUq3suDUiC86vkV7jVuIh/A=
+github.com/aws/aws-sdk-go-v2/service/lambda v1.88.5 h1:HWN7xwaV7Zwrn3Jlauio4u4aTMFgRzG2fblHWQeir/k=
+github.com/aws/aws-sdk-go-v2/service/lambda v1.88.5/go.mod h1:6HBXRyFFqOw+ALkJ6YGHfrr20/YXYv6X9pcZErXRvCA=
 github.com/aws/aws-sdk-go-v2/service/macie2 v1.44.8 h1:Z+kN/pHkuWQqZCkqRkUOjTmTV5ISX4pS15PeI5DsOS8=
 github.com/aws/aws-sdk-go-v2/service/macie2 v1.44.8/go.mod h1:qK74wUDBbz27CUs+8Ckz7LEJ7WF2siCauyFwPxl8xF8=
 github.com/aws/aws-sdk-go-v2/service/mq v1.34.19 h1:EICOH/tQvEAvp1j+9nHkVskUjn769j2IpQhyD0i5rI4=

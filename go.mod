@@ -45,7 +45,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kafka v1.38.15
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.43.5
 	github.com/aws/aws-sdk-go-v2/service/kms v1.37.17
-	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.11
+	github.com/aws/aws-sdk-go-v2/service/lambda v1.88.5
 	github.com/aws/aws-sdk-go-v2/service/macie2 v1.44.8
 	github.com/aws/aws-sdk-go-v2/service/mq v1.34.19
 	github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.13
