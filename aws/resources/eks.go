@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
@@ -15,6 +16,11 @@ import (
 	goerrors "github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
+
+// eksWaitTimeout is the timeout for EKS waiter operations. EKS nodegroup
+// deletion typically takes 7-15 minutes (draining nodes, terminating instances,
+// cleaning up ASGs/ENIs), so the default 5-minute timeout is insufficient.
+const eksWaitTimeout = 30 * time.Minute
 
 // EKSClustersAPI defines the interface for EKS Clusters operations.
 type EKSClustersAPI interface {
@@ -151,7 +157,7 @@ func deleteEKSClusters(ctx context.Context, client EKSClustersAPI, scope resourc
 		} else if successSet[idStr] {
 			results = append(results, resource.NukeResult{Identifier: idStr, Error: nil})
 		} else {
-			results = append(results, resource.NukeResult{Identifier: idStr, Error: fmt.Errorf("EKS cluster %s deletion timed out after %s", idStr, DefaultWaitTimeout)})
+			results = append(results, resource.NukeResult{Identifier: idStr, Error: fmt.Errorf("exceeded max wait time for EKS cluster %s deletion (%s)", idStr, eksWaitTimeout)})
 		}
 	}
 
@@ -185,7 +191,7 @@ func deleteEKSClusterAsync(ctx context.Context, client EKSClustersAPI, wg *sync.
 		err := waiter.Wait(ctx, &eks.DescribeNodegroupInput{
 			ClusterName:   aws.String(eksClusterName),
 			NodegroupName: nodeGroup,
-		}, DefaultWaitTimeout)
+		}, eksWaitTimeout)
 		if err != nil {
 			logging.Debugf("[Failed] Waiting for Node Group %s associated with cluster %s to be deleted: %s", aws.ToString(nodeGroup), eksClusterName, err)
 			allSubResourceErrs = multierror.Append(allSubResourceErrs, err)
@@ -284,7 +290,7 @@ func deleteEKSClusterFargateProfiles(ctx context.Context, client EKSClustersAPI,
 		waitErr := waiter.Wait(ctx, &eks.DescribeFargateProfileInput{
 			ClusterName:        aws.String(eksClusterName),
 			FargateProfileName: fargateProfile,
-		}, DefaultWaitTimeout)
+		}, eksWaitTimeout)
 		if waitErr != nil {
 			logging.Debugf("[Failed] Waiting for Fargate Profile %s associated with cluster %s to be deleted: %s", aws.ToString(fargateProfile), eksClusterName, waitErr)
 			allDeleteErrs = multierror.Append(allDeleteErrs, waitErr)
@@ -304,7 +310,7 @@ func waitUntilEksClustersDeleted(ctx context.Context, client EKSClustersAPI, res
 		waiter := eks.NewClusterDeletedWaiter(client)
 		err := waiter.Wait(ctx, &eks.DescribeClusterInput{
 			Name: eksClusterName,
-		}, DefaultWaitTimeout)
+		}, eksWaitTimeout)
 
 		if err != nil {
 			logging.Debugf("[Failed] Waiting for EKS cluster to be deleted %s: %s", *eksClusterName, err)

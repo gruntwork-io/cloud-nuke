@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/smithy-go"
+	"github.com/hashicorp/go-multierror"
 )
 
 var ErrInSufficientPermission = errors.New("error:INSUFFICIENT_PERMISSION")
@@ -102,7 +103,28 @@ func IsThrottlingError(err error) bool {
 // SCP-denied errors — the organization's service control policy permanently
 // forbids the action; retrying or fixing IAM permissions will not help:
 //   - AccessDeniedException with "explicit deny in a service control policy"
+//
+// Waiter timeout errors — the deletion was initiated but the AWS SDK waiter
+// timed out before the resource fully disappeared. The resource is still
+// being deleted and will be cleaned up on the next nuke run:
+//   - "exceeded max wait time" from AWS SDK v2 waiters
 func IsWarningError(err error) bool {
+	// Multierror: only a warning if ALL sub-errors are individually warnings.
+	// This prevents a single waiter timeout from masking a real failure in
+	// the same batch.
+	var merr *multierror.Error
+	if errors.As(err, &merr) {
+		if len(merr.Errors) == 0 {
+			return false
+		}
+		for _, e := range merr.Errors {
+			if !IsWarningError(e) {
+				return false
+			}
+		}
+		return true
+	}
+
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
 		switch apiErr.ErrorCode() {
@@ -134,5 +156,14 @@ func IsWarningError(err error) bool {
 			return true
 		}
 	}
+
+	// Waiter timeout errors — the AWS SDK v2 waiters return a plain error
+	// (not a smithy.APIError) when the max wait time is exceeded. String
+	// matching is required because the SDK does not expose a typed waiter
+	// error. The deletion was already initiated and will complete eventually.
+	if err != nil && strings.Contains(err.Error(), "exceeded max wait time") {
+		return true
+	}
+
 	return false
 }
