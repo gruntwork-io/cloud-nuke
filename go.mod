@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.45.2
 	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.47.3
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.43.13
-	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.45.11
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.65.0
 	github.com/aws/aws-sdk-go-v2/service/codedeploy v1.29.17
 	github.com/aws/aws-sdk-go-v2/service/configservice v1.51.11
 	github.com/aws/aws-sdk-go-v2/service/datapipeline v1.30.18
