@@ -58,6 +58,7 @@ func TestResourceShareList(t *testing.T) {
 		{
 			Name:             aws.String("share-1"),
 			ResourceShareArn: aws.String("arn:aws:ram:us-east-1:123456789012:resource-share/1"),
+			Status:           types.ResourceShareStatusActive,
 			CreationTime:     aws.Time(oldTime),
 			Tags: []types.Tag{
 				{Key: aws.String("env"), Value: aws.String("prod")},
@@ -66,9 +67,19 @@ func TestResourceShareList(t *testing.T) {
 		{
 			Name:             aws.String("share-2"),
 			ResourceShareArn: aws.String("arn:aws:ram:us-east-1:123456789012:resource-share/2"),
+			Status:           types.ResourceShareStatusActive,
 			CreationTime:     aws.Time(newTime),
 			Tags: []types.Tag{
 				{Key: aws.String("env"), Value: aws.String("dev")},
+			},
+		},
+		{
+			Name:             aws.String("share-deleted"),
+			ResourceShareArn: aws.String("arn:aws:ram:us-east-1:123456789012:resource-share/deleted"),
+			Status:           types.ResourceShareStatusDeleted,
+			CreationTime:     aws.Time(oldTime),
+			Tags: []types.Tag{
+				{Key: aws.String("env"), Value: aws.String("prod")},
 			},
 		},
 	}
@@ -132,13 +143,14 @@ func TestResourceShareListPagination(t *testing.T) {
 		getOutputs: []ram.GetResourceSharesOutput{
 			{
 				ResourceShares: []types.ResourceShare{
-					{Name: aws.String("share-1"), ResourceShareArn: aws.String("arn:1")},
+					{Name: aws.String("share-1"), ResourceShareArn: aws.String("arn:1"), Status: types.ResourceShareStatusActive},
+					{Name: aws.String("share-deleted"), ResourceShareArn: aws.String("arn:deleted"), Status: types.ResourceShareStatusDeleted},
 				},
 				NextToken: aws.String("next-page"),
 			},
 			{
 				ResourceShares: []types.ResourceShare{
-					{Name: aws.String("share-2"), ResourceShareArn: aws.String("arn:2")},
+					{Name: aws.String("share-2"), ResourceShareArn: aws.String("arn:2"), Status: types.ResourceShareStatusActive},
 				},
 			},
 		},
