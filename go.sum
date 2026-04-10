@@ -157,6 +157,8 @@ github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.13 h1:fn05X6eXYxQwZcz
 github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.44.13/go.mod h1:RyXD4m4OOrMULbAgMDjEI7nMYIxCEb+KJ+zBB5ak3Og=
 github.com/aws/aws-sdk-go-v2/service/opensearch v1.45.10 h1:v0VALMz6htCysb4yHVl97EUO1MOhuZZEDz+Fq2lnce0=
 github.com/aws/aws-sdk-go-v2/service/opensearch v1.45.10/go.mod h1:wNaZJ8cVFw8W0kjhatPIcGNFkHNN2hZrAU7SZFldZM0=
+github.com/aws/aws-sdk-go-v2/service/ram v1.36.2 h1:OTuj3yT5iLl37At9ZVUNn+JkD2yZLrZ3MvN9k46CxH4=
+github.com/aws/aws-sdk-go-v2/service/ram v1.36.2/go.mod h1:lrQ7t9FfRKuxQxfJx1PUDnaoSyiq+wGcHATTeW18s34=
 github.com/aws/aws-sdk-go-v2/service/rds v1.93.11 h1:ibWYH+Bc59bDU9YG82HdNIP7MDlFNmlDZp94wKtkUyE=
 github.com/aws/aws-sdk-go-v2/service/rds v1.93.11/go.mod h1:LegGb8OqR5/uLP0RUEqoK2de8FNzDXIejcxpTiGSGVk=
 github.com/aws/aws-sdk-go-v2/service/redshift v1.53.11 h1:3JCZYhdJXv2HPctK3MlaHR4oGWU0/ihN5i3BxAxi110=
