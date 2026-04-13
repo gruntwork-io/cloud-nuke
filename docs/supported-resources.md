@@ -147,60 +147,60 @@ This table shows which filtering features are supported for each resource type i
 
 | Resource Type | Config Key | names_regex | time | tags | timeout |
 |---|---|---|---|---|---|
-| access-analyzer | AccessAnalyzer | ✓ | ✓ | | ✓ |
-| acm | ACM | ✓ | ✓ | | ✓ |
-| acmpca | ACMPCA | | ✓ | | ✓ |
+| access-analyzer | AccessAnalyzer | ✓ | ✓ | ✓ | ✓ |
+| acm | ACM | ✓ | ✓ | ✓ | ✓ |
+| acmpca | ACMPCA | | ✓ | ✓ | ✓ |
 | ami | AMI | ✓ | ✓ | ✓ | ✓ |
 | api-gateway | APIGateway | ✓ | ✓ | ✓ | ✓ |
 | api-gateway-v2 | APIGatewayV2 | ✓ | ✓ | ✓ | ✓ |
-| app-runner-service | AppRunnerService | ✓ | ✓ | | ✓ |
+| app-runner-service | AppRunnerService | ✓ | ✓ | ✓ | ✓ |
 | asg | AutoScalingGroup | ✓ | ✓ | ✓ | ✓ |
 | backup-vault | BackupVault | ✓ | ✓ | ✓ | ✓ |
 | cloudformation-stack | CloudFormationStack | ✓ | ✓ | ✓ | ✓ |
-| cloudfront-distribution | CloudFrontDistribution | ✓ | | | ✓ |
+| cloudfront-distribution | CloudFrontDistribution | ✓ | | ✓ | ✓ |
 | cloudmap-namespace | CloudMapNamespace | ✓ | ✓ | ✓ | ✓ |
 | cloudmap-service | CloudMapService | ✓ | ✓ | ✓ | ✓ |
 | cloudtrail | CloudTrailTrail | ✓ | | ✓ | ✓ |
-| cloudwatch-alarm | CloudWatchAlarm | ✓ | ✓ | | ✓ |
+| cloudwatch-alarm | CloudWatchAlarm | ✓ | ✓ | ✓ | ✓ |
 | cloudwatch-dashboard | CloudWatchDashboard | ✓ | ✓ | | ✓ |
-| cloudwatch-loggroup | CloudWatchLogGroup | ✓ | ✓ | | ✓ |
-| codedeploy-application | CodeDeployApplications | ✓ | ✓ | | ✓ |
+| cloudwatch-loggroup | CloudWatchLogGroup | ✓ | ✓ | ✓ | ✓ |
+| codedeploy-application | CodeDeployApplications | ✓ | ✓ | ✓ | ✓ |
 | config-recorders | ConfigServiceRecorder | ✓ | | | ✓ |
-| config-rules | ConfigServiceRule | ✓ | | | ✓ |
-| data-pipeline | DataPipeline | ✓ | ✓ | | ✓ |
-| data-sync-location | DataSyncLocation | ✓ | | | ✓ |
-| data-sync-task | DataSyncTask | ✓ | | | ✓ |
-| dynamodb | DynamoDB | ✓ | ✓ | | ✓ |
+| config-rules | ConfigServiceRule | ✓ | | ✓ | ✓ |
+| data-pipeline | DataPipeline | ✓ | ✓ | ✓ | ✓ |
+| data-sync-location | DataSyncLocation | ✓ | | ✓ | ✓ |
+| data-sync-task | DataSyncTask | ✓ | | ✓ | ✓ |
+| dynamodb | DynamoDB | ✓ | ✓ | ✓ | ✓ |
 | ebs | EBSVolume | ✓ | ✓ | ✓ | ✓ |
 | ebs-snapshot | Snapshots | | ✓ | ✓ | ✓ |
 | ec2 | EC2 | ✓ | ✓ | ✓ | ✓ |
-| ec2-dedicated-hosts | EC2DedicatedHosts | ✓ | ✓ | | ✓ |
-| ec2-dhcp-option | EC2DHCPOption | | | | ✓ |
+| ec2-dedicated-hosts | EC2DedicatedHosts | ✓ | ✓ | ✓ | ✓ |
+| ec2-dhcp-option | EC2DHCPOption | | | ✓ | ✓ |
 | ec2-endpoint | EC2Endpoint | ✓ | ✓ | ✓ | ✓ |
 | ec2-keypairs | EC2KeyPairs | ✓ | ✓ | ✓ | ✓ |
 | ec2-placement-groups | EC2PlacementGroups | ✓ | ✓ | ✓ | ✓ |
 | ec2-subnet | EC2Subnet | ✓ | ✓ | ✓ | |
-| ecr | ECRRepository | ✓ | ✓ | | ✓ |
+| ecr | ECRRepository | ✓ | ✓ | ✓ | ✓ |
 | ecs-cluster | ECSCluster | ✓ | ✓ | ✓ | ✓ |
 | ecs-service | ECSService | ✓ | ✓ | ✓ | ✓ |
-| efs | ElasticFileSystem | ✓ | ✓ | | ✓ |
+| efs | ElasticFileSystem | ✓ | ✓ | ✓ | ✓ |
 | egress-only-internet-gateway | EgressOnlyInternetGateway | ✓ | | ✓ | ✓ |
 | eip | ElasticIP | ✓ | ✓ | ✓ | ✓ |
 | eks-cluster | EKSCluster | ✓ | ✓ | ✓ | ✓ |
-| elastic-beanstalk | ElasticBeanstalk | ✓ | ✓ | | ✓ |
-| elasticache | ElastiCache | ✓ | ✓ | | ✓ |
-| elasticache-parameter-group | ElastiCacheParameterGroup | ✓ | | | ✓ |
-| elasticache-serverless | ElastiCacheServerless | ✓ | ✓ | | ✓ |
-| elasticache-subnet-group | ElastiCacheSubnetGroup | ✓ | | | ✓ |
-| elb | ELBv1 | ✓ | ✓ | | ✓ |
-| elbv2 | ELBv2 | ✓ | ✓ | | ✓ |
-| event-bridge | EventBridge | ✓ | ✓ | | ✓ |
-| event-bridge-archive | EventBridgeArchive | ✓ | ✓ | | ✓ |
-| event-bridge-rule | EventBridgeRule | ✓ | | | ✓ |
-| event-bridge-schedule | EventBridgeSchedule | ✓ | ✓ | | ✓ |
-| event-bridge-schedule-group | EventBridgeScheduleGroup | ✓ | ✓ | | ✓ |
+| elastic-beanstalk | ElasticBeanstalk | ✓ | ✓ | ✓ | ✓ |
+| elasticache | ElastiCache | ✓ | ✓ | ✓ | ✓ |
+| elasticache-parameter-group | ElastiCacheParameterGroup | ✓ | | ✓ | ✓ |
+| elasticache-serverless | ElastiCacheServerless | ✓ | ✓ | ✓ | ✓ |
+| elasticache-subnet-group | ElastiCacheSubnetGroup | ✓ | | ✓ | ✓ |
+| elb | ELBv1 | ✓ | ✓ | ✓ | ✓ |
+| elbv2 | ELBv2 | ✓ | ✓ | ✓ | ✓ |
+| event-bridge | EventBridge | ✓ | ✓ | ✓ | ✓ |
+| event-bridge-archive | EventBridgeArchive | ✓ | ✓ | ✓ | ✓ |
+| event-bridge-rule | EventBridgeRule | ✓ | | ✓ | ✓ |
+| event-bridge-schedule | EventBridgeSchedule | ✓ | ✓ | ✓ | ✓ |
+| event-bridge-schedule-group | EventBridgeScheduleGroup | ✓ | ✓ | ✓ | ✓ |
 | grafana | Grafana | ✓ | ✓ | ✓ | ✓ |
-| guard-duty | GuardDuty | | ✓ | | ✓ |
+| guard-duty | GuardDuty | | ✓ | ✓ | ✓ |
 | iam-group | IAMGroups | ✓ | ✓ | | ✓ |
 | iam-instance-profile | IAMInstanceProfiles | ✓ | ✓ | ✓ | ✓ |
 | iam-policy | IAMPolicies | ✓ | ✓ | ✓ | ✓ |
@@ -214,17 +214,17 @@ This table shows which filtering features are supported for each resource type i
 | ipam-pool | EC2IPAMPool | ✓ | ✓ | ✓ | ✓ |
 | ipam-resource-discovery | EC2IPAMResourceDiscovery | ✓ | ✓ | ✓ | ✓ |
 | ipam-scope | EC2IPAMScope | ✓ | ✓ | ✓ | ✓ |
-| kinesis-firehose | KinesisFirehose | ✓ | | | ✓ |
-| kinesis-stream | KinesisStream | ✓ | | | ✓ |
-| kms-customer-key | KMSCustomerKeys | ✓ | ✓ | | |
+| kinesis-firehose | KinesisFirehose | ✓ | | ✓ | ✓ |
+| kinesis-stream | KinesisStream | ✓ | | ✓ | ✓ |
+| kms-customer-key | KMSCustomerKeys | ✓ | ✓ | ✓ | |
 | lambda | LambdaFunction | ✓ | ✓ | ✓ | ✓ |
-| lambda-layer | LambdaLayer | ✓ | ✓ | | ✓ |
+| lambda-layer | LambdaLayer | ✓ | ✓ | ✓ | ✓ |
 | launch-configuration | LaunchConfiguration | ✓ | ✓ | | ✓ |
 | launch-template | LaunchTemplate | ✓ | ✓ | ✓ | ✓ |
-| macie-member | MacieMember | | ✓ | | ✓ |
+| macie-member | MacieMember | | ✓ | ✓ | ✓ |
 | managed-prometheus | ManagedPrometheus | ✓ | ✓ | ✓ | ✓ |
 | mq-broker | MQBroker | ✓ | ✓ | ✓ | ✓ |
-| msk-cluster | MSKCluster | ✓ | ✓ | | ✓ |
+| msk-cluster | MSKCluster | ✓ | ✓ | ✓ | ✓ |
 | nat-gateway | NATGateway | ✓ | ✓ | ✓ | ✓ |
 | network-acl | NetworkACL | ✓ | ✓ | ✓ | ✓ |
 | network-firewall | NetworkFirewall | ✓ | ✓ | ✓ | |
@@ -234,18 +234,18 @@ This table shows which filtering features are supported for each resource type i
 | network-firewall-tls-config | NetworkFirewallTLSConfig | ✓ | ✓ | ✓ | |
 | network-interface | NetworkInterface | ✓ | ✓ | ✓ | ✓ |
 | oidc-provider | OIDCProvider | ✓ | ✓ | ✓ | ✓ |
-| opensearch-domain | OpenSearchDomain | ✓ | ✓ | | ✓ |
+| opensearch-domain | OpenSearchDomain | ✓ | ✓ | ✓ | ✓ |
 | rds-cluster | DBClusters | ✓ | ✓ | ✓ | ✓ |
-| rds-global-cluster | DBGlobalClusters | ✓ | | | ✓ |
-| rds-global-cluster-membership | DBGlobalClusterMemberships | ✓ | | | ✓ |
+| rds-global-cluster | DBGlobalClusters | ✓ | | ✓ | ✓ |
+| rds-global-cluster-membership | DBGlobalClusterMemberships | ✓ | | ✓ | ✓ |
 | rds-instance | DBInstances | ✓ | ✓ | ✓ | ✓ |
-| rds-parameter-group | RDSParameterGroup | ✓ | | | ✓ |
-| rds-proxy | RDSProxy | ✓ | ✓ | | ✓ |
+| rds-parameter-group | RDSParameterGroup | ✓ | | ✓ | ✓ |
+| rds-proxy | RDSProxy | ✓ | ✓ | ✓ | ✓ |
 | rds-cluster-snapshot | RDSClusterSnapshot | ✓ | ✓ | ✓ | ✓ |
 | rds-snapshot | RDSSnapshot | ✓ | ✓ | ✓ | ✓ |
 | rds-subnet-group | DBSubnetGroups | ✓ | | ✓ | ✓ |
-| redshift | Redshift | ✓ | ✓ | | ✓ |
-| redshift-snapshot-copy-grant | RedshiftSnapshotCopyGrant | ✓ | | | ✓ |
+| redshift | Redshift | ✓ | ✓ | ✓ | ✓ |
+| redshift-snapshot-copy-grant | RedshiftSnapshotCopyGrant | ✓ | | ✓ | ✓ |
 | resource-share | ResourceShare | ✓ | ✓ | ✓ | ✓ |
 | route-table | RouteTable | ✓ | ✓ | ✓ | ✓ |
 | route53-cidr-collection | Route53CIDRCollection | ✓ | | | |
@@ -257,27 +257,27 @@ This table shows which filtering features are supported for each resource type i
 | s3-object-lambda-access-point | S3ObjectLambdaAccessPoint | ✓ | | | ✓ |
 | sagemaker-endpoint | SageMakerEndpoint | ✓ | ✓ | ✓ | ✓ |
 | sagemaker-endpoint-config | SageMakerEndpointConfig | ✓ | ✓ | ✓ | ✓ |
-| sagemaker-notebook-instance | SageMakerNotebook | ✓ | ✓ | | ✓ |
-| sagemaker-studio | SageMakerStudioDomain | ✓ | ✓ | | ✓ |
+| sagemaker-notebook-instance | SageMakerNotebook | ✓ | ✓ | ✓ | ✓ |
+| sagemaker-studio | SageMakerStudioDomain | ✓ | ✓ | ✓ | ✓ |
 | secrets-manager | SecretsManager | ✓ | ✓ | ✓ | ✓ |
 | security-group | SecurityGroup | ✓ | ✓ | ✓ | |
-| security-hub | SecurityHub | | ✓ | | ✓ |
+| security-hub | SecurityHub | | ✓ | ✓ | ✓ |
 | ses-configuration-set | SESConfigurationSet | ✓ | | | ✓ |
 | ses-email-template | SESEmailTemplates | ✓ | ✓ | | ✓ |
 | ses-identity | SESIdentity | ✓ | | | ✓ |
 | ses-receipt-filter | SESReceiptFilter | ✓ | | | ✓ |
 | ses-receipt-rule-set | SESReceiptRuleSet | ✓ | ✓ | | ✓ |
-| sns-topic | SNS | ✓ | ✓ | | ✓ |
-| sqs | SQS | ✓ | ✓ | | ✓ |
+| sns-topic | SNS | ✓ | ✓ | ✓ | ✓ |
+| sqs | SQS | ✓ | ✓ | ✓ | ✓ |
 | ssm-parameter | SSMParameter | ✓ | ✓ | ✓ | ✓ |
-| transit-gateway | TransitGateway | ✓ | ✓ | | ✓ |
-| transit-gateway-attachment | TransitGatewayVPCAttachment | | ✓ | | ✓ |
-| transit-gateway-peering-attachment | TransitGatewayPeeringAttachment | | ✓ | | ✓ |
-| transit-gateway-route-table | TransitGatewayRouteTable | | ✓ | | ✓ |
+| transit-gateway | TransitGateway | ✓ | ✓ | ✓ | ✓ |
+| transit-gateway-attachment | TransitGatewayVPCAttachment | | ✓ | ✓ | ✓ |
+| transit-gateway-peering-attachment | TransitGatewayPeeringAttachment | | ✓ | ✓ | ✓ |
+| transit-gateway-route-table | TransitGatewayRouteTable | | ✓ | ✓ | ✓ |
 | vpc | VPC | ✓ | ✓ | ✓ | |
-| vpc-lattice-service | VPCLatticeService | ✓ | ✓ | | ✓ |
-| vpc-lattice-service-network | VPCLatticeServiceNetwork | ✓ | ✓ | | ✓ |
-| vpc-lattice-target-group | VPCLatticeTargetGroup | ✓ | ✓ | | ✓ |
+| vpc-lattice-service | VPCLatticeService | ✓ | ✓ | ✓ | ✓ |
+| vpc-lattice-service-network | VPCLatticeServiceNetwork | ✓ | ✓ | ✓ | ✓ |
+| vpc-lattice-target-group | VPCLatticeTargetGroup | ✓ | ✓ | ✓ | ✓ |
 | vpc-peering-connection | VPCPeeringConnection | ✓ | ✓ | ✓ | ✓ |
 
 ## GCP Supported Resources

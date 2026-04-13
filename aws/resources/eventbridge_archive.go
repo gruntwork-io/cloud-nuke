@@ -8,11 +8,14 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // EventBridgeArchiveAPI defines the interface for EventBridge Archive operations.
 type EventBridgeArchiveAPI interface {
 	ListArchives(ctx context.Context, params *eventbridge.ListArchivesInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListArchivesOutput, error)
+	DescribeArchive(ctx context.Context, params *eventbridge.DescribeArchiveInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeArchiveOutput, error)
+	ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
 	DeleteArchive(ctx context.Context, params *eventbridge.DeleteArchiveInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteArchiveOutput, error)
 }
 
@@ -48,9 +51,32 @@ func listEventBridgeArchives(ctx context.Context, client EventBridgeArchiveAPI, 
 		}
 
 		for _, archive := range archives.Archives {
+			describeOutput, err := client.DescribeArchive(ctx, &eventbridge.DescribeArchiveInput{
+				ArchiveName: archive.ArchiveName,
+			})
+			if err != nil {
+				logging.Debugf("[Event Bridge Archives] Failed to describe archive %s: %s", aws.ToString(archive.ArchiveName), err)
+				continue
+			}
+
+			if describeOutput.ArchiveArn == nil {
+				continue
+			}
+
+			tagsOutput, err := client.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
+				ResourceARN: describeOutput.ArchiveArn,
+			})
+			if err != nil {
+				logging.Debugf("[Event Bridge Archives] Failed to list tags for archive %s: %s", aws.ToString(archive.ArchiveName), err)
+				continue
+			}
+
+			tags := util.ConvertEventBridgeTagsToMap(tagsOutput.Tags)
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: archive.ArchiveName,
 				Time: archive.CreationTime,
+				Tags: tags,
 			}) {
 				identifiers = append(identifiers, archive.ArchiveName)
 			}
