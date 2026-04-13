@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"errors"
+	"regexp"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ type mockMacieClient struct {
 	GetMacieSessionOutput                      macie2.GetMacieSessionOutput
 	GetMacieSessionError                       error
 	ListMembersOutput                          macie2.ListMembersOutput
+	ListTagsForResourceOutput                  macie2.ListTagsForResourceOutput
 	DisassociateMemberOutput                   macie2.DisassociateMemberOutput
 	DeleteMemberOutput                         macie2.DeleteMemberOutput
 	GetAdministratorAccountOutput              macie2.GetAdministratorAccountOutput
@@ -33,6 +35,10 @@ func (m *mockMacieClient) GetMacieSession(ctx context.Context, params *macie2.Ge
 
 func (m *mockMacieClient) ListMembers(ctx context.Context, params *macie2.ListMembersInput, optFns ...func(*macie2.Options)) (*macie2.ListMembersOutput, error) {
 	return &m.ListMembersOutput, nil
+}
+
+func (m *mockMacieClient) ListTagsForResource(ctx context.Context, params *macie2.ListTagsForResourceInput, optFns ...func(*macie2.Options)) (*macie2.ListTagsForResourceOutput, error) {
+	return &m.ListTagsForResourceOutput, nil
 }
 
 func (m *mockMacieClient) DisassociateMember(ctx context.Context, params *macie2.DisassociateMemberInput, optFns ...func(*macie2.Options)) (*macie2.DisassociateMemberOutput, error) {
@@ -69,8 +75,9 @@ func TestListMacieSessions(t *testing.T) {
 		"enabled session - no filter": {
 			mock: &mockMacieClient{
 				GetMacieSessionOutput: macie2.GetMacieSessionOutput{
-					Status:    types.MacieStatusEnabled,
-					CreatedAt: aws.Time(now),
+					Status:      types.MacieStatusEnabled,
+					CreatedAt:   aws.Time(now),
+					ServiceRole: aws.String("arn:aws:iam::123456789012:role/aws-service-role/macie.amazonaws.com/AWSServiceRoleForAmazonMacie"),
 				},
 			},
 			configObj: config.ResourceType{},
@@ -174,15 +181,56 @@ func TestListMacieSessions_TimeInclusionFilter(t *testing.T) {
 
 	mock := &mockMacieClient{
 		GetMacieSessionOutput: macie2.GetMacieSessionOutput{
-			Status:    types.MacieStatusEnabled,
-			CreatedAt: aws.Time(now),
+			Status:      types.MacieStatusEnabled,
+			CreatedAt:   aws.Time(now),
+			ServiceRole: aws.String("arn:aws:iam::123456789012:role/aws-service-role/macie.amazonaws.com/AWSServiceRoleForAmazonMacie"),
 		},
 	}
 
 	// Test that time inclusion works - include sessions created before now+1h
-	results, err := listMacieSessions(context.Background(), mock, resource.Scope{}, config.ResourceType{
+	results, err := listMacieSessions(context.Background(), mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{
 		IncludeRule: config.FilterRule{
 			TimeBefore: aws.Time(now.Add(1 * time.Hour)),
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "ENABLED", aws.ToString(results[0]))
+}
+
+func TestListMacieSessions_TagInclusionFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	mock := &mockMacieClient{
+		GetMacieSessionOutput: macie2.GetMacieSessionOutput{
+			Status:      types.MacieStatusEnabled,
+			CreatedAt:   aws.Time(now),
+			ServiceRole: aws.String("arn:aws:iam::123456789012:role/aws-service-role/macie.amazonaws.com/AWSServiceRoleForAmazonMacie"),
+		},
+		ListTagsForResourceOutput: macie2.ListTagsForResourceOutput{
+			Tags: map[string]string{"env": "production"},
+		},
+	}
+
+	// Should be excluded when include filter requires "development"
+	results, err := listMacieSessions(context.Background(), mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{
+				"env": {RE: *regexp.MustCompile("^development$")},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Empty(t, results)
+
+	// Should be included when include filter matches
+	results, err = listMacieSessions(context.Background(), mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{
+		IncludeRule: config.FilterRule{
+			Tags: map[string]config.Expression{
+				"env": {RE: *regexp.MustCompile("^production$")},
+			},
 		},
 	})
 	require.NoError(t, err)

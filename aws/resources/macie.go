@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -16,6 +17,7 @@ import (
 type MacieMemberAPI interface {
 	GetMacieSession(ctx context.Context, params *macie2.GetMacieSessionInput, optFns ...func(*macie2.Options)) (*macie2.GetMacieSessionOutput, error)
 	ListMembers(ctx context.Context, params *macie2.ListMembersInput, optFns ...func(*macie2.Options)) (*macie2.ListMembersOutput, error)
+	ListTagsForResource(ctx context.Context, params *macie2.ListTagsForResourceInput, optFns ...func(*macie2.Options)) (*macie2.ListTagsForResourceOutput, error)
 	DisassociateMember(ctx context.Context, params *macie2.DisassociateMemberInput, optFns ...func(*macie2.Options)) (*macie2.DisassociateMemberOutput, error)
 	DeleteMember(ctx context.Context, params *macie2.DeleteMemberInput, optFns ...func(*macie2.Options)) (*macie2.DeleteMemberOutput, error)
 	GetAdministratorAccount(ctx context.Context, params *macie2.GetAdministratorAccountInput, optFns ...func(*macie2.Options)) (*macie2.GetAdministratorAccountOutput, error)
@@ -55,8 +57,29 @@ func listMacieSessions(ctx context.Context, client MacieMemberAPI, scope resourc
 		return nil, errors.WithStackTrace(err)
 	}
 
+	// Fetch tags using the ServiceRole ARN to derive the Macie session ARN
+	var tags map[string]string
+	if output.ServiceRole != nil {
+		// ServiceRole ARN format: arn:aws:iam::<account>:role/aws-service-role/macie.amazonaws.com/...
+		// Macie session ARN format: arn:aws:macie2:<region>:<account>:
+		// Extract account ID from the service role ARN
+		parts := strings.Split(aws.ToString(output.ServiceRole), ":")
+		if len(parts) >= 5 {
+			accountID := parts[4]
+			macieArn := fmt.Sprintf("arn:aws:macie2:%s:%s:", scope.Region, accountID)
+			tagsOutput, err := client.ListTagsForResource(ctx, &macie2.ListTagsForResourceInput{
+				ResourceArn: aws.String(macieArn),
+			})
+			if err != nil {
+				logging.Debugf("[Macie] Failed to list tags: %s", err)
+			} else if tagsOutput != nil {
+				tags = tagsOutput.Tags
+			}
+		}
+	}
+
 	// Use status as identifier since Macie doesn't have a unique resource ID
-	if cfg.ShouldInclude(config.ResourceValue{Time: output.CreatedAt}) {
+	if cfg.ShouldInclude(config.ResourceValue{Time: output.CreatedAt, Tags: tags}) {
 		return []*string{aws.String(string(output.Status))}, nil
 	}
 
