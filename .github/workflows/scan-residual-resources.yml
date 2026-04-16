@@ -1,0 +1,107 @@
+# Weekly scan of residual AWS resources left behind by CI integration tests.
+#
+# Downloads cloud-nuke result artifacts from each repo's CircleCI nuke job
+# AND from the account-wide guardrail nuke runs (PhxDevOps), aggregates
+# across the past week, and posts a Slack summary.
+#
+# Required secrets:
+#   CIRCLECI_TOKEN    – CircleCI personal API token with read access
+#   SLACK_WEBHOOK_URL – Slack incoming webhook URL (shared with nuke workflows)
+
+name: "Scan: Residual Resources"
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Weekly, Monday 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GH_ORG: gruntwork-io
+  CIRCLECI_API: https://circleci.com/api/v2
+  # Repos that run scheduled cloud-nuke cleanup via CircleCI.
+  # Keep sorted alphabetically for easy maintenance.
+  REPOS: >-
+    terraform-aws-architecture-catalog
+    terraform-aws-asg
+    terraform-aws-cache
+    terraform-aws-ci
+    terraform-aws-cis-service-catalog
+    terraform-aws-control-tower
+    terraform-aws-data-storage
+    terraform-aws-ecs
+    terraform-aws-eks
+    terraform-aws-lambda
+    terraform-aws-load-balancer
+    terraform-aws-messaging
+    terraform-aws-monitoring
+    terraform-aws-openvpn
+    terraform-aws-security
+    terraform-aws-server
+    terraform-aws-service-catalog
+    terraform-aws-static-assets
+    terraform-aws-utilities
+    terraform-aws-vpc
+
+jobs:
+  scan:
+    name: Scan residual resources
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect per-repo artifacts from CircleCI
+        env:
+          CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$CIRCLECI_TOKEN" ]; then
+            echo "::error::CIRCLECI_TOKEN secret is not set"
+            exit 1
+          fi
+
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Circle-Token: $CIRCLECI_TOKEN" "${CIRCLECI_API}/me")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::CircleCI API returned $HTTP_CODE — check CIRCLECI_TOKEN"
+            exit 1
+          fi
+
+          mkdir -p /tmp/scan
+          printf '%s\n' $REPOS | xargs -P4 -I{} \
+            .github/scripts/scan/collect-artifacts.sh {}
+
+      - name: Collect account-wide guardrail artifacts from GHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/guardrail
+
+          # Download artifacts from recent PhxDevOps nuke runs (past 7 days)
+          for run_id in $(gh run list --repo gruntwork-io/cloud-nuke \
+            --workflow nuke-phxdevops.yml --limit 56 \
+            --json databaseId --jq '.[].databaseId'); do
+            gh run download "$run_id" --repo gruntwork-io/cloud-nuke \
+              --dir "/tmp/guardrail/$run_id" 2>/dev/null || true
+          done
+
+      - name: Upload collected artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results
+          path: |
+            /tmp/scan/
+            /tmp/guardrail/
+          retention-days: 7
+
+      - name: Aggregate and notify
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: .github/scripts/scan/aggregate-and-notify.sh
