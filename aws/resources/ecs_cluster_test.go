@@ -17,13 +17,15 @@ import (
 
 type mockedEC2Cluster struct {
 	ECSClustersAPI
-	DescribeClustersOutput    ecs.DescribeClustersOutput
-	DeleteClusterOutput       ecs.DeleteClusterOutput
-	ListClustersOutput        ecs.ListClustersOutput
-	ListTagsForResourceOutput ecs.ListTagsForResourceOutput
-	ListTasksOutput           ecs.ListTasksOutput
-	StopTaskOutput            ecs.StopTaskOutput
-	TagResourceOutput         ecs.TagResourceOutput
+	DescribeClustersOutput             ecs.DescribeClustersOutput
+	DeleteClusterOutput                ecs.DeleteClusterOutput
+	DeregisterContainerInstanceOutput  ecs.DeregisterContainerInstanceOutput
+	ListClustersOutput                 ecs.ListClustersOutput
+	ListContainerInstancesOutput       ecs.ListContainerInstancesOutput
+	ListTagsForResourceOutput          ecs.ListTagsForResourceOutput
+	ListTasksOutput                    ecs.ListTasksOutput
+	StopTaskOutput                     ecs.StopTaskOutput
+	TagResourceOutput                  ecs.TagResourceOutput
 }
 
 func (m mockedEC2Cluster) DescribeClusters(ctx context.Context, params *ecs.DescribeClustersInput, optFns ...func(*ecs.Options)) (*ecs.DescribeClustersOutput, error) {
@@ -32,6 +34,14 @@ func (m mockedEC2Cluster) DescribeClusters(ctx context.Context, params *ecs.Desc
 
 func (m mockedEC2Cluster) DeleteCluster(ctx context.Context, params *ecs.DeleteClusterInput, optFns ...func(*ecs.Options)) (*ecs.DeleteClusterOutput, error) {
 	return &m.DeleteClusterOutput, nil
+}
+
+func (m mockedEC2Cluster) DeregisterContainerInstance(ctx context.Context, params *ecs.DeregisterContainerInstanceInput, optFns ...func(*ecs.Options)) (*ecs.DeregisterContainerInstanceOutput, error) {
+	return &m.DeregisterContainerInstanceOutput, nil
+}
+
+func (m mockedEC2Cluster) ListContainerInstances(ctx context.Context, params *ecs.ListContainerInstancesInput, optFns ...func(*ecs.Options)) (*ecs.ListContainerInstancesOutput, error) {
+	return &m.ListContainerInstancesOutput, nil
 }
 
 func (m mockedEC2Cluster) ListClusters(ctx context.Context, params *ecs.ListClustersInput, optFns ...func(*ecs.Options)) (*ecs.ListClustersOutput, error) {
@@ -437,6 +447,33 @@ func TestStopClusterRunningTasksWithTasks(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeregisterClusterContainerInstances(t *testing.T) {
+	t.Parallel()
+
+	mock := mockedEC2Cluster{
+		ListContainerInstancesOutput: ecs.ListContainerInstancesOutput{
+			ContainerInstanceArns: []string{
+				"arn:aws:ecs:us-east-1:123456789012:container-instance/cluster1/instance-1",
+				"arn:aws:ecs:us-east-1:123456789012:container-instance/cluster1/instance-2",
+			},
+		},
+	}
+
+	err := deregisterClusterContainerInstances(context.Background(), mock, aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"))
+	require.NoError(t, err)
+}
+
+func TestDeregisterClusterContainerInstances_EmptyList(t *testing.T) {
+	t.Parallel()
+
+	mock := mockedEC2Cluster{
+		ListContainerInstancesOutput: ecs.ListContainerInstancesOutput{ContainerInstanceArns: []string{}},
+	}
+
+	err := deregisterClusterContainerInstances(context.Background(), mock, aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1"))
+	require.NoError(t, err)
+}
+
 func TestECSClustersMultiStepDeleter(t *testing.T) {
 	t.Parallel()
 
@@ -448,10 +485,15 @@ func TestECSClustersMultiStepDeleter(t *testing.T) {
 				"task-arn-002",
 			},
 		},
+		ListContainerInstancesOutput: ecs.ListContainerInstancesOutput{
+			ContainerInstanceArns: []string{
+				"arn:aws:ecs:us-east-1:123456789012:container-instance/cluster1/instance-1",
+			},
+		},
 		StopTaskOutput: ecs.StopTaskOutput{},
 	}
 
-	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster)
+	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deregisterClusterContainerInstances, deleteECSCluster)
 	results := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecs-cluster", []*string{aws.String("arn:aws:ecs:us-east-1:123456789012:cluster/cluster1")})
 	require.Len(t, results, 1)
 	for _, result := range results {
@@ -464,7 +506,7 @@ func TestECSClustersMultiStepDeleter_EmptyList(t *testing.T) {
 
 	mock := mockedEC2Cluster{}
 
-	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster)
+	nuker := resource.MultiStepDeleter(stopClusterRunningTasks, deregisterClusterContainerInstances, deleteECSCluster)
 	results := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "ecs-cluster", []*string{})
 	require.Len(t, results, 0)
 }
