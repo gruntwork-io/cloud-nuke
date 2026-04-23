@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -20,47 +19,43 @@ type EC2IPAMCustomAllocationAPI interface {
 	ReleaseIpamPoolAllocation(ctx context.Context, params *ec2.ReleaseIpamPoolAllocationInput, optFns ...func(*ec2.Options)) (*ec2.ReleaseIpamPoolAllocationOutput, error)
 }
 
-// ipamCustomAllocationState holds runtime state needed for custom allocation operations.
-// This is stored alongside the Resource to track pool-allocation mappings during listing and deletion.
-type ipamCustomAllocationState struct {
-	mu                   sync.RWMutex
-	poolAndAllocationMap map[string]allocationInfo
-}
-
 type allocationInfo struct {
 	PoolID string
 	Cidr   string
 }
 
-var customAllocationState = &ipamCustomAllocationState{
-	poolAndAllocationMap: make(map[string]allocationInfo),
-}
-
 // NewEC2IPAMCustomAllocation creates a new EC2 IPAM Custom Allocation resource using the generic resource pattern.
+// Pool+CIDR metadata discovered during listing is required again at deletion time (ReleaseIpamPoolAllocation needs
+// both), so it is stashed in a per-instance map captured by closure. Per-instance scoping matters because
+// GetAndInitRegisteredResources creates a fresh instance for each region — sharing one map across regions would
+// let later regions' Init calls overwrite earlier regions' metadata and break deletion.
 func NewEC2IPAMCustomAllocation() AwsResource {
+	poolAndAllocationMap := make(map[string]allocationInfo)
+
 	return NewAwsResource(&resource.Resource[EC2IPAMCustomAllocationAPI]{
 		ResourceTypeName: "ipam-custom-allocation",
 		BatchSize:        1000,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMCustomAllocationAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)
-			// Reset state on init
-			customAllocationState.mu.Lock()
-			customAllocationState.poolAndAllocationMap = make(map[string]allocationInfo)
-			customAllocationState.mu.Unlock()
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.EC2IPAMCustomAllocation
 		},
-		Lister:             listEC2IPAMCustomAllocations,
-		Nuker:              resource.SimpleBatchDeleter(deleteEC2IPAMCustomAllocation),
-		PermissionVerifier: verifyEC2IPAMCustomAllocationPermission,
+		Lister: func(ctx context.Context, client EC2IPAMCustomAllocationAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+			return listEC2IPAMCustomAllocations(ctx, client, poolAndAllocationMap)
+		},
+		Nuker: resource.SimpleBatchDeleter(func(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string) error {
+			return deleteEC2IPAMCustomAllocation(ctx, client, id, poolAndAllocationMap)
+		}),
+		PermissionVerifier: func(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string) error {
+			return verifyEC2IPAMCustomAllocationPermission(ctx, client, id, poolAndAllocationMap)
+		},
 	})
 }
 
 // listEC2IPAMCustomAllocations retrieves all custom allocations across all IPAM pools.
-func listEC2IPAMCustomAllocations(ctx context.Context, client EC2IPAMCustomAllocationAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	// First, get all pools
+func listEC2IPAMCustomAllocations(ctx context.Context, client EC2IPAMCustomAllocationAPI, poolAndAllocationMap map[string]allocationInfo) ([]*string, error) {
 	pools, err := getPools(ctx, client)
 	if err != nil {
 		return nil, err
@@ -68,7 +63,6 @@ func listEC2IPAMCustomAllocations(ctx context.Context, client EC2IPAMCustomAlloc
 
 	var result []*string
 
-	// For each pool, get all custom allocations
 	for _, poolID := range pools {
 		paginator := ec2.NewGetIpamPoolAllocationsPaginator(client, &ec2.GetIpamPoolAllocationsInput{
 			MaxResults: aws.Int32(1000),
@@ -85,13 +79,10 @@ func listEC2IPAMCustomAllocations(ctx context.Context, client EC2IPAMCustomAlloc
 			for _, allocation := range page.IpamPoolAllocations {
 				if allocation.ResourceType == types.IpamPoolAllocationResourceTypeCustom {
 					result = append(result, allocation.IpamPoolAllocationId)
-					// Store pool and CIDR info for later use during deletion
-					customAllocationState.mu.Lock()
-					customAllocationState.poolAndAllocationMap[aws.ToString(allocation.IpamPoolAllocationId)] = allocationInfo{
+					poolAndAllocationMap[aws.ToString(allocation.IpamPoolAllocationId)] = allocationInfo{
 						PoolID: aws.ToString(poolID),
 						Cidr:   aws.ToString(allocation.Cidr),
 					}
-					customAllocationState.mu.Unlock()
 				}
 			}
 		}
@@ -123,11 +114,8 @@ func getPools(ctx context.Context, client EC2IPAMCustomAllocationAPI) ([]*string
 }
 
 // verifyEC2IPAMCustomAllocationPermission performs a dry-run release to check permissions.
-func verifyEC2IPAMCustomAllocationPermission(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string) error {
-	customAllocationState.mu.RLock()
-	info, ok := customAllocationState.poolAndAllocationMap[aws.ToString(id)]
-	customAllocationState.mu.RUnlock()
-
+func verifyEC2IPAMCustomAllocationPermission(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string, poolAndAllocationMap map[string]allocationInfo) error {
+	info, ok := poolAndAllocationMap[aws.ToString(id)]
 	if !ok {
 		return fmt.Errorf("unable to find pool allocation info for %s", aws.ToString(id))
 	}
@@ -142,11 +130,8 @@ func verifyEC2IPAMCustomAllocationPermission(ctx context.Context, client EC2IPAM
 }
 
 // deleteEC2IPAMCustomAllocation releases a single custom allocation.
-func deleteEC2IPAMCustomAllocation(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string) error {
-	customAllocationState.mu.RLock()
-	info, ok := customAllocationState.poolAndAllocationMap[aws.ToString(id)]
-	customAllocationState.mu.RUnlock()
-
+func deleteEC2IPAMCustomAllocation(ctx context.Context, client EC2IPAMCustomAllocationAPI, id *string, poolAndAllocationMap map[string]allocationInfo) error {
+	info, ok := poolAndAllocationMap[aws.ToString(id)]
 	if !ok {
 		return fmt.Errorf("unable to find pool allocation info for %s", aws.ToString(id))
 	}
