@@ -146,6 +146,16 @@ func IsWarningError(err error) bool {
 			"OperationNotPermitted":
 			return true
 		}
+		// ENI still attached to a resource being deleted in the same run (NAT
+		// gateway, Lambda, VPC endpoint, etc.). AWS returns the generic
+		// InvalidParameterValue code here, so we have to discriminate on the
+		// message. Same ordering/dependency pattern as DependencyViolation —
+		// the next run succeeds once the attaching resource is gone.
+		if apiErr.ErrorCode() == "InvalidParameterValue" &&
+			strings.Contains(apiErr.ErrorMessage(), "Network interface") &&
+			strings.Contains(apiErr.ErrorMessage(), "currently in use") {
+			return true
+		}
 		// Already-deleted errors — any error code containing "NotFound"
 		if strings.Contains(strings.ToLower(apiErr.ErrorCode()), "notfound") {
 			return true

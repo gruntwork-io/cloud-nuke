@@ -140,6 +140,17 @@ func TestIsWarningError(t *testing.T) {
 		require.True(t, IsWarningError(&smithy.GenericAPIError{Code: code}), code)
 	}
 
+	// ENI still attached to a resource being deleted in the same run — warning
+	require.True(t, IsWarningError(&smithy.GenericAPIError{
+		Code:    "InvalidParameterValue",
+		Message: "Network interface 'eni-038687eab4e11c405' is currently in use.",
+	}))
+	// Generic InvalidParameterValue without the ENI signature — NOT a warning
+	require.False(t, IsWarningError(&smithy.GenericAPIError{
+		Code:    "InvalidParameterValue",
+		Message: "some other validation failure",
+	}))
+
 	// SCP-denied errors are warnings
 	require.True(t, IsWarningError(&smithy.GenericAPIError{
 		Code:    "AccessDeniedException",
