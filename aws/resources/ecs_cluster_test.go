@@ -17,15 +17,15 @@ import (
 
 type mockedEC2Cluster struct {
 	ECSClustersAPI
-	DescribeClustersOutput             ecs.DescribeClustersOutput
-	DeleteClusterOutput                ecs.DeleteClusterOutput
-	DeregisterContainerInstanceOutput  ecs.DeregisterContainerInstanceOutput
-	ListClustersOutput                 ecs.ListClustersOutput
-	ListContainerInstancesOutput       ecs.ListContainerInstancesOutput
-	ListTagsForResourceOutput          ecs.ListTagsForResourceOutput
-	ListTasksOutput                    ecs.ListTasksOutput
-	StopTaskOutput                     ecs.StopTaskOutput
-	TagResourceOutput                  ecs.TagResourceOutput
+	DescribeClustersOutput            ecs.DescribeClustersOutput
+	DeleteClusterOutput               ecs.DeleteClusterOutput
+	DeregisterContainerInstanceOutput ecs.DeregisterContainerInstanceOutput
+	ListClustersOutput                ecs.ListClustersOutput
+	ListContainerInstancesOutput      ecs.ListContainerInstancesOutput
+	ListTagsForResourceOutput         ecs.ListTagsForResourceOutput
+	ListTasksOutput                   ecs.ListTasksOutput
+	StopTaskOutput                    ecs.StopTaskOutput
+	TagResourceOutput                 ecs.TagResourceOutput
 }
 
 func (m mockedEC2Cluster) DescribeClusters(ctx context.Context, params *ecs.DescribeClustersInput, optFns ...func(*ecs.Options)) (*ecs.DescribeClustersOutput, error) {
