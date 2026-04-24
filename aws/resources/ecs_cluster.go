@@ -18,7 +18,9 @@ import (
 type ECSClustersAPI interface {
 	DescribeClusters(ctx context.Context, params *ecs.DescribeClustersInput, optFns ...func(*ecs.Options)) (*ecs.DescribeClustersOutput, error)
 	DeleteCluster(ctx context.Context, params *ecs.DeleteClusterInput, optFns ...func(*ecs.Options)) (*ecs.DeleteClusterOutput, error)
+	DeregisterContainerInstance(ctx context.Context, params *ecs.DeregisterContainerInstanceInput, optFns ...func(*ecs.Options)) (*ecs.DeregisterContainerInstanceOutput, error)
 	ListClusters(ctx context.Context, params *ecs.ListClustersInput, optFns ...func(*ecs.Options)) (*ecs.ListClustersOutput, error)
+	ListContainerInstances(ctx context.Context, params *ecs.ListContainerInstancesInput, optFns ...func(*ecs.Options)) (*ecs.ListContainerInstancesOutput, error)
 	ListTagsForResource(ctx context.Context, params *ecs.ListTagsForResourceInput, optFns ...func(*ecs.Options)) (*ecs.ListTagsForResourceOutput, error)
 	ListTasks(ctx context.Context, params *ecs.ListTasksInput, optFns ...func(*ecs.Options)) (*ecs.ListTasksOutput, error)
 	StopTask(ctx context.Context, params *ecs.StopTaskInput, optFns ...func(*ecs.Options)) (*ecs.StopTaskOutput, error)
@@ -46,7 +48,7 @@ func NewECSClusters() AwsResource {
 			return c.ECSCluster
 		},
 		Lister: listECSClusters,
-		Nuker:  resource.MultiStepDeleter(stopClusterRunningTasks, deleteECSCluster),
+		Nuker:  resource.MultiStepDeleter(stopClusterRunningTasks, deregisterClusterContainerInstances, deleteECSCluster),
 	})
 }
 
@@ -238,6 +240,36 @@ func stopClusterRunningTasks(ctx context.Context, client ECSClustersAPI, cluster
 		}
 		logging.Debugf("[TASK] Success, stopped task %v", task)
 	}
+	return nil
+}
+
+// deregisterClusterContainerInstances force-deregisters every container instance registered to the
+// cluster. DeleteCluster fails with ClusterContainsContainerInstancesException when EC2-launch-type
+// clusters still have instances registered, so this must run before deleteECSCluster.
+func deregisterClusterContainerInstances(ctx context.Context, client ECSClustersAPI, clusterArn *string) error {
+	paginator := ecs.NewListContainerInstancesPaginator(client, &ecs.ListContainerInstancesInput{
+		Cluster: clusterArn,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, instanceArn := range page.ContainerInstanceArns {
+			_, err := client.DeregisterContainerInstance(ctx, &ecs.DeregisterContainerInstanceInput{
+				Cluster:           clusterArn,
+				ContainerInstance: aws.String(instanceArn),
+				Force:             aws.Bool(true),
+			})
+			if err != nil {
+				logging.Debugf("[ECS] Unable to deregister container instance %s from cluster %s: %v", instanceArn, aws.ToString(clusterArn), err)
+				return errors.WithStackTrace(err)
+			}
+		}
+	}
+
 	return nil
 }
 
