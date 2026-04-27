@@ -108,6 +108,8 @@ IAMPolicies:
       - "^ecs-prod-.*"
       - "^ecs-stage-.*"
       - "^edr-.*"
+      # Cost alerting (auto-generated logging policy from terraform-aws-lambda)
+      - "^cost-anomaly-alerts-to-slack-logging.*"
       # Service policies
       - "^AWSConfigSNSPublishPolicy$"
       - "^AmazonEKSFullAccess$"
