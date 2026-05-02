@@ -569,9 +569,7 @@ func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
 	return true
 }
 
-// hasTimeFilter reports whether any time-based include/exclude filter is configured
-// for this resource type. When a filter is set, callers must verify the resource has
-// a known creation time before deciding whether to include it.
+// hasTimeFilter reports whether any time-based filter is configured.
 func (r ResourceType) hasTimeFilter() bool {
 	return r.IncludeRule.TimeAfter != nil ||
 		r.IncludeRule.TimeBefore != nil ||
@@ -656,12 +654,8 @@ func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 		return false
 	}
 
-	// SAFETY CHECK: AWS APIs return a nil creation time for resources in
-	// transitional states (e.g. an RDS instance in `creating`, where
-	// InstanceCreateTime is unset until the instance reaches `available`).
-	// If a time filter like --older-than is set, treat unknown-age resources
-	// as not-matching: silently passing them through races the filter against
-	// in-progress resources it was meant to protect.
+	// AWS returns nil creation time for resources in transitional states (e.g.
+	// RDS `creating`). Exclude when a time filter is set to avoid the race.
 	if value.Time == nil {
 		if r.hasTimeFilter() {
 			logging.Debugf("Resource has no creation time but a time filter is set - excluding for safety")

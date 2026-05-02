@@ -318,11 +318,8 @@ func TestShouldInclude_NameAndTimeFilter(t *testing.T) {
 	}))
 }
 
-// TestShouldInclude_NilTimeWithFilter exercises the safety guard for AWS
-// resources whose creation time is nil during transitional states (e.g. an RDS
-// instance still in `creating`, where InstanceCreateTime is unset). When a
-// time filter such as --older-than is set, those resources must be excluded;
-// silently passing them through races the filter against in-progress resources.
+// AWS returns nil creation time for resources in transitional states; with a
+// time filter set, ShouldInclude must exclude them to avoid the race.
 func TestShouldInclude_NilTimeWithFilter(t *testing.T) {
 	hourAgo := time.Now().Add(-1 * time.Hour)
 
