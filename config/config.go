@@ -569,6 +569,16 @@ func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
 	return true
 }
 
+// hasTimeFilter reports whether any time-based include/exclude filter is configured
+// for this resource type. When a filter is set, callers must verify the resource has
+// a known creation time before deciding whether to include it.
+func (r ResourceType) hasTimeFilter() bool {
+	return r.IncludeRule.TimeAfter != nil ||
+		r.IncludeRule.TimeBefore != nil ||
+		r.ExcludeRule.TimeAfter != nil ||
+		r.ExcludeRule.TimeBefore != nil
+}
+
 func (r ResourceType) getExclusionTag() string {
 	return DefaultAwsResourceExclusionTagKey
 }
@@ -644,9 +654,24 @@ func (r ResourceType) ShouldIncludeBasedOnTag(tags map[string]string) bool {
 func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 	if !ShouldInclude(value.Name, r.IncludeRule.NamesRegExp, r.ExcludeRule.NamesRegExp) {
 		return false
-	} else if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
+	}
+
+	// SAFETY CHECK: AWS APIs return a nil creation time for resources in
+	// transitional states (e.g. an RDS instance in `creating`, where
+	// InstanceCreateTime is unset until the instance reaches `available`).
+	// If a time filter like --older-than is set, treat unknown-age resources
+	// as not-matching: silently passing them through races the filter against
+	// in-progress resources it was meant to protect.
+	if value.Time == nil {
+		if r.hasTimeFilter() {
+			logging.Debugf("Resource has no creation time but a time filter is set - excluding for safety")
+			return false
+		}
+	} else if !r.ShouldIncludeBasedOnTime(*value.Time) {
 		return false
-	} else if !r.ShouldIncludeBasedOnTag(value.Tags) {
+	}
+
+	if !r.ShouldIncludeBasedOnTag(value.Tags) {
 		return false
 	}
 

@@ -318,6 +318,40 @@ func TestShouldInclude_NameAndTimeFilter(t *testing.T) {
 	}))
 }
 
+// TestShouldInclude_NilTimeWithFilter exercises the safety guard for AWS
+// resources whose creation time is nil during transitional states (e.g. an RDS
+// instance still in `creating`, where InstanceCreateTime is unset). When a
+// time filter such as --older-than is set, those resources must be excluded;
+// silently passing them through races the filter against in-progress resources.
+func TestShouldInclude_NilTimeWithFilter(t *testing.T) {
+	hourAgo := time.Now().Add(-1 * time.Hour)
+
+	t.Run("nil time + ExcludeRule.TimeAfter (--older-than) excludes", func(t *testing.T) {
+		r := ResourceType{ExcludeRule: FilterRule{TimeAfter: &hourAgo}}
+		assert.False(t, r.ShouldInclude(ResourceValue{Name: aws.String("rds-still-creating")}))
+	})
+
+	t.Run("nil time + IncludeRule.TimeAfter (--newer-than) excludes", func(t *testing.T) {
+		r := ResourceType{IncludeRule: FilterRule{TimeAfter: &hourAgo}}
+		assert.False(t, r.ShouldInclude(ResourceValue{Name: aws.String("rds-still-creating")}))
+	})
+
+	t.Run("nil time + no time filter still includes", func(t *testing.T) {
+		r := ResourceType{}
+		assert.True(t, r.ShouldInclude(ResourceValue{Name: aws.String("rds-still-creating")}))
+	})
+
+	t.Run("non-nil time still routes through ShouldIncludeBasedOnTime", func(t *testing.T) {
+		r := ResourceType{ExcludeRule: FilterRule{TimeAfter: &hourAgo}}
+		// Resource created 30 minutes ago: newer than the 1h cutoff, must be excluded.
+		recent := time.Now().Add(-30 * time.Minute)
+		assert.False(t, r.ShouldInclude(ResourceValue{Name: aws.String("recent"), Time: &recent}))
+		// Resource created 2 hours ago: older than the cutoff, must be included.
+		old := time.Now().Add(-2 * time.Hour)
+		assert.True(t, r.ShouldInclude(ResourceValue{Name: aws.String("old"), Time: &old}))
+	})
+}
+
 func TestAddIncludeAndExcludeAfterTime(t *testing.T) {
 	now := aws.Time(time.Now())
 
