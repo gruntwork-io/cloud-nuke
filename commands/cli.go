@@ -112,6 +112,10 @@ func CreateCli(version string) *cli.App {
 						Usage: "Destroy default security group rules only. Do not destroy default VPCs.",
 					},
 					&cli.BoolFlag{
+						Name:  FlagDryRun,
+						Usage: "Dry run without taking any action.",
+					},
+					&cli.BoolFlag{
 						Name:  FlagForce,
 						Usage: "Skip confirmation prompt. WARNING: this will automatically delete defaults without any confirmation",
 					},
