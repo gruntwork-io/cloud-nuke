@@ -2,7 +2,7 @@ name: "Nuke: PhxDevOps"
 
 on:
   schedule:
-    - cron: '0 */3 * * *'  # Every 3 hours
+    - cron: '0 0 * * *'  # Daily at midnight UTC
   workflow_dispatch:
 
 permissions:
@@ -15,5 +15,5 @@ jobs:
     with:
       account_name: PhxDevOps
       role_arn: arn:aws:iam::087285199408:role/cloud-nuke-gha
-      older_than: 2h
+      older_than: 24h
     secrets: inherit
