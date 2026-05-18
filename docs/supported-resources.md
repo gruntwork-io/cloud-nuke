@@ -12,6 +12,7 @@ cloud-nuke supports inspecting and deleting the following AWS resources. The **C
 | `api-gateway-v2` | API Gateway (v2) |
 | `app-runner-service` | App Runner Service |
 | `asg` | Auto Scaling Group |
+| `backup-plan` | Backup Plan |
 | `backup-vault` | Backup Vault |
 | `cloudformation-stack` | CloudFormation Stack |
 | `cloudfront-distribution` | CloudFront Distribution |
@@ -155,6 +156,7 @@ This table shows which filtering features are supported for each resource type i
 | api-gateway-v2 | APIGatewayV2 | ✓ | ✓ | ✓ | ✓ |
 | app-runner-service | AppRunnerService | ✓ | ✓ | ✓ | ✓ |
 | asg | AutoScalingGroup | ✓ | ✓ | ✓ | ✓ |
+| backup-plan | BackupPlan | ✓ | ✓ | ✓ | ✓ |
 | backup-vault | BackupVault | ✓ | ✓ | ✓ | ✓ |
 | cloudformation-stack | CloudFormationStack | ✓ | ✓ | ✓ | ✓ |
 | cloudfront-distribution | CloudFrontDistribution | ✓ | | ✓ | ✓ |
