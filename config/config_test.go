@@ -23,6 +23,7 @@ func emptyConfig() *Config {
 		AccessAnalyzer:                  ResourceType{},
 		AutoScalingGroup:                ResourceType{},
 		AppRunnerService:                ResourceType{},
+		BackupPlan:                      ResourceType{},
 		BackupVault:                     ResourceType{},
 		ManagedPrometheus:               ResourceType{},
 		CloudWatchAlarm:                 ResourceType{},
