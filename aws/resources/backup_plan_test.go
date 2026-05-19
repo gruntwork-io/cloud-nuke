@@ -51,6 +51,9 @@ func (m *mockBackupPlanClient) ListBackupPlans(ctx context.Context, params *back
 	}
 	output := m.ListBackupPlansPages[m.listPlansPageIndex]
 	m.listPlansPageIndex++
+	if m.listPlansPageIndex < len(m.ListBackupPlansPages) {
+		output.NextToken = aws.String("next-plans-token")
+	}
 	return &output, nil
 }
 
@@ -60,6 +63,9 @@ func (m *mockBackupPlanClient) ListBackupSelections(ctx context.Context, params 
 	}
 	output := m.ListBackupSelectionsPages[m.listSelectionsPageIndex]
 	m.listSelectionsPageIndex++
+	if m.listSelectionsPageIndex < len(m.ListBackupSelectionsPages) {
+		output.NextToken = aws.String("next-selections-token")
+	}
 	return &output, nil
 }
 
@@ -224,8 +230,8 @@ func TestListBackupPlans_TagsError(t *testing.T) {
 	}
 
 	ids, err := listBackupPlans(context.Background(), mock, resource.Scope{}, cfg)
-	require.NoError(t, err)
-	require.Equal(t, []string{}, aws.ToStringSlice(ids))
+	require.Error(t, err)
+	require.Nil(t, ids)
 }
 
 func TestNukeBackupPlan(t *testing.T) {
@@ -280,7 +286,6 @@ func TestListBackupPlansPagination(t *testing.T) {
 				BackupPlansList: []types.BackupPlansListMember{
 					{BackupPlanId: aws.String("plan-1"), BackupPlanName: aws.String("plan-1"), CreationDate: aws.Time(now)},
 				},
-				NextToken: aws.String("token1"),
 			},
 			{
 				BackupPlansList: []types.BackupPlansListMember{

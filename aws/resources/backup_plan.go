@@ -52,7 +52,7 @@ func listBackupPlans(ctx context.Context, client BackupPlanAPI, scope resource.S
 			tags, err := getBackupPlanTags(ctx, client, cfg, plan)
 			if err != nil {
 				logging.Errorf("Unable to fetch tags for %s: %s", aws.ToString(plan.BackupPlanArn), err)
-				continue
+				return nil, err
 			}
 
 			if cfg.ShouldInclude(config.ResourceValue{
