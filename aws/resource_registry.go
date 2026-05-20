@@ -67,6 +67,7 @@ func getRegisteredRegionalResources() []resources.AwsResource {
 		resources.NewApiGatewayV2(),
 		resources.NewASGroups(),
 		resources.NewAppRunnerService(),
+		resources.NewBackupPlan(),
 		resources.NewBackupVault(),
 		resources.NewManagedPrometheus(),
 		resources.NewGrafana(),

@@ -29,6 +29,7 @@ type Config struct {
 	AccessAnalyzer                  ResourceType               `yaml:"AccessAnalyzer"`
 	AutoScalingGroup                ResourceType               `yaml:"AutoScalingGroup"`
 	AppRunnerService                ResourceType               `yaml:"AppRunnerService"`
+	BackupPlan                      ResourceType               `yaml:"BackupPlan"`
 	BackupVault                     ResourceType               `yaml:"BackupVault"`
 	ManagedPrometheus               ResourceType               `yaml:"ManagedPrometheus"`
 	CloudWatchAlarm                 ResourceType               `yaml:"CloudWatchAlarm"`
@@ -175,6 +176,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.AccessAnalyzer,
 		&c.AutoScalingGroup,
 		&c.AppRunnerService,
+		&c.BackupPlan,
 		&c.BackupVault,
 		&c.ManagedPrometheus,
 		&c.CloudWatchAlarm,
