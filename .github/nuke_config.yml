@@ -179,6 +179,12 @@ BackupVault:
       # AWS-managed EFS automatic backup vault (resource policy explicitly denies deletion)
       - "^aws/efs/automatic-backup-vault$"
 
+BackupPlan:
+  exclude:
+    names_regex:
+      # AWS-managed EFS automatic backup plan (service-managed; DeleteBackupSelection returns 403)
+      - "^aws/efs/.*"
+
 CloudTrailTrail:
   exclude:
     names_regex:
