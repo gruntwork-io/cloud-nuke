@@ -90,6 +90,13 @@ func TestIAMInstanceProfiles_ListIAMInstanceProfiles(t *testing.T) {
 			configObj: config.ResourceType{},
 			expected:  []string{testName1, testName2},
 		},
+		// Regression test for #1140: a profile tagged cloud-nuke-excluded=true must be
+		// filtered out even with no explicit filters. This only works because tags are
+		// fetched via ListInstanceProfileTags; ListInstanceProfiles returns no tags.
+		"defaultExclusionTag": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
 		"nameExclusionFilter": {
 			configObj: config.ResourceType{
 				ExcludeRule: config.FilterRule{
