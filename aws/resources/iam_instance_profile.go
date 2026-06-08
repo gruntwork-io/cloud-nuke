@@ -9,11 +9,13 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // IAMInstanceProfilesAPI defines the interface for IAM instance profile operations.
 type IAMInstanceProfilesAPI interface {
 	ListInstanceProfiles(ctx context.Context, params *iam.ListInstanceProfilesInput, optFns ...func(*iam.Options)) (*iam.ListInstanceProfilesOutput, error)
+	ListInstanceProfileTags(ctx context.Context, params *iam.ListInstanceProfileTagsInput, optFns ...func(*iam.Options)) (*iam.ListInstanceProfileTagsOutput, error)
 	GetInstanceProfile(ctx context.Context, params *iam.GetInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error)
 	RemoveRoleFromInstanceProfile(ctx context.Context, params *iam.RemoveRoleFromInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error)
 	DeleteInstanceProfile(ctx context.Context, params *iam.DeleteInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error)
@@ -49,16 +51,21 @@ func listIAMInstanceProfiles(ctx context.Context, client IAMInstanceProfilesAPI,
 		}
 
 		for _, profile := range output.InstanceProfiles {
+			// The ListInstanceProfiles API does not populate tags, so we must fetch them
+			// explicitly to support tag-based filtering, including the default
+			// cloud-nuke-excluded tag. Without this, instance profiles with the exclusion
+			// tag would still be nuked.
+			tagsOut, err := client.ListInstanceProfileTags(ctx, &iam.ListInstanceProfileTagsInput{
+				InstanceProfileName: profile.InstanceProfileName,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to list tags for instance profile %s: %w", aws.ToString(profile.InstanceProfileName), err)
+			}
+
 			rv := config.ResourceValue{
 				Name: profile.InstanceProfileName,
 				Time: profile.CreateDate,
-				Tags: map[string]string{},
-			}
-			for _, tag := range profile.Tags {
-				if tag.Key == nil || tag.Value == nil {
-					continue
-				}
-				rv.Tags[*tag.Key] = *tag.Value
+				Tags: util.ConvertIAMTagsToMap(tagsOut.Tags),
 			}
 			if !cfg.ShouldInclude(rv) {
 				continue

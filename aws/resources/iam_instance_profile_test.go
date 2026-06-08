@@ -19,8 +19,14 @@ type mockedIAMInstanceProfiles struct {
 
 	GetInstanceProfileOutput            iam.GetInstanceProfileOutput
 	ListInstanceProfilesOutput          iam.ListInstanceProfilesOutput
+	ListInstanceProfileTagsOutput       map[string]iam.ListInstanceProfileTagsOutput
 	RemoveRoleFromInstanceProfileOutput iam.RemoveRoleFromInstanceProfileOutput
 	DeleteInstanceProfileOutput         iam.DeleteInstanceProfileOutput
+}
+
+func (m mockedIAMInstanceProfiles) ListInstanceProfileTags(ctx context.Context, params *iam.ListInstanceProfileTagsInput, optFns ...func(*iam.Options)) (*iam.ListInstanceProfileTagsOutput, error) {
+	out := m.ListInstanceProfileTagsOutput[aws.ToString(params.InstanceProfileName)]
+	return &out, nil
 }
 
 func (m mockedIAMInstanceProfiles) GetInstanceProfile(ctx context.Context, params *iam.GetInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error) {
@@ -44,6 +50,9 @@ func TestIAMInstanceProfiles_ListIAMInstanceProfiles(t *testing.T) {
 	testArn2 := "arn:aws:iam::123456789012:instance-profile/MyInstanceProfiles2"
 	now := time.Now()
 
+	testName3 := "MyInstanceProfiles3"
+	testArn3 := "arn:aws:iam::123456789012:instance-profile/MyInstanceProfiles3"
+
 	client := mockedIAMInstanceProfiles{
 		ListInstanceProfilesOutput: iam.ListInstanceProfilesOutput{
 			InstanceProfiles: []types.InstanceProfile{
@@ -51,25 +60,25 @@ func TestIAMInstanceProfiles_ListIAMInstanceProfiles(t *testing.T) {
 					Arn:                 aws.String(testArn1),
 					InstanceProfileName: aws.String(testName1),
 					CreateDate:          aws.Time(now),
-					Tags: []types.Tag{
-						{
-							Key:   aws.String("somearn"),
-							Value: aws.String("some" + testArn1),
-						},
-					},
 				},
 				{
 					Arn:                 aws.String(testArn2),
 					InstanceProfileName: aws.String(testName2),
 					CreateDate:          aws.Time(now.Add(1)),
-					Tags: []types.Tag{
-						{
-							Key:   aws.String("somearn"),
-							Value: aws.String("some" + testArn2),
-						},
-					},
+				},
+				{
+					Arn:                 aws.String(testArn3),
+					InstanceProfileName: aws.String(testName3),
+					CreateDate:          aws.Time(now.Add(2)),
 				},
 			},
+		},
+		// The ListInstanceProfiles API does not return tags; they are fetched separately
+		// via ListInstanceProfileTags. testName3 carries the cloud-nuke-excluded tag.
+		ListInstanceProfileTagsOutput: map[string]iam.ListInstanceProfileTagsOutput{
+			testName1: {Tags: []types.Tag{{Key: aws.String("somearn"), Value: aws.String("some" + testArn1)}}},
+			testName2: {Tags: []types.Tag{{Key: aws.String("somearn"), Value: aws.String("some" + testArn2)}}},
+			testName3: {Tags: []types.Tag{{Key: aws.String("cloud-nuke-excluded"), Value: aws.String("true")}}},
 		},
 	}
 
@@ -78,6 +87,13 @@ func TestIAMInstanceProfiles_ListIAMInstanceProfiles(t *testing.T) {
 		expected  []string
 	}{
 		"emptyFilter": {
+			configObj: config.ResourceType{},
+			expected:  []string{testName1, testName2},
+		},
+		// Regression test for #1140: a profile tagged cloud-nuke-excluded=true must be
+		// filtered out even with no explicit filters. This only works because tags are
+		// fetched via ListInstanceProfileTags; ListInstanceProfiles returns no tags.
+		"defaultExclusionTag": {
 			configObj: config.ResourceType{},
 			expected:  []string{testName1, testName2},
 		},
