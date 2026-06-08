@@ -19,6 +19,12 @@ type mockSageMakerEndpointClient struct {
 	ListEndpointsOutput  sagemaker.ListEndpointsOutput
 	DeleteEndpointOutput sagemaker.DeleteEndpointOutput
 	ListTagsOutput       sagemaker.ListTagsOutput
+
+	// ListInferenceComponentsOutputs is returned one per call, then empty once
+	// exhausted, to simulate components disappearing after deletion.
+	ListInferenceComponentsOutputs []sagemaker.ListInferenceComponentsOutput
+	listInferenceComponentsCalls   int
+	deletedInferenceComponents     []string
 }
 
 func (m *mockSageMakerEndpointClient) ListEndpoints(ctx context.Context, params *sagemaker.ListEndpointsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListEndpointsOutput, error) {
@@ -31,6 +37,20 @@ func (m *mockSageMakerEndpointClient) DeleteEndpoint(ctx context.Context, params
 
 func (m *mockSageMakerEndpointClient) ListTags(ctx context.Context, params *sagemaker.ListTagsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListTagsOutput, error) {
 	return &m.ListTagsOutput, nil
+}
+
+func (m *mockSageMakerEndpointClient) ListInferenceComponents(ctx context.Context, params *sagemaker.ListInferenceComponentsInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListInferenceComponentsOutput, error) {
+	defer func() { m.listInferenceComponentsCalls++ }()
+	if m.listInferenceComponentsCalls < len(m.ListInferenceComponentsOutputs) {
+		out := m.ListInferenceComponentsOutputs[m.listInferenceComponentsCalls]
+		return &out, nil
+	}
+	return &sagemaker.ListInferenceComponentsOutput{}, nil
+}
+
+func (m *mockSageMakerEndpointClient) DeleteInferenceComponent(ctx context.Context, params *sagemaker.DeleteInferenceComponentInput, optFns ...func(*sagemaker.Options)) (*sagemaker.DeleteInferenceComponentOutput, error) {
+	m.deletedInferenceComponents = append(m.deletedInferenceComponents, aws.ToString(params.InferenceComponentName))
+	return &sagemaker.DeleteInferenceComponentOutput{}, nil
 }
 
 func TestListSageMakerEndpoints(t *testing.T) {
@@ -117,4 +137,28 @@ func TestDeleteSageMakerEndpoint(t *testing.T) {
 
 	err := deleteSageMakerEndpoint(context.Background(), mock, aws.String("test-endpoint"))
 	require.NoError(t, err)
+	require.Empty(t, mock.deletedInferenceComponents)
+}
+
+func TestDeleteSageMakerEndpointWithInferenceComponents(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSageMakerEndpointClient{
+		DeleteEndpointOutput: sagemaker.DeleteEndpointOutput{},
+		// First list reports a component; the wait loop's next call returns empty.
+		ListInferenceComponentsOutputs: []sagemaker.ListInferenceComponentsOutput{
+			{
+				InferenceComponents: []types.InferenceComponentSummary{
+					{
+						InferenceComponentName: aws.String("test-component"),
+						EndpointName:           aws.String("test-endpoint"),
+					},
+				},
+			},
+		},
+	}
+
+	err := deleteSageMakerEndpoint(context.Background(), mock, aws.String("test-endpoint"))
+	require.NoError(t, err)
+	require.Equal(t, []string{"test-component"}, mock.deletedInferenceComponents)
 }
