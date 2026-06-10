@@ -19,6 +19,7 @@ type Query struct {
 	ExcludeFirstSeen     bool
 	DefaultOnly          bool
 	IncludeTags          map[string]config.Expression
+	Parallelism          int
 }
 
 // Validate ensures the configured values for a Query are valid, returning an error if there are

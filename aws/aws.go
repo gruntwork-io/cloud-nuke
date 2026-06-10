@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
+	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/hashicorp/go-multierror"
 
@@ -38,83 +42,129 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 	}
 
 	c = context.WithValue(c, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
+
+	parallelism := util.GetParallelism(c)
+
+	var accountMu sync.Mutex
+	g := new(errgroup.Group)
+	g.SetLimit(parallelism)
+
 	for _, region := range query.Regions {
-		cloudNukeSession, errSession := NewSession(region)
-		if errSession != nil {
-			return nil, errSession
-		}
-
-		accountId, err := util.GetCurrentAccountId(cloudNukeSession)
-		if err == nil {
-			telemetry.SetAccountId(accountId)
-			c = context.WithValue(c, util.AccountIdKey, accountId)
-		}
-
-		awsResource := AwsResources{}
-		registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
-		for _, resource := range registeredResources {
-			if IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
-
-				(*resource).GetAndSetResourceConfig(configObj)
-
-				// Emit scan progress event
-				collector.Emit(reporting.ScanProgress{
-					ResourceType: (*resource).ResourceName(),
-					Region:       region,
-				})
-
-				start := time.Now()
-				identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
-				if err != nil {
-					logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
-
-					// Reporting resource-level failures encountered during the GetIdentifiers phase
-					telemetry.TrackEvent(commonTelemetry.EventContext{
-						EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*resource).ResourceName()),
-					}, map[string]interface{}{
-						"region": region,
-					})
-
-					collector.Emit(reporting.GeneralError{
-						ResourceType: (*resource).ResourceName(),
-						Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),
-						Error:        err.Error(),
-					})
-				}
-
-				telemetry.TrackEvent(commonTelemetry.EventContext{
-					EventName: fmt.Sprintf("Done getting %s identifiers", (*resource).ResourceName()),
-				}, map[string]interface{}{
-					"recordCount": len(identifiers),
-					"actionTime":  time.Since(start).Seconds(),
-				})
-
-				// Only append if we have non-empty identifiers
-				if len(identifiers) > 0 {
-					logging.Infof("Found %d %s resources in %s", len(identifiers), (*resource).ResourceName(), region)
-					awsResource.Resources = append(awsResource.Resources, resource)
-
-					// Emit ResourceFound events for each identifier
-					for _, id := range identifiers {
-						nukable, reason := true, ""
-						if _, err := (*resource).IsNukable(id); err != nil {
-							nukable, reason = false, err.Error()
-						}
-						collector.Emit(reporting.ResourceFound{
-							ResourceType: (*resource).ResourceName(),
-							Region:       region,
-							Identifier:   id,
-							Nukable:      nukable,
-							Reason:       reason,
-						})
-					}
-				}
+		g.Go(func() error {
+			cloudNukeSession, errSession := NewSession(region)
+			if errSession != nil {
+				return errSession
 			}
-		}
 
-		if len(awsResource.Resources) > 0 {
-			account.Resources[region] = awsResource
-		}
+			regionCtx := c
+			accountId, err := util.GetCurrentAccountId(cloudNukeSession)
+			if err == nil {
+				telemetry.SetAccountId(accountId)
+				regionCtx = context.WithValue(c, util.AccountIdKey, accountId)
+			}
+
+			registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
+
+			// Collect resources for this region; preserve registry order for nuking later.
+			// We list all types concurrently then reassemble in original order.
+			type indexedResource struct {
+				idx      int
+				resource *resources.AwsResource
+			}
+			found := make([]indexedResource, 0, len(registeredResources))
+			var regionMu sync.Mutex
+
+			inner := new(errgroup.Group)
+			inner.SetLimit(parallelism)
+
+			for i, resource := range registeredResources {
+				if !IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
+					continue
+				}
+				inner.Go(func() error {
+					(*resource).GetAndSetResourceConfig(configObj)
+
+					collector.Emit(reporting.ScanProgress{
+						ResourceType: (*resource).ResourceName(),
+						Region:       region,
+					})
+
+					start := time.Now()
+					identifiers, err := (*resource).GetAndSetIdentifiers(regionCtx, configObj)
+					if err != nil {
+						logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
+
+						telemetry.TrackEvent(commonTelemetry.EventContext{
+							EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*resource).ResourceName()),
+						}, map[string]interface{}{
+							"region": region,
+						})
+
+						collector.Emit(reporting.GeneralError{
+							ResourceType: (*resource).ResourceName(),
+							Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),
+							Error:        err.Error(),
+						})
+						return nil
+					}
+
+					telemetry.TrackEvent(commonTelemetry.EventContext{
+						EventName: fmt.Sprintf("Done getting %s identifiers", (*resource).ResourceName()),
+					}, map[string]interface{}{
+						"recordCount": len(identifiers),
+						"actionTime":  time.Since(start).Seconds(),
+					})
+
+					if len(identifiers) > 0 {
+						logging.Infof("Found %d %s resources in %s", len(identifiers), (*resource).ResourceName(), region)
+
+						regionMu.Lock()
+						found = append(found, indexedResource{idx: i, resource: resource})
+						regionMu.Unlock()
+
+						for _, id := range identifiers {
+							nukable, reason := true, ""
+							if _, err := (*resource).IsNukable(id); err != nil {
+								nukable, reason = false, err.Error()
+							}
+							collector.Emit(reporting.ResourceFound{
+								ResourceType: (*resource).ResourceName(),
+								Region:       region,
+								Identifier:   id,
+								Nukable:      nukable,
+								Reason:       reason,
+							})
+						}
+					}
+					return nil
+				})
+			}
+
+			if err := inner.Wait(); err != nil {
+				return err
+			}
+
+			if len(found) == 0 {
+				return nil
+			}
+
+			// Re-sort by original registry index so nuking respects dependency order.
+			sort.Slice(found, func(a, b int) bool { return found[a].idx < found[b].idx })
+			awsResources := AwsResources{Resources: make([]*resources.AwsResource, len(found))}
+			for i, r := range found {
+				awsResources.Resources[i] = r.resource
+			}
+
+			accountMu.Lock()
+			account.Resources[region] = awsResources
+			accountMu.Unlock()
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	logging.Info("Done searching for resources")
@@ -221,28 +271,44 @@ func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions
 	// Emit NukeStarted event (CLIRenderer will initialize progress bar)
 	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
 
-	var allErrors *multierror.Error
-
 	telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "Begin nuking resources",
 	}, map[string]interface{}{})
 
-	for _, region := range regions {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Creating session for region",
-		}, map[string]interface{}{
-			"region": region,
-		})
+	parallelism := util.GetParallelism(ctx)
 
-		if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
-			allErrors = multierror.Append(allErrors, err)
-		}
-		telemetry.TrackEvent(commonTelemetry.EventContext{
-			EventName: "Done Nuking Region",
-		}, map[string]interface{}{
-			"region":        region,
-			"resourceCount": len(account.Resources[region].Resources),
+	var mu sync.Mutex
+	var allErrors *multierror.Error
+
+	g := new(errgroup.Group)
+	g.SetLimit(parallelism)
+
+	for _, region := range regions {
+		g.Go(func() error {
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Creating session for region",
+			}, map[string]interface{}{
+				"region": region,
+			})
+
+			if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
+				mu.Lock()
+				allErrors = multierror.Append(allErrors, err)
+				mu.Unlock()
+			}
+
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: "Done Nuking Region",
+			}, map[string]interface{}{
+				"region":        region,
+				"resourceCount": len(account.Resources[region].Resources),
+			})
+			return nil
 		})
+	}
+
+	if err := g.Wait(); err != nil {
+		allErrors = multierror.Append(allErrors, err)
 	}
 
 	// Emit NukeComplete event (triggers final output in renderers)

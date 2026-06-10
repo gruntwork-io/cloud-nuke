@@ -1,6 +1,10 @@
 package commands
 
-import "github.com/urfave/cli/v2"
+import (
+	"runtime"
+
+	"github.com/urfave/cli/v2"
+)
 
 // Default values
 const (
@@ -35,6 +39,7 @@ const (
 	FlagRegion                 = "region"
 	FlagExcludeRegion          = "exclude-region"
 	FlagIncludeTag             = "include-tag"
+	FlagParallelism            = "parallelism"
 )
 
 // Common flag sets for reuse across commands
@@ -105,6 +110,11 @@ func CommonExecutionFlags() []cli.Flag {
 		&cli.StringFlag{
 			Name:  FlagTimeout,
 			Usage: "Resource execution timeout.",
+		},
+		&cli.IntFlag{
+			Name:  FlagParallelism,
+			Value: runtime.GOMAXPROCS(0),
+			Usage: "Number of resources to delete concurrently. Defaults to the value of GOMAXPROCS.",
 		},
 	}
 }

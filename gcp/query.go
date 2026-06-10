@@ -19,6 +19,7 @@ type Query struct {
 	IncludeAfter         *time.Time
 	Timeout              *time.Duration
 	ExcludeFirstSeen     bool
+	Parallelism          int
 }
 
 // Validate ensures the query has valid defaults.

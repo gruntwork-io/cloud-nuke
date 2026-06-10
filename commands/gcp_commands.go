@@ -1,11 +1,14 @@
 package commands
 
 import (
+	"context"
+
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/gcp"
 	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
@@ -43,6 +46,7 @@ func gcpNuke(c *cli.Context) error {
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
+		Parallelism:          c.Int(FlagParallelism),
 	}
 
 	// Apply timeout to config
@@ -88,6 +92,7 @@ func gcpInspect(c *cli.Context) error {
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
+		Parallelism:          c.Int(FlagParallelism),
 	}
 
 	// Load config file if provided
@@ -132,8 +137,10 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, query *gcp.Query, ou
 	}
 	defer cleanup()
 
+	ctx := context.WithValue(c.Context, util.ParallelismKey, query.Parallelism)
+
 	// Retrieve all matching resources (emits ResourceFound events via collector)
-	account, err := gcp.GetAllResources(c.Context, query, configObj, collector)
+	account, err := gcp.GetAllResources(ctx, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -152,7 +159,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, query *gcp.Query, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		if err := gcp.NukeAllResources(c.Context, account, query.Regions, collector); err != nil {
+		if err := gcp.NukeAllResources(ctx, account, query.Regions, collector); err != nil {
 			return err
 		}
 	}
@@ -171,8 +178,10 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, qu
 	}
 	defer cleanup()
 
+	ctx := context.WithValue(c.Context, util.ParallelismKey, query.Parallelism)
+
 	// Retrieve all resources matching the filters (emits ResourceFound events via collector)
-	accountResources, err := gcp.GetAllResources(c.Context, query, configObj, collector)
+	accountResources, err := gcp.GetAllResources(ctx, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
