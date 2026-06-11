@@ -9,11 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
-const (
-	// DefaultMaxConcurrent is the default number of concurrent deletions
-	DefaultMaxConcurrent = 10
-)
-
 // NukeResult represents the result of nuking a single resource.
 type NukeResult struct {
 	Identifier string

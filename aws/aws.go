@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -42,129 +43,162 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 	}
 
 	c = context.WithValue(c, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
-
+	// Inject parallelism from the query so downstream callers (e.g. batch_deleter) can read it
+	// via util.GetParallelism without needing the caller to set it on the context.
+	c = context.WithValue(c, util.ParallelismKey, query.Parallelism)
 	parallelism := util.GetParallelism(c)
 
-	var accountMu sync.Mutex
-	g := new(errgroup.Group)
-	g.SetLimit(parallelism)
+	type indexedResource struct {
+		idx      int
+		resource *resources.AwsResource
+	}
+	type regionSetup struct {
+		regionCtx context.Context
+		nukeable  []indexedResource
+	}
 
+	// Phase 1: set up sessions and init resources for each region concurrently.
+	// GetAndInitRegisteredResources only allocates SDK clients (no API calls), so
+	// no concurrency limit is needed here.
+	setups := make(map[string]*regionSetup, len(query.Regions))
+	var setupMu sync.Mutex
+	var setAccountOnce sync.Once
+
+	setupGroup := new(errgroup.Group)
 	for _, region := range query.Regions {
-		g.Go(func() error {
-			cloudNukeSession, errSession := NewSession(region)
-			if errSession != nil {
-				return errSession
+		setupGroup.Go(func() error {
+			cloudNukeSession, err := NewSession(region)
+			if err != nil {
+				return err
 			}
-
 			regionCtx := c
 			accountId, err := util.GetCurrentAccountId(cloudNukeSession)
 			if err == nil {
-				telemetry.SetAccountId(accountId)
+				// All regions share the same account ID; set it once to avoid a data race.
+				setAccountOnce.Do(func() { telemetry.SetAccountId(accountId) })
 				regionCtx = context.WithValue(c, util.AccountIdKey, accountId)
 			}
-
 			registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
-
-			// Collect resources for this region; preserve registry order for nuking later.
-			// We list all types concurrently then reassemble in original order.
-			type indexedResource struct {
-				idx      int
-				resource *resources.AwsResource
-			}
-			found := make([]indexedResource, 0, len(registeredResources))
-			var regionMu sync.Mutex
-
-			inner := new(errgroup.Group)
-			inner.SetLimit(parallelism)
-
-			for i, resource := range registeredResources {
-				if !IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
-					continue
+			setup := &regionSetup{regionCtx: regionCtx}
+			for i, res := range registeredResources {
+				if IsNukeable((*res).ResourceName(), query.ResourceTypes) {
+					setup.nukeable = append(setup.nukeable, indexedResource{idx: i, resource: res})
 				}
-				inner.Go(func() error {
-					(*resource).GetAndSetResourceConfig(configObj)
-
-					collector.Emit(reporting.ScanProgress{
-						ResourceType: (*resource).ResourceName(),
-						Region:       region,
-					})
-
-					start := time.Now()
-					identifiers, err := (*resource).GetAndSetIdentifiers(regionCtx, configObj)
-					if err != nil {
-						logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
-
-						telemetry.TrackEvent(commonTelemetry.EventContext{
-							EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*resource).ResourceName()),
-						}, map[string]interface{}{
-							"region": region,
-						})
-
-						collector.Emit(reporting.GeneralError{
-							ResourceType: (*resource).ResourceName(),
-							Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),
-							Error:        err.Error(),
-						})
-						return nil
-					}
-
-					telemetry.TrackEvent(commonTelemetry.EventContext{
-						EventName: fmt.Sprintf("Done getting %s identifiers", (*resource).ResourceName()),
-					}, map[string]interface{}{
-						"recordCount": len(identifiers),
-						"actionTime":  time.Since(start).Seconds(),
-					})
-
-					if len(identifiers) > 0 {
-						logging.Infof("Found %d %s resources in %s", len(identifiers), (*resource).ResourceName(), region)
-
-						regionMu.Lock()
-						found = append(found, indexedResource{idx: i, resource: resource})
-						regionMu.Unlock()
-
-						for _, id := range identifiers {
-							nukable, reason := true, ""
-							if _, err := (*resource).IsNukable(id); err != nil {
-								nukable, reason = false, err.Error()
-							}
-							collector.Emit(reporting.ResourceFound{
-								ResourceType: (*resource).ResourceName(),
-								Region:       region,
-								Identifier:   id,
-								Nukable:      nukable,
-								Reason:       reason,
-							})
-						}
-					}
-					return nil
-				})
 			}
-
-			if err := inner.Wait(); err != nil {
-				return err
-			}
-
-			if len(found) == 0 {
-				return nil
-			}
-
-			// Re-sort by original registry index so nuking respects dependency order.
-			sort.Slice(found, func(a, b int) bool { return found[a].idx < found[b].idx })
-			awsResources := AwsResources{Resources: make([]*resources.AwsResource, len(found))}
-			for i, r := range found {
-				awsResources.Resources[i] = r.resource
-			}
-
-			accountMu.Lock()
-			account.Resources[region] = awsResources
-			accountMu.Unlock()
-
+			setupMu.Lock()
+			setups[region] = setup
+			setupMu.Unlock()
 			return nil
 		})
 	}
-
-	if err := g.Wait(); err != nil {
+	if err := setupGroup.Wait(); err != nil {
 		return nil, err
+	}
+
+	// Phase 2: scan all nukeable resources across all regions with a single shared
+	// concurrency limit. Using one errgroup (instead of nested per-region groups)
+	// ensures --parallelism N means at most N simultaneous API calls total.
+	type resourceTask struct {
+		region    string
+		regionCtx context.Context
+		idx       int
+		resource  *resources.AwsResource
+	}
+	var allTasks []resourceTask
+	for _, region := range query.Regions {
+		setup, ok := setups[region]
+		if !ok {
+			continue
+		}
+		for _, r := range setup.nukeable {
+			allTasks = append(allTasks, resourceTask{
+				region:    region,
+				regionCtx: setup.regionCtx,
+				idx:       r.idx,
+				resource:  r.resource,
+			})
+		}
+	}
+
+	foundByRegion := make(map[string][]indexedResource)
+	var foundMu sync.Mutex
+
+	scanGroup := new(errgroup.Group)
+	scanGroup.SetLimit(parallelism)
+	for _, task := range allTasks {
+		scanGroup.Go(func() error {
+			(*task.resource).GetAndSetResourceConfig(configObj)
+
+			collector.Emit(reporting.ScanProgress{
+				ResourceType: (*task.resource).ResourceName(),
+				Region:       task.region,
+			})
+
+			start := time.Now()
+			identifiers, err := (*task.resource).GetAndSetIdentifiers(task.regionCtx, configObj)
+			if err != nil {
+				logging.Errorf("Unable to retrieve %v, %v", (*task.resource).ResourceName(), err)
+
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*task.resource).ResourceName()),
+				}, map[string]interface{}{
+					"region": task.region,
+				})
+
+				collector.Emit(reporting.GeneralError{
+					ResourceType: (*task.resource).ResourceName(),
+					Description:  fmt.Sprintf("Unable to retrieve %s", (*task.resource).ResourceName()),
+					Error:        err.Error(),
+				})
+				return nil
+			}
+
+			telemetry.TrackEvent(commonTelemetry.EventContext{
+				EventName: fmt.Sprintf("Done getting %s identifiers", (*task.resource).ResourceName()),
+			}, map[string]interface{}{
+				"recordCount": len(identifiers),
+				"actionTime":  time.Since(start).Seconds(),
+			})
+
+			if len(identifiers) > 0 {
+				logging.Infof("Found %d %s resources in %s", len(identifiers), (*task.resource).ResourceName(), task.region)
+
+				foundMu.Lock()
+				foundByRegion[task.region] = append(foundByRegion[task.region], indexedResource{task.idx, task.resource})
+				foundMu.Unlock()
+
+				for _, id := range identifiers {
+					nukable, reason := true, ""
+					if _, err := (*task.resource).IsNukable(id); err != nil {
+						nukable, reason = false, err.Error()
+					}
+					collector.Emit(reporting.ResourceFound{
+						ResourceType: (*task.resource).ResourceName(),
+						Region:       task.region,
+						Identifier:   id,
+						Nukable:      nukable,
+						Reason:       reason,
+					})
+				}
+			}
+			return nil
+		})
+	}
+	if err := scanGroup.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Sort resources within each region by original registry index to preserve
+	// the dependency ordering required for safe nuking (e.g. EC2 before VPCs).
+	for region, found := range foundByRegion {
+		slices.SortFunc(found, func(a, b indexedResource) int {
+			return cmp.Compare(a.idx, b.idx)
+		})
+		awsResources := AwsResources{Resources: make([]*resources.AwsResource, len(found))}
+		for i, r := range found {
+			awsResources.Resources[i] = r.resource
+		}
+		account.Resources[region] = awsResources
 	}
 
 	logging.Info("Done searching for resources")
@@ -180,7 +214,7 @@ func ListResourceTypes() []string {
 		resourceTypes = append(resourceTypes, (*resource).ResourceName())
 	}
 
-	sort.Strings(resourceTypes)
+	slices.Sort(resourceTypes)
 	return resourceTypes
 }
 
@@ -267,48 +301,64 @@ func nukeAllResourcesInRegion(ctx context.Context, account *AwsAccountResources,
 }
 
 // NukeAllResources - Nukes all aws resources
-func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions []string, collector *reporting.Collector) error {
-	// Emit NukeStarted event (CLIRenderer will initialize progress bar)
-	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
+func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions []string, parallelism int, collector *reporting.Collector) error {
+	// Inject parallelism into context so batch_deleter (called via Nuke) can read it.
+	ctx = context.WithValue(ctx, util.ParallelismKey, parallelism)
+	p := util.GetParallelism(ctx)
 
+	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
 	telemetry.TrackEvent(commonTelemetry.EventContext{
 		EventName: "Begin nuking resources",
 	}, map[string]interface{}{})
 
-	parallelism := util.GetParallelism(ctx)
-
 	var mu sync.Mutex
 	var allErrors *multierror.Error
 
-	g := new(errgroup.Group)
-	g.SetLimit(parallelism)
+	nukeRegion := func(region string) {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Creating session for region",
+		}, map[string]interface{}{
+			"region": region,
+		})
 
-	for _, region := range regions {
-		g.Go(func() error {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Creating session for region",
-			}, map[string]interface{}{
-				"region": region,
-			})
+		if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
+			mu.Lock()
+			allErrors = multierror.Append(allErrors, err)
+			mu.Unlock()
+		}
 
-			if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
-				mu.Lock()
-				allErrors = multierror.Append(allErrors, err)
-				mu.Unlock()
-			}
-
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Nuking Region",
-			}, map[string]interface{}{
-				"region":        region,
-				"resourceCount": len(account.Resources[region].Resources),
-			})
-			return nil
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Done Nuking Region",
+		}, map[string]interface{}{
+			"region":        region,
+			"resourceCount": len(account.Resources[region].Resources),
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	// Phase 1: nuke all regional resources in parallel. GlobalRegion is
+	// intentionally excluded here because global resources (IAM, S3, CloudFront,
+	// Route53) must be torn down after regional ones to avoid breaking in-flight
+	// regional deletions that still depend on them.
+	eg := new(errgroup.Group)
+	eg.SetLimit(p)
+	for _, region := range regions {
+		if region == GlobalRegion {
+			continue
+		}
+		eg.Go(func() error {
+			nukeRegion(region)
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
 		allErrors = multierror.Append(allErrors, err)
+	}
+
+	// Phase 2: nuke global resources after all regional nukes have completed.
+	for _, region := range regions {
+		if region == GlobalRegion {
+			nukeRegion(region)
+		}
 	}
 
 	// Emit NukeComplete event (triggers final output in renderers)

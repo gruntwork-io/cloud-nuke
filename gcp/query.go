@@ -44,5 +44,9 @@ func (q *Query) Validate() error {
 		return fmt.Errorf("no regions to process after applying exclusions")
 	}
 
+	if q.Parallelism < 0 {
+		return fmt.Errorf("--parallelism must be >= 0 (0 uses the GOMAXPROCS default)")
+	}
+
 	return nil
 }

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -46,6 +47,10 @@ func (q *Query) Validate() error {
 	}
 
 	q.Regions = targetRegions
+
+	if q.Parallelism < 0 {
+		return fmt.Errorf("--parallelism must be >= 0 (0 uses the GOMAXPROCS default)")
+	}
 
 	return nil
 }

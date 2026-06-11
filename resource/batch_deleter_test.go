@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 
@@ -206,7 +207,7 @@ func TestSimpleBatchDeleter_Concurrency(t *testing.T) {
 		count.Add(1)
 		return nil
 	})
-	// 25 items exceeds DefaultMaxConcurrent to exercise semaphore
+	// 25 items exercises the semaphore under the default GOMAXPROCS-based concurrency limit
 	items := make([]*string, 25)
 	for i := range items {
 		s := "id-" + string(rune('a'+i))
@@ -215,6 +216,60 @@ func TestSimpleBatchDeleter_Concurrency(t *testing.T) {
 	results := deleter(ctx, client, scope, "test", items)
 	assert.Len(t, results, 25)
 	assert.Equal(t, int32(25), count.Load())
+}
+
+func TestSimpleBatchDeleter_RespectsParallelismLimit(t *testing.T) {
+	const limit = 3
+
+	var current, peak atomic.Int32
+	// ready signals that a worker has entered the delete function; buffered so
+	// workers never block on send.
+	ready := make(chan struct{}, limit+5)
+	// close release to unblock all in-flight workers at once.
+	release := make(chan struct{})
+
+	deleter := SimpleBatchDeleter(func(_ context.Context, _ *mockClient, _ *string) error {
+		n := current.Add(1)
+		for {
+			old := peak.Load()
+			if n <= old || peak.CompareAndSwap(old, n) {
+				break
+			}
+		}
+		ready <- struct{}{}
+		<-release
+		current.Add(-1)
+		return nil
+	})
+
+	items := make([]*string, limit+5)
+	for i := range items {
+		s := fmt.Sprintf("id-%d", i)
+		items[i] = &s
+	}
+
+	ctxWithP := context.WithValue(context.Background(), util.ParallelismKey, limit)
+	done := make(chan struct{})
+	go func() {
+		deleter(ctxWithP, client, scope, "test", items)
+		close(done)
+	}()
+
+	// Drain exactly `limit` ready signals. At this point the semaphore is full
+	// (main goroutine inside deleter is blocked on the next sem<-), so no
+	// additional goroutine can start.
+	for i := 0; i < limit; i++ {
+		<-ready
+	}
+	assert.Equal(t, int32(limit), peak.Load(), "peak concurrency must equal the limit")
+	select {
+	case <-ready:
+		t.Fatal("a goroutine started beyond the concurrency limit")
+	default:
+	}
+
+	close(release)
+	<-done
 }
 
 // Empty input tests — all NukerFunc types should return nil

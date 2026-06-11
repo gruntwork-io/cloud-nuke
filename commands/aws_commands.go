@@ -1,14 +1,11 @@
 package commands
 
 import (
-	"context"
-
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
@@ -149,10 +146,8 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, ou
 	// Emit scan started event with query parameters
 	collector.Emit(buildAwsScanStarted(query))
 
-	ctx := context.WithValue(c.Context, util.ParallelismKey, query.Parallelism)
-
 	// Retrieve all matching resources (emits ResourceFound events via collector)
-	account, err := aws.GetAllResources(ctx, query, configObj, collector)
+	account, err := aws.GetAllResources(c.Context, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
@@ -171,7 +166,7 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		return aws.NukeAllResources(ctx, account, query.Regions, collector)
+		return aws.NukeAllResources(c.Context, account, query.Regions, query.Parallelism, collector)
 	}
 
 	return nil
@@ -244,10 +239,8 @@ func handleGetResourcesWithFormat(c *cli.Context, configObj config.Config, query
 	// Emit scan started event with query parameters
 	collector.Emit(buildAwsScanStarted(query))
 
-	ctx := context.WithValue(c.Context, util.ParallelismKey, query.Parallelism)
-
 	// Retrieve all resources matching the query (emits ResourceFound events via collector)
-	accountResources, err := aws.GetAllResources(ctx, query, configObj, collector)
+	accountResources, err := aws.GetAllResources(c.Context, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
