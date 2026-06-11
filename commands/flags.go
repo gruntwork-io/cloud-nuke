@@ -1,8 +1,7 @@
 package commands
 
 import (
-	"runtime"
-
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/urfave/cli/v2"
 )
 
@@ -111,11 +110,17 @@ func CommonExecutionFlags() []cli.Flag {
 			Name:  FlagTimeout,
 			Usage: "Resource execution timeout.",
 		},
-		&cli.IntFlag{
-			Name:  FlagParallelism,
-			Value: runtime.GOMAXPROCS(0),
-			Usage: "Number of resources to delete concurrently. Defaults to the value of GOMAXPROCS.",
-		},
+		ParallelismFlag(),
+	}
+}
+
+// ParallelismFlag controls how many regions/resources are scanned and deleted
+// concurrently. The work is IO-bound, so the default is independent of CPU count.
+func ParallelismFlag() cli.Flag {
+	return &cli.IntFlag{
+		Name:  FlagParallelism,
+		Value: util.DefaultParallelism,
+		Usage: "Number of regions/resources to scan and delete concurrently. The work is IO-bound, so this is independent of CPU count.",
 	}
 }
 

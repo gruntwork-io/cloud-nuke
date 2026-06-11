@@ -46,101 +46,92 @@ func GetAllResources(ctx context.Context, query *Query, configObj config.Config,
 
 	parallelism := util.GetParallelism(ctx)
 
-	var allMu sync.Mutex
+	// Scan every (region, resource type) pair concurrently under a single global
+	// concurrency cap, so total in-flight API calls are bounded by `parallelism`
+	// rather than parallelism^2 (which nested per-region/per-type limits produced).
+	type indexedResource struct {
+		idx int
+		res *GcpResource
+	}
+	foundByRegion := make(map[string][]indexedResource)
+	var foundMu sync.Mutex
+
 	g := new(errgroup.Group)
 	g.SetLimit(parallelism)
 
 	for _, region := range query.Regions {
-		g.Go(func() error {
-			cfg := resources.GcpConfig{ProjectID: query.ProjectID, Region: region}
-			regionResources := GetAndInitRegisteredResources(cfg, region)
-
-			type indexedResource struct {
-				idx int
-				res *GcpResource
+		region := region
+		cfg := resources.GcpConfig{ProjectID: query.ProjectID, Region: region}
+		regionResources := GetAndInitRegisteredResources(cfg, region)
+		for i, res := range regionResources {
+			resourceName := (*res).ResourceName()
+			if !IsNukeable(resourceName, query.ResourceTypes, query.ExcludeResourceTypes) {
+				continue
 			}
-			found := make([]indexedResource, 0, len(regionResources))
-			var regionMu sync.Mutex
+			idx, res := i, res
+			g.Go(func() error {
+				collector.Emit(reporting.ScanProgress{
+					ResourceType: resourceName,
+					Region:       region,
+				})
 
-			inner := new(errgroup.Group)
-			inner.SetLimit(parallelism)
-
-			for i, res := range regionResources {
-				resourceName := (*res).ResourceName()
-				if !IsNukeable(resourceName, query.ResourceTypes, query.ExcludeResourceTypes) {
-					continue
-				}
-				inner.Go(func() error {
-					collector.Emit(reporting.ScanProgress{
-						ResourceType: resourceName,
-						Region:       region,
-					})
-
-					identifiers, err := (*res).GetAndSetIdentifiers(ctx, configObj)
-					if err != nil {
-						if isServiceDisabledError(err) && !collections.ListContainsElement(query.ResourceTypes, resourceName) {
-							logging.Debugf("Skipping %s: API is disabled in this project", resourceName)
-							return nil
-						}
-						logging.Debugf("Error getting identifiers for %s: %v", resourceName, err)
-						collector.Emit(reporting.GeneralError{
-							ResourceType: resourceName,
-							Description:  fmt.Sprintf("Unable to retrieve %s", resourceName),
-							Error:        err.Error(),
-						})
+				identifiers, err := (*res).GetAndSetIdentifiers(ctx, configObj)
+				if err != nil {
+					if isServiceDisabledError(err) && !collections.ListContainsElement(query.ResourceTypes, resourceName) {
+						logging.Debugf("Skipping %s: API is disabled in this project", resourceName)
 						return nil
 					}
-
-					if len(identifiers) > 0 {
-						logging.Infof("Found %d %s resources", len(identifiers), resourceName)
-
-						regionMu.Lock()
-						found = append(found, indexedResource{idx: i, res: res})
-						regionMu.Unlock()
-
-						for _, id := range identifiers {
-							nukable, reason := true, ""
-							if _, err := (*res).IsNukable(id); err != nil {
-								nukable, reason = false, err.Error()
-							}
-							collector.Emit(reporting.ResourceFound{
-								ResourceType: resourceName,
-								Region:       region,
-								Identifier:   id,
-								Nukable:      nukable,
-								Reason:       reason,
-							})
-						}
-					}
+					logging.Debugf("Error getting identifiers for %s: %v", resourceName, err)
+					collector.Emit(reporting.GeneralError{
+						ResourceType: resourceName,
+						Description:  fmt.Sprintf("Unable to retrieve %s", resourceName),
+						Error:        err.Error(),
+					})
 					return nil
-				})
-			}
+				}
 
-			if err := inner.Wait(); err != nil {
-				return err
-			}
+				if len(identifiers) > 0 {
+					logging.Infof("Found %d %s resources", len(identifiers), resourceName)
 
-			if len(found) == 0 {
+					foundMu.Lock()
+					foundByRegion[region] = append(foundByRegion[region], indexedResource{idx: idx, res: res})
+					foundMu.Unlock()
+
+					for _, id := range identifiers {
+						nukable, reason := true, ""
+						if _, err := (*res).IsNukable(id); err != nil {
+							nukable, reason = false, err.Error()
+						}
+						collector.Emit(reporting.ResourceFound{
+							ResourceType: resourceName,
+							Region:       region,
+							Identifier:   id,
+							Nukable:      nukable,
+							Reason:       reason,
+						})
+					}
+				}
 				return nil
-			}
-
-			// Re-sort to preserve registry order for nuking.
-			sort.Slice(found, func(a, b int) bool { return found[a].idx < found[b].idx })
-			regionList := make([]*GcpResource, len(found))
-			for i, r := range found {
-				regionList[i] = r.res
-			}
-
-			allMu.Lock()
-			allResources.Resources[region] = GcpResources{Resources: regionList}
-			allMu.Unlock()
-
-			return nil
-		})
+			})
+		}
 	}
 
 	if err := g.Wait(); err != nil {
 		return nil, err
+	}
+
+	// Reassemble each region's resources in registry order to preserve dependency
+	// order for nuking.
+	for region, found := range foundByRegion {
+		if len(found) == 0 {
+			continue
+		}
+		sort.Slice(found, func(a, b int) bool { return found[a].idx < found[b].idx })
+		regionList := make([]*GcpResource, len(found))
+		for i, r := range found {
+			regionList[i] = r.res
+		}
+		allResources.Resources[region] = GcpResources{Resources: regionList}
 	}
 
 	logging.Info("Done searching for GCP resources")
@@ -159,10 +150,23 @@ func NukeAllResources(ctx context.Context, account *GcpProjectResources, regions
 	var mu sync.Mutex
 	var allErrors *multierror.Error
 
+	// Nuke regional resources concurrently, then the `global` pseudo-region last,
+	// since regional resources may depend on global ones.
+	regionalRegions := make([]string, 0, len(regions))
+	hasGlobal := false
+	for _, region := range regions {
+		if region == GlobalRegion {
+			hasGlobal = true
+			continue
+		}
+		regionalRegions = append(regionalRegions, region)
+	}
+
 	g := new(errgroup.Group)
 	g.SetLimit(parallelism)
 
-	for _, region := range regions {
+	for _, region := range regionalRegions {
+		region := region
 		g.Go(func() error {
 			if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
 				mu.Lock()
@@ -175,6 +179,12 @@ func NukeAllResources(ctx context.Context, account *GcpProjectResources, regions
 
 	if err := g.Wait(); err != nil {
 		allErrors = multierror.Append(allErrors, err)
+	}
+
+	if hasGlobal {
+		if err := nukeAllResourcesInRegion(ctx, account, GlobalRegion, collector); err != nil {
+			allErrors = multierror.Append(allErrors, err)
+		}
 	}
 
 	// Emit NukeComplete event (triggers final output in renderers)

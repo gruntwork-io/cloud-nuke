@@ -26,8 +26,13 @@ func Get(region string) (aws.Config, error) {
 		return configProvider(region)
 	}
 
+	// Use adaptive retry so that the higher API-call concurrency from parallel
+	// scanning/nuking is absorbed by client-side rate limiting and backoff rather
+	// than surfacing as throttling errors (which would silently skip resources).
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(region),
+		config.WithRetryMode(aws.RetryModeAdaptive),
+		config.WithRetryMaxAttempts(10),
 	)
 
 	if err != nil {

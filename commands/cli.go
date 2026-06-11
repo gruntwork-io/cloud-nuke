@@ -93,6 +93,7 @@ func CreateCli(version string) *cli.App {
 				CommonTimeFlags(),
 				CommonOutputFlags(),
 				[]cli.Flag{
+					ParallelismFlag(),
 					ConfigFlag(),
 					&cli.BoolFlag{
 						Name:  FlagExcludeFirstSeen,
@@ -138,6 +139,7 @@ func CreateCli(version string) *cli.App {
 				TagFlags(),
 				CommonOutputFlags(),
 				[]cli.Flag{
+					ParallelismFlag(),
 					ConfigFlag(),
 					&cli.BoolFlag{
 						Name:  FlagListUnaliasedKMSKeys,

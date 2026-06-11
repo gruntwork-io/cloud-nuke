@@ -45,126 +45,132 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 
 	parallelism := util.GetParallelism(c)
 
-	var accountMu sync.Mutex
+	// Build per-region sessions and registered resources up front (sequential and
+	// cheap). The account ID is identical across all regions, so it is fetched
+	// once here and stored on the context, avoiding a data race on the telemetry
+	// package global that concurrent per-region writes would otherwise cause.
+	type regionWork struct {
+		region    string
+		resources []*resources.AwsResource
+	}
+	var regionWorks []regionWork
+	accountIDFetched := false
+	for _, region := range query.Regions {
+		cloudNukeSession, errSession := NewSession(region)
+		if errSession != nil {
+			return nil, errSession
+		}
+
+		if !accountIDFetched {
+			if accountId, err := util.GetCurrentAccountId(cloudNukeSession); err == nil {
+				telemetry.SetAccountId(accountId)
+				c = context.WithValue(c, util.AccountIdKey, accountId)
+				accountIDFetched = true
+			}
+		}
+
+		regionWorks = append(regionWorks, regionWork{
+			region:    region,
+			resources: GetAndInitRegisteredResources(cloudNukeSession, region),
+		})
+	}
+
+	// Scan every (region, resource type) pair concurrently under a single global
+	// concurrency cap, so total in-flight API calls are bounded by `parallelism`
+	// (not parallelism^2 as nested per-region/per-type limits would produce).
+	type indexedResource struct {
+		idx      int
+		resource *resources.AwsResource
+	}
+	foundByRegion := make(map[string][]indexedResource)
+	var foundMu sync.Mutex
+
 	g := new(errgroup.Group)
 	g.SetLimit(parallelism)
 
-	for _, region := range query.Regions {
-		g.Go(func() error {
-			cloudNukeSession, errSession := NewSession(region)
-			if errSession != nil {
-				return errSession
+	for _, rw := range regionWorks {
+		region := rw.region
+		for i, resource := range rw.resources {
+			if !IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
+				continue
 			}
+			idx, resource := i, resource
+			g.Go(func() error {
+				(*resource).GetAndSetResourceConfig(configObj)
 
-			regionCtx := c
-			accountId, err := util.GetCurrentAccountId(cloudNukeSession)
-			if err == nil {
-				telemetry.SetAccountId(accountId)
-				regionCtx = context.WithValue(c, util.AccountIdKey, accountId)
-			}
+				collector.Emit(reporting.ScanProgress{
+					ResourceType: (*resource).ResourceName(),
+					Region:       region,
+				})
 
-			registeredResources := GetAndInitRegisteredResources(cloudNukeSession, region)
-
-			// Collect resources for this region; preserve registry order for nuking later.
-			// We list all types concurrently then reassemble in original order.
-			type indexedResource struct {
-				idx      int
-				resource *resources.AwsResource
-			}
-			found := make([]indexedResource, 0, len(registeredResources))
-			var regionMu sync.Mutex
-
-			inner := new(errgroup.Group)
-			inner.SetLimit(parallelism)
-
-			for i, resource := range registeredResources {
-				if !IsNukeable((*resource).ResourceName(), query.ResourceTypes) {
-					continue
-				}
-				inner.Go(func() error {
-					(*resource).GetAndSetResourceConfig(configObj)
-
-					collector.Emit(reporting.ScanProgress{
-						ResourceType: (*resource).ResourceName(),
-						Region:       region,
-					})
-
-					start := time.Now()
-					identifiers, err := (*resource).GetAndSetIdentifiers(regionCtx, configObj)
-					if err != nil {
-						logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
-
-						telemetry.TrackEvent(commonTelemetry.EventContext{
-							EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*resource).ResourceName()),
-						}, map[string]interface{}{
-							"region": region,
-						})
-
-						collector.Emit(reporting.GeneralError{
-							ResourceType: (*resource).ResourceName(),
-							Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),
-							Error:        err.Error(),
-						})
-						return nil
-					}
+				start := time.Now()
+				identifiers, err := (*resource).GetAndSetIdentifiers(c, configObj)
+				if err != nil {
+					logging.Errorf("Unable to retrieve %v, %v", (*resource).ResourceName(), err)
 
 					telemetry.TrackEvent(commonTelemetry.EventContext{
-						EventName: fmt.Sprintf("Done getting %s identifiers", (*resource).ResourceName()),
+						EventName: fmt.Sprintf("error:GetIdentifiers:%s", (*resource).ResourceName()),
 					}, map[string]interface{}{
-						"recordCount": len(identifiers),
-						"actionTime":  time.Since(start).Seconds(),
+						"region": region,
 					})
 
-					if len(identifiers) > 0 {
-						logging.Infof("Found %d %s resources in %s", len(identifiers), (*resource).ResourceName(), region)
-
-						regionMu.Lock()
-						found = append(found, indexedResource{idx: i, resource: resource})
-						regionMu.Unlock()
-
-						for _, id := range identifiers {
-							nukable, reason := true, ""
-							if _, err := (*resource).IsNukable(id); err != nil {
-								nukable, reason = false, err.Error()
-							}
-							collector.Emit(reporting.ResourceFound{
-								ResourceType: (*resource).ResourceName(),
-								Region:       region,
-								Identifier:   id,
-								Nukable:      nukable,
-								Reason:       reason,
-							})
-						}
-					}
+					collector.Emit(reporting.GeneralError{
+						ResourceType: (*resource).ResourceName(),
+						Description:  fmt.Sprintf("Unable to retrieve %s", (*resource).ResourceName()),
+						Error:        err.Error(),
+					})
 					return nil
+				}
+
+				telemetry.TrackEvent(commonTelemetry.EventContext{
+					EventName: fmt.Sprintf("Done getting %s identifiers", (*resource).ResourceName()),
+				}, map[string]interface{}{
+					"recordCount": len(identifiers),
+					"actionTime":  time.Since(start).Seconds(),
 				})
-			}
 
-			if err := inner.Wait(); err != nil {
-				return err
-			}
+				if len(identifiers) > 0 {
+					logging.Infof("Found %d %s resources in %s", len(identifiers), (*resource).ResourceName(), region)
 
-			if len(found) == 0 {
+					foundMu.Lock()
+					foundByRegion[region] = append(foundByRegion[region], indexedResource{idx: idx, resource: resource})
+					foundMu.Unlock()
+
+					for _, id := range identifiers {
+						nukable, reason := true, ""
+						if _, err := (*resource).IsNukable(id); err != nil {
+							nukable, reason = false, err.Error()
+						}
+						collector.Emit(reporting.ResourceFound{
+							ResourceType: (*resource).ResourceName(),
+							Region:       region,
+							Identifier:   id,
+							Nukable:      nukable,
+							Reason:       reason,
+						})
+					}
+				}
 				return nil
-			}
-
-			// Re-sort by original registry index so nuking respects dependency order.
-			sort.Slice(found, func(a, b int) bool { return found[a].idx < found[b].idx })
-			awsResources := AwsResources{Resources: make([]*resources.AwsResource, len(found))}
-			for i, r := range found {
-				awsResources.Resources[i] = r.resource
-			}
-
-			accountMu.Lock()
-			account.Resources[region] = awsResources
-			accountMu.Unlock()
-
-			return nil
-		})
+			})
+		}
 	}
 
 	if err := g.Wait(); err != nil {
 		return nil, err
+	}
+
+	// Reassemble each region's resources in registry order so that nuking respects
+	// dependency order (e.g. instances/ENIs/NAT before VPC).
+	for region, found := range foundByRegion {
+		if len(found) == 0 {
+			continue
+		}
+		sort.Slice(found, func(a, b int) bool { return found[a].idx < found[b].idx })
+		awsResources := AwsResources{Resources: make([]*resources.AwsResource, len(found))}
+		for i, r := range found {
+			awsResources.Resources[i] = r.resource
+		}
+		account.Resources[region] = awsResources
 	}
 
 	logging.Info("Done searching for resources")
@@ -280,35 +286,61 @@ func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions
 	var mu sync.Mutex
 	var allErrors *multierror.Error
 
+	// Regional resources are independent across regions and safe to nuke
+	// concurrently. The `global` pseudo-region (IAM, Route53, CloudFront, etc.)
+	// must be nuked AFTER all regional resources, because regional resources can
+	// depend on global ones (e.g. an EC2 instance using a global IAM instance
+	// profile, or a regional RDS global-cluster membership belonging to a global
+	// cluster). Running it concurrently would risk dependency-violation errors.
+	regionalRegions := make([]string, 0, len(regions))
+	hasGlobal := false
+	for _, region := range regions {
+		if region == GlobalRegion {
+			hasGlobal = true
+			continue
+		}
+		regionalRegions = append(regionalRegions, region)
+	}
+
+	nukeRegion := func(region string) {
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Creating session for region",
+		}, map[string]interface{}{
+			"region": region,
+		})
+
+		if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
+			mu.Lock()
+			allErrors = multierror.Append(allErrors, err)
+			mu.Unlock()
+		}
+
+		telemetry.TrackEvent(commonTelemetry.EventContext{
+			EventName: "Done Nuking Region",
+		}, map[string]interface{}{
+			"region":        region,
+			"resourceCount": len(account.Resources[region].Resources),
+		})
+	}
+
 	g := new(errgroup.Group)
 	g.SetLimit(parallelism)
 
-	for _, region := range regions {
+	for _, region := range regionalRegions {
+		region := region
 		g.Go(func() error {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Creating session for region",
-			}, map[string]interface{}{
-				"region": region,
-			})
-
-			if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
-				mu.Lock()
-				allErrors = multierror.Append(allErrors, err)
-				mu.Unlock()
-			}
-
-			telemetry.TrackEvent(commonTelemetry.EventContext{
-				EventName: "Done Nuking Region",
-			}, map[string]interface{}{
-				"region":        region,
-				"resourceCount": len(account.Resources[region].Resources),
-			})
+			nukeRegion(region)
 			return nil
 		})
 	}
 
 	if err := g.Wait(); err != nil {
 		allErrors = multierror.Append(allErrors, err)
+	}
+
+	// Nuke global resources last, after every regional resource is gone.
+	if hasGlobal {
+		nukeRegion(GlobalRegion)
 	}
 
 	// Emit NukeComplete event (triggers final output in renderers)
