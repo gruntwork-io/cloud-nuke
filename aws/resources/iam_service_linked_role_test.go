@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -151,4 +152,24 @@ func TestIAMServiceLinkedRoles_DeleteTaskMissingButRoleExists(t *testing.T) {
 
 	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("AWSServiceRoleForOrganizations"))
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "still present")
+}
+
+// TestIAMServiceLinkedRoles_DeleteVerificationError ensures that when the
+// deletion task record is gone and the follow-up GetRole call fails with a
+// non-NoSuchEntity error (e.g. throttling), we surface that error instead of
+// silently treating the role as deleted.
+func TestIAMServiceLinkedRoles_DeleteVerificationError(t *testing.T) {
+	t.Parallel()
+	client := mockedIAMServiceLinkedRoles{
+		DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{
+			DeletionTaskId: aws.String("task/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations/test-task-id"),
+		},
+		GetServiceLinkedRoleDeletionStatusErr: &types.NoSuchEntityException{Message: aws.String("Cannot find deletion status for given id.")},
+		GetRoleErr:                            fmt.Errorf("Throttling: Rate exceeded"),
+	}
+
+	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("AWSServiceRoleForOrganizations"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Rate exceeded")
 }
