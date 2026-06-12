@@ -1,10 +1,14 @@
 package gcp
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/gcp/resources"
@@ -40,30 +44,84 @@ func GetAllResources(ctx context.Context, query *Query, configObj config.Config,
 	}
 
 	ctx = context.WithValue(ctx, util.ExcludeFirstSeenTagKey, query.ExcludeFirstSeen)
+	// Inject parallelism from the query so downstream callers can read it via
+	// util.GetParallelism without needing the caller to set it on the context.
+	ctx = context.WithValue(ctx, util.ParallelismKey, query.Parallelism)
+	parallelism := util.GetParallelism(ctx)
 
+	type indexedResource struct {
+		idx int
+		res *GcpResource
+	}
+	type regionSetup struct {
+		nukeable []indexedResource
+	}
+
+	// Phase 1: init resources for each region concurrently.
+	// GetAndInitRegisteredResources only allocates GCP clients (no API calls), so
+	// no concurrency limit is needed here.
+	setups := make(map[string]*regionSetup, len(query.Regions))
+	var setupMu sync.Mutex
+
+	setupGroup := new(errgroup.Group)
 	for _, region := range query.Regions {
-		cfg := resources.GcpConfig{ProjectID: query.ProjectID, Region: region}
-		regionResources := GetAndInitRegisteredResources(cfg, region)
-
-		for _, res := range regionResources {
-			resourceName := (*res).ResourceName()
-
-			if !IsNukeable(resourceName, query.ResourceTypes, query.ExcludeResourceTypes) {
-				continue
+		setupGroup.Go(func() error {
+			cfg := resources.GcpConfig{ProjectID: query.ProjectID, Region: region}
+			regionResources := GetAndInitRegisteredResources(cfg, region)
+			setup := &regionSetup{}
+			for i, res := range regionResources {
+				resourceName := (*res).ResourceName()
+				if IsNukeable(resourceName, query.ResourceTypes, query.ExcludeResourceTypes) {
+					setup.nukeable = append(setup.nukeable, indexedResource{idx: i, res: res})
+				}
 			}
+			setupMu.Lock()
+			setups[region] = setup
+			setupMu.Unlock()
+			return nil
+		})
+	}
+	if err := setupGroup.Wait(); err != nil {
+		return nil, err
+	}
 
-			// Emit scan progress event
+	// Phase 2: scan all nukeable resources across all regions with a single shared
+	// concurrency limit. Using one errgroup (instead of nested per-region groups)
+	// ensures --parallelism N means at most N simultaneous API calls total.
+	type resourceTask struct {
+		region string
+		idx    int
+		res    *GcpResource
+	}
+	var allTasks []resourceTask
+	for _, region := range query.Regions {
+		setup, ok := setups[region]
+		if !ok {
+			continue
+		}
+		for _, r := range setup.nukeable {
+			allTasks = append(allTasks, resourceTask{region: region, idx: r.idx, res: r.res})
+		}
+	}
+
+	foundByRegion := make(map[string][]indexedResource)
+	var foundMu sync.Mutex
+
+	scanGroup := new(errgroup.Group)
+	scanGroup.SetLimit(parallelism)
+	for _, task := range allTasks {
+		scanGroup.Go(func() error {
+			resourceName := (*task.res).ResourceName()
 			collector.Emit(reporting.ScanProgress{
 				ResourceType: resourceName,
-				Region:       region,
+				Region:       task.region,
 			})
 
-			// Get all resource identifiers
-			identifiers, err := (*res).GetAndSetIdentifiers(ctx, configObj)
+			identifiers, err := (*task.res).GetAndSetIdentifiers(ctx, configObj)
 			if err != nil {
 				if isServiceDisabledError(err) && !collections.ListContainsElement(query.ResourceTypes, resourceName) {
 					logging.Debugf("Skipping %s: API is disabled in this project", resourceName)
-					continue
+					return nil
 				}
 				logging.Debugf("Error getting identifiers for %s: %v", resourceName, err)
 				collector.Emit(reporting.GeneralError{
@@ -71,32 +129,48 @@ func GetAllResources(ctx context.Context, query *Query, configObj config.Config,
 					Description:  fmt.Sprintf("Unable to retrieve %s", resourceName),
 					Error:        err.Error(),
 				})
-				continue
+				return nil
 			}
 
-			// Only append if we have non-empty identifiers
 			if len(identifiers) > 0 {
 				logging.Infof("Found %d %s resources", len(identifiers), resourceName)
-				allResources.Resources[region] = GcpResources{
-					Resources: append(allResources.Resources[region].Resources, res),
-				}
 
-				// Emit ResourceFound events for each identifier
+				foundMu.Lock()
+				foundByRegion[task.region] = append(foundByRegion[task.region], indexedResource{task.idx, task.res})
+				foundMu.Unlock()
+
 				for _, id := range identifiers {
 					nukable, reason := true, ""
-					if _, err := (*res).IsNukable(id); err != nil {
+					if _, err := (*task.res).IsNukable(id); err != nil {
 						nukable, reason = false, err.Error()
 					}
 					collector.Emit(reporting.ResourceFound{
 						ResourceType: resourceName,
-						Region:       region,
+						Region:       task.region,
 						Identifier:   id,
 						Nukable:      nukable,
 						Reason:       reason,
 					})
 				}
 			}
+			return nil
+		})
+	}
+	if err := scanGroup.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Sort resources within each region by original registry index to preserve
+	// the dependency ordering required for safe nuking.
+	for region, found := range foundByRegion {
+		slices.SortFunc(found, func(a, b indexedResource) int {
+			return cmp.Compare(a.idx, b.idx)
+		})
+		regionList := make([]*GcpResource, len(found))
+		for i, r := range found {
+			regionList[i] = r.res
 		}
+		allResources.Resources[region] = GcpResources{Resources: regionList}
 	}
 
 	logging.Info("Done searching for GCP resources")
@@ -106,16 +180,30 @@ func GetAllResources(ctx context.Context, query *Query, configObj config.Config,
 }
 
 // NukeAllResources nukes all GCP resources across the given regions.
-func NukeAllResources(ctx context.Context, account *GcpProjectResources, regions []string, collector *reporting.Collector) error {
-	// Emit NukeStarted event (CLIRenderer will initialize progress bar)
+func NukeAllResources(ctx context.Context, account *GcpProjectResources, regions []string, parallelism int, collector *reporting.Collector) error {
+	// Inject parallelism into context so batch_deleter (called via Nuke) can read it.
+	ctx = context.WithValue(ctx, util.ParallelismKey, parallelism)
+	p := util.GetParallelism(ctx)
+
 	collector.Emit(reporting.NukeStarted{Total: account.TotalResourceCount()})
 
+	eg := new(errgroup.Group)
+	eg.SetLimit(p)
+	var mu sync.Mutex
 	var allErrors *multierror.Error
 
 	for _, region := range regions {
-		if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
-			allErrors = multierror.Append(allErrors, err)
-		}
+		eg.Go(func() error {
+			if err := nukeAllResourcesInRegion(ctx, account, region, collector); err != nil {
+				mu.Lock()
+				allErrors = multierror.Append(allErrors, err)
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		allErrors = multierror.Append(allErrors, err)
 	}
 
 	// Emit NukeComplete event (triggers final output in renderers)
@@ -219,6 +307,6 @@ func ListResourceTypes() []string {
 	for _, r := range GetAllRegisteredResources() {
 		resourceTypes = append(resourceTypes, (*r).ResourceName())
 	}
-	sort.Strings(resourceTypes)
+	slices.Sort(resourceTypes)
 	return resourceTypes
 }

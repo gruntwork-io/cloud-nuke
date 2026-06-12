@@ -9,11 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
-const (
-	// DefaultMaxConcurrent is the default number of concurrent deletions
-	DefaultMaxConcurrent = 10
-)
-
 // NukeResult represents the result of nuking a single resource.
 type NukeResult struct {
 	Identifier string
@@ -39,7 +34,7 @@ func logStart(identifiers []*string, resourceType string, scope Scope) bool {
 }
 
 // SimpleBatchDeleter creates a nuker that deletes resources concurrently.
-// Uses DefaultMaxConcurrent for parallelism control.
+// Concurrency is controlled by the parallelism value in ctx (see util.GetParallelism).
 func SimpleBatchDeleter[C any](deleteFn DeleteFunc[C]) NukerFunc[C] {
 	return func(ctx context.Context, client C, scope Scope, resourceType string, identifiers []*string) []NukeResult {
 		if logStart(identifiers, resourceType, scope) {
@@ -47,7 +42,7 @@ func SimpleBatchDeleter[C any](deleteFn DeleteFunc[C]) NukerFunc[C] {
 		}
 
 		results := make([]NukeResult, len(identifiers))
-		sem := make(chan struct{}, DefaultMaxConcurrent)
+		sem := make(chan struct{}, util.GetParallelism(ctx))
 		var wg sync.WaitGroup
 		var mu sync.Mutex
 
@@ -252,7 +247,7 @@ func ConcurrentDeleteThenWaitAll[C any](deleteFn DeleteFunc[C], waitAllFn WaitAl
 			err   error
 		}
 		deleteResults := make([]deleteResult, len(identifiers))
-		sem := make(chan struct{}, DefaultMaxConcurrent)
+		sem := make(chan struct{}, util.GetParallelism(ctx))
 		var wg sync.WaitGroup
 
 		for i, id := range identifiers {

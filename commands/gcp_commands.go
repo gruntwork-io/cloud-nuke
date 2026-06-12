@@ -43,6 +43,7 @@ func gcpNuke(c *cli.Context) error {
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
+		Parallelism:          c.Int(FlagParallelism),
 	}
 
 	// Apply timeout to config
@@ -88,6 +89,7 @@ func gcpInspect(c *cli.Context) error {
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
+		Parallelism:          c.Int(FlagParallelism),
 	}
 
 	// Load config file if provided
@@ -152,7 +154,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, query *gcp.Query, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		if err := gcp.NukeAllResources(c.Context, account, query.Regions, collector); err != nil {
+		if err := gcp.NukeAllResources(c.Context, account, query.Regions, query.Parallelism, collector); err != nil {
 			return err
 		}
 	}

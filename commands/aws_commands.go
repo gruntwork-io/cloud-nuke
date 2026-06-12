@@ -166,7 +166,7 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		return aws.NukeAllResources(c.Context, account, query.Regions, collector)
+		return aws.NukeAllResources(c.Context, account, query.Regions, query.Parallelism, collector)
 	}
 
 	return nil
@@ -217,6 +217,7 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 		DefaultOnly:          onlyDefault,
 		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
 		IncludeTags:          includeTags,
+		Parallelism:          c.Int(FlagParallelism),
 	}
 	if err := q.Validate(); err != nil {
 		return nil, err

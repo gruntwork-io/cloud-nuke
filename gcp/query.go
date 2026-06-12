@@ -19,6 +19,7 @@ type Query struct {
 	IncludeAfter         *time.Time
 	Timeout              *time.Duration
 	ExcludeFirstSeen     bool
+	Parallelism          int
 }
 
 // Validate ensures the query has valid defaults.
@@ -41,6 +42,10 @@ func (q *Query) Validate() error {
 
 	if len(q.Regions) == 0 {
 		return fmt.Errorf("no regions to process after applying exclusions")
+	}
+
+	if q.Parallelism < 0 {
+		return fmt.Errorf("--parallelism must be >= 0 (0 uses the GOMAXPROCS default)")
 	}
 
 	return nil

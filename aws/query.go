@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -19,6 +20,7 @@ type Query struct {
 	ExcludeFirstSeen     bool
 	DefaultOnly          bool
 	IncludeTags          map[string]config.Expression
+	Parallelism          int
 }
 
 // Validate ensures the configured values for a Query are valid, returning an error if there are
@@ -45,6 +47,10 @@ func (q *Query) Validate() error {
 	}
 
 	q.Regions = targetRegions
+
+	if q.Parallelism < 0 {
+		return fmt.Errorf("--parallelism must be >= 0 (0 uses the GOMAXPROCS default)")
+	}
 
 	return nil
 }
