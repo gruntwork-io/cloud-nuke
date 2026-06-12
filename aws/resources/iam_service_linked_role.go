@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	goerr "errors"
 	"fmt"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 // IAMServiceLinkedRolesAPI defines the interface for IAM Service Linked Role operations.
 type IAMServiceLinkedRolesAPI interface {
 	ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error)
+	GetRole(ctx context.Context, params *iam.GetRoleInput, optFns ...func(*iam.Options)) (*iam.GetRoleOutput, error)
 	DeleteServiceLinkedRole(ctx context.Context, params *iam.DeleteServiceLinkedRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteServiceLinkedRoleOutput, error)
 	GetServiceLinkedRoleDeletionStatus(ctx context.Context, params *iam.GetServiceLinkedRoleDeletionStatusInput, optFns ...func(*iam.Options)) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error)
 }
@@ -88,6 +90,21 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 				DeletionTaskId: deletionData.DeletionTaskId,
 			})
 			if err != nil {
+				// Some roles delete so quickly on the AWS side that the deletion task
+				// record is purged before we poll for its status, yielding a
+				// NoSuchEntity (404) error. That alone does not confirm the role is
+				// gone (the task ID could be invalid for other reasons), so verify the
+				// role itself no longer exists before reporting success.
+				var notFoundErr *types.NoSuchEntityException
+				if goerr.As(err, &notFoundErr) {
+					_, roleErr := client.GetRole(ctx, &iam.GetRoleInput{
+						RoleName: roleName,
+					})
+					var roleNotFound *types.NoSuchEntityException
+					if goerr.As(roleErr, &roleNotFound) {
+						return true, nil
+					}
+				}
 				return false, errors.WithStackTrace(err)
 			}
 
