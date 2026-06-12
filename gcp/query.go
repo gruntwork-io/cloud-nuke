@@ -45,7 +45,7 @@ func (q *Query) Validate() error {
 	}
 
 	if q.Parallelism < 0 {
-		return fmt.Errorf("--parallelism must be >= 0 (0 uses the GOMAXPROCS default)")
+		return fmt.Errorf("--parallelism must be >= 0 (0 uses the default)")
 	}
 
 	return nil
