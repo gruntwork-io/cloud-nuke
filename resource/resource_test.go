@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -174,9 +175,11 @@ func TestResource_IsNukable(t *testing.T) {
 // Batch Deleter Tests
 
 func TestSimpleBatchDeleter(t *testing.T) {
-	deleteCount := 0
+	// SimpleBatchDeleter invokes deleteFn concurrently, so the mock counter must
+	// be thread-safe (otherwise this races under `go test -race`).
+	var deleteCount atomic.Int64
 	deleter := SimpleBatchDeleter(func(ctx context.Context, client *mockClient, id *string) error {
-		deleteCount++
+		deleteCount.Add(1)
 		return nil
 	})
 
@@ -187,7 +190,7 @@ func TestSimpleBatchDeleter(t *testing.T) {
 	for _, result := range results {
 		assert.NoError(t, result.Error)
 	}
-	assert.Equal(t, 3, deleteCount)
+	assert.Equal(t, int64(3), deleteCount.Load())
 }
 
 func TestSequentialDeleter(t *testing.T) {
