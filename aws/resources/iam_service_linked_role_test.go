@@ -22,6 +22,12 @@ type mockedIAMServiceLinkedRoles struct {
 	GetServiceLinkedRoleDeletionStatusErr    error
 	GetRoleOutput                            iam.GetRoleOutput
 	GetRoleErr                               error
+	// GetRoleErrSeq, when set, overrides GetRoleErr and returns one entry per
+	// GetRole call (the final entry repeats). This lets a test model GetRole
+	// results that change across poll iterations, e.g. IAM read-after-write lag
+	// where the role is briefly still visible before the delete propagates.
+	GetRoleErrSeq []error
+	getRoleCalls  *int
 }
 
 func (m mockedIAMServiceLinkedRoles) ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error) {
@@ -29,7 +35,19 @@ func (m mockedIAMServiceLinkedRoles) ListRoles(ctx context.Context, params *iam.
 }
 
 func (m mockedIAMServiceLinkedRoles) GetRole(ctx context.Context, params *iam.GetRoleInput, optFns ...func(*iam.Options)) (*iam.GetRoleOutput, error) {
-	return &m.GetRoleOutput, m.GetRoleErr
+	err := m.GetRoleErr
+	if len(m.GetRoleErrSeq) > 0 {
+		i := *m.getRoleCalls
+		if i >= len(m.GetRoleErrSeq) {
+			i = len(m.GetRoleErrSeq) - 1
+		}
+		*m.getRoleCalls++
+		err = m.GetRoleErrSeq[i]
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &m.GetRoleOutput, nil
 }
 
 func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRole(ctx context.Context, params *iam.DeleteServiceLinkedRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteServiceLinkedRoleOutput, error) {
@@ -135,11 +153,14 @@ func TestIAMServiceLinkedRoles_DeleteTaskRecordPurged(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestIAMServiceLinkedRoles_DeleteTaskMissingButRoleExists ensures we still
-// report a failure when the deletion task record is missing but the role is
-// actually still present.
-func TestIAMServiceLinkedRoles_DeleteTaskMissingButRoleExists(t *testing.T) {
+// TestIAMServiceLinkedRoles_DeleteTaskMissingRoleLagThenGone covers the case
+// where the deletion task record is purged but GetRole still briefly sees the
+// role due to IAM read-after-write lag. AWS already accepted the deletion, so
+// polling should continue rather than fail, and the next check (once the role
+// is gone) reports success.
+func TestIAMServiceLinkedRoles_DeleteTaskMissingRoleLagThenGone(t *testing.T) {
 	t.Parallel()
+	calls := 0
 	client := mockedIAMServiceLinkedRoles{
 		DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{
 			DeletionTaskId: aws.String("task/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations/test-task-id"),
@@ -148,11 +169,13 @@ func TestIAMServiceLinkedRoles_DeleteTaskMissingButRoleExists(t *testing.T) {
 		GetRoleOutput: iam.GetRoleOutput{
 			Role: &types.Role{RoleName: aws.String("AWSServiceRoleForOrganizations")},
 		},
+		// First GetRole still sees the role (lag); the second confirms it is gone.
+		GetRoleErrSeq: []error{nil, &types.NoSuchEntityException{Message: aws.String("The role does not exist.")}},
+		getRoleCalls:  &calls,
 	}
 
 	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("AWSServiceRoleForOrganizations"))
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "still present")
+	require.NoError(t, err)
 }
 
 // TestIAMServiceLinkedRoles_DeleteVerificationError ensures that when the
@@ -166,10 +189,10 @@ func TestIAMServiceLinkedRoles_DeleteVerificationError(t *testing.T) {
 			DeletionTaskId: aws.String("task/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations/test-task-id"),
 		},
 		GetServiceLinkedRoleDeletionStatusErr: &types.NoSuchEntityException{Message: aws.String("Cannot find deletion status for given id.")},
-		GetRoleErr:                            fmt.Errorf("Throttling: Rate exceeded"),
+		GetRoleErr:                            fmt.Errorf("throttling: rate exceeded"),
 	}
 
 	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("AWSServiceRoleForOrganizations"))
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Rate exceeded")
+	require.Contains(t, err.Error(), "rate exceeded")
 }

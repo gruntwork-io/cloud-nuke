@@ -94,7 +94,9 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 				// record is purged before we poll for its status, yielding a
 				// NoSuchEntity (404) error. That alone does not confirm the role is
 				// gone (the task ID could be invalid for other reasons), so verify the
-				// role itself via GetRole before reporting success.
+				// role itself via GetRole before reporting success. This requires the
+				// iam:GetRole permission in addition to the service-linked-role
+				// deletion permissions.
 				var notFoundErr *types.NoSuchEntityException
 				if goerr.As(err, &notFoundErr) {
 					_, roleErr := client.GetRole(ctx, &iam.GetRoleInput{
@@ -110,8 +112,14 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 						// error rather than masking it with the task-not-found error.
 						return false, errors.WithStackTrace(roleErr)
 					default:
-						// Role still exists: the task record is missing but the role was not deleted.
-						return false, fmt.Errorf("deletion task for IAM ServiceLinked Role %s no longer exists but the role is still present", aws.ToString(roleName))
+						// The task record is gone but GetRole still sees the role. AWS
+						// already accepted the deletion, so this is almost always IAM
+						// read-after-write lag rather than a real failure. Keep polling
+						// (as we do for an in-progress deletion): the role should
+						// disappear on a later check, and the surrounding timeout still
+						// bounds a genuinely stuck delete.
+						logging.Debugf("Deletion task for IAM ServiceLinked Role %s is gone but the role is still visible; retrying", aws.ToString(roleName))
+						return false, nil
 					}
 				}
 				return false, errors.WithStackTrace(err)
