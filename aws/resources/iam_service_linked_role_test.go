@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -18,10 +19,17 @@ type mockedIAMServiceLinkedRoles struct {
 	ListRolesOutput                          iam.ListRolesOutput
 	DeleteServiceLinkedRoleOutput            iam.DeleteServiceLinkedRoleOutput
 	GetServiceLinkedRoleDeletionStatusOutput iam.GetServiceLinkedRoleDeletionStatusOutput
+	GetServiceLinkedRoleDeletionStatusErr    error
+	GetRoleOutput                            iam.GetRoleOutput
+	GetRoleErr                               error
 }
 
 func (m mockedIAMServiceLinkedRoles) ListRoles(ctx context.Context, params *iam.ListRolesInput, optFns ...func(*iam.Options)) (*iam.ListRolesOutput, error) {
 	return &m.ListRolesOutput, nil
+}
+
+func (m mockedIAMServiceLinkedRoles) GetRole(ctx context.Context, params *iam.GetRoleInput, optFns ...func(*iam.Options)) (*iam.GetRoleOutput, error) {
+	return &m.GetRoleOutput, m.GetRoleErr
 }
 
 func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRole(ctx context.Context, params *iam.DeleteServiceLinkedRoleInput, optFns ...func(*iam.Options)) (*iam.DeleteServiceLinkedRoleOutput, error) {
@@ -29,7 +37,7 @@ func (m mockedIAMServiceLinkedRoles) DeleteServiceLinkedRole(ctx context.Context
 }
 
 func (m mockedIAMServiceLinkedRoles) GetServiceLinkedRoleDeletionStatus(ctx context.Context, params *iam.GetServiceLinkedRoleDeletionStatusInput, optFns ...func(*iam.Options)) (*iam.GetServiceLinkedRoleDeletionStatusOutput, error) {
-	return &m.GetServiceLinkedRoleDeletionStatusOutput, nil
+	return &m.GetServiceLinkedRoleDeletionStatusOutput, m.GetServiceLinkedRoleDeletionStatusErr
 }
 
 func TestIAMServiceLinkedRoles_List(t *testing.T) {
@@ -107,4 +115,61 @@ func TestIAMServiceLinkedRoles_Delete(t *testing.T) {
 
 	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("test-role1"))
 	require.NoError(t, err)
+}
+
+// TestIAMServiceLinkedRoles_DeleteTaskRecordPurged covers the case where AWS
+// deletes the role so quickly that the deletion task record is purged before we
+// poll, returning NoSuchEntity. When the role itself is also gone, this is a
+// success, not a failure.
+func TestIAMServiceLinkedRoles_DeleteTaskRecordPurged(t *testing.T) {
+	t.Parallel()
+	client := mockedIAMServiceLinkedRoles{
+		DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{
+			DeletionTaskId: aws.String("task/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations/test-task-id"),
+		},
+		GetServiceLinkedRoleDeletionStatusErr: &types.NoSuchEntityException{Message: aws.String("Cannot find deletion status for given id.")},
+		GetRoleErr:                            &types.NoSuchEntityException{Message: aws.String("The role does not exist.")},
+	}
+
+	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("AWSServiceRoleForOrganizations"))
+	require.NoError(t, err)
+}
+
+// TestIAMServiceLinkedRoles_DeleteTaskMissingButRoleExists ensures we still
+// report a failure when the deletion task record is missing but the role is
+// actually still present.
+func TestIAMServiceLinkedRoles_DeleteTaskMissingButRoleExists(t *testing.T) {
+	t.Parallel()
+	client := mockedIAMServiceLinkedRoles{
+		DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{
+			DeletionTaskId: aws.String("task/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations/test-task-id"),
+		},
+		GetServiceLinkedRoleDeletionStatusErr: &types.NoSuchEntityException{Message: aws.String("Cannot find deletion status for given id.")},
+		GetRoleOutput: iam.GetRoleOutput{
+			Role: &types.Role{RoleName: aws.String("AWSServiceRoleForOrganizations")},
+		},
+	}
+
+	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("AWSServiceRoleForOrganizations"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "still present")
+}
+
+// TestIAMServiceLinkedRoles_DeleteVerificationError ensures that when the
+// deletion task record is gone and the follow-up GetRole call fails with a
+// non-NoSuchEntity error (e.g. throttling), we surface that error instead of
+// silently treating the role as deleted.
+func TestIAMServiceLinkedRoles_DeleteVerificationError(t *testing.T) {
+	t.Parallel()
+	client := mockedIAMServiceLinkedRoles{
+		DeleteServiceLinkedRoleOutput: iam.DeleteServiceLinkedRoleOutput{
+			DeletionTaskId: aws.String("task/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations/test-task-id"),
+		},
+		GetServiceLinkedRoleDeletionStatusErr: &types.NoSuchEntityException{Message: aws.String("Cannot find deletion status for given id.")},
+		GetRoleErr:                            fmt.Errorf("Throttling: Rate exceeded"),
+	}
+
+	err := deleteIAMServiceLinkedRole(context.Background(), client, aws.String("AWSServiceRoleForOrganizations"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Rate exceeded")
 }
