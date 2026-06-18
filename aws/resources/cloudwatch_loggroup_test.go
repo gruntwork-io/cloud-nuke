@@ -2,7 +2,9 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +31,16 @@ func (m *mockCloudWatchLogGroupsClient) DeleteLogGroup(ctx context.Context, para
 }
 
 func (m *mockCloudWatchLogGroupsClient) ListTagsForResource(ctx context.Context, params *cloudwatchlogs.ListTagsForResourceInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.ListTagsForResourceOutput, error) {
-	if aws.ToString(params.ResourceArn) == "arn:aws:logs:us-east-1:123456789:log-group:log-group-2" {
+	arn := aws.ToString(params.ResourceArn)
+	// A trailing ":*" means the caller failed to normalize the ARN; mimic the real API,
+	// which rejects that form with "Invalid resourceArn" (the root cause of issue #1150).
+	if strings.HasSuffix(arn, ":*") {
+		return nil, fmt.Errorf("ValidationException: Invalid resourceArn: %s", arn)
+	}
+	if strings.HasSuffix(arn, "tag-error") {
+		return nil, fmt.Errorf("ServiceUnavailableException")
+	}
+	if arn == "arn:aws:logs:us-east-1:123456789:log-group:log-group-2" {
 		return &cloudwatchlogs.ListTagsForResourceOutput{Tags: map[string]string{"env": "prod"}}, nil
 	}
 	return &cloudwatchlogs.ListTagsForResourceOutput{Tags: map[string]string{"env": "dev"}}, nil
@@ -94,9 +105,10 @@ func TestListCloudWatchLogGroups_TagInclusionFilter(t *testing.T) {
 	mock := &mockCloudWatchLogGroupsClient{
 		DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
 			LogGroups: []types.LogGroup{
-				// DescribeLogGroups returns ARNs with a trailing ":*" suffix, which must be
-				// stripped before calling ListTagsForResource (see issue #1150).
-				{LogGroupName: aws.String("log-group-1"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-1:*"), CreationTime: aws.Int64(now)},
+				// log-group-1 exercises the LogGroupArn path (suffix-free, as DescribeLogGroups
+				// returns it). log-group-2 omits LogGroupArn to exercise the Arn fallback, whose
+				// trailing ":*" must be stripped before ListTagsForResource (see issue #1150).
+				{LogGroupName: aws.String("log-group-1"), LogGroupArn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-1"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-1:*"), CreationTime: aws.Int64(now)},
 				{LogGroupName: aws.String("log-group-2"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-2:*"), CreationTime: aws.Int64(now)},
 			},
 		},
@@ -113,6 +125,26 @@ func TestListCloudWatchLogGroups_TagInclusionFilter(t *testing.T) {
 	names, err := listCloudWatchLogGroups(context.Background(), mock, resource.Scope{}, cfg)
 	require.NoError(t, err)
 	require.Equal(t, []string{"log-group-2"}, aws.ToStringSlice(names))
+}
+
+func TestListCloudWatchLogGroups_SkipsOnTagListError(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UnixMilli()
+	mock := &mockCloudWatchLogGroupsClient{
+		DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
+			LogGroups: []types.LogGroup{
+				{LogGroupName: aws.String("log-group-ok"), LogGroupArn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-ok"), CreationTime: aws.Int64(now)},
+				{LogGroupName: aws.String("log-group-tag-error"), LogGroupArn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-tag-error"), CreationTime: aws.Int64(now)},
+			},
+		},
+	}
+
+	// A log group whose tags cannot be read is skipped rather than nuked, since it may
+	// carry an exclude tag we could not observe.
+	names, err := listCloudWatchLogGroups(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"log-group-ok"}, aws.ToStringSlice(names))
 }
 
 func TestDeleteCloudWatchLogGroup(t *testing.T) {
