@@ -94,8 +94,10 @@ func TestListCloudWatchLogGroups_TagInclusionFilter(t *testing.T) {
 	mock := &mockCloudWatchLogGroupsClient{
 		DescribeLogGroupsOutput: cloudwatchlogs.DescribeLogGroupsOutput{
 			LogGroups: []types.LogGroup{
-				{LogGroupName: aws.String("log-group-1"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-1"), CreationTime: aws.Int64(now)},
-				{LogGroupName: aws.String("log-group-2"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-2"), CreationTime: aws.Int64(now)},
+				// DescribeLogGroups returns ARNs with a trailing ":*" suffix, which must be
+				// stripped before calling ListTagsForResource (see issue #1150).
+				{LogGroupName: aws.String("log-group-1"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-1:*"), CreationTime: aws.Int64(now)},
+				{LogGroupName: aws.String("log-group-2"), Arn: aws.String("arn:aws:logs:us-east-1:123456789:log-group:log-group-2:*"), CreationTime: aws.Int64(now)},
 			},
 		},
 	}

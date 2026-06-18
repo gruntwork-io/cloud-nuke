@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -56,8 +57,11 @@ func listCloudWatchLogGroups(ctx context.Context, client CloudWatchLogGroupsAPI,
 				creationTime = aws.Time(time.Unix(0, aws.ToInt64(logGroup.CreationTime)*int64(time.Millisecond)))
 			}
 
+			// DescribeLogGroups returns ARNs with a trailing ":*" suffix (e.g.
+			// "arn:aws:logs:us-east-1:123:log-group:/aws/eks/x:*"), but ListTagsForResource
+			// rejects that form with "Invalid resourceArn". Strip the suffix before the call.
 			tagsOutput, err := client.ListTagsForResource(ctx, &cloudwatchlogs.ListTagsForResourceInput{
-				ResourceArn: logGroup.Arn,
+				ResourceArn: aws.String(strings.TrimSuffix(aws.ToString(logGroup.Arn), ":*")),
 			})
 			if err != nil {
 				logging.Debugf("[cloudwatch-loggroup] Failed to list tags for log group %s: %s", aws.ToString(logGroup.LogGroupName), err)
