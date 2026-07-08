@@ -30,6 +30,16 @@ const (
 	iso8601Bare = "2006-01-02T15:04:05"
 )
 
+// ec2CreateTagsAPI matches any EC2-compatible client (including mocks) that can
+// tag resources, so GetOrCreateFirstSeen can stamp the first-seen tag without
+// requiring the concrete *ec2.Client type.
+type ec2CreateTagsAPI interface {
+	CreateTags(ctx context.Context, params *ec2v2.CreateTagsInput, optFns ...func(*ec2v2.Options)) (*ec2v2.CreateTagsOutput, error)
+}
+
+// Ensure the real EC2 client keeps satisfying the interface if the SDK signature changes.
+var _ ec2CreateTagsAPI = (*ec2v2.Client)(nil)
+
 func IsFirstSeenTag(key *string) bool {
 	return aws.ToString(key) == FirstSeenTagKey
 }
@@ -86,7 +96,7 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 		firstSeenTime = &now
 
 		switch v := client.(type) {
-		case *ec2v2.Client:
+		case ec2CreateTagsAPI:
 			_, err = v.CreateTags(ctx, &ec2v2.CreateTagsInput{
 				Resources: []string{*identifier},
 				Tags: []ec2types.Tag{

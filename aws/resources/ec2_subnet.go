@@ -11,10 +11,12 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
+	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2SubnetAPI defines the interface for EC2 Subnet operations.
 type EC2SubnetAPI interface {
+	CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
 	DeleteSubnet(ctx context.Context, params *ec2.DeleteSubnetInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSubnetOutput, error)
 	DescribeSubnets(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
 }
@@ -66,10 +68,13 @@ func listEC2Subnets(ctx context.Context, client EC2SubnetAPI, scope resource.Sco
 				continue
 			}
 
-			tagMap := util.ConvertTypesTagsToMap(subnet.Tags)
-
-			// Get first seen time from tags
-			firstSeenTime := getEC2SubnetFirstSeenTime(tagMap)
+			// Subnets have no creation timestamp, so age them via the
+			// first-seen tag, stamping it here on first scan.
+			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, subnet.SubnetId, util.ConvertTypesTagsToMap(subnet.Tags))
+			if err != nil {
+				logging.Error("unable to retrieve first seen tag")
+				return nil, errors.WithStackTrace(err)
+			}
 
 			if shouldIncludeEC2Subnet(subnet, firstSeenTime, cfg) {
 				subnetIds = append(subnetIds, subnet.SubnetId)
@@ -78,16 +83,6 @@ func listEC2Subnets(ctx context.Context, client EC2SubnetAPI, scope resource.Sco
 	}
 
 	return subnetIds, nil
-}
-
-// getEC2SubnetFirstSeenTime extracts the first seen time from tag map.
-func getEC2SubnetFirstSeenTime(tagMap map[string]string) *time.Time {
-	if firstSeenStr, ok := tagMap[util.FirstSeenTagKey]; ok {
-		if t, err := util.ParseTimestamp(aws.String(firstSeenStr)); err == nil {
-			return t
-		}
-	}
-	return nil
 }
 
 // shouldIncludeEC2Subnet determines if a subnet should be included based on config filters.
