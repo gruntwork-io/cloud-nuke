@@ -19,9 +19,12 @@ type mockedVPCLatticeServiceNetwork struct {
 	DeleteServiceNetworkOutput                   vpclattice.DeleteServiceNetworkOutput
 	ListServiceNetworkServiceAssociationsOutput  vpclattice.ListServiceNetworkServiceAssociationsOutput
 	DeleteServiceNetworkServiceAssociationOutput vpclattice.DeleteServiceNetworkServiceAssociationOutput
+	ListServiceNetworkVpcAssociationsOutput      vpclattice.ListServiceNetworkVpcAssociationsOutput
+	DeleteServiceNetworkVpcAssociationOutput     vpclattice.DeleteServiceNetworkVpcAssociationOutput
 
 	// Track calls to simulate associations being deleted
-	listAssociationsCalls int
+	listAssociationsCalls    int
+	listVpcAssociationsCalls int
 }
 
 func (m *mockedVPCLatticeServiceNetwork) ListServiceNetworks(ctx context.Context, params *vpclattice.ListServiceNetworksInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworksOutput, error) {
@@ -43,6 +46,19 @@ func (m *mockedVPCLatticeServiceNetwork) ListServiceNetworkServiceAssociations(c
 
 func (m *mockedVPCLatticeServiceNetwork) DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error) {
 	return &m.DeleteServiceNetworkServiceAssociationOutput, nil
+}
+
+func (m *mockedVPCLatticeServiceNetwork) ListServiceNetworkVpcAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkVpcAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkVpcAssociationsOutput, error) {
+	m.listVpcAssociationsCalls++
+	// First call returns associations, subsequent calls return empty (simulating deletion)
+	if m.listVpcAssociationsCalls <= 1 {
+		return &m.ListServiceNetworkVpcAssociationsOutput, nil
+	}
+	return &vpclattice.ListServiceNetworkVpcAssociationsOutput{Items: []types.ServiceNetworkVpcAssociationSummary{}}, nil
+}
+
+func (m *mockedVPCLatticeServiceNetwork) DeleteServiceNetworkVpcAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkVpcAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkVpcAssociationOutput, error) {
+	return &m.DeleteServiceNetworkVpcAssociationOutput, nil
 }
 
 func (m *mockedVPCLatticeServiceNetwork) ListTagsForResource(ctx context.Context, params *vpclattice.ListTagsForResourceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error) {
@@ -147,6 +163,22 @@ func TestVPCLatticeServiceNetwork_DeleteServiceAssociations(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestVPCLatticeServiceNetwork_DeleteVpcAssociations(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockedVPCLatticeServiceNetwork{
+		ListServiceNetworkVpcAssociationsOutput: vpclattice.ListServiceNetworkVpcAssociationsOutput{
+			Items: []types.ServiceNetworkVpcAssociationSummary{
+				{Id: aws.String("snva-123456")},
+				{Id: aws.String("snva-789012")},
+			},
+		},
+	}
+
+	err := deleteVpcAssociations(context.Background(), mock, aws.String("sn-test"))
+	require.NoError(t, err)
+}
+
 func TestVPCLatticeServiceNetwork_DeleteNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -158,13 +190,19 @@ func TestVPCLatticeServiceNetwork_DeleteNetwork(t *testing.T) {
 func TestVPCLatticeServiceNetwork_MultiStepDeleter(t *testing.T) {
 	t.Parallel()
 
+	// Both association types are populated so the deleter must clear service and
+	// VPC associations before the network delete succeeds (regression for the
+	// 409 "has VPC(s) associated" failure caused by leftover VPC associations).
 	mock := &mockedVPCLatticeServiceNetwork{
 		ListServiceNetworkServiceAssociationsOutput: vpclattice.ListServiceNetworkServiceAssociationsOutput{
-			Items: []types.ServiceNetworkServiceAssociationSummary{},
+			Items: []types.ServiceNetworkServiceAssociationSummary{{Id: aws.String("snsa-1")}},
+		},
+		ListServiceNetworkVpcAssociationsOutput: vpclattice.ListServiceNetworkVpcAssociationsOutput{
+			Items: []types.ServiceNetworkVpcAssociationSummary{{Id: aws.String("snva-1")}},
 		},
 	}
 
-	nuker := resource.MultiStepDeleter(deleteServiceAssociations, waitForServiceAssociationsDeleted, deleteServiceNetwork)
+	nuker := resource.MultiStepDeleter(deleteServiceAssociations, deleteVpcAssociations, waitForAssociationsDeleted, deleteServiceNetwork)
 	results := nuker(context.Background(), mock, resource.Scope{Region: "us-east-1"}, "vpc-lattice-service-network", []*string{aws.String("sn-test")})
 
 	require.Len(t, results, 1)
