@@ -27,6 +27,24 @@ type mockedS3Buckets struct {
 	DeleteBucketLifecycleOutput s3.DeleteBucketLifecycleOutput
 	DeleteBucketOutput          s3.DeleteBucketOutput
 	HeadBucketOutput            s3.HeadBucketOutput
+
+	// captured records the region that request options resolve to, so tests can
+	// assert calls are routed to the bucket's region and not the global one.
+	captured *capturedS3Regions
+}
+
+type capturedS3Regions struct {
+	taggingRegion string
+	deleteRegion  string
+}
+
+// appliedRegion returns the region the given request options resolve to.
+func appliedRegion(optFns ...func(*s3.Options)) string {
+	o := s3.Options{}
+	for _, fn := range optFns {
+		fn(&o)
+	}
+	return o.Region
 }
 
 func (m mockedS3Buckets) ListBuckets(ctx context.Context, params *s3.ListBucketsInput, optFns ...func(*s3.Options)) (*s3.ListBucketsOutput, error) {
@@ -38,6 +56,9 @@ func (m mockedS3Buckets) GetBucketLocation(ctx context.Context, params *s3.GetBu
 }
 
 func (m mockedS3Buckets) GetBucketTagging(ctx context.Context, params *s3.GetBucketTaggingInput, optFns ...func(*s3.Options)) (*s3.GetBucketTaggingOutput, error) {
+	if m.captured != nil {
+		m.captured.taggingRegion = appliedRegion(optFns...)
+	}
 	if m.GetBucketTaggingError != nil {
 		return nil, m.GetBucketTaggingError
 	}
@@ -65,6 +86,9 @@ func (m mockedS3Buckets) DeleteBucketLifecycle(ctx context.Context, params *s3.D
 }
 
 func (m mockedS3Buckets) DeleteBucket(ctx context.Context, params *s3.DeleteBucketInput, optFns ...func(*s3.Options)) (*s3.DeleteBucketOutput, error) {
+	if m.captured != nil {
+		m.captured.deleteRegion = appliedRegion(optFns...)
+	}
 	return &m.DeleteBucketOutput, nil
 }
 
@@ -190,6 +214,56 @@ func TestS3Buckets_EmptyBucket(t *testing.T) {
 
 	err := emptyBucket(context.Background(), mockClient, aws.String("test-bucket"))
 	require.NoError(t, err)
+}
+
+// Regression test for issue #1155: tagging a bucket outside the global region
+// must be directed at the bucket's own region, else it 301s and is skipped.
+func TestS3Buckets_List_RoutesTaggingToBucketRegion(t *testing.T) {
+	t.Parallel()
+
+	captured := &capturedS3Regions{}
+	mockClient := mockedS3Buckets{
+		ListBucketsOutput: s3.ListBucketsOutput{
+			Buckets: []types.Bucket{
+				{Name: aws.String("bucket-in-us-west-2"), CreationDate: aws.Time(time.Now())},
+			},
+		},
+		GetBucketLocationOutput: s3.GetBucketLocationOutput{
+			LocationConstraint: "us-west-2",
+		},
+		GetBucketTaggingOutput: s3.GetBucketTaggingOutput{TagSet: []types.Tag{}},
+		captured:               captured,
+	}
+
+	names, err := listS3Buckets(context.Background(), mockClient, resource.Scope{Region: "global"}, config.ResourceType{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"bucket-in-us-west-2"}, aws.ToStringSlice(names))
+	require.Equal(t, "us-west-2", captured.taggingRegion,
+		"tagging call should be directed at the bucket's region, not the global region")
+}
+
+// Regression test for issue #1155: the nuke path resolves each bucket's region
+// and directs the delete at it so buckets outside the global region are removed.
+func TestS3Buckets_Nuke_RoutesDeletionToBucketRegion(t *testing.T) {
+	t.Parallel()
+
+	captured := &capturedS3Regions{}
+	mockClient := mockedS3Buckets{
+		GetBucketLocationOutput: s3.GetBucketLocationOutput{
+			LocationConstraint: "eu-west-1",
+		},
+		ListObjectVersionsOutput: s3.ListObjectVersionsOutput{IsTruncated: aws.Bool(false)},
+		ListObjectsV2Output:      s3.ListObjectsV2Output{},
+		captured:                 captured,
+	}
+
+	results := nukeS3Buckets(context.Background(), mockClient, resource.Scope{Region: "global"}, "s3",
+		[]*string{aws.String("bucket-in-eu-west-1")})
+
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Error)
+	require.Equal(t, "eu-west-1", captured.deleteRegion,
+		"delete call should be directed at the bucket's region, not the global region")
 }
 
 func TestS3Buckets_DeleteBucketSteps(t *testing.T) {
