@@ -2,11 +2,13 @@ package resources
 
 import (
 	"context"
+	goerr "errors"
 	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/vpclattice"
+	"github.com/aws/aws-sdk-go-v2/service/vpclattice/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
@@ -139,37 +141,57 @@ func waitForAssociationsDeleted(ctx context.Context, client VPCLatticeServiceNet
 	for i := 0; i < 10; i++ {
 		remaining, err := countAssociations(ctx, client, id)
 		if err != nil {
-			// Error likely means the service network or its associations are gone
-			return nil //nolint:nilerr
+			// A not-found error means the service network (and its associations)
+			// are already gone; any other error is real and should surface.
+			var notFound *types.ResourceNotFoundException
+			if goerr.As(err, &notFound) {
+				return nil
+			}
+			return errors.WithStackTrace(err)
 		}
 		if remaining == 0 {
 			return nil
 		}
+
 		logging.Debugf("Waiting for associations to be deleted for service network %s...", aws.ToString(id))
-		time.Sleep(10 * time.Second)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(10 * time.Second):
+		}
 	}
 
 	return fmt.Errorf("timed out waiting for associations to be deleted for service network %s", aws.ToString(id))
 }
 
 // countAssociations returns the number of service plus VPC associations still
-// attached to the service network.
+// attached to the service network, across all pages.
 func countAssociations(ctx context.Context, client VPCLatticeServiceNetworkAPI, id *string) (int, error) {
-	services, err := client.ListServiceNetworkServiceAssociations(ctx, &vpclattice.ListServiceNetworkServiceAssociationsInput{
+	total := 0
+
+	servicePaginator := vpclattice.NewListServiceNetworkServiceAssociationsPaginator(client, &vpclattice.ListServiceNetworkServiceAssociationsInput{
 		ServiceNetworkIdentifier: id,
 	})
-	if err != nil {
-		return 0, err
+	for servicePaginator.HasMorePages() {
+		page, err := servicePaginator.NextPage(ctx)
+		if err != nil {
+			return 0, err
+		}
+		total += len(page.Items)
 	}
 
-	vpcs, err := client.ListServiceNetworkVpcAssociations(ctx, &vpclattice.ListServiceNetworkVpcAssociationsInput{
+	vpcPaginator := vpclattice.NewListServiceNetworkVpcAssociationsPaginator(client, &vpclattice.ListServiceNetworkVpcAssociationsInput{
 		ServiceNetworkIdentifier: id,
 	})
-	if err != nil {
-		return 0, err
+	for vpcPaginator.HasMorePages() {
+		page, err := vpcPaginator.NextPage(ctx)
+		if err != nil {
+			return 0, err
+		}
+		total += len(page.Items)
 	}
 
-	return len(services.Items) + len(vpcs.Items), nil
+	return total, nil
 }
 
 // deleteServiceNetwork deletes the VPC Lattice Service Network.
