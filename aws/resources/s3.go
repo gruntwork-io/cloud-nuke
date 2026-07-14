@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	goerr "errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -67,8 +68,18 @@ func NewS3Buckets() AwsResource {
 			return c.S3
 		},
 		Lister: listS3Buckets,
-		Nuker:  resource.MultiStepDeleter(emptyBucket, deleteBucketPolicy, deleteBucketLifecycle, deleteBucketWithWait),
+		Nuker:  nukeS3Buckets,
 	})
+}
+
+// s3RegionOption directs an S3 request at the given region. S3 is a global
+// resource, so the shared client targets the global region; bucket-scoped calls
+// (tagging, deletes, etc.) must be pointed at the bucket's own region or they
+// return a 301 PermanentRedirect. Callers resolve the region via GetBucketLocation.
+func s3RegionOption(region string) func(*s3.Options) {
+	return func(o *s3.Options) {
+		o.Region = region
+	}
 }
 
 // listS3Buckets retrieves all S3 buckets that match the config filters.
@@ -156,8 +167,8 @@ func getBucketInfo(ctx context.Context, client S3API, scope resource.Scope, buck
 		return info
 	}
 
-	// Get bucket tags
-	tags, err := getBucketTags(ctx, client, info.Name)
+	// Tag the bucket in its own region to avoid a 301 PermanentRedirect.
+	tags, err := getBucketTags(ctx, client, info.Name, s3RegionOption(region))
 	if err != nil {
 		info.Error = err
 		return info
@@ -196,10 +207,10 @@ func getBucketRegion(ctx context.Context, client S3API, bucketName string) (stri
 }
 
 // getBucketTags returns the tags for an S3 bucket.
-func getBucketTags(ctx context.Context, client S3API, bucketName string) (map[string]string, error) {
+func getBucketTags(ctx context.Context, client S3API, bucketName string, opts ...func(*s3.Options)) (map[string]string, error) {
 	result, err := client.GetBucketTagging(ctx, &s3.GetBucketTaggingInput{
 		Bucket: aws.String(bucketName),
-	})
+	}, opts...)
 	if err != nil {
 		var apiErr *smithy.OperationError
 		if goerr.As(err, &apiErr) {
@@ -212,17 +223,60 @@ func getBucketTags(ctx context.Context, client S3API, bucketName string) (map[st
 	return util.ConvertS3TypesTagsToMap(result.TagSet), nil
 }
 
+// nukeS3Buckets runs the deletion steps sequentially per bucket, stopping a
+// bucket at its first failing step. Unlike resource.MultiStepDeleter it resolves
+// each bucket's region up front and directs every step at that region, so
+// buckets outside the global region are deleted instead of 301-redirected.
+func nukeS3Buckets(ctx context.Context, client S3API, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
+	if len(identifiers) == 0 {
+		logging.Debugf("No %s to nuke in %s", resourceType, scope)
+		return nil
+	}
+	logging.Infof("Deleting %d %s in %s", len(identifiers), resourceType, scope)
+
+	steps := []func(context.Context, S3API, *string, ...func(*s3.Options)) error{
+		emptyBucket,
+		deleteBucketPolicy,
+		deleteBucketLifecycle,
+		deleteBucketWithWait,
+	}
+
+	results := make([]resource.NukeResult, 0, len(identifiers))
+	for _, id := range identifiers {
+		name := aws.ToString(id)
+
+		region, err := getBucketRegion(ctx, client, name)
+		if err != nil {
+			results = append(results, resource.NukeResult{Identifier: name, Error: errors.WithStackTrace(err)})
+			continue
+		}
+		regionOpt := s3RegionOption(region)
+
+		var stepErr error
+		for i, step := range steps {
+			if err := step(ctx, client, id, regionOpt); err != nil {
+				stepErr = fmt.Errorf("step %d: %w", i+1, err)
+				break
+			}
+		}
+
+		results = append(results, resource.NukeResult{Identifier: name, Error: stepErr})
+	}
+
+	return results
+}
+
 // emptyBucket deletes all objects, versions, and deletion markers from a bucket.
-func emptyBucket(ctx context.Context, client S3API, bucketName *string) error {
+func emptyBucket(ctx context.Context, client S3API, bucketName *string, opts ...func(*s3.Options)) error {
 	logging.Debugf("Emptying bucket %s", aws.ToString(bucketName))
 
 	// Delete all object versions and deletion markers
-	if err := deleteAllVersionsAndMarkers(ctx, client, bucketName); err != nil {
+	if err := deleteAllVersionsAndMarkers(ctx, client, bucketName, opts...); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
 	// Delete any remaining unversioned objects
-	if err := deleteAllObjects(ctx, client, bucketName); err != nil {
+	if err := deleteAllObjects(ctx, client, bucketName, opts...); err != nil {
 		return errors.WithStackTrace(err)
 	}
 
@@ -231,7 +285,7 @@ func emptyBucket(ctx context.Context, client S3API, bucketName *string) error {
 }
 
 // deleteAllVersionsAndMarkers deletes all object versions and deletion markers.
-func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *string) error {
+func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *string, opts ...func(*s3.Options)) error {
 	const maxKeys = 1000
 	var keyMarker, versionIdMarker *string
 	pageId := 1
@@ -248,7 +302,7 @@ func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *
 			input.VersionIdMarker = versionIdMarker
 		}
 
-		output, err := client.ListObjectVersions(ctx, input)
+		output, err := client.ListObjectVersions(ctx, input, opts...)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
@@ -256,7 +310,7 @@ func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *
 		// Delete object versions
 		if len(output.Versions) > 0 {
 			logging.Debugf("Deleting page %d of versions (%d) from bucket %s", pageId, len(output.Versions), aws.ToString(bucketName))
-			if err := deleteObjectVersions(ctx, client, bucketName, output.Versions); err != nil {
+			if err := deleteObjectVersions(ctx, client, bucketName, output.Versions, opts...); err != nil {
 				return errors.WithStackTrace(err)
 			}
 		}
@@ -264,7 +318,7 @@ func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *
 		// Delete deletion markers
 		if len(output.DeleteMarkers) > 0 {
 			logging.Debugf("Deleting page %d of deletion markers (%d) from bucket %s", pageId, len(output.DeleteMarkers), aws.ToString(bucketName))
-			if err := deleteDeletionMarkers(ctx, client, bucketName, output.DeleteMarkers); err != nil {
+			if err := deleteDeletionMarkers(ctx, client, bucketName, output.DeleteMarkers, opts...); err != nil {
 				return errors.WithStackTrace(err)
 			}
 		}
@@ -282,7 +336,7 @@ func deleteAllVersionsAndMarkers(ctx context.Context, client S3API, bucketName *
 }
 
 // deleteObjectVersions deletes a batch of object versions.
-func deleteObjectVersions(ctx context.Context, client S3API, bucketName *string, versions []types.ObjectVersion) error {
+func deleteObjectVersions(ctx context.Context, client S3API, bucketName *string, versions []types.ObjectVersion, opts ...func(*s3.Options)) error {
 	if len(versions) == 0 {
 		return nil
 	}
@@ -301,12 +355,12 @@ func deleteObjectVersions(ctx context.Context, client S3API, bucketName *string,
 			Objects: objects,
 			Quiet:   aws.Bool(true),
 		},
-	})
+	}, opts...)
 	return errors.WithStackTrace(err)
 }
 
 // deleteDeletionMarkers deletes a batch of deletion markers.
-func deleteDeletionMarkers(ctx context.Context, client S3API, bucketName *string, markers []types.DeleteMarkerEntry) error {
+func deleteDeletionMarkers(ctx context.Context, client S3API, bucketName *string, markers []types.DeleteMarkerEntry, opts ...func(*s3.Options)) error {
 	if len(markers) == 0 {
 		return nil
 	}
@@ -325,12 +379,12 @@ func deleteDeletionMarkers(ctx context.Context, client S3API, bucketName *string
 			Objects: objects,
 			Quiet:   aws.Bool(true),
 		},
-	})
+	}, opts...)
 	return errors.WithStackTrace(err)
 }
 
 // deleteAllObjects deletes all remaining unversioned objects from a bucket.
-func deleteAllObjects(ctx context.Context, client S3API, bucketName *string) error {
+func deleteAllObjects(ctx context.Context, client S3API, bucketName *string, opts ...func(*s3.Options)) error {
 	const maxKeys = 1000
 	pageId := 1
 
@@ -340,7 +394,7 @@ func deleteAllObjects(ctx context.Context, client S3API, bucketName *string) err
 	})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
+		page, err := paginator.NextPage(ctx, opts...)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
@@ -362,7 +416,7 @@ func deleteAllObjects(ctx context.Context, client S3API, bucketName *string) err
 				Objects: objects,
 				Quiet:   aws.Bool(true),
 			},
-		})
+		}, opts...)
 		if err != nil {
 			return errors.WithStackTrace(err)
 		}
@@ -373,43 +427,48 @@ func deleteAllObjects(ctx context.Context, client S3API, bucketName *string) err
 }
 
 // deleteBucketPolicy deletes the bucket policy.
-func deleteBucketPolicy(ctx context.Context, client S3API, bucketName *string) error {
+func deleteBucketPolicy(ctx context.Context, client S3API, bucketName *string, opts ...func(*s3.Options)) error {
 	_, err := client.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
 		Bucket: bucketName,
-	})
+	}, opts...)
 	return errors.WithStackTrace(err)
 }
 
 // deleteBucketLifecycle deletes the bucket lifecycle configuration.
-func deleteBucketLifecycle(ctx context.Context, client S3API, bucketName *string) error {
+func deleteBucketLifecycle(ctx context.Context, client S3API, bucketName *string, opts ...func(*s3.Options)) error {
 	_, err := client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
 		Bucket: bucketName,
-	})
+	}, opts...)
 	return errors.WithStackTrace(err)
 }
 
 // deleteBucketWithWait deletes the bucket and waits for deletion confirmation.
-func deleteBucketWithWait(ctx context.Context, client S3API, bucketName *string) error {
+func deleteBucketWithWait(ctx context.Context, client S3API, bucketName *string, opts ...func(*s3.Options)) error {
 	_, err := client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: bucketName,
-	})
+	}, opts...)
 	if err != nil {
 		return errors.WithStackTrace(err)
 	}
 
-	return waitForBucketDeletion(ctx, client, aws.ToString(bucketName))
+	return waitForBucketDeletion(ctx, client, aws.ToString(bucketName), opts...)
 }
 
 // waitForBucketDeletion waits for bucket deletion to propagate.
-func waitForBucketDeletion(ctx context.Context, client S3API, bucketName string) error {
+func waitForBucketDeletion(ctx context.Context, client S3API, bucketName string, opts ...func(*s3.Options)) error {
 	waiter := s3.NewBucketNotExistsWaiter(client)
+
+	// Forward the region options to the waiter's internal HeadBucket calls.
+	waiterOpts := func(wo *s3.BucketNotExistsWaiterOptions) {
+		wo.ClientOptions = append(wo.ClientOptions, opts...)
+	}
 
 	for i := 0; i < s3BucketDeletionRetries; i++ {
 		logging.Debugf("Waiting for bucket %s deletion (attempt %d/%d)", bucketName, i+1, s3BucketDeletionRetries)
 
 		err := waiter.Wait(ctx, &s3.HeadBucketInput{
 			Bucket: aws.String(bucketName),
-		}, s3BucketWaitDuration)
+		}, s3BucketWaitDuration, waiterOpts)
 
 		if err == nil {
 			logging.Debugf("Bucket %s deletion confirmed", bucketName)
