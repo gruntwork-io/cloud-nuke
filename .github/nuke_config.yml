@@ -67,7 +67,18 @@ IAMUsers:
       - "^circle-ci-test$"
 
 IAMGroups:
-  # Delete all groups - no infrastructure groups to protect
+  # IAM groups do not support tags, so the per-repo CircleCI cleanup jobs (which
+  # filter by the gw:repo tag) skip them and they leak until the account hits the
+  # GroupsPerAccount quota (OSS-4024). They are cleaned up here instead.
+  #
+  # Unlike the other resource types in this file, this is an allowlist rather than
+  # a blocklist: only groups matching a known test naming convention are deleted,
+  # so any real group is protected by default. Broaden this list as other repos'
+  # test group names are confirmed.
+  include:
+    names_regex:
+      # terraform-aws-security: "<uniqueId>-test-group-number-N", "test-group-<id>"
+      - "test-group"
 
 IAMRoles:
   exclude:

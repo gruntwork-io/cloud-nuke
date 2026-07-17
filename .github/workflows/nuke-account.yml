@@ -28,7 +28,6 @@ env:
   # Resources excluded across all accounts to prevent breaking infrastructure
   COMMON_EXCLUDES: >-
     --exclude-resource-type iam-user
-    --exclude-resource-type iam-group
     --exclude-resource-type iam-role
     --exclude-resource-type iam-service-linked-role
     --exclude-resource-type oidc-provider
