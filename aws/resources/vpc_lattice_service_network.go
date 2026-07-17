@@ -23,6 +23,8 @@ type VPCLatticeServiceNetworkAPI interface {
 	DeleteServiceNetworkServiceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkServiceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkServiceAssociationOutput, error)
 	ListServiceNetworkVpcAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkVpcAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkVpcAssociationsOutput, error)
 	DeleteServiceNetworkVpcAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkVpcAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkVpcAssociationOutput, error)
+	ListServiceNetworkResourceAssociations(ctx context.Context, params *vpclattice.ListServiceNetworkResourceAssociationsInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListServiceNetworkResourceAssociationsOutput, error)
+	DeleteServiceNetworkResourceAssociation(ctx context.Context, params *vpclattice.DeleteServiceNetworkResourceAssociationInput, optFns ...func(*vpclattice.Options)) (*vpclattice.DeleteServiceNetworkResourceAssociationOutput, error)
 	ListTagsForResource(ctx context.Context, params *vpclattice.ListTagsForResourceInput, optFns ...func(*vpclattice.Options)) (*vpclattice.ListTagsForResourceOutput, error)
 }
 
@@ -39,11 +41,13 @@ func NewVPCLatticeServiceNetwork() AwsResource {
 			return c.VPCLatticeServiceNetwork
 		},
 		Lister: listVPCLatticeServiceNetworks,
-		// A service network cannot be deleted while it still has service or VPC
-		// associations, so delete both, wait for them to clear, then delete it.
+		// A service network cannot be deleted while it still has service, VPC, or
+		// resource associations, so delete all of them, wait for them to clear,
+		// then delete it.
 		Nuker: resource.MultiStepDeleter(
 			deleteServiceAssociations,
 			deleteVpcAssociations,
+			deleteResourceAssociations,
 			waitForAssociationsDeleted,
 			deleteServiceNetwork,
 		),
@@ -135,8 +139,42 @@ func deleteVpcAssociations(ctx context.Context, client VPCLatticeServiceNetworkA
 	return nil
 }
 
-// waitForAssociationsDeleted polls until all service and VPC associations are
-// deleted. Times out after 100 seconds.
+// deleteResourceAssociations deletes all resource-configuration associations for
+// the given service network. A service network cannot be deleted while
+// associations exist. Managed associations (created by Amazon for RAM-shared
+// resource configurations) cannot be deleted from the service network side, so
+// they are skipped with a warning rather than triggering a hard failure.
+func deleteResourceAssociations(ctx context.Context, client VPCLatticeServiceNetworkAPI, id *string) error {
+	paginator := vpclattice.NewListServiceNetworkResourceAssociationsPaginator(client, &vpclattice.ListServiceNetworkResourceAssociationsInput{
+		ServiceNetworkIdentifier: id,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return errors.WithStackTrace(err)
+		}
+
+		for _, item := range page.Items {
+			if aws.ToBool(item.IsManagedAssociation) {
+				logging.Warnf("Skipping managed resource association %s for service network %s; it must be removed by the resource configuration owner", aws.ToString(item.Id), aws.ToString(id))
+				continue
+			}
+
+			logging.Debugf("Deleting resource association %s for service network %s", aws.ToString(item.Id), aws.ToString(id))
+			if _, err := client.DeleteServiceNetworkResourceAssociation(ctx, &vpclattice.DeleteServiceNetworkResourceAssociationInput{
+				ServiceNetworkResourceAssociationIdentifier: item.Id,
+			}); err != nil {
+				return errors.WithStackTrace(err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// waitForAssociationsDeleted polls until all service, VPC, and resource
+// associations are deleted. Times out after 100 seconds.
 func waitForAssociationsDeleted(ctx context.Context, client VPCLatticeServiceNetworkAPI, id *string) error {
 	for i := 0; i < 10; i++ {
 		remaining, err := countAssociations(ctx, client, id)
@@ -164,8 +202,10 @@ func waitForAssociationsDeleted(ctx context.Context, client VPCLatticeServiceNet
 	return fmt.Errorf("timed out waiting for associations to be deleted for service network %s", aws.ToString(id))
 }
 
-// countAssociations returns the number of service plus VPC associations still
-// attached to the service network, across all pages.
+// countAssociations returns the number of service, VPC, and deletable resource
+// associations still attached to the service network, across all pages. Managed
+// resource associations are excluded because they cannot be deleted from the
+// service network side, so waiting on them would only ever time out.
 func countAssociations(ctx context.Context, client VPCLatticeServiceNetworkAPI, id *string) (int, error) {
 	total := 0
 
@@ -189,6 +229,22 @@ func countAssociations(ctx context.Context, client VPCLatticeServiceNetworkAPI, 
 			return 0, err
 		}
 		total += len(page.Items)
+	}
+
+	resourcePaginator := vpclattice.NewListServiceNetworkResourceAssociationsPaginator(client, &vpclattice.ListServiceNetworkResourceAssociationsInput{
+		ServiceNetworkIdentifier: id,
+	})
+	for resourcePaginator.HasMorePages() {
+		page, err := resourcePaginator.NextPage(ctx)
+		if err != nil {
+			return 0, err
+		}
+		for _, item := range page.Items {
+			if aws.ToBool(item.IsManagedAssociation) {
+				continue
+			}
+			total++
+		}
 	}
 
 	return total, nil
