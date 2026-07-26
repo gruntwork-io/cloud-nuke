@@ -131,7 +131,9 @@ KMSCustomerKeys:
   exclude:
     names_regex:
       # Shared test key referenced by multiple repos (terragrunt, terraform-aws-security, terraform-aws-eks, etc.)
-      - "^dedicated-test-key$"
+      # NOTE: KMS keys are matched on the full alias returned by ListAliases, which includes the
+      # "alias/" prefix. Patterns here must account for it or they will never match.
+      - "^alias/dedicated-test-key$"
 
 VPC:
   exclude:
