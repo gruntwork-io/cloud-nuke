@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
@@ -125,22 +126,59 @@ func getKeyAliasesMap(ctx context.Context, client KmsCustomerKeysAPI) (map[strin
 	return keyAliases, nil
 }
 
-// shouldIncludeKey determines if a key should be included for deletion.
-func shouldIncludeKey(ctx context.Context, client KmsCustomerKeysAPI, keyId string, aliases []string, cfg config.ResourceType, includeUnaliasedKeys bool) (bool, error) {
-	// Skip keys without aliases unless explicitly configured to include them
-	if len(aliases) == 0 && !includeUnaliasedKeys {
-		return false, nil
-	}
+// kmsAliasPrefix is the prefix AWS returns on every alias from ListAliases.
+const kmsAliasPrefix = "alias/"
 
-	// Check if any alias matches the name filter
-	matchedByName := len(aliases) == 0 && includeUnaliasedKeys // Unaliased keys pass if configured
+// aliasNameCandidates returns the strings that name filters are matched against for a
+// given set of aliases. AWS reports aliases as "alias/my-key", but the "alias/" prefix is
+// an API artifact rather than part of the name users think in, so both the full alias and
+// the bare name are considered. A pattern matching either form applies to the key.
+func aliasNameCandidates(aliases []string) []string {
+	candidates := make([]string, 0, len(aliases)*2)
 	for _, alias := range aliases {
-		if config.ShouldInclude(&alias, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) {
-			matchedByName = true
-			break
+		candidates = append(candidates, alias)
+		if bare := strings.TrimPrefix(alias, kmsAliasPrefix); bare != alias {
+			candidates = append(candidates, bare)
 		}
 	}
-	if !matchedByName {
+	return candidates
+}
+
+// matchesNameFilters reports whether a key passes the configured name filters.
+//
+// An exclude rule matching any form of any alias protects the whole key, so that a key
+// carrying several aliases cannot be deleted just because one of its other aliases was
+// not excluded. When include rules are present, at least one form must match.
+func matchesNameFilters(aliases []string, cfg config.ResourceType) bool {
+	candidates := aliasNameCandidates(aliases)
+
+	for _, name := range candidates {
+		if !config.ShouldInclude(&name, nil, cfg.ExcludeRule.NamesRegExp) {
+			return false
+		}
+	}
+
+	if len(cfg.IncludeRule.NamesRegExp) == 0 {
+		return true
+	}
+
+	for _, name := range candidates {
+		if config.ShouldInclude(&name, cfg.IncludeRule.NamesRegExp, nil) {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldIncludeKey determines if a key should be included for deletion.
+func shouldIncludeKey(ctx context.Context, client KmsCustomerKeysAPI, keyId string, aliases []string, cfg config.ResourceType, includeUnaliasedKeys bool) (bool, error) {
+	// Skip keys without aliases unless explicitly configured to include them. Unaliased
+	// keys have no name to match, so they bypass name filtering entirely.
+	if len(aliases) == 0 {
+		if !includeUnaliasedKeys {
+			return false, nil
+		}
+	} else if !matchesNameFilters(aliases, cfg) {
 		return false, nil
 	}
 

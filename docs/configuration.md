@@ -40,6 +40,22 @@ S3:
 
 Filtering is **commutative** — include and exclude filters can be applied in any order with the same result. In the example above, buckets matching `^alb-.*-access-logs$` are included unless they also match `public` or `prod`.
 
+Patterns are not implicitly anchored: they match anywhere in the name unless you add `^` and `$` yourself.
+
+#### KMS key names
+
+KMS customer-managed keys are matched by alias. AWS returns aliases with an `alias/` prefix, so both the full alias and the bare name are matched, and a pattern matching either form applies. These are equivalent:
+
+```yaml
+KMSCustomerKeys:
+  exclude:
+    names_regex:
+      - ^alias/my-key$
+      - ^my-key$
+```
+
+When a key carries several aliases, an exclusion matching any one of them protects the key.
+
 ### time_after / time_before
 
 Filter resources by creation time.

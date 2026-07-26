@@ -92,10 +92,39 @@ func TestListKmsCustomerKeys(t *testing.T) {
 			},
 			expected: []string{key2},
 		},
+		// Anchored patterns written against the full alias must keep working, since
+		// existing configs rely on the "alias/" prefix being matchable.
+		"prefixedAnchoredExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^alias/key1$`)}},
+				},
+			},
+			expected: []string{key2},
+		},
+		// Anchored patterns written against the bare name must also work. Before this was
+		// supported, a pattern like "^key1$" silently matched nothing and the key was
+		// deleted despite an exclusion being configured.
+		"bareNameAnchoredExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^key1$`)}},
+				},
+			},
+			expected: []string{key2},
+		},
 		"nameInclusionFilter": {
 			configObj: config.ResourceType{
 				IncludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(".*key1")}},
+				},
+			},
+			expected: []string{key1},
+		},
+		"bareNameAnchoredInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^key1$`)}},
 				},
 			},
 			expected: []string{key1},
@@ -117,6 +146,54 @@ func TestListKmsCustomerKeys(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+// TestListKmsCustomerKeys_MultiAliasExclusion covers a key carrying more than one alias.
+// An exclusion matching any one of them protects the key, so a key cannot be deleted
+// merely because one of its other aliases was not excluded.
+func TestListKmsCustomerKeys_MultiAliasExclusion(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	protectedKey, otherKey := "protected", "other"
+
+	mock := &mockKmsClient{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(protectedKey)},
+				{KeyId: aws.String(otherKey)},
+			},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{AliasName: aws.String("alias/dedicated-test-key"), TargetKeyId: aws.String(protectedKey)},
+				{AliasName: aws.String("alias/some-other-name"), TargetKeyId: aws.String(protectedKey)},
+				{AliasName: aws.String("alias/unrelated"), TargetKeyId: aws.String(otherKey)},
+			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			protectedKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(protectedKey),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+			otherKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(otherKey),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+		},
+	}
+
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^dedicated-test-key$`)}},
+		},
+	}
+
+	names, err := listKmsCustomerKeys(context.Background(), mock, cfg, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{otherKey}, aws.ToStringSlice(names))
 }
 
 func TestListKmsCustomerKeys_IncludeUnaliasedKeys(t *testing.T) {
