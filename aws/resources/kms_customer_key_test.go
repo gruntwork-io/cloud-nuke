@@ -92,10 +92,39 @@ func TestListKmsCustomerKeys(t *testing.T) {
 			},
 			expected: []string{key2},
 		},
+		// Anchored patterns written against the full alias must keep working, since
+		// existing configs rely on the "alias/" prefix being matchable.
+		"prefixedAnchoredExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^alias/key1$`)}},
+				},
+			},
+			expected: []string{key2},
+		},
+		// Anchored patterns written against the bare name must also work. Before this was
+		// supported, a pattern like "^key1$" silently matched nothing and the key was
+		// deleted despite an exclusion being configured.
+		"bareNameAnchoredExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^key1$`)}},
+				},
+			},
+			expected: []string{key2},
+		},
 		"nameInclusionFilter": {
 			configObj: config.ResourceType{
 				IncludeRule: config.FilterRule{
 					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(".*key1")}},
+				},
+			},
+			expected: []string{key1},
+		},
+		"bareNameAnchoredInclusionFilter": {
+			configObj: config.ResourceType{
+				IncludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^key1$`)}},
 				},
 			},
 			expected: []string{key1},
@@ -115,6 +144,89 @@ func TestListKmsCustomerKeys(t *testing.T) {
 			names, err := listKmsCustomerKeys(context.Background(), mock, tc.configObj, false)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
+		})
+	}
+}
+
+// TestListKmsCustomerKeys_MultiAliasExclusion covers a key carrying more than one alias.
+// An exclusion matching any one of them protects the key, so a key cannot be deleted
+// merely because one of its other aliases was not excluded.
+func TestListKmsCustomerKeys_MultiAliasExclusion(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	protectedKey, otherKey := "protected", "other"
+
+	mock := &mockKmsClient{
+		ListKeysOutput: kms.ListKeysOutput{
+			Keys: []types.KeyListEntry{
+				{KeyId: aws.String(protectedKey)},
+				{KeyId: aws.String(otherKey)},
+			},
+		},
+		ListAliasesOutput: kms.ListAliasesOutput{
+			Aliases: []types.AliasListEntry{
+				{AliasName: aws.String("alias/dedicated-test-key"), TargetKeyId: aws.String(protectedKey)},
+				{AliasName: aws.String("alias/some-other-name"), TargetKeyId: aws.String(protectedKey)},
+				{AliasName: aws.String("alias/unrelated"), TargetKeyId: aws.String(otherKey)},
+			},
+		},
+		DescribeKeyOutput: map[string]kms.DescribeKeyOutput{
+			protectedKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(protectedKey),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+			otherKey: {KeyMetadata: &types.KeyMetadata{
+				KeyId:        aws.String(otherKey),
+				KeyManager:   types.KeyManagerTypeCustomer,
+				CreationDate: aws.Time(now),
+			}},
+		},
+	}
+
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(`^dedicated-test-key$`)}},
+		},
+	}
+
+	names, err := listKmsCustomerKeys(context.Background(), mock, cfg, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{otherKey}, aws.ToStringSlice(names))
+}
+
+// TestMatchesNameFilters_ExclusionIsAlwaysHonored pins the safety property that matters
+// most for a deletion tool: whenever an exclude rule matches any form of any alias on a
+// key, the key is protected. Regressing this silently deletes keys operators believe are
+// safe, which is exactly how dedicated-test-key was lost.
+func TestMatchesNameFilters_ExclusionIsAlwaysHonored(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		aliases []string
+		exclude string
+	}{
+		{"bare name, anchored", []string{"alias/dedicated-test-key"}, `^dedicated-test-key$`},
+		{"full alias, anchored", []string{"alias/dedicated-test-key"}, `^alias/dedicated-test-key$`},
+		{"unanchored substring", []string{"alias/dedicated-test-key"}, `dedicated-test-key`},
+		{"prefix wildcard", []string{"alias/dedicated-test-key"}, `^alias/`},
+		{"match everything", []string{"alias/dedicated-test-key"}, `.*`},
+		{"excluded alias listed first", []string{"alias/dedicated-test-key", "alias/other"}, `^dedicated-test-key$`},
+		{"excluded alias listed second", []string{"alias/other", "alias/dedicated-test-key"}, `^dedicated-test-key$`},
+		{"excluded alias among several", []string{"alias/a", "alias/b", "alias/dedicated-test-key"}, `^dedicated-test-key$`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					NamesRegExp: []config.Expression{{RE: *regexp.MustCompile(tc.exclude)}},
+				},
+			}
+			require.False(t, matchesNameFilters(tc.aliases, cfg),
+				"exclude %q must protect a key with aliases %v", tc.exclude, tc.aliases)
 		})
 	}
 }

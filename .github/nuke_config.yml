@@ -131,7 +131,9 @@ KMSCustomerKeys:
   exclude:
     names_regex:
       # Shared test key referenced by multiple repos (terragrunt, terraform-aws-security, terraform-aws-eks, etc.)
-      - "^dedicated-test-key$"
+      # Either "^alias/dedicated-test-key$" or "^dedicated-test-key$" matches. The prefixed
+      # form is spelled out here so the exclusion holds regardless of cloud-nuke version.
+      - "^alias/dedicated-test-key$"
 
 VPC:
   exclude:
