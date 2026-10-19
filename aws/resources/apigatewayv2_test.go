@@ -23,7 +23,9 @@ type mockedApiGatewayV2 struct {
 	DomainPages       []apigatewayv2.GetDomainNamesOutput
 	GetDomainNamesErr error
 	// MappingPages are keyed by domain name and returned by page token.
-	MappingPages        map[string][]apigatewayv2.GetApiMappingsOutput
+	MappingPages map[string][]apigatewayv2.GetApiMappingsOutput
+	// GetApiMappingsErr fails the listing on the domains it names.
+	GetApiMappingsErr   map[string]error
 	DeleteApiMappingErr error
 	Calls               *apiGatewayCallLog
 }
@@ -49,6 +51,9 @@ func (m mockedApiGatewayV2) GetDomainNames(ctx context.Context, params *apigatew
 }
 
 func (m mockedApiGatewayV2) GetApiMappings(ctx context.Context, params *apigatewayv2.GetApiMappingsInput, optFns ...func(*apigatewayv2.Options)) (*apigatewayv2.GetApiMappingsOutput, error) {
+	if err := m.GetApiMappingsErr[aws.ToString(params.DomainName)]; err != nil {
+		return nil, err
+	}
 	pages := m.MappingPages[aws.ToString(params.DomainName)]
 	if len(pages) == 0 {
 		return &apigatewayv2.GetApiMappingsOutput{}, nil
@@ -197,6 +202,19 @@ func TestApiGatewayV2_NukeAll(t *testing.T) {
 		"domainListFailsSoApiIsStillDeleted": {
 			mock:          mockedApiGatewayV2{GetDomainNamesErr: errors.New("access denied")},
 			expectedCalls: []string{"GetDomainNames", "DeleteApi api-1"},
+		},
+		"oneDomainFailsToListSoTheOthersMappingsStillGo": {
+			mock: mockedApiGatewayV2{
+				DomainPages:       domains,
+				MappingPages:      mappings,
+				GetApiMappingsErr: map[string]error{"a.example.com": errors.New("access denied")},
+			},
+			expectedCalls: []string{
+				"GetDomainNames",
+				"GetDomainNames",
+				"DeleteApiMapping b.example.com map-b1",
+				"DeleteApi api-1",
+			},
 		},
 	}
 

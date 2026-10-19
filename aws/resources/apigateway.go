@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/hashicorp/go-multierror"
 )
 
 // ApiGatewayAPI defines the interface for API Gateway (v1) operations.
@@ -78,7 +79,7 @@ func nukeApiGateways(ctx context.Context, client ApiGatewayAPI, scope resource.S
 	mappings, err := listApiGatewayBasePathMappings(ctx, client)
 	if err != nil {
 		// Still try each delete: an API with no mapping deletes, and AWS names any mapping that blocks one.
-		logging.Warnf("[API Gateway] Unable to list custom domain name base path mappings, so none are removed first: %v", err)
+		logging.Warnf("[API Gateway] Unable to list every custom domain name base path mapping, so only those found are removed first: %v", err)
 	}
 
 	return resource.SimpleBatchDeleter(func(ctx context.Context, client ApiGatewayAPI, apiID *string) error {
@@ -90,15 +91,18 @@ func nukeApiGateways(ctx context.Context, client ApiGatewayAPI, scope resource.S
 }
 
 // listApiGatewayBasePathMappings returns every custom domain name base path mapping in the region, keyed by the
-// REST API it points at.
+// REST API it points at. A domain whose mappings cannot be listed is skipped, so the mappings found on the others
+// are still returned, together with the errors.
 func listApiGatewayBasePathMappings(ctx context.Context, client ApiGatewayAPI) (map[string][]apiGatewayBasePathMapping, error) {
 	mappings := map[string][]apiGatewayBasePathMapping{}
+	var errs *multierror.Error
 
 	domains := apigateway.NewGetDomainNamesPaginator(client, &apigateway.GetDomainNamesInput{})
 	for domains.HasMorePages() {
 		page, err := domains.NextPage(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list domain names: %w", err)
+			errs = multierror.Append(errs, fmt.Errorf("failed to list domain names: %w", err))
+			return mappings, errs.ErrorOrNil()
 		}
 
 		for _, domain := range page.Items {
@@ -109,7 +113,8 @@ func listApiGatewayBasePathMappings(ctx context.Context, client ApiGatewayAPI) (
 			for pages.HasMorePages() {
 				mappingPage, err := pages.NextPage(ctx)
 				if err != nil {
-					return nil, fmt.Errorf("failed to list base path mappings on domain %s: %w", aws.ToString(domain.DomainName), err)
+					errs = multierror.Append(errs, fmt.Errorf("failed to list base path mappings on domain %s: %w", aws.ToString(domain.DomainName), err))
+					break
 				}
 
 				for _, mapping := range mappingPage.Items {
@@ -124,7 +129,7 @@ func listApiGatewayBasePathMappings(ctx context.Context, client ApiGatewayAPI) (
 		}
 	}
 
-	return mappings, nil
+	return mappings, errs.ErrorOrNil()
 }
 
 // deleteApiGatewayBasePathMappings deletes the given custom domain name base path mappings of one REST API.

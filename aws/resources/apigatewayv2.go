@@ -10,6 +10,7 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/hashicorp/go-multierror"
 )
 
 // ApiGatewayV2API defines the interface for API Gateway V2 operations.
@@ -83,7 +84,7 @@ func nukeApiGatewaysV2(ctx context.Context, client ApiGatewayV2API, scope resour
 	mappings, err := listApiGatewayV2Mappings(ctx, client)
 	if err != nil {
 		// Still try each delete: an API with no mapping deletes, and AWS names any mapping that blocks one.
-		logging.Warnf("[API Gateway V2] Unable to list custom domain name mappings, so none are removed first: %v", err)
+		logging.Warnf("[API Gateway V2] Unable to list every custom domain name mapping, so only those found are removed first: %v", err)
 	}
 
 	return resource.SimpleBatchDeleter(func(ctx context.Context, client ApiGatewayV2API, apiID *string) error {
@@ -95,14 +96,18 @@ func nukeApiGatewaysV2(ctx context.Context, client ApiGatewayV2API, scope resour
 }
 
 // listApiGatewayV2Mappings returns every custom domain name mapping in the region, keyed by the API it points at.
+// A domain whose mappings cannot be listed is skipped, so the mappings found on the others are still returned,
+// together with the errors.
 func listApiGatewayV2Mappings(ctx context.Context, client ApiGatewayV2API) (map[string][]apiGatewayV2Mapping, error) {
 	mappings := map[string][]apiGatewayV2Mapping{}
+	var errs *multierror.Error
 	domainInput := &apigatewayv2.GetDomainNamesInput{}
 
 	for {
 		domains, err := client.GetDomainNames(ctx, domainInput)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list domain names: %w", err)
+			errs = multierror.Append(errs, fmt.Errorf("failed to list domain names: %w", err))
+			return mappings, errs.ErrorOrNil()
 		}
 
 		for _, domain := range domains.Items {
@@ -110,7 +115,8 @@ func listApiGatewayV2Mappings(ctx context.Context, client ApiGatewayV2API) (map[
 			for {
 				page, err := client.GetApiMappings(ctx, mappingInput)
 				if err != nil {
-					return nil, fmt.Errorf("failed to list API mappings on domain %s: %w", aws.ToString(domain.DomainName), err)
+					errs = multierror.Append(errs, fmt.Errorf("failed to list API mappings on domain %s: %w", aws.ToString(domain.DomainName), err))
+					break
 				}
 
 				for _, mapping := range page.Items {
@@ -129,7 +135,7 @@ func listApiGatewayV2Mappings(ctx context.Context, client ApiGatewayV2API) (map[
 		}
 
 		if domains.NextToken == nil {
-			return mappings, nil
+			return mappings, errs.ErrorOrNil()
 		}
 		domainInput.NextToken = domains.NextToken
 	}

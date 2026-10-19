@@ -23,7 +23,9 @@ type mockedApiGateway struct {
 	DomainPages       []apigateway.GetDomainNamesOutput
 	GetDomainNamesErr error
 	// MappingPages are keyed by domain name and returned by page token.
-	MappingPages             map[string][]apigateway.GetBasePathMappingsOutput
+	MappingPages map[string][]apigateway.GetBasePathMappingsOutput
+	// GetBasePathMappingsErr fails the listing on the domains it names.
+	GetBasePathMappingsErr   map[string]error
 	DeleteBasePathMappingErr error
 	Calls                    *apiGatewayCallLog
 }
@@ -50,6 +52,9 @@ func (m mockedApiGateway) GetDomainNames(ctx context.Context, params *apigateway
 
 func (m mockedApiGateway) GetBasePathMappings(ctx context.Context, params *apigateway.GetBasePathMappingsInput, optFns ...func(*apigateway.Options)) (*apigateway.GetBasePathMappingsOutput, error) {
 	m.Calls.add("GetBasePathMappings " + aws.ToString(params.DomainName) + " id=" + aws.ToString(params.DomainNameId))
+	if err := m.GetBasePathMappingsErr[aws.ToString(params.DomainName)]; err != nil {
+		return nil, err
+	}
 	pages := m.MappingPages[aws.ToString(params.DomainName)]
 	if len(pages) == 0 {
 		return &apigateway.GetBasePathMappingsOutput{}, nil
@@ -204,6 +209,17 @@ func TestAPIGateway_NukeAll(t *testing.T) {
 		"domainListFailsSoApiIsStillDeleted": {
 			mock:          mockedApiGateway{GetDomainNamesErr: errors.New("access denied")},
 			expectedCalls: []string{"GetDomainNames", "DeleteRestApi api-1"},
+		},
+		"oneDomainFailsToListSoTheOthersMappingsStillGo": {
+			mock: mockedApiGateway{
+				DomainPages:            domains,
+				MappingPages:           mappings,
+				GetBasePathMappingsErr: map[string]error{"a.example.com": errors.New("access denied")},
+			},
+			expectedCalls: append(append([]string{}, listCalls...),
+				"DeleteBasePathMapping b.example.com id=abc123 v1",
+				"DeleteRestApi api-1",
+			),
 		},
 	}
 
