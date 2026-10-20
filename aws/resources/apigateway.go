@@ -2,18 +2,24 @@ package resources
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/apigateway"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/go-commons/errors"
+	"github.com/hashicorp/go-multierror"
 )
 
 // ApiGatewayAPI defines the interface for API Gateway (v1) operations.
 type ApiGatewayAPI interface {
 	GetRestApis(ctx context.Context, params *apigateway.GetRestApisInput, optFns ...func(*apigateway.Options)) (*apigateway.GetRestApisOutput, error)
 	DeleteRestApi(ctx context.Context, params *apigateway.DeleteRestApiInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteRestApiOutput, error)
+	GetDomainNames(ctx context.Context, params *apigateway.GetDomainNamesInput, optFns ...func(*apigateway.Options)) (*apigateway.GetDomainNamesOutput, error)
+	GetBasePathMappings(ctx context.Context, params *apigateway.GetBasePathMappingsInput, optFns ...func(*apigateway.Options)) (*apigateway.GetBasePathMappingsOutput, error)
+	DeleteBasePathMapping(ctx context.Context, params *apigateway.DeleteBasePathMappingInput, optFns ...func(*apigateway.Options)) (*apigateway.DeleteBasePathMappingOutput, error)
 }
 
 // NewApiGateway creates a new ApiGateway resource using the generic resource pattern.
@@ -29,7 +35,8 @@ func NewApiGateway() AwsResource {
 			return c.APIGateway
 		},
 		Lister: listApiGateways,
-		Nuker:  resource.SimpleBatchDeleter(deleteApiGateway),
+		// AWS refuses to delete a REST API that a custom domain name still maps to, so the mappings go first.
+		Nuker: nukeApiGateways,
 	})
 }
 
@@ -56,6 +63,91 @@ func listApiGateways(ctx context.Context, client ApiGatewayAPI, scope resource.S
 	}
 
 	return ids, nil
+}
+
+// apiGatewayBasePathMapping is one custom domain name base path mapping, found by listApiGatewayBasePathMappings.
+type apiGatewayBasePathMapping struct {
+	domainName *string
+	// domainNameID is set only for a private custom domain name, which AWS requires it for.
+	domainNameID *string
+	basePath     *string
+}
+
+// nukeApiGateways deletes each REST API after the custom domain name base path mappings that point at it. The
+// mappings are listed once per batch rather than once per API, since every API would otherwise scan every domain.
+func nukeApiGateways(ctx context.Context, client ApiGatewayAPI, scope resource.Scope, resourceType string, ids []*string) []resource.NukeResult {
+	mappings, err := listApiGatewayBasePathMappings(ctx, client)
+	if err != nil {
+		// Still try each delete: an API with no mapping deletes, and AWS names any mapping that blocks one.
+		logging.Warnf("[API Gateway] Unable to list every custom domain name base path mapping, so only those found are removed first: %v", err)
+	}
+
+	return resource.SimpleBatchDeleter(func(ctx context.Context, client ApiGatewayAPI, apiID *string) error {
+		if err := deleteApiGatewayBasePathMappings(ctx, client, mappings[aws.ToString(apiID)]); err != nil {
+			return err
+		}
+		return deleteApiGateway(ctx, client, apiID)
+	})(ctx, client, scope, resourceType, ids)
+}
+
+// listApiGatewayBasePathMappings returns every custom domain name base path mapping in the region, keyed by the
+// REST API it points at. A domain whose mappings cannot be listed is skipped, so the mappings found on the others
+// are still returned, together with the errors.
+func listApiGatewayBasePathMappings(ctx context.Context, client ApiGatewayAPI) (map[string][]apiGatewayBasePathMapping, error) {
+	mappings := map[string][]apiGatewayBasePathMapping{}
+	var errs *multierror.Error
+
+	domains := apigateway.NewGetDomainNamesPaginator(client, &apigateway.GetDomainNamesInput{})
+	for domains.HasMorePages() {
+		page, err := domains.NextPage(ctx)
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("failed to list domain names: %w", err))
+			return mappings, errs.ErrorOrNil()
+		}
+
+		for _, domain := range page.Items {
+			pages := apigateway.NewGetBasePathMappingsPaginator(client, &apigateway.GetBasePathMappingsInput{
+				DomainName:   domain.DomainName,
+				DomainNameId: domain.DomainNameId,
+			})
+			for pages.HasMorePages() {
+				mappingPage, err := pages.NextPage(ctx)
+				if err != nil {
+					errs = multierror.Append(errs, fmt.Errorf("failed to list base path mappings on domain %s: %w", aws.ToString(domain.DomainName), err))
+					break
+				}
+
+				for _, mapping := range mappingPage.Items {
+					apiID := aws.ToString(mapping.RestApiId)
+					mappings[apiID] = append(mappings[apiID], apiGatewayBasePathMapping{
+						domainName:   domain.DomainName,
+						domainNameID: domain.DomainNameId,
+						basePath:     mapping.BasePath,
+					})
+				}
+			}
+		}
+	}
+
+	return mappings, errs.ErrorOrNil()
+}
+
+// deleteApiGatewayBasePathMappings deletes the given custom domain name base path mappings of one REST API.
+func deleteApiGatewayBasePathMappings(ctx context.Context, client ApiGatewayAPI, mappings []apiGatewayBasePathMapping) error {
+	for _, mapping := range mappings {
+		logging.Debugf("[API Gateway] Deleting base path mapping %s on domain %s",
+			aws.ToString(mapping.basePath), aws.ToString(mapping.domainName))
+		_, err := client.DeleteBasePathMapping(ctx, &apigateway.DeleteBasePathMappingInput{
+			BasePath:     mapping.basePath,
+			DomainName:   mapping.domainName,
+			DomainNameId: mapping.domainNameID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete base path mapping %s on domain %s: %w",
+				aws.ToString(mapping.basePath), aws.ToString(mapping.domainName), err)
+		}
+	}
+	return nil
 }
 
 // deleteApiGateway deletes a single API Gateway REST API.
