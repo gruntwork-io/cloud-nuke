@@ -33,6 +33,7 @@ const (
 	FlagExcludeFirstSeen       = "exclude-first-seen"
 	FlagSGOnly                 = "sg-only"
 	FlagProjectID              = "project-id"
+	FlagSubscriptionID         = "subscription-id"
 	FlagResourceType           = "resource-type"
 	FlagExcludeResourceType    = "exclude-resource-type"
 	FlagRegion                 = "region"
@@ -168,6 +169,17 @@ func TagFlags() []cli.Flag {
 			Name:  FlagIncludeTag,
 			Usage: `Only include resources with this tag (format: key=value). Key matching is exact (case-sensitive). Value is a case-sensitive regex that performs partial matching (use ^value$ for exact match, or (?i)value for case-insensitive). Each key may only appear once. Include multiple times for AND logic. Example: --include-tag "env=^prod$"`,
 		},
+	}
+}
+
+// AzureSubscriptionFlag returns the Azure subscription ID flag. It is
+// repeatable, because one Azure tenant commonly holds a subscription per
+// environment and a sweep covers several at once.
+func AzureSubscriptionFlag() cli.Flag {
+	return &cli.StringSliceFlag{
+		Name:     FlagSubscriptionID,
+		Usage:    "Azure Subscription ID to nuke resources from. Include multiple times if more than one.",
+		Required: true,
 	}
 }
 

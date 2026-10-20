@@ -282,6 +282,24 @@ This table shows which filtering features are supported for each resource type i
 | vpc-lattice-target-group | VPCLatticeTargetGroup | ✓ | ✓ | ✓ | ✓ |
 | vpc-peering-connection | VPCPeeringConnection | ✓ | ✓ | ✓ | ✓ |
 
+## Azure Supported Resources
+
+cloud-nuke supports inspecting and deleting the following Azure resources. The **CLI ID** column is the value you pass to `--resource-type`.
+
+| CLI ID | Resource |
+|---|---|
+| `resource-group` | Resource Group, and everything inside it |
+
+### Azure Config Support Matrix
+
+| Resource Type | Config Key | names_regex | time | tags | timeout |
+|---|---|---|---|---|---|
+| resource-group | AzureResourceGroup | ✓ | ✓ | ✓ | ✓ |
+
+Deleting a resource group deletes every resource in it, which is how a leaked test environment is cleaned up in one call. Two kinds of group are left alone: one another service manages, such as an AKS node group, because deleting it breaks that service, and one carrying a delete lock, because the API refuses the delete.
+
+Azure reports a resource group's creation time only when a subscription exposes it, so `--older-than` and `--newer-than` match a group only when its creation time is reported.
+
 ## GCP Supported Resources
 
 cloud-nuke supports inspecting and deleting the following GCP resources. The **CLI ID** column is the value you pass to `--resource-type`.
