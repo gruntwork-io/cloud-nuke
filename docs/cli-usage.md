@@ -7,6 +7,8 @@
 | `cloud-nuke aws` | Delete all resources (with confirmation prompt) |
 | `cloud-nuke inspect-aws` | Inspect resources without deleting |
 | `cloud-nuke defaults-aws` | Delete default VPCs and default security group rules |
+| `cloud-nuke azure` | Delete Azure resources (with confirmation prompt) |
+| `cloud-nuke inspect-azure` | Inspect Azure resources without deleting |
 | `cloud-nuke gcp` | Delete GCP resources (with confirmation prompt) |
 | `cloud-nuke inspect-gcp` | Inspect GCP resources without deleting |
 
@@ -16,22 +18,22 @@
 
 | Flag | Description | Available in |
 |---|---|---|
-| `--region` | Target specific regions (repeatable) | aws, inspect-aws, defaults-aws |
-| `--exclude-region` | Exclude regions (repeatable, mutually exclusive with `--region`) | aws, inspect-aws, defaults-aws |
-| `--resource-type` | Target specific resource types (repeatable) | aws, inspect-aws, gcp, inspect-gcp |
-| `--exclude-resource-type` | Exclude resource types (repeatable, mutually exclusive with `--resource-type`) | aws, inspect-aws, gcp, inspect-gcp |
-| `--older-than` | Only target resources older than duration ([Go duration](https://golang.org/pkg/time/#ParseDuration)) | aws, inspect-aws, gcp, inspect-gcp |
-| `--newer-than` | Only target resources newer than duration | aws, inspect-aws, gcp, inspect-gcp |
-| `--config` | Path to [config file](configuration.md) for granular filtering | aws, gcp |
+| `--region` | Target specific regions (repeatable). On GCP this names locations, which filter what each resource keeps, and `global` is not one of them. A multi-region or dual-region GCS bucket answers to its own location, `US` or `NAM4`, not to a region inside it | aws, inspect-aws, defaults-aws, gcp, inspect-gcp |
+| `--exclude-region` | Exclude regions (repeatable, mutually exclusive with `--region` on AWS). On GCP this excludes locations, and a resource type with no location is still deleted | aws, inspect-aws, defaults-aws, gcp, inspect-gcp |
+| `--resource-type` | Target specific resource types (repeatable) | aws, inspect-aws, gcp, inspect-gcp, azure, inspect-azure |
+| `--exclude-resource-type` | Exclude resource types (repeatable, mutually exclusive with `--resource-type`) | aws, inspect-aws, gcp, inspect-gcp, azure, inspect-azure |
+| `--older-than` | Only target resources older than duration ([Go duration](https://golang.org/pkg/time/#ParseDuration)) | aws, inspect-aws, gcp, inspect-gcp, azure, inspect-azure |
+| `--newer-than` | Only target resources newer than duration | aws, inspect-aws, gcp, inspect-gcp, azure, inspect-azure |
+| `--config` | Path to [config file](configuration.md) for granular filtering | aws, gcp, azure |
 | `--exclude-first-seen` | Exclude resources based on first-seen tag | aws, inspect-aws |
 
 ### Execution
 
 | Flag | Description | Available in |
 |---|---|---|
-| `--dry-run` | Preview deletions without executing | aws, gcp |
-| `--force` | Skip confirmation prompt | aws, gcp, defaults-aws |
-| `--timeout` | Set execution timeout (e.g., `10m`) | aws, gcp |
+| `--dry-run` | Preview deletions without executing | aws, gcp, azure |
+| `--force` | Skip confirmation prompt | aws, gcp, azure, defaults-aws |
+| `--timeout` | Set execution timeout (e.g., `10m`) | aws, gcp, azure |
 | `--sg-only` | Only delete default security group rules, not VPCs | defaults-aws |
 
 ### Output
@@ -39,9 +41,9 @@
 | Flag | Description | Available in |
 |---|---|---|
 | `--log-level` | Log verbosity: `debug`, `info` (default), `warn`, `error`, `panic`, `fatal`, `trace`. Also settable via `LOG_LEVEL` env var. | all |
-| `--output-format` | Output format: `table` (default), `json` | aws, inspect-aws, gcp, inspect-gcp |
-| `--output-file` | Write output to file instead of stdout | aws, inspect-aws, gcp, inspect-gcp |
-| `--list-resource-types` | List all supported resource type identifiers | aws, inspect-aws, gcp, inspect-gcp |
+| `--output-format` | Output format: `table` (default), `json` | aws, inspect-aws, gcp, inspect-gcp, azure, inspect-azure |
+| `--output-file` | Write output to file instead of stdout | aws, inspect-aws, gcp, inspect-gcp, azure, inspect-azure |
+| `--list-resource-types` | List all supported resource type identifiers | aws, inspect-aws, gcp, inspect-gcp, azure, inspect-azure |
 
 ### KMS
 
@@ -49,6 +51,14 @@
 |---|---|---|
 | `--delete-unaliased-kms-keys` | Delete KMS keys without aliases | aws |
 | `--list-unaliased-kms-keys` | List KMS keys without aliases | inspect-aws |
+
+### Azure
+
+| Flag | Description | Available in |
+|---|---|---|
+| `--subscription-id` | Azure subscription ID (required, repeatable) | azure, inspect-azure |
+
+Azure authenticates through the default credential chain, so `az login`, a service principal in the environment, or a managed identity all work. A location may be typed the way the portal shows it, `West Europe`, or the way the API reports it, `westeurope`.
 
 ### GCP
 
@@ -78,7 +88,10 @@ cloud-nuke defaults-aws --sg-only
 cloud-nuke inspect-aws --output-format json --output-file results.json
 
 # Nuke GCP resources
-cloud-nuke gcp --project-id my-project-id --resource-type compute-instance
+cloud-nuke gcp --project-id my-project-id --resource-type gcs-bucket
+
+# Nuke Azure resources in one subscription, in one location
+cloud-nuke azure --subscription-id 00000000-0000-0000-0000-000000000000 --region westeurope
 ```
 
 > CLI flags override config file options. If you pass `--resource-type s3` but your config only defines rules for `ec2`, only s3 is targeted.
