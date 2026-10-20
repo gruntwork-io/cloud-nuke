@@ -35,7 +35,8 @@ func NewPubSubTopics() GcpResource {
 			r.Scope.ProjectID = cfg.ProjectID
 			client, err := pubsub.NewPublisherClient(context.Background())
 			if err != nil {
-				panic(fmt.Sprintf("failed to create Pub/Sub publisher client: %v", err))
+				r.InitializationError = fmt.Errorf("failed to create Pub/Sub publisher client: %w", err)
+				return
 			}
 			r.Client = client
 		}),
