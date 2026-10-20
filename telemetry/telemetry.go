@@ -7,6 +7,11 @@ import (
 )
 
 var sendTelemetry = true
+
+// initialized records whether InitTelemetry has run. Without it, TrackEvent
+// dereferences a nil HTTP client inside the zero-value tracker, so anything
+// importing cloud-nuke as a library crashes on the first event it reports.
+var initialized = false
 var telemetryClient telemetry.MixpanelTelemetryTracker
 var cmd = ""
 var isCircleCi = false
@@ -22,6 +27,7 @@ func InitTelemetry(name string, version string) {
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
 	}
+	initialized = true
 }
 
 func SetAccountId(accountId string) {
@@ -29,7 +35,7 @@ func SetAccountId(accountId string) {
 }
 
 func TrackEvent(ctx telemetry.EventContext, extraProperties map[string]interface{}) {
-	if sendTelemetry {
+	if sendTelemetry && initialized {
 		ctx.Command = cmd
 		extraProperties["isCircleCi"] = isCircleCi
 		extraProperties["accountId"] = account
