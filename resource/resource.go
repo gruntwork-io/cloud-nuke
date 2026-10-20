@@ -20,13 +20,18 @@ const DefaultBatchSize = 50
 //
 // For AWS: Region is set, such as "us-east-1", or "global" for a global resource.
 // For GCP: ProjectID is set, and Region when the resource is regional.
+// For Azure: Subscription is set.
 type Scope struct {
-	Region    string // AWS region, or "global" for a global resource
-	ProjectID string // GCP project id
+	Region       string // AWS region, or "global" for a global resource
+	ProjectID    string // GCP project id
+	Subscription string // Azure subscription id
 }
 
 // String returns a human-readable representation of the scope for logging
 func (s Scope) String() string {
+	if s.Subscription != "" {
+		return s.Subscription
+	}
 	if s.ProjectID != "" {
 		if s.Region != "" {
 			return s.ProjectID + "/" + s.Region

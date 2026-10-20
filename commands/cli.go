@@ -64,6 +64,31 @@ func CreateCli(version string) *cli.App {
 				},
 			),
 		}, {
+			Name:   "azure",
+			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes Azure resources.",
+			Action: errors.WithPanicHandling(azureNuke),
+			Flags: CombineFlags(
+				[]cli.Flag{AzureSubscriptionFlag()},
+				RegionFlags(),
+				CommonResourceTypeFlags(),
+				CommonTimeFlags(),
+				CommonExecutionFlags(),
+				CommonOutputFlags(),
+				[]cli.Flag{ConfigFlag()},
+			),
+		}, {
+			Name:   "inspect-azure",
+			Usage:  "Non-destructive inspection of target Azure resources only",
+			Action: errors.WithPanicHandling(azureInspect),
+			Flags: CombineFlags(
+				[]cli.Flag{AzureSubscriptionFlag()},
+				RegionFlags(),
+				InspectResourceTypeFlags(),
+				CommonTimeFlags(),
+				CommonOutputFlags(),
+				[]cli.Flag{ConfigFlag()},
+			),
+		}, {
 			Name:   "gcp",
 			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes GCP resources.",
 			Action: errors.WithPanicHandling(gcpNuke),
