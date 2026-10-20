@@ -9,8 +9,10 @@ on:
         default: false
   push:
     branches: [master]
+  # Every pull request, not only the ones targeting master: a stacked pull
+  # request targets the one below it, and under a master-only filter those get
+  # no build, no lint and no tests.
   pull_request:
-    branches: [master]
   release:
     types: [created]
 
