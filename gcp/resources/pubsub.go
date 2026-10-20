@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	pubsub "cloud.google.com/go/pubsub/apiv1"
-	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	pubsub "cloud.google.com/go/pubsub/v2/apiv1"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
@@ -29,14 +29,14 @@ const (
 // NewPubSubTopics creates a new Pub/Sub topic resource using the generic resource pattern.
 func NewPubSubTopics() GcpResource {
 	// A Pub/Sub topic is project-global: the API reports no location for it.
-	return NewGcpResourceWithLocationScope(&resource.Resource[*pubsub.PublisherClient]{
+	return NewGcpResourceWithLocationScope(&resource.Resource[*pubsub.TopicAdminClient]{
 		ResourceTypeName: "gcp-pubsub-topic",
 		BatchSize:        DefaultBatchSize,
-		InitClient: WrapGcpInitClient(func(r *resource.Resource[*pubsub.PublisherClient], cfg GcpConfig) {
+		InitClient: WrapGcpInitClient(func(r *resource.Resource[*pubsub.TopicAdminClient], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
-			client, err := pubsub.NewPublisherClient(context.Background())
+			client, err := pubsub.NewTopicAdminClient(context.Background())
 			if err != nil {
-				r.InitializationError = fmt.Errorf("failed to create Pub/Sub publisher client: %w", err)
+				r.InitializationError = fmt.Errorf("failed to create Pub/Sub topic admin client: %w", err)
 				return
 			}
 			r.Client = client
@@ -57,7 +57,7 @@ func NewPubSubTopics() GcpResource {
 //     current Unix epoch timestamp as the value.
 //   - On subsequent runs, the stored timestamp is used for --older-than / --newer-than filtering.
 //   - Topics are never deleted on the first run when time-based filters are active.
-func listPubSubTopics(ctx context.Context, client *pubsub.PublisherClient, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+func listPubSubTopics(ctx context.Context, client *pubsub.TopicAdminClient, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	excludeFirstSeen, err := util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read exclude-first-seen-tag from context: %w", err)
@@ -117,7 +117,7 @@ func listPubSubTopics(ctx context.Context, client *pubsub.PublisherClient, scope
 // If not, it sets the label with the current Unix epoch and returns the current time.
 // GCP label values only support lowercase letters, digits, hyphens, and underscores,
 // so Unix epoch seconds (e.g. "1705312200") are used instead of RFC3339.
-func getOrCreatePubSubFirstSeen(ctx context.Context, client *pubsub.PublisherClient, topic *pubsubpb.Topic, labels map[string]string, excludeFirstSeen bool) (*time.Time, error) {
+func getOrCreatePubSubFirstSeen(ctx context.Context, client *pubsub.TopicAdminClient, topic *pubsubpb.Topic, labels map[string]string, excludeFirstSeen bool) (*time.Time, error) {
 	if excludeFirstSeen {
 		return nil, nil
 	}
@@ -156,7 +156,7 @@ func getOrCreatePubSubFirstSeen(ctx context.Context, client *pubsub.PublisherCli
 }
 
 // deletePubSubTopic deletes a single Pub/Sub topic.
-func deletePubSubTopic(ctx context.Context, client *pubsub.PublisherClient, name *string) error {
+func deletePubSubTopic(ctx context.Context, client *pubsub.TopicAdminClient, name *string) error {
 	topicName := *name
 
 	req := &pubsubpb.DeleteTopicRequest{
