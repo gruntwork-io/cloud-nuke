@@ -202,8 +202,9 @@ jobs:
           fi
           MSG="${MSG}${NL}<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
 
-          # Skip notification if notify_only_on_failure is set and there are no errors or warnings
-          if [ "${{ inputs.notify_only_on_failure }}" == "true" ] && [ "${{ needs.nuke.result }}" == "success" ] && [ "$TOTAL_FAILED" -eq 0 ]; then
+          # Skip notification if notify_only_on_failure is set, there are no errors and every region returned a result.
+          # A failed download leaves every job a success but no result, so it still notifies.
+          if [ "${{ inputs.notify_only_on_failure }}" == "true" ] && [ "${{ needs.nuke.result }}" == "success" ] && [ "$TOTAL_FAILED" -eq 0 ] && [ "$NO_RESULT_COUNT" -eq 0 ]; then
             echo "No errors or warnings detected and notify_only_on_failure is set. Skipping Slack notification."
             exit 0
           fi
