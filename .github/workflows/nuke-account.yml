@@ -1,5 +1,5 @@
 # Reusable workflow for nuking resources in a single AWS account.
-# Called by nuke-phxdevops.yml, nuke-configtests.yml, nuke-sandbox.yml, etc.
+# Called by nuke-phxdevops.yml and nuke-sandbox.yml.
 name: Nuke Account
 
 on:
