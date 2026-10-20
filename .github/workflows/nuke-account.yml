@@ -22,6 +22,16 @@ on:
         required: false
         type: boolean
         default: true
+      regions:
+        # The notify job reads the same list, so a region whose job leaves no result is still counted.
+        # me-central-1 is left out: it is an opt-in region, not enabled in all accounts.
+        description: The regions to nuke, as a JSON list.
+        required: false
+        type: string
+        default: >-
+          ["global", "ap-northeast-1", "ap-northeast-2", "ap-northeast-3", "ap-south-1", "ap-southeast-1",
+          "ap-southeast-2", "ca-central-1", "eu-central-1", "eu-north-1", "eu-west-1", "eu-west-2", "eu-west-3",
+          "sa-east-1", "us-east-1", "us-east-2", "us-west-1", "us-west-2"]
 
 env:
   MISE_VERSION: '2025.12.10'
@@ -44,26 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        region:
-          - global
-          - ap-northeast-1
-          - ap-northeast-2
-          - ap-northeast-3
-          - ap-south-1
-          - ap-southeast-1
-          - ap-southeast-2
-          - ca-central-1
-          - eu-central-1
-          - eu-north-1
-          - eu-west-1
-          - eu-west-2
-          - eu-west-3
-          # - me-central-1  # Opt-in region, not enabled in all accounts
-          - sa-east-1
-          - us-east-1
-          - us-east-2
-          - us-west-1
-          - us-west-2
+        region: ${{ fromJSON(inputs.regions) }}
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -123,6 +114,7 @@ jobs:
       - name: Aggregate and notify
         env:
           WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REGIONS: ${{ inputs.regions }}
         run: |
           NL=$'\n'
 
@@ -130,21 +122,31 @@ jobs:
           TOTAL_DELETED=0
           TOTAL_FAILED=0
           TOTAL_WARNED=0
+          TOTAL_REGIONS=0
+          NO_RESULT_REGIONS=""
+          NO_RESULT_COUNT=0
           REGION_DATA=$(mktemp)
-          while IFS= read -r json_file; do
-            if [ -f "$json_file" ]; then
-              REGION=$(basename "$json_file" .json | sed 's/^nuke-//')
-              DELETED=$(jq -r '.summary.deleted // 0' "$json_file")
-              FAILED=$(jq -r '.summary.failed // 0' "$json_file")
-              WARNED=$(jq -r '.summary.warned // 0' "$json_file")
-              TOTAL_DELETED=$((TOTAL_DELETED + DELETED))
-              TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
-              TOTAL_WARNED=$((TOTAL_WARNED + WARNED))
-              if [ "$DELETED" -gt 0 ] || [ "$FAILED" -gt 0 ] || [ "$WARNED" -gt 0 ]; then
-                echo "${DELETED} ${FAILED} ${WARNED} ${REGION}" >> "$REGION_DATA"
-              fi
+          while IFS= read -r REGION; do
+            json_file="/tmp/logs/nuke-${REGION}.json"
+            TOTAL_REGIONS=$((TOTAL_REGIONS + 1))
+            # A job that fails before cloud-nuke finishes, such as when the role cannot be assumed or the job times out,
+            # leaves no file, an empty one or a partial one, which would otherwise read as a clean region. A region with
+            # nothing to delete writes a summary without a deleted count, which is a result.
+            if ! jq -e '.summary | type == "object"' "$json_file" > /dev/null 2>&1; then
+              NO_RESULT_REGIONS="${NO_RESULT_REGIONS:+${NO_RESULT_REGIONS}, }${REGION}"
+              NO_RESULT_COUNT=$((NO_RESULT_COUNT + 1))
+              continue
             fi
-          done < <(find /tmp/logs -name "*.json" 2>/dev/null | sort)
+            DELETED=$(jq -r '.summary.deleted // 0' "$json_file")
+            FAILED=$(jq -r '.summary.failed // 0' "$json_file")
+            WARNED=$(jq -r '.summary.warned // 0' "$json_file")
+            TOTAL_DELETED=$((TOTAL_DELETED + DELETED))
+            TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
+            TOTAL_WARNED=$((TOTAL_WARNED + WARNED))
+            if [ "$DELETED" -gt 0 ] || [ "$FAILED" -gt 0 ] || [ "$WARNED" -gt 0 ]; then
+              echo "${DELETED} ${FAILED} ${WARNED} ${REGION}" >> "$REGION_DATA"
+            fi
+          done < <(jq -r '.[]' <<< "$REGIONS")
 
           # Sort regions: those with deletions first, then by failure count descending
           # Take top 5 most active regions
@@ -185,6 +187,9 @@ jobs:
             SUMMARY_LINE="${SUMMARY_LINE} | Warned: ${TOTAL_WARNED}"
           fi
           MSG="${MSG}${NL}${SUMMARY_LINE}"
+          if [ "$NO_RESULT_COUNT" -gt 0 ]; then
+            MSG="${MSG}${NL}• No result from ${NO_RESULT_COUNT} of ${TOTAL_REGIONS} regions: ${NO_RESULT_REGIONS}"
+          fi
           if [ -n "$TOP_REGIONS" ]; then
             MSG="${MSG}${TOP_REGIONS}"
           fi
@@ -197,8 +202,9 @@ jobs:
           fi
           MSG="${MSG}${NL}<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
 
-          # Skip notification if notify_only_on_failure is set and there are no errors or warnings
-          if [ "${{ inputs.notify_only_on_failure }}" == "true" ] && [ "${{ needs.nuke.result }}" == "success" ] && [ "$TOTAL_FAILED" -eq 0 ]; then
+          # Skip notification if notify_only_on_failure is set, there are no errors and every region returned a result.
+          # A failed download leaves every job a success but no result, so it still notifies.
+          if [ "${{ inputs.notify_only_on_failure }}" == "true" ] && [ "${{ needs.nuke.result }}" == "success" ] && [ "$TOTAL_FAILED" -eq 0 ] && [ "$NO_RESULT_COUNT" -eq 0 ]; then
             echo "No errors or warnings detected and notify_only_on_failure is set. Skipping Slack notification."
             exit 0
           fi
