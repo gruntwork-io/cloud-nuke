@@ -155,6 +155,9 @@ type Config struct {
 	RouteTable                      EC2ResourceType            `yaml:"RouteTable"`
 	VPCPeeringConnection            ResourceType               `yaml:"VPCPeeringConnection"`
 
+	// Azure Resources
+	AzureResourceGroup ResourceType `yaml:"AzureResourceGroup"`
+
 	// GCP Resources
 	GCSBucket        ResourceType `yaml:"GCSBucket"`
 	CloudFunction    ResourceType `yaml:"CloudFunction"`
@@ -301,6 +304,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.VPCLatticeTargetGroup,
 		&c.RouteTable.ResourceType,
 		&c.VPCPeeringConnection,
+		&c.AzureResourceGroup,
 		&c.GCSBucket,
 		&c.CloudFunction,
 		&c.ArtifactRegistry,
