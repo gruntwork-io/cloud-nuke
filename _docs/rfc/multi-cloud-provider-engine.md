@@ -35,11 +35,12 @@ cloud:
 - **The GCP loop skips identifiers that `IsNukable` rejects and the AWS loop does not, and AWS
   is right:** `IsNukable` reports whether an optional dry-run check said this identifier could
   be deleted, and the scan prints its answer in the found table. a successful EC2 dry run answers with the error `DryRunOperation: Request would
-  have succeeded, but DryRun flag is set`, and 14 of the 22 AWS verifiers return that error
-  unchanged rather than mapping it to nil through `util.TransformAWSError`. Skipping on
+  have succeeded, but DryRun flag is set`. Twenty-one of the 22 AWS verifiers issue such a dry
+  run, and 15 of those return that error unchanged rather than mapping it to nil through
+  `util.TransformAWSError`. Skipping on
   `IsNukable` would stop deleting EBS volumes, Elastic IPs, key pairs and every IPAM resource.
   The engine therefore keeps the AWS behavior and sends every found identifier to the provider.
-  Fixing those 14 verifiers is worth its own change.
+  Fixing those 15 verifiers is worth its own change.
 ### Three defects reproduce on master
 
 Two of the three come from the GCP copy inheriting a region model AWS needs and GCP does not.
@@ -169,8 +170,20 @@ const (
 )
 ```
 
-`TestEveryResourceDeclaresALocationScope` fails as soon as a new GCP resource type declares
-none of the three, so adding one forces the decision. The adapter then calls this for each
+A resource type declares its scope where it is registered. `NewGcpResource` defaults to
+`LocationFromResourceName`, the shape most GCP identifiers have, and a type that is not that
+shape says so once:
+
+```go
+// gcp/resources/types.go, the interface the adapter satisfies.
+LocationScope() LocationScope
+
+// gcp/resources/gcs_bucket.go, and pubsub.go reads LocationNone.
+return resources.NewGcpResourceWithLocationScope(r, LocationAppliedByLister)
+```
+
+`TestEveryResourceDeclaresALocationScope` reads that method for every registered type and fails
+as soon as a new one declares none of the three, so adding one forces the decision. The adapter then calls this for each
 identifier it is about to report, and drops the ones that answer false:
 
 ```go
@@ -205,7 +218,7 @@ The first five are the rules a reader must not break, and the rest say why each 
   tests is not proven.
 - **The engine sends every found identifier to the provider, including an identifier that
   `IsNukable` rejected:** the AWS verifiers make `IsNukable` unreliable in the unsafe
-  direction, so a pre-delete filter on it would stop deleting 14 resource types. No
+  direction, so a pre-delete filter on it would stop deleting 15 resource types. No
   user-visible behavior changes on either cloud, and `IsNukable` keeps its one job, which is
   telling the scan what to report.
 - **The engine takes `*reporting.Collector` directly** rather than a hook interface, because
@@ -236,7 +249,10 @@ diff is what closed [#1062](https://github.com/gruntwork-io/cloud-nuke/pull/1062
 1. **Stop the GCP panic.** Reopen [#1061](https://github.com/gruntwork-io/cloud-nuke/pull/1061)
    as it stands: three client failures become `InitializationError`, which `resource.Resource`
    returns from its list and nuke calls, so the user reads one error row per resource type
-   instead of a stack trace. The adapter recovers a panic as a backstop. Four lines of
+   instead of a stack trace. The adapter recovers a panic as a backstop, and only in `Init`,
+   where the client is built: it keeps the recovered value in the message, and a panic from a
+   list or a nuke stays visible rather than arriving as an `InitializationError` that hides a
+   defect in the resource. Four lines of
    production code, already written and already reviewed once.
 2. **Guard `telemetry.TrackEvent` before `InitTelemetry`.** One package, no cloud, no engine.
    It is separate from the first change because packaging unrelated fixes together is what
@@ -257,7 +273,11 @@ diff is what closed [#1062](https://github.com/gruntwork-io/cloud-nuke/pull/1062
 
 **GCP in CI runs alongside, and blocks what comes after.** A sandbox project, a dry-run
 `inspect-gcp` job asserting `summary.general_errors == 0` and a found count above zero, and a
-scheduled nuke. It is not a predecessor of changes 3 to 5, because those are provable with an
+scheduled nuke. The found count is a gate only if the job creates what it counts: it provisions
+one bucket and one Pub/Sub topic under a run-scoped name prefix, asserts it finds those, and
+deletes them in a deferred step that runs even when the assertion fails. Counting whatever
+happens to sit in the project would pass on somebody else's leftovers and fail the first time
+the scheduled nuke left the project empty. It is not a predecessor of changes 3 to 5, because those are provable with an
 `httptest` server plus one real-project run pasted into the pull request, and because the
 project, its billing and its credential are not something an engineer can merge. It is a
 precondition of adding GCP resource types, where a mis-scoped nuke reaches instances, networks
@@ -377,7 +397,7 @@ review round found the prototype wrong:
 - **The public container types hold a pointer to an interface:** `*AwsResource` forces a type
   assertion in each direction at the engine boundary. The prototype keeps those types exactly as
   they are, and dropping the pointer to an interface is worth its own change later.
-- **The GCP package's exported surface changes in six ways,** listed below. The AWS surface,
+- **The GCP package's exported surface changes in seven ways,** listed below. The AWS surface,
   which `docs/library-usage.md` documents, does not change.
 - **The report's region column carries the project id for GCP** where it carried `global`
   before, so a script selecting GCP rows by `.region == "global"` returns nothing. The JSON
@@ -393,9 +413,11 @@ review round found the prototype wrong:
 | `gcp.Query.Validate` | No longer defaults an empty region list | Expect a whole-project scan when no location is given |
 | `GcpProjectResources.GetRegion("global")` | Keyed by project id now, so this returns nothing | Ask for the project id |
 
-Every one of those six breaks the build, which is deliberate: the entry point is renamed rather
+Five of those seven break the build, which is deliberate: the entry point is renamed rather
 than quietly given a new meaning, so no caller can pass `regions[0]` as a project id and nuke a
-project named after a region.
+project named after a region. The last two compile unchanged and behave differently, so they are
+the two a caller has to read for: `gcp.Query.Validate` no longer fills in a default location
+list, and `GetRegion("global")` now answers nothing because the map is keyed by project id.
 
 ## Alternatives
 
