@@ -25,7 +25,8 @@ func NewCloudFunctions() GcpResource {
 			r.Scope.ProjectID = cfg.ProjectID
 			client, err := functions.NewFunctionClient(context.Background())
 			if err != nil {
-				panic(fmt.Sprintf("failed to create Cloud Functions client: %v", err))
+				r.InitializationError = fmt.Errorf("failed to create Cloud Functions client: %w", err)
+				return
 			}
 			r.Client = client
 		}),
