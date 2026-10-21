@@ -38,8 +38,8 @@ func gcpNuke(c *cli.Context) error {
 
 	query := &gcp.Query{
 		ProjectID:            c.String(FlagProjectID),
-		Regions:              c.StringSlice(FlagRegion),
-		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
+		Locations:            c.StringSlice(FlagRegion),
+		ExcludeLocations:     c.StringSlice(FlagExcludeRegion),
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
@@ -84,8 +84,8 @@ func gcpInspect(c *cli.Context) error {
 
 	query := &gcp.Query{
 		ProjectID:            c.String(FlagProjectID),
-		Regions:              c.StringSlice(FlagRegion),
-		ExcludeRegions:       c.StringSlice(FlagExcludeRegion),
+		Locations:            c.StringSlice(FlagRegion),
+		ExcludeLocations:     c.StringSlice(FlagExcludeRegion),
 		ResourceTypes:        c.StringSlice(FlagResourceType),
 		ExcludeResourceTypes: c.StringSlice(FlagExcludeResourceType),
 		ExcludeFirstSeen:     c.Bool(FlagExcludeFirstSeen),
@@ -154,7 +154,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, query *gcp.Query, ou
 
 	// Execute the nuke operation if confirmed
 	if shouldProceed {
-		if err := gcp.NukeAllResources(c.Context, account, query.Regions, query.Parallelism, collector); err != nil {
+		if err := gcp.NukeProjectResources(c.Context, account, query.ProjectID, query.Parallelism, collector); err != nil {
 			return err
 		}
 	}

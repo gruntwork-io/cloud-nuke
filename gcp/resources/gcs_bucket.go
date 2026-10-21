@@ -16,10 +16,18 @@ import (
 
 // NewGCSBuckets creates a new GCS Buckets resource using the generic resource pattern.
 func NewGCSBuckets() GcpResource {
-	return NewGcpResource(&resource.Resource[*storage.Client]{
+	// gcpCfg is filled in by InitClient and read by the lister, which is how a
+	// resource sees the location filter: the generic Lister signature carries
+	// the resource's own config, not the provider's.
+	gcpCfg := &GcpConfig{}
+
+	// A bucket's name carries no location, so its lister reads the location off
+	// the API's answer and applies the filter itself.
+	return NewGcpResourceWithLocationScope(&resource.Resource[*storage.Client]{
 		ResourceTypeName: "gcs-bucket",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*storage.Client], cfg GcpConfig) {
+			*gcpCfg = cfg
 			r.Scope.ProjectID = cfg.ProjectID
 			client, err := storage.NewClient(context.Background())
 			if err != nil {
@@ -31,13 +39,16 @@ func NewGCSBuckets() GcpResource {
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.GCSBucket
 		},
-		Lister: listGCSBuckets,
-		Nuker:  resource.SequentialDeleter(deleteGCSBucket),
-	})
+		Lister: func(ctx context.Context, client *storage.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+			return listGCSBuckets(ctx, client, scope, cfg, *gcpCfg)
+		},
+		Nuker: resource.SequentialDeleter(deleteGCSBucket),
+	}, LocationAppliedByLister)
 }
 
-// listGCSBuckets retrieves all GCS buckets in the project that match the config filters.
-func listGCSBuckets(ctx context.Context, client *storage.Client, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+// listGCSBuckets retrieves all GCS buckets in the project that match the config
+// filters and the location filter.
+func listGCSBuckets(ctx context.Context, client *storage.Client, scope resource.Scope, cfg config.ResourceType, gcpCfg GcpConfig) ([]*string, error) {
 	var result []*string
 
 	it := client.Buckets(ctx, scope.ProjectID)
@@ -48,6 +59,13 @@ func listGCSBuckets(ctx context.Context, client *storage.Client, scope resource.
 		}
 		if err != nil {
 			return nil, fmt.Errorf("error listing buckets: %w", err)
+		}
+
+		// A bucket outside the asked-for locations is left alone. GCS reports a
+		// location in upper case, such as US or US-CENTRAL1, and the filter is
+		// written however the user typed it.
+		if !gcpCfg.MatchesLocationFilter(bucket.Location) {
+			continue
 		}
 
 		resourceValue := config.ResourceValue{
