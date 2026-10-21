@@ -272,3 +272,15 @@ func TestScope_String(t *testing.T) {
 	assert.Equal(t, "my-project", Scope{ProjectID: "my-project"}.String())
 	assert.Equal(t, "my-project/us-central1", Scope{ProjectID: "my-project", Region: "us-central1"}.String())
 }
+
+func TestScopeStringNamesThePlaceEachCloudCallsIt(t *testing.T) {
+	t.Parallel()
+
+	// The engine puts this in every log line and every error, so a reader has
+	// to be able to tell which place failed.
+	assert.Equal(t, "us-east-1", Scope{Region: "us-east-1"}.String())
+	assert.Equal(t, "global", Scope{Region: "global"}.String())
+	assert.Equal(t, "my-project", Scope{ProjectID: "my-project"}.String())
+	assert.Equal(t, "my-project/us-central1", Scope{ProjectID: "my-project", Region: "us-central1"}.String())
+	assert.Equal(t, "", Scope{}.String())
+}
