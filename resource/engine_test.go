@@ -47,6 +47,10 @@ type fakeProvider struct {
 	// limit, which IsThrottle then recognises.
 	throttleOnce bool
 
+	// deleteErr, when set, decides what each identifier's delete answers, so a
+	// test can put a rate limit and a real failure in one batch.
+	deleteErr func(id string) error
+
 	// configSpy records the resource config each lister was handed.
 	configSpy func(config.ResourceType)
 
@@ -96,6 +100,12 @@ func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Cont
 		Nuker: SequentialDeleter(func(ctx context.Context, c *fakeClient, id *string) error {
 			if p.beforeDelete != nil {
 				p.beforeDelete(target.ID)
+			}
+
+			if p.deleteErr != nil {
+				if err := p.deleteErr(*id); err != nil {
+					return err
+				}
 			}
 
 			p.mu.Lock()
@@ -681,4 +691,93 @@ func TestNukeSplitsIntoBatchesOfTheResourcesMaxSize(t *testing.T) {
 		assert.Equal(t, 1, event.BatchSize)
 	}
 	assert.Equal(t, 4, batches)
+}
+
+func TestNukeReportsAFailureThatSharedItsBatchWithARateLimit(t *testing.T) {
+	t.Parallel()
+
+	// One identifier is rate limited and the one beside it fails for a reason
+	// waiting will not fix. The engine waits out the limit either way, and the
+	// real failure still reaches the run's error: asking the provider about the
+	// batch's aggregated error would have answered "rate limit" for both and
+	// let the run exit clean over a resource it did not delete.
+	p := newFakeProvider()
+	p.deleteErr = func(id string) error {
+		switch id {
+		case "sub-a-widget-1":
+			return rateLimitError{}
+		case "sub-a-widget-2":
+			return errors.New("still attached to a network interface")
+		}
+		return nil
+	}
+	rec := &recorder{}
+
+	found, err := Scan(context.Background(), p, ScanRequest{Include: func(string) bool { return true }}, rec.collector())
+	require.NoError(t, err)
+
+	err = NukeAll(context.Background(), p, found, NukeRequest{
+		BatchPause: time.Nanosecond, ThrottlePause: time.Nanosecond,
+	}, rec.collector())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "still attached to a network interface")
+	// The other subscription is untouched by either failure.
+	assert.Equal(t, []string{"sub-b-widget-1", "sub-b-widget-2"}, p.clients["sub-b"].deleted)
+}
+
+// preparingProvider counts how many of its Prepare calls run at once, which is
+// what the engine's first phase has to bound: a provider may call its cloud
+// there, as the AWS one does to read the account id.
+type preparingProvider struct {
+	targets int
+
+	mu      sync.Mutex
+	running int
+	most    int
+}
+
+func (p *preparingProvider) Targets() ([]Target, error) {
+	targets := make([]Target, 0, p.targets)
+	for i := 0; i < p.targets; i++ {
+		id := fmt.Sprintf("region-%d", i)
+		targets = append(targets, Target{ID: id, Label: id})
+	}
+	return targets, nil
+}
+
+func (p *preparingProvider) Prepare(ctx context.Context, target Target) (context.Context, []NukeableResource, error) {
+	p.mu.Lock()
+	p.running++
+	if p.running > p.most {
+		p.most = p.running
+	}
+	p.mu.Unlock()
+
+	// long enough that every goroutine the engine allows is inside at once
+	time.Sleep(10 * time.Millisecond)
+
+	p.mu.Lock()
+	p.running--
+	p.mu.Unlock()
+	return ctx, nil, nil
+}
+
+func (p *preparingProvider) SkipListError(error, string, bool) bool { return false }
+func (p *preparingProvider) IsThrottle(error) bool                  { return false }
+
+func TestScanPreparesTargetsUnderTheParallelismLimit(t *testing.T) {
+	t.Parallel()
+
+	p := &preparingProvider{targets: 12}
+	rec := &recorder{}
+
+	_, err := Scan(context.Background(), p, ScanRequest{
+		Include: func(string) bool { return true }, Parallelism: 3,
+	}, rec.collector())
+	require.NoError(t, err)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	assert.LessOrEqual(t, p.most, 3, "the prepare phase opened more calls at once than the run allows")
 }

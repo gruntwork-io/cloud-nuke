@@ -3,6 +3,7 @@ package resource
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -128,8 +129,11 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	ctx = context.WithValue(ctx, util.ParallelismKey, req.Parallelism)
 	parallelism := util.GetParallelism(ctx)
 
-	// Phase 1: build clients for every target at once. Prepare allocates
-	// clients without calling an API, so it needs no concurrency limit.
+	// Phase 1: build the clients for every target. A provider may call its
+	// cloud here, as the AWS one does to read the account id, so this runs
+	// under the same limit as the scan rather than all at once: without it a
+	// sweep of thirty regions opens thirty calls before any limit applies, and
+	// a rate limit there ends the whole sweep with nothing deleted.
 	type prepared struct {
 		ctx       context.Context
 		resources []NukeableResource
@@ -138,6 +142,7 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	var prepMu sync.Mutex
 
 	prepGroup := new(errgroup.Group)
+	prepGroup.SetLimit(parallelism)
 	for _, target := range targets {
 		prepGroup.Go(func() error {
 			targetCtx, resources, err := p.Prepare(ctx, target)
@@ -297,6 +302,28 @@ func (r NukeRequest) withDefaults() NukeRequest {
 	return r
 }
 
+// throttleShape reports whether a batch's failure holds a rate limit, and
+// whether it holds nothing else. Resource.Nuke returns one error per failed
+// identifier in a multierror, so asking the provider about the aggregate
+// answers for whichever error it unwraps first.
+func throttleShape(p Provider, err error) (rateLimited, onlyRateLimits bool) {
+	var merr *multierror.Error
+	if errors.As(err, &merr) && len(merr.Errors) > 0 {
+		onlyRateLimits = true
+		for _, e := range merr.Errors {
+			if p.IsThrottle(e) {
+				rateLimited = true
+			} else {
+				onlyRateLimits = false
+			}
+		}
+		return rateLimited, onlyRateLimits
+	}
+
+	throttle := p.IsThrottle(err)
+	return throttle, throttle
+}
+
 // NukeAll deletes everything a scan found. Targets run concurrently up to
 // parallelism, except the ones a provider marked Last, which run after the rest.
 //
@@ -417,11 +444,21 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 			}
 
 			if err != nil {
-				if p.IsThrottle(err) {
+				// A batch fails one identifier at a time, so it can hold a rate
+				// limit and a real failure together. The engine waits out the
+				// limit either way, and only skips the batch when the limit is
+				// all there was: otherwise a single throttled identifier would
+				// carry every failure beside it out of the run's errors, and
+				// the run would exit clean over resources it did not delete.
+				rateLimited, onlyRateLimits := throttleShape(p, err)
+				if rateLimited {
 					logging.Debug("Request limit reached. Waiting before making new requests")
 					time.Sleep(req.ThrottlePause)
+				}
+				if onlyRateLimits {
 					continue
 				}
+
 				allErrors = multierror.Append(allErrors,
 					fmt.Errorf("[%s] %s: %w", target.label(), r.ResourceName(), err))
 
