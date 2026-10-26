@@ -1,9 +1,12 @@
 package aws
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/smithy-go"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,4 +68,50 @@ func TestFoundRoundTripsThroughTheAccountShape(t *testing.T) {
 // construct clients without calling an API.
 func awsConfigForTest() awssdk.Config {
 	return awssdk.Config{Region: "us-east-1"}
+}
+
+// A region named twice is one region: the engine refuses a repeated target
+// rather than deleting it twice, so a scripted region list that holds a
+// duplicate narrows here instead of ending the run.
+func TestTargetsNamesEachRegionOnce(t *testing.T) {
+	t.Parallel()
+
+	p := &provider{regions: []string{"us-east-1", "eu-west-1", "us-east-1", GlobalRegion}}
+
+	targets, err := p.Targets()
+	require.NoError(t, err)
+
+	ids := make([]string, 0, len(targets))
+	for _, target := range targets {
+		ids = append(ids, target.ID)
+	}
+	assert.Equal(t, []string{"us-east-1", "eu-west-1", GlobalRegion}, ids)
+}
+
+// AWS skips no listing failure. Every one reaches the report, because a region
+// that answered nothing is a region whose resources are still there.
+func TestSkipListErrorKeepsEveryAwsListingFailure(t *testing.T) {
+	t.Parallel()
+
+	p := &provider{}
+
+	assert.False(t, p.SkipListError(errors.New("AccessDenied"), "ec2", false))
+	assert.False(t, p.SkipListError(errors.New("AccessDenied"), "ec2", true))
+	assert.False(t, p.SkipListError(&smithy.GenericAPIError{Code: "ThrottlingException"}, "ec2", false))
+}
+
+// The engine waits out a rate limit rather than recording it as a failure, and
+// this is the answer that tells it which is which.
+func TestIsThrottleRecognizesTheRateLimitsAwsAnswersWith(t *testing.T) {
+	t.Parallel()
+
+	p := &provider{}
+
+	for _, code := range []string{"RequestLimitExceeded", "ThrottlingException", "TooManyRequestsException"} {
+		assert.True(t, p.IsThrottle(&smithy.GenericAPIError{Code: code}), code)
+		assert.True(t, p.IsThrottle(fmt.Errorf("deleting: %w", &smithy.GenericAPIError{Code: code})), "wrapped "+code)
+	}
+
+	assert.False(t, p.IsThrottle(&smithy.GenericAPIError{Code: "AccessDenied"}))
+	assert.False(t, p.IsThrottle(errors.New("dial tcp: timeout")))
 }

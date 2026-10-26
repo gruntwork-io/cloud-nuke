@@ -134,7 +134,7 @@ func NewGcpResourceWithLocationScope[C any](r *resource.Resource[C], scope Locat
 
 	// The adapter wraps the lister so the location filter runs in one audited
 	// place. A lister that forgets the filter therefore cannot widen a run.
-	if scope == LocationFromResourceName {
+	if scope == LocationFromResourceName && r.Lister != nil {
 		lister := r.Lister
 		r.Lister = func(ctx context.Context, client C, s resource.Scope, cfg config.ResourceType) ([]*string, error) {
 			identifiers, err := lister(ctx, client, s, cfg)

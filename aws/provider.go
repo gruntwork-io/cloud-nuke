@@ -24,8 +24,17 @@ type provider struct {
 // to the end: IAM, S3, CloudFront and Route53 deletions can break a regional
 // delete that is still in flight.
 func (p *provider) Targets() ([]resource.Target, error) {
+	// A region named twice is one region. The engine refuses a repeated target
+	// rather than scanning and deleting it twice, so a command line or a
+	// scripted region list that holds a duplicate is narrowed here instead of
+	// ending the run.
 	targets := make([]resource.Target, 0, len(p.regions))
+	seen := make(map[string]struct{}, len(p.regions))
 	for _, region := range p.regions {
+		if _, repeated := seen[region]; repeated {
+			continue
+		}
+		seen[region] = struct{}{}
 		targets = append(targets, resource.Target{
 			ID:   region,
 			Last: region == GlobalRegion,

@@ -114,16 +114,8 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 		return nil, err
 	}
 
-	// Two targets with one ID would share every map the engine keys per target,
-	// which means scanning one twice and deleting its resources twice.
-	seen := make(map[string]struct{}, len(targets))
-	for _, target := range targets {
-		if _, duplicate := seen[target.ID]; duplicate {
-			return nil, fmt.Errorf(
-				"%q was given twice, which would scan and delete it twice: pass each --region once",
-				target.ID)
-		}
-		seen[target.ID] = struct{}{}
+	if err := refuseDuplicateTargets(targets); err != nil {
+		return nil, err
 	}
 
 	ctx = context.WithValue(ctx, util.ParallelismKey, req.Parallelism)
@@ -276,6 +268,32 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	return found, nil
 }
 
+// refuseDuplicateTargets fails a run whose targets share an ID. The engine keys
+// everything it holds per target on that ID, so a repeat would scan one target
+// twice and send each identifier to the delete twice.
+func refuseDuplicateTargets(targets []Target) error {
+	seen := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		if _, duplicate := seen[target.ID]; duplicate {
+			return fmt.Errorf("%q was given twice, which would scan and delete it twice", target.ID)
+		}
+		seen[target.ID] = struct{}{}
+	}
+	return nil
+}
+
+// pause waits, and stops waiting when the caller cancels. A bare sleep here
+// means a cancelled run still burns a whole throttle pause, which is a minute
+// by default, before it notices.
+func pause(ctx context.Context, d time.Duration) {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
+	}
+}
+
 // DefaultBatchPause is how long the engine waits between batches of one
 // resource type, and DefaultThrottlePause how long it waits out a rate limit.
 const (
@@ -334,6 +352,13 @@ func NukeAll(ctx context.Context, p Provider, found *Found, req NukeRequest, col
 	req = req.withDefaults()
 	ctx = context.WithValue(ctx, util.ParallelismKey, req.Parallelism)
 	limit := util.GetParallelism(ctx)
+
+	// A nuke is reached directly by a library caller, so it checks what a scan
+	// checks: two targets sharing an ID would delete one target's resources
+	// twice over, from two goroutines holding the same resource.
+	if err := refuseDuplicateTargets(found.Targets); err != nil {
+		return err
+	}
 
 	// Everything the scan found belongs to a target the nuke walks. Without
 	// this, a provider that reports findings under an ID it does not return
@@ -453,7 +478,7 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 				rateLimited, onlyRateLimits := throttleShape(p, err)
 				if rateLimited {
 					logging.Debug("Request limit reached. Waiting before making new requests")
-					time.Sleep(req.ThrottlePause)
+					pause(ctx, req.ThrottlePause)
 				}
 				if onlyRateLimits {
 					continue
@@ -471,7 +496,7 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 
 			if i != len(batches)-1 {
 				logging.Debugf("Sleeping for %s before processing next batch...", req.BatchPause)
-				time.Sleep(req.BatchPause)
+				pause(ctx, req.BatchPause)
 			}
 		}
 	}

@@ -28,7 +28,7 @@ func newLocationScopedResource(listed ...string) GcpResource {
 	})
 }
 
-func TestTheAdapterFiltersLocationsALlisterIgnored(t *testing.T) {
+func TestTheAdapterFiltersLocationsAListerIgnored(t *testing.T) {
 	t.Parallel()
 
 	central := "projects/p/locations/us-central1/functions/one"

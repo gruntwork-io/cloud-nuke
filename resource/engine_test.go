@@ -780,4 +780,182 @@ func TestScanPreparesTargetsUnderTheParallelismLimit(t *testing.T) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	assert.LessOrEqual(t, p.most, 3, "the prepare phase opened more calls at once than the run allows")
+	assert.Greater(t, p.most, 1, "the prepare phase ran one target at a time, which is a limit of one, not of three")
+}
+
+// scanCountingProvider offers many targets, each with one resource whose lister
+// records how many listings run at once. It is what holds the engine's headline
+// promise: one limit over every target and resource type together.
+type scanCountingProvider struct {
+	targets int
+
+	mu      sync.Mutex
+	running int
+	most    int
+}
+
+func (p *scanCountingProvider) Targets() ([]Target, error) {
+	targets := make([]Target, 0, p.targets)
+	for i := 0; i < p.targets; i++ {
+		id := fmt.Sprintf("region-%d", i)
+		targets = append(targets, Target{ID: id, Label: id})
+	}
+	return targets, nil
+}
+
+func (p *scanCountingProvider) Prepare(ctx context.Context, target Target) (context.Context, []NukeableResource, error) {
+	r := &Resource[*fakeClient]{
+		ResourceTypeName: "fake-widget",
+		BatchSize:        10,
+		InitClient:       func(r *Resource[*fakeClient], cfg any) { r.Client = &fakeClient{subscription: target.ID} },
+		ConfigGetter:     func(c config.Config) config.ResourceType { return c.GCSBucket },
+		Lister: func(ctx context.Context, c *fakeClient, s Scope, cfg config.ResourceType) ([]*string, error) {
+			p.mu.Lock()
+			p.running++
+			if p.running > p.most {
+				p.most = p.running
+			}
+			p.mu.Unlock()
+
+			time.Sleep(10 * time.Millisecond)
+
+			p.mu.Lock()
+			p.running--
+			p.mu.Unlock()
+			return nil, nil
+		},
+		Nuker: SequentialDeleter(func(context.Context, *fakeClient, *string) error { return nil }),
+	}
+	r.Init(nil)
+	return ctx, []NukeableResource{r}, nil
+}
+
+func (p *scanCountingProvider) SkipListError(error, string, bool) bool { return false }
+func (p *scanCountingProvider) IsThrottle(error) bool                  { return false }
+
+func TestScanListsUnderOneLimitOverEveryTargetAndType(t *testing.T) {
+	t.Parallel()
+
+	p := &scanCountingProvider{targets: 12}
+	rec := &recorder{}
+
+	_, err := Scan(context.Background(), p, ScanRequest{
+		Include: func(string) bool { return true }, Parallelism: 3,
+	}, rec.collector())
+	require.NoError(t, err)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	assert.LessOrEqual(t, p.most, 3, "the scan listed more types at once than the run allows")
+	assert.Greater(t, p.most, 1, "the scan listed one type at a time, so the limit is not the one the caller asked for")
+}
+
+func TestNukeRefusesTwoTargetsThatShareAnID(t *testing.T) {
+	t.Parallel()
+
+	// A library caller reaches NukeAll without a scan, and two targets with one
+	// ID would hand the same resource to two goroutines and delete every
+	// identifier under it twice.
+	p := newFakeProvider()
+	rec := &recorder{}
+
+	found, err := Scan(context.Background(), p, ScanRequest{Include: func(string) bool { return true }}, rec.collector())
+	require.NoError(t, err)
+	found.Targets = append(found.Targets, Target{ID: "sub-a", Label: "sub-a"})
+
+	err = NukeAll(context.Background(), p, found, NukeRequest{
+		BatchPause: time.Nanosecond, ThrottlePause: time.Nanosecond,
+	}, rec.collector())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "was given twice")
+	assert.Empty(t, p.clients["sub-a"].deleted, "nothing is deleted when the targets are wrong")
+}
+
+func TestTheEngineStopsWaitingWhenTheRunIsCancelled(t *testing.T) {
+	t.Parallel()
+
+	// Both pauses are long enough that a sleep would outlast the test. A
+	// cancelled run has to come back rather than burn them out.
+	p := newFakeProvider()
+	p.throttleOnce = true
+	rec := &recorder{}
+
+	found, err := Scan(context.Background(), p, ScanRequest{Include: func(string) bool { return true }}, rec.collector())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = NukeAll(ctx, p, found, NukeRequest{
+			BatchPause: time.Hour, ThrottlePause: time.Hour,
+		}, rec.collector())
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("a cancelled run was still waiting out its pauses")
+	}
+}
+
+func TestThePausesDefaultWhenTheCallerSetsNeither(t *testing.T) {
+	t.Parallel()
+
+	// A caller that sets neither gets the waits the CLI has always used; a test
+	// sets both, which is the only reason they are settable.
+	filled := NukeRequest{}.withDefaults()
+	assert.Equal(t, DefaultBatchPause, filled.BatchPause)
+	assert.Equal(t, DefaultThrottlePause, filled.ThrottlePause)
+
+	kept := NukeRequest{BatchPause: time.Nanosecond, ThrottlePause: 2 * time.Nanosecond}.withDefaults()
+	assert.Equal(t, time.Nanosecond, kept.BatchPause)
+	assert.Equal(t, 2*time.Nanosecond, kept.ThrottlePause)
+}
+
+// ctxProvider puts a value on the context it returns from Prepare, and its
+// lister reports what reached it, which is the contract Prepare's doc states
+// and the one the AWS account id rides on.
+type ctxKey struct{}
+
+type ctxProvider struct {
+	seen chan string
+}
+
+func (p *ctxProvider) Targets() ([]Target, error) {
+	return []Target{{ID: "one", Label: "one"}}, nil
+}
+
+func (p *ctxProvider) Prepare(ctx context.Context, target Target) (context.Context, []NukeableResource, error) {
+	r := &Resource[*fakeClient]{
+		ResourceTypeName: "fake-widget",
+		BatchSize:        10,
+		InitClient:       func(r *Resource[*fakeClient], cfg any) { r.Client = &fakeClient{subscription: target.ID} },
+		ConfigGetter:     func(c config.Config) config.ResourceType { return c.GCSBucket },
+		Lister: func(ctx context.Context, c *fakeClient, s Scope, cfg config.ResourceType) ([]*string, error) {
+			value, _ := ctx.Value(ctxKey{}).(string)
+			p.seen <- value
+			return nil, nil
+		},
+		Nuker: SequentialDeleter(func(context.Context, *fakeClient, *string) error { return nil }),
+	}
+	r.Init(nil)
+	return context.WithValue(ctx, ctxKey{}, "from prepare"), []NukeableResource{r}, nil
+}
+
+func (p *ctxProvider) SkipListError(error, string, bool) bool { return false }
+func (p *ctxProvider) IsThrottle(error) bool                  { return false }
+
+func TestScanGivesEachResourceTheContextItsProviderReturned(t *testing.T) {
+	t.Parallel()
+
+	p := &ctxProvider{seen: make(chan string, 1)}
+	rec := &recorder{}
+
+	_, err := Scan(context.Background(), p, ScanRequest{Include: func(string) bool { return true }}, rec.collector())
+	require.NoError(t, err)
+	assert.Equal(t, "from prepare", <-p.seen, "the resource was listed with the engine's context, not its provider's")
 }

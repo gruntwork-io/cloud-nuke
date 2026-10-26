@@ -97,3 +97,33 @@ func TestListGCSBucketsAppliesTheLocationFilter(t *testing.T) {
 		})
 	}
 }
+
+// The resource the registry builds is what a run actually lists with, and the
+// filter reaches its lister through the config Init was handed. Without that
+// hand-off the bucket lister sees an empty filter and keeps every bucket in the
+// project, which is the widening this whole change exists to prevent.
+func TestTheRegisteredBucketResourceCarriesTheFilterIntoItsLister(t *testing.T) {
+	t.Parallel()
+
+	answer := `{"kind":"storage#buckets","items":[
+		{"name":"in-central","location":"US-CENTRAL1","timeCreated":"2026-01-01T00:00:00Z"},
+		{"name":"in-west4","location":"EUROPE-WEST4","timeCreated":"2026-01-01T00:00:00Z"}
+	]}`
+
+	built, ok := NewGCSBuckets().(*GcpResourceAdapter[*storage.Client])
+	require.True(t, ok, "the registry builds a bucket resource the test can drive")
+
+	// Init reads the filter off the config before it builds a client, so the
+	// client failing for want of credentials here does not hide the hand-off.
+	built.Init(GcpConfig{ProjectID: "p", Locations: []string{"us-central1"}})
+
+	client := fakeStorageAPI(t, answer)
+	identifiers, err := built.Resource.Lister(context.Background(), client, resource.Scope{ProjectID: "p"}, config.ResourceType{})
+	require.NoError(t, err)
+
+	kept := make([]string, 0, len(identifiers))
+	for _, id := range identifiers {
+		kept = append(kept, *id)
+	}
+	assert.Equal(t, []string{"in-central"}, kept)
+}
