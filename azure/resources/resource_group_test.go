@@ -167,3 +167,41 @@ func TestNukeResourceGroupDeletesByName(t *testing.T) {
 	require.NoError(t, deleteResourceGroup(context.Background(), client, &name))
 	assert.Equal(t, []string{name}, client.deleted)
 }
+
+func TestResourceGroupFromIDReadsTheGroupAtEveryLockScope(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		id   string
+		want string
+	}{
+		{
+			name: "lock on the group itself",
+			id:   "/subscriptions/s/resourceGroups/MyGroup/providers/Microsoft.Authorization/locks/no-delete",
+			want: "mygroup",
+		},
+		{
+			name: "lock on a resource inside the group, which still fails the group delete",
+			id:   "/subscriptions/s/resourceGroups/MyGroup/providers/Microsoft.Storage/storageAccounts/a/providers/Microsoft.Authorization/locks/no-delete",
+			want: "mygroup",
+		},
+		{
+			name: "lower-cased spelling Azure also answers with",
+			id:   "/subscriptions/s/resourcegroups/MyGroup/providers/Microsoft.Authorization/locks/no-delete",
+			want: "mygroup",
+		},
+		{
+			name: "subscription-scoped lock names no group",
+			id:   "/subscriptions/s/providers/Microsoft.Authorization/locks/no-delete",
+			want: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, resourceGroupFromID(tc.id))
+		})
+	}
+}

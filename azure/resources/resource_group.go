@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armlocks"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -39,8 +40,9 @@ type ResourceGroup struct {
 	// subscription does not expose it.
 	Created time.Time
 
-	// Locked is true when the group carries a delete lock, which makes a
-	// delete fail, so cloud-nuke reports it rather than attempting it.
+	// Locked is true when a lock at or under the group would make the delete
+	// fail, so the scan skips the group rather than reporting a group it
+	// cannot delete.
 	Locked bool
 
 	// Managed is true when another service owns the group's lifecycle, such as
@@ -68,8 +70,14 @@ func NewResourceGroups() AzureResource {
 				return
 			}
 
+			locks, err := armlocks.NewManagementLocksClient(cfg.SubscriptionID, credential, nil)
+			if err != nil {
+				r.InitializationError = fmt.Errorf("failed to create Azure management locks client: %w", err)
+				return
+			}
+
 			r.Scope.Subscription = cfg.SubscriptionID
-			r.Client = resourceGroupsClient{client: client}
+			r.Client = resourceGroupsClient{client: client, locks: locks}
 		}),
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.AzureResourceGroup
@@ -141,10 +149,13 @@ func deleteResourceGroup(ctx context.Context, client ResourceGroupsAPI, name *st
 // the fields Azure only reports when asked.
 type resourceGroupsClient struct {
 	client *armresources.ResourceGroupsClient
+	locks  *armlocks.ManagementLocksClient
 }
 
 func (c resourceGroupsClient) ListResourceGroups(ctx context.Context) ([]ResourceGroup, error) {
 	var found []ResourceGroup
+
+	locked := c.lockedGroups(ctx)
 
 	// createdTime is not in the default response, so it is asked for by name.
 	pager := c.client.NewListPager(&armresources.ResourceGroupsClientListOptions{})
@@ -174,12 +185,73 @@ func (c resourceGroupsClient) ListResourceGroups(ctx context.Context) ([]Resourc
 			if group.ManagedBy != nil && strings.TrimSpace(*group.ManagedBy) != "" {
 				resourceGroup.Managed = true
 			}
+			resourceGroup.Locked = locked[strings.ToLower(resourceGroup.Name)]
 
 			found = append(found, resourceGroup)
 		}
 	}
 
 	return found, nil
+}
+
+// lockedGroups returns the lower-cased names of the resource groups a lock
+// would stop cloud-nuke from deleting.
+//
+// One subscription-level call answers for every scope, and a lock anywhere at
+// or under a group counts: deleting a group deletes its contents, so a
+// CanNotDelete lock on a single resource inside it fails the whole delete.
+//
+// Reading locks needs Microsoft.Authorization/locks/read, which a credential
+// that can otherwise nuke may not have. A failure there is not fatal: the scan
+// goes on with nothing marked locked, and a locked group then reports the
+// delete error it would have reported before.
+func (c resourceGroupsClient) lockedGroups(ctx context.Context) map[string]bool {
+	locked := map[string]bool{}
+	if c.locks == nil {
+		return locked
+	}
+
+	pager := c.locks.NewListAtSubscriptionLevelPager(nil)
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			logging.Debugf("Could not list Azure management locks, so no resource group is treated as locked: %v", err)
+			return map[string]bool{}
+		}
+
+		for _, lock := range page.Value {
+			if lock == nil || lock.ID == nil || lock.Properties == nil {
+				continue
+			}
+
+			// NotSpecified blocks nothing. ReadOnly blocks a delete the same
+			// way CanNotDelete does.
+			level := lock.Properties.Level
+			if level == nil || (*level != armlocks.LockLevelCanNotDelete && *level != armlocks.LockLevelReadOnly) {
+				continue
+			}
+
+			if group := resourceGroupFromID(*lock.ID); group != "" {
+				locked[group] = true
+			}
+		}
+	}
+
+	return locked
+}
+
+// resourceGroupFromID reads the resource group out of an Azure resource ID such
+// as /subscriptions/s/resourceGroups/g/providers/Microsoft.Authorization/locks/l,
+// lower-cased because Azure echoes the casing back as it was typed. It returns
+// an empty string for a subscription-scoped ID, which names no group.
+func resourceGroupFromID(id string) string {
+	parts := strings.Split(id, "/")
+	for i, part := range parts {
+		if strings.EqualFold(part, "resourceGroups") && i+1 < len(parts) {
+			return strings.ToLower(parts[i+1])
+		}
+	}
+	return ""
 }
 
 func (c resourceGroupsClient) DeleteResourceGroup(ctx context.Context, name string) error {

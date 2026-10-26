@@ -1,11 +1,16 @@
 package commands
 
 import (
+	"context"
+	stderrors "errors"
+	"time"
+
 	"github.com/gruntwork-io/cloud-nuke/azure"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
@@ -33,10 +38,13 @@ func azureNuke(c *cli.Context) error {
 	}
 	defer cleanup()
 
-	account, err := azure.GetAllResources(c.Context, query, configObj, collector)
+	ctx, cancel := withTimeout(c.Context, query.Timeout)
+	defer cancel()
+
+	account, err := azure.GetAllResources(ctx, query, configObj, collector)
 	if err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error getting resources"}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
+		return errors.WithStackTrace(timeoutError(err, query.Timeout))
 	}
 
 	collector.Emit(reporting.ScanComplete{})
@@ -47,7 +55,8 @@ func azureNuke(c *cli.Context) error {
 	}
 
 	if shouldProceed {
-		return azure.NukeSubscriptionResources(c.Context, account, query.SubscriptionIDs, query.Parallelism, collector)
+		err := azure.NukeSubscriptionResources(ctx, account, query.SubscriptionIDs, query.Parallelism, collector)
+		return timeoutError(err, query.Timeout)
 	}
 
 	return nil
@@ -72,9 +81,12 @@ func azureInspect(c *cli.Context) error {
 	}
 	defer cleanup()
 
-	if _, err := azure.GetAllResources(c.Context, query, configObj, collector); err != nil {
+	ctx, cancel := withTimeout(c.Context, query.Timeout)
+	defer cancel()
+
+	if _, err := azure.GetAllResources(ctx, query, configObj, collector); err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error inspecting resources"}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
+		return errors.WithStackTrace(timeoutError(err, query.Timeout))
 	}
 
 	collector.Emit(reporting.ScanComplete{})
@@ -102,9 +114,14 @@ func azureQueryFrom(c *cli.Context) (*azure.Query, config.Config, error) {
 		Parallelism:          c.Int(FlagParallelism),
 	}
 
-	if err := parseAndApplyTimeout(c, &configObj); err != nil {
-		return nil, config.Config{}, err
+	// --timeout is read here rather than through parseAndApplyTimeout, which
+	// writes it into the config where nothing reads it back. The handlers turn
+	// it into a deadline on the context instead.
+	timeout, err := parseTimeoutDurationParam(FlagTimeout, c.String(FlagTimeout))
+	if err != nil {
+		return nil, config.Config{}, errors.WithStackTrace(err)
 	}
+	query.Timeout = timeout
 	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {
 		return nil, config.Config{}, err
 	}
@@ -127,4 +144,23 @@ func setupAzureReporting(outputFormat string, outputFile string, subscriptionIDs
 		Command: "azure",
 		Regions: subscriptionIDs,
 	})
+}
+
+// withTimeout turns --timeout into a deadline over the whole run: the scan, the
+// prompt and the nuke. Azure has no per-resource timeout to apply it to, and a
+// flag the help text advertises should do something.
+func withTimeout(ctx context.Context, timeout *time.Duration) (context.Context, context.CancelFunc) {
+	if timeout == nil || *timeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, *timeout)
+}
+
+// timeoutError names the deadline in the error, because "context deadline
+// exceeded" does not say which deadline or how long it was.
+func timeoutError(err error, timeout *time.Duration) error {
+	if err == nil || timeout == nil || !stderrors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	return util.ResourceExecutionTimeout{Timeout: *timeout}
 }
