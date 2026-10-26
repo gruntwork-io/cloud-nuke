@@ -9,6 +9,10 @@ import (
 type GcpResource interface {
 	resource.NukeableResource
 	Init(cfg GcpConfig)
+
+	// LocationScope says how this resource type's location is decided, so the
+	// adapter can apply the --region filter without trusting each lister.
+	LocationScope() LocationScope
 }
 
 // GcpResources is a struct to hold multiple instances of GcpResource.

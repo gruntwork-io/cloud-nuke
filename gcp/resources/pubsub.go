@@ -28,7 +28,8 @@ const (
 
 // NewPubSubTopics creates a new Pub/Sub topic resource using the generic resource pattern.
 func NewPubSubTopics() GcpResource {
-	return NewGcpResource(&resource.Resource[*pubsub.PublisherClient]{
+	// A Pub/Sub topic is project-global: the API reports no location for it.
+	return NewGcpResourceWithLocationScope(&resource.Resource[*pubsub.PublisherClient]{
 		ResourceTypeName: "gcp-pubsub-topic",
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[*pubsub.PublisherClient], cfg GcpConfig) {
@@ -45,7 +46,7 @@ func NewPubSubTopics() GcpResource {
 		},
 		Lister: listPubSubTopics,
 		Nuker:  resource.SequentialDeleter(deletePubSubTopic),
-	})
+	}, LocationNone)
 }
 
 // listPubSubTopics retrieves all Pub/Sub topics in the project that match the config filters.

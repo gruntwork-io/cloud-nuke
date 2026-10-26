@@ -16,8 +16,8 @@
 
 | Flag | Description | Available in |
 |---|---|---|
-| `--region` | Target specific regions (repeatable) | aws, inspect-aws, defaults-aws |
-| `--exclude-region` | Exclude regions (repeatable, mutually exclusive with `--region`) | aws, inspect-aws, defaults-aws |
+| `--region` | Target specific regions (repeatable). On GCP this names locations, which filter what each resource keeps, and `global` is not one of them. A multi-region or dual-region GCS bucket answers to its own location, `US` or `NAM4`, not to a region inside it | aws, inspect-aws, defaults-aws, gcp, inspect-gcp |
+| `--exclude-region` | Exclude regions (repeatable, mutually exclusive with `--region` on AWS). On GCP this excludes locations, and a resource type with no location is still deleted | aws, inspect-aws, defaults-aws, gcp, inspect-gcp |
 | `--resource-type` | Target specific resource types (repeatable) | aws, inspect-aws, gcp, inspect-gcp |
 | `--exclude-resource-type` | Exclude resource types (repeatable, mutually exclusive with `--resource-type`) | aws, inspect-aws, gcp, inspect-gcp |
 | `--older-than` | Only target resources older than duration ([Go duration](https://golang.org/pkg/time/#ParseDuration)) | aws, inspect-aws, gcp, inspect-gcp |
@@ -56,6 +56,8 @@
 |---|---|---|
 | `--project-id` | GCP project ID (required) | gcp, inspect-gcp |
 
+A resource type that is in no location, such as a Pub/Sub topic, cannot be narrowed by `--region`, so a run that passes one leaves that type out and says so in a warning. Drop `--region` to include it. `--exclude-region` is not a narrowing, so those types are still deleted under it.
+
 ## Examples
 
 ```bash
@@ -78,7 +80,7 @@ cloud-nuke defaults-aws --sg-only
 cloud-nuke inspect-aws --output-format json --output-file results.json
 
 # Nuke GCP resources
-cloud-nuke gcp --project-id my-project-id --resource-type compute-instance
+cloud-nuke gcp --project-id my-project-id --resource-type gcs-bucket
 ```
 
 > CLI flags override config file options. If you pass `--resource-type s3` but your config only defines rules for `ec2`, only s3 is targeted.
