@@ -887,19 +887,51 @@ func TestTheEngineStopsWaitingWhenTheRunIsCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
-		_ = NukeAll(ctx, p, found, NukeRequest{
+		done <- NukeAll(ctx, p, found, NukeRequest{
 			BatchPause: time.Hour, ThrottlePause: time.Hour,
 		}, rec.collector())
 	}()
 
 	select {
-	case <-done:
+	case err := <-done:
+		// The run says it was cancelled rather than reporting a clean sweep,
+		// and it deletes nothing after the caller gave up.
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+		assert.Empty(t, p.clients["sub-a"].deleted)
+		assert.Empty(t, p.clients["sub-b"].deleted)
 	case <-time.After(10 * time.Second):
 		t.Fatal("a cancelled run was still waiting out its pauses")
 	}
+}
+
+func TestNukeKeepsAPermanentFailureNestedInsideARateLimitedBatch(t *testing.T) {
+	t.Parallel()
+
+	// One identifier's failure can be an aggregate of its own: an EKS cluster
+	// answers for its node groups. A rate limit beside a permanent failure in
+	// there must not read as a rate limit for the whole batch, or the batch is
+	// skipped and the permanent failure leaves with it.
+	p := newFakeProvider()
+	p.deleteErr = func(id string) error {
+		if id == "sub-a-widget-1" {
+			return errors.Join(rateLimitError{}, errors.New("cluster still has a node group"))
+		}
+		return nil
+	}
+	rec := &recorder{}
+
+	found, err := Scan(context.Background(), p, ScanRequest{Include: func(string) bool { return true }}, rec.collector())
+	require.NoError(t, err)
+
+	err = NukeAll(context.Background(), p, found, NukeRequest{
+		BatchPause: time.Nanosecond, ThrottlePause: time.Nanosecond,
+	}, rec.collector())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cluster still has a node group")
 }
 
 func TestThePausesDefaultWhenTheCallerSetsNeither(t *testing.T) {

@@ -282,15 +282,17 @@ func refuseDuplicateTargets(targets []Target) error {
 	return nil
 }
 
-// pause waits, and stops waiting when the caller cancels. A bare sleep here
-// means a cancelled run still burns a whole throttle pause, which is a minute
-// by default, before it notices.
-func pause(ctx context.Context, d time.Duration) {
+// pause waits, and answers the cancellation instead when the caller gives up
+// first. A bare sleep here means a cancelled run burns a whole throttle pause,
+// which is a minute by default, and then deletes the next batch anyway.
+func pause(ctx context.Context, d time.Duration) error {
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
+		return nil
 	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
@@ -325,21 +327,52 @@ func (r NukeRequest) withDefaults() NukeRequest {
 // identifier in a multierror, so asking the provider about the aggregate
 // answers for whichever error it unwraps first.
 func throttleShape(p Provider, err error) (rateLimited, onlyRateLimits bool) {
-	var merr *multierror.Error
-	if errors.As(err, &merr) && len(merr.Errors) > 0 {
-		onlyRateLimits = true
-		for _, e := range merr.Errors {
-			if p.IsThrottle(e) {
-				rateLimited = true
-			} else {
-				onlyRateLimits = false
-			}
+	failures := flatten(err)
+	onlyRateLimits = len(failures) > 0
+	for _, failure := range failures {
+		if p.IsThrottle(failure) {
+			rateLimited = true
+		} else {
+			onlyRateLimits = false
 		}
-		return rateLimited, onlyRateLimits
+	}
+	return rateLimited, onlyRateLimits
+}
+
+// flatten returns the failures inside an aggregate, however deeply they are
+// nested. One identifier's failure can be an aggregate of its own: an EKS
+// cluster answers for its node groups and its Fargate profiles. Asking the
+// provider about such a value answers for whichever error it unwraps first, so
+// a rate limit beside a permanent failure would read as a rate limit, and the
+// permanent failure would leave the run with the skipped batch.
+func flatten(err error) []error {
+	if err == nil {
+		return nil
 	}
 
-	throttle := p.IsThrottle(err)
-	return throttle, throttle
+	var merr *multierror.Error
+	if errors.As(err, &merr) && len(merr.Errors) > 0 {
+		var failures []error
+		for _, e := range merr.Errors {
+			failures = append(failures, flatten(e)...)
+		}
+		return failures
+	}
+
+	// What errors.Join builds, which a resource deleting several things for one
+	// identifier may hand back.
+	var joined interface{ Unwrap() []error }
+	if errors.As(err, &joined) {
+		if parts := joined.Unwrap(); len(parts) > 0 {
+			var failures []error
+			for _, e := range parts {
+				failures = append(failures, flatten(e)...)
+			}
+			return failures
+		}
+	}
+
+	return []error{err}
 }
 
 // NukeAll deletes everything a scan found. Targets run concurrently up to
@@ -428,6 +461,13 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 	var allErrors *multierror.Error
 
 	for _, r := range found.Resources[target.ID] {
+		// A cancelled run stops deleting. Waking from a pause is not enough on
+		// its own: the next batch would go out after the caller asked the run
+		// to stop, and the run would report success.
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("[%s] %w", target.label(), err)
+		}
+
 		// Every identifier the scan found is sent to the provider, including one
 		// IsNukable reported as not nukable. The GCP loop used to filter here and
 		// no GCP resource sets a PermissionVerifier, so that filter never did
@@ -445,6 +485,10 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 
 		batches := util.Split(identifiers, r.MaxBatchSize())
 		for i, batch := range batches {
+			if err := ctx.Err(); err != nil {
+				return fmt.Errorf("[%s] %w", target.label(), err)
+			}
+
 			collector.Emit(reporting.NukeProgress{
 				ResourceType: r.ResourceName(),
 				Region:       target.label(),
@@ -478,7 +522,9 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 				rateLimited, onlyRateLimits := throttleShape(p, err)
 				if rateLimited {
 					logging.Debug("Request limit reached. Waiting before making new requests")
-					pause(ctx, req.ThrottlePause)
+					if err := pause(ctx, req.ThrottlePause); err != nil {
+						return fmt.Errorf("[%s] %w", target.label(), err)
+					}
 				}
 				if onlyRateLimits {
 					continue
@@ -496,7 +542,9 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 
 			if i != len(batches)-1 {
 				logging.Debugf("Sleeping for %s before processing next batch...", req.BatchPause)
-				pause(ctx, req.BatchPause)
+				if err := pause(ctx, req.BatchPause); err != nil {
+					return fmt.Errorf("[%s] %w", target.label(), err)
+				}
 			}
 		}
 	}
