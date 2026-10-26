@@ -39,6 +39,20 @@ const (
 	LocationNone
 )
 
+// LocationFilterNotApplicableError says the run asked for one or more
+// locations and this resource type has none, so there is no way to apply the
+// filter to it. It is a type rather than a string so the provider can tell it
+// apart from a real listing failure.
+type LocationFilterNotApplicableError struct {
+	ResourceTypeName string
+}
+
+func (e LocationFilterNotApplicableError) Error() string {
+	return fmt.Sprintf(
+		"%s has no location, so --region cannot narrow it; drop --region or pass --exclude-resource-type %s",
+		e.ResourceTypeName, e.ResourceTypeName)
+}
+
 // GcpConfig holds the configuration needed to initialize a GCP resource,
 // mirroring how AWS uses aws.Config as the init argument.
 type GcpConfig struct {
@@ -197,14 +211,16 @@ func (g *GcpResourceAdapter[C]) Init(cfg GcpConfig) {
 
 	g.cfg = cfg
 
-	// A resource type with no location cannot be narrowed to one, so it says so
-	// rather than ignoring --region and deleting project-wide. An exclusion is
-	// different: "everywhere except europe-west1" still includes a resource
+	// A resource type with no location cannot be narrowed to one, so it is left
+	// out rather than ignoring --region and deleting project-wide. An exclusion
+	// is different: "everywhere except europe-west1" still includes a resource
 	// that is in no location, so the run keeps deleting it.
+	//
+	// The provider decides how loud this is: left out with a warning for a run
+	// that asked for every type, and an error for a run that named this type
+	// alongside --region, which is a contradiction worth failing.
 	if g.locationScope == LocationNone && len(cfg.Locations) > 0 {
-		g.InitializationError = fmt.Errorf(
-			"%s has no location, so --region cannot narrow it; drop --region or pass --exclude-resource-type %s",
-			g.ResourceTypeName, g.ResourceTypeName)
+		g.InitializationError = LocationFilterNotApplicableError{ResourceTypeName: g.ResourceTypeName}
 		return
 	}
 

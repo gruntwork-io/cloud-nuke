@@ -131,6 +131,12 @@ func TestALocationlessResourceRefusesALocationFilter(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "has no location")
 
+	// The refusal is typed, so the provider can leave the type out with a
+	// warning instead of ending the run on it.
+	var noLocation LocationFilterNotApplicableError
+	require.ErrorAs(t, err, &noLocation)
+	assert.Equal(t, "fake-locationless", noLocation.ResourceTypeName)
+
 	// An exclusion is not a narrowing: "everywhere except us-central1" still
 	// includes a resource that is in no location, so it keeps deleting.
 	excluded := build()
