@@ -118,7 +118,7 @@ func TestTheRegisteredBucketResourceCarriesTheFilterIntoItsLister(t *testing.T) 
 	built.Init(GcpConfig{ProjectID: "p", Locations: []string{"us-central1"}})
 
 	client := fakeStorageAPI(t, answer)
-	identifiers, err := built.Resource.Lister(context.Background(), client, resource.Scope{ProjectID: "p"}, config.ResourceType{})
+	identifiers, err := built.Lister(context.Background(), client, resource.Scope{ProjectID: "p"}, config.ResourceType{})
 	require.NoError(t, err)
 
 	kept := make([]string, 0, len(identifiers))
