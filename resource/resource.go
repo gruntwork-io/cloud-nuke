@@ -14,12 +14,15 @@ import (
 // DefaultBatchSize is the maximum number of resources per batch
 const DefaultBatchSize = 50
 
-// Scope represents the cloud provider-specific scope for a resource.
-// For AWS: Region is set (e.g., "us-east-1" or "global" for global resources)
-// For GCP: ProjectID is set, and optionally Region for regional resources
+// Scope is where one resource lives, as its own cloud names that place. A
+// resource reads it to build the request its API expects, and the engine reads
+// its String for the logs and the errors.
+//
+// For AWS: Region is set, such as "us-east-1", or "global" for a global resource.
+// For GCP: ProjectID is set, and Region when the resource is regional.
 type Scope struct {
-	Region    string // AWS region (e.g., "us-east-1") or "global" for global resources
-	ProjectID string // GCP project ID
+	Region    string // AWS region, or "global" for a global resource
+	ProjectID string // GCP project id
 }
 
 // String returns a human-readable representation of the scope for logging

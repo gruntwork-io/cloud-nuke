@@ -4,11 +4,10 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/gcp/resources"
 )
 
-// GlobalRegion is the region name used for GCP resources that are not region-scoped.
-const GlobalRegion = "global"
-
-// getRegisteredGlobalResources returns all GCP resource types that are global (not region-scoped).
-func getRegisteredGlobalResources() []GcpResource {
+// getRegisteredResources returns every GCP resource type, in the order they
+// must be deleted. There is no global and regional split: a GCP project is
+// scanned in one pass and a location is a filter each lister applies.
+func getRegisteredResources() []GcpResource {
 	return []GcpResource{
 		resources.NewGCSBuckets(),
 		resources.NewCloudFunctions(),
@@ -17,16 +16,10 @@ func getRegisteredGlobalResources() []GcpResource {
 	}
 }
 
-// getRegisteredRegionalResources returns all GCP resource types that are region-scoped.
-// Currently empty; regional resources will be added here as they are implemented.
-func getRegisteredRegionalResources() []GcpResource {
-	return []GcpResource{}
-}
-
 // GetAllRegisteredResources returns pointers to all registered GCP resources
-// (both global and regional), without initializing them.
+// without initializing them.
 func GetAllRegisteredResources() []*GcpResource {
-	all := append(getRegisteredGlobalResources(), getRegisteredRegionalResources()...)
+	all := getRegisteredResources()
 	result := make([]*GcpResource, len(all))
 	for i := range all {
 		result[i] = &all[i]
@@ -34,15 +27,9 @@ func GetAllRegisteredResources() []*GcpResource {
 	return result
 }
 
-// GetAndInitRegisteredResources returns initialized GCP resources for the given region.
-// Global resources are returned for GlobalRegion; regional resources for any other region.
-func GetAndInitRegisteredResources(cfg resources.GcpConfig, region string) []*GcpResource {
-	var raw []GcpResource
-	if region == GlobalRegion {
-		raw = getRegisteredGlobalResources()
-	} else {
-		raw = getRegisteredRegionalResources()
-	}
+// GetAndInitRegisteredResources returns initialized GCP resources for a project.
+func GetAndInitRegisteredResources(cfg resources.GcpConfig) []*GcpResource {
+	raw := getRegisteredResources()
 
 	result := make([]*GcpResource, len(raw))
 	for i := range raw {

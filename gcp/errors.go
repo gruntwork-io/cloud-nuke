@@ -9,11 +9,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// isServiceDisabledError checks whether the error (or any wrapped cause) is a
-// gRPC SERVICE_DISABLED error from googleapis.com. It walks the error chain
-// because by the time errors reach this layer they have been wrapped by
-// intermediate callers (resource listers, resource.go, etc.) and
-// status.FromError only inspects the outermost error.
+// isServiceDisabledError checks whether the error (or any wrapped cause) says
+// the API is switched off for this project. It walks the error chain because by
+// the time errors reach this layer they have been wrapped by intermediate
+// callers (resource listers, resource.go, etc.) and status.FromError only
+// inspects the outermost error.
+//
+// Both shapes have to be read. The gRPC clients answer with a status carrying
+// an ErrorInfo detail, and the REST clients, which is what a GCS bucket listing
+// uses, answer with a googleapi.Error: HTTP 403 whose reason is
+// accessNotConfigured or SERVICE_DISABLED. Reading only the gRPC shape meant a
+// disabled Cloud Storage API was reported as a failure rather than skipped.
 func isServiceDisabledError(err error) bool {
 	for current := err; current != nil; current = errors.Unwrap(current) {
 		s, ok := status.FromError(current)
@@ -28,6 +34,23 @@ func isServiceDisabledError(err error) bool {
 			}
 		}
 	}
+
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) && apiErr.Code == 403 {
+		for _, e := range apiErr.Errors {
+			if e.Reason == "accessNotConfigured" || e.Reason == "SERVICE_DISABLED" {
+				return true
+			}
+		}
+		for _, detail := range apiErr.Details {
+			if asMap, ok := detail.(map[string]interface{}); ok {
+				if asMap["reason"] == "SERVICE_DISABLED" {
+					return true
+				}
+			}
+		}
+	}
+
 	return false
 }
 

@@ -132,7 +132,11 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 	}
 
 	if len(selectedRegions) > 0 {
-		return selectedRegions, nil
+		// A region named twice is one region. The engine refuses a repeated
+		// target rather than scanning and deleting it twice, so a command line
+		// or a scripted list that holds a duplicate is narrowed here, where
+		// both the scan and the nuke read it.
+		return uniqueRegions(selectedRegions), nil
 	}
 
 	// Validate excludedRegions
@@ -158,4 +162,18 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 		return nil, fmt.Errorf("Cannot exclude all regions: %s", excludedRegions)
 	}
 	return targetRegions, nil
+}
+
+// uniqueRegions keeps each region once, in the order it was first named.
+func uniqueRegions(regions []string) []string {
+	kept := make([]string, 0, len(regions))
+	seen := make(map[string]struct{}, len(regions))
+	for _, region := range regions {
+		if _, repeated := seen[region]; repeated {
+			continue
+		}
+		seen[region] = struct{}{}
+		kept = append(kept, region)
+	}
+	return kept
 }
