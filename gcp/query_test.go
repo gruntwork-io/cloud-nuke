@@ -79,3 +79,29 @@ func TestQueryValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRefusesARunThatCouldOnlyDeleteNothing(t *testing.T) {
+	t.Parallel()
+
+	// Naming a type that is in no location alongside a location leaves the run
+	// with nothing it can do. It used to print an error row and exit clean,
+	// which reads as a project that was swept and found empty.
+	only := &Query{ProjectID: "p", Locations: []string{"us-central1"}, ResourceTypes: []string{"gcp-pubsub-topic"}}
+	err := only.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gcp-pubsub-topic has no location")
+	assert.Contains(t, err.Error(), "would delete nothing")
+
+	// A run that also named a type the filter can narrow still goes: the
+	// locationless one is left out with a warning, and the rest is deleted.
+	alongside := &Query{ProjectID: "p", Locations: []string{"us-central1"}, ResourceTypes: []string{"gcp-pubsub-topic", "gcs-bucket"}}
+	assert.NoError(t, alongside.Validate())
+
+	// And without a location filter nothing is narrowed, so the type is fine.
+	unfiltered := &Query{ProjectID: "p", ResourceTypes: []string{"gcp-pubsub-topic"}}
+	assert.NoError(t, unfiltered.Validate())
+
+	// An exclusion is not a narrowing, so it does not refuse either.
+	excluded := &Query{ProjectID: "p", ExcludeLocations: []string{"us-central1"}, ResourceTypes: []string{"gcp-pubsub-topic"}}
+	assert.NoError(t, excluded.Validate())
+}

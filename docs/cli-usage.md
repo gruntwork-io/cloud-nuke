@@ -56,7 +56,7 @@
 |---|---|---|
 | `--project-id` | GCP project ID (required) | gcp, inspect-gcp |
 
-A resource type that is in no location, such as a Pub/Sub topic, cannot be narrowed by `--region`, so a run that passes one leaves that type out and says so in a warning. Drop `--region` to include it. `--exclude-region` is not a narrowing, so those types are still deleted under it.
+A resource type that is in no location, such as a Pub/Sub topic, cannot be narrowed by `--region`, so a run that passes one leaves that type out and says so in a warning. Drop `--region` to include it. A run whose every `--resource-type` is in no location is refused, since it could only delete nothing. `--exclude-region` is not a narrowing, so those types are still deleted under it.
 
 The report's region column, and the `region` key in its JSON, carry the project id on GCP where they used to carry `global`, so a script selecting GCP rows by that word finds none.
 

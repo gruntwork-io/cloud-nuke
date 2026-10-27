@@ -71,6 +71,7 @@ func accountResourcesFrom(found *resource.Found) (*AwsAccountResources, error) {
 // foundFrom converts an account-shaped value back for the engine, so a caller
 // that scanned and nuked in two steps keeps working.
 func foundFrom(account *AwsAccountResources, regions []string) *resource.Found {
+	regions = uniqueRegions(regions)
 	found := &resource.Found{Resources: make(map[string][]resource.NukeableResource, len(account.Resources))}
 	for _, region := range regions {
 		found.Targets = append(found.Targets, resource.Target{ID: region, Last: region == GlobalRegion})

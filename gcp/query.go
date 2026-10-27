@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gruntwork-io/cloud-nuke/gcp/resources"
 )
 
 // Query represents the desired parameters for scanning GCP resources.
@@ -47,6 +49,19 @@ func (q *Query) Validate() error {
 		}
 	}
 
+	// A run that named only types the location filter cannot narrow can delete
+	// nothing, and it used to say so in an error line and then exit clean,
+	// which reads as a sweep that found nothing. It is refused here instead,
+	// where the whole query is known, so the engineer hears it before anything
+	// is scanned and the command exits saying why.
+	if len(q.Locations) > 0 && len(q.ResourceTypes) > 0 {
+		if locationless := locationlessTypes(q.ResourceTypes); len(locationless) == len(q.ResourceTypes) {
+			return fmt.Errorf(
+				"%s has no location, so --region cannot narrow it and this run would delete nothing: drop --region, or ask for a resource type that has a location",
+				strings.Join(locationless, ", "))
+		}
+	}
+
 	// An include list emptied by its own exclusions would scan everything,
 	// which is the opposite of what the user asked for.
 	if len(q.Locations) > 0 {
@@ -63,4 +78,22 @@ func (q *Query) Validate() error {
 	}
 
 	return nil
+}
+
+// locationlessTypes returns the named resource types that are in no location,
+// read from the registry rather than from a list kept beside it, so a new
+// resource type answers for itself.
+func locationlessTypes(resourceTypes []string) []string {
+	scopes := make(map[string]resources.LocationScope, len(resourceTypes))
+	for _, registered := range GetAllRegisteredResources() {
+		scopes[(*registered).ResourceName()] = (*registered).LocationScope()
+	}
+
+	var locationless []string
+	for _, name := range resourceTypes {
+		if scopes[name] == resources.LocationNone {
+			locationless = append(locationless, name)
+		}
+	}
+	return locationless
 }

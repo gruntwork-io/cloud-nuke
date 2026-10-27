@@ -28,13 +28,9 @@ func (p *provider) Targets() ([]resource.Target, error) {
 	// rather than scanning and deleting it twice, so a command line or a
 	// scripted region list that holds a duplicate is narrowed here instead of
 	// ending the run.
-	targets := make([]resource.Target, 0, len(p.regions))
-	seen := make(map[string]struct{}, len(p.regions))
-	for _, region := range p.regions {
-		if _, repeated := seen[region]; repeated {
-			continue
-		}
-		seen[region] = struct{}{}
+	regions := uniqueRegions(p.regions)
+	targets := make([]resource.Target, 0, len(regions))
+	for _, region := range regions {
 		targets = append(targets, resource.Target{
 			ID:   region,
 			Last: region == GlobalRegion,
