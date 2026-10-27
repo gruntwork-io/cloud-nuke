@@ -2,6 +2,7 @@ package azure
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -59,10 +60,21 @@ func TestIsThrottleRecognisesWhatArmAnswersUnderLoad(t *testing.T) {
 	p := &provider{}
 
 	assert.True(t, p.IsThrottle(&azcore.ResponseError{StatusCode: http.StatusTooManyRequests}))
-	assert.True(t, p.IsThrottle(&azcore.ResponseError{StatusCode: http.StatusServiceUnavailable}))
 
-	// A refusal is not a rate limit: waiting does not fix it, so the engine
-	// must record it as a failure rather than sleeping.
+	// The delete wraps what the SDK answered twice before the engine asks, so
+	// an answer that only reads the outermost error never recognises a limit.
+	wrapped := fmt.Errorf("waiting for deletion: %w",
+		fmt.Errorf("error deleting resource group rg-1: %w", &azcore.ResponseError{StatusCode: http.StatusTooManyRequests}))
+	assert.True(t, p.IsThrottle(wrapped))
+
+	// A 503 is not a rate limit. The engine skips a batch whose every failure
+	// is one and records nothing, so calling a service failure a rate limit
+	// reports a clean subscription over a resource group that is still there.
+	// The SDK has retried it by the time it reaches here, too.
+	assert.False(t, p.IsThrottle(&azcore.ResponseError{StatusCode: http.StatusServiceUnavailable}))
+
+	// A refusal is not a rate limit either: waiting does not fix it, so the
+	// engine must record it as a failure rather than sleeping.
 	assert.False(t, p.IsThrottle(&azcore.ResponseError{StatusCode: http.StatusForbidden}))
 	assert.False(t, p.IsThrottle(&azcore.ResponseError{StatusCode: http.StatusNotFound}))
 	assert.False(t, p.IsThrottle(nil))
@@ -109,4 +121,28 @@ func TestFoundRoundTripsThroughTheSubscriptionShape(t *testing.T) {
 	assert.Equal(t,
 		(*registered[0]).ResourceName(),
 		(*back.Resources["sub-a"].Resources[0]).ResourceName())
+}
+
+// The filter the engineer typed has to reach every resource, and the path it
+// takes is the query, the provider and the config each resource is initialized
+// with. Dropping either field here makes --region and --exclude-region no-ops
+// for every Azure resource type, silently.
+func TestTheProviderCarriesTheQuerysLocationsIntoEveryResource(t *testing.T) {
+	t.Parallel()
+
+	query := &Query{
+		SubscriptionIDs:  []string{"sub-1"},
+		Locations:        []string{"westeurope"},
+		ExcludeLocations: []string{"eastus"},
+	}
+	require.NoError(t, query.Validate())
+
+	cfg := newProvider(query).configFor(resource.Target{ID: "sub-1", Label: "sub-1"})
+
+	assert.Equal(t, "sub-1", cfg.SubscriptionID)
+	assert.Equal(t, []string{"westeurope"}, cfg.Locations)
+	assert.Equal(t, []string{"eastus"}, cfg.ExcludeLocations)
+	assert.True(t, cfg.HasLocationFilter())
+	assert.True(t, cfg.MatchesLocationFilter("West Europe"), "a location is matched however the portal spells it")
+	assert.False(t, cfg.MatchesLocationFilter("eastus"))
 }

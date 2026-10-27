@@ -294,11 +294,11 @@ cloud-nuke supports inspecting and deleting the following Azure resources. The *
 
 | Resource Type | Config Key | names_regex | time | tags | timeout |
 |---|---|---|---|---|---|
-| resource-group | AzureResourceGroup | ✓ | ✓ | ✓ | ✓ |
+| resource-group | AzureResourceGroup | ✓ | | ✓ | |
 
-Deleting a resource group deletes every resource in it, which is how a leaked test environment is cleaned up in one call. Two kinds of group are left alone: one another service manages, such as an AKS node group, because deleting it breaks that service, and one carrying a delete lock, because the API refuses the delete.
+Deleting a resource group deletes every resource in it, wherever those resources live, which is how a leaked test environment is cleaned up in one call. A location filter selects groups by the group's own location, so a narrowed run can still remove a resource in a location it was not narrowed to, and the run says so. Two kinds of group are left alone: one another service manages, such as an AKS node group, because deleting it breaks that service, and one a delete lock covers, on the group or on the subscription, because the API refuses the delete.
 
-Azure reports a resource group's creation time only when a subscription exposes it, so `--older-than` and `--newer-than` match a group only when its creation time is reported.
+Azure reports no creation time for a resource group, so a run carrying `--older-than` or `--newer-than` deletes none of them and says how many it left alone. A per-resource `timeout` in a config file is read by nothing; `--timeout` is a deadline over the whole run.
 
 ## GCP Supported Resources
 

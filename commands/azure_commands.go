@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	stderrors "errors"
+	"fmt"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/azure"
@@ -46,6 +47,9 @@ func azureNuke(c *cli.Context) error {
 		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error getting resources"}, map[string]interface{}{})
 		return errors.WithStackTrace(timeoutError(err, query.Timeout))
 	}
+	if err := timedOut(ctx, query.Timeout); err != nil {
+		return errors.WithStackTrace(err)
+	}
 
 	collector.Emit(reporting.ScanComplete{})
 
@@ -87,6 +91,9 @@ func azureInspect(c *cli.Context) error {
 	if _, err := azure.GetAllResources(ctx, query, configObj, collector); err != nil {
 		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error inspecting resources"}, map[string]interface{}{})
 		return errors.WithStackTrace(timeoutError(err, query.Timeout))
+	}
+	if err := timedOut(ctx, query.Timeout); err != nil {
+		return errors.WithStackTrace(err)
 	}
 
 	collector.Emit(reporting.ScanComplete{})
@@ -156,11 +163,24 @@ func withTimeout(ctx context.Context, timeout *time.Duration) (context.Context, 
 	return context.WithTimeout(ctx, *timeout)
 }
 
-// timeoutError names the deadline in the error, because "context deadline
-// exceeded" does not say which deadline or how long it was.
+// timeoutError names the deadline beside whatever else the run reported,
+// because "context deadline exceeded" does not say which deadline or how long
+// it was, and a run that failed three deletes and then ran out of time has to
+// report both.
 func timeoutError(err error, timeout *time.Duration) error {
 	if err == nil || timeout == nil || !stderrors.Is(err, context.DeadlineExceeded) {
 		return err
+	}
+	return fmt.Errorf("%s: %w", util.ResourceExecutionTimeout{Timeout: *timeout}, err)
+}
+
+// timedOut reports the deadline a scan passed without failing. The engine
+// records a listing failure and carries on, which is right for one resource
+// type among many and wrong for a deadline: without this, a run whose every
+// list was cut short reports a clean subscription and exits successfully.
+func timedOut(ctx context.Context, timeout *time.Duration) error {
+	if ctx.Err() == nil || timeout == nil || !stderrors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil
 	}
 	return util.ResourceExecutionTimeout{Timeout: *timeout}
 }

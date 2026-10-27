@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/gruntwork-io/cloud-nuke/azure/resources"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
@@ -42,6 +44,15 @@ func GetAllResources(ctx context.Context, query *Query, configObj config.Config,
 	configObj.AddExcludeAfterTime(query.ExcludeAfter)
 	configObj.AddIncludeAfterTime(query.IncludeAfter)
 	configObj.AddTimeout(query.Timeout)
+
+	// The credential is proven before anything is scanned, and once rather
+	// than per subscription. Building one succeeds without any login, so the
+	// token request is what fails; without this, a run with no credential
+	// reports one error row per resource type, says the subscription is clean
+	// and exits successfully, which is what AWS fails the run for.
+	if err := authenticate(ctx); err != nil {
+		return nil, err
+	}
 
 	p := newProvider(query)
 	found, err := resource.Scan(ctx, p, resource.ScanRequest{
@@ -119,4 +130,21 @@ func ListResourceTypes() []string {
 	}
 	slices.Sort(resourceTypes)
 	return resourceTypes
+}
+
+// authenticate proves the default credential chain can get a token for Azure
+// Resource Manager, which is what every client this run builds will ask for.
+func authenticate(ctx context.Context) error {
+	credential, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		return fmt.Errorf("failed to read Azure credentials: %w", err)
+	}
+
+	if _, err := credential.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{"https://management.azure.com/.default"},
+	}); err != nil {
+		return fmt.Errorf("failed to authenticate to Azure: %w", err)
+	}
+
+	return nil
 }

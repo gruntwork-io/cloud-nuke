@@ -66,7 +66,7 @@ Azure does not report when a resource group was created, so a run that passes `-
 
 A resource group another service manages, or one a `CanNotDelete` or `ReadOnly` lock covers, is left alone: Azure refuses those deletes. A lock on the subscription covers every group in it. Reading locks needs `Microsoft.Authorization/locks/read`, and without it the scan carries on and a locked group reports the delete error instead.
 
-A resource group another service manages, or one a `CanNotDelete` or `ReadOnly` lock covers at any scope inside it, is left alone: Azure refuses those deletes. Reading locks needs `Microsoft.Authorization/locks/read`, and without it the scan carries on and a locked group reports the delete error instead.
+Deleting a resource group deletes everything inside it, wherever those resources live, so a run narrowed by `--region` can still remove a resource in another location. The run says so when a location filter is set.
 
 ### GCP
 

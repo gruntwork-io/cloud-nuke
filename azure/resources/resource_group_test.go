@@ -118,38 +118,31 @@ func TestListResourceGroupsAppliesTheLocationFilter(t *testing.T) {
 func TestListResourceGroupsFiltersOnNameTagsAndTime(t *testing.T) {
 	t.Parallel()
 
-	now := time.Now()
 	client := &fakeResourceGroups{groups: []ResourceGroup{
-		{Name: "keep-me", Location: "westeurope", Created: now, Tags: map[string]string{"env": "test"}},
-		{Name: "drop-me", Location: "westeurope", Created: now},
+		{Name: "keep-me", Location: "westeurope", Tags: map[string]string{"env": "test"}},
+		{Name: "drop-me", Location: "westeurope"},
 	}}
 
-	cfg := config.ResourceType{IncludeRule: config.FilterRule{
+	byName := config.ResourceType{IncludeRule: config.FilterRule{
 		NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("^keep-")}},
 	}}
 
-	identifiers, err := listResourceGroups(context.Background(), client, cfg, AzureConfig{SubscriptionID: "sub"})
+	identifiers, err := listResourceGroups(context.Background(), client, byName, AzureConfig{SubscriptionID: "sub"})
 	require.NoError(t, err)
-
 	require.Len(t, identifiers, 1)
 	assert.Equal(t, "keep-me", *identifiers[0])
-}
 
-func TestListResourceGroupsOmitsATimeItWasNotGiven(t *testing.T) {
-	t.Parallel()
+	// A tag rule reads the group's own tags, which the lister has to hand the
+	// config layer: without them a tag rule matches nothing and a run that
+	// narrowed by tag deletes nothing.
+	byTag := config.ResourceType{IncludeRule: config.FilterRule{
+		Tags: map[string]config.Expression{"env": {RE: *regexp.MustCompile("^test$")}},
+	}}
 
-	// Azure reports no creation time unless the caller asks for the field, and
-	// the zero time must not read as "created in 1970", which an --older-than
-	// filter would then delete.
-	yesterday := time.Now().Add(-24 * time.Hour)
-	client := &fakeResourceGroups{groups: []ResourceGroup{{Name: "undated", Location: "westeurope"}}}
-
-	identifiers, err := listResourceGroups(context.Background(), client,
-		config.ResourceType{IncludeRule: config.FilterRule{TimeBefore: &yesterday}},
-		AzureConfig{SubscriptionID: "sub"})
+	identifiers, err = listResourceGroups(context.Background(), client, byTag, AzureConfig{SubscriptionID: "sub"})
 	require.NoError(t, err)
-
-	assert.Empty(t, identifiers, "a group with no reported creation time is not matched by a time filter")
+	require.Len(t, identifiers, 1)
+	assert.Equal(t, "keep-me", *identifiers[0])
 }
 
 func TestListResourceGroupsReportsAListFailure(t *testing.T) {

@@ -33,18 +33,23 @@ func (p *provider) Targets() ([]resource.Target, error) {
 // Prepare builds the Azure clients for one subscription and hands back every
 // registered resource in registry order.
 func (p *provider) Prepare(ctx context.Context, target resource.Target) (context.Context, []resource.NukeableResource, error) {
-	cfg := resources.AzureConfig{
-		SubscriptionID:   target.ID,
-		Locations:        p.locations,
-		ExcludeLocations: p.excludeLocations,
-	}
-
-	registered := GetAndInitRegisteredResources(cfg)
+	registered := GetAndInitRegisteredResources(p.configFor(target))
 	nukeable := make([]resource.NukeableResource, len(registered))
 	for i := range registered {
 		nukeable[i] = *registered[i]
 	}
 	return ctx, nukeable, nil
+}
+
+// configFor is what every resource in this target is initialized with: the
+// subscription to walk and the location filter the engineer asked for. It is
+// its own function so a test can read it without a credential.
+func (p *provider) configFor(target resource.Target) resources.AzureConfig {
+	return resources.AzureConfig{
+		SubscriptionID:   target.ID,
+		Locations:        p.locations,
+		ExcludeLocations: p.excludeLocations,
+	}
 }
 
 // SkipListError passes over nothing yet. Azure answers a provider that is not

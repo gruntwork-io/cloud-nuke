@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -45,7 +46,45 @@ func TestTimeoutErrorNamesTheDeadlineItPassed(t *testing.T) {
 	other := errors.New("subscription not found")
 	assert.Equal(t, other, timeoutError(other, &timeout))
 
-	timedOut := timeoutError(context.DeadlineExceeded, &timeout)
-	assert.Equal(t, util.ResourceExecutionTimeout{Timeout: timeout}, timedOut)
-	assert.Equal(t, "execution timed out after: 10m0s", timedOut.Error())
+	passed := timeoutError(context.DeadlineExceeded, &timeout)
+	require.Error(t, passed)
+	assert.Contains(t, passed.Error(), "execution timed out after: 10m0s")
+	assert.ErrorIs(t, passed, context.DeadlineExceeded, "the deadline is named beside the cause, not in place of it")
+}
+
+func TestTimeoutErrorKeepsWhatElseTheRunReported(t *testing.T) {
+	t.Parallel()
+
+	// A run that failed three deletes and then ran out of time has to report
+	// both: replacing the error with the deadline loses every failure.
+	timeout := 10 * time.Minute
+	failed := fmt.Errorf("deleting rg-1: %w", errors.New("still has a lock"))
+	both := errors.Join(failed, context.DeadlineExceeded)
+
+	named := timeoutError(both, &timeout)
+	require.Error(t, named)
+	assert.Contains(t, named.Error(), "execution timed out after: 10m0s")
+	assert.Contains(t, named.Error(), "still has a lock")
+}
+
+func TestTimedOutReadsADeadlineTheScanPassedWithoutFailing(t *testing.T) {
+	t.Parallel()
+
+	// The engine records a listing failure and carries on, which is right for
+	// one resource type among many and wrong for a deadline: without this, a
+	// run whose lists were cut short reports a clean subscription.
+	timeout := time.Minute
+
+	passed, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	err := timedOut(passed, &timeout)
+	require.Error(t, err)
+	assert.Equal(t, util.ResourceExecutionTimeout{Timeout: timeout}, err)
+
+	// A run still inside its deadline, and a cancelled one, are not timeouts.
+	assert.NoError(t, timedOut(context.Background(), &timeout))
+	cancelled, stop := context.WithCancel(context.Background())
+	stop()
+	assert.NoError(t, timedOut(cancelled, &timeout))
+	assert.NoError(t, timedOut(passed, nil))
 }

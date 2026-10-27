@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armlocks"
@@ -34,11 +33,6 @@ type ResourceGroup struct {
 	Name     string
 	Location string
 	Tags     map[string]string
-
-	// Created is when the group was created. Azure reports it only when the
-	// caller asks for the createdTime field, and it is the zero time when the
-	// subscription does not expose it.
-	Created time.Time
 
 	// Locked is true when a lock at or under the group would make the delete
 	// fail, so the scan skips the group rather than reporting a group it
@@ -104,6 +98,7 @@ func listResourceGroups(ctx context.Context, client ResourceGroupsAPI, cfg confi
 	// whose age it cannot read. That is the right call and a silent one, so the
 	// run says how many it left alone and why.
 	ageUnknown := 0
+	lockedOrManaged := 0
 
 	var result []*string
 	for _, group := range groups {
@@ -111,6 +106,7 @@ func listResourceGroups(ctx context.Context, client ResourceGroupsAPI, cfg confi
 		// AKS node group by hand leaves the cluster broken.
 		if group.Managed {
 			logging.Debugf("Skipping resource group %s: another service manages it", group.Name)
+			lockedOrManaged++
 			continue
 		}
 
@@ -118,6 +114,7 @@ func listResourceGroups(ctx context.Context, client ResourceGroupsAPI, cfg confi
 		// the scan is better than a failure per group during the nuke.
 		if group.Locked {
 			logging.Debugf("Skipping resource group %s: it carries a delete lock", group.Name)
+			lockedOrManaged++
 			continue
 		}
 
@@ -125,22 +122,32 @@ func listResourceGroups(ctx context.Context, client ResourceGroupsAPI, cfg confi
 			continue
 		}
 
-		if group.Created.IsZero() && cfg.HasTimeFilter() {
+		// Azure reports no age for a resource group, so a run that filters on
+		// age can delete none of them. The config layer already excludes a
+		// resource whose age is unknown; this says how many, since a sweep
+		// that silently finds nothing reads as a clean subscription.
+		if cfg.HasTimeFilter() {
 			ageUnknown++
 			continue
 		}
 
 		name := group.Name
-		created := group.Created
-
 		value := config.ResourceValue{Name: &name, Tags: group.Tags}
-		if !created.IsZero() {
-			value.Time = &created
-		}
 
 		if cfg.ShouldInclude(value) {
 			result = append(result, &name)
 		}
+	}
+
+	if lockedOrManaged > 0 {
+		logging.Warnf(
+			"Leaving %d resource groups alone: a lock, on the group or on the subscription, or another service that owns them. Azure refuses those deletes.",
+			lockedOrManaged)
+	}
+
+	if len(result) > 0 && azureCfg.HasLocationFilter() {
+		logging.Warnf(
+			"A resource group's delete takes everything inside it, wherever that lives, so this run can remove resources in locations it was not narrowed to.")
 	}
 
 	if ageUnknown > 0 {
@@ -174,7 +181,11 @@ func (c resourceGroupsClient) ListResourceGroups(ctx context.Context) ([]Resourc
 
 	locked, subscriptionLocked := c.lockedGroups(ctx)
 
-	// createdTime is not in the default response, so it is asked for by name.
+	// The list options carry only a filter and a page size. Azure reports no
+	// creation time for a resource group at all: the created time the resources
+	// API can expand belongs to the resources inside a group, not to the group,
+	// which is why this type carries no age and the lister says so when a run
+	// filters on one.
 	pager := c.client.NewListPager(&armresources.ResourceGroupsClientListOptions{})
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
@@ -233,7 +244,7 @@ func (c resourceGroupsClient) lockedGroups(ctx context.Context) (map[string]bool
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
-			logging.Debugf("Could not list Azure management locks, so no resource group is treated as locked: %v", err)
+			logging.Warnf("Could not read Azure management locks, so no resource group is treated as locked and a locked one will fail its delete: %v", err)
 			return map[string]bool{}, false
 		}
 

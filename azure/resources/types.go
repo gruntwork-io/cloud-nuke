@@ -10,10 +10,13 @@ type AzureResource interface {
 	resource.NukeableResource
 	Init(cfg AzureConfig)
 
-	// LocationScope says how this resource type's location is decided, so the
-	// adapter can apply the --region filter without trusting each lister. GCP
-	// learned this the expensive way: one of its four listers consulted the
-	// filter and the other three deleted project-wide under it.
+	// LocationScope says how this resource type's location is decided, so a
+	// reader can tell where the --region filter is applied. The one type Azure
+	// registers reports its location on the API's answer, so its own lister
+	// filters, and a type that is added with an identifier carrying its
+	// location says so here rather than leaving the question to whoever reads
+	// the lister. GCP learned that the expensive way: one of its four listers
+	// consulted the filter and the other three deleted project-wide under it.
 	LocationScope() LocationScope
 }
 
