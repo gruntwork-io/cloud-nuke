@@ -23,6 +23,10 @@ func TestEveryResourceDeclaresALocationScope(t *testing.T) {
 		// A bucket's name carries no location, so its lister filters.
 		"gcs-bucket": resources.LocationAppliedByLister,
 
+		// An instance lives in a zone, which is not what --region names, so
+		// its lister matches a zone against the region it is in.
+		"compute-instance": resources.LocationAppliedByLister,
+
 		// A Pub/Sub topic is project-global, so a location filter cannot
 		// include it and the resource refuses to run under one.
 		"gcp-pubsub-topic": resources.LocationNone,
