@@ -99,6 +99,12 @@ func listResourceGroups(ctx context.Context, client ResourceGroupsAPI, cfg confi
 		return nil, fmt.Errorf("error listing resource groups: %w", err)
 	}
 
+	// Azure reports no creation time for a resource group, so a run with a time
+	// filter excludes every one of them for safety, as it does for any resource
+	// whose age it cannot read. That is the right call and a silent one, so the
+	// run says how many it left alone and why.
+	ageUnknown := 0
+
 	var result []*string
 	for _, group := range groups {
 		// A group another service owns goes when that service goes. Deleting an
@@ -119,6 +125,11 @@ func listResourceGroups(ctx context.Context, client ResourceGroupsAPI, cfg confi
 			continue
 		}
 
+		if group.Created.IsZero() && cfg.HasTimeFilter() {
+			ageUnknown++
+			continue
+		}
+
 		name := group.Name
 		created := group.Created
 
@@ -130,6 +141,12 @@ func listResourceGroups(ctx context.Context, client ResourceGroupsAPI, cfg confi
 		if cfg.ShouldInclude(value) {
 			result = append(result, &name)
 		}
+	}
+
+	if ageUnknown > 0 {
+		logging.Warnf(
+			"Leaving %d resource groups alone: Azure does not report when a resource group was created, and a time filter cannot be applied to an age it cannot read. Drop --older-than and --newer-than to include them.",
+			ageUnknown)
 	}
 
 	return result, nil
@@ -155,7 +172,7 @@ type resourceGroupsClient struct {
 func (c resourceGroupsClient) ListResourceGroups(ctx context.Context) ([]ResourceGroup, error) {
 	var found []ResourceGroup
 
-	locked := c.lockedGroups(ctx)
+	locked, subscriptionLocked := c.lockedGroups(ctx)
 
 	// createdTime is not in the default response, so it is asked for by name.
 	pager := c.client.NewListPager(&armresources.ResourceGroupsClientListOptions{})
@@ -185,7 +202,7 @@ func (c resourceGroupsClient) ListResourceGroups(ctx context.Context) ([]Resourc
 			if group.ManagedBy != nil && strings.TrimSpace(*group.ManagedBy) != "" {
 				resourceGroup.Managed = true
 			}
-			resourceGroup.Locked = locked[strings.ToLower(resourceGroup.Name)]
+			resourceGroup.Locked = subscriptionLocked || locked[strings.ToLower(resourceGroup.Name)]
 
 			found = append(found, resourceGroup)
 		}
@@ -205,10 +222,11 @@ func (c resourceGroupsClient) ListResourceGroups(ctx context.Context) ([]Resourc
 // that can otherwise nuke may not have. A failure there is not fatal: the scan
 // goes on with nothing marked locked, and a locked group then reports the
 // delete error it would have reported before.
-func (c resourceGroupsClient) lockedGroups(ctx context.Context) map[string]bool {
+func (c resourceGroupsClient) lockedGroups(ctx context.Context) (map[string]bool, bool) {
 	locked := map[string]bool{}
+	subscriptionLocked := false
 	if c.locks == nil {
-		return locked
+		return locked, false
 	}
 
 	pager := c.locks.NewListAtSubscriptionLevelPager(nil)
@@ -216,7 +234,7 @@ func (c resourceGroupsClient) lockedGroups(ctx context.Context) map[string]bool 
 		page, err := pager.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("Could not list Azure management locks, so no resource group is treated as locked: %v", err)
-			return map[string]bool{}
+			return map[string]bool{}, false
 		}
 
 		for _, lock := range page.Value {
@@ -233,11 +251,27 @@ func (c resourceGroupsClient) lockedGroups(ctx context.Context) map[string]bool 
 
 			if group := resourceGroupFromID(*lock.ID); group != "" {
 				locked[group] = true
+			} else if isSubscriptionLockID(*lock.ID) {
+				// A lock at the subscription covers every group in it.
+				subscriptionLocked = true
 			}
 		}
 	}
 
-	return locked
+	return locked, subscriptionLocked
+}
+
+// isSubscriptionLockID reports whether an ID names a lock on the subscription
+// itself, which is exactly /subscriptions/<id>/providers/Microsoft.Authorization/locks/<name>.
+// It matches that shape rather than the prefix, so an ID shape this code does
+// not know cannot mark every group in the subscription locked.
+func isSubscriptionLockID(id string) bool {
+	parts := strings.Split(strings.TrimPrefix(id, "/"), "/")
+	return len(parts) == 6 &&
+		strings.EqualFold(parts[0], "subscriptions") &&
+		strings.EqualFold(parts[2], "providers") &&
+		strings.EqualFold(parts[3], "Microsoft.Authorization") &&
+		strings.EqualFold(parts[4], "locks")
 }
 
 // resourceGroupFromID reads the resource group out of an Azure resource ID such

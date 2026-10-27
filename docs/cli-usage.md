@@ -62,6 +62,10 @@
 
 Azure authenticates through the default credential chain, so `az login`, a service principal in the environment, or a managed identity all work. A location may be typed the way the portal shows it, `West Europe`, or the way the API reports it, `westeurope`.
 
+Azure does not report when a resource group was created, so a run that passes `--older-than` or `--newer-than` deletes none of them and says how many it left alone. Drop the time filter to include them.
+
+A resource group another service manages, or one a `CanNotDelete` or `ReadOnly` lock covers, is left alone: Azure refuses those deletes. A lock on the subscription covers every group in it. Reading locks needs `Microsoft.Authorization/locks/read`, and without it the scan carries on and a locked group reports the delete error instead.
+
 A resource group another service manages, or one a `CanNotDelete` or `ReadOnly` lock covers at any scope inside it, is left alone: Azure refuses those deletes. Reading locks needs `Microsoft.Authorization/locks/read`, and without it the scan carries on and a locked group reports the delete error instead.
 
 ### GCP

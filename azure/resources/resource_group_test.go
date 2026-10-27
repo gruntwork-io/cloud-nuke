@@ -1,10 +1,13 @@
 package resources
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"regexp"
 	"testing"
+
+	"github.com/pterm/pterm"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -204,4 +207,66 @@ func TestResourceGroupFromIDReadsTheGroupAtEveryLockScope(t *testing.T) {
 			assert.Equal(t, tc.want, resourceGroupFromID(tc.id))
 		})
 	}
+}
+
+// Azure reports no creation time for a resource group, so a run carrying a
+// time filter, which every scheduled sweep does, can delete none of them. The
+// lister leaves them alone rather than deleting something whose age it cannot
+// read, and says how many and why, since a sweep that silently finds nothing
+// reads as a subscription that is already clean.
+// This one does not run in parallel: it reads what the run printed, and the
+// printer is one package-level value every test in this file writes through.
+func TestListResourceGroupsSaysWhenItCannotReadAGroupsAge(t *testing.T) {
+	client := &fakeResourceGroups{groups: []ResourceGroup{
+		{Name: "no-created-time", Location: "westeurope"},
+		{Name: "also-no-created-time", Location: "westeurope"},
+	}}
+
+	cutoff := time.Now().Add(-2 * time.Hour)
+	filtered := config.ResourceType{ExcludeRule: config.FilterRule{TimeAfter: &cutoff}}
+
+	said := captureWarnings(t, func() {
+		identifiers, err := listResourceGroups(context.Background(), client, filtered, AzureConfig{SubscriptionID: "sub"})
+		require.NoError(t, err)
+		assert.Empty(t, identifiers, "a group whose age Azure does not report is not deleted under a time filter")
+	})
+	assert.Contains(t, said, "Leaving 2 resource groups alone")
+	assert.Contains(t, said, "does not report when a resource group was created")
+
+	// Without a time filter the same groups are deletable, and nothing is said.
+	said = captureWarnings(t, func() {
+		unfiltered, err := listResourceGroups(context.Background(), client, config.ResourceType{}, AzureConfig{SubscriptionID: "sub"})
+		require.NoError(t, err)
+		assert.Len(t, unfiltered, 2)
+	})
+	assert.NotContains(t, said, "Leaving")
+}
+
+// captureWarnings reads what the run told the engineer, which is the whole of
+// what the case above changes: the config layer already excludes a resource
+// whose age is unknown, silently.
+func captureWarnings(t *testing.T, run func()) string {
+	t.Helper()
+
+	var said bytes.Buffer
+	previous := pterm.Warning.Writer
+	pterm.Warning.Writer = &said
+	t.Cleanup(func() { pterm.Warning.Writer = previous })
+
+	run()
+	return said.String()
+}
+
+func TestASubscriptionLockLocksEveryGroupInIt(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, isSubscriptionLockID("/subscriptions/s/providers/Microsoft.Authorization/locks/no-delete"))
+	assert.True(t, isSubscriptionLockID("/subscriptions/s/providers/microsoft.authorization/locks/no-delete"))
+
+	// A lock on a group, or on a resource inside one, names that group and is
+	// read by resourceGroupFromID instead.
+	assert.False(t, isSubscriptionLockID("/subscriptions/s/resourceGroups/g/providers/Microsoft.Authorization/locks/no-delete"))
+	// An ID shape this code does not know must not lock the whole subscription.
+	assert.False(t, isSubscriptionLockID("/subscriptions/s/providers/Microsoft.Compute/virtualMachines/vm"))
+	assert.False(t, isSubscriptionLockID("/subscriptions/s"))
 }

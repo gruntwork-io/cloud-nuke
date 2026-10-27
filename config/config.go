@@ -575,6 +575,13 @@ func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
 	return true
 }
 
+// HasTimeFilter reports whether any time-based filter is configured. A resource
+// type whose cloud reports no creation time reads this to say so, rather than
+// leaving the user with a run that quietly found nothing.
+func (r ResourceType) HasTimeFilter() bool {
+	return r.hasTimeFilter()
+}
+
 // hasTimeFilter reports whether any time-based filter is configured.
 func (r ResourceType) hasTimeFilter() bool {
 	return r.IncludeRule.TimeAfter != nil ||
