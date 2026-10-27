@@ -183,6 +183,12 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	scanGroup.SetLimit(parallelism)
 	for _, t := range tasks {
 		scanGroup.Go(func() error {
+			// A cancelled run stops listing. Without this, every task already
+			// queued still calls the cloud after the caller gave up.
+			if err := t.ctx.Err(); err != nil {
+				return err
+			}
+
 			resourceType := t.resource.ResourceName()
 			t.resource.GetAndSetResourceConfig(req.Config)
 

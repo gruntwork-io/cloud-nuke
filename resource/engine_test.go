@@ -991,3 +991,22 @@ func TestScanGivesEachResourceTheContextItsProviderReturned(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "from prepare", <-p.seen, "the resource was listed with the engine's context, not its provider's")
 }
+
+func TestScanStopsListingWhenTheRunIsCancelled(t *testing.T) {
+	t.Parallel()
+
+	p := &scanCountingProvider{targets: 12}
+	rec := &recorder{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := Scan(ctx, p, ScanRequest{Include: func(string) bool { return true }, Parallelism: 3}, rec.collector())
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	assert.Zero(t, p.most, "a cancelled run still called the cloud")
+}
