@@ -171,7 +171,7 @@ func timeoutError(err error, timeout *time.Duration) error {
 	if err == nil || timeout == nil || !stderrors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	return fmt.Errorf("%s: %w", util.ResourceExecutionTimeout{Timeout: *timeout}, err)
+	return fmt.Errorf("%w: %w", util.ResourceExecutionTimeout{Timeout: *timeout}, err)
 }
 
 // timedOut reports the deadline a scan passed without failing. The engine
