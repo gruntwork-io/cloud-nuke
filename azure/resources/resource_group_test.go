@@ -6,9 +6,9 @@ import (
 	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/pterm/pterm"
-	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/stretchr/testify/assert"
