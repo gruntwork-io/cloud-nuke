@@ -274,5 +274,6 @@ func TestScope_String(t *testing.T) {
 	assert.Equal(t, "global", Scope{Region: "global"}.String())
 	assert.Equal(t, "my-project", Scope{ProjectID: "my-project"}.String())
 	assert.Equal(t, "my-project/us-central1", Scope{ProjectID: "my-project", Region: "us-central1"}.String())
+	assert.Equal(t, "sub-a", Scope{Subscription: "sub-a"}.String())
 	assert.Equal(t, "", Scope{}.String())
 }

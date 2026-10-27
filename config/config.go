@@ -155,6 +155,9 @@ type Config struct {
 	RouteTable                      EC2ResourceType            `yaml:"RouteTable"`
 	VPCPeeringConnection            ResourceType               `yaml:"VPCPeeringConnection"`
 
+	// Azure Resources
+	AzureResourceGroup ResourceType `yaml:"AzureResourceGroup"`
+
 	// GCP Resources
 	GCSBucket        ResourceType `yaml:"GCSBucket"`
 	CloudFunction    ResourceType `yaml:"CloudFunction"`
@@ -301,6 +304,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.VPCLatticeTargetGroup,
 		&c.RouteTable.ResourceType,
 		&c.VPCPeeringConnection,
+		&c.AzureResourceGroup,
 		&c.GCSBucket,
 		&c.CloudFunction,
 		&c.ArtifactRegistry,
@@ -569,6 +573,13 @@ func (r ResourceType) ShouldIncludeBasedOnTime(time time.Time) bool {
 	}
 
 	return true
+}
+
+// HasTimeFilter reports whether any time-based filter is configured. A resource
+// type whose cloud reports no creation time reads this to say so, rather than
+// leaving the user with a run that quietly found nothing.
+func (r ResourceType) HasTimeFilter() bool {
+	return r.hasTimeFilter()
 }
 
 // hasTimeFilter reports whether any time-based filter is configured.
