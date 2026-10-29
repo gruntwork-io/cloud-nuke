@@ -9,6 +9,9 @@ import (
 // scanned in one pass and a location is a filter each lister applies.
 func getRegisteredResources() []GcpResource {
 	return []GcpResource{
+		// A virtual machine holds the disks and the network interfaces a later
+		// resource type deletes, so it goes first.
+		resources.NewComputeInstances(),
 		resources.NewGCSBuckets(),
 		resources.NewCloudFunctions(),
 		resources.NewArtifactRegistryRepositories(),

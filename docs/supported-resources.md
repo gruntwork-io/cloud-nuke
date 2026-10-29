@@ -308,6 +308,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 |---|---|
 | `artifact-registry` | Artifact Registry Repository |
 | `cloud-function` | Cloud Functions (Gen2) |
+| `compute-instance` | Compute Engine virtual machine |
 | `gcs-bucket` | Google Cloud Storage Bucket |
 | `gcp-pubsub-topic` | Pub/Sub Topic |
 
@@ -317,8 +318,11 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 |---|---|---|---|---|
 | artifact-registry | ArtifactRegistry | ✓ | ✓ | ✓ |
 | cloud-function | CloudFunction | ✓ | ✓ | ✓ |
+| compute-instance | ComputeInstance | ✓ | ✓ | ✓ |
 | gcs-bucket | GCSBucket | ✓ | ✓ | ✓ |
 | gcp-pubsub-topic | GcpPubSubTopic | ✓ | ✓ | ✓ |
+
+A Compute Engine instance lives in a zone, so `--region us-central1` deletes the instances in every zone of that region and `--region us-central1-a` deletes the instances in that zone alone. An instance carrying deletion protection is left alone, since Compute Engine refuses that delete, and the run says how many. A `--config` rule reads an instance's labels as its tags.
 
 ## IsNukable Permission Check
 
