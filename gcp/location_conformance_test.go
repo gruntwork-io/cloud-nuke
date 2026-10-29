@@ -20,8 +20,10 @@ func TestEveryResourceDeclaresALocationScope(t *testing.T) {
 		"cloud-function":    resources.LocationFromResourceName,
 		"artifact-registry": resources.LocationFromResourceName,
 
-		// A bucket's name carries no location, so its lister filters.
-		"gcs-bucket": resources.LocationAppliedByLister,
+		// A bucket's name carries no location, so its lister filters, and a
+		// Cloud SQL instance reports its region the same way.
+		"gcs-bucket":         resources.LocationAppliedByLister,
+		"cloud-sql-instance": resources.LocationAppliedByLister,
 
 		// An instance lives in a zone, which is not what --region names, so
 		// its lister matches a zone against the region it is in.

@@ -159,11 +159,12 @@ type Config struct {
 	AzureResourceGroup ResourceType `yaml:"AzureResourceGroup"`
 
 	// GCP Resources
-	GCSBucket        ResourceType `yaml:"GCSBucket"`
-	CloudFunction    ResourceType `yaml:"CloudFunction"`
-	ArtifactRegistry ResourceType `yaml:"ArtifactRegistry"`
-	GcpPubSubTopic   ResourceType `yaml:"GcpPubSubTopic"`
-	ComputeInstance  ResourceType `yaml:"ComputeInstance"`
+	GCSBucket           ResourceType `yaml:"GCSBucket"`
+	CloudFunction       ResourceType `yaml:"CloudFunction"`
+	ArtifactRegistry    ResourceType `yaml:"ArtifactRegistry"`
+	GcpPubSubTopic      ResourceType `yaml:"GcpPubSubTopic"`
+	ComputeInstance     ResourceType `yaml:"ComputeInstance"`
+	GcpCloudSQLInstance ResourceType `yaml:"GcpCloudSQLInstance"`
 }
 
 // allResourceTypes returns pointers to the embedded ResourceType for every
@@ -311,6 +312,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.ArtifactRegistry,
 		&c.GcpPubSubTopic,
 		&c.ComputeInstance,
+		&c.GcpCloudSQLInstance,
 	}
 }
 

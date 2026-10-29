@@ -308,6 +308,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 |---|---|
 | `artifact-registry` | Artifact Registry Repository |
 | `cloud-function` | Cloud Functions (Gen2) |
+| `cloud-sql-instance` | Cloud SQL Instance |
 | `compute-instance` | Compute Engine virtual machine |
 | `gcs-bucket` | Google Cloud Storage Bucket |
 | `gcp-pubsub-topic` | Pub/Sub Topic |
@@ -318,11 +319,14 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 |---|---|---|---|---|
 | artifact-registry | ArtifactRegistry | ✓ | ✓ | ✓ |
 | cloud-function | CloudFunction | ✓ | ✓ | ✓ |
+| cloud-sql-instance | GcpCloudSQLInstance | ✓ | ✓ | ✓ |
 | compute-instance | ComputeInstance | ✓ | ✓ | ✓ |
 | gcs-bucket | GCSBucket | ✓ | ✓ | ✓ |
 | gcp-pubsub-topic | GcpPubSubTopic | ✓ | ✓ | ✓ |
 
 A Compute Engine instance lives in a zone, so `--region us-central1` deletes the instances in every zone of that region and `--region us-central1-a` deletes the instances in that zone alone. An instance carrying deletion protection is left alone, since Compute Engine refuses that delete, and the run says how many. A `--config` rule reads an instance's labels as its tags.
+
+A Cloud SQL instance reports its region on the API's answer rather than in its name, so `--region` filters on that. An instance carrying deletion protection is left alone, since Cloud SQL refuses that delete, and the run says how many. A `--config` rule reads an instance's user labels as its tags.
 
 ## IsNukable Permission Check
 
