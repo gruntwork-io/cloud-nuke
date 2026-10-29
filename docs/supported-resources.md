@@ -328,7 +328,7 @@ cloud-nuke supports inspecting and deleting the following GCP resources. The **C
 
 A Compute Engine instance lives in a zone, so `--region us-central1` deletes the instances in every zone of that region and `--region us-central1-a` deletes the instances in that zone alone. An instance carrying deletion protection is left alone, since Compute Engine refuses that delete, and the run says how many. A `--config` rule reads an instance's labels as its tags.
 
-The Cloud Run API refuses a wildcard location, so a run asks each region in turn and `--region` decides which regions it asks at all rather than which answers it keeps. A region that refuses the call costs that region alone, and the run says which ones it could not read; a run where every region refuses fails rather than reporting an empty project. A `--config` rule reads a service's short name, the one the console shows, and its labels as tags.
+The Cloud Run API refuses a wildcard location, so a run asks each region in turn and `--region` decides which regions it asks at all rather than which answers it keeps. A region that refuses the call costs that region alone, and the run says which ones it could not read; a run where every region refuses reports a listing error for this type rather than reporting an empty project. A `--config` rule reads a service's short name, the one the console shows, and its labels as tags.
 
 A Cloud SQL instance reports its region on the API's answer rather than in its name, so `--region` filters on that. An instance carrying deletion protection is left alone, since Cloud SQL refuses that delete, and the run says how many. A `--config` rule reads an instance's user labels as its tags.
 
