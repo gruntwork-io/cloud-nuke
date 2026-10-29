@@ -17,6 +17,7 @@ func getRegisteredResources() []GcpResource {
 		resources.NewArtifactRegistryRepositories(),
 		resources.NewPubSubTopics(),
 		resources.NewCloudSQLInstances(),
+		resources.NewCloudRunServices(),
 	}
 }
 
