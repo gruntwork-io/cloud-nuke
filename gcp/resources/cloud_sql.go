@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
@@ -42,6 +44,11 @@ type CloudSQLInstance struct {
 	// Protected is true when the instance carries deletion protection, which
 	// makes the delete fail until somebody turns it off.
 	Protected bool
+
+	// MasterInstanceName is set on a read replica and names the instance it
+	// replicates. Cloud SQL refuses to delete an instance that still has a
+	// replica, so the lister returns replicas ahead of their primary.
+	MasterInstanceName string
 }
 
 // NewCloudSQLInstances creates the Cloud SQL instance resource.
@@ -87,7 +94,7 @@ func listCloudSQLInstances(ctx context.Context, client CloudSQLInstancesAPI, sco
 
 	protected := 0
 
-	var result []*string
+	var eligible []CloudSQLInstance
 	for _, instance := range instances {
 		if !gcpCfg.MatchesLocationFilter(instance.Region) {
 			continue
@@ -111,7 +118,7 @@ func listCloudSQLInstances(ctx context.Context, client CloudSQLInstancesAPI, sco
 		}
 
 		if cfg.ShouldInclude(value) {
-			result = append(result, &name)
+			eligible = append(eligible, instance)
 		}
 	}
 
@@ -119,7 +126,93 @@ func listCloudSQLInstances(ctx context.Context, client CloudSQLInstancesAPI, sco
 		logging.Warnf("Leaving %d Cloud SQL instances alone: they carry deletion protection, which Cloud SQL refuses to delete through.", protected)
 	}
 
+	eligible = replicasBeforeTheirPrimary(eligible, instances)
+	warnAboutReplicasLeftBehind(eligible, instances)
+
+	result := make([]*string, 0, len(eligible))
+	for _, instance := range eligible {
+		name := instance.Name
+		result = append(result, &name)
+	}
+
 	return result, nil
+}
+
+// replicasBeforeTheirPrimary orders the instances a run will delete so that no
+// instance comes before a replica of it. Cloud SQL refuses to delete an
+// instance that still has a replica, and the nuker works through identifiers one
+// at a time, so the primary's delete fails outright in the other order. The
+// chain is walked over every instance in the project, not just the eligible
+// ones, since a replica a filter left out still sits between its primary and
+// the top of the chain.
+func replicasBeforeTheirPrimary(eligible, all []CloudSQLInstance) []CloudSQLInstance {
+	masterOf := make(map[string]string, len(all))
+	for _, instance := range all {
+		if instance.MasterInstanceName != "" {
+			masterOf[instance.Name] = instanceNameOnly(instance.MasterInstanceName)
+		}
+	}
+	if len(masterOf) == 0 {
+		return eligible
+	}
+
+	ordered := make([]CloudSQLInstance, len(eligible))
+	copy(ordered, eligible)
+
+	// A stable sort keeps the API's order among instances at the same depth,
+	// which is what a run without replicas reports today.
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return replicaDepth(ordered[i].Name, masterOf) > replicaDepth(ordered[j].Name, masterOf)
+	})
+	return ordered
+}
+
+// replicaDepth counts the replication hops between an instance and the primary
+// at the top of its chain: a primary is 0, a replica of it 1, and a replica of
+// that replica 2. Deleting the deepest first is the order Cloud SQL accepts.
+func replicaDepth(name string, masterOf map[string]string) int {
+	// Cloud SQL cannot build a replication cycle, but a malformed answer that
+	// described one would otherwise spin here forever.
+	seen := map[string]bool{name: true}
+
+	depth := 0
+	for {
+		master := masterOf[name]
+		if master == "" || seen[master] {
+			return depth
+		}
+		seen[master] = true
+		name = master
+		depth++
+	}
+}
+
+// warnAboutReplicasLeftBehind says so when a run will try to delete an instance
+// whose replica is not in the same run. Cloud SQL refuses that delete, and the
+// filter that left the replica out is the reason: a replica can sit in another
+// region, which puts it outside a run narrowed by --region.
+func warnAboutReplicasLeftBehind(eligible, all []CloudSQLInstance) {
+	inRun := make(map[string]bool, len(eligible))
+	for _, instance := range eligible {
+		inRun[instance.Name] = true
+	}
+
+	for _, instance := range all {
+		master := instanceNameOnly(instance.MasterInstanceName)
+		if master == "" || inRun[instance.Name] || !inRun[master] {
+			continue
+		}
+		logging.Warnf("Cloud SQL instance %s has a replica this run leaves alone (%s), and Cloud SQL refuses to delete an instance that still has one.", master, instance.Name)
+	}
+}
+
+// instanceNameOnly drops the project qualifier Cloud SQL puts on the primary
+// named by a replica, so that project:db and db name the same instance.
+func instanceNameOnly(name string) string {
+	if at := strings.LastIndex(name, ":"); at >= 0 {
+		return name[at+1:]
+	}
+	return name
 }
 
 // deleteCloudSQLInstance deletes one instance by name.
@@ -129,6 +222,29 @@ func deleteCloudSQLInstance(ctx context.Context, client CloudSQLInstancesAPI, na
 	}
 
 	logging.Debugf("Deleted Cloud SQL instance: %s", *name)
+	return nil
+}
+
+// incompleteList reads the warnings Cloud SQL puts on a successful list to say
+// the answer is missing instances, and turns one into the error the run should
+// have seen. A nuke that reported success here would leave those instances
+// behind without saying so.
+func incompleteList(warnings []*sqladmin.ApiWarning) error {
+	for _, warning := range warnings {
+		if warning == nil {
+			continue
+		}
+
+		switch warning.Code {
+		case "REGION_UNREACHABLE", "MAX_RESULTS_EXCEEDS_LIMIT":
+			where := warning.Region
+			if where == "" {
+				where = "the project"
+			}
+			return fmt.Errorf("incomplete list of Cloud SQL instances, %s for %s: %s", warning.Code, where, warning.Message)
+		}
+	}
+
 	return nil
 }
 
@@ -146,6 +262,13 @@ func (c cloudSQLInstancesClient) ListInstances(ctx context.Context, projectID st
 	var found []CloudSQLInstance
 
 	err := c.service.Instances.List(projectID).Pages(ctx, func(page *sqladmin.InstancesListResponse) error {
+		// Cloud SQL reports an unreachable region as a warning on an otherwise
+		// successful answer. Reading past one would let the run report a clean
+		// sweep of a project whose missing region still holds databases.
+		if err := incompleteList(page.Warnings); err != nil {
+			return err
+		}
+
 		for _, instance := range page.Items {
 			if instance == nil {
 				continue
@@ -161,9 +284,10 @@ func (c cloudSQLInstancesClient) ListInstances(ctx context.Context, projectID st
 			}
 
 			sqlInstance := CloudSQLInstance{
-				Name:    instance.Name,
-				Region:  instance.Region,
-				Created: created,
+				Name:               instance.Name,
+				Region:             instance.Region,
+				Created:            created,
+				MasterInstanceName: instance.MasterInstanceName,
 			}
 			if instance.Settings != nil {
 				sqlInstance.Labels = instance.Settings.UserLabels
