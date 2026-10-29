@@ -139,10 +139,12 @@ func (c cloudFunctionsClient) DeleteFunction(ctx context.Context, name string) e
 		return fmt.Errorf("waiting for deletion: %w", err)
 	}
 
+	// The function is gone by here, so the run must report it deleted. This
+	// delay only keeps the next delete inside the API's quota, and a cancelled
+	// run stops waiting rather than reporting a deleted function as failed.
 	select {
 	case <-time.After(cloudFunctionDeleteDelay):
 	case <-ctx.Done():
-		return ctx.Err()
 	}
 
 	return nil

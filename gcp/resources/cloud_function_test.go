@@ -115,16 +115,23 @@ func TestCloudFunctionsHonorsTheLocationFilterThroughTheAdapter(t *testing.T) {
 	// The adapter filters on the location in each name, so this resource needs
 	// no location code of its own. Asking for one location must reach only it.
 	r := NewCloudFunctions()
-	r.Init(GcpConfig{ProjectID: "p", Locations: []string{"europe-west4"}})
 
-	// Replace the SDK-backed client with the fake, which is what the narrow
-	// interface is for.
 	adapter, ok := r.(*GcpResourceAdapter[CloudFunctionsAPI])
 	require.True(t, ok)
-	adapter.Client = &fakeCloudFunctions{functions: []CloudFunction{
-		{Name: central, Updated: time.Now()},
-		{Name: west, Updated: time.Now()},
-	}}
+
+	// Hand the fake over in place of the client the real initializer builds,
+	// which is what the narrow interface is for. Replacing it after Init would
+	// not do: Init needs Application Default Credentials to reach the SDK, and
+	// the error it records when there are none is never cleared, so this test
+	// would depend on whose machine it runs on.
+	adapter.InitClient = WrapGcpInitClient(func(res *resource.Resource[CloudFunctionsAPI], cfg GcpConfig) {
+		res.Scope.ProjectID = cfg.ProjectID
+		res.Client = &fakeCloudFunctions{functions: []CloudFunction{
+			{Name: central, Updated: time.Now()},
+			{Name: west, Updated: time.Now()},
+		}}
+	})
+	adapter.Init(GcpConfig{ProjectID: "p", Locations: []string{"europe-west4"}})
 
 	identifiers, err := r.GetAndSetIdentifiers(context.Background(), config.Config{})
 	require.NoError(t, err)
