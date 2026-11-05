@@ -31,8 +31,6 @@ Some AWS resource types report no creation time. For several of them, such as `r
 
 The remaining types without a creation time, such as `rds-parameter-group`, `elasticache-subnet-group` or `route53-hosted-zone`, cannot be filtered by age. A run that passes `--older-than` or `--newer-than` leaves them alone and logs one warning per type. Drop the time filter to include them.
 
-The `default` DB subnet group is never targeted, since AWS refuses to delete it.
-
 ### Execution
 
 | Flag | Description | Available in |

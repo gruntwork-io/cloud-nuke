@@ -39,9 +39,6 @@ func NewDBSubnetGroups() AwsResource {
 	})
 }
 
-// defaultDBSubnetGroupName is the subnet group AWS refuses to delete.
-const defaultDBSubnetGroupName = "default"
-
 // listDBSubnetGroups retrieves all RDS DB Subnet Groups that match the config filters.
 // DB Subnet Groups do not have resource timestamps, so we use the first-seen tagging pattern.
 func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
@@ -60,10 +57,6 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 		}
 
 		for _, subnetGroup := range page.DBSubnetGroups {
-			if aws.ToString(subnetGroup.DBSubnetGroupName) == defaultDBSubnetGroupName {
-				continue
-			}
-
 			// Subnet groups require separate tag lookup
 			tagsOutput, err := client.ListTagsForResource(ctx, &rds.ListTagsForResourceInput{
 				ResourceName: subnetGroup.DBSubnetGroupArn,

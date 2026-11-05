@@ -105,22 +105,6 @@ func TestListDBSubnetGroups(t *testing.T) {
 	}
 }
 
-func TestListDBSubnetGroups_SkipsDefault(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
-	mock := &mockDBSubnetGroupsClient{
-		DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
-			DBSubnetGroups: []types.DBSubnetGroup{dbSubnetGroup("default"), dbSubnetGroup("custom")},
-		},
-	}
-
-	names, err := listDBSubnetGroups(ctx, mock, resource.Scope{}, config.ResourceType{})
-	require.NoError(t, err)
-	require.Equal(t, []string{"custom"}, aws.ToStringSlice(names))
-	require.Equal(t, []string{"arn:custom"}, mock.TaggedArns)
-}
-
 func TestListDBSubnetGroups_FirstSeenTimeFilter(t *testing.T) {
 	t.Parallel()
 
