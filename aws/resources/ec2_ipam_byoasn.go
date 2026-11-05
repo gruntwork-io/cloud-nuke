@@ -19,6 +19,7 @@ type EC2IPAMByoasnAPI interface {
 func NewEC2IPAMByoasn() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2IPAMByoasnAPI]{
 		ResourceTypeName: "ipam-byoasn",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMByoasnAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

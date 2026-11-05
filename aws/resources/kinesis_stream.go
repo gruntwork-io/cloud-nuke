@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
@@ -47,6 +48,11 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 			return nil, err
 		}
 
+		createdAt := make(map[string]*time.Time, len(page.StreamSummaries))
+		for _, summary := range page.StreamSummaries {
+			createdAt[aws.ToString(summary.StreamName)] = summary.StreamCreationTimestamp
+		}
+
 		for _, stream := range page.StreamNames {
 			tagsOutput, err := client.ListTagsForStream(ctx, &kinesis.ListTagsForStreamInput{
 				StreamName: aws.String(stream),
@@ -58,6 +64,7 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(stream),
+				Time: createdAt[stream],
 				Tags: util.ConvertKinesisTagsToMap(tagsOutput.Tags),
 			}) {
 				allStreams = append(allStreams, aws.String(stream))

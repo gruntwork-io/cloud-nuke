@@ -393,6 +393,45 @@ func TestListECSClusters_NoFirstSeenTag(t *testing.T) {
 	require.Empty(t, names)
 }
 
+// taggingEC2Cluster records the clusters tagged with a first-seen time.
+type taggingEC2Cluster struct {
+	mockedEC2Cluster
+	taggedArns []string
+}
+
+// TagResource records the tagged cluster ARN.
+func (m *taggingEC2Cluster) TagResource(ctx context.Context, params *ecs.TagResourceInput, optFns ...func(*ecs.Options)) (*ecs.TagResourceOutput, error) {
+	m.taggedArns = append(m.taggedArns, aws.ToString(params.ResourceArn))
+	return &ecs.TagResourceOutput{}, nil
+}
+
+func TestListECSClusters_NoFirstSeenTagWithTimeFilter(t *testing.T) {
+	t.Parallel()
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+
+	testArn := "arn:aws:ecs:us-east-1:123456789012:cluster/new-cluster"
+	mock := &taggingEC2Cluster{mockedEC2Cluster: mockedEC2Cluster{
+		ListClustersOutput: ecs.ListClustersOutput{ClusterArns: []string{testArn}},
+		DescribeClustersOutput: ecs.DescribeClustersOutput{
+			Clusters: []types.Cluster{{
+				ClusterArn:  aws.String(testArn),
+				Status:      aws.String("ACTIVE"),
+				ClusterName: aws.String("new-cluster"),
+			}},
+		},
+		ListTagsForResourceOutput: ecs.ListTagsForResourceOutput{Tags: []types.Tag{}},
+	}}
+
+	olderThanOneHour := config.ResourceType{
+		ExcludeRule: config.FilterRule{TimeAfter: aws.Time(time.Now().Add(-1 * time.Hour))},
+	}
+	names, err := listECSClusters(ctx, mock, resource.Scope{}, olderThanOneHour)
+	require.NoError(t, err)
+	require.Empty(t, names)
+	// A time filter must not stop the cluster from being tagged, or it never ages in.
+	require.Equal(t, []string{testArn}, mock.taggedArns)
+}
+
 func TestListECSClusters_EmptyList(t *testing.T) {
 	t.Parallel()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)

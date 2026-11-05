@@ -88,10 +88,9 @@ func listECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.
 				return nil, errors.WithStackTrace(err)
 			}
 
-			if !cfg.ShouldInclude(config.ResourceValue{
-				Name: cluster.ClusterName,
-				Tags: tags,
-			}) {
+			// The time filter is applied below, once the first-seen time is known.
+			if !config.ShouldInclude(cluster.ClusterName, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) ||
+				!cfg.ShouldIncludeBasedOnTag(tags) {
 				continue
 			}
 

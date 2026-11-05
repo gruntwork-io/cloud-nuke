@@ -33,6 +33,7 @@ type CloudfrontDistributionAPI interface {
 func NewCloudfrontDistributions() AwsResource {
 	return NewAwsResource(&resource.Resource[CloudfrontDistributionAPI]{
 		ResourceTypeName: "cloudfront-distribution",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[CloudfrontDistributionAPI], cfg aws.Config) {
 			r.Scope.Region = "global"

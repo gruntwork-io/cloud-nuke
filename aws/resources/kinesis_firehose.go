@@ -22,6 +22,7 @@ type KinesisFirehoseAPI interface {
 func NewKinesisFirehose() AwsResource {
 	return NewAwsResource(&resource.Resource[KinesisFirehoseAPI]{
 		ResourceTypeName: "kinesis-firehose",
+		NoCreationTime:   true,
 		// Kinesis Firehose does not support bulk delete, so we delete in parallel using goroutines.
 		// Using 35 (half of what the AWS console does) to avoid rate limiting.
 		BatchSize: 35,

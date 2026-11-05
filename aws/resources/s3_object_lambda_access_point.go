@@ -23,6 +23,7 @@ type S3ObjectLambdaAccessPointAPI interface {
 func NewS3ObjectLambdaAccessPoints() AwsResource {
 	return NewAwsResource(&resource.Resource[S3ObjectLambdaAccessPointAPI]{
 		ResourceTypeName: "s3-object-lambda-access-point",
+		NoCreationTime:   true,
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
 		BatchSize: 5,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[S3ObjectLambdaAccessPointAPI], cfg aws.Config) {

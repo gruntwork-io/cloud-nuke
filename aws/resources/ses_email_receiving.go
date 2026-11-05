@@ -112,6 +112,7 @@ type SESReceiptFilterAPI interface {
 func NewSesReceiptFilter() AwsResource {
 	return NewAwsResource(&resource.Resource[SESReceiptFilterAPI]{
 		ResourceTypeName: "ses-receipt-filter",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESReceiptFilterAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

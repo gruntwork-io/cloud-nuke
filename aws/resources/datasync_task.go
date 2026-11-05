@@ -22,6 +22,7 @@ type DataSyncTaskAPI interface {
 func NewDataSyncTask() AwsResource {
 	return NewAwsResource(&resource.Resource[DataSyncTaskAPI]{
 		ResourceTypeName: "data-sync-task",
+		NoCreationTime:   true,
 		// DataSync API limit is 20 requests; using 19 to stay safely under the limit.
 		BatchSize: 19,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DataSyncTaskAPI], cfg aws.Config) {

@@ -27,6 +27,10 @@
 | `--config` | Path to [config file](configuration.md) for granular filtering | aws, gcp, azure |
 | `--exclude-first-seen` | Exclude resources based on first-seen tag | aws, inspect-aws |
 
+Some AWS resource types report no creation time. For several of them, such as `rds-subnet-group`, `ecs-cluster`, `eip` and `opensearch-domain`, cloud-nuke writes a `cloud-nuke-first-seen` tag the first time it sees the resource, and `--older-than` and `--newer-than` measure age from that tag. A resource is therefore not deleted by the run that tags it, only by a later run once the tag is old enough. Writing the tag needs the service's tagging permission, for example `rds:AddTagsToResource` for `rds-subnet-group`.
+
+The remaining types without a creation time, such as `rds-parameter-group`, `elasticache-subnet-group` or `route53-hosted-zone`, cannot be filtered by age. A run that passes `--older-than` or `--newer-than` leaves them alone and logs one warning per type. Drop the time filter to include them.
+
 ### Execution
 
 | Flag | Description | Available in |
