@@ -23,6 +23,7 @@ type DataSyncLocationAPI interface {
 func NewDataSyncLocation() AwsResource {
 	return NewAwsResource(&resource.Resource[DataSyncLocationAPI]{
 		ResourceTypeName: "data-sync-location",
+		NoCreationTime:   true,
 		// DataSync API limit is 20 requests; using 19 to stay safely under the limit.
 		BatchSize: 19,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DataSyncLocationAPI], cfg aws.Config) {

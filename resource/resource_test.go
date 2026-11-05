@@ -5,7 +5,9 @@ import (
 	"errors"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/assert"
@@ -61,6 +63,47 @@ func TestResource_GetAndSetIdentifiers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"id-1", "id-2"}, ids)
 	assert.Equal(t, []string{"id-1", "id-2"}, r.ResourceIdentifiers())
+}
+
+func TestResource_GetAndSetIdentifiers_WarnsNoCreationTime(t *testing.T) {
+	newResource := func(name string, noCreationTime bool, cfg config.ResourceType) *Resource[*mockClient] {
+		r := &Resource[*mockClient]{
+			ResourceTypeName: name,
+			NoCreationTime:   noCreationTime,
+			Lister: func(ctx context.Context, client *mockClient, scope Scope, resourceCfg config.ResourceType) ([]*string, error) {
+				return nil, nil
+			},
+			ConfigGetter: func(c config.Config) config.ResourceType { return cfg },
+		}
+		r.Init(nil)
+		return r
+	}
+	olderThan := config.ResourceType{ExcludeRule: config.FilterRule{TimeAfter: aws.Time(time.Now())}}
+	warned := func(name string) bool {
+		_, ok := noCreationTimeWarned.Load(name)
+		return ok
+	}
+
+	t.Run("warns with time filter", func(t *testing.T) {
+		r := newResource("test-no-time-filtered", true, olderThan)
+		_, err := r.GetAndSetIdentifiers(context.Background(), config.Config{})
+		require.NoError(t, err)
+		assert.True(t, warned("test-no-time-filtered"))
+	})
+
+	t.Run("silent without time filter", func(t *testing.T) {
+		r := newResource("test-no-time-unfiltered", true, config.ResourceType{})
+		_, err := r.GetAndSetIdentifiers(context.Background(), config.Config{})
+		require.NoError(t, err)
+		assert.False(t, warned("test-no-time-unfiltered"))
+	})
+
+	t.Run("silent when creation time is known", func(t *testing.T) {
+		r := newResource("test-has-time", false, olderThan)
+		_, err := r.GetAndSetIdentifiers(context.Background(), config.Config{})
+		require.NoError(t, err)
+		assert.False(t, warned("test-has-time"))
+	})
 }
 
 func TestResource_GetAndSetIdentifiers_MissingConfig(t *testing.T) {
