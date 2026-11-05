@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
@@ -38,9 +39,14 @@ func (m *mockKinesisStreamsClient) ListTagsForStream(ctx context.Context, params
 func TestKinesisStreams_GetAll(t *testing.T) {
 	t.Parallel()
 
+	now := time.Now()
 	mock := &mockKinesisStreamsClient{
 		ListStreamsOutput: kinesis.ListStreamsOutput{
 			StreamNames: []string{"stream-keep", "stream-skip"},
+			StreamSummaries: []kinesistypes.StreamSummary{
+				{StreamName: aws.String("stream-keep"), StreamCreationTimestamp: aws.Time(now.Add(-2 * time.Hour))},
+				{StreamName: aws.String("stream-skip"), StreamCreationTimestamp: aws.Time(now.Add(-10 * time.Minute))},
+			},
 		},
 		TagsByStream: map[string][]kinesistypes.Tag{
 			"stream-keep": {{Key: aws.String("env"), Value: aws.String("prod")}},
@@ -71,6 +77,12 @@ func TestKinesisStreams_GetAll(t *testing.T) {
 						"env": {RE: *regexp.MustCompile("^prod$")},
 					},
 				},
+			},
+			expected: []string{"stream-keep"},
+		},
+		"timeAfterExclusionFilter": {
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-1 * time.Hour))},
 			},
 			expected: []string{"stream-keep"},
 		},

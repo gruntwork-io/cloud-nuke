@@ -399,6 +399,7 @@ type taggingEC2Cluster struct {
 	taggedArns []string
 }
 
+// TagResource records the tagged cluster ARN.
 func (m *taggingEC2Cluster) TagResource(ctx context.Context, params *ecs.TagResourceInput, optFns ...func(*ecs.Options)) (*ecs.TagResourceOutput, error) {
 	m.taggedArns = append(m.taggedArns, aws.ToString(params.ResourceArn))
 	return &ecs.TagResourceOutput{}, nil

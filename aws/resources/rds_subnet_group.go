@@ -66,12 +66,20 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 			}
 			tags := util.ConvertRDSTypeTagsToMap(tagsOutput.TagList)
 
+			// A group excluded by name or tag must not be modified by the scan.
+			if !config.ShouldInclude(subnetGroup.DBSubnetGroupName, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) ||
+				!cfg.ShouldIncludeBasedOnTag(tags) {
+				continue
+			}
+
 			var firstSeenTime *time.Time
 			if !excludeFirstSeenTag {
 				firstSeenTime = parseDBSubnetGroupFirstSeenTag(tags)
 				if firstSeenTime == nil {
 					if err := setDBSubnetGroupFirstSeenTag(ctx, client, subnetGroup.DBSubnetGroupArn, time.Now().UTC()); err != nil {
-						logging.Debugf("Error setting first seen tag for DB subnet group %s: %v", aws.ToString(subnetGroup.DBSubnetGroupName), err)
+						logging.Warnf(
+							"Unable to tag DB subnet group %s with %s, so a time filter can never include it: %v",
+							aws.ToString(subnetGroup.DBSubnetGroupName), firstSeenTagKey, err)
 					}
 				}
 			}

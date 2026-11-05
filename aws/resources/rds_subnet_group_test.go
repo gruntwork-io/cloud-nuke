@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
@@ -24,11 +25,14 @@ type mockDBSubnetGroupsClient struct {
 	TagsByArn map[string][]types.Tag
 	// TaggedArns records the ARNs passed to AddTagsToResource.
 	TaggedArns []string
+	// AddTagsError is returned by AddTagsToResource when set.
+	AddTagsError error
 }
 
+// AddTagsToResource records the tagged ARN and returns AddTagsError.
 func (m *mockDBSubnetGroupsClient) AddTagsToResource(ctx context.Context, params *rds.AddTagsToResourceInput, optFns ...func(*rds.Options)) (*rds.AddTagsToResourceOutput, error) {
 	m.TaggedArns = append(m.TaggedArns, aws.ToString(params.ResourceName))
-	return &rds.AddTagsToResourceOutput{}, nil
+	return &rds.AddTagsToResourceOutput{}, m.AddTagsError
 }
 
 func (m *mockDBSubnetGroupsClient) DescribeDBSubnetGroups(ctx context.Context, params *rds.DescribeDBSubnetGroupsInput, optFns ...func(*rds.Options)) (*rds.DescribeDBSubnetGroupsOutput, error) {
@@ -53,6 +57,7 @@ func (m *mockDBSubnetGroupsClient) ListTagsForResource(ctx context.Context, para
 	}, nil
 }
 
+// dbSubnetGroup builds a DB subnet group whose ARN is "arn:<name>".
 func dbSubnetGroup(name string) types.DBSubnetGroup {
 	return types.DBSubnetGroup{
 		DBSubnetGroupName: aws.String(name),
@@ -60,6 +65,7 @@ func dbSubnetGroup(name string) types.DBSubnetGroup {
 	}
 }
 
+// firstSeenRDSTags returns a tag list holding only a first-seen tag for t.
 func firstSeenRDSTags(t time.Time) []types.Tag {
 	return []types.Tag{{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(t))}}
 }
@@ -129,6 +135,53 @@ func TestListDBSubnetGroups_FirstSeenTimeFilter(t *testing.T) {
 	require.NoError(t, err)
 	// The untagged group is tagged on this run and becomes eligible on a later one.
 	require.Equal(t, []string{"old"}, aws.ToStringSlice(names))
+	require.Equal(t, []string{"arn:untagged"}, mock.TaggedArns)
+}
+
+func TestListDBSubnetGroups_ExcludedGroupsAreNotTagged(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockDBSubnetGroupsClient{
+		DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
+			DBSubnetGroups: []types.DBSubnetGroup{dbSubnetGroup("keep-me"), dbSubnetGroup("protected"), dbSubnetGroup("candidate")},
+		},
+		TagsByArn: map[string][]types.Tag{
+			"arn:keep-me":   {},
+			"arn:protected": {{Key: aws.String(config.DefaultAwsResourceExclusionTagKey), Value: aws.String("true")}},
+			"arn:candidate": {},
+		},
+	}
+	cfg := config.ResourceType{
+		ExcludeRule: config.FilterRule{
+			NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("^keep-me$")}},
+		},
+	}
+
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+	names, err := listDBSubnetGroups(ctx, mock, resource.Scope{}, cfg)
+	require.NoError(t, err)
+	require.Equal(t, []string{"candidate"}, aws.ToStringSlice(names))
+	require.Equal(t, []string{"arn:candidate"}, mock.TaggedArns)
+}
+
+func TestListDBSubnetGroups_TagWriteFailureDoesNotFailScan(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockDBSubnetGroupsClient{
+		DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
+			DBSubnetGroups: []types.DBSubnetGroup{dbSubnetGroup("untagged")},
+		},
+		TagsByArn:    map[string][]types.Tag{"arn:untagged": {}},
+		AddTagsError: errors.New("AccessDenied: rds:AddTagsToResource"),
+	}
+	olderThanOneHour := config.ResourceType{
+		ExcludeRule: config.FilterRule{TimeAfter: aws.Time(time.Now().Add(-1 * time.Hour))},
+	}
+
+	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+	names, err := listDBSubnetGroups(ctx, mock, resource.Scope{}, olderThanOneHour)
+	require.NoError(t, err)
+	require.Empty(t, names)
 	require.Equal(t, []string{"arn:untagged"}, mock.TaggedArns)
 }
 

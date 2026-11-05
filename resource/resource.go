@@ -19,6 +19,8 @@ const DefaultBatchSize = 50
 // scanned once per region.
 var noCreationTimeWarned sync.Map
 
+// warnNoCreationTime logs, once per resource type, that a time filter skips
+// every resource of that type.
 func warnNoCreationTime(resourceTypeName string) {
 	if _, warned := noCreationTimeWarned.LoadOrStore(resourceTypeName, struct{}{}); warned {
 		return
