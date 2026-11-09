@@ -115,6 +115,13 @@ func TestS3AccessPoint_ListTimeFilter(t *testing.T) {
 	require.Equal(t, []string{"old"}, aws.ToStringSlice(names), "an unreadable creation time leaves the access point out")
 
 	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile("^new$")}}
+	_, err = listS3AccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.GetCalls, "an access point excluded by name gets no GetAccessPoint call")
+
+	mock = newMock()
 	names, err = listS3AccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
 	require.NoError(t, err)
 	require.Len(t, names, 3)

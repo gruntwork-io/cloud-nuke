@@ -19,6 +19,7 @@ import (
 type mockS3ObjectLambdaAccessPointClient struct {
 	ListAccessPointsForObjectLambdaOutput  s3control.ListAccessPointsForObjectLambdaOutput
 	DeleteAccessPointForObjectLambdaOutput s3control.DeleteAccessPointForObjectLambdaOutput
+	DeletedAccessPoints                    []string
 	CreationTimes                          map[string]time.Time
 	GetCalls                               int
 }
@@ -37,6 +38,7 @@ func (m *mockS3ObjectLambdaAccessPointClient) ListAccessPointsForObjectLambda(ct
 }
 
 func (m *mockS3ObjectLambdaAccessPointClient) DeleteAccessPointForObjectLambda(ctx context.Context, params *s3control.DeleteAccessPointForObjectLambdaInput, optFns ...func(*s3control.Options)) (*s3control.DeleteAccessPointForObjectLambdaOutput, error) {
+	m.DeletedAccessPoints = append(m.DeletedAccessPoints, aws.ToString(params.Name))
 	return &m.DeleteAccessPointForObjectLambdaOutput, nil
 }
 
@@ -112,6 +114,13 @@ func TestS3ObjectLambdaAccessPoint_ListTimeFilter(t *testing.T) {
 	require.Equal(t, []string{"old"}, aws.ToStringSlice(names), "an unreadable creation time leaves the access point out")
 
 	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile("^new$")}}
+	_, err = listS3ObjectLambdaAccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.GetCalls, "an access point excluded by name gets no GetAccessPointForObjectLambda call")
+
+	mock = newMock()
 	names, err = listS3ObjectLambdaAccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
 	require.NoError(t, err)
 	require.Len(t, names, 3)
@@ -154,9 +163,9 @@ func TestS3ObjectLambdaAccessPoint_NukeAfterScan(t *testing.T) {
 	ids, err := r.GetAndSetIdentifiers(scanCtx, config.Config{})
 	require.NoError(t, err)
 
-	results, err := r.Nuke(context.Background(), ids)
+	_, err = r.Nuke(context.Background(), ids)
 	require.NoError(t, err)
-	require.Len(t, results, 1)
+	require.Equal(t, []string{"test-access-point"}, mock.DeletedAccessPoints)
 }
 
 func TestS3ObjectLambdaAccessPoint_ListRequiresAccountID(t *testing.T) {

@@ -47,7 +47,7 @@ Some types do not return a creation time when they are listed, so cloud-nuke rea
 | `s3-access-point` | `s3:GetAccessPoint` |
 | `s3-object-lambda-access-point` | `s3:GetAccessPointForObjectLambda` |
 
-The remaining types without a creation time, such as `rds-parameter-group`, `elasticache-subnet-group` or `route53-hosted-zone`, cannot be filtered by age. A run that passes `--older-than` or `--newer-than` leaves them alone and logs one warning per type. Drop the time filter to include them.
+The remaining types without a creation time, such as `rds-parameter-group`, `elasticache-subnet-group` or `route53-hosted-zone`, cannot be filtered by age. A run with a time filter, from `--older-than` and `--newer-than` or from `time_after` and `time_before` in the config file, leaves them alone and logs one warning per type. Remove the time filter to include them.
 
 ### Execution
 

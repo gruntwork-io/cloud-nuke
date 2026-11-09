@@ -68,8 +68,7 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 			tags := util.ConvertRDSTypeTagsToMap(tagsOutput.TagList)
 
 			// A group excluded by name or tag must not be modified by the scan.
-			if !config.ShouldInclude(subnetGroup.DBSubnetGroupName, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) ||
-				!cfg.ShouldIncludeBasedOnTag(tags) {
+			if !passesNameAndTagRules(cfg, subnetGroup.DBSubnetGroupName, tags) {
 				continue
 			}
 

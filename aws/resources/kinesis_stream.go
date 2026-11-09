@@ -63,15 +63,16 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 				continue
 			}
 
+			tags := util.ConvertKinesisTagsToMap(tagsOutput.Tags)
 			streamCreatedAt := createdAt[stream]
-			if streamCreatedAt == nil && cfg.HasTimeFilter() {
+			if streamCreatedAt == nil && cfg.HasTimeFilter() && passesNameAndTagRules(cfg, aws.String(stream), tags) {
 				streamCreatedAt = describeKinesisStreamCreationTime(ctx, client, stream)
 			}
 
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(stream),
 				Time: streamCreatedAt,
-				Tags: util.ConvertKinesisTagsToMap(tagsOutput.Tags),
+				Tags: tags,
 			}) {
 				allStreams = append(allStreams, aws.String(stream))
 			}

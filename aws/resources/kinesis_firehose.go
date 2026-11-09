@@ -61,15 +61,16 @@ func listKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, scope r
 				continue
 			}
 
+			tags := util.ConvertFirehoseTagsToMap(tagsOutput.Tags)
 			var createdAt *time.Time
-			if cfg.HasTimeFilter() {
+			if cfg.HasTimeFilter() && passesNameAndTagRules(cfg, aws.String(stream), tags) {
 				createdAt = describeKinesisFirehoseCreationTime(ctx, client, stream)
 			}
 
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(stream),
 				Time: createdAt,
-				Tags: util.ConvertFirehoseTagsToMap(tagsOutput.Tags),
+				Tags: tags,
 			}) {
 				ids = append(ids, aws.String(stream))
 			}

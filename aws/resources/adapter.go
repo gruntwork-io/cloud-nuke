@@ -210,6 +210,14 @@ func NewEC2AwsResource[C any](
 	return NewAwsResource(r)
 }
 
+// passesNameAndTagRules applies the name and tag rules without the time rules.
+// A lister checks it before it spends an API call on a creation time, since a
+// resource these rules exclude is left out whatever its age.
+func passesNameAndTagRules(cfg config.ResourceType, name *string, tags map[string]string) bool {
+	return config.ShouldInclude(name, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) &&
+		cfg.ShouldIncludeBasedOnTag(tags)
+}
+
 // keepAccountID wraps a lister and a nuker so that the nuker sees the account id
 // the lister read. The provider attaches the account id to the scan context
 // only, and the nuke runs with a context that does not carry it.
@@ -220,7 +228,9 @@ func keepAccountID[C any](
 	var accountID any
 
 	keepingLister := func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-		accountID = ctx.Value(util.AccountIdKey)
+		if id := ctx.Value(util.AccountIdKey); id != nil {
+			accountID = id
+		}
 		return lister(ctx, client, scope, cfg)
 	}
 

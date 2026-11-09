@@ -121,6 +121,13 @@ func TestListKinesisFirehose_TimeFilter(t *testing.T) {
 	require.Equal(t, []string{"old"}, aws.ToStringSlice(names), "an unreadable creation time leaves the stream out")
 
 	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile("^new$")}}
+	_, err = listKinesisFirehose(context.Background(), mock, resource.Scope{}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.DescribeCalls, "a stream excluded by name gets no DescribeDeliveryStream call")
+
+	mock = newMock()
 	names, err = listKinesisFirehose(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
 	require.Len(t, names, 3)

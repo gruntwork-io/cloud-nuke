@@ -90,8 +90,7 @@ func listECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.
 			}
 
 			// The time filter is applied below, once the first-seen time is known.
-			if !config.ShouldInclude(cluster.ClusterName, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) ||
-				!cfg.ShouldIncludeBasedOnTag(tags) {
+			if !passesNameAndTagRules(cfg, cluster.ClusterName, tags) {
 				continue
 			}
 

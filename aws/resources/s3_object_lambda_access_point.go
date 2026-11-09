@@ -61,7 +61,7 @@ func listS3ObjectLambdaAccessPoints(ctx context.Context, client S3ObjectLambdaAc
 
 		for _, accessPoint := range page.ObjectLambdaAccessPointList {
 			var createdAt *time.Time
-			if cfg.HasTimeFilter() {
+			if cfg.HasTimeFilter() && passesNameAndTagRules(cfg, accessPoint.Name, nil) {
 				createdAt = getS3ObjectLambdaAccessPointCreationTime(ctx, client, accountID, accessPoint.Name)
 			}
 

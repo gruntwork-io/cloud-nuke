@@ -19,13 +19,17 @@ type mockS3MultiRegionAccessPointClient struct {
 	ListOutput   s3control.ListMultiRegionAccessPointsOutput
 	DeleteOutput s3control.DeleteMultiRegionAccessPointOutput
 	DeleteErr    error
+	Deleted      []string
 }
 
 func (m *mockS3MultiRegionAccessPointClient) ListMultiRegionAccessPoints(_ context.Context, _ *s3control.ListMultiRegionAccessPointsInput, _ ...func(*s3control.Options)) (*s3control.ListMultiRegionAccessPointsOutput, error) {
 	return &m.ListOutput, nil
 }
 
-func (m *mockS3MultiRegionAccessPointClient) DeleteMultiRegionAccessPoint(_ context.Context, _ *s3control.DeleteMultiRegionAccessPointInput, _ ...func(*s3control.Options)) (*s3control.DeleteMultiRegionAccessPointOutput, error) {
+func (m *mockS3MultiRegionAccessPointClient) DeleteMultiRegionAccessPoint(_ context.Context, params *s3control.DeleteMultiRegionAccessPointInput, _ ...func(*s3control.Options)) (*s3control.DeleteMultiRegionAccessPointOutput, error) {
+	if params.Details != nil {
+		m.Deleted = append(m.Deleted, aws.ToString(params.Details.Name))
+	}
 	return &m.DeleteOutput, m.DeleteErr
 }
 
@@ -123,7 +127,7 @@ func TestS3MultiRegionAccessPoint_NukeAfterScan(t *testing.T) {
 	ids, err := r.GetAndSetIdentifiers(scanCtx, config.Config{})
 	require.NoError(t, err)
 
-	results, err := r.Nuke(context.Background(), ids)
+	_, err = r.Nuke(context.Background(), ids)
 	require.NoError(t, err)
-	require.Len(t, results, 1)
+	require.Equal(t, []string{"test-access-point"}, client.Deleted)
 }

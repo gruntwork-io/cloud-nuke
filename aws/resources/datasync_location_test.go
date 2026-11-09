@@ -158,6 +158,13 @@ func TestListDataSyncLocations_TimeFilter(t *testing.T) {
 	require.Equal(t, 3, mock.DescribeCalls, "the URI scheme picks the Describe call, and an unknown scheme makes none")
 
 	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile(`192\.168\.1\.100`)}}
+	_, err = listDataSyncLocations(context.Background(), mock, resource.Scope{}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.DescribeCalls, "a location excluded by name gets no Describe call")
+
+	mock = newMock()
 	arns, err = listDataSyncLocations(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
 	require.Len(t, arns, 4)

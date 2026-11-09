@@ -66,7 +66,7 @@ func listDataSyncTasks(ctx context.Context, client DataSyncTaskAPI, scope resour
 			}
 
 			var createdAt *time.Time
-			if cfg.HasTimeFilter() {
+			if cfg.HasTimeFilter() && passesNameAndTagRules(cfg, task.Name, tags) {
 				createdAt = describeDataSyncTaskCreationTime(ctx, client, task.TaskArn)
 			}
 

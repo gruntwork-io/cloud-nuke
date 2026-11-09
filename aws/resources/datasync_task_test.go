@@ -130,6 +130,13 @@ func TestListDataSyncTasks_TimeFilter(t *testing.T) {
 	require.Equal(t, []string{oldArn}, aws.ToStringSlice(arns), "an unreadable creation time leaves the task out")
 
 	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile("^new$")}}
+	_, err = listDataSyncTasks(context.Background(), mock, resource.Scope{}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.DescribeCalls, "a task excluded by name gets no DescribeTask call")
+
+	mock = newMock()
 	arns, err = listDataSyncTasks(context.Background(), mock, resource.Scope{}, config.ResourceType{})
 	require.NoError(t, err)
 	require.Len(t, arns, 3)

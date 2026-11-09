@@ -82,7 +82,7 @@ func listDataSyncLocations(ctx context.Context, client DataSyncLocationAPI, scop
 			}
 
 			var createdAt *time.Time
-			if cfg.HasTimeFilter() {
+			if cfg.HasTimeFilter() && passesNameAndTagRules(cfg, location.LocationUri, tags) {
 				createdAt = describeDataSyncLocationCreationTime(ctx, client, location)
 			}
 
