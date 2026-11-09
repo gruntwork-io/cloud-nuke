@@ -43,7 +43,6 @@ func (m *mockDBSubnetGroupsClient) DeleteDBSubnetGroup(ctx context.Context, para
 	return &m.DeleteDBSubnetGroupOutput, m.DeleteDBSubnetGroupError
 }
 
-// ListTagsForResource returns TagsByArn for the ARN, else ListTagsOutput, else a default tag.
 func (m *mockDBSubnetGroupsClient) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
 	if tags, ok := m.TagsByArn[aws.ToString(params.ResourceName)]; ok {
 		return &rds.ListTagsForResourceOutput{TagList: tags}, nil
@@ -71,13 +70,27 @@ func firstSeenRDSTags(t time.Time) []types.Tag {
 	return []types.Tag{{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(t))}}
 }
 
-// TestListDBSubnetGroups checks the name filters on listed subnet groups.
 func TestListDBSubnetGroups(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
 	testName1 := "test-db-subnet-group1"
 	testName2 := "test-db-subnet-group2"
+
+	mock := &mockDBSubnetGroupsClient{
+		DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
+			DBSubnetGroups: []types.DBSubnetGroup{
+				{
+					DBSubnetGroupName: aws.String(testName1),
+					DBSubnetGroupArn:  aws.String("arn:" + testName1),
+				},
+				{
+					DBSubnetGroupName: aws.String(testName2),
+					DBSubnetGroupArn:  aws.String("arn:" + testName2),
+				},
+			},
+		},
+	}
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -101,11 +114,6 @@ func TestListDBSubnetGroups(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mock := &mockDBSubnetGroupsClient{
-				DescribeDBSubnetGroupsOutput: rds.DescribeDBSubnetGroupsOutput{
-					DBSubnetGroups: []types.DBSubnetGroup{dbSubnetGroup(testName1), dbSubnetGroup(testName2)},
-				},
-			}
 			names, err := listDBSubnetGroups(ctx, mock, resource.Scope{}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))

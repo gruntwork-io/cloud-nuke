@@ -73,14 +73,12 @@ type Resource[C any] struct {
 	// Set based on AWS/GCP API rate limits for this resource type.
 	BatchSize int
 
-	// NoCreationTime marks a type whose cloud reports no creation time and that
-	// carries no first-seen tag. A time filter can never match it, so the scan
-	// warns once instead of finding nothing in silence.
+	// NoCreationTime marks a type with no creation time and no first-seen tag.
+	// A time filter can never match it, so the scan warns once.
 	NoCreationTime bool
 
-	// FirstSeenTag marks a type whose age comes from the first-seen tag that
-	// cloud-nuke writes. --exclude-first-seen turns that tag off, and then a
-	// time filter can never match it, so the scan warns once.
+	// FirstSeenTag marks a type whose age comes from the first-seen tag. Under
+	// --exclude-first-seen a time filter can never match it, so the scan warns once.
 	FirstSeenTag bool
 
 	// InitClient initializes the client from cloud-specific config.

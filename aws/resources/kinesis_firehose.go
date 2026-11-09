@@ -85,9 +85,8 @@ func listKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, scope r
 	return ids, nil
 }
 
-// describeKinesisFirehoseCreationTime reads the creation time of a delivery
-// stream, which ListDeliveryStreams does not return. It returns nil, and warns,
-// when the time cannot be read, since a time filter then cannot include the stream.
+// describeKinesisFirehoseCreationTime reads the creation time that
+// ListDeliveryStreams does not return. It warns and returns nil when the call fails.
 func describeKinesisFirehoseCreationTime(ctx context.Context, client KinesisFirehoseAPI, stream string) *time.Time {
 	output, err := client.DescribeDeliveryStream(ctx, &firehose.DescribeDeliveryStreamInput{
 		DeliveryStreamName: aws.String(stream),

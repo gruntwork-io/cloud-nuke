@@ -105,15 +105,10 @@ type ScanRequest struct {
 	Parallelism int
 }
 
-// creationTimeReporter is implemented by a resource type that can say its cloud
-// reports no creation time, so a time filter can never match it.
-type creationTimeReporter interface {
+// ageReporter is implemented by a resource type that can say where its age
+// comes from, so the scan can warn when a time filter can never match it.
+type ageReporter interface {
 	ReportsNoCreationTime() bool
-}
-
-// firstSeenTagReader is implemented by a resource type that can say its age
-// comes from the first-seen tag, which --exclude-first-seen turns off.
-type firstSeenTagReader interface {
 	ReadsAgeFromFirstSeenTag() bool
 }
 
@@ -215,12 +210,12 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 			resourceType := t.resource.ResourceName()
 			resourceCfg := t.resource.GetAndSetResourceConfig(req.Config)
 
-			if resourceCfg.HasTimeFilter() {
-				if r, ok := t.resource.(creationTimeReporter); ok && r.ReportsNoCreationTime() {
+			if r, ok := t.resource.(ageReporter); ok && resourceCfg.HasTimeFilter() {
+				if r.ReportsNoCreationTime() {
 					warnOnce(resourceType,
 						"Leaving all %s resources alone: their creation time is not reported, and a time filter cannot be applied to an age it cannot read. Remove the time filter (--older-than, --newer-than, or time_after and time_before in the config file) to include them.")
 				}
-				if r, ok := t.resource.(firstSeenTagReader); ok && r.ReadsAgeFromFirstSeenTag() && excludeFirstSeen {
+				if r.ReadsAgeFromFirstSeenTag() && excludeFirstSeen {
 					warnOnce(resourceType,
 						"Leaving all %s resources alone: their age comes from the cloud-nuke-first-seen tag, and --exclude-first-seen turns that tag off. Drop --exclude-first-seen, or remove the time filter (--older-than, --newer-than, or time_after and time_before in the config file), to include them.")
 				}

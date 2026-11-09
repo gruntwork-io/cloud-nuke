@@ -72,7 +72,7 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 		}
 
 		if !excludeFirstSeenTag {
-			firstSeenTime = parseOpenSearchFirstSeenTag(tags)
+			firstSeenTime = parseFirstSeenTag(tags)
 		}
 
 		if !excludeFirstSeenTag && firstSeenTime == nil {
@@ -94,8 +94,8 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 	return domainsToNuke, nil
 }
 
-// parseOpenSearchFirstSeenTag extracts the first-seen timestamp from a tags map (no API call).
-func parseOpenSearchFirstSeenTag(tags map[string]string) *time.Time {
+// parseFirstSeenTag extracts the first-seen timestamp from a tags map (no API call).
+func parseFirstSeenTag(tags map[string]string) *time.Time {
 	value, ok := tags[firstSeenTagKey]
 	if !ok {
 		return nil

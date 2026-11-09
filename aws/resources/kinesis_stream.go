@@ -83,8 +83,7 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 }
 
 // describeKinesisStreamCreationTime reads the creation time of a stream that
-// ListStreams returned without a summary. It returns nil, and warns, when the
-// time cannot be read, since a time filter then cannot include the stream.
+// ListStreams returned without a summary. It warns and returns nil when the call fails.
 func describeKinesisStreamCreationTime(ctx context.Context, client KinesisStreamsAPI, stream string) *time.Time {
 	output, err := client.DescribeStreamSummary(ctx, &kinesis.DescribeStreamSummaryInput{
 		StreamName: aws.String(stream),

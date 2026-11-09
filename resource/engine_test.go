@@ -81,7 +81,6 @@ func (p *fakeProvider) Targets() ([]Target, error) {
 	}, nil
 }
 
-// Prepare builds one fake-widget resource for the target.
 func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Context, []NukeableResource, error) {
 	client := p.clients[target.ID]
 	batchSize := p.batchSize

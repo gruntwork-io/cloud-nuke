@@ -40,7 +40,6 @@ func (m *mockKinesisStreamsClient) DescribeStreamSummary(ctx context.Context, pa
 	}, nil
 }
 
-// ListStreams returns ListStreamsOutput.
 func (m *mockKinesisStreamsClient) ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error) {
 	return &m.ListStreamsOutput, nil
 }
@@ -55,7 +54,6 @@ func (m *mockKinesisStreamsClient) ListTagsForStream(ctx context.Context, params
 	return &kinesis.ListTagsForStreamOutput{Tags: m.TagsByStream[aws.ToString(params.StreamName)]}, nil
 }
 
-// TestKinesisStreams_GetAll checks the name, tag and time filters on listed streams.
 func TestKinesisStreams_GetAll(t *testing.T) {
 	t.Parallel()
 

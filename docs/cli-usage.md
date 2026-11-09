@@ -29,14 +29,11 @@
 
 Some AWS resource types report no creation time. For several of them, such as `rds-subnet-group`, `ecs-cluster`, `opensearch-domain`, `eip` and most VPC resources, cloud-nuke writes a `cloud-nuke-first-seen` tag the first time it sees the resource, and `--older-than` and `--newer-than` measure age from that tag. Writing the tag needs the service's tagging permission, for example `rds:AddTagsToResource` for `rds-subnet-group`.
 
-The run that writes the tag treats the resource in one of two ways:
+On the run that writes the tag, `rds-subnet-group`, `ecs-cluster` and `opensearch-domain` are never deleted. `eip`, VPC resources and Network Firewall resources take the current time as their age, so `--newer-than` can delete them on that same run.
 
-- `rds-subnet-group`, `ecs-cluster` and `opensearch-domain` are never deleted by that run, under either filter.
-- `eip`, VPC resources and Network Firewall resources take the current time as their age on that run. `--older-than` does not delete them, but `--newer-than` can delete them on that same run.
+`--exclude-first-seen` turns the tag off: cloud-nuke does not read it or write it. A run that also has a time filter leaves the types that use the tag alone and logs one warning per type.
 
-`--exclude-first-seen` turns the tag off: cloud-nuke does not read it or write it. A run that also passes `--older-than` or `--newer-than` leaves the types that use the tag alone and logs one warning per type.
-
-Some types do not return a creation time when they are listed, so cloud-nuke reads it with one extra call for each resource. It makes this call only under `--older-than` or `--newer-than`. If the call fails, for example because the permission is missing, the resource is left alone and a warning is logged.
+Some types do not return a creation time when they are listed, so cloud-nuke reads it with one extra call for each resource, only under a time filter. If the call fails, for example because the permission is missing, the resource is left alone and a warning is logged.
 
 | Resource type | Call (IAM permission) |
 |---|---|

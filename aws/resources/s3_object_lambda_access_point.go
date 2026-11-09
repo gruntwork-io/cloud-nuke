@@ -77,10 +77,8 @@ func listS3ObjectLambdaAccessPoints(ctx context.Context, client S3ObjectLambdaAc
 	return identifiers, nil
 }
 
-// getS3ObjectLambdaAccessPointCreationTime reads the creation time of an Object
-// Lambda access point, which ListAccessPointsForObjectLambda does not return. It
-// returns nil, and warns, when the time cannot be read, since a time filter then
-// cannot include the access point.
+// getS3ObjectLambdaAccessPointCreationTime reads the creation time that
+// ListAccessPointsForObjectLambda does not return. It warns and returns nil when the call fails.
 func getS3ObjectLambdaAccessPointCreationTime(ctx context.Context, client S3ObjectLambdaAccessPointAPI, accountID string, name *string) *time.Time {
 	output, err := client.GetAccessPointForObjectLambda(ctx, &s3control.GetAccessPointForObjectLambdaInput{
 		AccountId: aws.String(accountID),

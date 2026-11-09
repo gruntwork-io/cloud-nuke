@@ -83,9 +83,8 @@ func listDataSyncTasks(ctx context.Context, client DataSyncTaskAPI, scope resour
 	return identifiers, nil
 }
 
-// describeDataSyncTaskCreationTime reads the creation time of a task, which
-// ListTasks does not return. It returns nil, and warns, when the time cannot be
-// read, since a time filter then cannot include the task.
+// describeDataSyncTaskCreationTime reads the creation time that ListTasks does
+// not return. It warns and returns nil when the call fails.
 func describeDataSyncTaskCreationTime(ctx context.Context, client DataSyncTaskAPI, taskArn *string) *time.Time {
 	output, err := client.DescribeTask(ctx, &datasync.DescribeTaskInput{TaskArn: taskArn})
 	if err != nil {

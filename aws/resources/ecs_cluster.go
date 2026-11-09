@@ -95,10 +95,7 @@ func listECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.
 			}
 
 			if excludeFirstSeenTag {
-				if cfg.ShouldInclude(config.ResourceValue{
-					Name: cluster.ClusterName,
-					Tags: tags,
-				}) {
+				if !cfg.HasTimeFilter() {
 					result = append(result, cluster.ClusterArn)
 				}
 				continue

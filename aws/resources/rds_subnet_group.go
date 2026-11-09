@@ -74,7 +74,7 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 
 			var firstSeenTime *time.Time
 			if !excludeFirstSeenTag {
-				firstSeenTime = parseDBSubnetGroupFirstSeenTag(tags)
+				firstSeenTime = parseFirstSeenTag(tags)
 				if firstSeenTime == nil {
 					if err := setDBSubnetGroupFirstSeenTag(ctx, client, subnetGroup.DBSubnetGroupArn, time.Now().UTC()); err != nil {
 						logging.Warnf(
@@ -95,20 +95,6 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 	}
 
 	return names, nil
-}
-
-// parseDBSubnetGroupFirstSeenTag extracts the first-seen timestamp from a tags map (no API call).
-func parseDBSubnetGroupFirstSeenTag(tags map[string]string) *time.Time {
-	value, ok := tags[firstSeenTagKey]
-	if !ok {
-		return nil
-	}
-	parsed, err := util.ParseTimestamp(aws.String(value))
-	if err != nil {
-		logging.Debugf("Error parsing first-seen tag value %q: %v", value, err)
-		return nil
-	}
-	return parsed
 }
 
 // setDBSubnetGroupFirstSeenTag tags a DB Subnet Group identified by the given ARN when it's first seen by cloud-nuke

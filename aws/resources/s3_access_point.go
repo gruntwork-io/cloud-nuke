@@ -77,9 +77,8 @@ func listS3AccessPoints(ctx context.Context, client S3ControlAccessPointAPI, sco
 	return identifiers, nil
 }
 
-// getS3AccessPointCreationTime reads the creation time of an access point,
-// which ListAccessPoints does not return. It returns nil, and warns, when the
-// time cannot be read, since a time filter then cannot include the access point.
+// getS3AccessPointCreationTime reads the creation time that ListAccessPoints
+// does not return. It warns and returns nil when the call fails.
 func getS3AccessPointCreationTime(ctx context.Context, client S3ControlAccessPointAPI, accountID string, name *string) *time.Time {
 	output, err := client.GetAccessPoint(ctx, &s3control.GetAccessPointInput{
 		AccountId: aws.String(accountID),

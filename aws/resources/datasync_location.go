@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -101,109 +102,77 @@ func listDataSyncLocations(ctx context.Context, client DataSyncLocationAPI, scop
 	return identifiers, nil
 }
 
-// dataSyncLocationCreationTime reads the creation time of one location type.
-type dataSyncLocationCreationTime func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error)
-
-// dataSyncLocationCreationTimes holds one reader per location type, keyed by the
-// scheme of the location URI, such as "s3" in "s3://bucket/prefix".
-var dataSyncLocationCreationTimes = map[string]dataSyncLocationCreationTime{
-	"azure-blob": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationAzureBlob(ctx, &datasync.DescribeLocationAzureBlobInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"efs": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationEfs(ctx, &datasync.DescribeLocationEfsInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"fsxl": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationFsxLustre(ctx, &datasync.DescribeLocationFsxLustreInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"fsxn": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationFsxOntap(ctx, &datasync.DescribeLocationFsxOntapInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"fsxz": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationFsxOpenZfs(ctx, &datasync.DescribeLocationFsxOpenZfsInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"fsxw": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationFsxWindows(ctx, &datasync.DescribeLocationFsxWindowsInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"hdfs": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationHdfs(ctx, &datasync.DescribeLocationHdfsInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"nfs": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationNfs(ctx, &datasync.DescribeLocationNfsInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"object-storage": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationObjectStorage(ctx, &datasync.DescribeLocationObjectStorageInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"s3": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationS3(ctx, &datasync.DescribeLocationS3Input{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-	"smb": func(ctx context.Context, client DataSyncLocationAPI, arn *string) (*time.Time, error) {
-		out, err := client.DescribeLocationSmb(ctx, &datasync.DescribeLocationSmbInput{LocationArn: arn})
-		if err != nil {
-			return nil, err
-		}
-		return out.CreationTime, nil
-	},
-}
-
-// describeDataSyncLocationCreationTime reads the creation time of a location,
-// which ListLocations does not return. Each location type has its own Describe
-// call, chosen by the URI scheme. It returns nil, and warns, when the time
-// cannot be read, since a time filter then cannot include the location.
+// describeDataSyncLocationCreationTime reads the creation time that ListLocations
+// does not return, with the Describe call for the URI scheme, such as "s3" in
+// "s3://bucket/prefix". It warns and returns nil when the call fails.
 func describeDataSyncLocationCreationTime(ctx context.Context, client DataSyncLocationAPI, location types.LocationListEntry) *time.Time {
-	arn := aws.ToString(location.LocationArn)
+	arn := location.LocationArn
 	scheme, _, _ := strings.Cut(aws.ToString(location.LocationUri), "://")
 
-	read, ok := dataSyncLocationCreationTimes[scheme]
-	if !ok {
-		logging.Warnf("Unable to read the creation time of DataSync location %s, so a time filter cannot include it: unknown location type %q", arn, scheme)
-		return nil
+	var createdAt *time.Time
+	var err error
+	switch scheme {
+	case "azure-blob":
+		var out *datasync.DescribeLocationAzureBlobOutput
+		if out, err = client.DescribeLocationAzureBlob(ctx, &datasync.DescribeLocationAzureBlobInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "efs":
+		var out *datasync.DescribeLocationEfsOutput
+		if out, err = client.DescribeLocationEfs(ctx, &datasync.DescribeLocationEfsInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "fsxl":
+		var out *datasync.DescribeLocationFsxLustreOutput
+		if out, err = client.DescribeLocationFsxLustre(ctx, &datasync.DescribeLocationFsxLustreInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "fsxn":
+		var out *datasync.DescribeLocationFsxOntapOutput
+		if out, err = client.DescribeLocationFsxOntap(ctx, &datasync.DescribeLocationFsxOntapInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "fsxz":
+		var out *datasync.DescribeLocationFsxOpenZfsOutput
+		if out, err = client.DescribeLocationFsxOpenZfs(ctx, &datasync.DescribeLocationFsxOpenZfsInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "fsxw":
+		var out *datasync.DescribeLocationFsxWindowsOutput
+		if out, err = client.DescribeLocationFsxWindows(ctx, &datasync.DescribeLocationFsxWindowsInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "hdfs":
+		var out *datasync.DescribeLocationHdfsOutput
+		if out, err = client.DescribeLocationHdfs(ctx, &datasync.DescribeLocationHdfsInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "nfs":
+		var out *datasync.DescribeLocationNfsOutput
+		if out, err = client.DescribeLocationNfs(ctx, &datasync.DescribeLocationNfsInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "object-storage":
+		var out *datasync.DescribeLocationObjectStorageOutput
+		if out, err = client.DescribeLocationObjectStorage(ctx, &datasync.DescribeLocationObjectStorageInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "s3":
+		var out *datasync.DescribeLocationS3Output
+		if out, err = client.DescribeLocationS3(ctx, &datasync.DescribeLocationS3Input{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	case "smb":
+		var out *datasync.DescribeLocationSmbOutput
+		if out, err = client.DescribeLocationSmb(ctx, &datasync.DescribeLocationSmbInput{LocationArn: arn}); err == nil {
+			createdAt = out.CreationTime
+		}
+	default:
+		err = fmt.Errorf("unknown location type %q", scheme)
 	}
 
-	createdAt, err := read(ctx, client, location.LocationArn)
 	if err != nil {
-		logging.Warnf("Unable to read the creation time of DataSync location %s, so a time filter cannot include it: %v", arn, err)
-		return nil
+		logging.Warnf("Unable to read the creation time of DataSync location %s, so a time filter cannot include it: %v", aws.ToString(arn), err)
 	}
 	return createdAt
 }
