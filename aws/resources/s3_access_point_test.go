@@ -141,6 +141,28 @@ func TestS3AccessPoint_Nuke(t *testing.T) {
 	require.Contains(t, mock.DeletedAccessPoints, "test-access-point")
 }
 
+// TestS3AccessPoint_NukeAfterScan runs the resource the way the engine does:
+// the scan context carries the account id, and the nuke context does not.
+func TestS3AccessPoint_NukeAfterScan(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockS3AccessPointClient{
+		ListAccessPointsOutput: s3control.ListAccessPointsOutput{
+			AccessPointList: []types.AccessPoint{{Name: aws.String("test-access-point")}},
+		},
+	}
+	r := NewS3AccessPoints().(*AwsResourceAdapter[S3ControlAccessPointAPI]).Resource
+	r.Client = mock
+
+	scanCtx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+	ids, err := r.GetAndSetIdentifiers(scanCtx, config.Config{})
+	require.NoError(t, err)
+
+	_, err = r.Nuke(context.Background(), ids)
+	require.NoError(t, err)
+	require.Equal(t, []string{"test-access-point"}, mock.DeletedAccessPoints)
+}
+
 func TestS3AccessPoint_ListRequiresAccountID(t *testing.T) {
 	t.Parallel()
 

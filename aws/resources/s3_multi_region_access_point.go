@@ -22,6 +22,7 @@ type S3ControlMultiRegionAPI interface {
 
 // NewS3MultiRegionAccessPoints creates a new S3 Multi-Region Access Point resource.
 func NewS3MultiRegionAccessPoints() AwsResource {
+	lister, nuker := keepAccountID(listS3MultiRegionAccessPoints, nukeS3MultiRegionAccessPoints)
 	return NewAwsResource(&resource.Resource[S3ControlMultiRegionAPI]{
 		ResourceTypeName: "s3-multi-region-access-point",
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
@@ -34,8 +35,8 @@ func NewS3MultiRegionAccessPoints() AwsResource {
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.S3MultiRegionAccessPoint
 		},
-		Lister: listS3MultiRegionAccessPoints,
-		Nuker:  nukeS3MultiRegionAccessPoints,
+		Lister: lister,
+		Nuker:  nuker,
 	})
 }
 

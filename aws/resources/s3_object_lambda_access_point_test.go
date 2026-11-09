@@ -137,6 +137,28 @@ func TestS3ObjectLambdaAccessPoint_Nuke(t *testing.T) {
 	require.Equal(t, "test-access-point", results[0].Identifier)
 }
 
+// TestS3ObjectLambdaAccessPoint_NukeAfterScan runs the resource the way the
+// engine does: the scan context carries the account id, and the nuke context does not.
+func TestS3ObjectLambdaAccessPoint_NukeAfterScan(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockS3ObjectLambdaAccessPointClient{
+		ListAccessPointsForObjectLambdaOutput: s3control.ListAccessPointsForObjectLambdaOutput{
+			ObjectLambdaAccessPointList: []types.ObjectLambdaAccessPoint{{Name: aws.String("test-access-point")}},
+		},
+	}
+	r := NewS3ObjectLambdaAccessPoints().(*AwsResourceAdapter[S3ObjectLambdaAccessPointAPI]).Resource
+	r.Client = mock
+
+	scanCtx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+	ids, err := r.GetAndSetIdentifiers(scanCtx, config.Config{})
+	require.NoError(t, err)
+
+	results, err := r.Nuke(context.Background(), ids)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+}
+
 func TestS3ObjectLambdaAccessPoint_ListRequiresAccountID(t *testing.T) {
 	t.Parallel()
 

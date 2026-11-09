@@ -23,6 +23,7 @@ type S3ObjectLambdaAccessPointAPI interface {
 
 // NewS3ObjectLambdaAccessPoints creates a new S3 Object Lambda Access Point resource.
 func NewS3ObjectLambdaAccessPoints() AwsResource {
+	lister, nuker := keepAccountID(listS3ObjectLambdaAccessPoints, nukeS3ObjectLambdaAccessPoints)
 	return NewAwsResource(&resource.Resource[S3ObjectLambdaAccessPointAPI]{
 		ResourceTypeName: "s3-object-lambda-access-point",
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
@@ -34,8 +35,8 @@ func NewS3ObjectLambdaAccessPoints() AwsResource {
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.S3ObjectLambdaAccessPoint
 		},
-		Lister: listS3ObjectLambdaAccessPoints,
-		Nuker:  nukeS3ObjectLambdaAccessPoints,
+		Lister: lister,
+		Nuker:  nuker,
 	})
 }
 

@@ -41,6 +41,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 const (
@@ -207,4 +208,28 @@ func NewEC2AwsResource[C any](
 	}
 
 	return NewAwsResource(r)
+}
+
+// keepAccountID wraps a lister and a nuker so that the nuker sees the account id
+// the lister read. The provider attaches the account id to the scan context
+// only, and the nuke runs with a context that does not carry it.
+func keepAccountID[C any](
+	lister func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error),
+	nuker resource.NukerFunc[C],
+) (func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error), resource.NukerFunc[C]) {
+	var accountID any
+
+	keepingLister := func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+		accountID = ctx.Value(util.AccountIdKey)
+		return lister(ctx, client, scope, cfg)
+	}
+
+	restoringNuker := func(ctx context.Context, client C, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
+		if ctx.Value(util.AccountIdKey) == nil && accountID != nil {
+			ctx = context.WithValue(ctx, util.AccountIdKey, accountID)
+		}
+		return nuker(ctx, client, scope, resourceType, identifiers)
+	}
+
+	return keepingLister, restoringNuker
 }

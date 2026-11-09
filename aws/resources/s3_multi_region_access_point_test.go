@@ -105,3 +105,25 @@ func TestS3MultiRegionAccessPoint_Nuke(t *testing.T) {
 	require.NoError(t, results[0].Error)
 	require.Equal(t, "test-access-point", results[0].Identifier)
 }
+
+// TestS3MultiRegionAccessPoint_NukeAfterScan runs the resource the way the
+// engine does: the scan context carries the account id, and the nuke context does not.
+func TestS3MultiRegionAccessPoint_NukeAfterScan(t *testing.T) {
+	t.Parallel()
+
+	client := &mockS3MultiRegionAccessPointClient{
+		ListOutput: s3control.ListMultiRegionAccessPointsOutput{
+			AccessPoints: []types.MultiRegionAccessPointReport{{Name: aws.String("test-access-point")}},
+		},
+	}
+	r := NewS3MultiRegionAccessPoints().(*AwsResourceAdapter[S3ControlMultiRegionAPI]).Resource
+	r.Client = client
+
+	scanCtx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+	ids, err := r.GetAndSetIdentifiers(scanCtx, config.Config{})
+	require.NoError(t, err)
+
+	results, err := r.Nuke(context.Background(), ids)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+}

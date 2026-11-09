@@ -23,6 +23,7 @@ type S3ControlAccessPointAPI interface {
 
 // NewS3AccessPoints creates a new S3 Access Point resource using the generic resource pattern.
 func NewS3AccessPoints() AwsResource {
+	lister, nuker := keepAccountID(listS3AccessPoints, nukeS3AccessPoints)
 	return NewAwsResource(&resource.Resource[S3ControlAccessPointAPI]{
 		ResourceTypeName: "s3-access-point",
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
@@ -34,8 +35,8 @@ func NewS3AccessPoints() AwsResource {
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.S3AccessPoint
 		},
-		Lister: listS3AccessPoints,
-		Nuker:  nukeS3AccessPoints,
+		Lister: lister,
+		Nuker:  nuker,
 	})
 }
 
