@@ -29,6 +29,10 @@ func TestEveryResourceDeclaresALocationScope(t *testing.T) {
 		// its lister matches a zone against the region it is in.
 		"compute-instance": resources.LocationAppliedByLister,
 
+		// A Cloud Run service is listed one region at a time, so its lister
+		// reads the filter to decide which regions to ask at all.
+		"cloud-run-service": resources.LocationAppliedByLister,
+
 		// A Pub/Sub topic is project-global, so a location filter cannot
 		// include it and the resource refuses to run under one.
 		"gcp-pubsub-topic": resources.LocationNone,

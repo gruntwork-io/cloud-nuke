@@ -75,6 +75,7 @@ require (
 	github.com/go-errors/errors v1.4.2
 	github.com/gruntwork-io/go-commons v0.17.0
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/james00012/cloud-inventory v0.2.2
 	github.com/pterm/pterm v0.12.45
 	github.com/sirupsen/logrus v1.8.3
 	github.com/stretchr/testify v1.11.1

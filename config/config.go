@@ -165,6 +165,7 @@ type Config struct {
 	GcpPubSubTopic      ResourceType `yaml:"GcpPubSubTopic"`
 	ComputeInstance     ResourceType `yaml:"ComputeInstance"`
 	GcpCloudSQLInstance ResourceType `yaml:"GcpCloudSQLInstance"`
+	GcpCloudRunService  ResourceType `yaml:"GcpCloudRunService"`
 }
 
 // allResourceTypes returns pointers to the embedded ResourceType for every
@@ -313,6 +314,7 @@ func (c *Config) allResourceTypes() []*ResourceType {
 		&c.GcpPubSubTopic,
 		&c.ComputeInstance,
 		&c.GcpCloudSQLInstance,
+		&c.GcpCloudRunService,
 	}
 }
 
