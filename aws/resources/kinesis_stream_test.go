@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
@@ -20,8 +21,26 @@ type mockKinesisStreamsClient struct {
 	DeleteStreamInput           *kinesis.DeleteStreamInput
 	DeleteStreamEnforceConsumer *bool
 	TagsByStream                map[string][]kinesistypes.Tag
+	// CreatedByStream answers DescribeStreamSummary.
+	CreatedByStream map[string]time.Time
+	// DescribedStreams records the streams passed to DescribeStreamSummary.
+	DescribedStreams []string
 }
 
+// DescribeStreamSummary records the stream and returns its CreatedByStream time.
+func (m *mockKinesisStreamsClient) DescribeStreamSummary(ctx context.Context, params *kinesis.DescribeStreamSummaryInput, optFns ...func(*kinesis.Options)) (*kinesis.DescribeStreamSummaryOutput, error) {
+	name := aws.ToString(params.StreamName)
+	m.DescribedStreams = append(m.DescribedStreams, name)
+	created, ok := m.CreatedByStream[name]
+	if !ok {
+		return nil, errors.New("ResourceNotFoundException")
+	}
+	return &kinesis.DescribeStreamSummaryOutput{
+		StreamDescriptionSummary: &kinesistypes.StreamDescriptionSummary{StreamCreationTimestamp: aws.Time(created)},
+	}, nil
+}
+
+// ListStreams returns ListStreamsOutput.
 func (m *mockKinesisStreamsClient) ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error) {
 	return &m.ListStreamsOutput, nil
 }
@@ -36,6 +55,7 @@ func (m *mockKinesisStreamsClient) ListTagsForStream(ctx context.Context, params
 	return &kinesis.ListTagsForStreamOutput{Tags: m.TagsByStream[aws.ToString(params.StreamName)]}, nil
 }
 
+// TestKinesisStreams_GetAll checks the name, tag and time filters on listed streams.
 func TestKinesisStreams_GetAll(t *testing.T) {
 	t.Parallel()
 
@@ -95,6 +115,37 @@ func TestKinesisStreams_GetAll(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+// TestKinesisStreams_GetAll_StreamWithoutSummary checks that a stream with no
+// summary gets its creation time from DescribeStreamSummary, only under a time filter.
+func TestKinesisStreams_GetAll_StreamWithoutSummary(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	newMock := func() *mockKinesisStreamsClient {
+		return &mockKinesisStreamsClient{
+			ListStreamsOutput: kinesis.ListStreamsOutput{
+				StreamNames: []string{"old-unsummarized", "unreadable"},
+			},
+			CreatedByStream: map[string]time.Time{"old-unsummarized": now.Add(-2 * time.Hour)},
+		}
+	}
+	olderThanOneHour := config.ResourceType{
+		ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-1 * time.Hour))},
+	}
+
+	mock := newMock()
+	names, err := listKinesisStreams(context.Background(), mock, resource.Scope{}, olderThanOneHour)
+	require.NoError(t, err)
+	require.Equal(t, []string{"old-unsummarized"}, aws.ToStringSlice(names))
+	require.Equal(t, []string{"old-unsummarized", "unreadable"}, mock.DescribedStreams)
+
+	mock = newMock()
+	names, err = listKinesisStreams(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"old-unsummarized", "unreadable"}, aws.ToStringSlice(names))
+	require.Empty(t, mock.DescribedStreams, "no time filter, so no extra call")
 }
 
 func TestKinesisStreams_NukeAll(t *testing.T) {

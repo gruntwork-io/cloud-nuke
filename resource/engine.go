@@ -105,6 +105,12 @@ type ScanRequest struct {
 	Parallelism int
 }
 
+// creationTimeReporter is implemented by a resource type that can say its cloud
+// reports no creation time, so a time filter can never match it.
+type creationTimeReporter interface {
+	ReportsNoCreationTime() bool
+}
+
 // Scan walks every target the provider offers and returns what it found. One
 // errgroup covers every target and every resource type, so a parallelism of N
 // means at most N simultaneous API calls in total rather than N per target.
@@ -179,6 +185,9 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	foundByTarget := make(map[string][]indexed)
 	var foundMu sync.Mutex
 
+	// A type is scanned once per target, but its warning is said once per scan.
+	var noCreationTimeWarned sync.Map
+
 	scanGroup := new(errgroup.Group)
 	scanGroup.SetLimit(parallelism)
 	for _, t := range tasks {
@@ -190,7 +199,15 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 			}
 
 			resourceType := t.resource.ResourceName()
-			t.resource.GetAndSetResourceConfig(req.Config)
+			resourceCfg := t.resource.GetAndSetResourceConfig(req.Config)
+
+			if r, ok := t.resource.(creationTimeReporter); ok && r.ReportsNoCreationTime() && resourceCfg.HasTimeFilter() {
+				if _, warned := noCreationTimeWarned.LoadOrStore(resourceType, struct{}{}); !warned {
+					logging.Warnf(
+						"Leaving all %s resources alone: their creation time is not reported, and a time filter cannot be applied to an age it cannot read. Drop --older-than and --newer-than to include them.",
+						resourceType)
+				}
+			}
 
 			collector.Emit(reporting.ScanProgress{
 				ResourceType: resourceType,

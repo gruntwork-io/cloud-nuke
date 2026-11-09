@@ -3,7 +3,6 @@ package resource
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -14,21 +13,6 @@ import (
 
 // DefaultBatchSize is the maximum number of resources per batch
 const DefaultBatchSize = 50
-
-// noCreationTimeWarned records the types already warned about, since a type is
-// scanned once per region.
-var noCreationTimeWarned sync.Map
-
-// warnNoCreationTime logs, once per resource type, that a time filter skips
-// every resource of that type.
-func warnNoCreationTime(resourceTypeName string) {
-	if _, warned := noCreationTimeWarned.LoadOrStore(resourceTypeName, struct{}{}); warned {
-		return
-	}
-	logging.Warnf(
-		"Leaving all %s resources alone: their creation time is not reported, and a time filter cannot be applied to an age it cannot read. Drop --older-than and --newer-than to include them.",
-		resourceTypeName)
-}
 
 // Scope is where one resource lives, as its own cloud names that place. A
 // resource reads it to build the request its API expects, and the engine reads
@@ -147,6 +131,11 @@ func (r *Resource[C]) ResourceName() string {
 	return r.ResourceTypeName
 }
 
+// ReportsNoCreationTime reports whether this type can never match a time filter.
+func (r *Resource[C]) ReportsNoCreationTime() bool {
+	return r.NoCreationTime
+}
+
 // ResourceIdentifiers returns the currently stored identifiers (implements AwsResource/GcpResource interface)
 func (r *Resource[C]) ResourceIdentifiers() []string {
 	return r.identifiers
@@ -185,10 +174,6 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 	}
 
 	resourceCfg := r.ConfigGetter(configObj)
-	if r.NoCreationTime && resourceCfg.HasTimeFilter() {
-		warnNoCreationTime(r.ResourceTypeName)
-	}
-
 	identifiers, err := r.Lister(ctx, r.Client, r.Scope, resourceCfg)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to list resources in %s: %w", r.ResourceTypeName, r.Scope, err)

@@ -43,6 +43,7 @@ func (m *mockDBSubnetGroupsClient) DeleteDBSubnetGroup(ctx context.Context, para
 	return &m.DeleteDBSubnetGroupOutput, m.DeleteDBSubnetGroupError
 }
 
+// ListTagsForResource returns TagsByArn for the ARN, else ListTagsOutput, else a default tag.
 func (m *mockDBSubnetGroupsClient) ListTagsForResource(ctx context.Context, params *rds.ListTagsForResourceInput, optFns ...func(*rds.Options)) (*rds.ListTagsForResourceOutput, error) {
 	if tags, ok := m.TagsByArn[aws.ToString(params.ResourceName)]; ok {
 		return &rds.ListTagsForResourceOutput{TagList: tags}, nil
@@ -70,6 +71,7 @@ func firstSeenRDSTags(t time.Time) []types.Tag {
 	return []types.Tag{{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(t))}}
 }
 
+// TestListDBSubnetGroups checks the name filters on listed subnet groups.
 func TestListDBSubnetGroups(t *testing.T) {
 	t.Parallel()
 
@@ -111,6 +113,8 @@ func TestListDBSubnetGroups(t *testing.T) {
 	}
 }
 
+// TestListDBSubnetGroups_FirstSeenTimeFilter checks that a time filter measures
+// age from the first-seen tag, and tags a group that has none.
 func TestListDBSubnetGroups_FirstSeenTimeFilter(t *testing.T) {
 	t.Parallel()
 
@@ -138,6 +142,8 @@ func TestListDBSubnetGroups_FirstSeenTimeFilter(t *testing.T) {
 	require.Equal(t, []string{"arn:untagged"}, mock.TaggedArns)
 }
 
+// TestListDBSubnetGroups_ExcludedGroupsAreNotTagged checks that the scan does not
+// tag a group that a name or tag rule excludes.
 func TestListDBSubnetGroups_ExcludedGroupsAreNotTagged(t *testing.T) {
 	t.Parallel()
 
@@ -164,6 +170,8 @@ func TestListDBSubnetGroups_ExcludedGroupsAreNotTagged(t *testing.T) {
 	require.Equal(t, []string{"arn:candidate"}, mock.TaggedArns)
 }
 
+// TestListDBSubnetGroups_TagWriteFailureDoesNotFailScan checks that a failed tag
+// write leaves the group out without failing the scan.
 func TestListDBSubnetGroups_TagWriteFailureDoesNotFailScan(t *testing.T) {
 	t.Parallel()
 
@@ -185,6 +193,8 @@ func TestListDBSubnetGroups_TagWriteFailureDoesNotFailScan(t *testing.T) {
 	require.Equal(t, []string{"arn:untagged"}, mock.TaggedArns)
 }
 
+// TestListDBSubnetGroups_ExcludeFirstSeenTag checks that --exclude-first-seen
+// writes no tag.
 func TestListDBSubnetGroups_ExcludeFirstSeenTag(t *testing.T) {
 	t.Parallel()
 

@@ -405,6 +405,8 @@ func (m *taggingEC2Cluster) TagResource(ctx context.Context, params *ecs.TagReso
 	return &ecs.TagResourceOutput{}, nil
 }
 
+// TestListECSClusters_NoFirstSeenTagWithTimeFilter checks that a time filter does
+// not stop an untagged cluster from getting its first-seen tag.
 func TestListECSClusters_NoFirstSeenTagWithTimeFilter(t *testing.T) {
 	t.Parallel()
 	ctx := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)

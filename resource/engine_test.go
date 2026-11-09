@@ -1,16 +1,19 @@
 package resource
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
+	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,6 +61,9 @@ type fakeProvider struct {
 	// more than one batch.
 	batchSize int
 
+	// noCreationTime marks the widget as a type whose age is never reported.
+	noCreationTime bool
+
 	// nukeOrder records which target finished nuking, in order.
 	mu        sync.Mutex
 	nukeOrder []string
@@ -71,6 +77,7 @@ func (p *fakeProvider) Targets() ([]Target, error) {
 	}, nil
 }
 
+// Prepare builds one fake-widget resource for the target.
 func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Context, []NukeableResource, error) {
 	client := p.clients[target.ID]
 	batchSize := p.batchSize
@@ -81,6 +88,7 @@ func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Cont
 	r := &Resource[*fakeClient]{
 		ResourceTypeName: "fake-widget",
 		BatchSize:        batchSize,
+		NoCreationTime:   p.noCreationTime,
 		InitClient: func(r *Resource[*fakeClient], cfg any) {
 			r.Client = client
 			r.Scope = Scope{Region: target.ID}
@@ -644,6 +652,52 @@ func TestScanGivesEachResourceTheCallersConfig(t *testing.T) {
 		require.Len(t, cfg.IncludeRule.NamesRegExp, 1)
 		assert.Equal(t, "^keep-", cfg.IncludeRule.NamesRegExp[0].RE.String())
 	}
+}
+
+// TestScanWarnsOncePerScanAboutATypeWithNoCreationTime reads what the user is
+// told. It does not run in parallel because it swaps the global pterm writer.
+func TestScanWarnsOncePerScanAboutATypeWithNoCreationTime(t *testing.T) {
+	const warning = "Leaving all fake-widget resources alone"
+
+	cutoff := time.Now()
+	timeFiltered := config.Config{}
+	timeFiltered.GCSBucket.ExcludeRule.TimeAfter = &cutoff
+
+	scanTwice := func(p *fakeProvider, cfg config.Config) string {
+		return captureWarnings(t, func() {
+			for range 2 {
+				_, err := Scan(context.Background(), p, ScanRequest{
+					Include: func(string) bool { return true },
+					Config:  cfg,
+				}, (&recorder{}).collector())
+				require.NoError(t, err)
+			}
+		})
+	}
+
+	p := newFakeProvider()
+	p.noCreationTime = true
+	said := scanTwice(p, timeFiltered)
+	assert.Equal(t, 2, strings.Count(said, warning), "once per scan, not once per target or once per process")
+
+	said = scanTwice(p, config.Config{})
+	assert.NotContains(t, said, warning, "no time filter, nothing to warn about")
+
+	said = scanTwice(newFakeProvider(), timeFiltered)
+	assert.NotContains(t, said, warning, "a type that reports its age is filtered, not skipped")
+}
+
+// captureWarnings returns what run printed as warnings.
+func captureWarnings(t *testing.T, run func()) string {
+	t.Helper()
+
+	var said bytes.Buffer
+	previous := pterm.Warning.Writer
+	pterm.Warning.Writer = &said
+	t.Cleanup(func() { pterm.Warning.Writer = previous })
+
+	run()
+	return said.String()
 }
 
 func TestNukeWaitsOutAThrottleAndStillDeletesTheRest(t *testing.T) {

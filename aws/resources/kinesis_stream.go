@@ -15,6 +15,7 @@ import (
 // KinesisStreamsAPI defines the interface for Kinesis Streams operations.
 type KinesisStreamsAPI interface {
 	ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error)
+	DescribeStreamSummary(ctx context.Context, params *kinesis.DescribeStreamSummaryInput, optFns ...func(*kinesis.Options)) (*kinesis.DescribeStreamSummaryOutput, error)
 	DeleteStream(ctx context.Context, params *kinesis.DeleteStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DeleteStreamOutput, error)
 	ListTagsForStream(ctx context.Context, params *kinesis.ListTagsForStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.ListTagsForStreamOutput, error)
 }
@@ -62,9 +63,14 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 				continue
 			}
 
+			streamCreatedAt := createdAt[stream]
+			if streamCreatedAt == nil && cfg.HasTimeFilter() {
+				streamCreatedAt = describeKinesisStreamCreationTime(ctx, client, stream)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(stream),
-				Time: createdAt[stream],
+				Time: streamCreatedAt,
 				Tags: util.ConvertKinesisTagsToMap(tagsOutput.Tags),
 			}) {
 				allStreams = append(allStreams, aws.String(stream))
@@ -73,6 +79,20 @@ func listKinesisStreams(ctx context.Context, client KinesisStreamsAPI, scope res
 	}
 
 	return allStreams, nil
+}
+
+// describeKinesisStreamCreationTime reads the creation time of a stream that
+// ListStreams returned without a summary. It returns nil, and warns, when the
+// time cannot be read, since a time filter then cannot include the stream.
+func describeKinesisStreamCreationTime(ctx context.Context, client KinesisStreamsAPI, stream string) *time.Time {
+	output, err := client.DescribeStreamSummary(ctx, &kinesis.DescribeStreamSummaryInput{
+		StreamName: aws.String(stream),
+	})
+	if err != nil || output.StreamDescriptionSummary == nil {
+		logging.Warnf("Unable to read the creation time of Kinesis stream %s, so a time filter cannot include it: %v", stream, err)
+		return nil
+	}
+	return output.StreamDescriptionSummary.StreamCreationTimestamp
 }
 
 // deleteKinesisStream deletes a single Kinesis stream.
