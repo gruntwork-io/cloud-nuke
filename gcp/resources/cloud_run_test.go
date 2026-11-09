@@ -72,23 +72,20 @@ func TestListCloudRunServicesAsksTheLibraryForOnlyTheRegionsRequested(t *testing
 	assert.Equal(t, []string{"europe-west4"}, client.scope.Locations)
 }
 
-// An exclusion cannot be handed over as a list of regions to ask, so this
-// resource still reads it against what came back.
-func TestListCloudRunServicesAppliesAnExclusionItself(t *testing.T) {
+// Both halves of --region reach the library. Re-applying an exclusion to the
+// answers instead would ask about regions the run rules out, and count them
+// among the ones a whole-project failure is measured against.
+func TestListCloudRunServicesPassesBothHalvesOfTheRegionFilter(t *testing.T) {
 	t.Parallel()
 
-	client := &fakeCloudRun{services: []gcpinv.CloudRunService{
-		serviceIn("us-central1", "one"),
-		serviceIn("europe-west4", "two"),
-	}}
+	client := &fakeCloudRun{}
 
-	identifiers, err := listCloudRunServices(context.Background(), client,
+	_, err := listCloudRunServices(context.Background(), client,
 		resource.Scope{ProjectID: "p"}, config.ResourceType{},
 		GcpConfig{ProjectID: "p", ExcludeLocations: []string{"europe-west4"}})
 	require.NoError(t, err)
 
-	require.Len(t, identifiers, 1)
-	assert.Equal(t, "projects/p/locations/us-central1/services/one", *identifiers[0])
+	assert.Equal(t, []string{"europe-west4"}, client.scope.ExcludeLocations)
 }
 
 // Every region refusing is not a project with no services, and reporting zero
@@ -96,11 +93,12 @@ func TestListCloudRunServicesAppliesAnExclusionItself(t *testing.T) {
 func TestListCloudRunServicesFailsWhenEveryRegionRefused(t *testing.T) {
 	t.Parallel()
 
+	refused := errors.New("caller lacks run.services.list")
 	client := &fakeCloudRun{incomplete: cloudinv.Incomplete{
 		Asked: 2,
 		Gaps: []cloudinv.Gap{
-			{Scope: "us-central1", Fault: cloudinv.FaultDenied},
-			{Scope: "europe-west4", Fault: cloudinv.FaultDenied},
+			{Scope: "us-central1", Fault: cloudinv.FaultDenied, Err: refused},
+			{Scope: "europe-west4", Fault: cloudinv.FaultDenied, Err: refused},
 		},
 	}}
 
@@ -108,6 +106,10 @@ func TestListCloudRunServicesFailsWhenEveryRegionRefused(t *testing.T) {
 		resource.Scope{ProjectID: "p"}, config.ResourceType{}, GcpConfig{ProjectID: "p"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "any of the 2 regions")
+
+	// The provider's own message has to survive, since the engine reads this
+	// error to decide whether the API was simply switched off.
+	require.ErrorIs(t, err, refused)
 }
 
 // One region of several refusing costs that region alone.

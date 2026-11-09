@@ -51,34 +51,32 @@ func NewCloudRunServices() GcpResource {
 // listCloudRunServices asks the inventory for the regions this run allows, and
 // keeps the services the config filters keep.
 func listCloudRunServices(ctx context.Context, client CloudRunServicesAPI, scope resource.Scope, cfg config.ResourceType, gcpCfg GcpConfig) ([]*string, error) {
-	// Naming the locations is how a run narrowed by --region costs one call
-	// rather than one per region Cloud Run offers.
+	// Both halves of --region go to the library, so a region this run rules out
+	// is never asked about and never counted among the ones it depends on.
 	services, incomplete, err := client.List(ctx, gcpinv.Scope{
-		ProjectID: scope.ProjectID,
-		Locations: gcpCfg.Locations,
+		ProjectID:        scope.ProjectID,
+		Locations:        gcpCfg.Locations,
+		ExcludeLocations: gcpCfg.ExcludeLocations,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing Cloud Run services: %w", err)
 	}
 
 	// Every region failing is not a project with no services: it is a run that
-	// learned nothing, and reporting zero would call the project clean.
+	// learned nothing, and reporting zero would call the project clean. The
+	// cause is wrapped so the provider's own message, and the classification
+	// the provider layer reads from it, both survive.
 	if incomplete.Total() {
-		return nil, fmt.Errorf("could not list Cloud Run services in any of the %d regions asked for: %s",
-			incomplete.Asked, incomplete.String())
+		return nil, fmt.Errorf("could not list Cloud Run services in any of the %d regions asked for: %w",
+			incomplete.Asked, incomplete.Cause())
 	}
 	if incomplete.Any() {
-		logging.Warnf("Could not list Cloud Run services in %s, so any service there is left alone.", incomplete.String())
+		logging.Warnf("Could not list Cloud Run services in %d of %d regions (%s), so any service there is left alone.",
+			len(incomplete.Gaps), incomplete.Asked, incomplete.String())
 	}
 
 	var result []*string
 	for _, service := range services {
-		// An exclusion is read here, because the library takes the regions to
-		// ask rather than the rule that produced them.
-		if !gcpCfg.MatchesLocationFilter(service.Location) {
-			continue
-		}
-
 		identifier := string(service.ID)
 		name := service.DisplayName()
 		created := service.CreatedAt()
