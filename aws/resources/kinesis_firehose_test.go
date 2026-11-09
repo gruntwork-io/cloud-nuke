@@ -2,8 +2,10 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
@@ -17,6 +19,19 @@ type mockKinesisFirehoseClient struct {
 	ListDeliveryStreamsOutput  firehose.ListDeliveryStreamsOutput
 	DeleteDeliveryStreamOutput firehose.DeleteDeliveryStreamOutput
 	TagsByStream               map[string][]firehosetypes.Tag
+	CreationTimes              map[string]time.Time
+	DescribeCalls              int
+}
+
+func (m *mockKinesisFirehoseClient) DescribeDeliveryStream(ctx context.Context, params *firehose.DescribeDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error) {
+	m.DescribeCalls++
+	createdAt, ok := m.CreationTimes[aws.ToString(params.DeliveryStreamName)]
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+	return &firehose.DescribeDeliveryStreamOutput{
+		DeliveryStreamDescription: &firehosetypes.DeliveryStreamDescription{CreateTimestamp: aws.Time(createdAt)},
+	}, nil
 }
 
 func (m *mockKinesisFirehoseClient) ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error) {
@@ -81,6 +96,35 @@ func TestListKinesisFirehose(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+func TestListKinesisFirehose_TimeFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	newMock := func() *mockKinesisFirehoseClient {
+		return &mockKinesisFirehoseClient{
+			ListDeliveryStreamsOutput: firehose.ListDeliveryStreamsOutput{
+				DeliveryStreamNames: []string{"old", "new", "unreadable"},
+			},
+			CreationTimes: map[string]time.Time{
+				"old": now.Add(-2 * time.Hour),
+				"new": now,
+			},
+		}
+	}
+
+	mock := newMock()
+	olderThanAnHour := config.ResourceType{ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-time.Hour))}}
+	names, err := listKinesisFirehose(context.Background(), mock, resource.Scope{}, olderThanAnHour)
+	require.NoError(t, err)
+	require.Equal(t, []string{"old"}, aws.ToStringSlice(names), "an unreadable creation time leaves the stream out")
+
+	mock = newMock()
+	names, err = listKinesisFirehose(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Len(t, names, 3)
+	require.Zero(t, mock.DescribeCalls, "no time filter, no DescribeDeliveryStream calls")
 }
 
 func TestDeleteKinesisFirehose(t *testing.T) {

@@ -2,8 +2,10 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3control"
@@ -17,6 +19,17 @@ import (
 type mockS3ObjectLambdaAccessPointClient struct {
 	ListAccessPointsForObjectLambdaOutput  s3control.ListAccessPointsForObjectLambdaOutput
 	DeleteAccessPointForObjectLambdaOutput s3control.DeleteAccessPointForObjectLambdaOutput
+	CreationTimes                          map[string]time.Time
+	GetCalls                               int
+}
+
+func (m *mockS3ObjectLambdaAccessPointClient) GetAccessPointForObjectLambda(ctx context.Context, params *s3control.GetAccessPointForObjectLambdaInput, optFns ...func(*s3control.Options)) (*s3control.GetAccessPointForObjectLambdaOutput, error) {
+	m.GetCalls++
+	createdAt, ok := m.CreationTimes[aws.ToString(params.Name)]
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+	return &s3control.GetAccessPointForObjectLambdaOutput{CreationDate: aws.Time(createdAt)}, nil
 }
 
 func (m *mockS3ObjectLambdaAccessPointClient) ListAccessPointsForObjectLambda(ctx context.Context, params *s3control.ListAccessPointsForObjectLambdaInput, optFns ...func(*s3control.Options)) (*s3control.ListAccessPointsForObjectLambdaOutput, error) {
@@ -69,6 +82,40 @@ func TestS3ObjectLambdaAccessPoint_List(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
 	}
+}
+
+func TestS3ObjectLambdaAccessPoint_ListTimeFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	ctx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+	newMock := func() *mockS3ObjectLambdaAccessPointClient {
+		return &mockS3ObjectLambdaAccessPointClient{
+			ListAccessPointsForObjectLambdaOutput: s3control.ListAccessPointsForObjectLambdaOutput{
+				ObjectLambdaAccessPointList: []types.ObjectLambdaAccessPoint{
+					{Name: aws.String("old")},
+					{Name: aws.String("new")},
+					{Name: aws.String("unreadable")},
+				},
+			},
+			CreationTimes: map[string]time.Time{
+				"old": now.Add(-2 * time.Hour),
+				"new": now,
+			},
+		}
+	}
+
+	mock := newMock()
+	olderThanAnHour := config.ResourceType{ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-time.Hour))}}
+	names, err := listS3ObjectLambdaAccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, olderThanAnHour)
+	require.NoError(t, err)
+	require.Equal(t, []string{"old"}, aws.ToStringSlice(names), "an unreadable creation time leaves the access point out")
+
+	mock = newMock()
+	names, err = listS3ObjectLambdaAccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Len(t, names, 3)
+	require.Zero(t, mock.GetCalls, "no time filter, no GetAccessPointForObjectLambda calls")
 }
 
 func TestS3ObjectLambdaAccessPoint_Nuke(t *testing.T) {
