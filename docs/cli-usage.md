@@ -29,7 +29,7 @@
 
 Some AWS resource types report no creation time. For several of them, such as `rds-subnet-group`, `ecs-cluster`, `opensearch-domain`, `eip` and most VPC resources, cloud-nuke writes a `cloud-nuke-first-seen` tag the first time it sees the resource, and `--older-than` and `--newer-than` measure age from that tag. Writing the tag needs the service's tagging permission, for example `rds:AddTagsToResource` for `rds-subnet-group`.
 
-On the run that writes the tag, `rds-subnet-group`, `ecs-cluster` and `opensearch-domain` are never deleted. `eip`, VPC resources and Network Firewall resources take the current time as their age, so `--newer-than` can delete them on that same run.
+On the run that writes the tag, `ecs-cluster` is never deleted. `rds-subnet-group` and `opensearch-domain` are left alone only under a time filter; a run without one tags and deletes them in the same run. `eip`, VPC resources and Network Firewall resources take the current time as their age, so `--newer-than` can delete them on that same run.
 
 `--exclude-first-seen` turns the tag off: cloud-nuke does not read it or write it. A run that also has a time filter leaves the types that use the tag alone and logs one warning per type.
 
