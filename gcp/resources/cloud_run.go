@@ -67,8 +67,15 @@ func listCloudRunServices(ctx context.Context, client CloudRunServicesAPI, scope
 	// cause is wrapped so the provider's own message, and the classification
 	// the provider layer reads from it, both survive.
 	if incomplete.Total() {
-		return nil, fmt.Errorf("could not list Cloud Run services in any of the %d regions asked for: %w",
-			incomplete.Asked, incomplete.Cause())
+		// The cause is wrapped so the provider's message and the engine's own
+		// classification survive; the regions are named because the cause is
+		// only one of them.
+		if cause := incomplete.Cause(); cause != nil {
+			return nil, fmt.Errorf("could not list Cloud Run services in any of the %d regions asked for (%s): %w",
+				incomplete.Asked, incomplete.String(), cause)
+		}
+		return nil, fmt.Errorf("could not list Cloud Run services in any of the %d regions asked for: %s",
+			incomplete.Asked, incomplete.String())
 	}
 	if incomplete.Any() {
 		logging.Warnf("Could not list Cloud Run services in %d of %d regions (%s), so any service there is left alone.",
