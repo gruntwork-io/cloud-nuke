@@ -11,7 +11,7 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      # The AWS SDK is 65 of the 83 direct requirements, so it travels apart:
+      # The AWS SDK is 61 of the 83 direct requirements, so it travels apart:
       # folded into the catch-all it would bury every other module, and a red
       # test on the combined pull request would have nothing to bisect.
       aws-sdk:
