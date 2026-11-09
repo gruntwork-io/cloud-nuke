@@ -1,0 +1,60 @@
+version: 2
+
+updates:
+  # One pull request a week for the Go dependencies that moved without a
+  # breaking change, since reviewing them one at a time costs more than it
+  # catches. A major is left out of the group so it arrives on its own, where
+  # the code change it needs can be read beside it.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # The AWS SDK is 61 of the 83 direct requirements, so it travels apart:
+      # folded into the catch-all it would bury every other module, and a red
+      # test on the combined pull request would have nothing to bisect.
+      aws-sdk:
+        patterns:
+          - github.com/aws/aws-sdk-go-v2
+          - github.com/aws/aws-sdk-go-v2/*
+          - github.com/aws/smithy-go
+        update-types:
+          - minor
+          - patch
+      # The exclusion is what keeps the AWS SDK out, rather than this group's
+      # position below it, so sorting these groups changes nothing.
+      go-modules:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - github.com/aws/aws-sdk-go-v2
+          - github.com/aws/aws-sdk-go-v2/*
+          - github.com/aws/smithy-go
+        update-types:
+          - minor
+          - patch
+
+  # Workflows name their actions by tag rather than by commit SHA, so a moved
+  # tag already reaches CI without a pull request and dependabot proposes
+  # little beyond majors here, which arrive one at a time.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # The hooks a contributor runs locally. Nothing updates them today, and the
+  # linter they pin has fallen a major behind the one mise installs, so the
+  # two disagree about which linter is authoritative.
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: weekly
