@@ -11,6 +11,17 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # The AWS SDK is 65 of the 83 direct requirements, so it travels apart:
+      # folded into the catch-all it would bury every other module, and a red
+      # test on the combined pull request would have nothing to bisect.
+      aws-sdk:
+        patterns:
+          - github.com/aws/aws-sdk-go-v2
+          - github.com/aws/aws-sdk-go-v2/*
+          - github.com/aws/smithy-go
+        update-types:
+          - minor
+          - patch
       go-modules:
         patterns:
           - "*"
@@ -20,11 +31,12 @@ updates:
 
   # Workflows name their actions by tag rather than by commit SHA, so a moved
   # tag already reaches CI without a pull request and dependabot proposes
-  # little beyond majors here. The group catches the rest.
+  # little beyond majors here, which arrive one at a time.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
       actions:
         patterns:
@@ -32,3 +44,11 @@ updates:
         update-types:
           - minor
           - patch
+
+  # The hooks a contributor runs locally. Nothing updates them today, and the
+  # linter they pin has fallen a major behind the one mise installs, so the
+  # two disagree about which linter is authoritative.
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: weekly
