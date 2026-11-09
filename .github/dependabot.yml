@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  # One pull request a week for the Go dependencies that moved without a
+  # breaking change, since reviewing them one at a time costs more than it
+  # catches. A major is left out of the group so it arrives on its own, where
+  # the code change it needs can be read beside it.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # Workflows name their actions by tag rather than by commit SHA, so a moved
+  # tag already reaches CI without a pull request and dependabot proposes
+  # little beyond majors here. The group catches the rest.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
