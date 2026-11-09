@@ -26,6 +26,7 @@ func NewVPCPeeringConnection() AwsResource {
 	return NewAwsResource(&resource.Resource[VPCPeeringAPI]{
 		ResourceTypeName: "vpc-peering-connection",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[VPCPeeringAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

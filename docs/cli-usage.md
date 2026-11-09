@@ -34,6 +34,8 @@ The run that writes the tag treats the resource in one of two ways:
 - `rds-subnet-group`, `ecs-cluster` and `opensearch-domain` are never deleted by that run, under either filter.
 - `eip`, VPC resources and Network Firewall resources take the current time as their age on that run. `--older-than` does not delete them, but `--newer-than` can delete them on that same run.
 
+`--exclude-first-seen` turns the tag off: cloud-nuke does not read it or write it. A run that also passes `--older-than` or `--newer-than` leaves the types that use the tag alone and logs one warning per type.
+
 The remaining types without a creation time, such as `rds-parameter-group`, `elasticache-subnet-group` or `route53-hosted-zone`, cannot be filtered by age. A run that passes `--older-than` or `--newer-than` leaves them alone and logs one warning per type. Drop the time filter to include them.
 
 ### Execution

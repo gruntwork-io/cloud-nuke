@@ -23,6 +23,7 @@ func NewEC2IPAMPool() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2IPAMPoolAPI]{
 		ResourceTypeName: "ipam-pool",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMPoolAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

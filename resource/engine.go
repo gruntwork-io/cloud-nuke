@@ -111,6 +111,12 @@ type creationTimeReporter interface {
 	ReportsNoCreationTime() bool
 }
 
+// firstSeenTagReader is implemented by a resource type that can say its age
+// comes from the first-seen tag, which --exclude-first-seen turns off.
+type firstSeenTagReader interface {
+	ReadsAgeFromFirstSeenTag() bool
+}
+
 // Scan walks every target the provider offers and returns what it found. One
 // errgroup covers every target and every resource type, so a parallelism of N
 // means at most N simultaneous API calls in total rather than N per target.
@@ -186,7 +192,15 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	var foundMu sync.Mutex
 
 	// A type is scanned once per target, but its warning is said once per scan.
-	var noCreationTimeWarned sync.Map
+	var warnedTypes sync.Map
+	warnOnce := func(resourceType, format string) {
+		if _, warned := warnedTypes.LoadOrStore(resourceType, struct{}{}); !warned {
+			logging.Warnf(format, resourceType)
+		}
+	}
+
+	// A provider with no first-seen tags never sets this value.
+	excludeFirstSeen := ctx.Value(util.ExcludeFirstSeenTagKey) == true
 
 	scanGroup := new(errgroup.Group)
 	scanGroup.SetLimit(parallelism)
@@ -201,11 +215,14 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 			resourceType := t.resource.ResourceName()
 			resourceCfg := t.resource.GetAndSetResourceConfig(req.Config)
 
-			if r, ok := t.resource.(creationTimeReporter); ok && r.ReportsNoCreationTime() && resourceCfg.HasTimeFilter() {
-				if _, warned := noCreationTimeWarned.LoadOrStore(resourceType, struct{}{}); !warned {
-					logging.Warnf(
-						"Leaving all %s resources alone: their creation time is not reported, and a time filter cannot be applied to an age it cannot read. Drop --older-than and --newer-than to include them.",
-						resourceType)
+			if resourceCfg.HasTimeFilter() {
+				if r, ok := t.resource.(creationTimeReporter); ok && r.ReportsNoCreationTime() {
+					warnOnce(resourceType,
+						"Leaving all %s resources alone: their creation time is not reported, and a time filter cannot be applied to an age it cannot read. Drop --older-than and --newer-than to include them.")
+				}
+				if r, ok := t.resource.(firstSeenTagReader); ok && r.ReadsAgeFromFirstSeenTag() && excludeFirstSeen {
+					warnOnce(resourceType,
+						"Leaving all %s resources alone: their age comes from the cloud-nuke-first-seen tag, and --exclude-first-seen turns that tag off. Drop --exclude-first-seen, or drop --older-than and --newer-than, to include them.")
 				}
 			}
 

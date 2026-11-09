@@ -78,6 +78,11 @@ type Resource[C any] struct {
 	// warns once instead of finding nothing in silence.
 	NoCreationTime bool
 
+	// FirstSeenTag marks a type whose age comes from the first-seen tag that
+	// cloud-nuke writes. --exclude-first-seen turns that tag off, and then a
+	// time filter can never match it, so the scan warns once.
+	FirstSeenTag bool
+
 	// InitClient initializes the client from cloud-specific config.
 	// For AWS: cfg is aws.Config
 	// For GCP: cfg is resources.GcpConfig
@@ -134,6 +139,12 @@ func (r *Resource[C]) ResourceName() string {
 // ReportsNoCreationTime reports whether this type can never match a time filter.
 func (r *Resource[C]) ReportsNoCreationTime() bool {
 	return r.NoCreationTime
+}
+
+// ReadsAgeFromFirstSeenTag reports whether this type's age comes from the
+// first-seen tag.
+func (r *Resource[C]) ReadsAgeFromFirstSeenTag() bool {
+	return r.FirstSeenTag
 }
 
 // ResourceIdentifiers returns the currently stored identifiers (implements AwsResource/GcpResource interface)

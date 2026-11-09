@@ -34,6 +34,7 @@ func NewOpenSearchDomains() AwsResource {
 	return NewAwsResource(&resource.Resource[OpenSearchDomainsAPI]{
 		ResourceTypeName: "opensearch-domain",
 		BatchSize:        10,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[OpenSearchDomainsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = opensearch.NewFromConfig(cfg)

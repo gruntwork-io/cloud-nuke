@@ -23,6 +23,7 @@ func NewEC2IPAMResourceDiscovery() AwsResource {
 	return NewAwsResource(&resource.Resource[EC2IPAMResourceDiscoveryAPI]{
 		ResourceTypeName: "ipam-resource-discovery",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EC2IPAMResourceDiscoveryAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ec2.NewFromConfig(cfg)

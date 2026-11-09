@@ -250,6 +250,15 @@ func TestListECSClusters(t *testing.T) {
 			configObj: config.ResourceType{},
 			expected:  []string{testArn1, testArn2},
 		},
+		"excludeFirstSeenTagWithTimeFilter": {
+			ctx: context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, true),
+			configObj: config.ResourceType{
+				ExcludeRule: config.FilterRule{
+					TimeAfter: aws.Time(now.Add(-1 * time.Hour)),
+				},
+			},
+			expected: []string{},
+		},
 		"tagInclusionFilter": {
 			ctx: ctx,
 			configObj: config.ResourceType{

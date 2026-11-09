@@ -13,6 +13,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
+	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,6 +65,9 @@ type fakeProvider struct {
 	// noCreationTime marks the widget as a type whose age is never reported.
 	noCreationTime bool
 
+	// firstSeenTag marks the widget as a type whose age comes from a first-seen tag.
+	firstSeenTag bool
+
 	// nukeOrder records which target finished nuking, in order.
 	mu        sync.Mutex
 	nukeOrder []string
@@ -89,6 +93,7 @@ func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Cont
 		ResourceTypeName: "fake-widget",
 		BatchSize:        batchSize,
 		NoCreationTime:   p.noCreationTime,
+		FirstSeenTag:     p.firstSeenTag,
 		InitClient: func(r *Resource[*fakeClient], cfg any) {
 			r.Client = client
 			r.Scope = Scope{Region: target.ID}
@@ -659,32 +664,65 @@ func TestScanGivesEachResourceTheCallersConfig(t *testing.T) {
 func TestScanWarnsOncePerScanAboutATypeWithNoCreationTime(t *testing.T) {
 	const warning = "Leaving all fake-widget resources alone"
 
-	cutoff := time.Now()
-	timeFiltered := config.Config{}
-	timeFiltered.GCSBucket.ExcludeRule.TimeAfter = &cutoff
-
-	scanTwice := func(p *fakeProvider, cfg config.Config) string {
-		return captureWarnings(t, func() {
-			for range 2 {
-				_, err := Scan(context.Background(), p, ScanRequest{
-					Include: func(string) bool { return true },
-					Config:  cfg,
-				}, (&recorder{}).collector())
-				require.NoError(t, err)
-			}
-		})
-	}
+	ctx := context.Background()
+	timeFiltered := timeFilteredConfig()
 
 	p := newFakeProvider()
 	p.noCreationTime = true
-	said := scanTwice(p, timeFiltered)
+	said := scanTwice(t, ctx, p, timeFiltered)
 	assert.Equal(t, 2, strings.Count(said, warning), "once per scan, not once per target or once per process")
 
-	said = scanTwice(p, config.Config{})
+	said = scanTwice(t, ctx, p, config.Config{})
 	assert.NotContains(t, said, warning, "no time filter, nothing to warn about")
 
-	said = scanTwice(newFakeProvider(), timeFiltered)
+	said = scanTwice(t, ctx, newFakeProvider(), timeFiltered)
 	assert.NotContains(t, said, warning, "a type that reports its age is filtered, not skipped")
+}
+
+// TestScanWarnsOncePerScanAboutAFirstSeenTypeWhenTheTagIsOff reads what the
+// user is told. It does not run in parallel because it swaps the global pterm writer.
+func TestScanWarnsOncePerScanAboutAFirstSeenTypeWhenTheTagIsOff(t *testing.T) {
+	const warning = "--exclude-first-seen turns that tag off"
+
+	tagOff := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, true)
+	tagOn := context.WithValue(context.Background(), util.ExcludeFirstSeenTagKey, false)
+	timeFiltered := timeFilteredConfig()
+
+	p := newFakeProvider()
+	p.firstSeenTag = true
+	said := scanTwice(t, tagOff, p, timeFiltered)
+	assert.Equal(t, 2, strings.Count(said, warning), "once per scan, not once per target or once per process")
+
+	said = scanTwice(t, tagOn, p, timeFiltered)
+	assert.NotContains(t, said, warning, "the tag is on, so the age is known")
+
+	said = scanTwice(t, tagOff, p, config.Config{})
+	assert.NotContains(t, said, warning, "no time filter, nothing to warn about")
+
+	said = scanTwice(t, tagOff, newFakeProvider(), timeFiltered)
+	assert.NotContains(t, said, warning, "a type that reports its age is filtered, not skipped")
+}
+
+// timeFilteredConfig returns a config whose fake-widget section has a time filter.
+func timeFilteredConfig() config.Config {
+	cutoff := time.Now()
+	cfg := config.Config{}
+	cfg.GCSBucket.ExcludeRule.TimeAfter = &cutoff
+	return cfg
+}
+
+// scanTwice runs two scans and returns what they printed as warnings.
+func scanTwice(t *testing.T, ctx context.Context, p *fakeProvider, cfg config.Config) string {
+	t.Helper()
+	return captureWarnings(t, func() {
+		for range 2 {
+			_, err := Scan(ctx, p, ScanRequest{
+				Include: func(string) bool { return true },
+				Config:  cfg,
+			}, (&recorder{}).collector())
+			require.NoError(t, err)
+		}
+	})
 }
 
 // captureWarnings returns what run printed as warnings.

@@ -27,6 +27,7 @@ func NewDBSubnetGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[DBSubnetGroupsAPI]{
 		ResourceTypeName: "rds-subnet-group",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBSubnetGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)
