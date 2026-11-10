@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // maxDescribeDomainsPerRequest is the AWS limit for DescribeDomains API
@@ -195,20 +193,16 @@ func deleteOpenSearchDomain(ctx context.Context, client OpenSearchDomainsAPI, do
 
 // waitForOpenSearchDomainsDeleted waits for all OpenSearch domains to be fully deleted.
 func waitForOpenSearchDomainsDeleted(ctx context.Context, client OpenSearchDomainsAPI, names []string) error {
-	return retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
-		"Waiting for all OpenSearch Domains to be deleted.",
+	return util.PollUntil(ctx,
+		"OpenSearch Domains deletion",
 		// Wait a maximum of 20 minutes: 20 seconds in between, up to 60 times
-		60, 20*time.Second,
-		func() error {
+		20*time.Second, 20*time.Minute,
+		func(ctx context.Context) (bool, error) {
 			resp, err := client.DescribeDomains(ctx, &opensearch.DescribeDomainsInput{DomainNames: names})
 			if err != nil {
-				return retry.FatalError{Underlying: err}
+				return false, err
 			}
-			if len(resp.DomainStatusList) == 0 {
-				return nil
-			}
-			return fmt.Errorf("Not all OpenSearch domains are deleted.")
+			return len(resp.DomainStatusList) == 0, nil
 		},
 	)
 }

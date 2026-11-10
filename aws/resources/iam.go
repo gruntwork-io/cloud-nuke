@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	goerr "errors"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // IAMUsersAPI defines the interface for IAM user operations.
@@ -255,12 +253,11 @@ func removeUserFromGroups(ctx context.Context, client IAMUsersAPI, userName *str
 
 // deleteLoginProfile deletes the login profile for a user.
 func deleteLoginProfile(ctx context.Context, client IAMUsersAPI, userName *string) error {
-	return retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
+	return util.PollUntil(ctx,
 		"Delete Login Profile",
-		10,
 		2*time.Second,
-		func() error {
+		20*time.Second,
+		func(ctx context.Context) (bool, error) {
 			// Delete Login Profile attached to the user
 			_, err := client.DeleteLoginProfile(ctx, &iam.DeleteLoginProfileInput{
 				UserName: userName,
@@ -275,18 +272,18 @@ func deleteLoginProfile(ctx context.Context, client IAMUsersAPI, userName *strin
 					// This is expected if the user doesn't have a Login Profile
 					// (automated users created via API calls without further
 					// configuration)
-					return nil
+					return true, nil
 				case goerr.As(err, &errEntityTemporarilyUnmodifiableException):
 					// The request was rejected because it referenced an entity that is
 					// temporarily unmodifiable. We have to try again.
-					return fmt.Errorf("Login Profile for user %s cannot be deleted now", aws.ToString(userName))
+					return false, nil
 				default:
-					return retry.FatalError{Underlying: err}
+					return false, err
 				}
 			}
 
 			logging.Debugf("Deleted Login Profile from user %s", aws.ToString(userName))
-			return nil
+			return true, nil
 		})
 }
 
