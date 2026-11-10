@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // IAMPoliciesAPI defines the interface for IAM policy operations.
@@ -54,7 +53,7 @@ func listIAMPolicies(ctx context.Context, client IAMPoliciesAPI, scope resource.
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, policy := range page.Policies {
@@ -63,7 +62,7 @@ func listIAMPolicies(ctx context.Context, client IAMPoliciesAPI, scope resource.
 			// tag filters are configured in the config file.
 			tagsOut, err := client.ListPolicyTags(ctx, &iam.ListPolicyTagsInput{PolicyArn: policy.Arn})
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 			tags := tagsOut.Tags
 
@@ -106,7 +105,7 @@ func deleteIAMPolicy(ctx context.Context, client IAMPoliciesAPI, policyArn *stri
 	// Delete the policy itself
 	_, err := client.DeletePolicy(ctx, &iam.DeletePolicyInput{PolicyArn: policyArn})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[OK] IAM Policy %s was deleted in global", aws.ToString(policyArn))
@@ -126,7 +125,7 @@ func detachPermissionsBoundaryEntities(ctx context.Context, client IAMPoliciesAP
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, role := range page.PolicyRoles {
@@ -143,7 +142,7 @@ func detachPermissionsBoundaryEntities(ctx context.Context, client IAMPoliciesAP
 			UserName: userName,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		logging.Debugf("Removed permissions boundary from user %s", aws.ToString(userName))
 	}
@@ -154,7 +153,7 @@ func detachPermissionsBoundaryEntities(ctx context.Context, client IAMPoliciesAP
 			RoleName: roleName,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		logging.Debugf("Removed permissions boundary from role %s", aws.ToString(roleName))
 	}
@@ -172,7 +171,7 @@ func detachPolicyEntities(ctx context.Context, client IAMPoliciesAPI, policyArn 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, group := range page.PolicyGroups {
@@ -193,7 +192,7 @@ func detachPolicyEntities(ctx context.Context, client IAMPoliciesAPI, policyArn 
 			PolicyArn: policyArn,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 
@@ -204,7 +203,7 @@ func detachPolicyEntities(ctx context.Context, client IAMPoliciesAPI, policyArn 
 			PolicyArn: policyArn,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 
@@ -215,7 +214,7 @@ func detachPolicyEntities(ctx context.Context, client IAMPoliciesAPI, policyArn 
 			PolicyArn: policyArn,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 
@@ -230,7 +229,7 @@ func deleteOldPolicyVersions(ctx context.Context, client IAMPoliciesAPI, policyA
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, policyVersion := range page.Versions {
@@ -247,7 +246,7 @@ func deleteOldPolicyVersions(ctx context.Context, client IAMPoliciesAPI, policyA
 			PolicyArn: policyArn,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 

@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
 	"github.com/gruntwork-io/go-commons/collections"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
@@ -78,7 +77,7 @@ func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
 		}
 		return regions, nil
 	}
-	return nil, errors.WithStackTrace(fmt.Errorf("could not find any enabled regions"))
+	return nil, fmt.Errorf("could not find any enabled regions")
 }
 
 // GetEnabledRegions - Get all regions that are enabled (DescribeRegions excludes those not enabled by default)

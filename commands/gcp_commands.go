@@ -6,7 +6,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
 )
@@ -33,7 +32,7 @@ func gcpNuke(c *cli.Context) error {
 	// Load config file if provided
 	configObj, err := loadConfigFile(c.String(FlagConfig))
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	query := &gcp.Query{
@@ -95,7 +94,7 @@ func gcpInspect(c *cli.Context) error {
 	// Load config file if provided
 	configObj, err := loadConfigFile(c.String(FlagConfig))
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Apply timeout to config
@@ -140,7 +139,7 @@ func gcpNukeHelper(c *cli.Context, configObj config.Config, query *gcp.Query, ou
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
 		}, map[string]interface{}{})
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Signal scan complete - renderer will show found resources table
@@ -179,7 +178,7 @@ func handleGetGcpResourcesWithFormat(c *cli.Context, configObj config.Config, qu
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
 		}, map[string]interface{}{})
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	// Signal scan complete - renderer will show found resources table

@@ -8,7 +8,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // IAMGroupsAPI defines the interface for IAM group operations.
@@ -48,7 +47,7 @@ func listIAMGroups(ctx context.Context, client IAMGroupsAPI, scope resource.Scop
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, iamGroup := range page.Groups {
@@ -87,7 +86,7 @@ func deleteIAMGroup(ctx context.Context, client IAMGroupsAPI, groupName *string)
 		GroupName: groupName,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[OK] IAM Group %s was deleted in global", aws.ToString(groupName))
@@ -100,7 +99,7 @@ func removeUsersFromGroup(ctx context.Context, client IAMGroupsAPI, groupName *s
 		GroupName: groupName,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	for _, user := range grp.Users {
@@ -109,7 +108,7 @@ func removeUsersFromGroup(ctx context.Context, client IAMGroupsAPI, groupName *s
 			GroupName: groupName,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 
@@ -122,7 +121,7 @@ func detachGroupPolicies(ctx context.Context, client IAMGroupsAPI, groupName *st
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, policy := range page.AttachedPolicies {
@@ -131,7 +130,7 @@ func detachGroupPolicies(ctx context.Context, client IAMGroupsAPI, groupName *st
 				PolicyArn: policy.PolicyArn,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}
@@ -145,7 +144,7 @@ func deleteGroupInlinePolicies(ctx context.Context, client IAMGroupsAPI, groupNa
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, policyName := range page.PolicyNames {
@@ -154,7 +153,7 @@ func deleteGroupInlinePolicies(ctx context.Context, client IAMGroupsAPI, groupNa
 				PolicyName: aws.String(policyName),
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}

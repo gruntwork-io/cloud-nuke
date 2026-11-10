@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // CloudMapServicesAPI defines the interface for AWS Cloud Map API operations.
@@ -47,7 +46,7 @@ func listCloudMapServices(ctx context.Context, client CloudMapServicesAPI, scope
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, service := range page.Services {
@@ -88,7 +87,7 @@ func deleteCloudMapService(ctx context.Context, client CloudMapServicesAPI, serv
 		Id: serviceId,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -103,7 +102,7 @@ func deregisterCloudMapInstances(ctx context.Context, client CloudMapServicesAPI
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, instance := range page.Instances {
@@ -144,7 +143,7 @@ func waitForCloudMapInstanceDeregistration(ctx context.Context, client CloudMapS
 		time.Sleep(sleepBetweenPolls)
 	}
 
-	return errors.WithStackTrace(fmt.Errorf("timeout waiting for instances to be deregistered in service %s", aws.ToString(serviceId)))
+	return fmt.Errorf("timeout waiting for instances to be deregistered in service %s", aws.ToString(serviceId))
 }
 
 // serviceHasInstances checks if a Cloud Map service has any registered instances.
@@ -156,7 +155,7 @@ func serviceHasInstances(ctx context.Context, client CloudMapServicesAPI, servic
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return false, errors.WithStackTrace(err)
+			return false, err
 		}
 		if len(page.Instances) > 0 {
 			return true, nil
@@ -172,7 +171,7 @@ func getCloudMapServiceTags(ctx context.Context, client CloudMapServicesAPI, ser
 		ResourceARN: serviceArn,
 	})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	tags := make(map[string]string)

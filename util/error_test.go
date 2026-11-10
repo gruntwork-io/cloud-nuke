@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/aws/smithy-go"
-	commonErr "github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +48,7 @@ func TestTransformAWSError(t *testing.T) {
 		},
 		{
 			name: "wrap request canceled",
-			argErr: commonErr.WithStackTrace(&smithy.GenericAPIError{
+			argErr: fmt.Errorf("wrapped: %w", &smithy.GenericAPIError{
 				Code:    "RequestCanceled",
 				Message: "RequestCanceled",
 			}),
@@ -170,7 +169,6 @@ func TestIsWarningError(t *testing.T) {
 
 	// Wrapped waiter timeout errors are still warnings
 	require.True(t, IsWarningError(fmt.Errorf("deleting nodegroup: %w", errors.New("exceeded max wait time for NodegroupDeleted waiter"))))
-	require.True(t, IsWarningError(commonErr.WithStackTrace(errors.New("exceeded max wait time for NodegroupDeleted waiter"))))
 
 	// Multierror containing only waiter timeouts is a warning
 	waiterMultierr := multierror.Append(nil,

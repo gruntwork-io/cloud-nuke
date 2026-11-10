@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DataSyncLocationAPI defines the interface for DataSync Location operations.
@@ -51,7 +50,7 @@ func listDataSyncLocations(ctx context.Context, client DataSyncLocationAPI, scop
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, location := range page.Locations {
@@ -87,7 +86,7 @@ func deleteDataSyncLocation(ctx context.Context, client DataSyncLocationAPI, loc
 		LocationArn: locationArn,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

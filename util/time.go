@@ -11,7 +11,6 @@ import (
 	nwfwall "github.com/aws/aws-sdk-go-v2/service/networkfirewall"
 	nwfTypes "github.com/aws/aws-sdk-go-v2/service/networkfirewall/types"
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 const (
@@ -57,7 +56,7 @@ func ParseTimestamp(timestamp *string) (*time.Time, error) {
 		parsed, err = time.Parse(iso8601Bare, s)
 	}
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	return &parsed, nil
@@ -74,7 +73,7 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 
 	excludeFirstSeenTag, err := GetBoolFromContext(ctx, ExcludeFirstSeenTagKey)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	if excludeFirstSeenTag {
@@ -86,7 +85,7 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 		if IsFirstSeenTag(aws.String(key)) {
 			firstSeenTime, err = ParseTimestamp(aws.String(value))
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 		}
 	}
@@ -117,7 +116,7 @@ func GetOrCreateFirstSeen(ctx context.Context, client interface{}, identifier *s
 				},
 			})
 		default:
-			return nil, errors.WithStackTrace(fmt.Errorf("invalid type %v for first seen tag", v))
+			return nil, fmt.Errorf("invalid type %v for first seen tag", v)
 		}
 	}
 

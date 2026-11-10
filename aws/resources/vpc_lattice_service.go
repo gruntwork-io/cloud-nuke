@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // VPCLatticeServiceAPI defines the interface for VPC Lattice Service operations.
@@ -52,7 +51,7 @@ func listVPCLatticeServices(ctx context.Context, client VPCLatticeServiceAPI, _ 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, service := range page.Items {
@@ -87,7 +86,7 @@ func deleteVPCLatticeServiceAssociations(ctx context.Context, client VPCLatticeS
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, assoc := range page.Items {
@@ -96,7 +95,7 @@ func deleteVPCLatticeServiceAssociations(ctx context.Context, client VPCLatticeS
 			if _, err := client.DeleteServiceNetworkServiceAssociation(ctx, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
 				ServiceNetworkServiceAssociationIdentifier: assoc.Id,
 			}); err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}
@@ -112,7 +111,7 @@ func waitForVPCLatticeServiceAssociationsDeleted(ctx context.Context, client VPC
 			ServiceIdentifier: serviceID,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		if len(output.Items) == 0 {
 			return nil
@@ -129,7 +128,7 @@ func deleteVPCLatticeService(ctx context.Context, client VPCLatticeServiceAPI, s
 		ServiceIdentifier: serviceID,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

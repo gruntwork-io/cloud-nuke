@@ -6,7 +6,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli/v2"
 )
@@ -43,7 +42,7 @@ func CreateCli(version string) *cli.App {
 		{
 			Name:   "aws",
 			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes AWS resources.",
-			Action: errors.WithPanicHandling(awsNuke),
+			Action: awsNuke,
 			Flags: CombineFlags(
 				RegionFlags(),
 				CommonResourceTypeFlags(),
@@ -66,7 +65,7 @@ func CreateCli(version string) *cli.App {
 		}, {
 			Name:   "azure",
 			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes Azure resources.",
-			Action: errors.WithPanicHandling(azureNuke),
+			Action: azureNuke,
 			Flags: CombineFlags(
 				[]cli.Flag{AzureSubscriptionFlag()},
 				RegionFlags(),
@@ -79,7 +78,7 @@ func CreateCli(version string) *cli.App {
 		}, {
 			Name:   "inspect-azure",
 			Usage:  "Non-destructive inspection of target Azure resources only",
-			Action: errors.WithPanicHandling(azureInspect),
+			Action: azureInspect,
 			Flags: CombineFlags(
 				[]cli.Flag{AzureSubscriptionFlag()},
 				RegionFlags(),
@@ -91,7 +90,7 @@ func CreateCli(version string) *cli.App {
 		}, {
 			Name:   "gcp",
 			Usage:  "BEWARE: DESTRUCTIVE OPERATION! Nukes GCP resources.",
-			Action: errors.WithPanicHandling(gcpNuke),
+			Action: gcpNuke,
 			Flags: CombineFlags(
 				[]cli.Flag{GCPProjectFlag()},
 				RegionFlags(),
@@ -110,7 +109,7 @@ func CreateCli(version string) *cli.App {
 		}, {
 			Name:   "inspect-gcp",
 			Usage:  "Non-destructive inspection of target GCP resources only",
-			Action: errors.WithPanicHandling(gcpInspect),
+			Action: gcpInspect,
 			Flags: CombineFlags(
 				[]cli.Flag{GCPProjectFlag()},
 				RegionFlags(),
@@ -128,7 +127,7 @@ func CreateCli(version string) *cli.App {
 		}, {
 			Name:   "defaults-aws",
 			Usage:  "Nukes AWS default VPCs and permissive default security group rules.",
-			Action: errors.WithPanicHandling(awsDefaults),
+			Action: awsDefaults,
 			Flags: CombineFlags(
 				RegionFlags(),
 				[]cli.Flag{
@@ -155,7 +154,7 @@ func CreateCli(version string) *cli.App {
 		}, {
 			Name:   "inspect-aws",
 			Usage:  "Non-destructive inspection of target resources only",
-			Action: errors.WithPanicHandling(awsInspect),
+			Action: awsInspect,
 			Flags: CombineFlags(
 				RegionFlags(),
 				InspectResourceTypeFlags(),

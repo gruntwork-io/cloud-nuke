@@ -13,7 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
 )
 
@@ -51,12 +50,12 @@ func NewOpenSearchDomains() AwsResource {
 func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	domains, err := getAllActiveOpenSearchDomains(ctx, client)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	excludeFirstSeenTag, err := util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var domainsToNuke []*string
@@ -113,7 +112,7 @@ func parseOpenSearchFirstSeenTag(tags map[string]string) *time.Time {
 func getAllActiveOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI) ([]types.DomainStatus, error) {
 	resp, err := client.ListDomainNames(ctx, &opensearch.ListDomainNamesInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	if len(resp.DomainNames) == 0 {
@@ -139,7 +138,7 @@ func getAllActiveOpenSearchDomains(ctx context.Context, client OpenSearchDomains
 			DomainNames: batch,
 		})
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, domain := range describedDomains.DomainStatusList {
@@ -156,7 +155,7 @@ func getAllActiveOpenSearchDomains(ctx context.Context, client OpenSearchDomains
 func getOpenSearchDomainTags(ctx context.Context, client OpenSearchDomainsAPI, domainARN *string) (map[string]string, error) {
 	output, err := client.ListTags(ctx, &opensearch.ListTagsInput{ARN: domainARN})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 	return util.ConvertOpenSearchTagsToMap(output.TagList), nil
 }
@@ -178,7 +177,7 @@ func setOpenSearchFirstSeenTag(ctx context.Context, client OpenSearchDomainsAPI,
 
 	_, err := client.AddTags(ctx, input)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -189,7 +188,7 @@ func deleteOpenSearchDomain(ctx context.Context, client OpenSearchDomainsAPI, do
 	input := &opensearch.DeleteDomainInput{DomainName: domainName}
 	_, err := client.DeleteDomain(ctx, input)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }
@@ -204,7 +203,7 @@ func waitForOpenSearchDomainsDeleted(ctx context.Context, client OpenSearchDomai
 		func() error {
 			resp, err := client.DescribeDomains(ctx, &opensearch.DescribeDomainsInput{DomainNames: names})
 			if err != nil {
-				return errors.WithStackTrace(retry.FatalError{Underlying: err})
+				return retry.FatalError{Underlying: err}
 			}
 			if len(resp.DomainStatusList) == 0 {
 				return nil

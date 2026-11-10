@@ -8,7 +8,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // RdsClusterSnapshotAPI defines the interface for RDS Cluster Snapshot operations.
@@ -43,7 +42,7 @@ func listRdsClusterSnapshots(ctx context.Context, client RdsClusterSnapshotAPI, 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, s := range page.DBClusterSnapshots {

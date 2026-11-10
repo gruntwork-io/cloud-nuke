@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/gruntwork-io/go-commons/retry"
 )
 
@@ -139,7 +138,7 @@ func waitForNatGatewaysDeleted(ctx context.Context, client NatGatewaysAPI, ids [
 				},
 			})
 			if err != nil {
-				return errors.WithStackTrace(retry.FatalError{Underlying: err})
+				return retry.FatalError{Underlying: err}
 			}
 			if len(resp.NatGateways) > 0 {
 				return fmt.Errorf("%d NAT Gateways still deleting", len(resp.NatGateways))

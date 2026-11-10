@@ -6,7 +6,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/go-commons/errors"
 	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
 )
@@ -32,7 +31,7 @@ func awsNuke(c *cli.Context) error {
 	// Load config file if provided
 	configObj, err := loadConfigFile(c.String(FlagConfig))
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Apply timeout to config (consistent with GCP behavior)
@@ -43,7 +42,7 @@ func awsNuke(c *cli.Context) error {
 	// Build AWS query from CLI flags
 	query, err := generateQuery(c, c.Bool(FlagDeleteUnaliasedKMSKeys), nil, false)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Get output preferences
@@ -81,7 +80,7 @@ func awsDefaults(c *cli.Context) error {
 	// Build query for default resources only
 	query, err := generateQuery(c, false, resourceTypes, true)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Note: Config file feature is only available for the 'aws' command
@@ -107,7 +106,7 @@ func awsInspect(c *cli.Context) error {
 	// Load config file if provided
 	configObj, err := loadConfigFile(c.String(FlagConfig))
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Apply timeout to config
@@ -118,7 +117,7 @@ func awsInspect(c *cli.Context) error {
 	// Build AWS query from CLI flags
 	query, err := generateQuery(c, c.Bool(FlagListUnaliasedKMSKeys), nil, false)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Get output preferences
@@ -152,7 +151,7 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, ou
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error getting resources",
 		}, map[string]interface{}{})
-		return errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
+		return aws.ResourceInspectionError{Underlying: err}
 	}
 
 	// Signal scan complete - renderer will show found resources table
@@ -178,24 +177,24 @@ func generateQuery(c *cli.Context, includeUnaliasedKmsKeys bool, overridingResou
 	// Parse time-based filters
 	excludeAfter, err := parseDurationParam(FlagOlderThan, c.String(FlagOlderThan))
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	includeAfter, err := parseDurationParam(FlagNewerThan, c.String(FlagNewerThan))
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	// Parse timeout
 	timeout, err := parseTimeoutDurationParam(FlagTimeout, c.String(FlagTimeout))
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	// Parse tag filters
 	includeTags, err := parseTagFlags(c.StringSlice(FlagIncludeTag))
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	// Determine which resource types to target
@@ -245,7 +244,7 @@ func handleGetResourcesWithFormat(c *cli.Context, configObj config.Config, query
 		telemetry.TrackEvent(commonTelemetry.EventContext{
 			EventName: "Error inspecting resources",
 		}, map[string]interface{}{})
-		return nil, errors.WithStackTrace(aws.ResourceInspectionError{Underlying: err})
+		return nil, aws.ResourceInspectionError{Underlying: err}
 	}
 
 	// Signal scan complete - renderer will show found resources table

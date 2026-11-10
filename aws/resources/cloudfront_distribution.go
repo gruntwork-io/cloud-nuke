@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 const (
@@ -54,7 +53,7 @@ func listCloudfrontDistributions(ctx context.Context, client CloudfrontDistribut
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		if page.DistributionList == nil || page.DistributionList.Items == nil {
@@ -93,7 +92,7 @@ func nukeCloudfrontDistribution(ctx context.Context, client CloudfrontDistributi
 	// Step 1: Get the current distribution configuration
 	getOutput, err := client.GetDistributionConfig(ctx, &cloudfront.GetDistributionConfigInput{Id: id})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	etag := getOutput.ETag
@@ -109,20 +108,20 @@ func nukeCloudfrontDistribution(ctx context.Context, client CloudfrontDistributi
 			DistributionConfig: getOutput.DistributionConfig,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		// Step 3: Wait for the distribution to be deployed in disabled state
 		logging.Debugf("Waiting for CloudFront distribution %s to be deployed", aws.ToString(id))
 		waiter := cloudfront.NewDistributionDeployedWaiter(client)
 		if err := waiter.Wait(ctx, &cloudfront.GetDistributionInput{Id: id}, cloudfrontDistributionDeployWaitTimeout); err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		// Get the latest ETag after waiting (distribution state may have changed)
 		getOutput, err = client.GetDistributionConfig(ctx, &cloudfront.GetDistributionConfigInput{Id: id})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		etag = getOutput.ETag
 	}
@@ -134,7 +133,7 @@ func nukeCloudfrontDistribution(ctx context.Context, client CloudfrontDistributi
 		IfMatch: etag,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil

@@ -14,7 +14,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // IAMServiceLinkedRolesAPI defines the interface for IAM Service Linked Role operations.
@@ -51,7 +50,7 @@ func listIAMServiceLinkedRoles(ctx context.Context, client IAMServiceLinkedRoles
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, role := range page.Roles {
@@ -80,7 +79,7 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 		RoleName: roleName,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Poll for deletion completion
@@ -110,7 +109,7 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 					case roleErr != nil:
 						// Could not confirm the role's state; surface the verification
 						// error rather than masking it with the task-not-found error.
-						return false, errors.WithStackTrace(roleErr)
+						return false, roleErr
 					default:
 						// The task record is gone but GetRole still sees the role. AWS
 						// already accepted the deletion, so this is almost always IAM
@@ -122,7 +121,7 @@ func deleteIAMServiceLinkedRole(ctx context.Context, client IAMServiceLinkedRole
 						return false, nil
 					}
 				}
-				return false, errors.WithStackTrace(err)
+				return false, err
 			}
 
 			switch status.Status {
