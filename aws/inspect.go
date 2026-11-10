@@ -1,8 +1,6 @@
 package aws
 
-import (
-	"github.com/gruntwork-io/go-commons/collections"
-)
+import "slices"
 
 func ensureValidResourceTypes(resourceTypes []string) ([]string, error) {
 	invalidresourceTypes := []string{}
@@ -44,7 +42,7 @@ func HandleResourceTypeSelections(
 
 	resourceTypes := []string{}
 	for _, resourceType := range ListResourceTypes() {
-		if !collections.ListContainsElement(validExcludeResourceTypes, resourceType) {
+		if !slices.Contains(validExcludeResourceTypes, resourceType) {
 			resourceTypes = append(resourceTypes, resourceType)
 		}
 	}
