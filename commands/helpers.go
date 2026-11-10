@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
 )
 
@@ -19,13 +18,13 @@ func loadConfigFile(configFilePath string) (config.Config, error) {
 		return config.Config{}, nil
 	}
 
-	telemetry.TrackEvent(commonTelemetry.EventContext{
+	telemetry.TrackEvent(telemetry.EventContext{
 		EventName: "Reading config file",
 	}, map[string]interface{}{})
 
 	configObjPtr, err := config.GetConfig(configFilePath)
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Error reading config file",
 		}, map[string]interface{}{})
 		return config.Config{}, ConfigFileReadError{FilePath: configFilePath, Underlying: err}
@@ -70,7 +69,7 @@ func parseAndApplyTimeout(c *cli.Context, configObj *config.Config) error {
 // Returns true if the nuke should proceed, false otherwise
 func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	if !hasResources {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "No resources to nuke",
 		}, map[string]interface{}{})
 		logging.Info("Nothing to nuke, you're all good!")
@@ -78,7 +77,7 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	}
 
 	if c.Bool(FlagDryRun) {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Skipping nuke, dryrun set",
 		}, map[string]interface{}{})
 		logging.Info("Not taking any action as dry-run set to true.")
@@ -86,7 +85,7 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	}
 
 	if !c.Bool(FlagForce) {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Awaiting nuke confirmation",
 		}, map[string]interface{}{})
 
@@ -95,14 +94,14 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 
 		proceed, err := renderNukeConfirmationPrompt(promptMessage, MaxConfirmationAttempts)
 		if err != nil {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
+			telemetry.TrackEvent(telemetry.EventContext{
 				EventName: "Error confirming nuke",
 			}, map[string]interface{}{})
 			return false, err
 		}
 
 		if !proceed {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
+			telemetry.TrackEvent(telemetry.EventContext{
 				EventName: "User aborted nuke",
 			}, map[string]interface{}{})
 			return false, nil
@@ -112,7 +111,7 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	}
 
 	// Force flag is set
-	telemetry.TrackEvent(commonTelemetry.EventContext{
+	telemetry.TrackEvent(telemetry.EventContext{
 		EventName: "Forcing nuke in 10 seconds",
 	}, map[string]interface{}{})
 

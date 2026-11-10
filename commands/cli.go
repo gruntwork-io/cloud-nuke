@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli/v2"
@@ -24,7 +23,7 @@ func CreateCli(version string) *cli.App {
 
 	// Initialize telemetry for usage tracking
 	telemetry.InitTelemetry("cloud-nuke", version)
-	telemetry.TrackEvent(commonTelemetry.EventContext{
+	telemetry.TrackEvent(telemetry.EventContext{
 		EventName: "initialized",
 	}, map[string]interface{}{})
 

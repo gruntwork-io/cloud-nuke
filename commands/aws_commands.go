@@ -6,7 +6,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/renderers"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
 )
 
@@ -148,7 +147,7 @@ func awsNukeHelper(c *cli.Context, configObj config.Config, query *aws.Query, ou
 	// Retrieve all matching resources (emits ResourceFound events via collector)
 	account, err := aws.GetAllResources(c.Context, query, configObj, collector)
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Error getting resources",
 		}, map[string]interface{}{})
 		return aws.ResourceInspectionError{Underlying: err}
@@ -241,7 +240,7 @@ func handleGetResourcesWithFormat(c *cli.Context, configObj config.Config, query
 	// Retrieve all resources matching the query (emits ResourceFound events via collector)
 	accountResources, err := aws.GetAllResources(c.Context, query, configObj, collector)
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Error inspecting resources",
 		}, map[string]interface{}{})
 		return nil, aws.ResourceInspectionError{Underlying: err}

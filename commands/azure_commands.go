@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
 )
 
@@ -43,7 +42,7 @@ func azureNuke(c *cli.Context) error {
 
 	account, err := azure.GetAllResources(ctx, query, configObj, collector)
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error getting resources"}, map[string]interface{}{})
+		telemetry.TrackEvent(telemetry.EventContext{EventName: "Error getting resources"}, map[string]interface{}{})
 		return timeoutError(err, query.Timeout)
 	}
 	if err := timedOut(ctx, query.Timeout); err != nil {
@@ -88,7 +87,7 @@ func azureInspect(c *cli.Context) error {
 	defer cancel()
 
 	if _, err := azure.GetAllResources(ctx, query, configObj, collector); err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error inspecting resources"}, map[string]interface{}{})
+		telemetry.TrackEvent(telemetry.EventContext{EventName: "Error inspecting resources"}, map[string]interface{}{})
 		return timeoutError(err, query.Timeout)
 	}
 	if err := timedOut(ctx, query.Timeout); err != nil {
