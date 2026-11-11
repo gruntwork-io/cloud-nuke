@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"runtime/debug"
 
 	"github.com/gruntwork-io/cloud-nuke/commands"
 	"github.com/sirupsen/logrus"
@@ -24,6 +25,9 @@ func main() {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error(r)
+			if os.Getenv("GRUNTWORK_DEBUG") != "" {
+				log.Error(string(debug.Stack()))
+			}
 			os.Exit(1)
 		}
 	}()

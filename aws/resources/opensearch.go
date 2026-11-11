@@ -202,7 +202,11 @@ func waitForOpenSearchDomainsDeleted(ctx context.Context, client OpenSearchDomai
 			if err != nil {
 				return false, err
 			}
-			return len(resp.DomainStatusList) == 0, nil
+			if len(resp.DomainStatusList) > 0 {
+				logging.Infof("Waiting for %d OpenSearch Domains to be deleted", len(resp.DomainStatusList))
+				return false, nil
+			}
+			return true, nil
 		},
 	)
 }

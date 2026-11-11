@@ -276,6 +276,7 @@ func deleteLoginProfile(ctx context.Context, client IAMUsersAPI, userName *strin
 				case goerr.As(err, &errEntityTemporarilyUnmodifiableException):
 					// The request was rejected because it referenced an entity that is
 					// temporarily unmodifiable. We have to try again.
+					logging.Infof("Login Profile for user %s cannot be deleted now, retrying", aws.ToString(userName))
 					return false, nil
 				default:
 					return false, err

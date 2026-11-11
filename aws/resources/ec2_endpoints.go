@@ -170,7 +170,11 @@ func waitForEndpointsDeleted(ctx context.Context, client EC2EndpointsAPI, ids []
 					}
 				}
 			}
-			return remaining == 0, nil
+			if remaining > 0 {
+				logging.Infof("Waiting for %d VPC Endpoints to be deleted", remaining)
+				return false, nil
+			}
+			return true, nil
 		},
 	)
 }

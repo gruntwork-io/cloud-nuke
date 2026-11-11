@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
 )
@@ -136,7 +137,11 @@ func waitForNatGatewaysDeleted(ctx context.Context, client NatGatewaysAPI, ids [
 			if err != nil {
 				return false, err
 			}
-			return len(resp.NatGateways) == 0, nil
+			if len(resp.NatGateways) > 0 {
+				logging.Infof("Waiting for %d NAT Gateways to be deleted", len(resp.NatGateways))
+				return false, nil
+			}
+			return true, nil
 		},
 	)
 }
