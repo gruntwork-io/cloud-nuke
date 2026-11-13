@@ -12,7 +12,7 @@ repos:
     - id: shellcheck
     - id: gofmt
 - repo: https://github.com/golangci/golangci-lint
-  rev: v1.55.2
+  rev: v2.15.0
   hooks:
     - id: golangci-lint
       args: ['--config=.golangci.yml']
