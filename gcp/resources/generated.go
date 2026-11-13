@@ -67,21 +67,25 @@ func NewGeneratedResource(g Generated) GcpResource {
 		},
 
 		Nuker: resource.SequentialDeleter(func(ctx context.Context, client *generic.Client, id *string) error {
-			return client.Delete(ctx, cloudInventoryID(id))
+			// The identity goes back exactly as the listing gave it: its
+			// format belongs to the provider and nothing here reads it.
+			return client.Delete(ctx, cloudinv.ID(*id))
 		}),
 	}, g.LocationScope)
 }
 
 // listGenerated reads the project and keeps what the run asked for.
 //
-// A part of the project the library could not read is reported here and the
-// run carries on with the rest. That is cloud-nuke's call and not the
-// library's: refusing to nuke the regions it can read, because one refused,
-// would leave more behind than it saves. A test suite takes the same report
-// and fails, which is why the library reports rather than decides.
+// A location the library could not read is reported and the run carries on
+// with the rest, which is cloud-nuke's call rather than the library's: not
+// nuking the locations it can read would leave more behind than it saves. A
+// test suite takes the same report and fails.
 func listGenerated(ctx context.Context, client *generic.Client, g Generated, gcpCfg GcpConfig, cfg config.ResourceType) ([]*string, error) {
+	// An error here is a scope the provider cannot address or a cancelled run,
+	// never a location that refused. Carrying on would nuke against a listing
+	// the operator stopped.
 	found, incomplete, err := client.List(ctx, g.ScopeOf(gcpCfg))
-	if err != nil && len(found) == 0 {
+	if err != nil {
 		return nil, err
 	}
 	if incomplete.Any() {
@@ -108,14 +112,4 @@ func listGenerated(ctx context.Context, client *generic.Client, g Generated, gcp
 		keep = append(keep, &id)
 	}
 	return keep, nil
-}
-
-// cloudInventoryID is the identity a listing returned, which a delete takes
-// back unchanged. It is a conversion rather than a parse, because the format
-// belongs to the provider and nothing here should know it.
-func cloudInventoryID(id *string) cloudinv.ID {
-	if id == nil {
-		return ""
-	}
-	return cloudinv.ID(*id)
 }
