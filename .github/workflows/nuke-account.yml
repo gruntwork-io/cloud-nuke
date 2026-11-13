@@ -89,7 +89,7 @@ jobs:
           exit $EXIT_CODE
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.account_name }}-${{ matrix.region }}
           path: |
