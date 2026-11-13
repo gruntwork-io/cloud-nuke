@@ -105,7 +105,7 @@ jobs:
     needs: [nuke]
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: ${{ inputs.account_name }}-*
           path: /tmp/logs
