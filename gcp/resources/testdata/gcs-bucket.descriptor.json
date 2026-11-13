@@ -1,0 +1,27 @@
+{
+  "baseUrl": "https://storage.googleapis.com/storage/v1/",
+  "descriptors": {
+    "buckets": {
+      "type": "buckets",
+      "listPath": "b",
+      "getPath": "b/{bucket}",
+      "deletePath": "b/{bucket}",
+      "createPath": "b",
+      "arrayField": "items",
+      "identityField": "selfLink",
+      "createdField": "timeCreated",
+      "labelsField": "labels",
+      "scopeParams": null,
+      "scopeQuery": [
+        "project"
+      ],
+      "paged": true,
+      "operations": [
+        "list",
+        "get",
+        "create",
+        "delete"
+      ]
+    }
+  }
+}
