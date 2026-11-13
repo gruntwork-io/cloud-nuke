@@ -41,6 +41,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
+	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 const (
@@ -153,6 +154,9 @@ type EC2ListerFunc[C any] func(ctx context.Context, client C, scope resource.Sco
 type EC2ResourceOptions[C any] struct {
 	// PermissionVerifier is an optional function to verify deletion permissions via dry-run.
 	PermissionVerifier func(ctx context.Context, client C, id *string) error
+
+	// FirstSeenTag marks a type whose age comes from the first-seen tag.
+	FirstSeenTag bool
 }
 
 // NewEC2AwsResource creates an AWS resource that uses EC2ResourceType config (with DefaultOnly support).
@@ -198,9 +202,44 @@ func NewEC2AwsResource[C any](
 		Nuker: nuker,
 	}
 
-	if opts != nil && opts.PermissionVerifier != nil {
+	if opts != nil {
 		r.PermissionVerifier = opts.PermissionVerifier
+		r.FirstSeenTag = opts.FirstSeenTag
 	}
 
 	return NewAwsResource(r)
+}
+
+// passesNameAndTagRules applies the name and tag rules without the time rules.
+// A lister checks it before it spends an API call on a creation time, since a
+// resource these rules exclude is left out whatever its age.
+func passesNameAndTagRules(cfg config.ResourceType, name *string, tags map[string]string) bool {
+	return config.ShouldInclude(name, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) &&
+		cfg.ShouldIncludeBasedOnTag(tags)
+}
+
+// keepAccountID wraps a lister and a nuker so that the nuker sees the account id
+// the lister read. The provider attaches the account id to the scan context
+// only, and the nuke runs with a context that does not carry it.
+func keepAccountID[C any](
+	lister func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error),
+	nuker resource.NukerFunc[C],
+) (func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error), resource.NukerFunc[C]) {
+	var accountID any
+
+	keepingLister := func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
+		if id := ctx.Value(util.AccountIdKey); id != nil {
+			accountID = id
+		}
+		return lister(ctx, client, scope, cfg)
+	}
+
+	restoringNuker := func(ctx context.Context, client C, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
+		if ctx.Value(util.AccountIdKey) == nil && accountID != nil {
+			ctx = context.WithValue(ctx, util.AccountIdKey, accountID)
+		}
+		return nuker(ctx, client, scope, resourceType, identifiers)
+	}
+
+	return keepingLister, restoringNuker
 }

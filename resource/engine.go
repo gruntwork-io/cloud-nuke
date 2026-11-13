@@ -105,6 +105,13 @@ type ScanRequest struct {
 	Parallelism int
 }
 
+// ageReporter is implemented by a resource type that can say where its age
+// comes from, so the scan can warn when a time filter can never match it.
+type ageReporter interface {
+	ReportsNoCreationTime() bool
+	ReadsAgeFromFirstSeenTag() bool
+}
+
 // Scan walks every target the provider offers and returns what it found. One
 // errgroup covers every target and every resource type, so a parallelism of N
 // means at most N simultaneous API calls in total rather than N per target.
@@ -179,6 +186,17 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	foundByTarget := make(map[string][]indexed)
 	var foundMu sync.Mutex
 
+	// A type is scanned once per target, but its warning is said once per scan.
+	var warnedTypes sync.Map
+	warnOnce := func(resourceType, format string) {
+		if _, warned := warnedTypes.LoadOrStore(resourceType, struct{}{}); !warned {
+			logging.Warnf(format, resourceType)
+		}
+	}
+
+	// A provider with no first-seen tags never sets this value.
+	excludeFirstSeen := ctx.Value(util.ExcludeFirstSeenTagKey) == true
+
 	scanGroup := new(errgroup.Group)
 	scanGroup.SetLimit(parallelism)
 	for _, t := range tasks {
@@ -190,7 +208,18 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 			}
 
 			resourceType := t.resource.ResourceName()
-			t.resource.GetAndSetResourceConfig(req.Config)
+			resourceCfg := t.resource.GetAndSetResourceConfig(req.Config)
+
+			if r, ok := t.resource.(ageReporter); ok && resourceCfg.HasTimeFilter() {
+				if r.ReportsNoCreationTime() {
+					warnOnce(resourceType,
+						"Leaving all %s resources alone: their creation time is not reported, and a time filter cannot be applied to an age it cannot read. Remove the time filter (--older-than, --newer-than, or time_after and time_before in the config file) to include them.")
+				}
+				if r.ReadsAgeFromFirstSeenTag() && excludeFirstSeen {
+					warnOnce(resourceType,
+						"Leaving all %s resources alone: their age comes from the cloud-nuke-first-seen tag, and --exclude-first-seen turns that tag off. Drop --exclude-first-seen, or remove the time filter (--older-than, --newer-than, or time_after and time_before in the config file), to include them.")
+				}
+			}
 
 			collector.Emit(reporting.ScanProgress{
 				ResourceType: resourceType,

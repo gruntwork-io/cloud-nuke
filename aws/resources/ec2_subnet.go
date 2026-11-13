@@ -32,7 +32,7 @@ func NewEC2Subnet() AwsResource {
 		func(c config.Config) config.EC2ResourceType { return c.EC2Subnet },
 		listEC2Subnets,
 		resource.SimpleBatchDeleter(deleteSubnet),
-		&EC2ResourceOptions[EC2SubnetAPI]{PermissionVerifier: verifyEC2SubnetPermission},
+		&EC2ResourceOptions[EC2SubnetAPI]{PermissionVerifier: verifyEC2SubnetPermission, FirstSeenTag: true},
 	)
 }
 

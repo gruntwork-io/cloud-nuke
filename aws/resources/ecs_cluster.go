@@ -40,6 +40,7 @@ func NewECSClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[ECSClustersAPI]{
 		ResourceTypeName: "ecs-cluster",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ECSClustersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ecs.NewFromConfig(cfg)
@@ -88,15 +89,15 @@ func listECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.
 				return nil, errors.WithStackTrace(err)
 			}
 
-			if !cfg.ShouldInclude(config.ResourceValue{
-				Name: cluster.ClusterName,
-				Tags: tags,
-			}) {
+			// The time filter is applied below, once the first-seen time is known.
+			if !passesNameAndTagRules(cfg, cluster.ClusterName, tags) {
 				continue
 			}
 
 			if excludeFirstSeenTag {
-				result = append(result, cluster.ClusterArn)
+				if !cfg.HasTimeFilter() {
+					result = append(result, cluster.ClusterArn)
+				}
 				continue
 			}
 

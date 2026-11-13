@@ -2,8 +2,10 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3control"
@@ -19,6 +21,17 @@ type mockS3AccessPointClient struct {
 	ListAccessPointsOutput  s3control.ListAccessPointsOutput
 	DeleteAccessPointOutput s3control.DeleteAccessPointOutput
 	DeletedAccessPoints     []string
+	CreationTimes           map[string]time.Time
+	GetCalls                int
+}
+
+func (m *mockS3AccessPointClient) GetAccessPoint(ctx context.Context, params *s3control.GetAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.GetAccessPointOutput, error) {
+	m.GetCalls++
+	createdAt, ok := m.CreationTimes[aws.ToString(params.Name)]
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+	return &s3control.GetAccessPointOutput{CreationDate: aws.Time(createdAt)}, nil
 }
 
 func (m *mockS3AccessPointClient) ListAccessPoints(ctx context.Context, params *s3control.ListAccessPointsInput, optFns ...func(*s3control.Options)) (*s3control.ListAccessPointsOutput, error) {
@@ -74,6 +87,47 @@ func TestS3AccessPoint_List(t *testing.T) {
 	}
 }
 
+func TestS3AccessPoint_ListTimeFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	ctx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+	newMock := func() *mockS3AccessPointClient {
+		return &mockS3AccessPointClient{
+			ListAccessPointsOutput: s3control.ListAccessPointsOutput{
+				AccessPointList: []types.AccessPoint{
+					{Name: aws.String("old")},
+					{Name: aws.String("new")},
+					{Name: aws.String("unreadable")},
+				},
+			},
+			CreationTimes: map[string]time.Time{
+				"old": now.Add(-2 * time.Hour),
+				"new": now,
+			},
+		}
+	}
+
+	mock := newMock()
+	olderThanAnHour := config.ResourceType{ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-time.Hour))}}
+	names, err := listS3AccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, olderThanAnHour)
+	require.NoError(t, err)
+	require.Equal(t, []string{"old"}, aws.ToStringSlice(names), "an unreadable creation time leaves the access point out")
+
+	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile("^new$")}}
+	_, err = listS3AccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.GetCalls, "an access point excluded by name gets no GetAccessPoint call")
+
+	mock = newMock()
+	names, err = listS3AccessPoints(ctx, mock, resource.Scope{Region: "us-east-1"}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Len(t, names, 3)
+	require.Zero(t, mock.GetCalls, "no time filter, no GetAccessPoint calls")
+}
+
 func TestS3AccessPoint_Nuke(t *testing.T) {
 	t.Parallel()
 
@@ -92,6 +146,28 @@ func TestS3AccessPoint_Nuke(t *testing.T) {
 	require.NoError(t, results[0].Error)
 	require.Equal(t, "test-access-point", results[0].Identifier)
 	require.Contains(t, mock.DeletedAccessPoints, "test-access-point")
+}
+
+// TestS3AccessPoint_NukeAfterScan runs the resource the way the engine does:
+// the scan context carries the account id, and the nuke context does not.
+func TestS3AccessPoint_NukeAfterScan(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockS3AccessPointClient{
+		ListAccessPointsOutput: s3control.ListAccessPointsOutput{
+			AccessPointList: []types.AccessPoint{{Name: aws.String("test-access-point")}},
+		},
+	}
+	r := NewS3AccessPoints().(*AwsResourceAdapter[S3ControlAccessPointAPI]).Resource
+	r.Client = mock
+
+	scanCtx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+	ids, err := r.GetAndSetIdentifiers(scanCtx, config.Config{})
+	require.NoError(t, err)
+
+	_, err = r.Nuke(context.Background(), ids)
+	require.NoError(t, err)
+	require.Equal(t, []string{"test-access-point"}, mock.DeletedAccessPoints)
 }
 
 func TestS3AccessPoint_ListRequiresAccountID(t *testing.T) {

@@ -24,6 +24,7 @@ type RdsParameterGroupAPI interface {
 func NewRdsParameterGroup() AwsResource {
 	return NewAwsResource(&resource.Resource[RdsParameterGroupAPI]{
 		ResourceTypeName: "rds-parameter-group",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsParameterGroupAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

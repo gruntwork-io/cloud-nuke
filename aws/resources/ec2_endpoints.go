@@ -33,7 +33,7 @@ func NewEC2Endpoints() AwsResource {
 		func(c config.Config) config.EC2ResourceType { return c.EC2Endpoint },
 		listEC2Endpoints,
 		resource.ConcurrentDeleteThenWaitAll(deleteEC2Endpoint, waitForEndpointsDeleted),
-		&EC2ResourceOptions[EC2EndpointsAPI]{PermissionVerifier: verifyEC2EndpointPermission},
+		&EC2ResourceOptions[EC2EndpointsAPI]{PermissionVerifier: verifyEC2EndpointPermission, FirstSeenTag: true},
 	)
 }
 

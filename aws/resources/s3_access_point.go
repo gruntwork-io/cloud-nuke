@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3control"
@@ -16,11 +17,13 @@ import (
 // S3ControlAccessPointAPI defines the interface for S3 Control Access Point operations.
 type S3ControlAccessPointAPI interface {
 	ListAccessPoints(ctx context.Context, params *s3control.ListAccessPointsInput, optFns ...func(*s3control.Options)) (*s3control.ListAccessPointsOutput, error)
+	GetAccessPoint(ctx context.Context, params *s3control.GetAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.GetAccessPointOutput, error)
 	DeleteAccessPoint(ctx context.Context, params *s3control.DeleteAccessPointInput, optFns ...func(*s3control.Options)) (*s3control.DeleteAccessPointOutput, error)
 }
 
 // NewS3AccessPoints creates a new S3 Access Point resource using the generic resource pattern.
 func NewS3AccessPoints() AwsResource {
+	lister, nuker := keepAccountID(listS3AccessPoints, nukeS3AccessPoints)
 	return NewAwsResource(&resource.Resource[S3ControlAccessPointAPI]{
 		ResourceTypeName: "s3-access-point",
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
@@ -32,8 +35,8 @@ func NewS3AccessPoints() AwsResource {
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.S3AccessPoint
 		},
-		Lister: listS3AccessPoints,
-		Nuker:  nukeS3AccessPoints,
+		Lister: lister,
+		Nuker:  nuker,
 	})
 }
 
@@ -57,8 +60,14 @@ func listS3AccessPoints(ctx context.Context, client S3ControlAccessPointAPI, sco
 		}
 
 		for _, accessPoint := range page.AccessPointList {
+			var createdAt *time.Time
+			if cfg.HasTimeFilter() && passesNameAndTagRules(cfg, accessPoint.Name, nil) {
+				createdAt = getS3AccessPointCreationTime(ctx, client, accountID, accessPoint.Name)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: accessPoint.Name,
+				Time: createdAt,
 			}) {
 				identifiers = append(identifiers, accessPoint.Name)
 			}
@@ -66,6 +75,20 @@ func listS3AccessPoints(ctx context.Context, client S3ControlAccessPointAPI, sco
 	}
 
 	return identifiers, nil
+}
+
+// getS3AccessPointCreationTime reads the creation time that ListAccessPoints
+// does not return. It warns and returns nil when the call fails.
+func getS3AccessPointCreationTime(ctx context.Context, client S3ControlAccessPointAPI, accountID string, name *string) *time.Time {
+	output, err := client.GetAccessPoint(ctx, &s3control.GetAccessPointInput{
+		AccountId: aws.String(accountID),
+		Name:      name,
+	})
+	if err != nil {
+		logging.Warnf("Unable to read the creation time of S3 access point %s, so a time filter cannot include it: %v", aws.ToString(name), err)
+		return nil
+	}
+	return output.CreationDate
 }
 
 // nukeS3AccessPoints deletes S3 Access Points.

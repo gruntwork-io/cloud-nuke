@@ -25,6 +25,7 @@ func NewNetworkFirewallPolicy() AwsResource {
 	return NewAwsResource(&resource.Resource[NetworkFirewallPolicyAPI]{
 		ResourceTypeName: "network-firewall-policy",
 		BatchSize:        10,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[NetworkFirewallPolicyAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = networkfirewall.NewFromConfig(cfg)

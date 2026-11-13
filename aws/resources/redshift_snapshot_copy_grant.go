@@ -20,6 +20,7 @@ type RedshiftSnapshotCopyGrantsAPI interface {
 func NewRedshiftSnapshotCopyGrants() AwsResource {
 	return NewAwsResource(&resource.Resource[RedshiftSnapshotCopyGrantsAPI]{
 		ResourceTypeName: "redshift-snapshot-copy-grant",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RedshiftSnapshotCopyGrantsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

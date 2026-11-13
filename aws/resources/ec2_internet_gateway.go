@@ -34,7 +34,7 @@ func NewInternetGateway() AwsResource {
 		func(c config.Config) config.EC2ResourceType { return c.InternetGateway },
 		listInternetGateways,
 		resource.MultiStepDeleter(detachInternetGateway, deleteInternetGateway),
-		&EC2ResourceOptions[InternetGatewayAPI]{PermissionVerifier: verifyInternetGatewayPermission},
+		&EC2ResourceOptions[InternetGatewayAPI]{PermissionVerifier: verifyInternetGatewayPermission, FirstSeenTag: true},
 	)
 }
 
