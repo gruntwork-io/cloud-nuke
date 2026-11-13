@@ -13,7 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DBGlobalClustersAPI defines the interface for RDS Global Cluster operations.
@@ -48,7 +47,7 @@ func listDBGlobalClusters(ctx context.Context, client DBGlobalClustersAPI, scope
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, cluster := range page.GlobalClusters {
@@ -98,7 +97,7 @@ func waitForDBGlobalClustersDeleted(ctx context.Context, client DBGlobalClusters
 				if goerr.As(err, &notFoundErr) {
 					break // Cluster is deleted
 				}
-				return errors.WithStackTrace(err)
+				return err
 			}
 
 			logging.Debugf("Waiting for RDS Global Cluster %s to be deleted", name)
@@ -114,7 +113,7 @@ func waitForDBGlobalClustersDeleted(ctx context.Context, client DBGlobalClusters
 		}
 		var notFoundErr *types.GlobalClusterNotFoundFault
 		if !goerr.As(err, &notFoundErr) {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 

@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SSMParameterAPI defines the interface for SSM Parameter Store operations.
@@ -46,7 +45,7 @@ func listSSMParameters(ctx context.Context, client SSMParameterAPI, scope resour
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, param := range page.Parameters {
@@ -93,7 +92,7 @@ func getSSMParameterTags(ctx context.Context, client SSMParameterAPI, name *stri
 		ResourceType: types.ResourceTypeForTaggingParameter,
 	})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	tags := make(map[string]string, len(output.TagList))
@@ -111,5 +110,5 @@ func deleteSSMParameter(ctx context.Context, client SSMParameterAPI, name *strin
 	_, err := client.DeleteParameter(ctx, &ssm.DeleteParameterInput{
 		Name: name,
 	})
-	return errors.WithStackTrace(err)
+	return err
 }

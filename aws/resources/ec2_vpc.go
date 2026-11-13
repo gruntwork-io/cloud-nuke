@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2VpcAPI is the interface for the EC2 VPC client.
@@ -72,7 +71,7 @@ func listVPCs(ctx context.Context, client EC2VpcAPI, scope resource.Scope, cfg c
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, vpc := range page.Vpcs {
@@ -463,7 +462,7 @@ func deleteVPC(ctx context.Context, client EC2VpcAPI, id *string) error {
 	if _, err := client.DeleteVpc(ctx, &ec2.DeleteVpcInput{
 		VpcId: id,
 	}); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("Successfully deleted VPC %s", aws.ToString(id))

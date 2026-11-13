@@ -1,6 +1,6 @@
 module github.com/gruntwork-io/cloud-nuke
 
-go 1.27.3
+go 1.27.4
 
 require (
 	cloud.google.com/go/artifactregistry v1.19.0
@@ -73,7 +73,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/vpclattice v1.13.9
 	github.com/aws/smithy-go v1.24.2
 	github.com/go-errors/errors v1.4.2
-	github.com/gruntwork-io/go-commons v0.17.0
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/pterm/pterm v0.12.45
 	github.com/sirupsen/logrus v1.8.3
@@ -131,7 +131,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
 	github.com/gookit/color v1.5.0 // indirect
@@ -158,7 +157,6 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.45.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect

@@ -16,7 +16,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -206,7 +205,7 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 					return nil
 				}
 				logging.Errorf("Unable to retrieve %v, %v", resourceType, err)
-				telemetry.TrackEvent(commonTelemetry.EventContext{
+				telemetry.TrackEvent(telemetry.EventContext{
 					EventName: fmt.Sprintf("error:GetIdentifiers:%s", resourceType),
 				}, map[string]interface{}{"region": t.target.label()})
 				collector.Emit(reporting.GeneralError{
@@ -217,7 +216,7 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 				return nil
 			}
 
-			telemetry.TrackEvent(commonTelemetry.EventContext{
+			telemetry.TrackEvent(telemetry.EventContext{
 				EventName: fmt.Sprintf("Done getting %s identifiers", resourceType),
 			}, map[string]interface{}{
 				"recordCount": len(identifiers),
@@ -413,7 +412,7 @@ func NukeAll(ctx context.Context, p Provider, found *Found, req NukeRequest, col
 	}
 
 	collector.Emit(reporting.NukeStarted{Total: found.TotalResourceCount()})
-	telemetry.TrackEvent(commonTelemetry.EventContext{
+	telemetry.TrackEvent(telemetry.EventContext{
 		EventName: "Begin nuking resources",
 	}, map[string]interface{}{})
 
@@ -427,7 +426,7 @@ func NukeAll(ctx context.Context, p Provider, found *Found, req NukeRequest, col
 			mu.Unlock()
 		}
 
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Done nuking target",
 		}, map[string]interface{}{
 			"region":        target.label(),
@@ -541,7 +540,7 @@ func nukeOneTarget(ctx context.Context, p Provider, found *Found, target Target,
 
 				// Aggregated failure counts per resource type, which is what the
 				// per-provider loops reported before the engine owned this.
-				telemetry.TrackEvent(commonTelemetry.EventContext{
+				telemetry.TrackEvent(telemetry.EventContext{
 					EventName: fmt.Sprintf("error:Nuke:%s", r.ResourceName()),
 				}, map[string]interface{}{"region": target.label()})
 			}

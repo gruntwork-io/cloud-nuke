@@ -8,7 +8,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // NetworkFirewallResourcePolicyAPI defines the interface for Network Firewall resource policy operations.
@@ -56,7 +55,7 @@ func listNetworkFirewallResourcePolicies(ctx context.Context, client NetworkFire
 			ResourceArn: arn,
 		})
 		if err != nil && util.TransformAWSError(err) != util.ErrResourceNotFoundException {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		// Include if a policy exists and passes the filter
@@ -79,7 +78,7 @@ func collectResourceArns(ctx context.Context, client NetworkFirewallResourcePoli
 	for policyPaginator.HasMorePages() {
 		page, err := policyPaginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		for _, policy := range page.FirewallPolicies {
 			arns = append(arns, policy.Arn)
@@ -91,7 +90,7 @@ func collectResourceArns(ctx context.Context, client NetworkFirewallResourcePoli
 	for groupPaginator.HasMorePages() {
 		page, err := groupPaginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		for _, group := range page.RuleGroups {
 			arns = append(arns, group.Arn)
@@ -107,7 +106,7 @@ func deleteNetworkFirewallResourcePolicy(ctx context.Context, client NetworkFire
 		ResourceArn: arn,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

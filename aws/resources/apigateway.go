@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -48,7 +47,7 @@ func listApiGateways(ctx context.Context, client ApiGatewayAPI, scope resource.S
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, api := range page.Items {
@@ -154,7 +153,7 @@ func deleteApiGatewayBasePathMappings(ctx context.Context, client ApiGatewayAPI,
 func deleteApiGateway(ctx context.Context, client ApiGatewayAPI, apiID *string) error {
 	_, err := client.DeleteRestApi(ctx, &apigateway.DeleteRestApiInput{RestApiId: apiID})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

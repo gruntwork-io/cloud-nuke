@@ -10,19 +10,18 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/collections"
 )
 
 // IsNukeable checks whether a resource type should be nuked based on the
 // requested resource types and exclude lists. An empty include list or the
 // special value "all" means nuke everything, minus any excluded types.
 func IsNukeable(resourceType string, resourceTypes []string, excludeResourceTypes []string) bool {
-	if collections.ListContainsElement(excludeResourceTypes, resourceType) {
+	if slices.Contains(excludeResourceTypes, resourceType) {
 		return false
 	}
 	if len(resourceTypes) == 0 ||
-		collections.ListContainsElement(resourceTypes, "all") ||
-		collections.ListContainsElement(resourceTypes, resourceType) {
+		slices.Contains(resourceTypes, "all") ||
+		slices.Contains(resourceTypes, resourceType) {
 		return true
 	}
 	return false

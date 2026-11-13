@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	goerrors "github.com/gruntwork-io/go-commons/errors"
 )
 
 // ElasticachesAPI defines the interface for Elasticache operations.
@@ -52,7 +51,7 @@ func listElasticaches(ctx context.Context, client ElasticachesAPI, scope resourc
 	for replicationGroupsPaginator.HasMorePages() {
 		page, err := replicationGroupsPaginator.NextPage(ctx)
 		if err != nil {
-			return nil, goerrors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, replicationGroup := range page.ReplicationGroups {
@@ -83,7 +82,7 @@ func listElasticaches(ctx context.Context, client ElasticachesAPI, scope resourc
 	for cacheClustersPaginator.HasMorePages() {
 		page, err := cacheClustersPaginator.NextPage(ctx)
 		if err != nil {
-			return nil, goerrors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, cluster := range page.CacheClusters {

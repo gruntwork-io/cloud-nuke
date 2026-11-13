@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // VPCLatticeTargetGroupAPI defines the interface for VPC Lattice Target Group operations.
@@ -46,7 +45,7 @@ func listVPCLatticeTargetGroups(ctx context.Context, client VPCLatticeTargetGrou
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, item := range page.Items {
@@ -82,7 +81,7 @@ func deregisterVPCLatticeTargets(ctx context.Context, client VPCLatticeTargetGro
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[ListTargets Failed] %s", err)
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, target := range page.Items {
@@ -102,7 +101,7 @@ func deregisterVPCLatticeTargets(ctx context.Context, client VPCLatticeTargetGro
 	})
 	if err != nil {
 		logging.Debugf("[DeregisterTargets Failed] %s", err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -113,5 +112,5 @@ func deleteVPCLatticeTargetGroup(ctx context.Context, client VPCLatticeTargetGro
 	_, err := client.DeleteTargetGroup(ctx, &vpclattice.DeleteTargetGroupInput{
 		TargetGroupIdentifier: identifier,
 	})
-	return errors.WithStackTrace(err)
+	return err
 }

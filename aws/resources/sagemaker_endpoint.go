@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SageMakerEndpointAPI defines the interface for SageMaker Endpoint operations.
@@ -48,13 +47,13 @@ func listSageMakerEndpoints(ctx context.Context, client SageMakerEndpointAPI, sc
 	// Get account ID from context
 	accountID, ok := ctx.Value(util.AccountIdKey).(string)
 	if !ok {
-		return nil, errors.WithStackTrace(fmt.Errorf("unable to get account ID from context"))
+		return nil, fmt.Errorf("unable to get account ID from context")
 	}
 
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, endpoint := range output.Endpoints {
@@ -127,7 +126,7 @@ func deleteSageMakerEndpoint(ctx context.Context, client SageMakerEndpointAPI, e
 		EndpointName: endpointName,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -150,7 +149,7 @@ func deleteEndpointInferenceComponents(ctx context.Context, client SageMakerEndp
 		if _, err := client.DeleteInferenceComponent(ctx, &sagemaker.DeleteInferenceComponentInput{
 			InferenceComponentName: name,
 		}); err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 
@@ -183,7 +182,7 @@ func listEndpointInferenceComponents(ctx context.Context, client SageMakerEndpoi
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		for _, component := range output.InferenceComponents {
 			if component.InferenceComponentName != nil {

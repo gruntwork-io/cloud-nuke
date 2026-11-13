@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DBGlobalClusterMembershipsAPI defines the interface for RDS Global Cluster Membership operations.
@@ -47,7 +46,7 @@ func listDBGlobalClusterMemberships(ctx context.Context, client DBGlobalClusterM
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, cluster := range page.GlobalClusters {
@@ -165,7 +164,7 @@ func waitForMemberRemoval(ctx context.Context, client DBGlobalClusterMemberships
 			GlobalClusterIdentifier: aws.String(globalClusterID),
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		// Check if the member is still present

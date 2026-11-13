@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // LaunchConfigsAPI defines the interface for Launch Configuration operations.
@@ -41,7 +40,7 @@ func listLaunchConfigs(ctx context.Context, client LaunchConfigsAPI, scope resou
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, lc := range page.LaunchConfigurations {
@@ -62,5 +61,5 @@ func deleteLaunchConfig(ctx context.Context, client LaunchConfigsAPI, name *stri
 	_, err := client.DeleteLaunchConfiguration(ctx, &autoscaling.DeleteLaunchConfigurationInput{
 		LaunchConfigurationName: name,
 	})
-	return errors.WithStackTrace(err)
+	return err
 }

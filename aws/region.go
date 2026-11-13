@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/gruntwork-io/cloud-nuke/externalcreds"
-	"github.com/gruntwork-io/go-commons/collections"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // OptInNotRequiredRegions contains all regions that are enabled by default on new AWS accounts
@@ -78,7 +77,7 @@ func retryDescribeRegions() (*ec2.DescribeRegionsOutput, error) {
 		}
 		return regions, nil
 	}
-	return nil, errors.WithStackTrace(fmt.Errorf("could not find any enabled regions"))
+	return nil, fmt.Errorf("could not find any enabled regions")
 }
 
 // GetEnabledRegions - Get all regions that are enabled (DescribeRegions excludes those not enabled by default)
@@ -123,7 +122,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 
 	// Validate selectedRegions
 	for _, selectedRegion := range selectedRegions {
-		if !collections.ListContainsElement(enabledRegions, selectedRegion) {
+		if !slices.Contains(enabledRegions, selectedRegion) {
 			invalidRegions = append(invalidRegions, selectedRegion)
 		}
 	}
@@ -141,7 +140,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 
 	// Validate excludedRegions
 	for _, excludedRegion := range excludedRegions {
-		if !collections.ListContainsElement(enabledRegions, excludedRegion) {
+		if !slices.Contains(enabledRegions, excludedRegion) {
 			invalidRegions = append(invalidRegions, excludedRegion)
 		}
 	}
@@ -153,7 +152,7 @@ func GetTargetRegions(enabledRegions []string, selectedRegions []string, exclude
 	var targetRegions []string
 	if len(excludedRegions) > 0 {
 		for _, region := range enabledRegions {
-			if !collections.ListContainsElement(excludedRegions, region) {
+			if !slices.Contains(excludedRegions, region) {
 				targetRegions = append(targetRegions, region)
 			}
 		}

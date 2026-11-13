@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,8 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // NatGatewaysAPI defines the interface for NAT Gateway operations.
@@ -119,12 +116,11 @@ func deleteNatGateway(ctx context.Context, client NatGatewaysAPI, id *string) er
 // transitions through "deleting" before reaching "deleted". Downstream resources like
 // subnets and VPCs will fail with DependencyViolation if we don't wait.
 func waitForNatGatewaysDeleted(ctx context.Context, client NatGatewaysAPI, ids []string) error {
-	return retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
-		"Waiting for all NAT Gateways to be deleted",
+	return util.PollUntil(ctx,
+		"NAT Gateways deletion",
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
-		30, 10*time.Second,
-		func() error {
+		10*time.Second, 5*time.Minute,
+		func(ctx context.Context) (bool, error) {
 			resp, err := client.DescribeNatGateways(ctx, &ec2.DescribeNatGatewaysInput{
 				NatGatewayIds: ids,
 				Filter: []types.Filter{
@@ -139,12 +135,13 @@ func waitForNatGatewaysDeleted(ctx context.Context, client NatGatewaysAPI, ids [
 				},
 			})
 			if err != nil {
-				return errors.WithStackTrace(retry.FatalError{Underlying: err})
+				return false, err
 			}
 			if len(resp.NatGateways) > 0 {
-				return fmt.Errorf("%d NAT Gateways still deleting", len(resp.NatGateways))
+				logging.Infof("Waiting for %d NAT Gateways to be deleted", len(resp.NatGateways))
+				return false, nil
 			}
-			return nil
+			return true, nil
 		},
 	)
 }

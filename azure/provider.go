@@ -2,10 +2,10 @@ package azure
 
 import (
 	"context"
+	"slices"
 
 	"github.com/gruntwork-io/cloud-nuke/azure/resources"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/collections"
 )
 
 // provider adapts Azure to the provider-neutral engine in the resource package.
@@ -67,7 +67,7 @@ func (p *provider) IsThrottle(err error) bool {
 
 // explicitlyRequested reports whether the user named this resource type.
 func (p *provider) explicitlyRequested(resourceType string) bool {
-	return collections.ListContainsElement(p.resourceTypes, resourceType)
+	return slices.Contains(p.resourceTypes, resourceType)
 }
 
 var _ resource.Provider = (*provider)(nil)

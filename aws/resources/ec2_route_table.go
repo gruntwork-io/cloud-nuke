@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // RouteTableAPI defines the interface for Route Table operations.
@@ -81,7 +80,7 @@ func listRouteTables(ctx context.Context, client RouteTableAPI, scope resource.S
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[Route Table] Failed to list route tables: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, rt := range page.RouteTables {
@@ -148,7 +147,7 @@ func disassociateRouteTableSubnets(ctx context.Context, client RouteTableAPI, id
 	})
 	if err != nil {
 		logging.Debugf("[Route Table] Failed to describe: %s", err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if len(resp.RouteTables) == 0 {
@@ -169,7 +168,7 @@ func disassociateRouteTableSubnets(ctx context.Context, client RouteTableAPI, id
 		})
 		if err != nil {
 			logging.Debugf("[Route Table] Failed to disassociate %s: %s", assocID, err)
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 
@@ -186,7 +185,7 @@ func deleteRouteTable(ctx context.Context, client RouteTableAPI, id *string) err
 	})
 	if err != nil {
 		logging.Debugf("[Route Table] Failed to delete %s: %s", aws.ToString(id), err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[Route Table] Successfully deleted: %s", aws.ToString(id))

@@ -13,7 +13,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // LambdaLayersAPI defines the interface for Lambda layer operations.
@@ -50,7 +49,7 @@ func listLambdaLayers(ctx context.Context, client LambdaLayersAPI, scope resourc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, layer := range page.Layers {
@@ -75,7 +74,7 @@ func listLambdaLayers(ctx context.Context, client LambdaLayersAPI, scope resourc
 			for versionsPaginator.HasMorePages() {
 				versionsPage, err := versionsPaginator.NextPage(ctx)
 				if err != nil {
-					return nil, errors.WithStackTrace(err)
+					return nil, err
 				}
 
 				for _, version := range versionsPage.LayerVersions {

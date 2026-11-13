@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EBSVolumesAPI defines the interface for EBS Volume operations.
@@ -55,7 +54,7 @@ func listEBSVolumes(ctx context.Context, client EBSVolumesAPI, scope resource.Sc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, volume := range page.Volumes {

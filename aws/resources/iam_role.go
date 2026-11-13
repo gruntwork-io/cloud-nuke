@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // IAMRolesAPI defines the interface for IAM role operations.
@@ -53,7 +52,7 @@ func listIAMRoles(ctx context.Context, client IAMRolesAPI, scope resource.Scope,
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, iamRole := range page.Roles {
@@ -62,7 +61,7 @@ func listIAMRoles(ctx context.Context, client IAMRolesAPI, scope resource.Scope,
 			// tag filters are configured in the config file.
 			tagsOut, err := client.ListRoleTags(ctx, &iam.ListRoleTagsInput{RoleName: iamRole.RoleName})
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 			tags := tagsOut.Tags
 
@@ -136,7 +135,7 @@ func deleteIAMRole(ctx context.Context, client IAMRolesAPI, roleName *string) er
 		RoleName: roleName,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -150,7 +149,7 @@ func deleteInstanceProfilesFromRole(ctx context.Context, client IAMRolesAPI, rol
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, profile := range page.InstanceProfiles {
@@ -160,14 +159,14 @@ func deleteInstanceProfilesFromRole(ctx context.Context, client IAMRolesAPI, rol
 				RoleName:            roleName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 
 			_, err = client.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
 				InstanceProfileName: profile.InstanceProfileName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Detached and Deleted InstanceProfile %s from Role %s", aws.ToString(profile.InstanceProfileName), aws.ToString(roleName))
 		}
@@ -184,7 +183,7 @@ func deleteInlineRolePolicies(ctx context.Context, client IAMRolesAPI, roleName 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, policyName := range page.PolicyNames {
@@ -193,7 +192,7 @@ func deleteInlineRolePolicies(ctx context.Context, client IAMRolesAPI, roleName 
 				RoleName:   roleName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Deleted Inline Policy %s from Role %s", policyName, aws.ToString(roleName))
 		}
@@ -210,7 +209,7 @@ func detachManagedRolePolicies(ctx context.Context, client IAMRolesAPI, roleName
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, attachedPolicy := range page.AttachedPolicies {
@@ -219,7 +218,7 @@ func detachManagedRolePolicies(ctx context.Context, client IAMRolesAPI, roleName
 				RoleName:  roleName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Detached Policy %s from Role %s", aws.ToString(attachedPolicy.PolicyArn), aws.ToString(roleName))
 		}

@@ -3,7 +3,6 @@ package resources
 import (
 	"context"
 	goerr "errors"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,8 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // IAMUsersAPI defines the interface for IAM user operations.
@@ -69,7 +66,7 @@ func listIAMUsers(ctx context.Context, client IAMUsersAPI, scope resource.Scope,
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, user := range page.Users {
@@ -88,7 +85,7 @@ func listIAMUsers(ctx context.Context, client IAMUsersAPI, scope resource.Scope,
 			for tagsPaginator.HasMorePages() {
 				tagsPage, errListTags := tagsPaginator.NextPage(ctx)
 				if errListTags != nil {
-					return nil, errors.WithStackTrace(errListTags)
+					return nil, errListTags
 				}
 
 				tags = append(tags, tagsPage.Tags...)
@@ -122,47 +119,47 @@ func listIAMUsers(ctx context.Context, client IAMUsersAPI, scope resource.Scope,
 func deleteIAMUser(ctx context.Context, client IAMUsersAPI, userName *string) error {
 	// Step 1: Detach user policies
 	if err := detachUserPolicies(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 2: Delete inline user policies
 	if err := deleteInlineUserPolicies(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 3: Remove user from groups
 	if err := removeUserFromGroups(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 4: Delete login profile
 	if err := deleteLoginProfile(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 5: Delete access keys
 	if err := deleteAccessKeys(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 6: Delete signing certificates
 	if err := deleteSigningCertificates(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 7: Delete SSH public keys
 	if err := deleteSSHPublicKeys(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 8: Delete service-specific credentials
 	if err := deleteServiceSpecificCredentials(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 9: Delete MFA devices
 	if err := deleteMFADevices(ctx, client, userName); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 10: Delete the user
@@ -170,7 +167,7 @@ func deleteIAMUser(ctx context.Context, client IAMUsersAPI, userName *string) er
 		UserName: userName,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -184,7 +181,7 @@ func detachUserPolicies(ctx context.Context, client IAMUsersAPI, userName *strin
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, attachedPolicy := range page.AttachedPolicies {
@@ -193,7 +190,7 @@ func detachUserPolicies(ctx context.Context, client IAMUsersAPI, userName *strin
 				UserName:  userName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Detached Policy %s from User %s", aws.ToString(attachedPolicy.PolicyArn), aws.ToString(userName))
 		}
@@ -210,7 +207,7 @@ func deleteInlineUserPolicies(ctx context.Context, client IAMUsersAPI, userName 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, policyName := range page.PolicyNames {
@@ -219,7 +216,7 @@ func deleteInlineUserPolicies(ctx context.Context, client IAMUsersAPI, userName 
 				UserName:   userName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Deleted Inline Policy %s from User %s", policyName, aws.ToString(userName))
 		}
@@ -236,7 +233,7 @@ func removeUserFromGroups(ctx context.Context, client IAMUsersAPI, userName *str
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, group := range page.Groups {
@@ -245,7 +242,7 @@ func removeUserFromGroups(ctx context.Context, client IAMUsersAPI, userName *str
 				UserName:  userName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Removed user %s from group %s", aws.ToString(userName), aws.ToString(group.GroupName))
 		}
@@ -256,12 +253,11 @@ func removeUserFromGroups(ctx context.Context, client IAMUsersAPI, userName *str
 
 // deleteLoginProfile deletes the login profile for a user.
 func deleteLoginProfile(ctx context.Context, client IAMUsersAPI, userName *string) error {
-	return retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
+	return util.PollUntil(ctx,
 		"Delete Login Profile",
-		10,
 		2*time.Second,
-		func() error {
+		20*time.Second,
+		func(ctx context.Context) (bool, error) {
 			// Delete Login Profile attached to the user
 			_, err := client.DeleteLoginProfile(ctx, &iam.DeleteLoginProfileInput{
 				UserName: userName,
@@ -276,18 +272,19 @@ func deleteLoginProfile(ctx context.Context, client IAMUsersAPI, userName *strin
 					// This is expected if the user doesn't have a Login Profile
 					// (automated users created via API calls without further
 					// configuration)
-					return nil
+					return true, nil
 				case goerr.As(err, &errEntityTemporarilyUnmodifiableException):
 					// The request was rejected because it referenced an entity that is
 					// temporarily unmodifiable. We have to try again.
-					return fmt.Errorf("Login Profile for user %s cannot be deleted now", aws.ToString(userName))
+					logging.Infof("Login Profile for user %s cannot be deleted now, retrying", aws.ToString(userName))
+					return false, nil
 				default:
-					return retry.FatalError{Underlying: err}
+					return false, err
 				}
 			}
 
 			logging.Debugf("Deleted Login Profile from user %s", aws.ToString(userName))
-			return nil
+			return true, nil
 		})
 }
 
@@ -299,7 +296,7 @@ func deleteAccessKeys(ctx context.Context, client IAMUsersAPI, userName *string)
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, md := range page.AccessKeyMetadata {
@@ -308,7 +305,7 @@ func deleteAccessKeys(ctx context.Context, client IAMUsersAPI, userName *string)
 				UserName:    userName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Deleted Access Key %s from user %s", aws.ToString(md.AccessKeyId), aws.ToString(userName))
 		}
@@ -325,7 +322,7 @@ func deleteSigningCertificates(ctx context.Context, client IAMUsersAPI, userName
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, cert := range page.Certificates {
@@ -334,7 +331,7 @@ func deleteSigningCertificates(ctx context.Context, client IAMUsersAPI, userName
 				UserName:      userName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Deleted Signing Certificate ID %s from user %s", aws.ToString(cert.CertificateId), aws.ToString(userName))
 		}
@@ -351,7 +348,7 @@ func deleteSSHPublicKeys(ctx context.Context, client IAMUsersAPI, userName *stri
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, key := range page.SSHPublicKeys {
@@ -360,7 +357,7 @@ func deleteSSHPublicKeys(ctx context.Context, client IAMUsersAPI, userName *stri
 				UserName:       userName,
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 			logging.Debugf("Deleted SSH Public Key with ID %s from user %s", aws.ToString(key.SSHPublicKeyId), aws.ToString(userName))
 		}
@@ -382,7 +379,7 @@ func deleteServiceSpecificCredentials(ctx context.Context, client IAMUsersAPI, u
 		})
 		if err != nil {
 			logging.Errorf("[Failed] %s", err)
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, metadata := range output.ServiceSpecificCredentials {
@@ -394,7 +391,7 @@ func deleteServiceSpecificCredentials(ctx context.Context, client IAMUsersAPI, u
 			})
 			if err != nil {
 				logging.Errorf("[Failed] %s", err)
-				return errors.WithStackTrace(err)
+				return err
 			}
 
 			logging.Debugf("Deleted Service Specific Credential with ID %s of service %s from user %s", aws.ToString(serviceSpecificCredentialId), service, aws.ToString(userName))
@@ -414,7 +411,7 @@ func deleteMFADevices(ctx context.Context, client IAMUsersAPI, userName *string)
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		devices = append(devices, page.MFADevices...)
 	}
@@ -426,7 +423,7 @@ func deleteMFADevices(ctx context.Context, client IAMUsersAPI, userName *string)
 			UserName:     userName,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		logging.Debugf("Deactivated MFA Device %s from user %s", aws.ToString(device.SerialNumber), aws.ToString(userName))
 	}
@@ -437,7 +434,7 @@ func deleteMFADevices(ctx context.Context, client IAMUsersAPI, userName *string)
 			SerialNumber: device.SerialNumber,
 		})
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		logging.Debugf("Deleted MFA Device %s from user %s", aws.ToString(device.SerialNumber), aws.ToString(userName))
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // S3ControlAccessPointAPI defines the interface for S3 Control Access Point operations.
@@ -42,7 +41,7 @@ func listS3AccessPoints(ctx context.Context, client S3ControlAccessPointAPI, sco
 	accountID, ok := ctx.Value(util.AccountIdKey).(string)
 	if !ok {
 		logging.Errorf("unable to read the account-id from context")
-		return nil, errors.WithStackTrace(fmt.Errorf("unable to lookup the account id"))
+		return nil, fmt.Errorf("unable to lookup the account id")
 	}
 
 	var identifiers []*string
@@ -53,7 +52,7 @@ func listS3AccessPoints(ctx context.Context, client S3ControlAccessPointAPI, sco
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, accessPoint := range page.AccessPointList {

@@ -8,7 +8,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // CloudMapNamespacesAPI defines the interface for AWS Cloud Map operations.
@@ -44,13 +43,13 @@ func listCloudMapNamespaces(ctx context.Context, client CloudMapNamespacesAPI, s
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, namespace := range page.Namespaces {
 			tags, err := getNamespaceTags(ctx, client, namespace.Arn)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			if cfg.ShouldInclude(config.ResourceValue{
@@ -102,7 +101,7 @@ func getNamespaceTags(ctx context.Context, client CloudMapNamespacesAPI, arn *st
 	})
 	if err != nil {
 		logging.Debugf("Error getting tags for Cloud Map namespace with ARN %s", aws.ToString(arn))
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	tags := make(map[string]string)
