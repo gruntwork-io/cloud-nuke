@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -105,11 +106,10 @@ type ScanRequest struct {
 	Parallelism int
 }
 
-// ageReporter is implemented by a resource type that can say where its age
-// comes from, so the scan can warn when a time filter can never match it.
-type ageReporter interface {
-	ReportsNoCreationTime() bool
-	ReadsAgeFromFirstSeenTag() bool
+// undatedReporter is implemented by a resource that counts what its last
+// listing left out only because a time filter could not read the age.
+type undatedReporter interface {
+	UndatedCount() int
 }
 
 // Scan walks every target the provider offers and returns what it found. One
@@ -123,6 +123,14 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 
 	if err := refuseDuplicateTargets(targets); err != nil {
 		return nil, err
+	}
+
+	// Azure has no first-seen tags and never sets this value.
+	var excludeFirstSeen bool
+	if ctx.Value(util.ExcludeFirstSeenTagKey) != nil {
+		if excludeFirstSeen, err = util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey); err != nil {
+			return nil, err
+		}
 	}
 
 	ctx = context.WithValue(ctx, util.ParallelismKey, req.Parallelism)
@@ -186,16 +194,9 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	foundByTarget := make(map[string][]indexed)
 	var foundMu sync.Mutex
 
-	// A type is scanned once per target, but its warning is said once per scan.
-	var warnedTypes sync.Map
-	warnOnce := func(resourceType, format string) {
-		if _, warned := warnedTypes.LoadOrStore(resourceType, struct{}{}); !warned {
-			logging.Warnf(format, resourceType)
-		}
-	}
-
-	// A provider with no first-seen tags never sets this value.
-	excludeFirstSeen := ctx.Value(util.ExcludeFirstSeenTagKey) == true
+	// A type is scanned once per target, but what a time filter left out of it
+	// is said once per scan, summed over every target.
+	undatedByType := make(map[string]int)
 
 	scanGroup := new(errgroup.Group)
 	scanGroup.SetLimit(parallelism)
@@ -208,18 +209,6 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 			}
 
 			resourceType := t.resource.ResourceName()
-			resourceCfg := t.resource.GetAndSetResourceConfig(req.Config)
-
-			if r, ok := t.resource.(ageReporter); ok && resourceCfg.HasTimeFilter() {
-				if r.ReportsNoCreationTime() {
-					warnOnce(resourceType,
-						"Leaving all %s resources alone: their creation time is not reported, and a time filter cannot be applied to an age it cannot read. Remove the time filter (--older-than, --newer-than, or time_after and time_before in the config file) to include them.")
-				}
-				if r.ReadsAgeFromFirstSeenTag() && excludeFirstSeen {
-					warnOnce(resourceType,
-						"Leaving all %s resources alone: their age comes from the cloud-nuke-first-seen tag, and --exclude-first-seen turns that tag off. Drop --exclude-first-seen, or remove the time filter (--older-than, --newer-than, or time_after and time_before in the config file), to include them.")
-				}
-			}
 
 			collector.Emit(reporting.ScanProgress{
 				ResourceType: resourceType,
@@ -253,6 +242,12 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 				"actionTime":  time.Since(start).Seconds(),
 			})
 
+			if r, ok := t.resource.(undatedReporter); ok && r.UndatedCount() > 0 {
+				foundMu.Lock()
+				undatedByType[resourceType] += r.UndatedCount()
+				foundMu.Unlock()
+			}
+
 			if len(identifiers) == 0 {
 				return nil
 			}
@@ -283,6 +278,8 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 		return nil, err
 	}
 
+	warnAboutUndated(undatedByType, excludeFirstSeen)
+
 	// Restore registry order within each target, which is the order the nuke
 	// relies on to delete a resource before whatever it depends on.
 	found := &Found{Targets: targets, Resources: map[string][]NukeableResource{}}
@@ -301,6 +298,22 @@ func Scan(ctx context.Context, p Provider, req ScanRequest, collector *reporting
 	logging.Infof("Found total of %d resources", found.TotalResourceCount())
 
 	return found, nil
+}
+
+// warnAboutUndated says, once per resource type, how many resources a time
+// filter left out because it could not read their age. The count comes from
+// what the filter dropped, so a type nobody marked as undated is still
+// reported rather than skipped in silence.
+func warnAboutUndated(undatedByType map[string]int, excludeFirstSeen bool) {
+	for _, resourceType := range slices.Sorted(maps.Keys(undatedByType)) {
+		message := fmt.Sprintf(
+			"Leaving %d %s resources alone: their age could not be read, and a time filter cannot be applied to an age it cannot read. Remove the time filter (--older-than, --newer-than, or time_after and time_before in the config file) to include them.",
+			undatedByType[resourceType], resourceType)
+		if excludeFirstSeen {
+			message += " If this type reads its age from the cloud-nuke-first-seen tag, --exclude-first-seen turns that tag off: drop it to include them."
+		}
+		logging.Warn(message)
+	}
 }
 
 // refuseDuplicateTargets fails a run whose targets share an ID. The engine keys

@@ -39,7 +39,6 @@ func NewECSClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[ECSClustersAPI]{
 		ResourceTypeName: "ecs-cluster",
 		BatchSize:        DefaultBatchSize,
-		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ECSClustersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ecs.NewFromConfig(cfg)

@@ -74,14 +74,6 @@ type Resource[C any] struct {
 	// Set based on AWS/GCP API rate limits for this resource type.
 	BatchSize int
 
-	// NoCreationTime marks a type with no creation time and no first-seen tag.
-	// A time filter can never match it, so the scan warns once.
-	NoCreationTime bool
-
-	// FirstSeenTag marks a type whose age comes from the first-seen tag. Under
-	// --exclude-first-seen a time filter can never match it, so the scan warns once.
-	FirstSeenTag bool
-
 	// InitClient initializes the client from cloud-specific config.
 	// For AWS: cfg is aws.Config
 	// For GCP: cfg is resources.GcpConfig
@@ -115,6 +107,10 @@ type Resource[C any] struct {
 	// identifiers holds the discovered resource IDs
 	identifiers []string
 
+	// undated is how many resources the last listing left out only because a
+	// time filter could not read their age
+	undated int
+
 	// nukables tracks which resources can be nuked (nil value = nukable)
 	nukables map[string]error
 }
@@ -135,15 +131,10 @@ func (r *Resource[C]) ResourceName() string {
 	return r.ResourceTypeName
 }
 
-// ReportsNoCreationTime reports whether this type can never match a time filter.
-func (r *Resource[C]) ReportsNoCreationTime() bool {
-	return r.NoCreationTime
-}
-
-// ReadsAgeFromFirstSeenTag reports whether this type's age comes from the
-// first-seen tag.
-func (r *Resource[C]) ReadsAgeFromFirstSeenTag() bool {
-	return r.FirstSeenTag
+// UndatedCount returns how many resources the last GetAndSetIdentifiers left
+// out only because a time filter could not read their age.
+func (r *Resource[C]) UndatedCount() int {
+	return r.undated
 }
 
 // ResourceIdentifiers returns the currently stored identifiers (implements AwsResource/GcpResource interface)
@@ -183,8 +174,9 @@ func (r *Resource[C]) GetAndSetIdentifiers(ctx context.Context, configObj config
 		return nil, r.InitializationError
 	}
 
-	resourceCfg := r.ConfigGetter(configObj)
+	resourceCfg, undated := r.ConfigGetter(configObj).CountingUndated()
 	identifiers, err := r.Lister(ctx, r.Client, r.Scope, resourceCfg)
+	r.undated = int(undated.Load())
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to list resources in %s: %w", r.ResourceTypeName, r.Scope, err)
 	}

@@ -23,7 +23,6 @@ type ElasticacheSubnetGroupsAPI interface {
 func NewElasticacheSubnetGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticacheSubnetGroupsAPI]{
 		ResourceTypeName: "elasticache-subnet-group",
-		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticacheSubnetGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

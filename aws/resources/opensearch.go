@@ -31,7 +31,6 @@ func NewOpenSearchDomains() AwsResource {
 	return NewAwsResource(&resource.Resource[OpenSearchDomainsAPI]{
 		ResourceTypeName: "opensearch-domain",
 		BatchSize:        10,
-		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[OpenSearchDomainsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = opensearch.NewFromConfig(cfg)
@@ -76,6 +75,11 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 			err := setOpenSearchFirstSeenTag(ctx, client, domain.ARN, time.Now().UTC())
 			if err != nil {
 				logging.Debugf("Error setting first seen tag for OpenSearch domain %s: %v", aws.ToString(domain.DomainName), err)
+			} else if cfg.HasTimeFilter() {
+				// The tag is this run's clock, so a time filter leaves the
+				// domain for a later run. The age is known, and the domain
+				// is not one whose age could not be read.
+				continue
 			}
 		}
 

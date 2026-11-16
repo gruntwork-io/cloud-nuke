@@ -157,9 +157,6 @@ type EC2ListerFunc[C any] func(ctx context.Context, client C, scope resource.Sco
 type EC2ResourceOptions[C any] struct {
 	// PermissionVerifier is an optional function to verify deletion permissions via dry-run.
 	PermissionVerifier func(ctx context.Context, client C, id *string) error
-
-	// FirstSeenTag marks a type whose age comes from the first-seen tag.
-	FirstSeenTag bool
 }
 
 // NewEC2AwsResource creates an AWS resource that uses EC2ResourceType config (with DefaultOnly support).
@@ -207,7 +204,6 @@ func NewEC2AwsResource[C any](
 
 	if opts != nil {
 		r.PermissionVerifier = opts.PermissionVerifier
-		r.FirstSeenTag = opts.FirstSeenTag
 	}
 
 	return NewAwsResource(r)

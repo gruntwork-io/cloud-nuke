@@ -19,7 +19,6 @@ type SesConfigurationSetAPI interface {
 func NewSesConfigurationSet() AwsResource {
 	return NewAwsResource(&resource.Resource[SesConfigurationSetAPI]{
 		ResourceTypeName: "ses-configuration-set",
-		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SesConfigurationSetAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
