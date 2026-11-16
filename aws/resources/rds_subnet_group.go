@@ -44,7 +44,7 @@ func NewDBSubnetGroups() AwsResource {
 func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	excludeFirstSeenTag, err := util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var names []*string
@@ -108,7 +108,7 @@ func setDBSubnetGroupFirstSeenTag(ctx context.Context, client DBSubnetGroupsAPI,
 			},
 		},
 	})
-	return errors.WithStackTrace(err)
+	return err
 }
 
 // deleteDBSubnetGroup deletes a single RDS DB Subnet Group.
