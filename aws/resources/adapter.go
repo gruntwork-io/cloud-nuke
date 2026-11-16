@@ -137,7 +137,7 @@ func NewAwsResource[C any](r *resource.Resource[C]) AwsResource {
 // receive, so a resource whose API needs the account id reads it from there.
 func (a *AwsResourceAdapter[C]) Init(cfg aws.Config, accountID string) {
 	a.Resource.Init(cfg)
-	a.Resource.Scope.AccountID = accountID
+	a.Scope.AccountID = accountID
 }
 
 // Nuke deletes the resources with the given identifiers.

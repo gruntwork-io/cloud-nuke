@@ -116,7 +116,7 @@ func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Cont
 			}
 
 			var created *time.Time
-			if !p.noCreationTime && !(p.firstSeenTag && excludeFirstSeen) {
+			if !p.noCreationTime && (!p.firstSeenTag || !excludeFirstSeen) {
 				now := time.Now()
 				created = &now
 			}
