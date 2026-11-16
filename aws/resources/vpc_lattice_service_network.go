@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // VPCLatticeServiceNetworkAPI defines the interface for VPC Lattice Service Network operations.
@@ -62,7 +61,7 @@ func listVPCLatticeServiceNetworks(ctx context.Context, client VPCLatticeService
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, item := range page.Items {
@@ -97,7 +96,7 @@ func deleteServiceAssociations(ctx context.Context, client VPCLatticeServiceNetw
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, item := range page.Items {
@@ -105,7 +104,7 @@ func deleteServiceAssociations(ctx context.Context, client VPCLatticeServiceNetw
 			if _, err := client.DeleteServiceNetworkServiceAssociation(ctx, &vpclattice.DeleteServiceNetworkServiceAssociationInput{
 				ServiceNetworkServiceAssociationIdentifier: item.Id,
 			}); err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}
@@ -123,7 +122,7 @@ func deleteVpcAssociations(ctx context.Context, client VPCLatticeServiceNetworkA
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, item := range page.Items {
@@ -131,7 +130,7 @@ func deleteVpcAssociations(ctx context.Context, client VPCLatticeServiceNetworkA
 			if _, err := client.DeleteServiceNetworkVpcAssociation(ctx, &vpclattice.DeleteServiceNetworkVpcAssociationInput{
 				ServiceNetworkVpcAssociationIdentifier: item.Id,
 			}); err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}
@@ -152,7 +151,7 @@ func deleteResourceAssociations(ctx context.Context, client VPCLatticeServiceNet
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, item := range page.Items {
@@ -165,7 +164,7 @@ func deleteResourceAssociations(ctx context.Context, client VPCLatticeServiceNet
 			if _, err := client.DeleteServiceNetworkResourceAssociation(ctx, &vpclattice.DeleteServiceNetworkResourceAssociationInput{
 				ServiceNetworkResourceAssociationIdentifier: item.Id,
 			}); err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}
@@ -185,7 +184,7 @@ func waitForAssociationsDeleted(ctx context.Context, client VPCLatticeServiceNet
 			if goerr.As(err, &notFound) {
 				return nil
 			}
-			return errors.WithStackTrace(err)
+			return err
 		}
 		if remaining == 0 {
 			return nil
@@ -256,7 +255,7 @@ func deleteServiceNetwork(ctx context.Context, client VPCLatticeServiceNetworkAP
 		ServiceNetworkIdentifier: id,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

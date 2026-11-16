@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	cerrors "github.com/gruntwork-io/go-commons/errors"
 )
 
 // SecurityGroupAPI defines the interface for Security Group operations.
@@ -91,14 +90,14 @@ func listSecurityGroups(ctx context.Context, client SecurityGroupAPI, cfg config
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[Security Group] Failed to list security groups: %s", err)
-			return nil, cerrors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, group := range page.SecurityGroups {
 			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, group.GroupId, util.ConvertTypesTagsToMap(group.Tags))
 			if err != nil {
 				logging.Error("unable to retrieve first seen tag")
-				return nil, cerrors.WithStackTrace(err)
+				return nil, err
 			}
 
 			if shouldIncludeSecurityGroup(group, firstSeenTime, cfg, defaultOnly) {
@@ -159,12 +158,12 @@ func nukeSecurityGroups(ctx context.Context, client SecurityGroupAPI, scope reso
 func nukeSecurityGroup(ctx context.Context, client SecurityGroupAPI, id *string, nukeOnlyDefault bool) error {
 	// Step 1: Terminate instances using this security group
 	if err := terminateInstancesForSecurityGroup(ctx, client, id); err != nil {
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 2: Detach from other security groups that reference this one
 	if err := detachSecurityGroupReferences(ctx, client, id); err != nil {
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	// Step 3: For default security groups, just revoke rules (can't delete default SGs)
@@ -188,7 +187,7 @@ func terminateInstancesForSecurityGroup(ctx context.Context, client SecurityGrou
 	})
 	if err != nil {
 		logging.Debugf("[terminateInstancesForSecurityGroup] Failed to describe instances: %s", err)
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	for _, reservation := range resp.Reservations {
@@ -198,7 +197,7 @@ func terminateInstancesForSecurityGroup(ctx context.Context, client SecurityGrou
 			// Release elastic IPs before terminating
 			if err := releaseEIPsForSecurityGroup(ctx, client, instance.InstanceId); err != nil {
 				logging.Debugf("[terminateInstancesForSecurityGroup] Failed EIP release for instance %s: %s", instanceID, err)
-				return cerrors.WithStackTrace(err)
+				return err
 			}
 
 			// Terminate the instance
@@ -206,13 +205,13 @@ func terminateInstancesForSecurityGroup(ctx context.Context, client SecurityGrou
 				InstanceIds: []string{instanceID},
 			}); err != nil {
 				logging.Debugf("[terminateInstancesForSecurityGroup] Failed to terminate instance %s: %s", instanceID, err)
-				return cerrors.WithStackTrace(err)
+				return err
 			}
 
 			// Wait for termination - need the actual EC2 client for the waiter
 			ec2Client, ok := client.(*ec2.Client)
 			if !ok {
-				return cerrors.WithStackTrace(errors.New("cannot cast client to *ec2.Client for waiter"))
+				return errors.New("cannot cast client to *ec2.Client for waiter")
 			}
 
 			logging.Debugf("[terminateInstancesForSecurityGroup] Waiting for instance %s to terminate", instanceID)
@@ -221,7 +220,7 @@ func terminateInstancesForSecurityGroup(ctx context.Context, client SecurityGrou
 				InstanceIds: []string{instanceID},
 			}, 5*time.Minute); err != nil {
 				logging.Debugf("[terminateInstancesForSecurityGroup] Failed waiting for instance %s: %s", instanceID, err)
-				return cerrors.WithStackTrace(err)
+				return err
 			}
 
 			logging.Debugf("[terminateInstancesForSecurityGroup] Terminated instance %s", instanceID)
@@ -271,7 +270,7 @@ func detachSecurityGroupReferences(ctx context.Context, client SecurityGroupAPI,
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[detachSecurityGroupReferences] Failed to list security groups: %s", err)
-			return cerrors.WithStackTrace(err)
+			return err
 		}
 
 		for _, sg := range page.SecurityGroups {
@@ -288,7 +287,7 @@ func detachSecurityGroupReferences(ctx context.Context, client SecurityGroupAPI,
 					IpPermissions: revokePerms,
 				}); err != nil {
 					logging.Debugf("[detachSecurityGroupReferences] Failed to revoke ingress: %s", err)
-					return cerrors.WithStackTrace(err)
+					return err
 				}
 			}
 
@@ -300,7 +299,7 @@ func detachSecurityGroupReferences(ctx context.Context, client SecurityGroupAPI,
 					IpPermissions: revokePerms,
 				}); err != nil {
 					logging.Debugf("[detachSecurityGroupReferences] Failed to revoke egress: %s", err)
-					return cerrors.WithStackTrace(err)
+					return err
 				}
 			}
 		}
@@ -338,17 +337,17 @@ func findMatchingGroupRules(targetGroupID *string, permissions []types.IpPermiss
 func revokeAllSecurityGroupRules(ctx context.Context, client SecurityGroupAPI, id *string) error {
 	// Revoke self-referencing ingress rule
 	if err := revokeSecurityGroupIngress(ctx, client, id); err != nil {
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	// Revoke default IPv4 egress rule
 	if err := revokeSecurityGroupEgress(ctx, client, id); err != nil {
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	// Revoke default IPv6 egress rule
 	if err := revokeIPv6SecurityGroupEgress(ctx, client, id); err != nil {
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -375,7 +374,7 @@ func revokeSecurityGroupIngress(ctx context.Context, client SecurityGroupAPI, id
 			return nil
 		}
 		logging.Debugf("[revokeSecurityGroupIngress] Failed to revoke: %s", err)
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[revokeSecurityGroupIngress] Successfully revoked ingress rule: %s", aws.ToString(id))
@@ -403,7 +402,7 @@ func revokeSecurityGroupEgress(ctx context.Context, client SecurityGroupAPI, id 
 			return nil
 		}
 		logging.Debugf("[revokeSecurityGroupEgress] Failed to revoke: %s", err)
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[revokeSecurityGroupEgress] Successfully revoked egress rule: %s", aws.ToString(id))
@@ -431,7 +430,7 @@ func revokeIPv6SecurityGroupEgress(ctx context.Context, client SecurityGroupAPI,
 			return nil
 		}
 		logging.Debugf("[revokeIPv6SecurityGroupEgress] Failed to revoke: %s", err)
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[revokeIPv6SecurityGroupEgress] Successfully revoked IPv6 egress rule: %s", aws.ToString(id))
@@ -451,7 +450,7 @@ func deleteSecurityGroup(ctx context.Context, client SecurityGroupAPI, id *strin
 			return nil
 		}
 		logging.Debugf("[deleteSecurityGroup] Failed to delete: %s", err)
-		return cerrors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[deleteSecurityGroup] Successfully deleted security group %s", aws.ToString(id))

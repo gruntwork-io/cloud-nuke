@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // TransitGatewaysVpcAttachmentAPI defines the interface for TransitGateway VPC Attachment operations.
@@ -47,7 +46,7 @@ func listTransitGatewaysVpcAttachments(ctx context.Context, client TransitGatewa
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[Transit Gateway] Failed to list transit gateway VPC attachments: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, attachment := range page.TransitGatewayVpcAttachments {
@@ -79,7 +78,7 @@ func deleteTransitGatewayVpcAttachment(ctx context.Context, client TransitGatewa
 
 	_, err := client.DeleteTransitGatewayVpcAttachment(ctx, param)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

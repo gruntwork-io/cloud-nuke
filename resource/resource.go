@@ -7,7 +7,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -214,7 +213,7 @@ func (r *Resource[C]) Nuke(ctx context.Context, identifiers []string) ([]NukeRes
 		}
 	}
 
-	return results, errors.WithStackTrace(allErrs.ErrorOrNil())
+	return results, allErrs.ErrorOrNil()
 }
 
 // IsNukable checks if a resource can be nuked (implements AwsResource/GcpResource interface).

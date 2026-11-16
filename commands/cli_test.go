@@ -10,7 +10,6 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/aws"
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
-	goCommonErrors "github.com/gruntwork-io/go-commons/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
@@ -20,7 +19,7 @@ func TestParseDuration(t *testing.T) {
 	now := time.Now()
 	then, err := parseDurationParam("test-duration", "1h")
 	if err != nil {
-		assert.Fail(t, goCommonErrors.WithStackTrace(err).Error())
+		assert.Fail(t, err.Error())
 	}
 
 	if now.Hour() == 0 {

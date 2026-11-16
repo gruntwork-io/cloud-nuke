@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // RdsParameterGroupAPI defines the interface for RDS Parameter Group operations.
@@ -48,7 +47,7 @@ func listRdsParameterGroups(ctx context.Context, client RdsParameterGroupAPI, sc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		// Process each parameter group on the page

@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // EC2EndpointsAPI defines the interface for EC2 VPC Endpoints operations.
@@ -135,12 +134,11 @@ func waitForEndpointsDeleted(ctx context.Context, client EC2EndpointsAPI, ids []
 		idSet[id] = true
 	}
 
-	return retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
-		"Waiting for all VPC Endpoints to be deleted",
+	return util.PollUntil(ctx,
+		"VPC Endpoints deletion",
 		// Wait a maximum of 5 minutes: 10 seconds in between, up to 30 times
-		30, 10*time.Second,
-		func() error {
+		10*time.Second, 5*time.Minute,
+		func(ctx context.Context) (bool, error) {
 			// Query by state filter only — not by ID. AWS removes fully-deleted
 			// endpoints from DescribeVpcEndpoints and returns NotFound if any ID
 			// in the batch is gone, which would cause false-success when other
@@ -164,7 +162,7 @@ func waitForEndpointsDeleted(ctx context.Context, client EC2EndpointsAPI, ids []
 			for paginator.HasMorePages() {
 				page, err := paginator.NextPage(ctx)
 				if err != nil {
-					return retry.FatalError{Underlying: err}
+					return false, err
 				}
 				for _, ep := range page.VpcEndpoints {
 					if idSet[aws.ToString(ep.VpcEndpointId)] {
@@ -173,9 +171,10 @@ func waitForEndpointsDeleted(ctx context.Context, client EC2EndpointsAPI, ids []
 				}
 			}
 			if remaining > 0 {
-				return fmt.Errorf("%d VPC Endpoints still deleting", remaining)
+				logging.Infof("Waiting for %d VPC Endpoints to be deleted", remaining)
+				return false, nil
 			}
-			return nil
+			return true, nil
 		},
 	)
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // LoadBalancersV2PaginatorAPI defines the interface for paginator operations.
@@ -50,7 +49,7 @@ func listLoadBalancersV2(ctx context.Context, client LoadBalancersV2API, scope r
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, balancer := range page.LoadBalancers {

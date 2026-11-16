@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // S3ControlMultiRegionAPI defines the interface for S3 Multi-Region Access Point operations.
@@ -47,7 +46,7 @@ func listS3MultiRegionAccessPoints(ctx context.Context, client S3ControlMultiReg
 	accountID, ok := ctx.Value(util.AccountIdKey).(string)
 	if !ok {
 		logging.Errorf("unable to read the account-id from context")
-		return nil, errors.WithStackTrace(fmt.Errorf("unable to lookup the account id"))
+		return nil, fmt.Errorf("unable to lookup the account id")
 	}
 
 	var identifiers []*string
@@ -58,7 +57,7 @@ func listS3MultiRegionAccessPoints(ctx context.Context, client S3ControlMultiReg
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, accessPoint := range page.AccessPoints {

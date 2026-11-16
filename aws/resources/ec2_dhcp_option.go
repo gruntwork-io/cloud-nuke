@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2DhcpOptionAPI defines the interface for EC2 DHCP Options operations.
@@ -57,7 +56,7 @@ func listEC2DhcpOptions(ctx context.Context, client EC2DhcpOptionAPI, scope reso
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, dhcpOption := range page.DhcpOptions {
@@ -114,7 +113,7 @@ func disassociateDhcpOption(ctx context.Context, client EC2DhcpOptionAPI, id *st
 	})
 	if err != nil {
 		logging.Debugf("[DHCP Option] Failed to describe VPCs for %s: %s", dhcpOptID, err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if len(vpcs.Vpcs) == 0 {
@@ -133,7 +132,7 @@ func disassociateDhcpOption(ctx context.Context, client EC2DhcpOptionAPI, id *st
 		})
 		if err != nil {
 			logging.Debugf("[DHCP Option] Failed to disassociate %s from VPC %s: %s", dhcpOptID, vpcID, err)
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		logging.Debugf("[DHCP Option] Successfully disassociated %s from VPC %s", dhcpOptID, vpcID)
@@ -151,7 +150,7 @@ func deleteDhcpOption(ctx context.Context, client EC2DhcpOptionAPI, id *string) 
 	})
 	if err != nil {
 		logging.Debugf("[Failed] Error deleting DHCP option %s: %s", aws.ToString(id), err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[OK] DHCP Option deleted successfully %s", aws.ToString(id))

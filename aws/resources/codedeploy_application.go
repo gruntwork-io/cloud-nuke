@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // CodeDeployApplicationsAPI defines the interface for CodeDeploy operations.
@@ -48,7 +47,7 @@ func listCodeDeployApplications(ctx context.Context, client CodeDeployApplicatio
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		if len(page.Applications) == 0 {
@@ -59,7 +58,7 @@ func listCodeDeployApplications(ctx context.Context, client CodeDeployApplicatio
 			ApplicationNames: page.Applications,
 		})
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, app := range resp.ApplicationsInfo {

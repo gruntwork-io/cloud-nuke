@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // VPCPeeringAPI defines the interface for VPC Peering Connection operations.
@@ -67,7 +66,7 @@ func listVPCPeeringConnections(ctx context.Context, client VPCPeeringAPI, scope 
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[VPC Peering] Failed to list peering connections: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, pcx := range page.VpcPeeringConnections {
@@ -115,7 +114,7 @@ func deleteVpcPeeringConnection(ctx context.Context, client VPCPeeringAPI, id *s
 	})
 	if err != nil {
 		logging.Debugf("[VPC Peering] Failed to delete %s: %s", aws.ToString(id), err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[VPC Peering] Successfully deleted: %s", aws.ToString(id))

@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2DedicatedHostsAPI defines the interface for EC2 Dedicated Hosts operations.
@@ -57,7 +56,7 @@ func listEC2DedicatedHosts(ctx context.Context, client EC2DedicatedHostsAPI, sco
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, host := range page.Hosts {
@@ -98,7 +97,7 @@ func releaseEC2DedicatedHosts(ctx context.Context, client EC2DedicatedHostsAPI, 
 	input := &ec2.ReleaseHostsInput{HostIds: hostIds}
 	releaseResult, err := client.ReleaseHosts(ctx, input)
 	if err != nil {
-		releaseErr := errors.WithStackTrace(err)
+		releaseErr := err
 		results := make([]resource.NukeResult, len(hostIds))
 		for i, id := range hostIds {
 			results[i] = resource.NukeResult{Identifier: id, Error: releaseErr}

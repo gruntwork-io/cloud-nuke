@@ -8,7 +8,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DBSubnetGroupsAPI defines the interface for RDS DB Subnet Group operations.
@@ -43,7 +42,7 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, subnetGroup := range page.DBSubnetGroups {
@@ -52,7 +51,7 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 				ResourceName: subnetGroup.DBSubnetGroupArn,
 			})
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			if cfg.ShouldInclude(config.ResourceValue{
@@ -73,5 +72,5 @@ func deleteDBSubnetGroup(ctx context.Context, client DBSubnetGroupsAPI, name *st
 	_, err := client.DeleteDBSubnetGroup(ctx, &rds.DeleteDBSubnetGroupInput{
 		DBSubnetGroupName: name,
 	})
-	return errors.WithStackTrace(err)
+	return err
 }

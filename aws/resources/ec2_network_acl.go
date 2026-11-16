@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // NetworkACLAPI defines the interface for Network ACL operations.
@@ -56,7 +55,7 @@ func listNetworkACLs(ctx context.Context, client NetworkACLAPI, scope resource.S
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[Network ACL] Failed to list network ACLs: %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, networkAcl := range page.NetworkAcls {
@@ -112,7 +111,7 @@ func replaceNetworkACLAssociations(ctx context.Context, client NetworkACLAPI, id
 	})
 	if err != nil {
 		logging.Debugf("[Network ACL] Failed to describe: %s", err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if len(resp.NetworkAcls) == 0 {
@@ -135,7 +134,7 @@ func replaceNetworkACLAssociations(ctx context.Context, client NetworkACLAPI, id
 	})
 	if err != nil {
 		logging.Debugf("[Network ACL] Failed to describe default ACL: %s", err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if len(defaultACLResp.NetworkAcls) == 0 {
@@ -154,7 +153,7 @@ func replaceNetworkACLAssociations(ctx context.Context, client NetworkACLAPI, id
 		})
 		if err != nil {
 			logging.Debugf("[Network ACL] Failed to replace association %s: %s", aws.ToString(assoc.NetworkAclAssociationId), err)
-			return errors.WithStackTrace(err)
+			return err
 		}
 		logging.Debugf("[Network ACL] Replaced association: %s", aws.ToString(assoc.NetworkAclAssociationId))
 	}
@@ -172,7 +171,7 @@ func deleteNetworkACL(ctx context.Context, client NetworkACLAPI, id *string) err
 	})
 	if err != nil {
 		logging.Debugf("[Network ACL] Failed to delete %s: %s", aws.ToString(id), err)
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	logging.Debugf("[Network ACL] Successfully deleted: %s", aws.ToString(id))

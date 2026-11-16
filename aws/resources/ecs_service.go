@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ECSServicesAPI defines the interface for ECS Services operations.
@@ -74,7 +73,7 @@ func listECSServices(ctx context.Context, client ECSServicesAPI, scope resource.
 		for paginator.HasMorePages() {
 			page, err := paginator.NextPage(ctx)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			filtered, err := filterECSServices(ctx, client, clusterArn, page.ServiceArns, cfg)
@@ -99,7 +98,7 @@ func listAllECSClusterArns(ctx context.Context, client ECSServicesAPI) ([]*strin
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		clusterArns = append(clusterArns, aws.StringSlice(page.ClusterArns)...)
 	}
@@ -119,7 +118,7 @@ func filterECSServices(ctx context.Context, client ECSServicesAPI, clusterArn *s
 			Include:  []types.ServiceField{types.ServiceFieldTags},
 		})
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, svc := range output.Services {
@@ -171,7 +170,7 @@ func deleteECSServices(ctx context.Context, client ECSServicesAPI, scope resourc
 func deleteECSService(ctx context.Context, client ECSServicesAPI, serviceArn *string, serviceClusterMap map[string]string) error {
 	clusterArn := serviceClusterMap[aws.ToString(serviceArn)]
 	if clusterArn == "" {
-		return errors.WithStackTrace(errClusterNotFound{serviceArn: aws.ToString(serviceArn)})
+		return errClusterNotFound{serviceArn: aws.ToString(serviceArn)}
 	}
 
 	// Get service details to check scheduling strategy
@@ -180,7 +179,7 @@ func deleteECSService(ctx context.Context, client ECSServicesAPI, serviceArn *st
 		Services: []string{aws.ToString(serviceArn)},
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if len(describeOutput.Services) == 0 {
@@ -209,7 +208,7 @@ func deleteECSService(ctx context.Context, client ECSServicesAPI, serviceArn *st
 		Force:   aws.Bool(true),
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Wait for service to become inactive

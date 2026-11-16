@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DBInstancesAPI defines the interface for RDS DB Instance operations.
@@ -45,7 +44,7 @@ func listDBInstances(ctx context.Context, client DBInstancesAPI, scope resource.
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, db := range page.DBInstances {
@@ -70,7 +69,7 @@ func deleteDBInstance(ctx context.Context, client DBInstancesAPI, name *string) 
 		DBInstanceIdentifier: name,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if len(resp.DBInstances) == 0 {
@@ -94,7 +93,7 @@ func deleteDBInstance(ctx context.Context, client DBInstancesAPI, name *string) 
 		DBInstanceIdentifier: name,
 		SkipFinalSnapshot:    aws.Bool(true),
 	})
-	return errors.WithStackTrace(err)
+	return err
 }
 
 // waitForDBInstancesDeleted waits for all specified RDS DB instances to be deleted.

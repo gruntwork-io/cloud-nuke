@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // NetworkFirewallTLSConfigAPI defines the interface for Network Firewall TLS Config operations.
@@ -44,7 +43,7 @@ func listNetworkFirewallTLSConfigs(ctx context.Context, client NetworkFirewallTL
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, tlsConfig := range page.TLSInspectionConfigurations {
@@ -53,7 +52,7 @@ func listNetworkFirewallTLSConfigs(ctx context.Context, client NetworkFirewallTL
 			})
 			if err != nil {
 				logging.Debugf("[Failed] Unable to describe TLS inspection configuration %s: %s", aws.ToString(tlsConfig.Name), err)
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			if output.TLSInspectionConfigurationResponse == nil {
@@ -65,7 +64,7 @@ func listNetworkFirewallTLSConfigs(ctx context.Context, client NetworkFirewallTL
 			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, tlsConfig.Arn, tags)
 			if err != nil {
 				logging.Debugf("[Failed] Unable to get first seen time for %s: %s", aws.ToString(tlsConfig.Name), err)
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			// Use Name tag if available, otherwise use the configuration name

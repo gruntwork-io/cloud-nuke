@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -49,7 +48,7 @@ func listApiGatewaysV2(ctx context.Context, client ApiGatewayV2API, scope resour
 	for {
 		output, err := client.GetApis(ctx, input)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, api := range output.Items {
@@ -162,7 +161,7 @@ func deleteApiGatewayV2Mappings(ctx context.Context, client ApiGatewayV2API, map
 func deleteApiGatewayV2(ctx context.Context, client ApiGatewayV2API, apiID *string) error {
 	_, err := client.DeleteApi(ctx, &apigatewayv2.DeleteApiInput{ApiId: apiID})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

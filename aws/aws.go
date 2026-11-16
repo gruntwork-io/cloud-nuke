@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/collections"
 )
 
 // GetAllResources - Lists all aws resources
@@ -99,14 +98,14 @@ func ListResourceTypes() []string {
 
 // IsValidResourceType - Checks if a resourceType is valid or not
 func IsValidResourceType(resourceType string, allResourceTypes []string) bool {
-	return collections.ListContainsElement(allResourceTypes, resourceType)
+	return slices.Contains(allResourceTypes, resourceType)
 }
 
 // IsNukeable - Checks if we should nuke a resource or not
 func IsNukeable(resourceType string, resourceTypes []string) bool {
 	if len(resourceTypes) == 0 ||
-		collections.ListContainsElement(resourceTypes, "all") ||
-		collections.ListContainsElement(resourceTypes, resourceType) {
+		slices.Contains(resourceTypes, "all") ||
+		slices.Contains(resourceTypes, resourceType) {
 		return true
 	}
 	return false

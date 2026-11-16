@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2SubnetAPI defines the interface for EC2 Subnet operations.
@@ -73,7 +72,7 @@ func listEC2Subnets(ctx context.Context, client EC2SubnetAPI, scope resource.Sco
 			firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, subnet.SubnetId, util.ConvertTypesTagsToMap(subnet.Tags))
 			if err != nil {
 				logging.Error("unable to retrieve first seen tag")
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			if shouldIncludeEC2Subnet(subnet, firstSeenTime, cfg) {

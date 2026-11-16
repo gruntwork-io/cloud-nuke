@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // BackupVaultAPI defines the interface for Backup Vault operations.
@@ -87,7 +86,7 @@ func getTags(ctx context.Context, client BackupVaultAPI, cfg config.ResourceType
 		for tagsPaginator.HasMorePages() {
 			tagsPage, errListTags := tagsPaginator.NextPage(ctx)
 			if errListTags != nil {
-				return nil, errors.WithStackTrace(errListTags)
+				return nil, errListTags
 			}
 
 			for tagKey, tagValue := range tagsPage.Tags {
