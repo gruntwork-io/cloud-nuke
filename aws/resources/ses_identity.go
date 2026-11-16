@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SESIdentityAPI defines the interface for SES Identity operations.
@@ -20,6 +19,7 @@ type SESIdentityAPI interface {
 func NewSesIdentities() AwsResource {
 	return NewAwsResource(&resource.Resource[SESIdentityAPI]{
 		ResourceTypeName: "ses-identity",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESIdentityAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
@@ -41,7 +41,7 @@ func listSesIdentities(ctx context.Context, client SESIdentityAPI, _ resource.Sc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, id := range page.Identities {
@@ -59,5 +59,5 @@ func deleteSesIdentity(ctx context.Context, client SESIdentityAPI, id *string) e
 	_, err := client.DeleteIdentity(ctx, &ses.DeleteIdentityInput{
 		Identity: id,
 	})
-	return errors.WithStackTrace(err)
+	return err
 }

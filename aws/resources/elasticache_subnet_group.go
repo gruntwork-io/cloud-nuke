@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ElasticacheSubnetGroupsAPI defines the interface for Elasticache Subnet Group operations.
@@ -24,6 +23,7 @@ type ElasticacheSubnetGroupsAPI interface {
 func NewElasticacheSubnetGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticacheSubnetGroupsAPI]{
 		ResourceTypeName: "elasticache-subnet-group",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticacheSubnetGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
@@ -45,7 +45,7 @@ func listElasticacheSubnetGroups(ctx context.Context, client ElasticacheSubnetGr
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, subnetGroup := range page.CacheSubnetGroups {

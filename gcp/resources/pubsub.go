@@ -56,6 +56,7 @@ func NewPubSubTopics() GcpResource {
 	return NewGcpResourceWithLocationScope(&resource.Resource[PubSubAPI]{
 		ResourceTypeName: "gcp-pubsub-topic",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapGcpInitClient(func(r *resource.Resource[PubSubAPI], cfg GcpConfig) {
 			r.Scope.ProjectID = cfg.ProjectID
 			client, err := pubsub.NewTopicAdminClient(context.Background())

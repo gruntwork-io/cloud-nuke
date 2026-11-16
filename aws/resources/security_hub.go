@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SecurityHubAPI defines the interface for Security Hub operations.
@@ -57,7 +56,7 @@ func listSecurityHubs(ctx context.Context, client SecurityHubAPI, _ resource.Sco
 		if strings.Contains(err.Error(), "is not subscribed to AWS Security Hub") {
 			return nil, nil
 		}
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var tags map[string]string
@@ -95,7 +94,7 @@ func shouldIncludeSecurityHub(hub *securityhub.DescribeHubOutput, tags map[strin
 func removeSecurityHubMembers(ctx context.Context, client SecurityHubAPI, _ *string) error {
 	memberAccountIds, err := getAllSecurityHubMembers(ctx, client)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if len(memberAccountIds) == 0 {
@@ -107,7 +106,7 @@ func removeSecurityHubMembers(ctx context.Context, client SecurityHubAPI, _ *str
 		AccountIds: aws.ToStringSlice(memberAccountIds),
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	logging.Debugf("%d member accounts disassociated", len(memberAccountIds))
 
@@ -116,7 +115,7 @@ func removeSecurityHubMembers(ctx context.Context, client SecurityHubAPI, _ *str
 		AccountIds: aws.ToStringSlice(memberAccountIds),
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	logging.Debugf("%d member accounts deleted", len(memberAccountIds))
 
@@ -134,7 +133,7 @@ func getAllSecurityHubMembers(ctx context.Context, client SecurityHubAPI) ([]*st
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		for _, member := range page.Members {
 			hubMemberAccountIds = append(hubMemberAccountIds, member.AccountId)
@@ -160,7 +159,7 @@ func disassociateSecurityHubAdmin(ctx context.Context, client SecurityHubAPI, _ 
 
 	_, err = client.DisassociateFromAdministratorAccount(ctx, &securityhub.DisassociateFromAdministratorAccountInput{})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	logging.Debugf("Disassociated from administrator account")
 
@@ -171,7 +170,7 @@ func disassociateSecurityHubAdmin(ctx context.Context, client SecurityHubAPI, _ 
 func disableSecurityHub(ctx context.Context, client SecurityHubAPI, _ *string) error {
 	_, err := client.DisableSecurityHub(ctx, &securityhub.DisableSecurityHubInput{})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

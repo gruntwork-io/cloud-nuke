@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // RdsProxyAPI defines the interface for RDS Proxy operations.
@@ -44,7 +43,7 @@ func listRdsProxies(ctx context.Context, client RdsProxyAPI, scope resource.Scop
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, proxy := range page.DBProxies {

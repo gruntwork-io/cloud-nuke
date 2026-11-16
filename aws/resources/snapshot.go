@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SnapshotsAPI defines the interface for EBS Snapshot operations.
@@ -62,7 +61,7 @@ func listSnapshots(ctx context.Context, client SnapshotsAPI, scope resource.Scop
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, snapshot := range page.Snapshots {
@@ -132,7 +131,7 @@ func deleteSnapshot(ctx context.Context, client SnapshotsAPI, snapshotID *string
 			logging.Debugf("Snapshot %s already deleted (ok)", aws.ToString(snapshotID))
 			return nil
 		}
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ASGroupsAPI defines the interface for Auto Scaling Group operations.
@@ -43,7 +42,7 @@ func listASGroups(ctx context.Context, client ASGroupsAPI, scope resource.Scope,
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, group := range page.AutoScalingGroups {
@@ -66,7 +65,7 @@ func deleteASG(ctx context.Context, client ASGroupsAPI, name *string) error {
 		AutoScalingGroupName: name,
 		ForceDelete:          aws.Bool(true),
 	})
-	return errors.WithStackTrace(err)
+	return err
 }
 
 // waitForASGsDeleted waits for all specified Auto Scaling Groups to be deleted.

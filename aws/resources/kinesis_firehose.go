@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
@@ -15,6 +16,7 @@ import (
 type KinesisFirehoseAPI interface {
 	ListDeliveryStreams(ctx context.Context, params *firehose.ListDeliveryStreamsInput, optFns ...func(*firehose.Options)) (*firehose.ListDeliveryStreamsOutput, error)
 	DeleteDeliveryStream(ctx context.Context, params *firehose.DeleteDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DeleteDeliveryStreamOutput, error)
+	DescribeDeliveryStream(ctx context.Context, params *firehose.DescribeDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error)
 	ListTagsForDeliveryStream(ctx context.Context, params *firehose.ListTagsForDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.ListTagsForDeliveryStreamOutput, error)
 }
 
@@ -59,9 +61,16 @@ func listKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, scope r
 				continue
 			}
 
+			tags := util.ConvertFirehoseTagsToMap(tagsOutput.Tags)
+			var createdAt *time.Time
+			if cfg.HasTimeFilter() && passesNameAndTagRules(cfg, aws.String(stream), tags) {
+				createdAt = describeKinesisFirehoseCreationTime(ctx, client, stream)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: aws.String(stream),
-				Tags: util.ConvertFirehoseTagsToMap(tagsOutput.Tags),
+				Time: createdAt,
+				Tags: tags,
 			}) {
 				ids = append(ids, aws.String(stream))
 			}
@@ -74,6 +83,19 @@ func listKinesisFirehose(ctx context.Context, client KinesisFirehoseAPI, scope r
 	}
 
 	return ids, nil
+}
+
+// describeKinesisFirehoseCreationTime reads the creation time that
+// ListDeliveryStreams does not return. It warns and returns nil when the call fails.
+func describeKinesisFirehoseCreationTime(ctx context.Context, client KinesisFirehoseAPI, stream string) *time.Time {
+	output, err := client.DescribeDeliveryStream(ctx, &firehose.DescribeDeliveryStreamInput{
+		DeliveryStreamName: aws.String(stream),
+	})
+	if err != nil || output.DeliveryStreamDescription == nil {
+		logging.Warnf("Unable to read the creation time of Kinesis Firehose stream %s, so a time filter cannot include it: %v", stream, err)
+		return nil
+	}
+	return output.DeliveryStreamDescription.CreateTimestamp
 }
 
 // deleteKinesisFirehose deletes a single Kinesis Firehose delivery stream.

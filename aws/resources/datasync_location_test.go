@@ -2,8 +2,10 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/datasync"
@@ -14,8 +16,36 @@ import (
 )
 
 type mockDataSyncLocationClient struct {
+	DataSyncLocationAPI
 	DeleteLocationOutput datasync.DeleteLocationOutput
 	ListLocationsOutput  datasync.ListLocationsOutput
+	CreationTimes        map[string]time.Time
+	DescribeCalls        int
+}
+
+func (m *mockDataSyncLocationClient) creationTime(arn *string) (*time.Time, error) {
+	m.DescribeCalls++
+	createdAt, ok := m.CreationTimes[aws.ToString(arn)]
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+	return aws.Time(createdAt), nil
+}
+
+func (m *mockDataSyncLocationClient) DescribeLocationS3(ctx context.Context, params *datasync.DescribeLocationS3Input, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationS3Output, error) {
+	createdAt, err := m.creationTime(params.LocationArn)
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationS3Output{CreationTime: createdAt}, nil
+}
+
+func (m *mockDataSyncLocationClient) DescribeLocationNfs(ctx context.Context, params *datasync.DescribeLocationNfsInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationNfsOutput, error) {
+	createdAt, err := m.creationTime(params.LocationArn)
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationNfsOutput{CreationTime: createdAt}, nil
 }
 
 func (m *mockDataSyncLocationClient) DeleteLocation(ctx context.Context, params *datasync.DeleteLocationInput, optFns ...func(*datasync.Options)) (*datasync.DeleteLocationOutput, error) {
@@ -93,6 +123,52 @@ func TestListDataSyncLocations(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(arns))
 		})
 	}
+}
+
+func TestListDataSyncLocations_TimeFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	oldS3 := "arn:aws:datasync:us-east-1:123456789012:location/loc-old"
+	newNfs := "arn:aws:datasync:us-east-1:123456789012:location/loc-new"
+	unreadableNfs := "arn:aws:datasync:us-east-1:123456789012:location/loc-unreadable"
+	unknownType := "arn:aws:datasync:us-east-1:123456789012:location/loc-unknown"
+	newMock := func() *mockDataSyncLocationClient {
+		return &mockDataSyncLocationClient{
+			ListLocationsOutput: datasync.ListLocationsOutput{
+				Locations: []types.LocationListEntry{
+					{LocationArn: aws.String(oldS3), LocationUri: aws.String("s3://my-bucket/prefix/")},
+					{LocationArn: aws.String(newNfs), LocationUri: aws.String("nfs://192.168.1.100/exports/")},
+					{LocationArn: aws.String(unreadableNfs), LocationUri: aws.String("nfs://192.168.1.101/exports/")},
+					{LocationArn: aws.String(unknownType), LocationUri: aws.String("future-type://host/path/")},
+				},
+			},
+			CreationTimes: map[string]time.Time{
+				oldS3:  now.Add(-2 * time.Hour),
+				newNfs: now,
+			},
+		}
+	}
+
+	mock := newMock()
+	olderThanAnHour := config.ResourceType{ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-time.Hour))}}
+	arns, err := listDataSyncLocations(context.Background(), mock, resource.Scope{}, olderThanAnHour)
+	require.NoError(t, err)
+	require.Equal(t, []string{oldS3}, aws.ToStringSlice(arns), "an unreadable or unknown location type leaves the location out")
+	require.Equal(t, 3, mock.DescribeCalls, "the URI scheme picks the Describe call, and an unknown scheme makes none")
+
+	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile(`192\.168\.1\.100`)}}
+	_, err = listDataSyncLocations(context.Background(), mock, resource.Scope{}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.DescribeCalls, "a location excluded by name gets no Describe call")
+
+	mock = newMock()
+	arns, err = listDataSyncLocations(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Len(t, arns, 4)
+	require.Zero(t, mock.DescribeCalls, "no time filter, no Describe calls")
 }
 
 func TestDeleteDataSyncLocation(t *testing.T) {

@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DBClustersAPI defines the interface for RDS DB Cluster operations.
@@ -45,7 +44,7 @@ func listDBClusters(ctx context.Context, client DBClustersAPI, scope resource.Sc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, cluster := range page.DBClusters {
@@ -76,7 +75,7 @@ func deleteDBCluster(ctx context.Context, client DBClustersAPI, name *string) er
 		DBClusterIdentifier: name,
 		SkipFinalSnapshot:   aws.Bool(true),
 	})
-	return errors.WithStackTrace(err)
+	return err
 }
 
 // waitForDBClustersDeleted waits for all specified DB clusters to be deleted.

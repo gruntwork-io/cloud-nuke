@@ -27,6 +27,7 @@ type EventBridgeRuleAPI interface {
 func NewEventBridgeRule() AwsResource {
 	return NewAwsResource(&resource.Resource[EventBridgeRuleAPI]{
 		ResourceTypeName: "event-bridge-rule",
+		NoCreationTime:   true,
 		BatchSize:        100,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[EventBridgeRuleAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -56,7 +55,7 @@ type oidcProviderDetail struct {
 func listOIDCProviders(ctx context.Context, client OIDCProvidersAPI, _ resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	output, err := client.ListOpenIDConnectProviders(ctx, &iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var providerARNs []*string
@@ -112,7 +111,7 @@ func getOIDCProviderDetails(ctx context.Context, client OIDCProvidersAPI, arns [
 				if goerr.As(err, &notFound) {
 					return
 				}
-				results[idx] = result{err: errors.WithStackTrace(err)}
+				results[idx] = result{err: err}
 				return
 			}
 
@@ -142,7 +141,7 @@ func getOIDCProviderDetails(ctx context.Context, client OIDCProvidersAPI, arns [
 	}
 
 	if err := allErrs.ErrorOrNil(); err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	return details, nil
@@ -154,7 +153,7 @@ func deleteOIDCProvider(ctx context.Context, client OIDCProvidersAPI, arn *strin
 		OpenIDConnectProviderArn: arn,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

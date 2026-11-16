@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // MacieMemberAPI defines the interface for Macie operations.
@@ -54,7 +53,7 @@ func listMacieSessions(ctx context.Context, client MacieMemberAPI, scope resourc
 		if strings.Contains(err.Error(), "Macie is not enabled") {
 			return nil, nil
 		}
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	// Fetch tags using the ServiceRole ARN to derive the Macie session ARN
@@ -97,7 +96,7 @@ func getAllMacieMembers(ctx context.Context, client MacieMemberAPI) ([]*string, 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		for _, member := range page.Members {
 			memberAccountIds = append(memberAccountIds, member.AccountId)

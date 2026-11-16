@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EC2InstancesAPI defines the interface for EC2 Instances operations.
@@ -63,12 +62,12 @@ func listEC2Instances(ctx context.Context, client EC2InstancesAPI, scope resourc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		instanceIds, err := filterOutProtectedInstances(ctx, client, page, cfg)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		allInstanceIds = append(allInstanceIds, instanceIds...)
 	}
@@ -88,7 +87,7 @@ func filterOutProtectedInstances(ctx context.Context, client EC2InstancesAPI, ou
 				InstanceId: aws.String(instanceID),
 			})
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			if shouldIncludeInstanceId(instance, *attr.DisableApiTermination.Value, cfg) {

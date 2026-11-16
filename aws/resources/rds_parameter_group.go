@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // RdsParameterGroupAPI defines the interface for RDS Parameter Group operations.
@@ -24,6 +23,7 @@ type RdsParameterGroupAPI interface {
 func NewRdsParameterGroup() AwsResource {
 	return NewAwsResource(&resource.Resource[RdsParameterGroupAPI]{
 		ResourceTypeName: "rds-parameter-group",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[RdsParameterGroupAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
@@ -48,7 +48,7 @@ func listRdsParameterGroups(ctx context.Context, client RdsParameterGroupAPI, sc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		// Process each parameter group on the page

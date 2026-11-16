@@ -2,8 +2,10 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/datasync"
@@ -16,10 +18,21 @@ import (
 type mockDataSyncTaskClient struct {
 	DeleteTaskOutput datasync.DeleteTaskOutput
 	ListTasksOutput  datasync.ListTasksOutput
+	CreationTimes    map[string]time.Time
+	DescribeCalls    int
 }
 
 func (m *mockDataSyncTaskClient) DeleteTask(ctx context.Context, params *datasync.DeleteTaskInput, optFns ...func(*datasync.Options)) (*datasync.DeleteTaskOutput, error) {
 	return &m.DeleteTaskOutput, nil
+}
+
+func (m *mockDataSyncTaskClient) DescribeTask(ctx context.Context, params *datasync.DescribeTaskInput, optFns ...func(*datasync.Options)) (*datasync.DescribeTaskOutput, error) {
+	m.DescribeCalls++
+	createdAt, ok := m.CreationTimes[aws.ToString(params.TaskArn)]
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+	return &datasync.DescribeTaskOutput{CreationTime: aws.Time(createdAt)}, nil
 }
 
 func (m *mockDataSyncTaskClient) ListTasks(ctx context.Context, params *datasync.ListTasksInput, optFns ...func(*datasync.Options)) (*datasync.ListTasksOutput, error) {
@@ -85,6 +98,49 @@ func TestListDataSyncTasks(t *testing.T) {
 			require.Equal(t, tc.expected, aws.ToStringSlice(arns))
 		})
 	}
+}
+
+func TestListDataSyncTasks_TimeFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	oldArn := "arn:aws:datasync:us-east-1:123456789012:task/task-old"
+	newArn := "arn:aws:datasync:us-east-1:123456789012:task/task-new"
+	unreadableArn := "arn:aws:datasync:us-east-1:123456789012:task/task-unreadable"
+	newMock := func() *mockDataSyncTaskClient {
+		return &mockDataSyncTaskClient{
+			ListTasksOutput: datasync.ListTasksOutput{
+				Tasks: []types.TaskListEntry{
+					{Name: aws.String("old"), TaskArn: aws.String(oldArn)},
+					{Name: aws.String("new"), TaskArn: aws.String(newArn)},
+					{Name: aws.String("unreadable"), TaskArn: aws.String(unreadableArn)},
+				},
+			},
+			CreationTimes: map[string]time.Time{
+				oldArn: now.Add(-2 * time.Hour),
+				newArn: now,
+			},
+		}
+	}
+
+	mock := newMock()
+	olderThanAnHour := config.ResourceType{ExcludeRule: config.FilterRule{TimeAfter: aws.Time(now.Add(-time.Hour))}}
+	arns, err := listDataSyncTasks(context.Background(), mock, resource.Scope{}, olderThanAnHour)
+	require.NoError(t, err)
+	require.Equal(t, []string{oldArn}, aws.ToStringSlice(arns), "an unreadable creation time leaves the task out")
+
+	mock = newMock()
+	olderThanAnHourExceptNew := olderThanAnHour
+	olderThanAnHourExceptNew.ExcludeRule.NamesRegExp = []config.Expression{{RE: *regexp.MustCompile("^new$")}}
+	_, err = listDataSyncTasks(context.Background(), mock, resource.Scope{}, olderThanAnHourExceptNew)
+	require.NoError(t, err)
+	require.Equal(t, 2, mock.DescribeCalls, "a task excluded by name gets no DescribeTask call")
+
+	mock = newMock()
+	arns, err = listDataSyncTasks(context.Background(), mock, resource.Scope{}, config.ResourceType{})
+	require.NoError(t, err)
+	require.Len(t, arns, 3)
+	require.Zero(t, mock.DescribeCalls, "no time filter, no DescribeTask calls")
 }
 
 func TestDeleteDataSyncTask(t *testing.T) {

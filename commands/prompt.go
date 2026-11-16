@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
-	"github.com/gruntwork-io/go-commons/errors"
 	"github.com/pterm/pterm"
 )
 
@@ -21,7 +20,7 @@ func renderNukeConfirmationPrompt(prompt string, numRetryCount int) (bool, error
 		input, err := confirmPrompt.Show(prompt)
 		if err != nil {
 			logging.Errorf("[Failed to render prompt] %s", err)
-			return false, errors.WithStackTrace(err)
+			return false, err
 		}
 
 		response := strings.ToLower(strings.TrimSpace(input))

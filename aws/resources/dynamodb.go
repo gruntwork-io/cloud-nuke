@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // DynamoDBAPI defines the interface for DynamoDB operations.
@@ -47,13 +46,13 @@ func listDynamoDBTables(ctx context.Context, client DynamoDBAPI, scope resource.
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, table := range page.TableNames {
 			tableDetail, err := client.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: aws.String(table)})
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			tagsOutput, err := client.ListTagsOfResource(ctx, &dynamodb.ListTagsOfResourceInput{
@@ -90,7 +89,7 @@ func deleteDynamoDBTable(ctx context.Context, client DynamoDBAPI, tableName *str
 	_, err := client.DeleteTable(ctx, &dynamodb.DeleteTableInput{
 		TableName: tableName,
 	})
-	return errors.WithStackTrace(err)
+	return err
 }
 
 // waitForDynamoDBTablesDeleted waits for all specified DynamoDB tables to be deleted.

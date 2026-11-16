@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // TransitGatewaysAPI defines the interface for Transit Gateway operations.
@@ -54,7 +53,7 @@ func listTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope r
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			logging.Debugf("[DescribeTransitGateways Failed] %s", err)
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, transitGateway := range page.TransitGateways {
@@ -102,13 +101,13 @@ func verifyTransitGatewayNukePermission(ctx context.Context, client TransitGatew
 func nukeTransitGateway(ctx context.Context, client TransitGatewaysAPI, id *string) error {
 	// check the transit gateway has attachments and nuke them before
 	if err := nukeTransitGatewayAttachments(ctx, client, id); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if _, err := client.DeleteTransitGateway(ctx, &ec2.DeleteTransitGatewayInput{
 		TransitGatewayId: id,
 	}); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -129,7 +128,7 @@ func nukeTransitGatewayAttachments(ctx context.Context, client TransitGatewaysAP
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 		attachments = append(attachments, page.TransitGatewayAttachments...)
 	}
@@ -145,7 +144,7 @@ func nukeTransitGatewayAttachments(ctx context.Context, client TransitGatewaysAP
 	// Wait for all attachments to be deleted
 	if len(attachments) > 0 {
 		if err := waitUntilTransitGatewayAttachmentsDeleted(ctx, client, id); err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 	}
 
@@ -179,7 +178,7 @@ func deleteTransitGatewayAttachment(ctx context.Context, client TransitGatewaysA
 	}
 
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }
@@ -204,7 +203,7 @@ func waitUntilTransitGatewayAttachmentsDeleted(ctx context.Context, client Trans
 				},
 			})
 			if err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 
 			if len(output.TransitGatewayAttachments) == 0 {

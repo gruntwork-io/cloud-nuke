@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // EventBridgeScheduleAPI defines the interface for EventBridge Schedule operations.
@@ -46,7 +45,7 @@ func listEventBridgeSchedules(ctx context.Context, client EventBridgeScheduleAPI
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, schedule := range page.Schedules {

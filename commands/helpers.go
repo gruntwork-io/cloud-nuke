@@ -9,8 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
-	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
 )
 
@@ -20,13 +18,13 @@ func loadConfigFile(configFilePath string) (config.Config, error) {
 		return config.Config{}, nil
 	}
 
-	telemetry.TrackEvent(commonTelemetry.EventContext{
+	telemetry.TrackEvent(telemetry.EventContext{
 		EventName: "Reading config file",
 	}, map[string]interface{}{})
 
 	configObjPtr, err := config.GetConfig(configFilePath)
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Error reading config file",
 		}, map[string]interface{}{})
 		return config.Config{}, ConfigFileReadError{FilePath: configFilePath, Underlying: err}
@@ -39,12 +37,12 @@ func loadConfigFile(configFilePath string) (config.Config, error) {
 func parseAndApplyTimeFilters(c *cli.Context, configObj *config.Config) error {
 	excludeAfter, err := parseDurationParam(FlagOlderThan, c.String(FlagOlderThan))
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	includeAfter, err := parseDurationParam(FlagNewerThan, c.String(FlagNewerThan))
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// Apply time filters to config
@@ -57,7 +55,7 @@ func parseAndApplyTimeFilters(c *cli.Context, configObj *config.Config) error {
 func parseAndApplyTimeout(c *cli.Context, configObj *config.Config) error {
 	timeout, err := parseTimeoutDurationParam(FlagTimeout, c.String(FlagTimeout))
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	if timeout != nil {
@@ -71,7 +69,7 @@ func parseAndApplyTimeout(c *cli.Context, configObj *config.Config) error {
 // Returns true if the nuke should proceed, false otherwise
 func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	if !hasResources {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "No resources to nuke",
 		}, map[string]interface{}{})
 		logging.Info("Nothing to nuke, you're all good!")
@@ -79,7 +77,7 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	}
 
 	if c.Bool(FlagDryRun) {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Skipping nuke, dryrun set",
 		}, map[string]interface{}{})
 		logging.Info("Not taking any action as dry-run set to true.")
@@ -87,7 +85,7 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	}
 
 	if !c.Bool(FlagForce) {
-		telemetry.TrackEvent(commonTelemetry.EventContext{
+		telemetry.TrackEvent(telemetry.EventContext{
 			EventName: "Awaiting nuke confirmation",
 		}, map[string]interface{}{})
 
@@ -96,14 +94,14 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 
 		proceed, err := renderNukeConfirmationPrompt(promptMessage, MaxConfirmationAttempts)
 		if err != nil {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
+			telemetry.TrackEvent(telemetry.EventContext{
 				EventName: "Error confirming nuke",
 			}, map[string]interface{}{})
 			return false, err
 		}
 
 		if !proceed {
-			telemetry.TrackEvent(commonTelemetry.EventContext{
+			telemetry.TrackEvent(telemetry.EventContext{
 				EventName: "User aborted nuke",
 			}, map[string]interface{}{})
 			return false, nil
@@ -113,7 +111,7 @@ func confirmNuke(c *cli.Context, hasResources bool) (bool, error) {
 	}
 
 	// Force flag is set
-	telemetry.TrackEvent(commonTelemetry.EventContext{
+	telemetry.TrackEvent(telemetry.EventContext{
 		EventName: "Forcing nuke in 10 seconds",
 	}, map[string]interface{}{})
 
@@ -135,10 +133,10 @@ func parseLogLevel(c *cli.Context) error {
 	logLevel := c.String(FlagLogLevel)
 	parseErr := logging.ParseLogLevel(logLevel)
 	if parseErr != nil {
-		return errors.WithStackTrace(InvalidLogLevelError{
+		return InvalidLogLevelError{
 			Value:      logLevel,
 			Underlying: parseErr,
-		})
+		}
 	}
 	return nil
 }
@@ -154,11 +152,11 @@ func parseDurationParam(flagName string, paramValue string) (*time.Time, error) 
 	// Parse the duration string (e.g., "10h" -> 10 hours)
 	duration, err := time.ParseDuration(paramValue)
 	if err != nil {
-		return nil, errors.WithStackTrace(InvalidDurationError{
+		return nil, InvalidDurationError{
 			FlagName:   flagName,
 			Value:      paramValue,
 			Underlying: err,
-		})
+		}
 	}
 
 	// Make it negative so it goes back in time
@@ -181,23 +179,23 @@ func parseTagFlags(tagValues []string) (map[string]config.Expression, error) {
 	for _, tagValue := range tagValues {
 		parts := strings.SplitN(tagValue, "=", 2)
 		if len(parts) != 2 {
-			return nil, errors.WithStackTrace(InvalidTagFormatError{Value: tagValue})
+			return nil, InvalidTagFormatError{Value: tagValue}
 		}
 
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 
 		if key == "" || value == "" {
-			return nil, errors.WithStackTrace(InvalidTagFormatError{Value: tagValue})
+			return nil, InvalidTagFormatError{Value: tagValue}
 		}
 
 		if _, exists := tags[key]; exists {
-			return nil, errors.WithStackTrace(DuplicateTagKeyError{Key: key})
+			return nil, DuplicateTagKeyError{Key: key}
 		}
 
 		re, err := regexp.Compile(value)
 		if err != nil {
-			return nil, errors.WithStackTrace(InvalidTagRegexError{Value: tagValue, Underlying: err})
+			return nil, InvalidTagRegexError{Value: tagValue, Underlying: err}
 		}
 
 		tags[key] = config.Expression{RE: *re}
@@ -216,20 +214,20 @@ func parseTimeoutDurationParam(flagName string, paramValue string) (*time.Durati
 	// Parse the duration string
 	duration, err := time.ParseDuration(paramValue)
 	if err != nil {
-		return nil, errors.WithStackTrace(InvalidDurationError{
+		return nil, InvalidDurationError{
 			FlagName:   flagName,
 			Value:      paramValue,
 			Underlying: err,
-		})
+		}
 	}
 
 	// Validate that timeout is positive
 	if duration <= 0 {
-		return nil, errors.WithStackTrace(InvalidDurationError{
+		return nil, InvalidDurationError{
 			FlagName:   flagName,
 			Value:      paramValue,
 			Underlying: fmt.Errorf("timeout must be positive, got %v", duration),
-		})
+		}
 	}
 
 	return &duration, nil

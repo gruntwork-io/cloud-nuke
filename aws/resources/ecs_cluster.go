@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ECSClustersAPI defines the interface for ECS Clusters operations.
@@ -40,6 +39,7 @@ func NewECSClusters() AwsResource {
 	return NewAwsResource(&resource.Resource[ECSClustersAPI]{
 		ResourceTypeName: "ecs-cluster",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ECSClustersAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = ecs.NewFromConfig(cfg)
@@ -57,12 +57,12 @@ func listECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.
 	// Get all cluster ARNs
 	allClusters, err := getAllEcsClusters(ctx, client)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	excludeFirstSeenTag, err := util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var result []*string
@@ -74,7 +74,7 @@ func listECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.
 			Clusters: batch,
 		})
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, cluster := range resp.Clusters {
@@ -85,29 +85,29 @@ func listECSClusters(ctx context.Context, client ECSClustersAPI, scope resource.
 			// Get all tags for the cluster for filtering purposes
 			tags, err := getAllEcsClusterTags(ctx, client, cluster.ClusterArn)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
-			if !cfg.ShouldInclude(config.ResourceValue{
-				Name: cluster.ClusterName,
-				Tags: tags,
-			}) {
+			// The time filter is applied below, once the first-seen time is known.
+			if !passesNameAndTagRules(cfg, cluster.ClusterName, tags) {
 				continue
 			}
 
 			if excludeFirstSeenTag {
-				result = append(result, cluster.ClusterArn)
+				if !cfg.HasTimeFilter() {
+					result = append(result, cluster.ClusterArn)
+				}
 				continue
 			}
 
 			firstSeenTime, err := getEcsClusterFirstSeenTag(ctx, client, cluster.ClusterArn)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			if firstSeenTime == nil {
 				if err := setEcsClusterFirstSeenTag(ctx, client, cluster.ClusterArn, time.Now().UTC()); err != nil {
-					return nil, errors.WithStackTrace(err)
+					return nil, err
 				}
 				continue
 			}
@@ -133,7 +133,7 @@ func getAllEcsClusters(ctx context.Context, client ECSClustersAPI) ([]*string, e
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 		clusterArns = append(clusterArns, page.ClusterArns...)
 	}
@@ -150,7 +150,7 @@ func getAllEcsClusterTags(ctx context.Context, client ECSClustersAPI, clusterArn
 	clusterTags, err := client.ListTagsForResource(ctx, input)
 	if err != nil {
 		logging.Debugf("Error getting the tags for ECS cluster with ARN %s", aws.ToString(clusterArn))
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	tags := make(map[string]string)
@@ -174,7 +174,7 @@ func getEcsClusterFirstSeenTag(ctx context.Context, client ECSClustersAPI, clust
 	clusterTags, err := client.ListTagsForResource(ctx, input)
 	if err != nil {
 		logging.Debugf("Error getting the tags for ECS cluster with ARN %s", aws.ToString(clusterArn))
-		return firstSeenTime, errors.WithStackTrace(err)
+		return firstSeenTime, err
 	}
 
 	for _, tag := range clusterTags.Tags {
@@ -182,7 +182,7 @@ func getEcsClusterFirstSeenTag(ctx context.Context, client ECSClustersAPI, clust
 			firstSeenTime, err = util.ParseTimestamp(tag.Value)
 			if err != nil {
 				logging.Debugf("Error parsing the `cloud-nuke-first-seen` tag for ECS cluster with ARN %s", aws.ToString(clusterArn))
-				return firstSeenTime, errors.WithStackTrace(err)
+				return firstSeenTime, err
 			}
 
 			return firstSeenTime, nil
@@ -208,7 +208,7 @@ func setEcsClusterFirstSeenTag(ctx context.Context, client ECSClustersAPI, clust
 
 	_, err := client.TagResource(ctx, input)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -224,7 +224,7 @@ func stopClusterRunningTasks(ctx context.Context, client ECSClustersAPI, cluster
 	})
 
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	// stop the listed tasks
@@ -236,7 +236,7 @@ func stopClusterRunningTasks(ctx context.Context, client ECSClustersAPI, cluster
 		})
 		if err != nil {
 			logging.Debugf("[TASK] Unable to stop the task %s on cluster %s. Reason: %v", task, *clusterArn, err)
-			return errors.WithStackTrace(err)
+			return err
 		}
 		logging.Debugf("[TASK] Success, stopped task %v", task)
 	}
@@ -254,7 +254,7 @@ func deregisterClusterContainerInstances(ctx context.Context, client ECSClusters
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, instanceArn := range page.ContainerInstanceArns {
@@ -265,7 +265,7 @@ func deregisterClusterContainerInstances(ctx context.Context, client ECSClusters
 			})
 			if err != nil {
 				logging.Debugf("[ECS] Unable to deregister container instance %s from cluster %s: %v", instanceArn, aws.ToString(clusterArn), err)
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}

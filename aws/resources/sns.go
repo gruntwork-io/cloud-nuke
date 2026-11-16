@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SNSTopicAPI defines the interface for SNS Topic operations.
@@ -28,6 +27,7 @@ func NewSNSTopic() AwsResource {
 	return NewAwsResource(&resource.Resource[SNSTopicAPI]{
 		ResourceTypeName: "sns-topic",
 		BatchSize:        DefaultBatchSize,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SNSTopicAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = sns.NewFromConfig(cfg)
@@ -46,7 +46,7 @@ func NewSNSTopic() AwsResource {
 func listSNSTopics(ctx context.Context, client SNSTopicAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	excludeFirstSeenTag, err := util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var topics []*string
@@ -54,7 +54,7 @@ func listSNSTopics(ctx context.Context, client SNSTopicAPI, scope resource.Scope
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, topic := range page.Topics {
@@ -118,7 +118,7 @@ func getFirstSeenSNSTag(ctx context.Context, client SNSTopicAPI, topicArn string
 		ResourceArn: &topicArn,
 	})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	for _, tag := range response.Tags {
@@ -142,7 +142,7 @@ func setFirstSeenSNSTag(ctx context.Context, client SNSTopicAPI, topicArn string
 		},
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }
@@ -153,7 +153,7 @@ func deleteSNSTopic(ctx context.Context, client SNSTopicAPI, topicArn *string) e
 		TopicArn: topicArn,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

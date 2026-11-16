@@ -22,20 +22,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Needed for --new-from-rev
       - name: Fetch master branch for comparison
         run: git fetch origin master:refs/remotes/origin/master
       - name: Install mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v5
         with:
           version: 2025.12.10
           experimental: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Go module cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/go/pkg/mod
@@ -56,16 +56,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v5
         with:
           version: 2025.12.10
           experimental: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Go module cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/go/pkg/mod
@@ -83,7 +83,7 @@ jobs:
           DISABLE_TELEMETRY: "true"
       - name: Upload test logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-logs
           path: /tmp/logs/
@@ -97,21 +97,21 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v5
         with:
           version: 2025.12.10
           experimental: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::087285199408:role/cloud-nuke-gha
           aws-region: us-east-1
       - name: Go module cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/go/pkg/mod
@@ -153,16 +153,16 @@ jobs:
           - os: windows
             arch: arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v5
         with:
           version: 2025.12.10
           experimental: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Go module cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/go/pkg/mod
@@ -183,7 +183,7 @@ jobs:
             go build -ldflags="-X main.VERSION=${{ github.ref_name }}" \
             -o bin/cloud-nuke_${{ matrix.os }}_${{ matrix.arch }}${EXT} .
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cloud-nuke_${{ matrix.os }}_${{ matrix.arch }}
           path: bin/
@@ -219,10 +219,10 @@ jobs:
           fi
           echo "All required secrets are set"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v5
         with:
           version: 2025.12.10
           experimental: true
@@ -230,20 +230,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: bin/
           merge-multiple: true
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::087285199408:role/cloud-nuke-gha
           aws-region: us-east-1
 
       - name: Cache gon binary
         id: cache-gon
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /usr/local/bin/gon
           key: gon-${{ env.GON_VERSION }}

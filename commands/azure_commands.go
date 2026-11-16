@@ -12,8 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/telemetry"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	commonTelemetry "github.com/gruntwork-io/go-commons/telemetry"
 	"github.com/urfave/cli/v2"
 )
 
@@ -44,11 +42,11 @@ func azureNuke(c *cli.Context) error {
 
 	account, err := azure.GetAllResources(ctx, query, configObj, collector)
 	if err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error getting resources"}, map[string]interface{}{})
-		return errors.WithStackTrace(timeoutError(err, query.Timeout))
+		telemetry.TrackEvent(telemetry.EventContext{EventName: "Error getting resources"}, map[string]interface{}{})
+		return timeoutError(err, query.Timeout)
 	}
 	if err := timedOut(ctx, query.Timeout); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	collector.Emit(reporting.ScanComplete{})
@@ -89,11 +87,11 @@ func azureInspect(c *cli.Context) error {
 	defer cancel()
 
 	if _, err := azure.GetAllResources(ctx, query, configObj, collector); err != nil {
-		telemetry.TrackEvent(commonTelemetry.EventContext{EventName: "Error inspecting resources"}, map[string]interface{}{})
-		return errors.WithStackTrace(timeoutError(err, query.Timeout))
+		telemetry.TrackEvent(telemetry.EventContext{EventName: "Error inspecting resources"}, map[string]interface{}{})
+		return timeoutError(err, query.Timeout)
 	}
 	if err := timedOut(ctx, query.Timeout); err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	collector.Emit(reporting.ScanComplete{})
@@ -109,7 +107,7 @@ func azureQueryFrom(c *cli.Context) (*azure.Query, config.Config, error) {
 
 	configObj, err := loadConfigFile(c.String(FlagConfig))
 	if err != nil {
-		return nil, config.Config{}, errors.WithStackTrace(err)
+		return nil, config.Config{}, err
 	}
 
 	query := &azure.Query{
@@ -126,7 +124,7 @@ func azureQueryFrom(c *cli.Context) (*azure.Query, config.Config, error) {
 	// it into a deadline on the context instead.
 	timeout, err := parseTimeoutDurationParam(FlagTimeout, c.String(FlagTimeout))
 	if err != nil {
-		return nil, config.Config{}, errors.WithStackTrace(err)
+		return nil, config.Config{}, err
 	}
 	query.Timeout = timeout
 	if err := parseAndApplyTimeFilters(c, &configObj); err != nil {

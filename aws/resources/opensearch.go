@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,8 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
-	"github.com/gruntwork-io/go-commons/retry"
 )
 
 // maxDescribeDomainsPerRequest is the AWS limit for DescribeDomains API
@@ -34,6 +31,7 @@ func NewOpenSearchDomains() AwsResource {
 	return NewAwsResource(&resource.Resource[OpenSearchDomainsAPI]{
 		ResourceTypeName: "opensearch-domain",
 		BatchSize:        10,
+		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[OpenSearchDomainsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = opensearch.NewFromConfig(cfg)
@@ -51,12 +49,12 @@ func NewOpenSearchDomains() AwsResource {
 func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	domains, err := getAllActiveOpenSearchDomains(ctx, client)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	excludeFirstSeenTag, err := util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	var domainsToNuke []*string
@@ -71,7 +69,7 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 		}
 
 		if !excludeFirstSeenTag {
-			firstSeenTime = parseOpenSearchFirstSeenTag(tags)
+			firstSeenTime = parseFirstSeenTag(tags)
 		}
 
 		if !excludeFirstSeenTag && firstSeenTime == nil {
@@ -93,8 +91,8 @@ func listOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI, sco
 	return domainsToNuke, nil
 }
 
-// parseOpenSearchFirstSeenTag extracts the first-seen timestamp from a tags map (no API call).
-func parseOpenSearchFirstSeenTag(tags map[string]string) *time.Time {
+// parseFirstSeenTag extracts the first-seen timestamp from a tags map (no API call).
+func parseFirstSeenTag(tags map[string]string) *time.Time {
 	value, ok := tags[firstSeenTagKey]
 	if !ok {
 		return nil
@@ -113,7 +111,7 @@ func parseOpenSearchFirstSeenTag(tags map[string]string) *time.Time {
 func getAllActiveOpenSearchDomains(ctx context.Context, client OpenSearchDomainsAPI) ([]types.DomainStatus, error) {
 	resp, err := client.ListDomainNames(ctx, &opensearch.ListDomainNamesInput{})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	if len(resp.DomainNames) == 0 {
@@ -139,7 +137,7 @@ func getAllActiveOpenSearchDomains(ctx context.Context, client OpenSearchDomains
 			DomainNames: batch,
 		})
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, domain := range describedDomains.DomainStatusList {
@@ -156,7 +154,7 @@ func getAllActiveOpenSearchDomains(ctx context.Context, client OpenSearchDomains
 func getOpenSearchDomainTags(ctx context.Context, client OpenSearchDomainsAPI, domainARN *string) (map[string]string, error) {
 	output, err := client.ListTags(ctx, &opensearch.ListTagsInput{ARN: domainARN})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 	return util.ConvertOpenSearchTagsToMap(output.TagList), nil
 }
@@ -178,7 +176,7 @@ func setOpenSearchFirstSeenTag(ctx context.Context, client OpenSearchDomainsAPI,
 
 	_, err := client.AddTags(ctx, input)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 
 	return nil
@@ -189,27 +187,27 @@ func deleteOpenSearchDomain(ctx context.Context, client OpenSearchDomainsAPI, do
 	input := &opensearch.DeleteDomainInput{DomainName: domainName}
 	_, err := client.DeleteDomain(ctx, input)
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }
 
 // waitForOpenSearchDomainsDeleted waits for all OpenSearch domains to be fully deleted.
 func waitForOpenSearchDomainsDeleted(ctx context.Context, client OpenSearchDomainsAPI, names []string) error {
-	return retry.DoWithRetry(
-		logging.Logger.WithTime(time.Now()),
-		"Waiting for all OpenSearch Domains to be deleted.",
+	return util.PollUntil(ctx,
+		"OpenSearch Domains deletion",
 		// Wait a maximum of 20 minutes: 20 seconds in between, up to 60 times
-		60, 20*time.Second,
-		func() error {
+		20*time.Second, 20*time.Minute,
+		func(ctx context.Context) (bool, error) {
 			resp, err := client.DescribeDomains(ctx, &opensearch.DescribeDomainsInput{DomainNames: names})
 			if err != nil {
-				return errors.WithStackTrace(retry.FatalError{Underlying: err})
+				return false, err
 			}
-			if len(resp.DomainStatusList) == 0 {
-				return nil
+			if len(resp.DomainStatusList) > 0 {
+				logging.Infof("Waiting for %d OpenSearch Domains to be deleted", len(resp.DomainStatusList))
+				return false, nil
 			}
-			return fmt.Errorf("Not all OpenSearch domains are deleted.")
+			return true, nil
 		},
 	)
 }

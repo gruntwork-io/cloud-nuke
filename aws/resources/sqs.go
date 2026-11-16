@@ -12,7 +12,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // SqsQueueAPI defines the interface for SQS Queue operations.
@@ -48,7 +47,7 @@ func listSqsQueues(ctx context.Context, client SqsQueueAPI, scope resource.Scope
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, queueUrl := range page.QueueUrls {
@@ -85,17 +84,17 @@ func getQueueCreatedTime(ctx context.Context, client SqsQueueAPI, queueUrl strin
 		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameCreatedTimestamp},
 	})
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	createdAt, ok := attributes.Attributes["CreatedTimestamp"]
 	if !ok {
-		return nil, errors.WithStackTrace(fmt.Errorf("expected to find CreatedTimestamp attribute for queue %s", queueUrl))
+		return nil, fmt.Errorf("expected to find CreatedTimestamp attribute for queue %s", queueUrl)
 	}
 
 	createdAtInt, err := strconv.ParseInt(createdAt, 10, 64)
 	if err != nil {
-		return nil, errors.WithStackTrace(err)
+		return nil, err
 	}
 
 	createdAtTime := time.Unix(createdAtInt, 0)
@@ -107,5 +106,5 @@ func deleteSqsQueue(ctx context.Context, client SqsQueueAPI, url *string) error 
 	_, err := client.DeleteQueue(ctx, &sqs.DeleteQueueInput{
 		QueueUrl: url,
 	})
-	return errors.WithStackTrace(err)
+	return err
 }

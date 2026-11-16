@@ -11,7 +11,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // ElasticFileSystemAPI defines the interface for EFS operations.
@@ -55,7 +54,7 @@ func listElasticFileSystems(ctx context.Context, client ElasticFileSystemAPI, sc
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, errors.WithStackTrace(err)
+			return nil, err
 		}
 
 		for _, system := range page.FileSystems {
@@ -82,7 +81,7 @@ func deleteEFSAccessPoints(ctx context.Context, client ElasticFileSystemAPI, efs
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, ap := range page.AccessPoints {
@@ -90,7 +89,7 @@ func deleteEFSAccessPoints(ctx context.Context, client ElasticFileSystemAPI, efs
 			if _, err := client.DeleteAccessPoint(ctx, &efs.DeleteAccessPointInput{
 				AccessPointId: ap.AccessPointId,
 			}); err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}
@@ -108,7 +107,7 @@ func deleteEFSMountTargets(ctx context.Context, client ElasticFileSystemAPI, efs
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return errors.WithStackTrace(err)
+			return err
 		}
 
 		for _, mt := range page.MountTargets {
@@ -116,7 +115,7 @@ func deleteEFSMountTargets(ctx context.Context, client ElasticFileSystemAPI, efs
 			if _, err := client.DeleteMountTarget(ctx, &efs.DeleteMountTargetInput{
 				MountTargetId: mt.MountTargetId,
 			}); err != nil {
-				return errors.WithStackTrace(err)
+				return err
 			}
 		}
 	}
@@ -149,7 +148,7 @@ func deleteEFSFileSystem(ctx context.Context, client ElasticFileSystemAPI, efsID
 		FileSystemId: efsID,
 	})
 	if err != nil {
-		return errors.WithStackTrace(err)
+		return err
 	}
 	return nil
 }

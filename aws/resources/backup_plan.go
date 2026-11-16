@@ -9,7 +9,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/go-commons/errors"
 )
 
 // BackupPlanAPI defines the interface for Backup Plan operations.
@@ -78,7 +77,7 @@ func getBackupPlanTags(ctx context.Context, client BackupPlanAPI, cfg config.Res
 		for tagsPaginator.HasMorePages() {
 			tagsPage, err := tagsPaginator.NextPage(ctx)
 			if err != nil {
-				return nil, errors.WithStackTrace(err)
+				return nil, err
 			}
 
 			for tagKey, tagValue := range tagsPage.Tags {
