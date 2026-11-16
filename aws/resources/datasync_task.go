@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/datasync"
@@ -14,6 +15,7 @@ import (
 // DataSyncTaskAPI defines the interface for DataSync Task operations.
 type DataSyncTaskAPI interface {
 	DeleteTask(ctx context.Context, params *datasync.DeleteTaskInput, optFns ...func(*datasync.Options)) (*datasync.DeleteTaskOutput, error)
+	DescribeTask(ctx context.Context, params *datasync.DescribeTaskInput, optFns ...func(*datasync.Options)) (*datasync.DescribeTaskOutput, error)
 	ListTasks(ctx context.Context, params *datasync.ListTasksInput, optFns ...func(*datasync.Options)) (*datasync.ListTasksOutput, error)
 	ListTagsForResource(ctx context.Context, params *datasync.ListTagsForResourceInput, optFns ...func(*datasync.Options)) (*datasync.ListTagsForResourceOutput, error)
 }
@@ -63,8 +65,14 @@ func listDataSyncTasks(ctx context.Context, client DataSyncTaskAPI, scope resour
 				tags = util.ConvertDataSyncTagsToMap(tagsOutput.Tags)
 			}
 
+			var createdAt *time.Time
+			if cfg.HasTimeFilter() && passesNameAndTagRules(cfg, task.Name, tags) {
+				createdAt = describeDataSyncTaskCreationTime(ctx, client, task.TaskArn)
+			}
+
 			if cfg.ShouldInclude(config.ResourceValue{
 				Name: task.Name,
+				Time: createdAt,
 				Tags: tags,
 			}) {
 				identifiers = append(identifiers, task.TaskArn)
@@ -73,6 +81,17 @@ func listDataSyncTasks(ctx context.Context, client DataSyncTaskAPI, scope resour
 	}
 
 	return identifiers, nil
+}
+
+// describeDataSyncTaskCreationTime reads the creation time that ListTasks does
+// not return. It warns and returns nil when the call fails.
+func describeDataSyncTaskCreationTime(ctx context.Context, client DataSyncTaskAPI, taskArn *string) *time.Time {
+	output, err := client.DescribeTask(ctx, &datasync.DescribeTaskInput{TaskArn: taskArn})
+	if err != nil {
+		logging.Warnf("Unable to read the creation time of DataSync task %s, so a time filter cannot include it: %v", aws.ToString(taskArn), err)
+		return nil
+	}
+	return output.CreationTime
 }
 
 // deleteDataSyncTask deletes a single DataSync task.

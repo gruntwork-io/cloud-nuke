@@ -19,6 +19,7 @@ type SESIdentityAPI interface {
 func NewSesIdentities() AwsResource {
 	return NewAwsResource(&resource.Resource[SESIdentityAPI]{
 		ResourceTypeName: "ses-identity",
+		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[SESIdentityAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
