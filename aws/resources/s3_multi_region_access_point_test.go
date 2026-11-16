@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3control/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,7 +71,7 @@ func TestS3MultiRegionAccessPoint_List(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+			ctx := context.Background()
 			client := &mockS3MultiRegionAccessPointClient{
 				ListOutput: s3control.ListMultiRegionAccessPointsOutput{
 					AccessPoints: []types.MultiRegionAccessPointReport{
@@ -82,7 +81,7 @@ func TestS3MultiRegionAccessPoint_List(t *testing.T) {
 				},
 			}
 
-			names, err := listS3MultiRegionAccessPoints(ctx, client, resource.Scope{Region: "global"}, tc.configObj)
+			names, err := listS3MultiRegionAccessPoints(ctx, client, resource.Scope{Region: "global", AccountID: "123456789012"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})
@@ -96,11 +95,11 @@ func TestS3MultiRegionAccessPoint_Nuke(t *testing.T) {
 		DeleteOutput: s3control.DeleteMultiRegionAccessPointOutput{},
 	}
 
-	ctx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
+	ctx := context.Background()
 	results := nukeS3MultiRegionAccessPoints(
 		ctx,
 		client,
-		resource.Scope{Region: "global"},
+		resource.Scope{Region: "global", AccountID: "123456789012"},
 		"s3-multi-region-access-point",
 		[]*string{aws.String("test-access-point")},
 	)
@@ -111,7 +110,8 @@ func TestS3MultiRegionAccessPoint_Nuke(t *testing.T) {
 }
 
 // TestS3MultiRegionAccessPoint_NukeAfterScan runs the resource the way the
-// engine does: the scan context carries the account id, and the nuke context does not.
+// engine does: the provider hands the account id to Init, and neither the scan
+// context nor the nuke context carries it.
 func TestS3MultiRegionAccessPoint_NukeAfterScan(t *testing.T) {
 	t.Parallel()
 
@@ -120,11 +120,11 @@ func TestS3MultiRegionAccessPoint_NukeAfterScan(t *testing.T) {
 			AccessPoints: []types.MultiRegionAccessPointReport{{Name: aws.String("test-access-point")}},
 		},
 	}
-	r := NewS3MultiRegionAccessPoints().(*AwsResourceAdapter[S3ControlMultiRegionAPI]).Resource
+	r := NewS3MultiRegionAccessPoints().(*AwsResourceAdapter[S3ControlMultiRegionAPI])
+	r.Init(aws.Config{Region: "us-east-1"}, "123456789012")
 	r.Client = client
 
-	scanCtx := context.WithValue(context.Background(), util.AccountIdKey, "123456789012")
-	ids, err := r.GetAndSetIdentifiers(scanCtx, config.Config{})
+	ids, err := r.GetAndSetIdentifiers(context.Background(), config.Config{})
 	require.NoError(t, err)
 
 	_, err = r.Nuke(context.Background(), ids)

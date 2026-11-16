@@ -17,11 +17,13 @@ const DefaultBatchSize = 50
 // resource reads it to build the request its API expects, and the engine reads
 // its String for the logs and the errors.
 //
-// For AWS: Region is set, such as "us-east-1", or "global" for a global resource.
+// For AWS: Region is set, such as "us-east-1", or "global" for a global resource,
+// and AccountID when the provider could read it.
 // For GCP: ProjectID is set, and Region when the resource is regional.
 // For Azure: Subscription is set.
 type Scope struct {
 	Region       string // AWS region, or "global" for a global resource
+	AccountID    string // AWS account id, empty when it could not be read
 	ProjectID    string // GCP project id
 	Subscription string // Azure subscription id
 }

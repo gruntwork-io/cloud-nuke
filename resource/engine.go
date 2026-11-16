@@ -57,9 +57,10 @@ type Provider interface {
 
 	// Prepare builds the clients for one target and returns the resources to
 	// scan, in registry order, since that order is the dependency order the
-	// nuke later relies on. The returned context is the one the engine passes
-	// back to those resources, so a provider can attach per-target values such
-	// as an account id.
+	// nuke later relies on. The returned context is the one the scan passes
+	// back to those resources. The nuke runs on the caller's context instead,
+	// so a per-target value a nuker needs, such as an account id, belongs on
+	// each resource's Scope rather than on this context.
 	Prepare(ctx context.Context, target Target) (context.Context, []NukeableResource, error)
 
 	// SkipListError reports whether a failure to list one resource type should

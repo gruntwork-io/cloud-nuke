@@ -41,7 +41,7 @@ func NewCodeDeployApplications() AwsResource {
 func listCodeDeployApplications(ctx context.Context, client CodeDeployApplicationsAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var result []*string
 
-	accountID, _ := ctx.Value(util.AccountIdKey).(string)
+	accountID := scope.AccountID
 
 	paginator := codedeploy.NewListApplicationsPaginator(client, &codedeploy.ListApplicationsInput{})
 	for paginator.HasMorePages() {

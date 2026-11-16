@@ -39,20 +39,22 @@ func (p *provider) Targets() ([]resource.Target, error) {
 	return targets, nil
 }
 
-// Prepare builds a session for one region and attaches the account id, which
-// resources read from the context when they tag what they have seen.
+// Prepare builds a session for one region and puts the account id on every
+// resource's Scope, where both its lister and its nuker read it. The nuke runs
+// on the caller's context, not the one returned here, so a value attached to
+// this context would never reach a nuker.
 func (p *provider) Prepare(ctx context.Context, target resource.Target) (context.Context, []resource.NukeableResource, error) {
 	session, err := NewSession(target.ID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if accountID, err := util.GetCurrentAccountId(session); err == nil {
+	accountID, err := util.GetCurrentAccountId(session)
+	if err == nil {
 		p.setAccountIdOnce.Do(func() { telemetry.SetAccountId(accountID) })
-		ctx = context.WithValue(ctx, util.AccountIdKey, accountID)
 	}
 
-	registered := GetAndInitRegisteredResources(session, target.ID)
+	registered := GetAndInitRegisteredResources(session, target.ID, accountID)
 	nukeable := make([]resource.NukeableResource, len(registered))
 	for i := range registered {
 		nukeable[i] = *registered[i]

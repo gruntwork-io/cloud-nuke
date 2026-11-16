@@ -38,10 +38,10 @@ func NewSageMakerEndpointConfig() AwsResource {
 
 // listSageMakerEndpointConfigs retrieves all SageMaker Endpoint Configurations that match the config filters.
 func listSageMakerEndpointConfigs(ctx context.Context, client SageMakerEndpointConfigAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	// Get account ID from context (needed for constructing ARN for tags)
-	accountID, ok := ctx.Value(util.AccountIdKey).(string)
-	if !ok {
-		return nil, fmt.Errorf("unable to get account ID from context")
+	// The account ID is needed to construct the ARN for tags.
+	accountID := scope.AccountID
+	if accountID == "" {
+		return nil, fmt.Errorf("unable to get account ID from the resource scope")
 	}
 
 	var endpointConfigNames []*string

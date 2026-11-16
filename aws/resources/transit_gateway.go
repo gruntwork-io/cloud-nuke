@@ -46,7 +46,7 @@ func NewTransitGateways() AwsResource {
 // Uses pagination to handle large numbers of transit gateways.
 func listTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
 	var ids []*string
-	currentOwner := ctx.Value(util.AccountIdKey)
+	currentOwner := scope.AccountID
 
 	paginator := ec2.NewDescribeTransitGatewaysPaginator(client, &ec2.DescribeTransitGatewaysInput{})
 	for paginator.HasMorePages() {
@@ -63,7 +63,7 @@ func listTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope r
 			}
 
 			// Skip if owned by a different account
-			if currentOwner != nil && transitGateway.OwnerId != nil && currentOwner != aws.ToString(transitGateway.OwnerId) {
+			if currentOwner != "" && transitGateway.OwnerId != nil && currentOwner != aws.ToString(transitGateway.OwnerId) {
 				logging.Debugf("[Skipping] Transit Gateway %s owned by different account", aws.ToString(transitGateway.TransitGatewayId))
 				continue
 			}

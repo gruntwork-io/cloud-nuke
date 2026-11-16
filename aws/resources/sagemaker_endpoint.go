@@ -44,10 +44,9 @@ func listSageMakerEndpoints(ctx context.Context, client SageMakerEndpointAPI, sc
 	var endpointNames []*string
 	paginator := sagemaker.NewListEndpointsPaginator(client, &sagemaker.ListEndpointsInput{})
 
-	// Get account ID from context
-	accountID, ok := ctx.Value(util.AccountIdKey).(string)
-	if !ok {
-		return nil, fmt.Errorf("unable to get account ID from context")
+	accountID := scope.AccountID
+	if accountID == "" {
+		return nil, fmt.Errorf("unable to get account ID from the resource scope")
 	}
 
 	for paginator.HasMorePages() {

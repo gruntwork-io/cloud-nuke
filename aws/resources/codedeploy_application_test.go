@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/codedeploy/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,7 +84,7 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 		},
 	}
 
-	ctx := context.WithValue(context.Background(), util.AccountIdKey, accountID)
+	ctx := context.Background()
 
 	tests := map[string]struct {
 		configObj config.ResourceType
@@ -122,7 +121,7 @@ func TestCodeDeployApplication_GetAll(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			names, err := listCodeDeployApplications(ctx, client, resource.Scope{Region: region}, tc.configObj)
+			names, err := listCodeDeployApplications(ctx, client, resource.Scope{Region: region, AccountID: accountID}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})

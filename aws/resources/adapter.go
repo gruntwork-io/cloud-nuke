@@ -41,7 +41,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 const (
@@ -129,12 +128,16 @@ func NewAwsResource[C any](r *resource.Resource[C]) AwsResource {
 	return &AwsResourceAdapter[C]{Resource: r}
 }
 
-// Init initializes the resource with AWS configuration.
-// This method bridges the AwsResource.Init(aws.Config) interface to the generic
+// Init initializes the resource with AWS configuration and the account it
+// belongs to. This method bridges the AwsResource.Init interface to the generic
 // Resource.Init(any) method, allowing the AWS execution engine to initialize
 // resources with typed configuration.
-func (a *AwsResourceAdapter[C]) Init(cfg aws.Config) {
+//
+// The account id goes on the Scope, which the lister and the nuker both
+// receive, so a resource whose API needs the account id reads it from there.
+func (a *AwsResourceAdapter[C]) Init(cfg aws.Config, accountID string) {
 	a.Resource.Init(cfg)
+	a.Resource.Scope.AccountID = accountID
 }
 
 // Nuke deletes the resources with the given identifiers.
@@ -216,30 +219,4 @@ func NewEC2AwsResource[C any](
 func passesNameAndTagRules(cfg config.ResourceType, name *string, tags map[string]string) bool {
 	return config.ShouldInclude(name, cfg.IncludeRule.NamesRegExp, cfg.ExcludeRule.NamesRegExp) &&
 		cfg.ShouldIncludeBasedOnTag(tags)
-}
-
-// keepAccountID wraps a lister and a nuker so that the nuker sees the account id
-// the lister read. The provider attaches the account id to the scan context
-// only, and the nuke runs with a context that does not carry it.
-func keepAccountID[C any](
-	lister func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error),
-	nuker resource.NukerFunc[C],
-) (func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error), resource.NukerFunc[C]) {
-	var accountID any
-
-	keepingLister := func(ctx context.Context, client C, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-		if id := ctx.Value(util.AccountIdKey); id != nil {
-			accountID = id
-		}
-		return lister(ctx, client, scope, cfg)
-	}
-
-	restoringNuker := func(ctx context.Context, client C, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
-		if ctx.Value(util.AccountIdKey) == nil && accountID != nil {
-			ctx = context.WithValue(ctx, util.AccountIdKey, accountID)
-		}
-		return nuker(ctx, client, scope, resourceType, identifiers)
-	}
-
-	return keepingLister, restoringNuker
 }
