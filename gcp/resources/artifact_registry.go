@@ -36,7 +36,9 @@ type ArtifactRegistryAPI interface {
 	// accept, which is why the locations are listed first.
 	ListLocations(ctx context.Context, project string) ([]string, error)
 
-	// ListRepositories returns the repositories in one location.
+	// ListRepositories returns the repositories in one location. The listing
+	// is paged, so an error can arrive after some pages already have:
+	// whatever was read comes back alongside it rather than being discarded.
 	ListRepositories(ctx context.Context, parent string) ([]ArtifactRepository, error)
 
 	// DeleteRepository deletes one repository and waits for the operation to
@@ -86,12 +88,12 @@ func listArtifactRegistryRepositories(ctx context.Context, client ArtifactRegist
 	for _, location := range locations {
 		parent := fmt.Sprintf("projects/%s/locations/%s", scope.ProjectID, location)
 
+		// One location answering an error is not worth ending the scan: a
+		// project can hold repositories in the others, and the pages this
+		// location did answer with are as good as any other location's.
 		repositories, err := client.ListRepositories(ctx, parent)
 		if err != nil {
-			// One location answering an error is not worth ending the scan:
-			// a project can hold repositories in the others.
-			logging.Debugf("error listing artifact registry repositories in %s, skipping location: %v", location, err)
-			continue
+			logging.Debugf("error listing artifact registry repositories in %s, keeping the %d read so far: %v", location, len(repositories), err)
 		}
 
 		for _, repository := range repositories {
@@ -174,7 +176,7 @@ func (c artifactRegistryClient) ListRepositories(ctx context.Context, parent str
 			return found, nil
 		}
 		if err != nil {
-			return nil, err
+			return found, err
 		}
 
 		repository := ArtifactRepository{Name: repo.Name, Labels: repo.GetLabels()}
@@ -199,10 +201,12 @@ func (c artifactRegistryClient) DeleteRepository(ctx context.Context, name strin
 		return fmt.Errorf("waiting for deletion: %w", err)
 	}
 
+	// The repository is gone by here, so the run must report it deleted. This
+	// delay only keeps the next delete inside the API's quota, and a cancelled
+	// run stops waiting rather than reporting a deleted repository as failed.
 	select {
 	case <-time.After(artifactRegistryDeleteDelay):
 	case <-ctx.Done():
-		return ctx.Err()
 	}
 
 	return nil

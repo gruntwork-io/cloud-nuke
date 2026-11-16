@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"errors"
+	"regexp"
 	"testing"
 	"time"
 
@@ -29,7 +30,9 @@ func (f *fakeArtifactRegistry) ListLocations(ctx context.Context, project string
 func (f *fakeArtifactRegistry) ListRepositories(ctx context.Context, parent string) ([]ArtifactRepository, error) {
 	f.parentsSeen = append(f.parentsSeen, parent)
 	if f.failInLocation != "" && parent == f.failInLocation {
-		return nil, errors.New("the location is unavailable")
+		// A paged listing hands back the pages that arrived along with the
+		// error that ended it, so the fake answers with both.
+		return f.byLocation[parent], errors.New("the location is unavailable")
 	}
 	return f.byLocation[parent], nil
 }
@@ -128,17 +131,41 @@ func TestListArtifactRegistryFiltersOnTheShortNameAndReturnsTheFullOne(t *testin
 		},
 	}
 
+	// Anchored, so the rule can match the short name and nothing else. A
+	// lister that handed the filters the full name would exclude neither.
 	cfg := config.ResourceType{ExcludeRule: config.FilterRule{
-		Tags: map[string]config.Expression{},
+		NamesRegExp: []config.Expression{{RE: *regexp.MustCompile("^drop$")}},
 	}}
 	identifiers, err := listArtifactRegistryRepositories(context.Background(), client,
 		resource.Scope{ProjectID: "p"}, cfg)
 	require.NoError(t, err)
 
-	// Both survive an empty tag rule, and each identifier is the full name the
-	// delete call needs rather than the short name the filters matched.
-	require.Len(t, identifiers, 2)
+	// The one that stays comes back as the full name the delete call needs,
+	// not the short name the rule matched on.
+	require.Len(t, identifiers, 1)
 	assert.Equal(t, "projects/p/locations/us-central1/repositories/keep", *identifiers[0])
+}
+
+func TestListArtifactRegistryKeepsWhatALocationReadBeforeItFailed(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeArtifactRegistry{
+		locations:      []string{"us-central1"},
+		failInLocation: "projects/p/locations/us-central1",
+		byLocation: map[string][]ArtifactRepository{
+			"projects/p/locations/us-central1": {{Name: "projects/p/locations/us-central1/repositories/read"}},
+		},
+	}
+
+	identifiers, err := listArtifactRegistryRepositories(context.Background(), client,
+		resource.Scope{ProjectID: "p"}, config.ResourceType{})
+
+	// The listing is paged, so an error part way through still leaves the
+	// pages that arrived. Discarding them would leave repositories behind
+	// that the project had already named.
+	require.NoError(t, err)
+	require.Len(t, identifiers, 1)
+	assert.Equal(t, "projects/p/locations/us-central1/repositories/read", *identifiers[0])
 }
 
 func TestNukeArtifactRegistryDeletesByFullName(t *testing.T) {
