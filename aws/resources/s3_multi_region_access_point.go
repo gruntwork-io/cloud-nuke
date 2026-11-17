@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // S3ControlMultiRegionAPI defines the interface for S3 Multi-Region Access Point operations.
@@ -21,7 +20,6 @@ type S3ControlMultiRegionAPI interface {
 
 // NewS3MultiRegionAccessPoints creates a new S3 Multi-Region Access Point resource.
 func NewS3MultiRegionAccessPoints() AwsResource {
-	lister, nuker := keepAccountID(listS3MultiRegionAccessPoints, nukeS3MultiRegionAccessPoints)
 	return NewAwsResource(&resource.Resource[S3ControlMultiRegionAPI]{
 		ResourceTypeName: "s3-multi-region-access-point",
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
@@ -34,8 +32,8 @@ func NewS3MultiRegionAccessPoints() AwsResource {
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.S3MultiRegionAccessPoint
 		},
-		Lister: lister,
-		Nuker:  nuker,
+		Lister: listS3MultiRegionAccessPoints,
+		Nuker:  nukeS3MultiRegionAccessPoints,
 	})
 }
 
@@ -44,9 +42,9 @@ func NewS3MultiRegionAccessPoints() AwsResource {
 // NOTE: All control plane requests to create or maintain Multi-Region Access Points must be routed to US West (Oregon) Region.
 // Reference: https://docs.aws.amazon.com/AmazonS3/latest/userguide/MultiRegionAccessPointRestrictions.html
 func listS3MultiRegionAccessPoints(ctx context.Context, client S3ControlMultiRegionAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	accountID, ok := ctx.Value(util.AccountIdKey).(string)
-	if !ok {
-		logging.Errorf("unable to read the account-id from context")
+	accountID := scope.AccountID
+	if accountID == "" {
+		logging.Errorf("unable to read the account-id from the resource scope")
 		return nil, fmt.Errorf("unable to lookup the account id")
 	}
 
@@ -76,9 +74,9 @@ func listS3MultiRegionAccessPoints(ctx context.Context, client S3ControlMultiReg
 
 // nukeS3MultiRegionAccessPoints deletes S3 Multi-Region Access Points.
 func nukeS3MultiRegionAccessPoints(ctx context.Context, client S3ControlMultiRegionAPI, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
-	accountID, ok := ctx.Value(util.AccountIdKey).(string)
-	if !ok {
-		logging.Errorf("unable to read the account-id from context")
+	accountID := scope.AccountID
+	if accountID == "" {
+		logging.Errorf("unable to read the account-id from the resource scope")
 		return []resource.NukeResult{{Error: fmt.Errorf("unable to lookup the account id")}}
 	}
 

@@ -171,6 +171,132 @@ func TestListDataSyncLocations_TimeFilter(t *testing.T) {
 	require.Zero(t, mock.DescribeCalls, "no time filter, no Describe calls")
 }
 
+// locationSchemeSpy records which Describe call a scheme selects.
+type locationSchemeSpy struct {
+	DataSyncLocationAPI
+	called string
+	when   time.Time
+}
+
+func (s *locationSchemeSpy) seen(scheme string) (*time.Time, error) {
+	if s.called != "" {
+		return nil, errors.New("describe called twice, second was " + scheme)
+	}
+	s.called = scheme
+	return &s.when, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationAzureBlob(ctx context.Context, params *datasync.DescribeLocationAzureBlobInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationAzureBlobOutput, error) {
+	createdAt, err := s.seen("azure-blob")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationAzureBlobOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationEfs(ctx context.Context, params *datasync.DescribeLocationEfsInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationEfsOutput, error) {
+	createdAt, err := s.seen("efs")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationEfsOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationFsxLustre(ctx context.Context, params *datasync.DescribeLocationFsxLustreInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationFsxLustreOutput, error) {
+	createdAt, err := s.seen("fsxl")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationFsxLustreOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationFsxOntap(ctx context.Context, params *datasync.DescribeLocationFsxOntapInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationFsxOntapOutput, error) {
+	createdAt, err := s.seen("fsxn")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationFsxOntapOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationFsxOpenZfs(ctx context.Context, params *datasync.DescribeLocationFsxOpenZfsInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationFsxOpenZfsOutput, error) {
+	createdAt, err := s.seen("fsxz")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationFsxOpenZfsOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationFsxWindows(ctx context.Context, params *datasync.DescribeLocationFsxWindowsInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationFsxWindowsOutput, error) {
+	createdAt, err := s.seen("fsxw")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationFsxWindowsOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationHdfs(ctx context.Context, params *datasync.DescribeLocationHdfsInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationHdfsOutput, error) {
+	createdAt, err := s.seen("hdfs")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationHdfsOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationNfs(ctx context.Context, params *datasync.DescribeLocationNfsInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationNfsOutput, error) {
+	createdAt, err := s.seen("nfs")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationNfsOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationObjectStorage(ctx context.Context, params *datasync.DescribeLocationObjectStorageInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationObjectStorageOutput, error) {
+	createdAt, err := s.seen("object-storage")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationObjectStorageOutput{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationS3(ctx context.Context, params *datasync.DescribeLocationS3Input, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationS3Output, error) {
+	createdAt, err := s.seen("s3")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationS3Output{CreationTime: createdAt}, nil
+}
+
+func (s *locationSchemeSpy) DescribeLocationSmb(ctx context.Context, params *datasync.DescribeLocationSmbInput, optFns ...func(*datasync.Options)) (*datasync.DescribeLocationSmbOutput, error) {
+	createdAt, err := s.seen("smb")
+	if err != nil {
+		return nil, err
+	}
+	return &datasync.DescribeLocationSmbOutput{CreationTime: createdAt}, nil
+}
+
+// TestDescribeDataSyncLocationCreationTimeSelectsTheCallForTheScheme checks
+// every scheme, not only the s3 and nfs ones the time-filter test lists.
+func TestDescribeDataSyncLocationCreationTimeSelectsTheCallForTheScheme(t *testing.T) {
+	t.Parallel()
+
+	when := time.Now().UTC().Truncate(time.Second)
+	for _, scheme := range []string{
+		"azure-blob", "efs", "fsxl", "fsxn", "fsxz", "fsxw", "hdfs", "nfs", "object-storage", "s3", "smb",
+	} {
+		t.Run(scheme, func(t *testing.T) {
+			t.Parallel()
+			spy := &locationSchemeSpy{when: when}
+			got := describeDataSyncLocationCreationTime(context.Background(), spy, types.LocationListEntry{
+				LocationArn: aws.String("arn:aws:datasync:us-east-1:123456789012:location/loc-1"),
+				LocationUri: aws.String(scheme + "://host/path"),
+			})
+			require.Equal(t, scheme, spy.called)
+			require.NotNil(t, got)
+			require.True(t, when.Equal(got.UTC()), "the creation time comes from the Describe call the scheme selected")
+		})
+	}
+}
+
 func TestDeleteDataSyncLocation(t *testing.T) {
 	t.Parallel()
 

@@ -62,10 +62,12 @@ type fakeProvider struct {
 	// more than one batch.
 	batchSize int
 
-	// noCreationTime marks the widget as a type whose age is never reported.
+	// noCreationTime makes the lister report no age, so a time filter leaves the
+	// widgets out.
 	noCreationTime bool
 
-	// firstSeenTag marks the widget as a type whose age comes from a first-seen tag.
+	// firstSeenTag makes the lister read the age from a first-seen tag, which
+	// --exclude-first-seen turns off.
 	firstSeenTag bool
 
 	// nukeOrder records which target finished nuking, in order.
@@ -91,8 +93,6 @@ func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Cont
 	r := &Resource[*fakeClient]{
 		ResourceTypeName: "fake-widget",
 		BatchSize:        batchSize,
-		NoCreationTime:   p.noCreationTime,
-		FirstSeenTag:     p.firstSeenTag,
 		InitClient: func(r *Resource[*fakeClient], cfg any) {
 			r.Client = client
 			r.Scope = Scope{Region: target.ID}
@@ -105,9 +105,31 @@ func (p *fakeProvider) Prepare(ctx context.Context, target Target) (context.Cont
 			if c.listErr != nil {
 				return nil, c.listErr
 			}
+
+			// Azure never sets this value. A wrong type is a lister error.
+			excludeFirstSeen := false
+			if ctx.Value(util.ExcludeFirstSeenTagKey) != nil {
+				var err error
+				if excludeFirstSeen, err = util.GetBoolFromContext(ctx, util.ExcludeFirstSeenTagKey); err != nil {
+					return nil, err
+				}
+			}
+
+			var created *time.Time
+			if !p.noCreationTime && (!p.firstSeenTag || !excludeFirstSeen) {
+				now := time.Now()
+				created = &now
+			}
+
 			one := c.subscription + "-widget-1"
 			two := c.subscription + "-widget-2"
-			return []*string{&one, &two}, nil
+			var names []*string
+			for _, name := range []*string{&one, &two} {
+				if cfg.ShouldInclude(config.ResourceValue{Name: name, Time: created}) {
+					names = append(names, name)
+				}
+			}
+			return names, nil
 		},
 		Nuker: SequentialDeleter(func(ctx context.Context, c *fakeClient, id *string) error {
 			if p.beforeDelete != nil {
@@ -661,7 +683,8 @@ func TestScanGivesEachResourceTheCallersConfig(t *testing.T) {
 // TestScanWarnsOncePerScanAboutATypeWithNoCreationTime reads what the user is
 // told. It does not run in parallel because it swaps the global pterm writer.
 func TestScanWarnsOncePerScanAboutATypeWithNoCreationTime(t *testing.T) {
-	const warning = "Leaving all fake-widget resources alone"
+	// Two targets, two widgets each, all of them left out.
+	const warning = "Leaving 4 fake-widget resources alone"
 
 	ctx := context.Background()
 	timeFiltered := timeFilteredConfig()
@@ -675,7 +698,7 @@ func TestScanWarnsOncePerScanAboutATypeWithNoCreationTime(t *testing.T) {
 	assert.NotContains(t, said, warning, "no time filter, nothing to warn about")
 
 	said = scanTwice(t, ctx, newFakeProvider(), timeFiltered)
-	assert.NotContains(t, said, warning, "a type that reports its age is filtered, not skipped")
+	assert.NotContains(t, said, "Leaving", "a type that reports its age is filtered, not skipped")
 }
 
 // TestScanWarnsOncePerScanAboutAFirstSeenTypeWhenTheTagIsOff reads what the

@@ -111,6 +111,50 @@ func TestTransitGateways_GetAll(t *testing.T) {
 	}
 }
 
+func TestTransitGateways_GetAll_OwnerFilter(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockTransitGatewaysClient{
+		DescribeTransitGatewaysOutput: ec2.DescribeTransitGatewaysOutput{
+			TransitGateways: []types.TransitGateway{
+				{
+					TransitGatewayId: aws.String("tgw-own"),
+					OwnerId:          aws.String("111111111111"),
+					State:            types.TransitGatewayStateAvailable,
+				},
+				{
+					TransitGatewayId: aws.String("tgw-other"),
+					OwnerId:          aws.String("222222222222"),
+					State:            types.TransitGatewayStateAvailable,
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		accountID string
+		expected  []string
+	}{
+		"knownAccountKeepsOwnGateways": {
+			accountID: "111111111111",
+			expected:  []string{"tgw-own"},
+		},
+		"unknownAccountSkipsOwnedGateways": {
+			accountID: "",
+			expected:  []string{},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			scope := resource.Scope{Region: "us-east-1", AccountID: tc.accountID}
+			ids, err := listTransitGateways(context.Background(), mock, scope, config.ResourceType{})
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, aws.ToStringSlice(ids))
+		})
+	}
+}
+
 func TestTransitGateways_Nuke(t *testing.T) {
 	t.Parallel()
 

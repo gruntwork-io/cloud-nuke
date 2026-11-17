@@ -53,7 +53,7 @@ func NewEC2VPC() AwsResource {
 		func(c config.Config) config.EC2ResourceType { return c.VPC },
 		listVPCs,
 		resource.MultiStepDeleter(cleanupVPCDependencies, deleteVPC),
-		&EC2ResourceOptions[EC2VpcAPI]{FirstSeenTag: true},
+		nil,
 	)
 }
 

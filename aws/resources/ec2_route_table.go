@@ -34,7 +34,7 @@ func NewRouteTable() AwsResource {
 		func(c config.Config) config.EC2ResourceType { return c.RouteTable },
 		listRouteTables,
 		resource.MultiStepDeleter(disassociateRouteTableSubnets, deleteRouteTable),
-		&EC2ResourceOptions[RouteTableAPI]{PermissionVerifier: verifyRouteTableNukePermission, FirstSeenTag: true},
+		&EC2ResourceOptions[RouteTableAPI]{PermissionVerifier: verifyRouteTableNukePermission},
 	)
 }
 

@@ -24,7 +24,6 @@ type ElasticacheParameterGroupsAPI interface {
 func NewElasticacheParameterGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[ElasticacheParameterGroupsAPI]{
 		ResourceTypeName: "elasticache-parameter-group",
-		NoCreationTime:   true,
 		BatchSize:        DefaultBatchSize,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[ElasticacheParameterGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region

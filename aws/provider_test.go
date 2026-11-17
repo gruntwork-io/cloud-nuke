@@ -7,6 +7,7 @@ import (
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/smithy-go"
+	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ func TestFoundRoundTripsThroughTheAccountShape(t *testing.T) {
 	t.Parallel()
 
 	regions := []string{"us-east-1", GlobalRegion}
-	registered := GetAndInitRegisteredResources(awsConfigForTest(), "us-east-1")
+	registered := GetAndInitRegisteredResources(awsConfigForTest(), "us-east-1", "123456789012")
 	require.NotEmpty(t, registered)
 
 	// One resource type found in one region, which is the shape a scan returns.
@@ -62,6 +63,21 @@ func TestFoundRoundTripsThroughTheAccountShape(t *testing.T) {
 	assert.Equal(t,
 		(*registered[0]).ResourceName(),
 		(*back.Resources["us-east-1"].Resources[0]).ResourceName())
+}
+
+// TestRegisteredResourcesCarryTheAccountID pins that the account id reaches
+// each resource's Scope, which is where its nuker reads it: the nuke runs on
+// the caller's context, not the one Prepare returns.
+func TestRegisteredResourcesCarryTheAccountID(t *testing.T) {
+	t.Parallel()
+
+	for _, r := range GetAndInitRegisteredResources(awsConfigForTest(), "us-east-1", "123456789012") {
+		if accessPoints, ok := (*r).(*resources.AwsResourceAdapter[resources.S3ControlAccessPointAPI]); ok {
+			assert.Equal(t, "123456789012", accessPoints.Scope.AccountID)
+			return
+		}
+	}
+	t.Fatal("s3-access-point is not registered for us-east-1")
 }
 
 // awsConfigForTest builds a config with no credentials, which is enough to

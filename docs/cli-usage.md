@@ -27,11 +27,11 @@
 | `--config` | Path to [config file](configuration.md) for granular filtering | aws, gcp, azure |
 | `--exclude-first-seen` | Exclude resources based on first-seen tag | aws, inspect-aws |
 
-Some AWS resource types report no creation time. For several of them, such as `rds-subnet-group`, `ecs-cluster`, `opensearch-domain`, `eip` and most VPC resources, cloud-nuke writes a `cloud-nuke-first-seen` tag the first time it sees the resource, and `--older-than` and `--newer-than` measure age from that tag. Writing the tag needs the service's tagging permission, for example `rds:AddTagsToResource` for `rds-subnet-group`.
+Some AWS resource types report no creation time. For several of them, such as `rds-subnet-group`, `ecs-cluster`, `opensearch-domain`, `eip` and most VPC resources, cloud-nuke writes a `cloud-nuke-first-seen` tag the first time it sees the resource, and `--older-than` and `--newer-than` measure age from that tag. Any run that lists the type writes the tag on a resource that does not have one yet, including `inspect-aws` and a run with `--dry-run`, so a command that looks read-only can call the service's tagging API. A resource that already has a valid tag is only read, with no tagging call. Writing a missing tag needs that permission, for example `rds:AddTagsToResource` for `rds-subnet-group`.
 
 On the run that writes the tag, `ecs-cluster` is never deleted. `rds-subnet-group` and `opensearch-domain` are left alone only under a time filter; a run without one tags and deletes them in the same run. `eip`, VPC resources and Network Firewall resources take the current time as their age, so `--newer-than` can delete them on that same run.
 
-`--exclude-first-seen` turns the tag off: cloud-nuke does not read it or write it. A run that also has a time filter leaves the types that use the tag alone and logs one warning per type.
+`--exclude-first-seen` turns the tag off: cloud-nuke does not read it or write it. A run that also has a time filter leaves the types that use the tag alone and logs a warning naming how many it left out.
 
 Some types do not return a creation time when they are listed, so cloud-nuke reads it with one extra call for each resource, only under a time filter. If the call fails, for example because the permission is missing, the resource is left alone and a warning is logged.
 
@@ -44,7 +44,7 @@ Some types do not return a creation time when they are listed, so cloud-nuke rea
 | `s3-access-point` | `s3:GetAccessPoint` |
 | `s3-object-lambda-access-point` | `s3:GetAccessPointForObjectLambda` |
 
-The remaining types without a creation time, such as `rds-parameter-group`, `elasticache-subnet-group` or `route53-hosted-zone`, cannot be filtered by age. A run with a time filter, from `--older-than` and `--newer-than` or from `time_after` and `time_before` in the config file, leaves them alone and logs one warning per type. Remove the time filter to include them.
+The remaining types without a creation time, such as `rds-parameter-group`, `elasticache-subnet-group` or `route53-hosted-zone`, cannot be filtered by age. A run with a time filter, from `--older-than` and `--newer-than` or from `time_after` and `time_before` in the config file, leaves them alone and logs a warning naming how many it left out. Remove the time filter to include them.
 
 ### Execution
 

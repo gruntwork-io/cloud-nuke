@@ -10,7 +10,6 @@ import (
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/cloud-nuke/util"
 )
 
 // S3ObjectLambdaAccessPointAPI defines the interface for S3 Object Lambda Access Point operations.
@@ -22,7 +21,6 @@ type S3ObjectLambdaAccessPointAPI interface {
 
 // NewS3ObjectLambdaAccessPoints creates a new S3 Object Lambda Access Point resource.
 func NewS3ObjectLambdaAccessPoints() AwsResource {
-	lister, nuker := keepAccountID(listS3ObjectLambdaAccessPoints, nukeS3ObjectLambdaAccessPoints)
 	return NewAwsResource(&resource.Resource[S3ObjectLambdaAccessPointAPI]{
 		ResourceTypeName: "s3-object-lambda-access-point",
 		// S3 Control API has tight rate limits; keep batch size low to avoid throttling.
@@ -34,16 +32,16 @@ func NewS3ObjectLambdaAccessPoints() AwsResource {
 		ConfigGetter: func(c config.Config) config.ResourceType {
 			return c.S3ObjectLambdaAccessPoint
 		},
-		Lister: lister,
-		Nuker:  nuker,
+		Lister: listS3ObjectLambdaAccessPoints,
+		Nuker:  nukeS3ObjectLambdaAccessPoints,
 	})
 }
 
 // listS3ObjectLambdaAccessPoints retrieves all Object Lambda Access Points that match the config filters.
 func listS3ObjectLambdaAccessPoints(ctx context.Context, client S3ObjectLambdaAccessPointAPI, scope resource.Scope, cfg config.ResourceType) ([]*string, error) {
-	accountID, ok := ctx.Value(util.AccountIdKey).(string)
-	if !ok {
-		logging.Errorf("unable to read the account-id from context")
+	accountID := scope.AccountID
+	if accountID == "" {
+		logging.Errorf("unable to read the account-id from the resource scope")
 		return nil, fmt.Errorf("unable to lookup the account id")
 	}
 
@@ -92,9 +90,9 @@ func getS3ObjectLambdaAccessPointCreationTime(ctx context.Context, client S3Obje
 
 // nukeS3ObjectLambdaAccessPoints deletes Object Lambda Access Points.
 func nukeS3ObjectLambdaAccessPoints(ctx context.Context, client S3ObjectLambdaAccessPointAPI, scope resource.Scope, resourceType string, identifiers []*string) []resource.NukeResult {
-	accountID, ok := ctx.Value(util.AccountIdKey).(string)
-	if !ok {
-		logging.Errorf("unable to read the account-id from context")
+	accountID := scope.AccountID
+	if accountID == "" {
+		logging.Errorf("unable to read the account-id from the resource scope")
 		return []resource.NukeResult{{Error: fmt.Errorf("unable to lookup the account id")}}
 	}
 

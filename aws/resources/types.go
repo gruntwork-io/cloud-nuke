@@ -9,5 +9,5 @@ import (
 // The aws package references this type for container types and the resource registry.
 type AwsResource interface {
 	resource.NukeableResource
-	Init(cfg aws.Config)
+	Init(cfg aws.Config, accountID string)
 }

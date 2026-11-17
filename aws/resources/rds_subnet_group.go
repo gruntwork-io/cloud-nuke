@@ -26,7 +26,6 @@ func NewDBSubnetGroups() AwsResource {
 	return NewAwsResource(&resource.Resource[DBSubnetGroupsAPI]{
 		ResourceTypeName: "rds-subnet-group",
 		BatchSize:        DefaultBatchSize,
-		FirstSeenTag:     true,
 		InitClient: WrapAwsInitClient(func(r *resource.Resource[DBSubnetGroupsAPI], cfg aws.Config) {
 			r.Scope.Region = cfg.Region
 			r.Client = rds.NewFromConfig(cfg)
@@ -75,10 +74,16 @@ func listDBSubnetGroups(ctx context.Context, client DBSubnetGroupsAPI, scope res
 			if !excludeFirstSeenTag {
 				firstSeenTime = parseFirstSeenTag(tags)
 				if firstSeenTime == nil {
-					if err := setDBSubnetGroupFirstSeenTag(ctx, client, subnetGroup.DBSubnetGroupArn, time.Now().UTC()); err != nil {
+					err := setDBSubnetGroupFirstSeenTag(ctx, client, subnetGroup.DBSubnetGroupArn, time.Now().UTC())
+					if err != nil {
 						logging.Warnf(
 							"Unable to tag DB subnet group %s with %s, so a time filter can never include it: %v",
 							aws.ToString(subnetGroup.DBSubnetGroupName), firstSeenTagKey, err)
+					} else if cfg.HasTimeFilter() {
+						// The tag is this run's clock, so a time filter leaves the
+						// group for a later run. The age is known, and the group
+						// is not one whose age could not be read.
+						continue
 					}
 				}
 			}

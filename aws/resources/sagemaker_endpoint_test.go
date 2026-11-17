@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/resource"
-	"github.com/gruntwork-io/cloud-nuke/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -120,8 +119,7 @@ func TestListSageMakerEndpoints(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.WithValue(context.Background(), util.AccountIdKey, "test-account-id")
-			names, err := listSageMakerEndpoints(ctx, mock, resource.Scope{Region: "us-east-1"}, tc.configObj)
+			names, err := listSageMakerEndpoints(context.Background(), mock, resource.Scope{Region: "us-east-1", AccountID: "test-account-id"}, tc.configObj)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, aws.ToStringSlice(names))
 		})

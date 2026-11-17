@@ -339,6 +339,25 @@ func TestShouldInclude_NilTimeWithFilter(t *testing.T) {
 		assert.True(t, r.ShouldInclude(ResourceValue{Name: aws.String("rds-still-creating")}))
 	})
 
+	t.Run("only a missing age is counted, and a copy counts into the same total", func(t *testing.T) {
+		hourAgo := time.Now().Add(-1 * time.Hour)
+		excludedName, err := regexp.Compile("^skip-")
+		require.NoError(t, err)
+		r, undated := ResourceType{ExcludeRule: FilterRule{
+			TimeAfter:   &hourAgo,
+			NamesRegExp: []Expression{{RE: *excludedName}},
+		}}.CountingUndated()
+
+		assert.False(t, r.ShouldInclude(ResourceValue{Name: aws.String("skip-me")}), "a name rule leaves it out before the age does")
+		assert.False(t, r.ShouldInclude(ResourceValue{Name: aws.String("undated")}))
+		old := time.Now().Add(-2 * time.Hour)
+		assert.True(t, r.ShouldInclude(ResourceValue{Name: aws.String("old"), Time: &old}))
+
+		copy := r
+		assert.False(t, copy.ShouldInclude(ResourceValue{Name: aws.String("also-undated")}))
+		assert.Equal(t, int64(2), undated.Load())
+	})
+
 	t.Run("non-nil time still routes through ShouldIncludeBasedOnTime", func(t *testing.T) {
 		r := ResourceType{ExcludeRule: FilterRule{TimeAfter: &hourAgo}}
 		// Resource created 30 minutes ago: newer than the 1h cutoff, must be excluded.

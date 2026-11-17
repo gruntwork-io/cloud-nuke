@@ -15,7 +15,8 @@ func GetAllRegisteredResources() []*resources.AwsResource {
 }
 
 // GetAndInitRegisteredResources - returns a list of all registered resources with initialization.
-func GetAndInitRegisteredResources(session aws.Config, region string) []*resources.AwsResource {
+// accountID is the account the session belongs to, or empty when it could not be read.
+func GetAndInitRegisteredResources(session aws.Config, region, accountID string) []*resources.AwsResource {
 	var registeredResources []resources.AwsResource
 	if region == GlobalRegion {
 		registeredResources = getRegisteredGlobalResources()
@@ -23,7 +24,7 @@ func GetAndInitRegisteredResources(session aws.Config, region string) []*resourc
 		registeredResources = getRegisteredRegionalResources()
 	}
 
-	return initRegisteredResources(toAwsResourcesPointer(registeredResources), session, region)
+	return initRegisteredResources(toAwsResourcesPointer(registeredResources), session, accountID)
 }
 
 // GetRegisteredGlobalResources - returns a list of registered global resources.
@@ -200,9 +201,9 @@ func toAwsResourcesPointer(res []resources.AwsResource) []*resources.AwsResource
 	return awsResourcePointers
 }
 
-func initRegisteredResources(res []*resources.AwsResource, session aws.Config, region string) []*resources.AwsResource {
+func initRegisteredResources(res []*resources.AwsResource, session aws.Config, accountID string) []*resources.AwsResource {
 	for _, r := range res {
-		(*r).Init(session)
+		(*r).Init(session, accountID)
 	}
 
 	return res

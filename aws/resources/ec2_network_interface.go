@@ -42,7 +42,7 @@ func NewNetworkInterface() AwsResource {
 		func(c config.Config) config.EC2ResourceType { return c.NetworkInterface },
 		listNetworkInterfaces,
 		resource.SequentialDeleter(deleteNetworkInterfaceWithDetach),
-		&EC2ResourceOptions[NetworkInterfaceAPI]{PermissionVerifier: verifyNetworkInterfacePermission, FirstSeenTag: true},
+		&EC2ResourceOptions[NetworkInterfaceAPI]{PermissionVerifier: verifyNetworkInterfacePermission},
 	)
 }
 

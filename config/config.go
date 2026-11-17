@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gruntwork-io/cloud-nuke/logging"
@@ -412,6 +413,19 @@ type ResourceType struct {
 	ExcludeRule        FilterRule `yaml:"exclude"`
 	Timeout            string     `yaml:"timeout"`
 	ProtectUntilExpire *bool      `yaml:"protect_until_expire"`
+
+	// undated, when set, counts the resources ShouldInclude leaves out only
+	// because a time filter cannot read their age. Every copy of this value
+	// adds to the same counter.
+	undated *atomic.Int64
+}
+
+// CountingUndated returns a copy of r whose ShouldInclude counts, in the
+// returned counter, each resource it leaves out only because a time filter
+// cannot read its age: one that passes the name and tag rules but has no time.
+func (r ResourceType) CountingUndated() (ResourceType, *atomic.Int64) {
+	r.undated = new(atomic.Int64)
+	return r, r.undated
 }
 
 type FilterRule struct {
@@ -673,18 +687,24 @@ func (r ResourceType) ShouldInclude(value ResourceValue) bool {
 		return false
 	}
 
-	// AWS returns nil creation time for resources in transitional states (e.g.
-	// RDS `creating`). Exclude when a time filter is set to avoid the race.
-	if value.Time == nil {
-		if r.hasTimeFilter() {
-			logging.Debugf("Resource has no creation time but a time filter is set - excluding for safety")
-			return false
-		}
-	} else if !r.ShouldIncludeBasedOnTime(*value.Time) {
+	if value.Time != nil && !r.ShouldIncludeBasedOnTime(*value.Time) {
 		return false
 	}
 
 	if !r.ShouldIncludeBasedOnTag(value.Tags) {
+		return false
+	}
+
+	// AWS returns nil creation time for resources in transitional states (e.g.
+	// RDS `creating`), and some types never report one. Exclude when a time
+	// filter is set, since the filter cannot be applied to an age it cannot
+	// read. The name and tag rules run first, so the count holds only the
+	// resources the missing age alone left out.
+	if value.Time == nil && r.hasTimeFilter() {
+		logging.Debugf("Resource has no creation time but a time filter is set - excluding for safety")
+		if r.undated != nil {
+			r.undated.Add(1)
+		}
 		return false
 	}
 
