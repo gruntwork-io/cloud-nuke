@@ -62,8 +62,9 @@ func listTransitGateways(ctx context.Context, client TransitGatewaysAPI, scope r
 				continue
 			}
 
-			// Skip if owned by a different account
-			if currentOwner != "" && transitGateway.OwnerId != nil && currentOwner != aws.ToString(transitGateway.OwnerId) {
+			// Skip if owned by a different account. An unknown account id
+			// matches no owner, so the filter fails closed.
+			if transitGateway.OwnerId != nil && currentOwner != aws.ToString(transitGateway.OwnerId) {
 				logging.Debugf("[Skipping] Transit Gateway %s owned by different account", aws.ToString(transitGateway.TransitGatewayId))
 				continue
 			}
