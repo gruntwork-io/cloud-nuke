@@ -85,7 +85,16 @@ func listArtifactRegistryRepositories(ctx context.Context, client ArtifactRegist
 	}
 
 	var result []*string
+	var failed []string
+	var lastErr error
+
 	for _, location := range locations {
+		// A cancelled run stops here rather than logging every remaining
+		// location as a failure and handing back a partial list as if whole.
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		parent := fmt.Sprintf("projects/%s/locations/%s", scope.ProjectID, location)
 
 		// One location answering an error is not worth ending the scan: a
@@ -93,7 +102,14 @@ func listArtifactRegistryRepositories(ctx context.Context, client ArtifactRegist
 		// location did answer with are as good as any other location's.
 		repositories, err := client.ListRepositories(ctx, parent)
 		if err != nil {
+			// The cancel can land during the last location, with no pass
+			// left to catch it.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
 			logging.Debugf("error listing artifact registry repositories in %s, keeping the %d read so far: %v", location, len(repositories), err)
+			failed = append(failed, location)
+			lastErr = err
 		}
 
 		for _, repository := range repositories {
@@ -123,6 +139,17 @@ func listArtifactRegistryRepositories(ctx context.Context, client ArtifactRegist
 				result = append(result, &fullName)
 			}
 		}
+	}
+
+	// Every location failing is not a project with no repositories. It is a
+	// scan that never finished anywhere, and answering with what it has would
+	// tell the engineer the project is clean, or cleaner than it is.
+	if len(locations) > 0 && len(failed) == len(locations) {
+		return nil, fmt.Errorf("could not list artifact registry repositories in any of the %d locations, the last failure in %s: %w", len(locations), failed[len(failed)-1], lastErr)
+	}
+
+	if len(failed) > 0 {
+		logging.Warnf("Could not list every artifact registry repository in %d of %d locations (%s), so any repository there that was not read is left alone.", len(failed), len(locations), strings.Join(failed, ", "))
 	}
 
 	return result, nil

@@ -14,13 +14,15 @@ import (
 )
 
 // fakeArtifactRegistry answers with the locations and repositories a test
-// names, and can fail one location to show the scan carries on.
+// names, can fail any of the locations, and can run a hook as each location is
+// asked, which is how a test cancels a run part way through.
 type fakeArtifactRegistry struct {
-	locations      []string
-	byLocation     map[string][]ArtifactRepository
-	failInLocation string
-	parentsSeen    []string
-	deleted        []string
+	locations   []string
+	byLocation  map[string][]ArtifactRepository
+	failIn      map[string]bool
+	onList      func(parent string)
+	parentsSeen []string
+	deleted     []string
 }
 
 func (f *fakeArtifactRegistry) ListLocations(ctx context.Context, project string) ([]string, error) {
@@ -29,7 +31,10 @@ func (f *fakeArtifactRegistry) ListLocations(ctx context.Context, project string
 
 func (f *fakeArtifactRegistry) ListRepositories(ctx context.Context, parent string) ([]ArtifactRepository, error) {
 	f.parentsSeen = append(f.parentsSeen, parent)
-	if f.failInLocation != "" && parent == f.failInLocation {
+	if f.onList != nil {
+		f.onList(parent)
+	}
+	if f.failIn[parent] {
 		// A paged listing hands back the pages that arrived along with the
 		// error that ended it, so the fake answers with both.
 		return f.byLocation[parent], errors.New("the location is unavailable")
@@ -77,8 +82,8 @@ func TestListArtifactRegistryKeepsGoingWhenOneLocationFails(t *testing.T) {
 	t.Parallel()
 
 	client := &fakeArtifactRegistry{
-		locations:      []string{"us-central1", "europe-west4"},
-		failInLocation: "projects/p/locations/us-central1",
+		locations: []string{"us-central1", "europe-west4"},
+		failIn:    map[string]bool{"projects/p/locations/us-central1": true},
 		byLocation: map[string][]ArtifactRepository{
 			"projects/p/locations/europe-west4": {{Name: "projects/p/locations/europe-west4/repositories/two"}},
 		},
@@ -150,10 +155,11 @@ func TestListArtifactRegistryKeepsWhatALocationReadBeforeItFailed(t *testing.T) 
 	t.Parallel()
 
 	client := &fakeArtifactRegistry{
-		locations:      []string{"us-central1"},
-		failInLocation: "projects/p/locations/us-central1",
+		locations: []string{"us-central1", "europe-west4"},
+		failIn:    map[string]bool{"projects/p/locations/us-central1": true},
 		byLocation: map[string][]ArtifactRepository{
-			"projects/p/locations/us-central1": {{Name: "projects/p/locations/us-central1/repositories/read"}},
+			"projects/p/locations/us-central1":  {{Name: "projects/p/locations/us-central1/repositories/read"}},
+			"projects/p/locations/europe-west4": {{Name: "projects/p/locations/europe-west4/repositories/two"}},
 		},
 	}
 
@@ -164,8 +170,88 @@ func TestListArtifactRegistryKeepsWhatALocationReadBeforeItFailed(t *testing.T) 
 	// pages that arrived. Discarding them would leave repositories behind
 	// that the project had already named.
 	require.NoError(t, err)
-	require.Len(t, identifiers, 1)
+	require.Len(t, identifiers, 2)
 	assert.Equal(t, "projects/p/locations/us-central1/repositories/read", *identifiers[0])
+	assert.Equal(t, "projects/p/locations/europe-west4/repositories/two", *identifiers[1])
+}
+
+func TestListArtifactRegistryFailsWhenEveryLocationFails(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeArtifactRegistry{
+		locations: []string{"us-central1", "europe-west4"},
+		failIn: map[string]bool{
+			"projects/p/locations/us-central1":  true,
+			"projects/p/locations/europe-west4": true,
+		},
+		byLocation: map[string][]ArtifactRepository{
+			"projects/p/locations/us-central1": {{Name: "projects/p/locations/us-central1/repositories/read"}},
+		},
+	}
+
+	identifiers, err := listArtifactRegistryRepositories(context.Background(), client,
+		resource.Scope{ProjectID: "p"}, config.ResourceType{})
+
+	// A scan that finished in no location learned too little to report on,
+	// and answering without an error would tell the engineer the project is
+	// clean, or cleaner than it is.
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "any of the 2 locations")
+	assert.Nil(t, identifiers)
+}
+
+func TestListArtifactRegistryStopsWhenTheRunIsCancelledBetweenLocations(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client := &fakeArtifactRegistry{
+		locations: []string{"us-central1", "europe-west4"},
+		byLocation: map[string][]ArtifactRepository{
+			"projects/p/locations/us-central1":  {{Name: "projects/p/locations/us-central1/repositories/one"}},
+			"projects/p/locations/europe-west4": {{Name: "projects/p/locations/europe-west4/repositories/two"}},
+		},
+		// The engineer presses Ctrl+C while the first location answers.
+		onList: func(string) { cancel() },
+	}
+
+	identifiers, err := listArtifactRegistryRepositories(ctx, client,
+		resource.Scope{ProjectID: "p"}, config.ResourceType{})
+
+	// The run says it was cancelled rather than handing back the first
+	// location's repositories as if they were the whole project's.
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, identifiers)
+	assert.Equal(t, []string{"projects/p/locations/us-central1"}, client.parentsSeen)
+}
+
+func TestListArtifactRegistryStopsWhenTheRunIsCancelledDuringTheLastLocation(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client := &fakeArtifactRegistry{
+		locations: []string{"us-central1", "europe-west4"},
+		failIn:    map[string]bool{"projects/p/locations/europe-west4": true},
+		byLocation: map[string][]ArtifactRepository{
+			"projects/p/locations/us-central1": {{Name: "projects/p/locations/us-central1/repositories/one"}},
+		},
+		// The cancel lands while the last location answers, so its listing
+		// ends in an error and no later pass is left to notice the cancel.
+		onList: func(parent string) {
+			if parent == "projects/p/locations/europe-west4" {
+				cancel()
+			}
+		},
+	}
+
+	identifiers, err := listArtifactRegistryRepositories(ctx, client,
+		resource.Scope{ProjectID: "p"}, config.ResourceType{})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, identifiers)
 }
 
 func TestNukeArtifactRegistryDeletesByFullName(t *testing.T) {
