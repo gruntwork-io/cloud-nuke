@@ -7,6 +7,7 @@ import (
 
 	"github.com/gruntwork-io/cloud-nuke/aws/resources"
 	"github.com/gruntwork-io/cloud-nuke/config"
+	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/reporting"
 	"github.com/gruntwork-io/cloud-nuke/resource"
 	"github.com/gruntwork-io/cloud-nuke/util"
@@ -43,7 +44,29 @@ func GetAllResources(c context.Context, query *Query, configObj config.Config, c
 
 // NukeAllResources - Nukes all aws resources
 func NukeAllResources(ctx context.Context, account *AwsAccountResources, regions []string, parallelism int, collector *reporting.Collector) error {
+	ctx = withAccountID(ctx, regions)
 	return resource.NukeAll(ctx, &provider{regions: regions}, foundFrom(account, regions), resource.NukeRequest{Parallelism: parallelism}, collector)
+}
+
+// withAccountID sets the account ID that some nukers (s3-access-point, s3-object-lambda-access-point,
+// sagemaker-endpoint) read from the context. The scan sets it per region in provider.Prepare, but
+// NukeAll runs on the caller's context, so without this those deletes fail with
+// "unable to lookup the account id".
+func withAccountID(ctx context.Context, regions []string) context.Context {
+	if _, ok := ctx.Value(util.AccountIdKey).(string); ok || len(regions) == 0 {
+		return ctx
+	}
+	session, err := NewSession(regions[0])
+	if err != nil {
+		logging.Errorf("unable to create a session to look up the account ID: %v", err)
+		return ctx
+	}
+	accountID, err := util.GetCurrentAccountId(session)
+	if err != nil {
+		logging.Errorf("unable to look up the account ID: %v", err)
+		return ctx
+	}
+	return context.WithValue(ctx, util.AccountIdKey, accountID)
 }
 
 // accountResourcesFrom converts what the engine found into the account-shaped
