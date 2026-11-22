@@ -46,6 +46,13 @@ func listEIPAddresses(ctx context.Context, client EIPAddressesAPI, scope resourc
 
 	var allocationIds []*string
 	for _, address := range result.Addresses {
+		// ReleaseAddress rejects an associated address with InvalidIPAddress.InUse. It is released by a
+		// later run, once the instance or NAT gateway holding it is nuked or it is disassociated.
+		if address.AssociationId != nil {
+			logging.Debugf("[Skip] EIP %s is associated (%s)", aws.ToString(address.AllocationId), aws.ToString(address.AssociationId))
+			continue
+		}
+
 		firstSeenTime, err := util.GetOrCreateFirstSeen(ctx, client, address.AllocationId, util.ConvertTypesTagsToMap(address.Tags))
 		if err != nil {
 			logging.Errorf("Unable to retrieve tags for EIP %s: %v", aws.ToString(address.AllocationId), err)

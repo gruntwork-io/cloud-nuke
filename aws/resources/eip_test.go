@@ -55,6 +55,14 @@ func TestListEIPAddresses(t *testing.T) {
 						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
 					},
 				},
+				{
+					AllocationId:  aws.String("eipalloc-associated"),
+					AssociationId: aws.String("eipassoc-1"),
+					Tags: []types.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-eip-associated")},
+						{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+					},
+				},
 			},
 		},
 	}
