@@ -187,6 +187,49 @@ func TestListNetworkInterfaces(t *testing.T) {
 			expected: []string{"eni-001"},
 		},
 		{
+			name: "skips attached and requester-managed interfaces",
+			mock: &mockNetworkInterfaceClient{
+				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{
+					NetworkInterfaces: []types.NetworkInterface{
+						{
+							NetworkInterfaceId: aws.String("eni-001"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							TagSet: []types.Tag{
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+						{
+							NetworkInterfaceId: aws.String("eni-002"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							Attachment:         &types.NetworkInterfaceAttachment{InstanceId: aws.String("i-protected")},
+							TagSet: []types.Tag{
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+						{
+							NetworkInterfaceId: aws.String("eni-003"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							RequesterManaged:   aws.Bool(true),
+							RequesterId:        aws.String("amazon-elb"),
+							TagSet: []types.Tag{
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+						{
+							NetworkInterfaceId: aws.String("eni-004"),
+							InterfaceType:      NetworkInterfaceTypeInterface,
+							Attachment:         &types.NetworkInterfaceAttachment{InstanceOwnerId: aws.String("123456789012")},
+							TagSet: []types.Tag{
+								{Key: aws.String(util.FirstSeenTagKey), Value: aws.String(util.FormatTimestamp(now))},
+							},
+						},
+					},
+				},
+			},
+			cfg:      config.ResourceType{},
+			expected: []string{"eni-001"},
+		},
+		{
 			name: "excludes by time after",
 			mock: &mockNetworkInterfaceClient{
 				DescribeOutput: ec2.DescribeNetworkInterfacesOutput{

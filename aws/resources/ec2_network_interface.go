@@ -101,6 +101,24 @@ func listNetworkInterfaces(ctx context.Context, client NetworkInterfaceAPI, scop
 				continue
 			}
 
+			// Only unattached interfaces are nuked. Deleting an interface attached to an instance in this
+			// account terminates that instance, bypassing the ec2 resource type's filters (tags, age) for it.
+			// Other attachments belong to the service that made them (EKS control plane and Fargate, MSK,
+			// ELB, RDS, often on instances in AWS-owned accounts) and go away with that service.
+			if networkInterface.Attachment != nil {
+				logging.Debugf("[Skip] Network interface %s is attached (instance %s, owner %s)",
+					aws.ToString(networkInterface.NetworkInterfaceId), aws.ToString(networkInterface.Attachment.InstanceId),
+					aws.ToString(networkInterface.Attachment.InstanceOwnerId))
+				continue
+			}
+
+			// AWS rejects deleting a requester-managed interface; it is removed with the service that created it.
+			if aws.ToBool(networkInterface.RequesterManaged) {
+				logging.Debugf("[Skip] Network interface %s is managed by %s",
+					aws.ToString(networkInterface.NetworkInterfaceId), aws.ToString(networkInterface.RequesterId))
+				continue
+			}
+
 			if shouldIncludeNetworkInterface(networkInterface, firstSeenTime, cfg) {
 				interfaceIds = append(interfaceIds, networkInterface.NetworkInterfaceId)
 			}
