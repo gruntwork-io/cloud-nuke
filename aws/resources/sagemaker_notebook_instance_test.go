@@ -19,6 +19,7 @@ type mockSageMakerNotebookClient struct {
 	StopNotebookInstanceOutput     sagemaker.StopNotebookInstanceOutput
 	DeleteNotebookInstanceOutput   sagemaker.DeleteNotebookInstanceOutput
 	DescribeNotebookInstanceOutput sagemaker.DescribeNotebookInstanceOutput
+	StopCalls                      int
 }
 
 func (m *mockSageMakerNotebookClient) ListNotebookInstances(ctx context.Context, params *sagemaker.ListNotebookInstancesInput, optFns ...func(*sagemaker.Options)) (*sagemaker.ListNotebookInstancesOutput, error) {
@@ -26,6 +27,7 @@ func (m *mockSageMakerNotebookClient) ListNotebookInstances(ctx context.Context,
 }
 
 func (m *mockSageMakerNotebookClient) StopNotebookInstance(ctx context.Context, params *sagemaker.StopNotebookInstanceInput, optFns ...func(*sagemaker.Options)) (*sagemaker.StopNotebookInstanceOutput, error) {
+	m.StopCalls++
 	return &m.StopNotebookInstanceOutput, nil
 }
 
@@ -111,6 +113,35 @@ func TestStopNotebookInstance(t *testing.T) {
 	mock := &mockSageMakerNotebookClient{}
 	err := stopNotebookInstance(context.Background(), mock, aws.String("test-notebook"))
 	require.NoError(t, err)
+}
+
+func TestStopNotebookInstanceSkipsDeletableStates(t *testing.T) {
+	t.Parallel()
+
+	tests := map[types.NotebookInstanceStatus]int{
+		types.NotebookInstanceStatusInService: 1,
+		types.NotebookInstanceStatusStopped:   0,
+		types.NotebookInstanceStatusFailed:    0,
+	}
+	for status, wantStopCalls := range tests {
+		t.Run(string(status), func(t *testing.T) {
+			t.Parallel()
+			mock := &mockSageMakerNotebookClient{
+				DescribeNotebookInstanceOutput: sagemaker.DescribeNotebookInstanceOutput{NotebookInstanceStatus: status},
+			}
+			require.NoError(t, stopNotebookInstance(context.Background(), mock, aws.String("test-notebook")))
+			require.Equal(t, wantStopCalls, mock.StopCalls)
+		})
+	}
+}
+
+func TestWaitNotebookInstanceStoppedSkipsFailed(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSageMakerNotebookClient{
+		DescribeNotebookInstanceOutput: sagemaker.DescribeNotebookInstanceOutput{NotebookInstanceStatus: types.NotebookInstanceStatusFailed},
+	}
+	require.NoError(t, waitNotebookInstanceStopped(context.Background(), mock, aws.String("test-notebook")))
 }
 
 func TestDeleteNotebookInstance(t *testing.T) {

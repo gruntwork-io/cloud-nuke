@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
+	"github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
 	"github.com/gruntwork-io/cloud-nuke/config"
 	"github.com/gruntwork-io/cloud-nuke/logging"
 	"github.com/gruntwork-io/cloud-nuke/resource"
@@ -88,18 +89,40 @@ func listSageMakerNotebookInstances(ctx context.Context, client SageMakerNoteboo
 	return names, nil
 }
 
-// stopNotebookInstance stops a SageMaker notebook instance.
-// Stopping is required before deletion.
-func stopNotebookInstance(ctx context.Context, client SageMakerNotebookInstancesAPI, name *string) error {
-	_, err := client.StopNotebookInstance(ctx, &sagemaker.StopNotebookInstanceInput{
+// notebookIsDeletable reports whether DeleteNotebookInstance accepts the notebook as it is:
+// AWS deletes a notebook only in the Stopped or Failed state.
+func notebookIsDeletable(ctx context.Context, client SageMakerNotebookInstancesAPI, name *string) (bool, error) {
+	out, err := client.DescribeNotebookInstance(ctx, &sagemaker.DescribeNotebookInstanceInput{
 		NotebookInstanceName: name,
 	})
-	// Ignore error if the notebook is already stopped or stopping
+	if err != nil {
+		return false, err
+	}
+	status := out.NotebookInstanceStatus
+	return status == types.NotebookInstanceStatusStopped || status == types.NotebookInstanceStatusFailed, nil
+}
+
+// stopNotebookInstance stops a SageMaker notebook instance.
+// Stopping is required before deletion. StopNotebookInstance rejects a notebook that is
+// not InService, so a notebook that is already deletable is left as it is.
+func stopNotebookInstance(ctx context.Context, client SageMakerNotebookInstancesAPI, name *string) error {
+	deletable, err := notebookIsDeletable(ctx, client, name)
+	if err != nil || deletable {
+		return err
+	}
+	_, err = client.StopNotebookInstance(ctx, &sagemaker.StopNotebookInstanceInput{
+		NotebookInstanceName: name,
+	})
 	return err
 }
 
 // waitNotebookInstanceStopped waits for the notebook instance to reach the Stopped state.
+// The waiter treats Failed as a terminal error, so a Failed notebook skips the wait.
 func waitNotebookInstanceStopped(ctx context.Context, client SageMakerNotebookInstancesAPI, name *string) error {
+	deletable, err := notebookIsDeletable(ctx, client, name)
+	if err != nil || deletable {
+		return err
+	}
 	waiter := sagemaker.NewNotebookInstanceStoppedWaiter(client)
 	return waiter.Wait(ctx, &sagemaker.DescribeNotebookInstanceInput{
 		NotebookInstanceName: name,
